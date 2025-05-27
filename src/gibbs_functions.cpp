@@ -183,7 +183,7 @@ void metropolis_thresholds_regular(
     b = no_persons + threshold_beta - n_cat_obs(category + 1, variable);
     tmp = R::rbeta(a, b);
     proposed_state = MY_LOG(tmp / (1  - tmp) / c);
-    exp_proposed = exp(proposed_state);
+    exp_proposed = MY_EXP(proposed_state);
 
     //Compute log_acceptance probability for Metropolis.
     //First, we use g and q above to compute the ratio of pseudolikelihoods
@@ -306,7 +306,7 @@ void metropolis_thresholds_blumecapel(
   }
 
   double update_proposal_sd = proposal_sd_blumecapel(variable, 0) +
-    (log_prob - target_ar) * MY_EXP(-log(t) * phi);
+    (log_prob - target_ar) * MY_EXP(-MY_LOG(t) * phi);
 
   if(std::isnan(update_proposal_sd) == true) {
     update_proposal_sd = 1.0;
@@ -387,7 +387,7 @@ void metropolis_thresholds_blumecapel(
   }
 
   update_proposal_sd = proposal_sd_blumecapel(variable, 1) +
-    (log_prob - target_ar) * MY_EXP(-log(t) * phi);
+    (log_prob - target_ar) * MY_EXP(-MY_LOG(t) * phi);
 
   if(std::isnan(update_proposal_sd) == true) {
     update_proposal_sd = 1.0;
@@ -697,7 +697,7 @@ void metropolis_interactions(
         }
 
         double update_proposal_sd = proposal_sd(variable1, variable2) +
-          (log_prob - target_ar) * MY_EXP(-log(t) * phi);
+          (log_prob - target_ar) * MY_EXP(-MY_LOG(t) * phi);
 
         if(std::isnan(update_proposal_sd) == true) {
           update_proposal_sd = 1.0;
@@ -772,7 +772,7 @@ void metropolis_edge_interaction_pair(
                            proposal_sd(variable1, variable2),
                            true);
 
-      log_prob += log(theta(variable1, variable2) / (1 - theta(variable1, variable2)));
+      log_prob += MY_LOG(theta(variable1, variable2) / (1 - theta(variable1, variable2)));
     } else {
       log_prob -= R::dcauchy(current_state, 0.0, interaction_scale, true);
       log_prob += R::dnorm(current_state,
@@ -780,7 +780,7 @@ void metropolis_edge_interaction_pair(
                            proposal_sd(variable1, variable2),
                            true);
 
-      log_prob -= log(theta(variable1, variable2) / (1 - theta(variable1, variable2)));
+      log_prob -= MY_LOG(theta(variable1, variable2) / (1 - theta(variable1, variable2)));
     }
 
     U = R::unif_rand();
