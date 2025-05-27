@@ -5,6 +5,21 @@
 #include <progress_bar.hpp>
 using namespace Rcpp;
 
+inline double fast_exp(double x) {
+  // 5th-order Pade approximant
+  return 1.0 + x * (1.0 + x * (0.5 + x * (1.0/6.0 + x * (1.0/24.0 + x * (1.0/120.0)))));
+}
+
+inline double fast_log_bitwise(double x) {
+  int* xp = reinterpret_cast<int*>(&x);
+  int log2 = ((xp[1] >> 20) & 0x7FF) - 1023;  // Extract exponent bits
+  double y = x / std::ldexp(1.0, log2);       // Normalize mantissa
+  return log2 * 0.69314718 + (y - 1) - (y - 1)*(y - 1)/2;  // linear/quadratic correction
+}
+
+#define MY_EXP fast_exp
+#define MY_LOG fast_log_bitwise
+
 // ----------------------------------------------------------------------------|
 // Impute missing data from full-conditional
 // ----------------------------------------------------------------------------|
@@ -50,7 +65,7 @@ List impute_missing_data(
       for(int category = 0; category < no_categories[variable]; category++) {
         exponent = thresholds(variable, category);
         exponent += (category + 1) * rest_score;
-        cumsum += std::exp(exponent);
+        cumsum += MY_EXP(exponent);
         probabilities[category + 1] = cumsum;
       }
 
@@ -60,7 +75,7 @@ List impute_missing_data(
       exponent = thresholds(variable, 1) *
         reference_category[variable] *
         reference_category[variable];
-      cumsum = std::exp(exponent);
+      cumsum = MY_EXP(exponent);
       probabilities[0] = cumsum;
       for(int category = 0; category < no_categories[variable]; category++) {
         exponent = thresholds(variable, 0) * (category + 1);
@@ -68,7 +83,7 @@ List impute_missing_data(
           (category + 1 - reference_category[variable]) *
           (category + 1 - reference_category[variable]);
         exponent += (category + 1) * rest_score;
-        cumsum += std::exp(exponent);
+        cumsum += MY_EXP(exponent);
         probabilities[category + 1] = cumsum;
       }
     }
@@ -145,7 +160,7 @@ void metropolis_thresholds_regular(
 
   for(int category = 0; category < no_categories[variable]; category++) {
     current_state = thresholds(variable, category);
-    exp_current = std::exp(current_state);
+    exp_current = MY_EXP(current_state);
     c = (threshold_alpha + threshold_beta) / (1 + exp_current);
     for(int person = 0; person < no_persons; person++) {
       g[person] = 1.0;
@@ -153,11 +168,11 @@ void metropolis_thresholds_regular(
       rest_score = rest_matrix(person, variable);
       for(int cat = 0; cat < no_categories[variable]; cat++) {
         if(cat != category) {
-          g[person] += std::exp(thresholds(variable, cat) +
+          g[person] += MY_EXP(thresholds(variable, cat) +
             (cat + 1) * rest_score);
         }
       }
-      q[person] = std::exp((category + 1) * rest_score);
+      q[person] = MY_EXP((category + 1) * rest_score);
       c +=  q[person] / (g[person] + q[person] * exp_current);
     }
     c = c / ((no_persons + threshold_alpha + threshold_beta) -
@@ -167,26 +182,26 @@ void metropolis_thresholds_regular(
     a = n_cat_obs(category + 1, variable) + threshold_alpha;
     b = no_persons + threshold_beta - n_cat_obs(category + 1, variable);
     tmp = R::rbeta(a, b);
-    proposed_state = std::log(tmp / (1  - tmp) / c);
+    proposed_state = MY_LOG(tmp / (1  - tmp) / c);
     exp_proposed = exp(proposed_state);
 
     //Compute log_acceptance probability for Metropolis.
     //First, we use g and q above to compute the ratio of pseudolikelihoods
     log_prob = 0;
     for(int person = 0; person < no_persons; person++) {
-      log_prob += std::log(g[person] + q[person] * exp_current);
-      log_prob -= std::log(g[person] + q[person] * exp_proposed);
+      log_prob += MY_LOG(g[person] + q[person] * exp_current);
+      log_prob -= MY_LOG(g[person] + q[person] * exp_proposed);
     }
     //Second, we add the ratio of prior probabilities
     log_prob -= (threshold_alpha + threshold_beta) *
-      std::log(1 + exp_proposed);
+      MY_LOG(1 + exp_proposed);
     log_prob += (threshold_alpha + threshold_beta) *
-      std::log(1 + exp_current);
+      MY_LOG(1 + exp_current);
     //Third, we add the ratio of proposals
-    log_prob -= (a + b) * std::log(1 + c * exp_current);
-    log_prob += (a + b) * std::log(1 + c * exp_proposed);
+    log_prob -= (a + b) * MY_LOG(1 + c * exp_current);
+    log_prob += (a + b) * MY_LOG(1 + c * exp_proposed);
 
-    U = std::log(R::unif_rand());
+    U = MY_LOG(R::unif_rand());
     if(U < log_prob) {
       thresholds(variable, category) = proposed_state;
     }
@@ -262,24 +277,24 @@ void metropolis_thresholds_blumecapel(
     } else {
       bound = lbound;
     }
-    numerator = std::exp(constant_numerator[0] - bound);
-    denominator = std::exp(constant_denominator[0] - bound);
+    numerator = MY_EXP(constant_numerator[0] - bound);
+    denominator = MY_EXP(constant_denominator[0] - bound);
     for(int category = 0; category < no_categories[variable]; category ++) {
       exponent = (category + 1) * rest_score - bound;
-      numerator += std::exp(constant_numerator[category + 1] + exponent);
-      denominator += std::exp(constant_denominator[category + 1] + exponent);
+      numerator += MY_EXP(constant_numerator[category + 1] + exponent);
+      denominator += MY_EXP(constant_denominator[category + 1] + exponent);
     }
-    log_prob += std::log(numerator);
-    log_prob -= std::log(denominator);
+    log_prob += MY_LOG(numerator);
+    log_prob -= MY_LOG(denominator);
   }
 
   log_prob += (threshold_alpha + threshold_beta) *
-    std::log(1 + std::exp(current_state));
+    MY_LOG(1 + MY_EXP(current_state));
   log_prob -= (threshold_alpha + threshold_beta) *
-    std::log(1 + std::exp(proposed_state));
+    MY_LOG(1 + MY_EXP(proposed_state));
 
   U = R::unif_rand();
-  if(std::log(U) < log_prob) {
+  if(MY_LOG(U) < log_prob) {
     thresholds(variable, 0) = proposed_state;
   }
 
@@ -287,11 +302,11 @@ void metropolis_thresholds_blumecapel(
   if(log_prob > 0) {
     log_prob = 1;
   } else {
-    log_prob = std::exp(log_prob);
+    log_prob = MY_EXP(log_prob);
   }
 
   double update_proposal_sd = proposal_sd_blumecapel(variable, 0) +
-    (log_prob - target_ar) * std::exp(-log(t) * phi);
+    (log_prob - target_ar) * MY_EXP(-log(t) * phi);
 
   if(std::isnan(update_proposal_sd) == true) {
     update_proposal_sd = 1.0;
@@ -342,25 +357,25 @@ void metropolis_thresholds_blumecapel(
       bound = lbound;
     }
 
-    numerator = std::exp(constant_numerator[0] - bound);
-    denominator = std::exp(constant_denominator[0] - bound);
+    numerator = MY_EXP(constant_numerator[0] - bound);
+    denominator = MY_EXP(constant_denominator[0] - bound);
 
     for(int category = 0; category < no_categories[variable]; category ++) {
       exponent = (category + 1) * rest_score - bound;
-      numerator += std::exp(constant_numerator[category + 1] + exponent);
-      denominator += std::exp(constant_denominator[category + 1] + exponent);
+      numerator += MY_EXP(constant_numerator[category + 1] + exponent);
+      denominator += MY_EXP(constant_denominator[category + 1] + exponent);
     }
 
-    log_prob += std::log(numerator);
-    log_prob -= std::log(denominator);
+    log_prob += MY_LOG(numerator);
+    log_prob -= MY_LOG(denominator);
   }
   log_prob += (threshold_alpha + threshold_beta) *
-    std::log(1 + std::exp(current_state));
+    MY_LOG(1 + MY_EXP(current_state));
   log_prob -= (threshold_alpha + threshold_beta) *
-    std::log(1 + std::exp(proposed_state));
+    MY_LOG(1 + MY_EXP(proposed_state));
 
   U = R::unif_rand();
-  if(std::log(U) < log_prob) {
+  if(MY_LOG(U) < log_prob) {
     thresholds(variable, 1) = proposed_state;
   }
 
@@ -368,11 +383,11 @@ void metropolis_thresholds_blumecapel(
   if(log_prob > 0) {
     log_prob = 1;
   } else {
-    log_prob = std::exp(log_prob);
+    log_prob = MY_EXP(log_prob);
   }
 
   update_proposal_sd = proposal_sd_blumecapel(variable, 1) +
-    (log_prob - target_ar) * std::exp(-log(t) * phi);
+    (log_prob - target_ar) * MY_EXP(-log(t) * phi);
 
   if(std::isnan(update_proposal_sd) == true) {
     update_proposal_sd = 1.0;
@@ -383,6 +398,114 @@ void metropolis_thresholds_blumecapel(
 
 }
 
+double log_pseudolikelihood_ratio(
+    const NumericMatrix& interactions,
+    const NumericMatrix& thresholds,
+    const IntegerMatrix& observations,
+    const IntegerVector& no_categories,
+    const int no_persons,
+    const int variable1,
+    const int variable2,
+    const double proposed_state,
+    const double current_state,
+    const NumericMatrix& rest_matrix,
+    const LogicalVector& variable_bool,
+    const IntegerVector& reference_category
+) {
+  double rest_score, bound;
+  double pseudolikelihood_ratio = 0.0;
+  double denominator_prop, denominator_curr, exponent;
+  int score, obs_score1, obs_score2;
+
+  double delta_state = proposed_state - current_state;
+
+  int nc1 = no_categories[variable1];
+  int nc2 = no_categories[variable2];
+  bool is_ord1 = variable_bool[variable1];
+  bool is_ord2 = variable_bool[variable2];
+  int ref_cat1 = reference_category[variable1];
+  int ref_cat2 = reference_category[variable2];
+
+  for (int person = 0; person < no_persons; person++) {
+    obs_score1 = observations(person, variable1);
+    obs_score2 = observations(person, variable2);
+
+    pseudolikelihood_ratio += 2 * obs_score1 * obs_score2 * delta_state;
+
+    // Variable 1
+    rest_score = rest_matrix(person, variable1) -
+      obs_score2 * interactions(variable2, variable1);
+    bound = rest_score > 0.0 ? nc1 * rest_score : 0.0;
+
+    double obs2_prop_state = obs_score2 * proposed_state;
+    double obs2_curr_state = obs_score2 * current_state;
+
+    if (is_ord1) {
+      denominator_prop = MY_EXP(-bound);
+      denominator_curr = MY_EXP(-bound);
+      int index = variable1;
+      for (int category = 0; category < nc1; category++) {
+        score = category + 1;
+        exponent = thresholds[index] + score * rest_score - bound;
+        index += thresholds.nrow();
+        double exp_term = exponent;
+        denominator_prop += MY_EXP(exp_term + score * obs2_prop_state);
+        denominator_curr += MY_EXP(exp_term + score * obs2_curr_state);
+      }
+    } else {
+      denominator_prop = 0.0;
+      denominator_curr = 0.0;
+      for (int category = 0; category <= nc1; category++) {
+        int diff = category - ref_cat1;
+        exponent = thresholds(variable1, 0) * category +
+          thresholds(variable1, 1) * diff * diff +
+          category * rest_score - bound;
+        denominator_prop += MY_EXP(exponent + category * obs2_prop_state);
+        denominator_curr += MY_EXP(exponent + category * obs2_curr_state);
+      }
+    }
+
+    pseudolikelihood_ratio += MY_LOG(denominator_curr / denominator_prop);
+
+    // Variable 2
+    rest_score = rest_matrix(person, variable2) -
+      obs_score1 * interactions(variable1, variable2);
+    bound = rest_score > 0.0 ? nc2 * rest_score : 0.0;
+
+    double obs1_prop_state = obs_score1 * proposed_state;
+    double obs1_curr_state = obs_score1 * current_state;
+
+    if (is_ord2) {
+      denominator_prop = MY_EXP(-bound);
+      denominator_curr = MY_EXP(-bound);
+      int index = variable2;
+      for (int category = 0; category < nc2; category++) {
+        score = category + 1;
+        exponent = thresholds[index] + score * rest_score - bound;
+        index += thresholds.nrow();
+        denominator_prop += MY_EXP(exponent + score * obs1_prop_state);
+        denominator_curr += MY_EXP(exponent + score * obs1_curr_state);
+      }
+    } else {
+      denominator_prop = 0.0;
+      denominator_curr = 0.0;
+      for (int category = 0; category <= nc2; category++) {
+        int diff = category - ref_cat2;
+        exponent = thresholds(variable2, 0) * category +
+          thresholds(variable2, 1) * diff * diff +
+          category * rest_score - bound;
+        denominator_prop += MY_EXP(exponent + category * obs1_prop_state);
+        denominator_curr += MY_EXP(exponent + category * obs1_curr_state);
+      }
+    }
+
+    pseudolikelihood_ratio += MY_LOG(denominator_curr / denominator_prop);
+  }
+
+  return pseudolikelihood_ratio;
+}
+
+/*
 // ----------------------------------------------------------------------------|
 // The log pseudolikelihood ratio [proposed against current] for an interaction
 // ----------------------------------------------------------------------------|
@@ -425,17 +548,17 @@ double log_pseudolikelihood_ratio(
 
     if(variable_bool[variable1] == true) {
       //Regular binary or ordinal MRF variable ---------------------------------
-      denominator_prop = std::exp(-bound);
-      denominator_curr = std::exp(-bound);
+      denominator_prop = MY_EXP(-bound);
+      denominator_curr = MY_EXP(-bound);
       for(int category = 0; category < no_categories[variable1]; category++) {
         score = category + 1;
         exponent = thresholds(variable1, category) +
           score * rest_score -
           bound;
         denominator_prop +=
-          std::exp(exponent + score * obs_score2 * proposed_state);
+          MY_EXP(exponent + score * obs_score2 * proposed_state);
         denominator_curr +=
-          std::exp(exponent + score * obs_score2 * current_state);
+          MY_EXP(exponent + score * obs_score2 * current_state);
       }
     } else {
       //Blume-Capel ordinal MRF variable ---------------------------------------
@@ -448,13 +571,13 @@ double log_pseudolikelihood_ratio(
           (category - reference_category[variable1]);
         exponent+= category * rest_score - bound;
         denominator_prop +=
-          std::exp(exponent + category * obs_score2 * proposed_state);
+          MY_EXP(exponent + category * obs_score2 * proposed_state);
         denominator_curr +=
-          std::exp(exponent + category * obs_score2 * current_state);
+          MY_EXP(exponent + category * obs_score2 * current_state);
       }
     }
-    pseudolikelihood_ratio -= std::log(denominator_prop);
-    pseudolikelihood_ratio += std::log(denominator_curr);
+    pseudolikelihood_ratio -= MY_LOG(denominator_prop);
+    pseudolikelihood_ratio += MY_LOG(denominator_curr);
 
     //variable 2 log pseudolikelihood ratio
     rest_score = rest_matrix(person, variable2) -
@@ -468,17 +591,18 @@ double log_pseudolikelihood_ratio(
 
     if(variable_bool[variable2] == true) {
       //Regular binary or ordinal MRF variable ---------------------------------
-      denominator_prop = std::exp(-bound);
-      denominator_curr = std::exp(-bound);
+      denominator_prop = MY_EXP(-bound);
+      denominator_curr = MY_EXP(-bound);
+
       for(int category = 0; category < no_categories[variable2]; category++) {
         score = category + 1;
         exponent = thresholds(variable2, category) +
           score * rest_score -
           bound;
         denominator_prop +=
-          std::exp(exponent + score * obs_score1 * proposed_state);
+          MY_EXP(exponent + score * obs_score1 * proposed_state);
         denominator_curr +=
-          std::exp(exponent + score * obs_score1 * current_state);
+          MY_EXP(exponent + score * obs_score1 * current_state);
       }
     } else {
       //Blume-Capel ordinal MRF variable ---------------------------------------
@@ -491,17 +615,17 @@ double log_pseudolikelihood_ratio(
           (category - reference_category[variable2]);
         exponent+=  category * rest_score - bound;
         denominator_prop +=
-          std::exp(exponent + category * obs_score1 * proposed_state);
+          MY_EXP(exponent + category * obs_score1 * proposed_state);
         denominator_curr +=
-          std::exp(exponent + category * obs_score1 * current_state);
+          MY_EXP(exponent + category * obs_score1 * current_state);
       }
     }
-    pseudolikelihood_ratio -= std::log(denominator_prop);
-    pseudolikelihood_ratio += std::log(denominator_curr);
+    pseudolikelihood_ratio -= MY_LOG(denominator_prop);
+    pseudolikelihood_ratio += MY_LOG(denominator_curr);
   }
   return pseudolikelihood_ratio;
 }
-
+*/
 // ----------------------------------------------------------------------------|
 // MH algorithm to sample from the full-conditional of the active interaction
 //  parameters for Bayesian edge selection
@@ -552,7 +676,7 @@ void metropolis_interactions(
         log_prob -= R::dcauchy(current_state, 0.0, interaction_scale, true);
 
         U = R::unif_rand();
-        if(std::log(U) < log_prob) {
+        if(MY_LOG(U) < log_prob) {
           double state_diff = proposed_state - current_state;
           interactions(variable1, variable2) = proposed_state;
           interactions(variable2, variable1) = proposed_state;
@@ -569,11 +693,11 @@ void metropolis_interactions(
         if(log_prob > 0) {
           log_prob = 1;
         } else {
-          log_prob = std::exp(log_prob);
+          log_prob = MY_EXP(log_prob);
         }
 
         double update_proposal_sd = proposal_sd(variable1, variable2) +
-          (log_prob - target_ar) * std::exp(-log(t) * phi);
+          (log_prob - target_ar) * MY_EXP(-log(t) * phi);
 
         if(std::isnan(update_proposal_sd) == true) {
           update_proposal_sd = 1.0;
@@ -586,6 +710,7 @@ void metropolis_interactions(
     }
   }
 }
+
 
 // ----------------------------------------------------------------------------|
 // MH algorithm to sample from the full-conditional of an edge + interaction
@@ -659,7 +784,7 @@ void metropolis_edge_interaction_pair(
     }
 
     U = R::unif_rand();
-    if(std::log(U) < log_prob) {
+    if(MY_LOG(U) < log_prob) {
       indicator(variable1, variable2) = 1 - indicator(variable1, variable2);
       indicator(variable2, variable1) = 1 - indicator(variable2, variable1);
 
@@ -678,6 +803,7 @@ void metropolis_edge_interaction_pair(
     }
   }
 }
+
 
 // ----------------------------------------------------------------------------|
 // A Gibbs step for graphical model parameters for Bayesian edge selection
