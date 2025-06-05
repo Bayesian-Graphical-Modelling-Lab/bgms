@@ -56,6 +56,17 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rcpp_ieee754_log
+Rcpp::NumericVector rcpp_ieee754_log(Rcpp::NumericVector x);
+RcppExport SEXP _bgms_rcpp_ieee754_log(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_ieee754_log(x));
+    return rcpp_result_gen;
+END_RCPP
+}
 // gibbs_sampler
 List gibbs_sampler(IntegerMatrix& observations, IntegerMatrix& indicator, NumericMatrix& interactions, NumericMatrix& thresholds, const IntegerVector& no_categories, const double interaction_scale, NumericMatrix& proposal_sd, NumericMatrix& proposal_sd_blumecapel, const String& edge_prior, NumericMatrix& theta, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double dirichlet_alpha, const double lambda, const IntegerMatrix& Index, const int iter, const int burnin, IntegerMatrix& n_cat_obs, IntegerMatrix& sufficient_blume_capel, const double threshold_alpha, const double threshold_beta, const bool na_impute, const IntegerMatrix& missing_index, const LogicalVector& variable_bool, const IntegerVector& reference_category, const bool save, const bool display_progress, bool edge_selection);
 RcppExport SEXP _bgms_gibbs_sampler(SEXP observationsSEXP, SEXP indicatorSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP no_categoriesSEXP, SEXP interaction_scaleSEXP, SEXP proposal_sdSEXP, SEXP proposal_sd_blumecapelSEXP, SEXP edge_priorSEXP, SEXP thetaSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP, SEXP IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP n_cat_obsSEXP, SEXP sufficient_blume_capelSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP na_imputeSEXP, SEXP missing_indexSEXP, SEXP variable_boolSEXP, SEXP reference_categorySEXP, SEXP saveSEXP, SEXP display_progressSEXP, SEXP edge_selectionSEXP) {
@@ -157,6 +168,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 6},
     {"_bgms_sample_bcomrf_gibbs", (DL_FUNC) &_bgms_sample_bcomrf_gibbs, 8},
     {"_bgms_rcpp_ieee754_exp", (DL_FUNC) &_bgms_rcpp_ieee754_exp, 1},
+    {"_bgms_rcpp_ieee754_log", (DL_FUNC) &_bgms_rcpp_ieee754_log, 1},
     {"_bgms_gibbs_sampler", (DL_FUNC) &_bgms_gibbs_sampler, 28},
     {"_bgms_compare_anova_gibbs_sampler", (DL_FUNC) &_bgms_compare_anova_gibbs_sampler, 34},
     {"_bgms_compute_Vn_mfm_sbm", (DL_FUNC) &_bgms_compute_Vn_mfm_sbm, 4},

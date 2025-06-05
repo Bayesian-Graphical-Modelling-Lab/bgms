@@ -13,6 +13,10 @@ rcpp_ieee754_exp <- function(x) {
     .Call(`_bgms_rcpp_ieee754_exp`, x)
 }
 
+rcpp_ieee754_log <- function(x) {
+    .Call(`_bgms_rcpp_ieee754_log`, x)
+}
+
 gibbs_sampler <- function(observations, indicator, interactions, thresholds, no_categories, interaction_scale, proposal_sd, proposal_sd_blumecapel, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, lambda, Index, iter, burnin, n_cat_obs, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, variable_bool, reference_category, save = FALSE, display_progress = FALSE, edge_selection = TRUE) {
     .Call(`_bgms_gibbs_sampler`, observations, indicator, interactions, thresholds, no_categories, interaction_scale, proposal_sd, proposal_sd_blumecapel, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, lambda, Index, iter, burnin, n_cat_obs, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, variable_bool, reference_category, save, display_progress, edge_selection)
 }
