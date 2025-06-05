@@ -1,6 +1,7 @@
 // [[Rcpp::depends(RcppProgress)]]
 #include <Rcpp.h>
 #include "gibbs_functions_edge_prior.h"
+#include "e_exp.h"
 #include <progress.hpp>
 #include <progress_bar.hpp>
 using namespace Rcpp;
@@ -17,7 +18,7 @@ inline double fast_log_bitwise(double x) {
   return log2 * 0.69314718 + (y - 1) - (y - 1)*(y - 1)/2;  // linear/quadratic correction
 }
 
-#define MY_EXP fast_exp
+#define MY_EXP __ieee754_exp//fast_exp
 #define MY_LOG fast_log_bitwise
 
 // ----------------------------------------------------------------------------|
