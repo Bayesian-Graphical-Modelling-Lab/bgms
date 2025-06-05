@@ -19,7 +19,7 @@ inline double fast_log_bitwise(double x) {
 }
 
 #define MY_EXP __ieee754_exp//fast_exp
-#define MY_LOG fast_log_bitwise
+#define MY_LOG __ieee754_log
 
 // ----------------------------------------------------------------------------|
 // Impute missing data from full-conditional
