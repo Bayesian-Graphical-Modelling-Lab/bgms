@@ -384,24 +384,3 @@ double __ieee754_log(double x)
       return dk*ln2_hi-((s*(f-R)-dk*ln2_lo)-f);
   }
 }
-
-
-#include "Rcpp.h"
-// [[Rcpp::export]]
-Rcpp::NumericVector rcpp_ieee754_exp(Rcpp::NumericVector x) {
-  Rcpp::NumericVector y(x.size());
-  for (int i = 0; i < x.size(); i++) {
-    y[i] = __ieee754_exp(x[i]);
-  }
-  return y;
-}
-
-#include "Rcpp.h"
-// [[Rcpp::export]]
-Rcpp::NumericVector rcpp_ieee754_log(Rcpp::NumericVector x) {
-  Rcpp::NumericVector y(x.size());
-  for (int i = 0; i < x.size(); i++) {
-    y[i] = __ieee754_log(x[i]);
-  }
-  return y;
-}

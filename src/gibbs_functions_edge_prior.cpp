@@ -1,4 +1,5 @@
 #include <Rcpp.h>
+#include "explog_switch.h"
 using namespace Rcpp;
 
 // ----------------------------------------------------------------------------|
@@ -96,10 +97,10 @@ NumericVector compute_Vn_mfm_sbm(int no_variables,
     for(int k = t; k < 500; k++) {
       tmp = 0.0;
       for(int tt = 1 - t; tt < 1; tt ++) {
-        tmp += std::log(dirichlet_alpha * k + tt);
+        tmp += MY_LOG(dirichlet_alpha * k + tt);
       }
       for(int n = 0; n < no_variables; n++) {
-        tmp -= std::log(dirichlet_alpha * k + n);
+        tmp -= MY_LOG(dirichlet_alpha * k + n);
       }
       tmp -= std::lgamma(k + 1);
 
@@ -109,12 +110,12 @@ NumericVector compute_Vn_mfm_sbm(int no_variables,
 
       // Compute the maximum between r and tmp
       if (tmp > r) {
-        r = std::log(std::exp(r - tmp) + 1) + tmp;
+        r = MY_LOG(MY_EXP(r - tmp) + 1) + tmp;
       } else {
-        r = std::log(1 + std::exp(tmp - r)) + r;
+        r = MY_LOG(1 + MY_EXP(tmp - r)) + r;
       }
     }
-    log_Vn(t-1) = r - std::log(std::exp(1) - 1);
+    log_Vn(t-1) = r - MY_LOG(MY_EXP(1) - 1);
   }
   return log_Vn;
 }
@@ -133,14 +134,14 @@ double log_likelihood_mfm_sbm(IntegerVector cluster_assign,
     if(j != node) {
       if(j < node) {
         output += indicator(j, node) *
-          std::log(cluster_probs(cluster_assign[j], cluster_assign[node]));
+          MY_LOG(cluster_probs(cluster_assign[j], cluster_assign[node]));
         output += (1 - indicator(j, node)) *
-          std::log(1 - cluster_probs(cluster_assign[j], cluster_assign[node]));
+          MY_LOG(1 - cluster_probs(cluster_assign[j], cluster_assign[node]));
       } else {
         output += indicator(node, j) *
-          std::log(cluster_probs(cluster_assign[node], cluster_assign[j]));
+          MY_LOG(cluster_probs(cluster_assign[node], cluster_assign[j]));
         output += (1 - indicator(node, j)) *
-          std::log(1 - cluster_probs(cluster_assign[node], cluster_assign[j]));
+          MY_LOG(1 - cluster_probs(cluster_assign[node], cluster_assign[j]));
       }
     }
   }
@@ -264,7 +265,7 @@ IntegerVector block_allocations_mfm_sbm(IntegerVector cluster_assign,
                                            no_variables);
 
           prob = (dirichlet_alpha + cluster_size_node[c]) *
-            std::exp(loglike);
+            MY_EXP(loglike);
         } else {
           logmarg = log_marginal_mfm_sbm(cluster_assign_tmp,
                                          indicator,
@@ -274,8 +275,8 @@ IntegerVector block_allocations_mfm_sbm(IntegerVector cluster_assign,
                                          beta_bernoulli_beta);
 
           prob = dirichlet_alpha *
-            std::exp(logmarg) *
-            std::exp(log_Vn[no_clusters - 1] - log_Vn[no_clusters - 2]);
+            MY_EXP(logmarg) *
+            MY_EXP(log_Vn[no_clusters - 1] - log_Vn[no_clusters - 2]);
         }
 
         cluster_prob[c] = prob;
@@ -316,7 +317,7 @@ IntegerVector block_allocations_mfm_sbm(IntegerVector cluster_assign,
                                            no_variables);
 
           prob = (dirichlet_alpha + cluster_size_node[c]) *
-            std::exp(loglike);
+            MY_EXP(loglike);
         } else {
           logmarg = log_marginal_mfm_sbm(cluster_assign_tmp,
                                          indicator,
@@ -326,8 +327,8 @@ IntegerVector block_allocations_mfm_sbm(IntegerVector cluster_assign,
                                          beta_bernoulli_beta);
 
           prob = dirichlet_alpha *
-            std::exp(logmarg) *
-            std::exp(log_Vn[no_clusters] - log_Vn[no_clusters - 1]);
+            MY_EXP(logmarg) *
+            MY_EXP(log_Vn[no_clusters] - log_Vn[no_clusters - 1]);
         }
 
         cluster_prob[c] = prob;

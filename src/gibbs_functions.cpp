@@ -1,25 +1,11 @@
 // [[Rcpp::depends(RcppProgress)]]
 #include <Rcpp.h>
 #include "gibbs_functions_edge_prior.h"
-#include "e_exp.h"
 #include <progress.hpp>
 #include <progress_bar.hpp>
 using namespace Rcpp;
 
-inline double fast_exp(double x) {
-  // 5th-order Pade approximant
-  return 1.0 + x * (1.0 + x * (0.5 + x * (1.0/6.0 + x * (1.0/24.0 + x * (1.0/120.0)))));
-}
-
-inline double fast_log_bitwise(double x) {
-  int* xp = reinterpret_cast<int*>(&x);
-  int log2 = ((xp[1] >> 20) & 0x7FF) - 1023;  // Extract exponent bits
-  double y = x / std::ldexp(1.0, log2);       // Normalize mantissa
-  return log2 * 0.69314718 + (y - 1) - (y - 1)*(y - 1)/2;  // linear/quadratic correction
-}
-
-#define MY_EXP __ieee754_exp//fast_exp
-#define MY_LOG __ieee754_log
+#include "explog_switch.h"
 
 // ----------------------------------------------------------------------------|
 // Impute missing data from full-conditional

@@ -6,6 +6,7 @@
 #include <progress_bar.hpp>
 
 #include <Rcpp.h>
+#include "explog_switch.h"
 
 using namespace Rcpp;
 
@@ -34,7 +35,7 @@ double update_with_robbins_monro (
   // Normalize the acceptance probability
   double observed_acceptance_probability = 1.0;
   if(observed_log_acceptance_probability < 0.0) {
-    observed_acceptance_probability = std::exp(observed_log_acceptance_probability);
+    observed_acceptance_probability = MY_EXP(observed_log_acceptance_probability);
   }
 
   // Update the proposal standard deviation
@@ -168,7 +169,7 @@ List impute_missing_data_for_anova_model(
       for(int category = 1; category <= num_categories(variable, gr); category++) {
         exponent = GroupThresholds(category - 1);
         exponent += category * rest_score;
-        cumsum += std::exp(exponent);
+        cumsum += MY_EXP(exponent);
         category_response_probabilities[category] = cumsum;
       }
     } else {
@@ -180,7 +181,7 @@ List impute_missing_data_for_anova_model(
           (category - baseline_category[variable]) *
           (category - baseline_category[variable]);
         exponent += category * rest_score;
-        cumsum += std::exp(exponent);
+        cumsum += MY_EXP(exponent);
         category_response_probabilities[category] = cumsum;
       }
     }
@@ -330,13 +331,13 @@ double log_pseudolikelihood_ratio_interaction(
         // Compute pseudo-likelihood terms
         if(is_ordinal_variable[var]) {
           // Regular binary or ordinal MRF variable
-          denominator_prop += std::exp(-bound);
-          denominator_curr += std::exp(-bound);
+          denominator_prop += MY_EXP(-bound);
+          denominator_curr += MY_EXP(-bound);
           for(int cat = 0; cat < n_cats; cat++) {
             score = cat + 1;
             exponent = GroupThresholds[cat] + score * rest_score - bound;
-            denominator_prop += std::exp(exponent + score * obs_proposed);
-            denominator_curr += std::exp(exponent + score * obs_current);
+            denominator_prop += MY_EXP(exponent + score * obs_proposed);
+            denominator_curr += MY_EXP(exponent + score * obs_current);
           }
         } else {
           // Blume-Capel ordinal MRF variable
@@ -346,14 +347,14 @@ double log_pseudolikelihood_ratio_interaction(
               (cat - baseline_category[var]) *
               (cat - baseline_category[var]);
             exponent += cat * rest_score - bound;
-            denominator_prop += std::exp(exponent + cat * obs_proposed);
-            denominator_curr += std::exp(exponent + cat * obs_current);
+            denominator_prop += MY_EXP(exponent + cat * obs_proposed);
+            denominator_curr += MY_EXP(exponent + cat * obs_current);
           }
         }
 
         // Update the pseudo-likelihood ratio
-        pseudolikelihood_ratio -= std::log(denominator_prop);
-        pseudolikelihood_ratio += std::log(denominator_curr);
+        pseudolikelihood_ratio -= MY_LOG(denominator_prop);
+        pseudolikelihood_ratio += MY_LOG(denominator_curr);
       }
     }
   }
@@ -443,7 +444,7 @@ void metropolis_interaction(
 
       // Metropolis-Hastings acceptance step
       U = R::unif_rand();
-      if(std::log(U) < log_acceptance_probability) {
+      if(MY_LOG(U) < log_acceptance_probability) {
         // Update the interaction parameter
         state_difference = proposed_state - current_state;
         pairwise_effects(int_index, 0) = proposed_state;
@@ -570,13 +571,13 @@ double log_pseudolikelihood_ratio_pairwise_difference(
         // Compute denominators based on whether the variable is ordinal
         if (is_ordinal_variable[var]) {
           // Binary or ordinal MRF variable
-          denominator_prop = std::exp(-bound);
-          denominator_curr = std::exp(-bound);
+          denominator_prop = MY_EXP(-bound);
+          denominator_curr = MY_EXP(-bound);
           for (int cat = 0; cat < n_cats; cat++) {
             score = cat + 1;
             exponent = GroupThresholds[cat] + score * rest_score - bound;
-            denominator_prop += std::exp(exponent + score * obs_proposed_p);
-            denominator_curr += std::exp(exponent + score * obs_current_p);
+            denominator_prop += MY_EXP(exponent + score * obs_proposed_p);
+            denominator_curr += MY_EXP(exponent + score * obs_current_p);
           }
         } else {
           // Blume-Capel ordinal MRF variable
@@ -587,14 +588,14 @@ double log_pseudolikelihood_ratio_pairwise_difference(
               GroupThresholds[1] * (cat - baseline_category[var]) *
               (cat - baseline_category[var]) +
               cat * rest_score - bound;
-            denominator_prop += std::exp(exponent + cat * obs_proposed_p);
-            denominator_curr += std::exp(exponent + cat * obs_current_p);
+            denominator_prop += MY_EXP(exponent + cat * obs_proposed_p);
+            denominator_curr += MY_EXP(exponent + cat * obs_current_p);
           }
         }
 
         // Update the pseudo-likelihood ratio
-        pseudolikelihood_ratio -= std::log(denominator_prop);
-        pseudolikelihood_ratio += std::log(denominator_curr);
+        pseudolikelihood_ratio -= MY_LOG(denominator_prop);
+        pseudolikelihood_ratio += MY_LOG(denominator_curr);
       }
     }
   }
@@ -688,7 +689,7 @@ void metropolis_pairwise_difference(
 
           // Metropolis-Hastings acceptance step
           U = R::unif_rand();
-          if(std::log(U) < log_acceptance_probability) {
+          if(MY_LOG(U) < log_acceptance_probability) {
             pairwise_effects(int_index, h) = proposed_state;
 
             // Update the rest matrix to reflect the new pairwise difference
@@ -820,14 +821,14 @@ double log_pseudolikelihood_ratio_pairwise_differences(
 
         // Compute denominators
         if (is_ordinal_variable[var]) {
-          denominator_prop += std::exp(-bound);
-          denominator_curr += std::exp(-bound);
+          denominator_prop += MY_EXP(-bound);
+          denominator_curr += MY_EXP(-bound);
 
           for (int cat = 0; cat < n_cats; cat++) {
             int score = cat + 1;
             double exponent = GroupThresholds[cat] + rest_score * score - bound;
-            denominator_curr += std::exp(exponent + score * obs_current_p);
-            denominator_prop += std::exp(exponent + score * obs_proposed_p);
+            denominator_curr += MY_EXP(exponent + score * obs_current_p);
+            denominator_prop += MY_EXP(exponent + score * obs_proposed_p);
           }
         } else {
           for (int cat = 0; cat <= n_cats; cat++) {
@@ -835,13 +836,13 @@ double log_pseudolikelihood_ratio_pairwise_differences(
               GroupThresholds[1] * (cat - baseline_category[var]) *
               (cat - baseline_category[var]) +
               rest_score * cat - bound;
-            denominator_curr += std::exp(exponent + cat * obs_current_p);
-            denominator_prop += std::exp(exponent + cat * obs_proposed_p);
+            denominator_curr += MY_EXP(exponent + cat * obs_current_p);
+            denominator_prop += MY_EXP(exponent + cat * obs_proposed_p);
           }
         }
 
         // Update log pseudo-likelihood ratio
-        pseudolikelihood_ratio += std::log(denominator_curr) - std::log(denominator_prop);
+        pseudolikelihood_ratio += MY_LOG(denominator_curr) - MY_LOG(denominator_prop);
       }
     }
   }
@@ -940,11 +941,11 @@ void metropolis_pairwise_difference_between_model(
 
     // Update log probability for the inclusion inclusion_indicator
     if (inclusion_indicator(variable1, variable2) == 1) {
-      log_acceptance_probability -= std::log(inclusion_probability_difference(variable1, variable2));
-      log_acceptance_probability += std::log(1 - inclusion_probability_difference(variable1, variable2));
+      log_acceptance_probability -= MY_LOG(inclusion_probability_difference(variable1, variable2));
+      log_acceptance_probability += MY_LOG(1 - inclusion_probability_difference(variable1, variable2));
     } else {
-      log_acceptance_probability += std::log(inclusion_probability_difference(variable1, variable2));
-      log_acceptance_probability -= std::log(1 - inclusion_probability_difference(variable1, variable2));
+      log_acceptance_probability += MY_LOG(inclusion_probability_difference(variable1, variable2));
+      log_acceptance_probability -= MY_LOG(1 - inclusion_probability_difference(variable1, variable2));
     }
 
     // Compute log pseudo-likelihood ratio
@@ -956,7 +957,7 @@ void metropolis_pairwise_difference_between_model(
 
     // Metropolis-Hastings acceptance step
     double U = R::unif_rand();
-    if (std::log(U) < log_acceptance_probability) {
+    if (MY_LOG(U) < log_acceptance_probability) {
       // Update inclusion inclusion_indicator
       inclusion_indicator(variable1, variable2) = 1 - inclusion_indicator(variable1, variable2);
       inclusion_indicator(variable2, variable1) = inclusion_indicator(variable1, variable2);
@@ -1036,7 +1037,7 @@ void metropolis_threshold_regular(
   // Iterate over each category threshold for the variable
   for(int category = 0; category < n_cats; category++) {
     double current_state = main_effects(cat_index + category, 0); // Current state of the threshold
-    double exp_current = std::exp(current_state); // Exponentiated current threshold
+    double exp_current = MY_EXP(current_state); // Exponentiated current threshold
     double c = (prior_threshold_alpha + prior_threshold_beta) / (1 + exp_current); // Initial value for c
 
     // Compute group-specific thresholds and contributions to `q` and `r`
@@ -1060,11 +1061,11 @@ void metropolis_threshold_regular(
         for (int cat = 0; cat < n_cats; ++cat) {
           if (cat != category) {
             double exponent = GroupThresholds[cat] + (cat + 1) * rest_score;
-            q_person += std::exp(exponent);
+            q_person += MY_EXP(exponent);
           }
         }
         double exponent_r = GroupThresholds[category] + (category + 1) * rest_score;
-        double r_person = std::exp(exponent_r);
+        double r_person = MY_EXP(exponent_r);
         q[person] = q_person;
         r[person] = r_person;
         c += r_person / (q_person + r_person * exp_current);
@@ -1086,8 +1087,8 @@ void metropolis_threshold_regular(
 
     // Sample from the beta distribution
     double tmp_beta = R::rbeta(a, b);
-    double proposed_state = std::log(tmp_beta / (1  - tmp_beta) / c);
-    double exp_proposed = std::exp(proposed_state);
+    double proposed_state = MY_LOG(tmp_beta / (1  - tmp_beta) / c);
+    double exp_proposed = MY_EXP(proposed_state);
 
     // Compute the log acceptance probability
     double log_acceptance_probability = 0.0;
@@ -1095,21 +1096,21 @@ void metropolis_threshold_regular(
     // Compute pseudo-likelihood ratio
     for (int gr = 0; gr < num_groups; ++gr) {
       for (int person = group_indices(gr, 0); person <= group_indices(gr, 1); ++person) {
-        log_acceptance_probability += std::log(q[person] + r[person] * exp_current);
-        log_acceptance_probability -= std::log(q[person] + r[person] * exp_proposed);
+        log_acceptance_probability += MY_LOG(q[person] + r[person] * exp_current);
+        log_acceptance_probability -= MY_LOG(q[person] + r[person] * exp_proposed);
       }
     }
 
     // Add prior density ratio
-    log_acceptance_probability -= (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + exp_proposed);
-    log_acceptance_probability += (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + exp_current);
+    log_acceptance_probability -= (prior_threshold_alpha + prior_threshold_beta) * MY_LOG(1 + exp_proposed);
+    log_acceptance_probability += (prior_threshold_alpha + prior_threshold_beta) * MY_LOG(1 + exp_current);
 
     // Add proposal density ratio
-    log_acceptance_probability -= (a + b) * std::log(1 + c * exp_current);
-    log_acceptance_probability += (a + b) * std::log(1 + c * exp_proposed);
+    log_acceptance_probability -= (a + b) * MY_LOG(1 + c * exp_current);
+    log_acceptance_probability += (a + b) * MY_LOG(1 + c * exp_proposed);
 
     // Perform Metropolis-Hastings acceptance step
-    double U = std::log(R::unif_rand());
+    double U = MY_LOG(R::unif_rand());
     if(U < log_acceptance_probability) {
       main_effects(cat_index + category, 0) = proposed_state; // Accept the proposal
     }
@@ -1195,17 +1196,17 @@ double log_pseudolikelihood_ratio_main_difference(
       double bound = (rest_score > 0) ? n_cats * rest_score : 0.0;
 
       // Compute the denominators for proposed and current thresholds
-      double denominator_proposed = std::exp(-bound);
-      double denominator_current = std::exp(-bound);
+      double denominator_proposed = MY_EXP(-bound);
+      double denominator_current = MY_EXP(-bound);
       for(int cat = 0; cat < n_cats; cat++) {
         double exponent = (cat + 1) * rest_score - bound;
-        denominator_proposed += std::exp(exponent + proposed_thresholds[cat]);
-        denominator_current += std::exp(exponent + current_thresholds[cat]);
+        denominator_proposed += MY_EXP(exponent + proposed_thresholds[cat]);
+        denominator_current += MY_EXP(exponent + current_thresholds[cat]);
       }
 
       // Update the pseudo-likelihood ratio with log-likelihood differences
-      pseudolikelihood_ratio -= std::log(denominator_proposed);
-      pseudolikelihood_ratio += std::log(denominator_current);
+      pseudolikelihood_ratio -= MY_LOG(denominator_proposed);
+      pseudolikelihood_ratio += MY_LOG(denominator_current);
     }
   }
 
@@ -1293,7 +1294,7 @@ void metropolis_main_difference_regular(
 
       // Metropolis-Hastings acceptance step
       double U = R::unif_rand();
-      if (std::log(U) < log_acceptance_probability) {
+      if (MY_LOG(U) < log_acceptance_probability) {
         main_effects(cat_index, h) = proposed_state; // Accept the proposed state
       }
 
@@ -1418,11 +1419,11 @@ double log_pseudolikelihood_ratio_thresholds_blumecapel(
       denominator = 0.0;
       for(int category = 0; category <= num_categories[variable]; category ++) {
         exponent = category * rest_score - bound;
-        numerator += std::exp(constant_numerator[category] + exponent);
-        denominator += std::exp(constant_denominator[category] + exponent);
+        numerator += MY_EXP(constant_numerator[category] + exponent);
+        denominator += MY_EXP(constant_denominator[category] + exponent);
       }
-      pseudolikelihood_ratio += std::log(numerator);
-      pseudolikelihood_ratio -= std::log(denominator);
+      pseudolikelihood_ratio += MY_LOG(numerator);
+      pseudolikelihood_ratio -= MY_LOG(denominator);
     }
   }
 
@@ -1498,12 +1499,12 @@ void metropolis_threshold_blumecapel(
 
   // Add prior ratio to log acceptance probability
   log_acceptance_probability += prior_threshold_alpha * (proposed_state - current_state);
-  log_acceptance_probability += (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + std::exp(current_state));
-  log_acceptance_probability -= (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + std::exp(proposed_state));
+  log_acceptance_probability += (prior_threshold_alpha + prior_threshold_beta) * MY_LOG(1 + MY_EXP(current_state));
+  log_acceptance_probability -= (prior_threshold_alpha + prior_threshold_beta) * MY_LOG(1 + MY_EXP(proposed_state));
 
   // Perform Metropolis-Hastings acceptance step
   double U = R::unif_rand();
-  if(std::log(U) < log_acceptance_probability) {
+  if(MY_LOG(U) < log_acceptance_probability) {
     main_effects(cat_index, 0) = proposed_state;
   }
 
@@ -1530,12 +1531,12 @@ void metropolis_threshold_blumecapel(
 
   // Add prior ratio to log acceptance probability
   log_acceptance_probability += prior_threshold_alpha * (proposed_state - current_state);
-  log_acceptance_probability += (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + std::exp(current_state));
-  log_acceptance_probability -= (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + std::exp(proposed_state));
+  log_acceptance_probability += (prior_threshold_alpha + prior_threshold_beta) * MY_LOG(1 + MY_EXP(current_state));
+  log_acceptance_probability -= (prior_threshold_alpha + prior_threshold_beta) * MY_LOG(1 + MY_EXP(proposed_state));
 
   // Perform Metropolis-Hastings acceptance step
   U = R::unif_rand();
-  if(std::log(U) < log_acceptance_probability) {
+  if(MY_LOG(U) < log_acceptance_probability) {
     main_effects(cat_index + 1, 0) = proposed_state;
   }
 
@@ -1672,13 +1673,13 @@ double log_pseudolikelihood_ratio_main_difference_blumecapel(
       // Compute category-specific contributions
       for(int category = 0; category <= num_categories[variable]; category ++) {
         exponent = category * rest_score - bound;
-        numerator += std::exp(constant_numerator[category] + exponent);
-        denominator += std::exp(constant_denominator[category] + exponent);
+        numerator += MY_EXP(constant_numerator[category] + exponent);
+        denominator += MY_EXP(constant_denominator[category] + exponent);
       }
 
       // Update the pseudo-likelihood ratio with log probabilities
-      pseudolikelihood_ratio += std::log(numerator);
-      pseudolikelihood_ratio -= std::log(denominator);
+      pseudolikelihood_ratio += MY_LOG(numerator);
+      pseudolikelihood_ratio -= MY_LOG(denominator);
     }
   }
 
@@ -1776,7 +1777,7 @@ void metropolis_main_difference_blumecapel(
 
     // Metropolis-Hastings acceptance step
     U = R::unif_rand();
-    if(std::log(U) < log_acceptance_probability) {
+    if(MY_LOG(U) < log_acceptance_probability) {
       main_effects(cat_index, h) = proposed_state; // Accept proposed value
     }
 
@@ -1808,7 +1809,7 @@ void metropolis_main_difference_blumecapel(
 
     // Metropolis-Hastings acceptance step
     U = R::unif_rand();
-    if(std::log(U) < log_acceptance_probability) {
+    if(MY_LOG(U) < log_acceptance_probability) {
       main_effects(cat_index + 1, h) = proposed_state;
     }
 
@@ -1885,7 +1886,7 @@ void metropolis_thresholds_regular_free(
   // Loop over categories
   for(int category = 0; category < n_cats; category++) {
     double current_state = main_effects(base_cat_index + category, group);
-    double exp_current = std::exp(current_state);
+    double exp_current = MY_EXP(current_state);
 
     // Initialize scaling factor `c` for the generalized beta-prime proposal
     double c = (prior_threshold_alpha + prior_threshold_beta) / (1 + exp_current);
@@ -1898,12 +1899,12 @@ void metropolis_thresholds_regular_free(
       double q_person = 1.0;
       for(int cat = 0; cat < n_cats; cat++) {
         if(cat != category) {
-          q_person += std::exp(main_effects(base_cat_index + cat, group) + (cat + 1) * rest_score);
+          q_person += MY_EXP(main_effects(base_cat_index + cat, group) + (cat + 1) * rest_score);
         }
       }
 
       // Calculate pseudo-likelihood component `r`
-      double r_person = std::exp((category + 1) * rest_score);
+      double r_person = MY_EXP((category + 1) * rest_score);
 
       // Store results for each person
       q[person] = q_person;
@@ -1920,8 +1921,8 @@ void metropolis_thresholds_regular_free(
     double a = num_obs_categories_gr(category, variable) + prior_threshold_alpha;
     double b = num_persons + prior_threshold_beta - num_obs_categories_gr(category, variable);
     double tmp = R::rbeta(a, b);
-    double proposed_state = std::log(tmp / ((1 - tmp) * c));
-    double exp_proposed = std::exp(proposed_state);
+    double proposed_state = MY_LOG(tmp / ((1 - tmp) * c));
+    double exp_proposed = MY_EXP(proposed_state);
 
 
     // Compute the log acceptance probability
@@ -1929,20 +1930,20 @@ void metropolis_thresholds_regular_free(
 
     // Add pseudo-likelihood ratio contributions
     for (int person = 0; person < num_persons; ++person) {
-      log_acceptance_probability += std::log(q[person] + r[person] * exp_current);
-      log_acceptance_probability -= std::log(q[person] + r[person] * exp_proposed);
+      log_acceptance_probability += MY_LOG(q[person] + r[person] * exp_current);
+      log_acceptance_probability -= MY_LOG(q[person] + r[person] * exp_proposed);
     }
 
     // Add prior ratio contributions
-    log_acceptance_probability -= (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + exp_proposed);
-    log_acceptance_probability += (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + exp_current);
+    log_acceptance_probability -= (prior_threshold_alpha + prior_threshold_beta) * MY_LOG(1 + exp_proposed);
+    log_acceptance_probability += (prior_threshold_alpha + prior_threshold_beta) * MY_LOG(1 + exp_current);
 
     // Add proposal ratio contributions
-    log_acceptance_probability -= (a + b) * std::log(1 + c * exp_current);
-    log_acceptance_probability += (a + b) * std::log(1 + c * exp_proposed);
+    log_acceptance_probability -= (a + b) * MY_LOG(1 + c * exp_current);
+    log_acceptance_probability += (a + b) * MY_LOG(1 + c * exp_proposed);
 
     // Perform the Metropolis-Hastings acceptance step
-    double U = std::log(R::unif_rand());
+    double U = MY_LOG(R::unif_rand());
     if(U < log_acceptance_probability) {
       // Update the main effects matrix if the proposal is accepted
       main_effects(base_cat_index + category, group) = proposed_state;
@@ -2061,24 +2062,24 @@ void metropolis_thresholds_blumecapel_free(
     }
 
     // Compute likelihood numerator and denominator
-    double numerator = std::exp(constant_numerator[0] - bound);
-    double denominator = std::exp(constant_denominator[0] - bound);
+    double numerator = MY_EXP(constant_numerator[0] - bound);
+    double denominator = MY_EXP(constant_denominator[0] - bound);
     for(int score = 1; score <= num_categories(variable, group); score++) {
       double exponent = score * rest_score - bound;
-      numerator += std::exp(constant_numerator[score] + exponent);
-      denominator += std::exp(constant_denominator[score] + exponent);
+      numerator += MY_EXP(constant_numerator[score] + exponent);
+      denominator += MY_EXP(constant_denominator[score] + exponent);
     }
-    log_acceptance_probability += std::log(numerator);
-    log_acceptance_probability -= std::log(denominator);
+    log_acceptance_probability += MY_LOG(numerator);
+    log_acceptance_probability -= MY_LOG(denominator);
   }
 
   // Add prior ratio to log acceptance probability
-  log_acceptance_probability += (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + std::exp(current_state));
-  log_acceptance_probability -= (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + std::exp(proposed_state));
+  log_acceptance_probability += (prior_threshold_alpha + prior_threshold_beta) * MY_LOG(1 + MY_EXP(current_state));
+  log_acceptance_probability -= (prior_threshold_alpha + prior_threshold_beta) * MY_LOG(1 + MY_EXP(proposed_state));
 
   // Metropolis acceptance step
   double U = R::unif_rand();
-  if(std::log(U) < log_acceptance_probability) {
+  if(MY_LOG(U) < log_acceptance_probability) {
     main_effects(cat_index, group) = proposed_state;
   }
 
@@ -2126,23 +2127,23 @@ void metropolis_thresholds_blumecapel_free(
       bound += num_categories[variable] * rest_score;
     }
 
-    double numerator = std::exp(constant_numerator[0] - bound);
-    double denominator = std::exp(constant_denominator[0] - bound);
+    double numerator = MY_EXP(constant_numerator[0] - bound);
+    double denominator = MY_EXP(constant_denominator[0] - bound);
 
     for(int score = 1; score <= num_categories(variable, group); score ++) {
       double exponent = score * rest_score - bound;
-      numerator += std::exp(constant_numerator[score] + exponent);
-      denominator += std::exp(constant_denominator[score] + exponent);
+      numerator += MY_EXP(constant_numerator[score] + exponent);
+      denominator += MY_EXP(constant_denominator[score] + exponent);
     }
 
-    log_acceptance_probability += std::log(numerator);
-    log_acceptance_probability -= std::log(denominator);
+    log_acceptance_probability += MY_LOG(numerator);
+    log_acceptance_probability -= MY_LOG(denominator);
   }
-  log_acceptance_probability += (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + std::exp(current_state));
-  log_acceptance_probability -= (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + std::exp(proposed_state));
+  log_acceptance_probability += (prior_threshold_alpha + prior_threshold_beta) * MY_LOG(1 + MY_EXP(current_state));
+  log_acceptance_probability -= (prior_threshold_alpha + prior_threshold_beta) * MY_LOG(1 + MY_EXP(proposed_state));
 
   U = R::unif_rand();
-  if(std::log(U) < log_acceptance_probability) {
+  if(MY_LOG(U) < log_acceptance_probability) {
     main_effects(cat_index + 1, group) = proposed_state;
   }
 
@@ -2221,19 +2222,19 @@ double log_pseudolikelihood_ratio_main_difference_regular_between_model(
       double bound = (rest_score > 0) ? num_cats * rest_score : 0.0;
 
       // Initialize denominator terms for the proposed and current pseudolikelihoods
-      double denominator_proposed = std::exp(-bound);
-      double denominator_current = std::exp(-bound);
+      double denominator_proposed = MY_EXP(-bound);
+      double denominator_current = MY_EXP(-bound);
 
       // Add contributions from each category to the denominators
       for(int cat = 0; cat < num_cats; cat++) {
         double exponent = (cat + 1) * rest_score - bound;
-        denominator_proposed += std::exp(exponent + proposed_thresholds[cat]);
-        denominator_current += std::exp(exponent + current_thresholds[cat]);
+        denominator_proposed += MY_EXP(exponent + proposed_thresholds[cat]);
+        denominator_current += MY_EXP(exponent + current_thresholds[cat]);
       }
 
       // Update the pseudo-likelihood ratio with log-likelihood differences
-      pseudolikelihood_ratio -= std::log(denominator_proposed);
-      pseudolikelihood_ratio += std::log(denominator_current);
+      pseudolikelihood_ratio -= MY_LOG(denominator_proposed);
+      pseudolikelihood_ratio += MY_LOG(denominator_current);
     }
   }
 
@@ -2337,16 +2338,16 @@ void metropolis_main_difference_regular_between_model(
 
   // Add prior inclusion odds contributions
   if(current_indicator == 1) {
-    log_prob -= std::log(inclusion_probability_difference(variable, variable));
-    log_prob += std::log(1 - inclusion_probability_difference(variable, variable));
+    log_prob -= MY_LOG(inclusion_probability_difference(variable, variable));
+    log_prob += MY_LOG(1 - inclusion_probability_difference(variable, variable));
   } else {
-    log_prob += std::log(inclusion_probability_difference(variable, variable));
-    log_prob -= std::log(1 - inclusion_probability_difference(variable, variable));
+    log_prob += MY_LOG(inclusion_probability_difference(variable, variable));
+    log_prob -= MY_LOG(1 - inclusion_probability_difference(variable, variable));
   }
 
   // Perform Metropolis-Hastings step
   double U = R::unif_rand();
-  if(std::log(U) < log_prob) {
+  if(MY_LOG(U) < log_prob) {
     inclusion_indicator(variable, variable) = proposed_indicator;
     for(int cat = 0; cat < num_cats; cat++) {
       for(int h = 1; h < num_groups; h++) {
@@ -2456,13 +2457,13 @@ double log_pseudolikelihood_ratio_main_difference_blume_capel_between_model(
       // Compute category-specific contributions
       for(int cat = 0; cat <= num_cats; cat++) {
         double exponent = cat * rest_score - bound;
-        denominator_proposed += std::exp(proposed_denominator_constant[cat] + exponent);
-        denominator_current += std::exp(current_denominator_constant[cat] + exponent);
+        denominator_proposed += MY_EXP(proposed_denominator_constant[cat] + exponent);
+        denominator_current += MY_EXP(current_denominator_constant[cat] + exponent);
       }
 
       // Update the pseudo-likelihood ratio
-      pseudolikelihood_ratio -= std::log(denominator_proposed);
-      pseudolikelihood_ratio += std::log(denominator_current);
+      pseudolikelihood_ratio -= MY_LOG(denominator_proposed);
+      pseudolikelihood_ratio += MY_LOG(denominator_current);
     }
   }
 
@@ -2590,16 +2591,16 @@ void metropolis_main_difference_blume_capel_between_model(
 
   // Add prior odds contribution
   if(current_inclusion_indicator == 1) {
-    log_prob -= std::log(inclusion_probability_difference(variable, variable));
-    log_prob += std::log(1-inclusion_probability_difference(variable, variable));
+    log_prob -= MY_LOG(inclusion_probability_difference(variable, variable));
+    log_prob += MY_LOG(1-inclusion_probability_difference(variable, variable));
   } else {
-    log_prob += std::log(inclusion_probability_difference(variable, variable));
-    log_prob -= std::log(1-inclusion_probability_difference(variable, variable));
+    log_prob += MY_LOG(inclusion_probability_difference(variable, variable));
+    log_prob -= MY_LOG(1-inclusion_probability_difference(variable, variable));
   }
 
   // Perform Metropolis-Hastings acceptance step
   double U = R::unif_rand();
-  if(std::log(U) < log_prob) {
+  if(MY_LOG(U) < log_prob) {
     inclusion_indicator(variable, variable) = proposed_inclusion_indicator;
     main_effects.rows(start_index, stop_index).cols(1, num_groups - 1) = proposed_main_effects.cols(1, num_groups - 1);
   }
@@ -2701,7 +2702,7 @@ List gibbs_step_gm(
     const arma::imat& index
 ) {
   // Precompute the Robbins-Monro decay term
-  double exp_neg_log_t_rm_adaptation_rate = std::exp(-std::log(t) * rm_adaptation_rate);
+  double exp_neg_log_t_rm_adaptation_rate = MY_EXP(-MY_LOG(t) * rm_adaptation_rate);
 
   // Step 1: Update pairwise interaction parameters
   metropolis_interaction(
