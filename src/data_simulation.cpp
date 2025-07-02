@@ -1,4 +1,5 @@
 #include <Rcpp.h>
+#include "explog_switch.h"
 using namespace Rcpp;
 
 // [[Rcpp::export]]
@@ -53,7 +54,7 @@ IntegerMatrix sample_omrf_gibbs(int no_states,
         for(int category = 0; category < no_categories[variable]; category++) {
           exponent = thresholds(variable, category);
           exponent += (category + 1) * rest_score;
-          cumsum += std::exp(exponent);
+          cumsum += MY_EXP(exponent);
           probabilities[category + 1] = cumsum;
         }
 
@@ -132,7 +133,7 @@ IntegerMatrix sample_bcomrf_gibbs(int no_states,
               (category - reference_category[variable]);
             //The pairwise interactions
             exponent += category * rest_score;
-            cumsum += std::exp(exponent);
+            cumsum += MY_EXP(exponent);
             probabilities[category] = cumsum;
           }
         } else {
@@ -141,7 +142,7 @@ IntegerMatrix sample_bcomrf_gibbs(int no_states,
           for(int category = 0; category < no_categories[variable]; category++) {
             exponent = thresholds(variable, category);
             exponent += (category + 1) * rest_score;
-            cumsum += std::exp(exponent);
+            cumsum += MY_EXP(exponent);
             probabilities[category + 1] = cumsum;
           }
         }
