@@ -225,6 +225,16 @@ where:</p><ul><li><p><code>r</code> is the reference category.</p></li>
 <li><p><strong>Beta-Bernoulli Model</strong>: Incorporates a beta prior to model inclusion probabilities.</p></li>
 </ul></div>
     <div class="section level2">
+    <h2 id="gibbs-sampling">Gibbs Sampling<a class="anchor" aria-label="anchor" href="#gibbs-sampling"></a></h2>
+
+
+
+<p>Parameters are estimated using a Metropolis-within-Gibbs sampling scheme.
+When <code>difference_selection = TRUE</code>, the algorithm runs <code>2 * burnin</code> warmup iterations:</p><ul><li><p>First half without difference selection.</p></li>
+<li><p>Second half with edge selection enabled.</p></li>
+</ul><p>This warmup strategy improves stability of adaptive Metropolis-Hastings proposals and starting values.</p>
+    </div>
+    <div class="section level2">
     <h2 id="saving-options">Saving Options<a class="anchor" aria-label="anchor" href="#saving-options"></a></h2>
 
 
