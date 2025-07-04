@@ -99,20 +99,19 @@ prepare_output_bgm = function (
     colnames(results$inclusion_indicator_samples) = edge_names
   }
 
-  # SBM postprocessing
-  if (edge_selection && edge_prior == "Stochastic-Block" && "allocations" %in% names(out)) {
-    results$allocations <- out$allocations
-    # Requires that summarySBM() is available in namespace
-    sbm_summary <- summarySBM(list(
-      indicator = results$inclusion_indicator,
-      allocations = results$allocations
-    ), internal_call = TRUE)
-    results$components <- sbm_summary$components
-    results$allocations <- sbm_summary$allocations
-  }
-
   results$arguments = arguments
   class(results) = "bgms"
+  
+  # SBM postprocessing
+  if (edge_selection && edge_prior == "Stochastic-Block" && "allocations" %in% names(out)) {
+    results$arguments$allocations = out$allocations
+    # Requires that summarySBM() is available in namespace
+    sbm_summary = summarySBM(results, internal_call = TRUE) 
+    results$components = sbm_summary$components
+    results$allocations = sbm_summary$allocations
+  }
+
+
   return(results)
 }
 
