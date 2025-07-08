@@ -63,13 +63,13 @@ arma::vec compute_Vn_mfm_sbm(arma::uword no_variables,
   double tmp;
 
   for(arma::uword t = 0; t < t_max; t++) {
-    r = -INFINITY;
+    r = -INFINITY; // initialize log-coefficient at -Inf 
     for(arma::uword k = t; k <= 500; k++){
-      arma::vec b_linspace_1 = arma::linspace(k-t+1,k+1,t+1);
-      arma::vec b_linspace_2 = arma::linspace((k+1)*dirichlet_alpha,(k+1)*dirichlet_alpha+no_variables-1, no_variables);
-      double b = arma::accu(arma::log(b_linspace_1))-arma::accu(arma::log(b_linspace_2)) + R::dpois((k+1)-1, lambda, true);
-      double m = std::max(b,r);
-      r = std::log(std::exp(r-m) +  std::exp(b-m)) + m;
+      arma::vec b_linspace_1 = arma::linspace(k-t+1,k+1,t+1); // numerator = b*(b-1)*...*(b-|C|+1)
+      arma::vec b_linspace_2 = arma::linspace((k+1)*dirichlet_alpha,(k+1)*dirichlet_alpha+no_variables-1, no_variables); // denominator b*e*(b*e+1)*...*(b*e+p-1)
+      double b = arma::accu(arma::log(b_linspace_1))-arma::accu(arma::log(b_linspace_2)) + R::dpois((k+1)-1, lambda, true); // sum(log(numerator)) - sum(log(denominator)) + log(P=(k+1|lambda))
+      double m = std::max(b,r);  // scaling factor for log-sum-exp formula
+      r = std::log(std::exp(r-m) +  std::exp(b-m)) + m; // update r using log-sum-exp formula to ensure numerical stability and avoid underflow
     }
     log_Vn(t) = r;
   }
@@ -115,19 +115,19 @@ double log_marginal_mfm_sbm(arma::uvec cluster_assign,
                             double beta_bernoulli_alpha,
                             double beta_bernoulli_beta) {
 
-  arma::uvec indices = arma::regspace<arma::uvec>(0, no_variables-1);
-  arma::uvec select_variables = indices(arma::find(indices != node));          
-  arma::uvec cluster_assign_wo_node = cluster_assign(select_variables);
-  arma::uvec indicator_node = indicator.col(node); 
-  arma::vec gamma_node = arma::conv_to<arma::vec>::from(indicator_node(select_variables));
-  arma::uvec table_cluster = table_cpp(cluster_assign_wo_node);
+  arma::uvec indices = arma::regspace<arma::uvec>(0, no_variables-1); // vector of variables indices [0, 1, ..., no_variables-1]
+  arma::uvec select_variables = indices(arma::find(indices != node)); // vector of variables indices excluding 'node'        
+  arma::uvec cluster_assign_wo_node = cluster_assign(select_variables); // vector of cluster labels for all variables but excluding 'node'
+  arma::uvec indicator_node = indicator.col(node); // column of indicator matrix corresponding to 'node'
+  arma::vec gamma_node = arma::conv_to<arma::vec>::from(indicator_node(select_variables)); // selecting only indicators between 'node' and the remaining variables (thus excluding indicator of node with itself -- that is indicator[node,node])
+  arma::uvec table_cluster = table_cpp(cluster_assign_wo_node); // frequency table of clusters excluding node
   double output = 0;
   for(arma::uword i = 0; i < table_cluster.n_elem; i++){
-    if(table_cluster(i) > 0){ // if the cluster is empty (it is the previous cluster of 'node' where 'node' was the only member - a singleton, thus skip)
-      arma::uvec which_variables_cluster_i = arma::find(cluster_assign_wo_node == i);
-      double sumG = arma::accu(gamma_node(which_variables_cluster_i));
-      double sumN = static_cast<double>(which_variables_cluster_i.n_elem);
-      output += R::lbeta(sumG + beta_bernoulli_alpha, sumN - sumG + beta_bernoulli_beta) - R::lbeta(beta_bernoulli_alpha, beta_bernoulli_beta);
+    if(table_cluster(i) > 0){ // if the cluster is empty -- table_cluster(i) = 0 == then it is the previous cluster of 'node' where 'node' was the only member - a singleton, thus skip)
+      arma::uvec which_variables_cluster_i = arma::find(cluster_assign_wo_node == i); // which variables belong to cluster i
+      double sumG = arma::accu(gamma_node(which_variables_cluster_i)); // sum the indicator variables between node and those variables
+      double sumN = static_cast<double>(which_variables_cluster_i.n_elem); // take the size of the group as maximum number of relations
+      output += R::lbeta(sumG + beta_bernoulli_alpha, sumN - sumG + beta_bernoulli_beta) - R::lbeta(beta_bernoulli_alpha, beta_bernoulli_beta); // calculate log-density for cluster i and sum it to the marginal log-likelihood
     }
   }
   return output;
