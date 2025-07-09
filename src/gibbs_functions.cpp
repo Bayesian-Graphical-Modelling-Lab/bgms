@@ -385,114 +385,7 @@ void metropolis_thresholds_blumecapel(
 
 }
 
-double log_pseudolikelihood_ratio(
-    const NumericMatrix& interactions,
-    const NumericMatrix& thresholds,
-    const IntegerMatrix& observations,
-    const IntegerVector& no_categories,
-    const int no_persons,
-    const int variable1,
-    const int variable2,
-    const double proposed_state,
-    const double current_state,
-    const NumericMatrix& rest_matrix,
-    const LogicalVector& variable_bool,
-    const IntegerVector& reference_category
-) {
-  double rest_score, bound;
-  double pseudolikelihood_ratio = 0.0;
-  double denominator_prop, denominator_curr, exponent;
-  int score, obs_score1, obs_score2;
 
-  double delta_state = proposed_state - current_state;
-
-  int nc1 = no_categories[variable1];
-  int nc2 = no_categories[variable2];
-  bool is_ord1 = variable_bool[variable1];
-  bool is_ord2 = variable_bool[variable2];
-  int ref_cat1 = reference_category[variable1];
-  int ref_cat2 = reference_category[variable2];
-
-  for (int person = 0; person < no_persons; person++) {
-    obs_score1 = observations(person, variable1);
-    obs_score2 = observations(person, variable2);
-
-    pseudolikelihood_ratio += 2 * obs_score1 * obs_score2 * delta_state;
-
-    // Variable 1
-    rest_score = rest_matrix(person, variable1) -
-      obs_score2 * interactions(variable2, variable1);
-    bound = rest_score > 0.0 ? nc1 * rest_score : 0.0;
-
-    double obs2_prop_state = obs_score2 * proposed_state;
-    double obs2_curr_state = obs_score2 * current_state;
-
-    if (is_ord1) {
-      denominator_prop = MY_EXP(-bound);
-      denominator_curr = MY_EXP(-bound);
-      int index = variable1;
-      for (int category = 0; category < nc1; category++) {
-        score = category + 1;
-        exponent = thresholds[index] + score * rest_score - bound;
-        index += thresholds.nrow();
-        double exp_term = exponent;
-        denominator_prop += MY_EXP(exp_term + score * obs2_prop_state);
-        denominator_curr += MY_EXP(exp_term + score * obs2_curr_state);
-      }
-    } else {
-      denominator_prop = 0.0;
-      denominator_curr = 0.0;
-      for (int category = 0; category <= nc1; category++) {
-        int diff = category - ref_cat1;
-        exponent = thresholds(variable1, 0) * category +
-          thresholds(variable1, 1) * diff * diff +
-          category * rest_score - bound;
-        denominator_prop += MY_EXP(exponent + category * obs2_prop_state);
-        denominator_curr += MY_EXP(exponent + category * obs2_curr_state);
-      }
-    }
-
-    pseudolikelihood_ratio += MY_LOG(denominator_curr / denominator_prop);
-
-    // Variable 2
-    rest_score = rest_matrix(person, variable2) -
-      obs_score1 * interactions(variable1, variable2);
-    bound = rest_score > 0.0 ? nc2 * rest_score : 0.0;
-
-    double obs1_prop_state = obs_score1 * proposed_state;
-    double obs1_curr_state = obs_score1 * current_state;
-
-    if (is_ord2) {
-      denominator_prop = MY_EXP(-bound);
-      denominator_curr = MY_EXP(-bound);
-      int index = variable2;
-      for (int category = 0; category < nc2; category++) {
-        score = category + 1;
-        exponent = thresholds[index] + score * rest_score - bound;
-        index += thresholds.nrow();
-        denominator_prop += MY_EXP(exponent + score * obs1_prop_state);
-        denominator_curr += MY_EXP(exponent + score * obs1_curr_state);
-      }
-    } else {
-      denominator_prop = 0.0;
-      denominator_curr = 0.0;
-      for (int category = 0; category <= nc2; category++) {
-        int diff = category - ref_cat2;
-        exponent = thresholds(variable2, 0) * category +
-          thresholds(variable2, 1) * diff * diff +
-          category * rest_score - bound;
-        denominator_prop += MY_EXP(exponent + category * obs1_prop_state);
-        denominator_curr += MY_EXP(exponent + category * obs1_curr_state);
-      }
-    }
-
-    pseudolikelihood_ratio += MY_LOG(denominator_curr / denominator_prop);
-  }
-
-  return pseudolikelihood_ratio;
-}
-
-/*
 // ----------------------------------------------------------------------------|
 // The log pseudolikelihood ratio [proposed against current] for an interaction
 // ----------------------------------------------------------------------------|
@@ -612,7 +505,7 @@ double log_pseudolikelihood_ratio(
   }
   return pseudolikelihood_ratio;
 }
-*/
+
 // ----------------------------------------------------------------------------|
 // MH algorithm to sample from the full-conditional of the active interaction
 //  parameters for Bayesian edge selection
