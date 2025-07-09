@@ -591,7 +591,6 @@ void metropolis_interactions(
   }
 }
 
-
 // ----------------------------------------------------------------------------|
 // MH algorithm to sample from the full-conditional of an edge + interaction
 //  pair for Bayesian edge selection
@@ -683,7 +682,6 @@ void metropolis_edge_interaction_pair(
     }
   }
 }
-
 
 // ----------------------------------------------------------------------------|
 // A Gibbs step for graphical model parameters for Bayesian edge selection
