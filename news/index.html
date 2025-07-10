@@ -49,12 +49,14 @@
 <ul><li>The bgm function with the “Stochastic-Block” prior can now also return the sampled allocations and block probabilities, and sample and return the number of blocks.</li>
 <li>The underlying R and c++ functions received a massive update to improve their efficiency and maintainance.</li>
 <li>Repository moved to the Bayesian Graphical Modelling Lab organization.</li>
+<li>Included custom c++ implementations for exp and log on Windows.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="bug-fixes-0-1-4-3">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-1-4-3"></a></h3>
 <ul><li>Fixed a bug in the bgmCompare function with selecting group differences of blume-capel parameters. Parameter differences that were not selected and should be fixed to zero were still updated.</li>
 <li>Fixed a bug in the bgmCompare function with handling the samples of blume-capel parameters. Output was not properly stored.</li>
 <li>Fixed a bug in the bgmCompare function with handling threshold estimation when missing categories and main_model = “Free”. The sufficient statistics and number of categories were not computed correctly.</li>
+<li>Partially fixed a bug in which the bgms package is slower on Windows than on Linux or MacOS. This is because the computation of exp and log using the gcc compiler for Windows is really slow. With a custom c++ implementation, the speed is now closer to the speed achieved on Linux and MacOS.</li>
 </ul></div>
 </div>
     <div class="section level2">
