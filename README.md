@@ -1,3 +1,6 @@
+# bgms: Bayesian Analysis of Networks of Binary and/or Ordinal Variables
+
+<a href="https://bayesiangraphicalmodeling.com"><img src="bgms_sticker.svg" height="200" align="right" /></a>
 
 <!-- badges: start -->
 
@@ -6,8 +9,6 @@ Version](https://www.r-pkg.org/badges/version/bgms)](https://cran.r-project.org/
 [![Downloads](https://cranlogs.r-pkg.org/badges/bgms)](https://cran.r-project.org/package=bgms)
 [![Total](https://cranlogs.r-pkg.org/badges/grand-total/bgms)](https://cran.r-project.org/package=bgms)
 <!-- badges: end -->
-
-# bgms: Bayesian Analysis of Networks of Binary and/or Ordinal Variables
 
 The `R` package <strong>bgms</strong> provides tools for Bayesian
 analysis of the ordinal Markov random field, a graphical model
