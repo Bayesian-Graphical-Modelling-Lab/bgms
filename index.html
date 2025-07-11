@@ -54,10 +54,12 @@
   </div>
 </nav><div class="container template-home" id="container">
 <div class="row">
-  <main id="main" class="col-md-9">
-<div class="section level1">
+  <main id="main" class="col-md-9"><div class="section level1">
 <div class="page-header"><h1 id="bgms-bayesian-analysis-of-networks-of-binary-andor-ordinal-variables">bgms: Bayesian Analysis of Networks of Binary and/or Ordinal Variables<a class="anchor" aria-label="anchor" href="#bgms-bayesian-analysis-of-networks-of-binary-andor-ordinal-variables"></a>
 </h1></div>
+<p><a href="https://bayesiangraphicalmodeling.com" class="external-link"><img src="bgms_sticker.svg" height="200" align="right"></a></p>
+<!-- badges: start -->
+
 <p>The <code>R</code> package <strong>bgms</strong> provides tools for Bayesian analysis of the ordinal Markov random field, a graphical model describing a network of binary and/or ordinal variables (Marsman et al., 2025). A pseudolikelihood is used to approximate the likelihood of the graphical model, and Markov chain Monte Carlo methods are used to simulate from the corresponding pseudoposterior distribution of the graphical model parameters.</p>
 <p>The <strong>bgm</strong> function can be used for a one-sample design and the <strong>bgmCompare</strong> function can be used for an independent-sample design (see Marsman et al., 2024). Both functions can model the selection of effects. In one-sample designs, the <strong>bgm</strong> function models the presence or absence of edges between pairs of variables in the network. The estimated posterior inclusion probability indicates how plausible it is that a network with an edge between the two corresponding variables produced the observed data, and can be converted into a Bayes factor test for conditional independence. The <strong>bgm</strong> function can also model the presence or absence of communities or clusters of variables in the network. The estimated posterior probability distribution of the number of clusters indicates how plausible it is that a network with the corresponding number of clusters produced the observed data, and can be converted into a Bayes factor test for clustering (see Sekulovski et al., 2025).</p>
 <p>In an independent-sample design, the <strong>bgmCompare</strong> function models the selection of group differences in edge weights and possibly category thresholds. The estimated posterior inclusion probability indicates how plausible it is that graphical models with a difference in the corresponding edge weight or category threshold generated the data at hand, and can be converted to a Bayes factor test for parameter equivalence.</p>
@@ -120,7 +122,6 @@ Sekulovski, N., Keetelaar, S., Huth, K. B. S., Wagenmakers, E.-J., van Bork, R.,
 </div>
 </div>
 </div>
-
   </main><aside class="col-md-3"><div class="links">
 <h2 data-toc-skip>Links</h2>
 <ul class="list-unstyled">
