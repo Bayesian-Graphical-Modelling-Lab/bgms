@@ -1,7 +1,8 @@
 #pragma once
-#include <dqrng.h>
-#include <xoshiro.h>
 #include <RcppArmadillo.h>
+
+// forward declaration
+struct SafeRNG;
 
 Rcpp::List run_gibbs_sampler_for_bgm(
     int chain_id,
@@ -33,5 +34,5 @@ Rcpp::List run_gibbs_sampler_for_bgm(
     const int hmc_num_leapfrogs,
     const int nuts_max_depth,
     const bool learn_mass_matrix,
-    dqrng::xoshiro256plus& rng
+    SafeRNG& rng
 );

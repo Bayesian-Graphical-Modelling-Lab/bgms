@@ -51,7 +51,7 @@ double heuristic_initial_step_size(
     const arma::vec& theta,
     const std::function<double(const arma::vec&)>& log_post,
     const std::function<arma::vec(const arma::vec&)>& grad,
-    dqrng::xoshiro256plus& rng,
+    SafeRNG& rng,
     double target_acceptance,
     double init_step,
     int max_attempts

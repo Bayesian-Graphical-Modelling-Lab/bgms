@@ -50,7 +50,7 @@ void impute_missing_values_for_graphical_model (
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& reference_category,
     arma::imat& sufficient_pairwise,
-    dqrng::xoshiro256plus& rng
+    SafeRNG& rng
 ) {
   const int num_variables = observations.n_cols;
   const int num_missings = missing_index.n_rows;
@@ -193,7 +193,7 @@ double find_reasonable_initial_step_size(
     const double interaction_scale,
     const double target_acceptance,
     const arma::imat& sufficient_pairwise,
-    dqrng::xoshiro256plus& rng
+    SafeRNG& rng
 ) {
   arma::vec theta = vectorize_model_parameters(
     main_effects, pairwise_effects, inclusion_indicator,
@@ -278,7 +278,7 @@ void update_main_effects_with_metropolis (
     arma::mat& proposal_sd_main,
     RWMAdaptationController& adapter,
     const int iteration,
-    dqrng::xoshiro256plus& rng
+    SafeRNG& rng
 ) {
   const int num_vars = observations.n_cols;
   arma::umat index_mask_main = arma::ones<arma::umat>(proposal_sd_main.n_rows, proposal_sd_main.n_cols);
@@ -381,7 +381,7 @@ void update_pairwise_effects_with_metropolis (
     const arma::ivec& reference_category,
     const int iteration,
     const arma::imat& sufficient_pairwise,
-    dqrng::xoshiro256plus& rng
+    SafeRNG& rng
 ) {
   arma::mat accept_prob_pairwise = arma::zeros<arma::mat>(num_variables, num_variables);
   arma::umat index_mask_pairwise = arma::zeros<arma::umat>(num_variables, num_variables);
@@ -478,7 +478,7 @@ void update_parameters_with_hmc(
     HMCAdaptationController& adapt,
     const bool learn_mass_matrix,
     const bool selection,
-    dqrng::xoshiro256plus& rng
+    SafeRNG& rng
 ) {
   arma::vec current_state = vectorize_model_parameters(
     main_effects, pairwise_effects, inclusion_indicator,
@@ -587,7 +587,7 @@ SamplerResult update_parameters_with_nuts(
     HMCAdaptationController& adapt,
     const bool learn_mass_matrix,
     const bool selection,
-    dqrng::xoshiro256plus& rng
+    SafeRNG& rng
 ) {
   arma::vec current_state = vectorize_model_parameters(
     main_effects, pairwise_effects, inclusion_indicator,
@@ -668,7 +668,7 @@ void tune_pairwise_proposal_sd(
     const arma::imat& sufficient_pairwise,
     int iteration,
     const WarmupSchedule& sched,
-    dqrng::xoshiro256plus& rng,
+    SafeRNG& rng,
     double target_accept = 0.44,
     double rm_decay = 0.75
 )
@@ -762,7 +762,7 @@ void update_indicator_interaction_pair_with_metropolis (
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& reference_category,
     const arma::imat& sufficient_pairwise,
-    dqrng::xoshiro256plus& rng
+    SafeRNG& rng
 ) {
   for (int cntr = 0; cntr < num_interactions; cntr++) {
     const int variable1 = index(cntr, 1);
@@ -912,7 +912,7 @@ void gibbs_update_step_for_graphical_model_parameters (
     arma::ivec& treedepth_samples,
     arma::ivec& divergent_samples,
     arma::vec& energy_samples,
-    dqrng::xoshiro256plus& rng
+    SafeRNG& rng
 ) {
 
   // Step 0: Initialise random graph structure when edge_selection = TRUE
@@ -1071,7 +1071,7 @@ Rcpp::List run_gibbs_sampler_for_bgm(
     const int hmc_num_leapfrogs,
     const int nuts_max_depth,
     const bool learn_mass_matrix,
-    dqrng::xoshiro256plus& rng
+    SafeRNG& rng
 ) {
   // --- Setup: dimensions and storage structures
   const int num_variables = observations.n_cols;
@@ -1176,7 +1176,8 @@ Rcpp::List run_gibbs_sampler_for_bgm(
   for (int iteration = 0; iteration < total_iter; iteration++) {
     if (iteration % print_every == 0) {
       tbb::mutex::scoped_lock lock(get_print_mutex());
-      Rcpp::Rcout
+      std::cout
+      // Rcpp::Rcout
       << "[bgm] chain " << chain_id
       << " iteration " << iteration
       << " / " << total_iter

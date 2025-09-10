@@ -1,12 +1,11 @@
 // [[Rcpp::depends(RcppParallel, RcppArmadillo, dqrng)]]
 #include <RcppParallel.h>
 #include <RcppArmadillo.h>
-#include <dqrng.h>
-#include <xoshiro.h>
 #include "bgm_sampler.h"
 #include <tbb/global_control.h>
 #include <vector>
 #include <string>
+#include "rng_utils.h"
 
 using namespace Rcpp;
 using namespace RcppParallel;
@@ -14,16 +13,6 @@ using namespace RcppParallel;
 // -----------------------------------------------------------------------------
 // Wrapper to silence Clang warning
 // -----------------------------------------------------------------------------
-struct SafeRNG {
-  dqrng::xoshiro256plus eng;
-
-  SafeRNG() : eng() {}
-  SafeRNG(const dqrng::xoshiro256plus& other) : eng(other) {}
-  SafeRNG& operator=(const dqrng::xoshiro256plus& other) {
-    eng = other;
-    return *this;
-  }
-};
 
 // -----------------------------------------------------------------------------
 // Result struct
@@ -146,7 +135,7 @@ struct GibbsChainRunner : public Worker {
       out.error = false;
 
       try {
-        dqrng::xoshiro256plus rng = chain_rngs[i].eng;
+        SafeRNG rng = chain_rngs[i];
 
         Rcpp::List result = run_gibbs_sampler_for_bgm(
           out.chain_id,
@@ -237,11 +226,8 @@ Rcpp::List run_bgm_parallel(
 
   // Prepare one independent RNG per chain via jump()
   std::vector<SafeRNG> chain_rngs(num_chains);
-  chain_rngs[0].eng = dqrng::xoshiro256plus(seed);
-
-  for (int c = 1; c < num_chains; ++c) {
-    chain_rngs[c].eng = chain_rngs[c-1].eng;
-    chain_rngs[c].eng.jump();
+  for (int c = 0; c < num_chains; ++c) {
+    chain_rngs[c] = SafeRNG(seed + c);
   }
 
   GibbsChainRunner worker(

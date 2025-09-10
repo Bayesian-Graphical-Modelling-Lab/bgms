@@ -6,8 +6,7 @@
 #include "mcmc_leapfrog.h"
 #include "mcmc_memoization.h"
 #include "mcmc_utils.h"
-#include "rng_utils.h"
-
+struct SafeRNG;
 
 
 /**
@@ -54,5 +53,5 @@ SamplerResult nuts_sampler(const arma::vec& init_theta,
                            const std::function<double(const arma::vec&)>& log_post,
                            const std::function<arma::vec(const arma::vec&)>& grad,
                            const arma::vec& inv_mass_diag,
-                           dqrng::xoshiro256plus& rng,
+                           SafeRNG& rng,
                            int max_depth = 10);

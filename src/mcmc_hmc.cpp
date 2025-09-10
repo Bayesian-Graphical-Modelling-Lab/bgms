@@ -15,7 +15,7 @@ SamplerResult hmc_sampler(
     const std::function<arma::vec(const arma::vec&)>& grad,
     const int num_leapfrogs,
     const arma::vec& inv_mass_diag,
-    dqrng::xoshiro256plus& rng
+    SafeRNG& rng
 ) {
   arma::vec theta = init_theta;
   arma::vec init_r = arma::sqrt(1.0 / inv_mass_diag) % arma_rnorm_vec(rng, theta.n_elem);

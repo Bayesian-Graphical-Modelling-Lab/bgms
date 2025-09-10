@@ -1,13 +1,11 @@
 // [[Rcpp::depends(RcppParallel, RcppArmadillo, dqrng)]]
 #include <RcppParallel.h>
 #include <RcppArmadillo.h>
-#include <dqrng.h>
-#include <dqrng_generator.h>
-#include <xoshiro.h>
 #include "bgmCompare_sampler.h"
 #include <tbb/global_control.h>
 #include <vector>
 #include <string>
+#include "rng_utils.h"
 
 using namespace Rcpp;
 using namespace RcppParallel;
@@ -59,7 +57,7 @@ struct GibbsCompareChainRunner : public Worker {
   const arma::mat& inclusion_probability_master;
 
   // RNG seeds
-  const std::vector<uint64_t>& chain_seeds;
+  const std::vector<SafeRNG>& chain_rngs;
 
   // output
   std::vector<ChainResult>& results;
@@ -95,7 +93,7 @@ struct GibbsCompareChainRunner : public Worker {
     const arma::imat& group_indices,
     const arma::imat& interaction_index_matrix,
     const arma::mat& inclusion_probability_master,
-    const std::vector<uint64_t>& chain_seeds,
+    const std::vector<SafeRNG>& chain_rngs,
     std::vector<ChainResult>& results
   ) :
     observations(observations),
@@ -128,7 +126,7 @@ struct GibbsCompareChainRunner : public Worker {
     group_indices(group_indices),
     interaction_index_matrix(interaction_index_matrix),
     inclusion_probability_master(inclusion_probability_master),
-    chain_seeds(chain_seeds),
+    chain_rngs(chain_rngs),
     results(results)
   {}
 
@@ -140,7 +138,7 @@ struct GibbsCompareChainRunner : public Worker {
 
       try {
         // per-chain RNG
-        dqrng::xoshiro256plus rng(chain_seeds[i]);
+        SafeRNG rng(chain_rngs[i]);
 
         // make per-chain copies
         std::vector<arma::imat> num_obs_categories_cpp = num_obs_categories_cpp_master;
@@ -247,11 +245,11 @@ Rcpp::List run_bgmCompare_parallel(
   std::vector<ChainResult> results(num_chains);
 
   // per-chain seeds
-  std::vector<uint64_t> chain_seeds(num_chains);
-  dqrng::xoshiro256plus seeder;
+  std::vector<SafeRNG> chain_rngs(num_chains);
   for (int c = 0; c < num_chains; ++c) {
-    chain_seeds[c] = seeder();
+    chain_rngs[c] = SafeRNG(/*seed +*/ c); // TODO: this needs a seed passed by the user!
   }
+
 
   GibbsCompareChainRunner worker(
       observations, num_groups,
@@ -262,7 +260,7 @@ Rcpp::List run_bgmCompare_parallel(
       baseline_category, difference_selection, main_effect_indices,
       pairwise_effect_indices, target_accept, nuts_max_depth, learn_mass_matrix,
       projection, group_membership, group_indices, interaction_index_matrix,
-      inclusion_probability, chain_seeds, results
+      inclusion_probability, chain_rngs, results
   );
 
   {

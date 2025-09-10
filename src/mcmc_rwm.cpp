@@ -30,7 +30,7 @@ SamplerResult rwm_sampler(
     double current_state,
     double step_size,
     const std::function<double(double)>& log_post,
-    dqrng::xoshiro256plus& rng
+    SafeRNG& rng
 ) {
   double proposed_state = rnorm(rng, current_state, step_size);
   double log_accept = log_post(proposed_state) - log_post(current_state);

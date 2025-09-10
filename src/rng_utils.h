@@ -3,44 +3,54 @@
 #include <RcppArmadillo.h>
 #include <dqrng.h>
 #include <dqrng_generator.h>
+#include <dqrng_distribution.h>
 #include <xoshiro.h>
 #include <random>
+#include <boost/random/beta_distribution.hpp>
+
+struct SafeRNG {
+  dqrng::xoshiro256plusplus eng;
+
+  // Default constructor // TODO: perhaps delete this to require a seed
+  SafeRNG() : eng(1) {}
+
+  SafeRNG(const int seed) : eng(seed) {}
+
+  // Required interface for std::distributions
+  using result_type = uint64_t;
+  static constexpr result_type min() { return dqrng::xoshiro256plusplus::min(); }
+  static constexpr result_type max() { return dqrng::xoshiro256plusplus::max(); }
+  result_type operator()() { return eng(); }
+};
+
 
 // ============================================================
 // Scalar RNG helpers
 // ============================================================
 
 // Uniform(0,1)
-inline double runif(dqrng::xoshiro256plus& rng) {
-  static thread_local std::uniform_real_distribution<double> dist(0.0, 1.0);
-  return dist(rng);
+inline double runif(SafeRNG& rng) {
+  return dqrng::uniform_distribution(0.0, 1.0)(rng.eng);
 }
 
 // Normal(mu, sigma)
-inline double rnorm(dqrng::xoshiro256plus& rng,
-                    double mu = 0.0, double sigma = 1.0) {
-  static thread_local std::normal_distribution<double> dist(0.0, 1.0);
-  return mu + sigma * dist(rng);
+inline double rnorm(SafeRNG& rng, double mu = 0.0, double sigma = 1.0) {
+  return dqrng::normal_distribution(mu, sigma)(rng.eng);
 }
 
 // Bernoulli(p)
-inline int rbern(dqrng::xoshiro256plus& rng, double p) {
+inline int rbern(SafeRNG& rng, double p) {
   return (runif(rng) < p) ? 1 : 0;
 }
 
 // Beta(a, b)
-inline double rbeta(dqrng::xoshiro256plus& rng, double a, double b) {
-  std::gamma_distribution<double> g1(a, 1.0);
-  std::gamma_distribution<double> g2(b, 1.0);
-  double x = g1(rng);
-  double y = g2(rng);
-  return x / (x + y);
+inline double rbeta(SafeRNG& rng, double a, double b) {
+  return boost::random::beta_distribution<double>(a, b)(rng.eng);
 }
 
 // Exponential(lambda)
-inline double rexp(dqrng::xoshiro256plus& rng, double lambda) {
-  std::exponential_distribution<double> dist(lambda);
-  return dist(rng);
+inline double rexp(SafeRNG& rng, double lambda) {
+  return dqrng::exponential_distribution(lambda)(rng.eng);
 }
 
 // ============================================================
@@ -48,7 +58,7 @@ inline double rexp(dqrng::xoshiro256plus& rng, double lambda) {
 // ============================================================
 
 // arma::vec of N(mu, sigma)
-inline arma::vec arma_rnorm_vec(dqrng::xoshiro256plus& rng,
+inline arma::vec arma_rnorm_vec(SafeRNG& rng,
                                 arma::uword n,
                                 double mu = 0.0, double sigma = 1.0) {
   arma::vec out(n);
@@ -58,7 +68,7 @@ inline arma::vec arma_rnorm_vec(dqrng::xoshiro256plus& rng,
 }
 
 // arma::mat of N(mu, sigma)
-inline arma::mat arma_rnorm_mat(dqrng::xoshiro256plus& rng,
+inline arma::mat arma_rnorm_mat(SafeRNG& rng,
                                 arma::uword nrow, arma::uword ncol,
                                 double mu = 0.0, double sigma = 1.0) {
   arma::mat out(nrow, ncol);
@@ -71,7 +81,7 @@ inline arma::mat arma_rnorm_mat(dqrng::xoshiro256plus& rng,
 }
 
 // arma::vec of U(0,1)
-inline arma::vec arma_runif_vec(dqrng::xoshiro256plus& rng, arma::uword n) {
+inline arma::vec arma_runif_vec(SafeRNG& rng, arma::uword n) {
   arma::vec out(n);
   for (arma::uword i = 0; i < n; ++i)
     out[i] = runif(rng);
@@ -79,7 +89,7 @@ inline arma::vec arma_runif_vec(dqrng::xoshiro256plus& rng, arma::uword n) {
 }
 
 // arma::mat of U(0,1)
-inline arma::mat arma_runif_mat(dqrng::xoshiro256plus& rng,
+inline arma::mat arma_runif_mat(SafeRNG& rng,
                                 arma::uword nrow, arma::uword ncol) {
   arma::mat out(nrow, ncol);
   for (arma::uword j = 0; j < ncol; ++j) {
@@ -91,9 +101,9 @@ inline arma::mat arma_runif_mat(dqrng::xoshiro256plus& rng,
 }
 
 // Random permutation (like arma::randperm)
-inline arma::uvec arma_randperm(dqrng::xoshiro256plus& rng, arma::uword n) {
+inline arma::uvec arma_randperm(SafeRNG& rng, arma::uword n) {
   arma::uvec out(n);
   std::iota(out.begin(), out.end(), 0);
-  std::shuffle(out.begin(), out.end(), rng);
+  std::shuffle(out.begin(), out.end(), rng.eng);
   return out;
 }

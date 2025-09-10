@@ -5,7 +5,7 @@
 #include <cmath>
 #include <functional>
 #include <memory>
-#include "rng_utils.h"
+struct SafeRNG;
 
 // (only if <algorithm> didn’t already provide it under C++17)
 #if __cplusplus < 201703L
@@ -216,7 +216,7 @@ double heuristic_initial_step_size(
     const arma::vec& theta,
     const std::function<double(const arma::vec&)>& log_post,
     const std::function<arma::vec(const arma::vec&)>& grad,
-    dqrng::xoshiro256plus& rng,
+    SafeRNG& rng,
     double target_acceptance = 0.625,
     double init_step = 1.0,
     int max_attempts = 20

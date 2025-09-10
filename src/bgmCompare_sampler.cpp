@@ -63,7 +63,7 @@ List impute_missing_data_for_graphical_model(
     const arma::imat& missing_data_indices,
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
-    dqrng::xoshiro256plus& rng
+    SafeRNG& rng
 ) {
   const int num_variables = observations.n_cols;
   const int num_missings = missing_data_indices.n_rows;
@@ -234,7 +234,7 @@ double find_reasonable_initial_step_size(
     const double main_alpha,
     const double main_beta,
     const double target_acceptance,
-    dqrng::xoshiro256plus& rng
+    SafeRNG& rng
 ) {
   arma::vec theta = vectorize_model_parameters(
     main_effects, pairwise_effects, inclusion_indicator, main_effect_indices,
@@ -350,7 +350,7 @@ SamplerResult update_parameters_with_nuts(
     HMCAdaptationController& adapt,
     const bool learn_mass_matrix,
     const bool selection,
-    dqrng::xoshiro256plus& rng
+    SafeRNG& rng
 ) {
   arma::vec current_state = vectorize_model_parameters(
     main_effects, pairwise_effects, inclusion_indicator,
@@ -613,7 +613,7 @@ void gibbs_update_step_for_graphical_model_parameters (
     const int num_groups,
     const arma::imat group_indices,
     double difference_scale,
-    dqrng::xoshiro256plus& rng
+    SafeRNG& rng
 ) {
 
   SamplerResult result = update_parameters_with_nuts(
@@ -670,7 +670,7 @@ Rcpp::List run_gibbs_sampler_for_bgmCompare(
     const arma::imat& group_indices,//new
     const arma::imat& interaction_index_matrix,//new
     arma::mat inclusion_probability,//new
-    dqrng::xoshiro256plus& rng
+    SafeRNG& rng
 ) {
   // --- Setup: dimensions and storage structures
   const int num_variables = observations.n_cols;

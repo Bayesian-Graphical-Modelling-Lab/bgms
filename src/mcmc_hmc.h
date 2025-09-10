@@ -3,9 +3,7 @@
 #include <RcppArmadillo.h>
 #include <functional>
 #include "mcmc_utils.h"
-#include "rng_utils.h"
-
-
+struct SafeRNG;
 
 SamplerResult hmc_sampler(
     const arma::vec& init_theta,
@@ -14,5 +12,5 @@ SamplerResult hmc_sampler(
     const std::function<arma::vec(const arma::vec&)>& grad,
     const int num_leapfrogs,
     const arma::vec& inv_mass_diag,
-    dqrng::xoshiro256plus& rng
+    SafeRNG& rng
 );

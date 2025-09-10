@@ -33,7 +33,7 @@ arma::uvec table_cpp(arma::uvec x) {
 arma::mat add_row_col_block_prob_matrix(arma::mat X,
                                             double beta_alpha,
                                             double beta_beta,
-                                            dqrng::xoshiro256plus& rng) {
+                                            SafeRNG& rng) {
   arma::uword dim = X.n_rows;
   arma::mat Y(dim+1,dim+1,arma::fill::zeros);
 
@@ -159,7 +159,7 @@ inline void update_sumG(double &sumG,
 // Sample the cluster assignment in sample_block_allocations_mfm_sbm()
 // ----------------------------------------------------------------------------|
 arma::uword sample_cluster(arma::vec cluster_prob,
-                           dqrng::xoshiro256plus& rng) {
+                           SafeRNG& rng) {
   arma::vec cum_prob = arma::cumsum(cluster_prob);
   double u = runif(rng) * arma::max(cum_prob);
 
@@ -182,7 +182,7 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
                                         arma::uword dirichlet_alpha,
                                         double beta_bernoulli_alpha,
                                         double beta_bernoulli_beta,
-                                        dqrng::xoshiro256plus& rng) {
+                                        SafeRNG& rng) {
   arma::uword old;
   arma::uword cluster;
   arma::uword no_clusters;
@@ -320,7 +320,7 @@ arma::mat block_probs_mfm_sbm(arma::uvec cluster_assign,
                                   arma::uword no_variables,
                                   double beta_bernoulli_alpha,
                                   double beta_bernoulli_beta,
-                                  dqrng::xoshiro256plus& rng) {
+                                  SafeRNG& rng) {
 
   arma::uvec cluster_size = table_cpp(cluster_assign);
   arma::uword no_clusters = cluster_size.n_elem;

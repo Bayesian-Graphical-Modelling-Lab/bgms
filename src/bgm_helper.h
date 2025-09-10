@@ -50,7 +50,7 @@ inline void initialise_graph(
     const arma::mat& incl_prob,
     arma::mat&  rest,
     const arma::imat& X,
-    dqrng::xoshiro256plus& rng
+    SafeRNG& rng
 ) {
   int V = indicator.n_rows;
   for (int i = 0; i < V-1; ++i) {

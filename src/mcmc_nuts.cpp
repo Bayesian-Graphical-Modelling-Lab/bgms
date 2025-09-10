@@ -77,7 +77,7 @@ BuildTreeResult build_tree(
     const double kin0,
     Memoizer& memo,
     const arma::vec& inv_mass_diag,
-    dqrng::xoshiro256plus& rng
+    SafeRNG& rng
 ) {
   constexpr double Delta_max = 1000.0;
 
@@ -188,7 +188,7 @@ SamplerResult nuts_sampler(
     const std::function<double(const arma::vec&)>& log_post,
     const std::function<arma::vec(const arma::vec&)>& grad,
     const arma::vec& inv_mass_diag,
-    dqrng::xoshiro256plus& rng,
+    SafeRNG& rng,
     int max_depth
 ) {
   // Here memo is created locally; terminates at end of nuts_sampler() call

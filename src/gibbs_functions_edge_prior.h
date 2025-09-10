@@ -1,7 +1,8 @@
 #pragma once
 
-#include "rng_utils.h"
 #include <RcppArmadillo.h>
+struct SafeRNG;
+
 
 // ----------------------------------------------------------------------------|
 // Compute partition coefficient for the MFM - SBM
@@ -22,7 +23,7 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
                                                 arma::uword dirichlet_alpha,
                                                 double beta_bernoulli_alpha,
                                                 double beta_bernoulli_beta,
-                                                dqrng::xoshiro256plus& rng);
+                                                SafeRNG& rng);
 
 // ----------------------------------------------------------------------------|
 // Sample the block parameters for the MFM - SBM
@@ -32,4 +33,4 @@ arma::mat block_probs_mfm_sbm(arma::uvec cluster_assign,
                                         arma::uword no_variables,
                                         double beta_bernoulli_alpha,
                                         double beta_bernoulli_beta,
-                                        dqrng::xoshiro256plus& rng);
+                                        SafeRNG& rng);
