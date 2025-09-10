@@ -98,7 +98,7 @@ void impute_missing_values_for_graphical_model (
     }
 
     // Sample from categorical distribution via inverse transform
-    const double u = rng () * cumsum;
+    const double u = runif (rng) * cumsum;
     int sampled_score = 0;
     while (u > category_probabilities[sampled_score]) {
       sampled_score++;

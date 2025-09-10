@@ -220,7 +220,7 @@ Rcpp::List run_bgm_parallel(
     bool learn_mass_matrix,
     int num_chains,
     int nThreads,
-    uint64_t seed   // 👈 new
+    uint64_t seed
 ) {
   std::vector<ChainResult> results(num_chains);
 
