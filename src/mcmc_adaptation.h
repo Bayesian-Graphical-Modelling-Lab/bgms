@@ -7,7 +7,7 @@
 #include <vector>
 #include "mcmc_utils.h"
 #include "mcmc_rwm.h"
-
+#include "explog_switch.h"
 
 class DualAveraging {
 public:
@@ -21,10 +21,10 @@ public:
   int t;
 
   DualAveraging(double initial_step_size)
-    : log_step_size(std::log(initial_step_size)),
-      log_step_size_avg(std::log(initial_step_size)),
+    : log_step_size(MY_LOG(initial_step_size)),
+      log_step_size_avg(MY_LOG(initial_step_size)),
       hbar(0.0),
-      mu(std::log(10.0 * initial_step_size)),
+      mu(MY_LOG(10.0 * initial_step_size)),
       gamma(0.05),
       t0(10.0),
       kappa(0.75),
@@ -42,15 +42,15 @@ public:
   }
 
   void restart(double new_step_size) {
-    log_step_size = std::log(new_step_size);
-    log_step_size_avg = std::log(new_step_size);
-    mu = std::log(10.0 * new_step_size);
+    log_step_size = MY_LOG(new_step_size);
+    log_step_size_avg = MY_LOG(new_step_size);
+    mu = MY_LOG(10.0 * new_step_size);
     hbar = 0.0;
     t = 1;
   }
 
-  double current() const { return std::exp(log_step_size); }
-  double averaged() const { return std::exp(log_step_size_avg); }
+  double current() const { return MY_EXP(log_step_size); }
+  double averaged() const { return MY_EXP(log_step_size_avg); }
 };
 
 
@@ -281,7 +281,7 @@ public:
     for (arma::uword i = 0; i < proposal_sd.n_rows; ++i) {
       for (arma::uword j = 0; j < proposal_sd.n_cols; ++j) {
         if (index_mask(i, j) == 1) {
-          const double accept_log = std::log(accept_prob_matrix(i, j));
+          const double accept_log = MY_LOG(accept_prob_matrix(i, j));
           proposal_sd(i, j) = update_proposal_sd_with_robbins_monro(
             proposal_sd(i, j),
             accept_log,

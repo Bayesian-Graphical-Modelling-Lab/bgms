@@ -2,6 +2,7 @@
 #include "bgmCompare_helper.h"
 #include "bgmCompare_logp_and_grad.h"
 #include <cmath>
+#include "explog_switch.h"
 
 using namespace Rcpp;
 
@@ -174,7 +175,7 @@ double log_pseudoposterior(
 
   // ---- priors ----
   auto log_beta_prior = [&](double x) {
-    return x * main_alpha - std::log1p(std::exp(x)) * (main_alpha + main_beta);
+    return x * main_alpha - std::log1p(MY_EXP(x)) * (main_alpha + main_beta);
   };
 
   // Main effects prior
@@ -510,7 +511,7 @@ arma::vec gradient(
       for (int c = 0; c < num_cats; ++c) {
         off = main_index(base + c, 0);
         double value = main_effects(base + c, 0);
-        const double p = 1.0 / (1.0 + std::exp(-value));
+        const double p = 1.0 / (1.0 + MY_EXP(-value));
         grad(off) += main_alpha - (main_alpha + main_beta) * p;
 
         if (inclusion_indicator(v, v) == 0) continue;
@@ -524,12 +525,12 @@ arma::vec gradient(
     } else {
       off = main_index(base, 0);
       double value = main_effects(base, 0);
-      double p = 1.0 / (1.0 + std::exp(-value));
+      double p = 1.0 / (1.0 + MY_EXP(-value));
       grad(off) += main_alpha - (main_alpha + main_beta) * p;
 
       off = main_index(base + 1, 0);
       value = main_effects(base + 1, 0);
-      p = 1.0 / (1.0 + std::exp(-value));
+      p = 1.0 / (1.0 + MY_EXP(-value));
       grad(off) += main_alpha - (main_alpha + main_beta) * p;
 
 
@@ -733,7 +734,7 @@ double log_pseudoposterior_main_component(
   if (h == 0) {
     // overall
     auto log_beta_prior = [&](double x) {
-      return x * main_alpha - std::log1p(std::exp(x)) * (main_alpha + main_beta);
+      return x * main_alpha - std::log1p(MY_EXP(x)) * (main_alpha + main_beta);
     };
 
     // Main effects prior

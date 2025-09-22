@@ -95,14 +95,14 @@ void impute_missing_bgm (
       for (int cat = 0; cat < num_cats; cat++) {
         const int score = cat + 1;
         const double exponent = main_effects (variable, cat) + score * residual_score;
-        cumsum += std::exp (exponent);
+        cumsum += MY_EXP (exponent);
         category_probabilities[score] = cumsum;
       }
     } else {
       // Compute probabilities for Blume-Capel variable
       const int ref = baseline_category (variable);
 
-      cumsum = std::exp (main_effects (variable, 1) * ref * ref);
+      cumsum = MY_EXP (main_effects (variable, 1) * ref * ref);
       category_probabilities[0] = cumsum;
 
       for (int cat = 0; cat < num_cats; cat++) {
@@ -112,7 +112,7 @@ void impute_missing_bgm (
           main_effects (variable, 0) * score +
           main_effects (variable, 1) * centered * centered +
           score * residual_score;
-        cumsum += std::exp (exponent);
+        cumsum += MY_EXP (exponent);
         category_probabilities[score] = cumsum;
       }
     }
@@ -792,7 +792,7 @@ void tune_proposal_sd_bgm(
       }
 
       proposal_sd = update_proposal_sd_with_robbins_monro(
-        proposal_sd, std::log(result.accept_prob), rm_weight, target_accept
+        proposal_sd, MY_LOG(result.accept_prob), rm_weight, target_accept
       );
 
       proposal_sd_pairwise_effects(variable1, variable2) = proposal_sd;
@@ -891,15 +891,15 @@ void update_indicator_edges_metropolis_bgm (
     if (proposing_addition) {
       log_accept += R::dcauchy(proposed_state, 0.0, pairwise_scale, true);
       log_accept -= R::dnorm(proposed_state, current_state, sd, true);
-      log_accept += std::log (inclusion_probability_ij) - std::log (1.0 - inclusion_probability_ij);
+      log_accept += MY_LOG (inclusion_probability_ij) - MY_LOG (1.0 - inclusion_probability_ij);
     } else {
       log_accept -= R::dcauchy(current_state, 0.0, pairwise_scale, true);
       log_accept += R::dnorm(current_state, proposed_state, sd, true);
-      log_accept -= std::log (inclusion_probability_ij) - std::log (1.0 - inclusion_probability_ij);
+      log_accept -= MY_LOG (inclusion_probability_ij) - MY_LOG (1.0 - inclusion_probability_ij);
     }
 
     // Metropolis-Hastings accept step
-    if (std::log (runif(rng)) < log_accept) {
+    if (MY_LOG (runif(rng)) < log_accept) {
       const int updated_indicator = 1 - indicator(variable1, variable2);
       indicator(variable1, variable2) = updated_indicator;
       indicator(variable2, variable1) = updated_indicator;

@@ -1,6 +1,7 @@
 #include <RcppArmadillo.h>
 #include <Rcpp.h>
 #include "rng_utils.h"
+#include "explog_switch.h"
 
 using namespace Rcpp;
 
@@ -71,7 +72,7 @@ arma::vec compute_Vn_mfm_sbm(arma::uword no_variables,
       arma::vec b_linspace_2 = arma::linspace((k+1)*dirichlet_alpha,(k+1)*dirichlet_alpha+no_variables-1, no_variables); // denominator b*e*(b*e+1)*...*(b*e+p-1)
       double b = arma::accu(arma::log(b_linspace_1))-arma::accu(arma::log(b_linspace_2)) + R::dpois((k+1)-1, lambda, true); // sum(log(numerator)) - sum(log(denominator)) + log(P=(k+1|lambda))
       double m = std::max(b,r);  // scaling factor for log-sum-exp formula
-      r = std::log(std::exp(r-m) +  std::exp(b-m)) + m; // update r using log-sum-exp formula to ensure numerical stability and avoid underflow
+      r = MY_LOG(MY_EXP(r-m) +  MY_EXP(b-m)) + m; // update r using log-sum-exp formula to ensure numerical stability and avoid underflow
     }
     log_Vn(t) = r;
   }
@@ -92,14 +93,14 @@ double log_likelihood_mfm_sbm(arma::uvec cluster_assign,
     if(j != node) {
       if(j < node) {
         output += indicator(j, node) *
-          std::log(cluster_probs(cluster_assign(j), cluster_assign(node)));
+          MY_LOG(cluster_probs(cluster_assign(j), cluster_assign(node)));
         output += (1 - indicator(j, node)) *
-          std::log(1 - cluster_probs(cluster_assign(j), cluster_assign(node)));
+          MY_LOG(1 - cluster_probs(cluster_assign(j), cluster_assign(node)));
       } else {
         output += indicator(node, j) *
-          std::log(cluster_probs(cluster_assign(node), cluster_assign(j)));
+          MY_LOG(cluster_probs(cluster_assign(node), cluster_assign(j)));
         output += (1 - indicator(node, j)) *
-          std::log(1 - cluster_probs(cluster_assign(node), cluster_assign(j)));
+          MY_LOG(1 - cluster_probs(cluster_assign(node), cluster_assign(j)));
       }
     }
   }
@@ -221,7 +222,7 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
                                            no_variables);
 
           prob = (static_cast<double>(dirichlet_alpha) + static_cast<double>(cluster_size_node(c))) *
-            std::exp(loglike);
+            MY_EXP(loglike);
           }
           else{ // if old group, the probability is set to 0.0
             prob = 0.0;
@@ -236,8 +237,8 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
                                          beta_bernoulli_beta);
 
           prob = static_cast<double>(dirichlet_alpha) *
-            std::exp(logmarg) *
-            std::exp(log_Vn(no_clusters - 1) - log_Vn(no_clusters - 2));
+            MY_EXP(logmarg) *
+            MY_EXP(log_Vn(no_clusters - 1) - log_Vn(no_clusters - 2));
         }
 
         cluster_prob(c) = prob;
@@ -278,7 +279,7 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
                                            no_variables);
 
           prob = (static_cast<double>(dirichlet_alpha) + static_cast<double>(cluster_size_node(c))) *
-            std::exp(loglike);
+            MY_EXP(loglike);
         } else {
           logmarg = log_marginal_mfm_sbm(cluster_assign_tmp,
                                          indicator,
@@ -288,8 +289,8 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
                                          beta_bernoulli_beta);
 
           prob = static_cast<double>(dirichlet_alpha) *
-            std::exp(logmarg) *
-            std::exp(log_Vn(no_clusters) - log_Vn(no_clusters-1));
+            MY_EXP(logmarg) *
+            MY_EXP(log_Vn(no_clusters) - log_Vn(no_clusters-1));
         }
 
         cluster_prob(c) = prob;

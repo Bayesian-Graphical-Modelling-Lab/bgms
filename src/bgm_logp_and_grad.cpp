@@ -2,6 +2,7 @@
 #include "bgm_helper.h"
 #include "bgm_logp_and_grad.h"
 #include "common_helpers.h"
+#include "explog_switch.h"
 
 using namespace Rcpp;
 
@@ -58,7 +59,7 @@ double log_pseudoposterior_main_effects_component (
   double log_posterior = 0.0;
 
   auto log_beta_prior = [&](double main_effect_param) {
-    return main_effect_param * main_alpha - std::log1p (std::exp (main_effect_param)) * (main_alpha + main_beta);
+    return main_effect_param * main_alpha - std::log1p (MY_EXP (main_effect_param)) * (main_alpha + main_beta);
   };
 
   const int num_cats = num_categories(variable);
@@ -278,7 +279,7 @@ double log_pseudoposterior (
 
   // Calculate the contribution from the data and the prior
   auto log_beta_prior = [&](double main_effect_param) {
-    return main_effect_param * main_alpha - std::log1p (std::exp (main_effect_param)) * (main_alpha + main_beta);
+    return main_effect_param * main_alpha - std::log1p (MY_EXP (main_effect_param)) * (main_alpha + main_beta);
   };
 
   for (int variable = 0; variable < num_variables; variable++) {
@@ -531,14 +532,14 @@ arma::vec gradient_log_pseudoposterior (
     if (is_ordinal_variable(variable)) {
       const int num_cats = num_categories(variable);
       for (int cat = 0; cat < num_cats; cat++) {
-        const double p = 1.0 / (1.0 + std::exp (-main_effects(variable, cat)));
+        const double p = 1.0 / (1.0 + MY_EXP (-main_effects(variable, cat)));
         gradient(offset + cat) += main_alpha - (main_alpha + main_beta) * p;
       }
       offset += num_cats;
     } else {
       for (int i = 0; i < 2; i++) {
         const double main_effect_param = main_effects(variable, i);
-        const double p = 1.0 / (1.0 + std::exp (-main_effect_param));
+        const double p = 1.0 / (1.0 + MY_EXP (-main_effect_param));
         gradient(offset + i) += main_alpha - (main_alpha + main_beta) * p;
       }
       offset += 2;
@@ -721,8 +722,8 @@ double compute_log_likelihood_ratio_for_variable (
       for (int person = 0; person < num_persons; person++) {
         const double base = main + score * residual_scores[person] - bounds[person];
 
-        const double exp_current = std::exp(base + score * interaction[person] * current_state);
-        const double exp_proposed = std::exp(base + score * interaction[person] * proposed_state);
+        const double exp_current = MY_EXP(base + score * interaction[person] * current_state);
+        const double exp_proposed = MY_EXP(base + score * interaction[person] * proposed_state);
 
         denom_current[person] += exp_current;
         denom_proposed[person] += exp_proposed;

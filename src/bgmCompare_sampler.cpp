@@ -12,6 +12,7 @@
 #include "print_mutex.h"
 #include "rng_utils.h"
 #include "sampler_output.h"
+#include "explog_switch.h"
 #include <string>
 
 using namespace Rcpp;
@@ -125,7 +126,7 @@ void impute_missing_bgmcompare(
       for(int category = 1; category <= num_categories(variable, group); category++) {
         exponent = group_main_effects(category - 1);
         exponent += category * rest_score;
-        cumsum += std::exp(exponent);
+        cumsum += MY_EXP(exponent);
         category_response_probabilities[category] = cumsum;
       }
     } else {
@@ -137,7 +138,7 @@ void impute_missing_bgmcompare(
           (category - baseline_category[variable]) *
           (category - baseline_category[variable]);
         exponent += category * rest_score;
-        cumsum += std::exp(exponent);
+        cumsum += MY_EXP(exponent);
         category_response_probabilities[category] = cumsum;
       }
     }
@@ -985,7 +986,7 @@ void tune_proposal_sd_bgmcompare(
           SamplerResult result = rwm_sampler(current, prop_sd, log_post, rng);
           current = result.state[0];
           prop_sd = update_proposal_sd_with_robbins_monro(
-            prop_sd, std::log(result.accept_prob), rm_weight, target_accept
+            prop_sd, MY_LOG(result.accept_prob), rm_weight, target_accept
           );
         }
       }
@@ -1013,7 +1014,7 @@ void tune_proposal_sd_bgmcompare(
           SamplerResult result = rwm_sampler(current, prop_sd, log_post, rng);
           current = result.state[0];
           prop_sd = update_proposal_sd_with_robbins_monro(
-            prop_sd, std::log(result.accept_prob), rm_weight, target_accept
+            prop_sd, MY_LOG(result.accept_prob), rm_weight, target_accept
           );
         }
       }
@@ -1046,7 +1047,7 @@ void tune_proposal_sd_bgmcompare(
         SamplerResult result = rwm_sampler(current, prop_sd, log_post, rng);
         current = result.state[0];
         prop_sd = update_proposal_sd_with_robbins_monro(
-          prop_sd, std::log(result.accept_prob), rm_weight, target_accept
+          prop_sd, MY_LOG(result.accept_prob), rm_weight, target_accept
         );
       }
     }
@@ -1165,11 +1166,11 @@ void update_indicator_differences_metropolis_bgmcompare (
     // Add prior inclusion probability contribution
     double inc_prob = inclusion_probability_difference(var, var);
     if(proposed_ind == 1) {
-      log_accept += std::log(inc_prob);
-      log_accept -= std::log(1 - inc_prob);
+      log_accept += MY_LOG(inc_prob);
+      log_accept -= MY_LOG(1 - inc_prob);
     } else {
-      log_accept -= std::log(inc_prob);
-      log_accept += std::log(1 - inc_prob);
+      log_accept -= MY_LOG(inc_prob);
+      log_accept += MY_LOG(1 - inc_prob);
     }
 
     // Add parameter prior contribution
@@ -1201,7 +1202,7 @@ void update_indicator_differences_metropolis_bgmcompare (
 
     // Perform Metropolis-Hastings step
     double U = runif(rng);
-    if(std::log(U) < log_accept) {
+    if(MY_LOG(U) < log_accept) {
       inclusion_indicator(var, var) = proposed_ind;
       main_effects.rows(start, stop).cols(1, num_groups - 1) =
         proposed_main_effects.rows(start, stop).cols(1, num_groups - 1);
@@ -1243,11 +1244,11 @@ void update_indicator_differences_metropolis_bgmcompare (
     // Add prior inclusion probability contribution
     double inc_prob = inclusion_probability_difference(var1, var2);
     if(proposed_ind == 1) {
-      log_accept += std::log(inc_prob);
-      log_accept -= std::log(1 - inc_prob);
+      log_accept += MY_LOG(inc_prob);
+      log_accept -= MY_LOG(1 - inc_prob);
     } else {
-      log_accept -= std::log(inc_prob);
-      log_accept += std::log(1 - inc_prob);
+      log_accept -= MY_LOG(inc_prob);
+      log_accept += MY_LOG(1 - inc_prob);
     }
 
     // Add parameter prior contribution
@@ -1280,7 +1281,7 @@ void update_indicator_differences_metropolis_bgmcompare (
 
     // Metropolis-Hastings acceptance step
     double U = runif(rng);
-    if (std::log(U) < log_accept) {
+    if (MY_LOG(U) < log_accept) {
       // Update inclusion inclusion_indicator
       inclusion_indicator(var1, var2) = proposed_ind;
       inclusion_indicator(var2, var1) = proposed_ind;

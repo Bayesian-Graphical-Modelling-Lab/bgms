@@ -5,6 +5,7 @@
 #include <cmath>
 #include <functional>
 #include <memory>
+#include "explog_switch.h"
 struct SafeRNG;
 
 // (only if <algorithm> didn’t already provide it under C++17)
@@ -114,7 +115,7 @@ inline void update_step_size_with_dual_averaging (
     arma::vec& state,
     const double target_acceptance
 ) {
-  const double target_log_step_size = std::log (10.0 * initial_step_size);
+  const double target_log_step_size = MY_LOG (10.0 * initial_step_size);
   constexpr int stabilization_offset = 10;
 
   double& log_step_size = state[0];
@@ -160,9 +161,9 @@ inline void update_step_size_with_robbins_monro (
   const double error = acceptance_probability - target_acceptance;
   const double decay = std::pow (static_cast<double> (iteration), -decay_rate);
 
-  double log_step_size = std::log (step_size);
+  double log_step_size = MY_LOG (step_size);
   log_step_size += error * decay;
-  step_size = std::exp (log_step_size);
+  step_size = MY_EXP (log_step_size);
 }
 
 
@@ -191,7 +192,7 @@ inline double update_proposal_sd_with_robbins_monro (
   // Normalize the acceptance probability
   double observed_acceptance_probability = 1.0;
   if (observed_log_acceptance_probability < 0.0) {
-    observed_acceptance_probability = std::exp (observed_log_acceptance_probability);
+    observed_acceptance_probability = MY_EXP (observed_log_acceptance_probability);
   }
 
   // Robbins-Monro update step

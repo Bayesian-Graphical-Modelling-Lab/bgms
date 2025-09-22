@@ -74,10 +74,10 @@ double heuristic_initial_step_size(
   double H0 = logp0 - kin0;
   double H1 = logp1 - kin1;
 
-  int direction = 2 * (H1 - H0 > std::log(0.5)) - 1;  // +1 or -1
+  int direction = 2 * (H1 - H0 > MY_LOG(0.5)) - 1;  // +1 or -1
 
   int attempts = 0;
-  while (direction * (H1 - H0) > -direction * std::log(2.0) && attempts < max_attempts) {
+  while (direction * (H1 - H0) > -direction * MY_LOG(2.0) && attempts < max_attempts) {
     eps = (direction == 1) ? 2.0 * eps : 0.5 * eps;
 
     // One leapfrog step

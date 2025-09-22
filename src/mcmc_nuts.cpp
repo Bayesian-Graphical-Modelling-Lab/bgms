@@ -92,7 +92,7 @@ BuildTreeResult build_tree(
     int n_new = 1 * (log_u <= logp - kin);
     int s_new = 1 * (log_u <= Delta_max + logp - kin);
     bool divergent = (s_new == 0);
-    double alpha = std::min(1.0, std::exp(logp - kin - logp0 + kin0));
+    double alpha = std::min(1.0, MY_EXP(logp - kin - logp0 + kin0));
 
     return {
       theta_new, r_new, theta_new, r_new, theta_new, n_new, s_new, alpha, 1, divergent

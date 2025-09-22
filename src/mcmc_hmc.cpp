@@ -30,9 +30,9 @@ SamplerResult hmc_sampler(
   double proposed_H = -log_post(theta) + kinetic_energy(r, inv_mass_diag);
   double log_accept_prob = current_H - proposed_H;
 
-  arma::vec state = (std::log(runif(rng)) < log_accept_prob) ? theta : init_theta;
+  arma::vec state = (MY_LOG(runif(rng)) < log_accept_prob) ? theta : init_theta;
 
-  double accept_prob = std::min(1.0, std::exp(log_accept_prob));
+  double accept_prob = std::min(1.0, MY_EXP(log_accept_prob));
 
   return {state, accept_prob};
 }
