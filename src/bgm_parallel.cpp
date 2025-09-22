@@ -124,8 +124,8 @@ struct GibbsChainRunner : public Worker {
     int nuts_max_depth,
     bool learn_mass_matrix,
     const std::vector<SafeRNG>& chain_rngs,
-    std::vector<ChainResult>& results,
-    ProgressManager& pm
+    ProgressManager& pm,
+    std::vector<ChainResult>& results
   ) :
     observations(observations),
     num_categories(num_categories),
@@ -156,8 +156,8 @@ struct GibbsChainRunner : public Worker {
     nuts_max_depth(nuts_max_depth),
     learn_mass_matrix(learn_mass_matrix),
     chain_rngs(chain_rngs),
-    results(results),
-    pm(pm)
+    pm(pm),
+    results(results)
   {}
 
   void operator()(std::size_t begin, std::size_t end) {
@@ -311,8 +311,8 @@ Rcpp::List run_bgm_parallel(
   // only used to determine the total no. burnin iterations, a bit hacky
   WarmupSchedule warmup_schedule_temp(burnin, edge_selection, (update_method != "adaptive-metropolis"));
   int total_burnin = warmup_schedule_temp.total_burnin;
+  ProgressManager pm(num_chains, iter, total_burnin, 50, progress_type);
 
-  ProgressManager pm(num_chains, iter + total_burnin, total_burnin, 50, progress_type);
   GibbsChainRunner worker(
       observations, num_categories,  pairwise_scale, edge_prior,
       inclusion_probability, beta_bernoulli_alpha, beta_bernoulli_beta,
@@ -320,8 +320,8 @@ Rcpp::List run_bgm_parallel(
       counts_per_category, blume_capel_stats, main_alpha, main_beta,
       na_impute, missing_index, is_ordinal_variable, baseline_category,
       edge_selection, update_method, pairwise_effect_indices, target_accept,
-      sufficient_pairwise, hmc_num_leapfrogs, nuts_max_depth, learn_mass_matrix,
-      chain_rngs, results, pm
+      pairwise_stats, hmc_num_leapfrogs, nuts_max_depth, learn_mass_matrix,
+      chain_rngs, pm, results
   );
 
   {

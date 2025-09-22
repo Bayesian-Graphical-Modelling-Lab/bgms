@@ -122,7 +122,7 @@ bgmCompare = function(
     iter = 1e3,
     burnin = 1e3,
     na_action = c("listwise", "impute"),
-    display_progress = TRUE,
+    display_progress =  c("per-chain", "total", "none"),
     update_method = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
     target_accept,
     hmc_num_leapfrogs = 100,
@@ -202,7 +202,8 @@ bgmCompare = function(
   }
 
   # Check display_progress
-  display_progress = check_logical(display_progress, "display_progress")
+  progress_type = progress_type_from_display_progress(display_progress)
+
 
   ## Format data
   data = compare_reformat_data(
@@ -340,7 +341,8 @@ bgmCompare = function(
     inclusion_probability = model$inclusion_probability_difference,
     num_chains = chains, nThreads = cores,
     seed = seed,
-    update_method = update_method, hmc_num_leapfrogs = hmc_num_leapfrogs
+    update_method = update_method, hmc_num_leapfrogs = hmc_num_leapfrogs,
+    progress_type = progress_type
   )
 
   # Main output handler in the wrapper function

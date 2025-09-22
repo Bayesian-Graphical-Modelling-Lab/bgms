@@ -1,8 +1,8 @@
 #pragma once
 #include <RcppArmadillo.h>
-#include "progress_manager.h"
 // forward declaration
 struct SafeRNG;
+class ProgressManager;
 
 Rcpp::List run_gibbs_sampler_bgm(
     int chain_id,

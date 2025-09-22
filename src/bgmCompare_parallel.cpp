@@ -6,6 +6,9 @@
 #include <vector>
 #include <string>
 #include "rng_utils.h"
+#include "progress_manager.h"
+#include "sampler_output.h"
+#include "mcmc_adaptation.h"
 
 using namespace Rcpp;
 using namespace RcppParallel;
@@ -130,6 +133,7 @@ struct GibbsCompareChainRunner : public Worker {
   const std::vector<SafeRNG>& chain_rngs;
   const std::string& update_method;
   const int hmc_num_leapfrogs;
+  ProgressManager& pm;
   // output
   std::vector<ChainResultCompare>& results;
 
@@ -167,6 +171,7 @@ struct GibbsCompareChainRunner : public Worker {
     const std::vector<SafeRNG>& chain_rngs,
     const std::string& update_method,
     const int hmc_num_leapfrogs,
+    ProgressManager& pm,
     std::vector<ChainResultCompare>& results
   ) :
     observations(observations),
@@ -202,6 +207,7 @@ struct GibbsCompareChainRunner : public Worker {
     chain_rngs(chain_rngs),
     update_method(update_method),
     hmc_num_leapfrogs(hmc_num_leapfrogs),
+    pm(pm),
     results(results)
   {}
 
@@ -257,7 +263,8 @@ struct GibbsCompareChainRunner : public Worker {
           inclusion_probability,
           rng,
           update_method,
-          hmc_num_leapfrogs
+          hmc_num_leapfrogs,
+          pm
         );
 
         out.result = result;
@@ -376,7 +383,8 @@ Rcpp::List run_bgmCompare_parallel(
     int nThreads,
     int seed,
     const std::string& update_method,
-    int hmc_num_leapfrogs
+    int hmc_num_leapfrogs,
+    int progress_type
 ) {
   std::vector<ChainResultCompare> results(num_chains);
 
@@ -386,6 +394,10 @@ Rcpp::List run_bgmCompare_parallel(
     chain_rngs[c] = SafeRNG(seed + c);
   }
 
+  // only used to determine the total no. burnin iterations, a bit hacky
+  WarmupSchedule warmup_schedule_temp(burnin, difference_selection, (update_method != "adaptive-metropolis"));
+  int total_burnin = warmup_schedule_temp.total_burnin;
+  ProgressManager pm(num_chains, iter, total_burnin, 50, progress_type);
 
   GibbsCompareChainRunner worker(
       observations, num_groups,
@@ -397,7 +409,7 @@ Rcpp::List run_bgmCompare_parallel(
       pairwise_effect_indices, target_accept, nuts_max_depth, learn_mass_matrix,
       projection, group_membership, group_indices, interaction_index_matrix,
       inclusion_probability, chain_rngs, update_method, hmc_num_leapfrogs,
-      results
+      pm, results
   );
 
   {
@@ -426,9 +438,12 @@ Rcpp::List run_bgmCompare_parallel(
       if (r.has_indicator) {
         chain_out["indicator_samples"] = r.indicator_samples;
       }
+      chain_out["userInterrupt"] = r.userInterrupt;
       output[i] = chain_out;
     }
   }
+
+  pm.finish();
 
   return output;
 }

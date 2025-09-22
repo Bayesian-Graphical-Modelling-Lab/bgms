@@ -464,3 +464,14 @@ check_compare_model = function(
       )
   )
 }
+
+progress_type_from_display_progress <- function(display_progress = c("per-chain", "total", "none")) {
+  if (is.logical(display_progress) && length(display_progress) == 1) {
+    if (is.na(display_progress))
+      stop("The display_progress argument must be a single logical value, but not NA.")
+    display_progress = if (display_progress) "per-chain" else "none"
+  } else {
+    display_progress = match.arg(display_progress)
+  }
+  return(if (display_progress == "per-chain") 2L else if (display_progress == "total") 1L else 0L)
+}

@@ -1,4 +1,4 @@
-CXX_STD = CXX14
+CXX_STD = CXX20
 
 PKG_CPPFLAGS = \
   $(shell "$(R_HOME)\bin\Rscript.exe" -e "cat(RcppParallel::CxxFlags())")

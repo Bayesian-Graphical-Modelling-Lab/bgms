@@ -16,7 +16,7 @@ ProgressManager::ProgressManager(int nChains_, int nIter_, int nWarmup_, int pri
   isRStudio = Rcpp::as<std::string>(s) == "1";
 
   no_spaces_for_total = 3 + static_cast<int>(std::log10(nChains));
-  if (progress_type == 1) no_spaces_for_total = 0; // no total line
+  if (progress_type == 1) no_spaces_for_total = 1; // no need to align, so one space is fine
   total_padding = std::string(no_spaces_for_total, ' ');
 
   if (isRStudio) {
@@ -69,8 +69,9 @@ void ProgressManager::update(int chainId) {
   // Check for user interrupts and console width changes less frequently to reduce overhead
   if (chainId == 0 && progress[chainId] % (printEvery * 5) == 0) {
     needsToExit = checkInterrupt();
+    // would be a nice feature, but not working atm
     // Also check for console width changes occasionally
-    checkConsoleWidthChange();
+    // checkConsoleWidthChange();
   }
 }
 
@@ -114,7 +115,7 @@ void ProgressManager::checkConsoleWidthChange() {
   }
 }
 
-int ProgressManager::getConsoleWidth() {
+int ProgressManager::getConsoleWidth() const {
   Rcpp::Environment base("package:base");
   Rcpp::Function getOption = base["getOption"];
   SEXP s = getOption("width", 0);
@@ -123,7 +124,7 @@ int ProgressManager::getConsoleWidth() {
   return width + 3;
 }
 
-std::string ProgressManager::formatProgressBar(int chainId, int current, int total, double fraction, bool isTotal) {
+std::string ProgressManager::formatProgressBar(int chainId, int current, int total, double fraction, bool isTotal) const {
     std::ostringstream builder;
 
     double exactFilled = fraction * barWidth;
@@ -157,6 +158,9 @@ std::string ProgressManager::formatProgressBar(int chainId, int current, int tot
 
     progressBar += rhsToken;
 
+    // store the current length of the progress bar without any additional text
+    size_t currentWidth = progressBar.length();
+
     if (isTotal) {
 
         std::string warmupOrSampling = isWarmupPhase() ? "(Warmup)" : "(Sampling)";
@@ -170,55 +174,96 @@ std::string ProgressManager::formatProgressBar(int chainId, int current, int tot
                 << " (" << std::fixed << std::setprecision(1) << fraction * 100 << "%)";
     }
 
-    return builder.str();
+    std::string output = builder.str();
+
+    if (isRStudio && progress_type == 2) {
+
+      currentWidth = output.length() + 2 + barWidth - currentWidth;
+      // Pad each line to exactly lineWidth characters (before adding \n)
+      if (currentWidth < lineWidth) {
+        output += std::string(lineWidth - currentWidth, ' ');
+      } else if (currentWidth > lineWidth) {
+        output = output.substr(0, lineWidth);
+      }
+    }
+
+    return output;
 }
 
-std::string ProgressManager::formatTimeInfo(int elapsed, int eta) {
+// std::string ProgressManager::formatTimeInfo(double elapsed, double eta) {
+//   std::ostringstream builder;
+//   builder << "Elapsed: " << elapsed << "s | ETA: " << eta << "s";
+//   return builder.str();
+// }
+
+std::string ProgressManager::formatTimeInfo(double elapsed, double eta) const {
   std::ostringstream builder;
-  builder << "Elapsed: " << elapsed << "s | ETA: " << eta << "s";
+  builder << "Elapsed: " << formatDuration(elapsed) << " | ETA: " << formatDuration(eta);
   return builder.str();
 }
 
-void ProgressManager::setupTheme() {
-  if (useUnicode) {
-    // Unicode theme
-    lhsToken = "❨";
-    rhsToken = "❩";
-    // filledToken = "\x1b[34m━\x1b[0m";  // Blue filled
-    // emptyToken = "\x1b[37m━\x1b[0m";   // Gray empty
-    // partialTokenMore = "\x1b[34m╸\x1b[0m";  // Blue partial (> 0.5)
-    // partialTokenLess = "\x1b[37m╺\x1b[0m";  // Gray partial (< 0.5)
-    filledToken = "━";  // Blue filled
-    emptyToken = " ";   // Gray empty
-    partialTokenMore = "╸";  // Blue partial (> 0.5)
-    partialTokenLess = " ";  // Gray partial (< 0.5)
-  } else {
-    // Classic theme
-    lhsToken = "[";
-    rhsToken = "]";
-    filledToken = "=";
-    emptyToken = " ";
-    partialTokenMore = " ";
-    partialTokenLess = " ";
+// Add this helper function to the class
+std::string ProgressManager::formatDuration(double seconds) const {
+  if (seconds < 0) {
+    return "0s";
+  }
+
+  // Convert to different units
+  if (seconds < 60) {
+    // Less than 1 minute: show seconds
+    return std::to_string(static_cast<int>(std::round(seconds))) + "s";
+  }
+  else if (seconds < 3600) {
+    // Less than 1 hour: show minutes and seconds
+    int mins = static_cast<int>(seconds / 60);
+    int secs = static_cast<int>(seconds) % 60;
+    if (secs == 0) {
+      return std::to_string(mins) + "m";
+    } else {
+      return std::to_string(mins) + "m " + std::to_string(secs) + "s";
+    }
+  }
+  else if (seconds < 86400) {
+    // Less than 1 day: show hours and minutes
+    int hours = static_cast<int>(seconds / 3600);
+    int mins = static_cast<int>((seconds - hours * 3600) / 60);
+    if (mins == 0) {
+      return std::to_string(hours) + "h";
+    } else {
+      return std::to_string(hours) + "h " + std::to_string(mins) + "m";
+    }
+  }
+  else {
+    // 1 day or more: show days and hours
+    int days = static_cast<int>(seconds / 86400);
+    int hours = static_cast<int>((seconds - days * 86400) / 3600);
+    if (hours == 0) {
+      return std::to_string(days) + "d";
+    } else {
+      return std::to_string(days) + "d " + std::to_string(hours) + "h";
+    }
   }
 }
 
-size_t ProgressManager::getVisualLength(const std::string& str) {
-  size_t visualLength = 0;
-  bool inEscapeSequence = false;
-
-  for (size_t i = 0; i < str.length(); i++) {
-    if (str[i] == '\x1b' && i + 1 < str.length() && str[i + 1] == '[') {
-      inEscapeSequence = true;
-      i++; // Skip the '['
-    } else if (inEscapeSequence && str[i] == 'm') {
-      inEscapeSequence = false;
-    } else if (!inEscapeSequence) {
-      visualLength++;
-    }
+void ProgressManager::setupTheme() {
+  // should be a struct of some kind...
+  if (useUnicode) {
+    // Unicode theme
+    lhsToken         = "⦗";
+    rhsToken         = "⦘";
+    filledToken      = "\033[38;5;73m━\033[39m";  // Blue filled
+    partialTokenMore = "\033[38;5;73m━\033[39m";  // Blue partial (> 0.5)
+    partialTokenLess = "\033[37m╺\033[39m";       // Gray partial (< 0.5)
+    emptyToken       = "\033[37m━\033[39m";       // Gray empty
+  } else {
+    // Classic theme
+    lhsToken         = "[";
+    rhsToken         = "]";
+    filledToken      = "=";
+    emptyToken       = " ";
+    partialTokenMore = " ";
+    partialTokenLess = " ";
   }
-
-  return visualLength;
 }
 
 void ProgressManager::print() {
@@ -234,57 +279,54 @@ void ProgressManager::print() {
   double eta = (fracTotal > 0) ? elapsed / fracTotal - elapsed : 0.0;
 
   std::ostringstream out;
-  int totalChars = 0;
-  int lineIndex = 0;
+  // int totalChars = 0;
 
   // if this is not the first print, delete previous content
-  if (lastPrintedChars > 0) {
+  if (progress_type == 2) {
 
-    if (isRStudio) {
-      out << "\x1b[" << std::to_string(lastPrintedChars) << "D";
-    } else {
-      // Move cursor up to start of our content and clear everything
-      for (int i = 0; i < lastPrintedLines; i++) {
-        out << "\x1b[1A\x1b[2K"; // Move up one line and clear entire line
+    if (lastPrintedChars > 0) {
+
+      if (isRStudio) {
+        out << "\x1b[" << std::to_string((1 + lineWidth) * lastPrintedLines) << "D";
+        // out << "\x1b[" << std::to_string(lastPrintedChars) << "D";
+      } else {
+        // Move cursor up to start of our content and clear everything
+        for (int i = 0; i < lastPrintedLines; i++) {
+          out << "\x1b[1A\x1b[2K"; // Move up one line and clear entire line
+        }
       }
     }
-  }
 
-  if (progress_type == 2) {
     // Print progress for each chain
     for (int i = 0; i < nChains; i++) {
       double frac = double(progress[i]) / nIter;
       std::string chainProgress = formatProgressBar(i + 1, progress[i], nIter, frac);
-      maybePadToLength(chainProgress);
       out << chainProgress << "\n";
-      totalChars += chainProgress.length() + 1; // +1 for newline
+      // totalChars += chainProgress.length() + 1; // +1 for newline
     }
 
     // Print total progress
     std::string totalProgress = formatProgressBar(0, done, totalWork, fracTotal, true);
-    maybePadToLength(totalProgress);
     out << totalProgress << "\n";
-    totalChars += totalProgress.length() + 1; // +1 for newline
+    // totalChars += totalProgress.length() + 1; // +1 for newline
 
     // Print time info
-    std::string timeInfo = formatTimeInfo(int(elapsed), int(eta));
+    std::string timeInfo = formatTimeInfo(elapsed, eta);
     maybePadToLength(timeInfo);
     out << timeInfo << "\n";
-    totalChars += timeInfo.length() + 1; // +1 for newline
+    // totalChars += timeInfo.length() + 1; // +1 for newline
 
     // Track total lines printed (chains + total + time)
     lastPrintedLines = nChains + 2; // used in a generic terminal
-    lastPrintedChars = totalChars;  // used by RStudio
+    lastPrintedChars = 1;//totalChars;  // used by RStudio
 
   } else if (progress_type == 1) {
 
     // Print total progress
     std::string totalProgress = formatProgressBar(0, done, totalWork, fracTotal, true);
-    maybePadToLength(totalProgress);
 
     // Print time info
-    totalProgress += " " + formatTimeInfo(int(elapsed), int(eta));
-    maybePadToLength(totalProgress);
+    totalProgress += " " + formatTimeInfo(elapsed, eta);
 
     if (done < totalWork) {
       out << totalProgress << "\r";
@@ -326,47 +368,48 @@ void ProgressManager::maybePadToLength(std::string& content) const {
 
 
 // Example usage/ test with RcppParallel
-#include <RcppParallel.h>
-// Worker functor for RcppParallel
-struct ChainWorker : public RcppParallel::Worker {
-  int nIter;
-  ProgressManager &pm;
-  bool display_progress;
+// #include <RcppParallel.h>
+// // Worker functor for RcppParallel
+// struct ChainWorker : public RcppParallel::Worker {
+//   int nIter;
+//   ProgressManager &pm;
+//   bool display_progress;
 
-  ChainWorker(int nIter_, ProgressManager &pm_, bool display_progress_)
-    : nIter(nIter_), pm(pm_), display_progress(display_progress_) {}
+//   ChainWorker(int nIter_, ProgressManager &pm_, bool display_progress_)
+//     : nIter(nIter_), pm(pm_), display_progress(display_progress_) {}
 
-  void operator()(std::size_t begin, std::size_t end) {
+//   void operator()(std::size_t begin, std::size_t end) {
 
-    auto chainId = begin;
+//     auto chainId = begin;
 
-    for (int i = 0; i < nIter; i++) {
-      // ---- Simulated work ----
-      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+//     for (int i = 0; i < nIter; i++) {
+//       // ---- Simulated work ----
+//       std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
-      // ---- Update state ----
-      pm.update(chainId);
-      if (pm.shouldExit()) break;
-      // if (Progress::check_abort()) Rcpp::checkUserInterrupt();
-    }
-  }
-};
+//       // ---- Update state ----
+//       pm.update(chainId);
+//       if (pm.shouldExit()) break;
+//       // if (Progress::check_abort()) Rcpp::checkUserInterrupt();
+//     }
+//   }
+// };
 
 
-// [[Rcpp::export]]
-void runMCMC_parallel(int nChains = 4, int nIter = 100, int nWarmup = 100, int progress_type = 2, bool useUnicode = false) {
+// // [[Rcpp::export]]
+// void runMCMC_parallel(int nChains = 4, int nIter = 100, int nWarmup = 100, int progress_type = 2, bool useUnicode = false) {
 
-  int nTotal = nIter + nWarmup;
-  ProgressManager pm(nChains, nTotal, nWarmup, 10, progress_type, useUnicode);
-  ChainWorker worker(nTotal, pm, true);
+//   ProgressManager pm(nChains, nIter, nWarmup, 10, progress_type, useUnicode);
+//   ChainWorker worker(nIter + nWarmup, pm, true);
 
-  // Run each chain in parallel
-  RcppParallel::parallelFor(0, nChains, worker);
+//   // Run each chain in parallel
+//   RcppParallel::parallelFor(0, nChains, worker);
 
-  if (pm.shouldExit()) {
-    Rcpp::Rcout << "\nComputation interrupted by user.\n";
-  } else {
-    Rcpp::Rcout << "\nAll chains finished!\n";
-  }
-}
+//   pm.finish();
+
+//   if (pm.shouldExit()) {
+//     Rcpp::Rcout << "\nComputation interrupted by user.\n";
+//   } else {
+//     Rcpp::Rcout << "\nAll chains finished!\n";
+//   }
+// }
 

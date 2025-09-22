@@ -10,14 +10,9 @@
 #include "mcmc_nuts.h"
 #include "mcmc_rwm.h"
 #include "mcmc_utils.h"
-<<<<<<< HEAD
-#include "print_mutex.h"
 #include "sbm_edge_prior.h"
-=======
-// #include "print_mutex.h"
-#include "gibbs_functions_edge_prior.h"
->>>>>>> 9f0ad36 (parallel progress bar and interrupt)
 #include "rng_utils.h"
+#include "progress_manager.h"
 
 using namespace Rcpp;
 

@@ -1,10 +1,11 @@
 #pragma once
 
 #include <RcppArmadillo.h>
-#include "sampler_output.h"
 #include <string>
 
+struct SamplerOutput;
 struct SafeRNG;
+class ProgressManager;
 
 SamplerOutput run_gibbs_sampler_bgmCompare(
     int chain_id,
@@ -40,5 +41,6 @@ SamplerOutput run_gibbs_sampler_bgmCompare(
     arma::mat inclusion_probability,
     SafeRNG& rng,
     const std::string& update_method,
-    const int hmc_num_leapfrogs
+    const int hmc_num_leapfrogs,
+    ProgressManager& pm
 );

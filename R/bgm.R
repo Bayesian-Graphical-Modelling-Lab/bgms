@@ -237,7 +237,7 @@ bgm = function(
     dirichlet_alpha = 1,
     lambda = 1,
     na_action = c("listwise", "impute"),
-    display_progress =  c("per-chain", "total", "none"),
+    display_progress = c("per-chain", "total", "none"),
     update_method = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
     target_accept,
     hmc_num_leapfrogs = 100,
@@ -324,15 +324,7 @@ bgm = function(
                 "."))
 
   #Check display_progress ------------------------------------------------------
-  if (is.logical(display_progress) && length(display_progress) == 1) {
-    if (is.na(display_progress))
-      stop("The display_progress argument must be a single logical value, but not NA.")
-    display_progress = if (display_progress) "per-chain" else "none"
-  } else {
-    display_progress = match.arg(display_progress)
-  }
-
-  progress_type = if (display_progress == "per-chain") 2L else if (display_progress == "total") 1L else 0L
+  progress_type = progress_type_from_display_progress(display_progress)
 
   #Format the data input -------------------------------------------------------
   data = reformat_data(x = x,
@@ -465,7 +457,7 @@ bgm = function(
     output$nuts_diag = nuts_diag
   }
 
-  userInterrupt = any(vapply(out, `[[`, "userInterrupt", logical(1L)))
+  userInterrupt = any(vapply(out, FUN = `[[`, FUN.VALUE = logical(1L), "userInterrupt"))
   if (userInterrupt)
     warning("Stopped sampling after user interrupt, results are likely uninterpretable.")
 

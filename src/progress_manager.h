@@ -46,7 +46,7 @@ class ProgressManager {
 
 public:
 
-    ProgressManager(int nChains_, int nIter_, int nWarmup_, int printEvery_ = 10, int progress_type = 2, bool useUnicode_ = false);
+    ProgressManager(int nChains_, int nIter_, int nWarmup_, int printEvery_ = 10, int progress_type = 2, bool useUnicode_ = true);
     void update(int chainId);
     void finish();
     bool shouldExit() const;
@@ -54,11 +54,11 @@ public:
 private:
 
     void checkConsoleWidthChange();
-    int getConsoleWidth();
-    std::string formatProgressBar(int chainId, int current, int total, double fraction, bool isTotal = false);
-    std::string formatTimeInfo(int elapsed, int eta);
+    int getConsoleWidth() const;
+    std::string formatProgressBar(int chainId, int current, int total, double fraction, bool isTotal = false) const;
+    std::string formatTimeInfo(double elapsed, double eta) const;
+    std::string formatDuration(double seconds) const;
     void setupTheme();
-    size_t getVisualLength(const std::string& str);
 
     bool isWarmupPhase() const {
         for (auto c : progress)

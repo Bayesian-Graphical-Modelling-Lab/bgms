@@ -13,6 +13,7 @@
 #include "rng_utils.h"
 #include "sampler_output.h"
 #include <string>
+#include "progress_manager.h"
 
 using namespace Rcpp;
 
@@ -1576,7 +1577,8 @@ SamplerOutput run_gibbs_sampler_bgmCompare(
     arma::mat inclusion_probability,
     SafeRNG& rng,
     const std::string& update_method,
-    const int hmc_num_leapfrogs
+    const int hmc_num_leapfrogs,
+    ProgressManager& pm
 ) {
   // --- Setup: dimensions and storage structures
   const int num_variables = observations.n_cols;
@@ -1645,14 +1647,13 @@ SamplerOutput run_gibbs_sampler_bgmCompare(
   const int print_every = std::max(1, total_iter / 10);
 
   // --- Main Gibbs sampling loop
+  bool userInterrupt = false;
   for (int iteration = 0; iteration < total_iter; iteration++) {
-    if (iteration % print_every == 0) {
-      tbb::mutex::scoped_lock lock(get_print_mutex());
-      std::cout
-      << "[bgm] chain " << chain_id
-      << " iteration " << iteration
-      << " / " << total_iter
-      << std::endl;
+
+    pm.update(chain_id - 1);
+    if (pm.shouldExit()) {
+      userInterrupt = true;
+      break;
     }
 
     // Shuffle update order of edge indices
@@ -1753,5 +1754,7 @@ SamplerOutput run_gibbs_sampler_bgmCompare(
   } else {
     out.indicator_samples = arma::imat();
   }
+ out.userInterrupt = userInterrupt;
+
   return out;
 }

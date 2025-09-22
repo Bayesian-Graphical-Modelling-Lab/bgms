@@ -30,6 +30,7 @@ struct SamplerOutput {
   arma::vec energy_samples;
   int chain_id;
   bool has_indicator;
+  bool userInterrupt;
 };
 
 #endif
