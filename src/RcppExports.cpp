@@ -177,6 +177,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// runMCMC_parallel
+void runMCMC_parallel(int nChains, int nIter, bool display_progress, bool useUnicode);
+RcppExport SEXP _bgms_runMCMC_parallel(SEXP nChainsSEXP, SEXP nIterSEXP, SEXP display_progressSEXP, SEXP useUnicodeSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type nChains(nChainsSEXP);
+    Rcpp::traits::input_parameter< int >::type nIter(nIterSEXP);
+    Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
+    Rcpp::traits::input_parameter< bool >::type useUnicode(useUnicodeSEXP);
+    runMCMC_parallel(nChains, nIter, display_progress, useUnicode);
+    return R_NilValue;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_bgms_run_bgmCompare_parallel", (DL_FUNC) &_bgms_run_bgmCompare_parallel, 35},
@@ -187,6 +200,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 6},
     {"_bgms_sample_bcomrf_gibbs", (DL_FUNC) &_bgms_sample_bcomrf_gibbs, 8},
     {"_bgms_compute_Vn_mfm_sbm", (DL_FUNC) &_bgms_compute_Vn_mfm_sbm, 4},
+    {"_bgms_runMCMC_parallel", (DL_FUNC) &_bgms_runMCMC_parallel, 4},
     {NULL, NULL, 0}
 };
 

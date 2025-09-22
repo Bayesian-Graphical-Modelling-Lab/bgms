@@ -1,6 +1,6 @@
 #pragma once
 #include <RcppArmadillo.h>
-
+#include "progress_manager.h"
 // forward declaration
 struct SafeRNG;
 
@@ -34,5 +34,6 @@ Rcpp::List run_gibbs_sampler_bgm(
     const int hmc_num_leapfrogs,
     const int nuts_max_depth,
     const bool learn_mass_matrix,
-    SafeRNG& rng
+    SafeRNG& rng,
+    ProgressManager& pm
 );

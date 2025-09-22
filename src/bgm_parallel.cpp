@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include "rng_utils.h"
+#include "progress_manager.h"
 
 using namespace Rcpp;
 using namespace RcppParallel;
@@ -87,6 +88,7 @@ struct GibbsChainRunner : public Worker {
 
   // Wrapped RNG engines
   const std::vector<SafeRNG>& chain_rngs;
+  ProgressManager& pm;
 
   // output buffer
   std::vector<ChainResult>& results;
@@ -121,7 +123,8 @@ struct GibbsChainRunner : public Worker {
     int nuts_max_depth,
     bool learn_mass_matrix,
     const std::vector<SafeRNG>& chain_rngs,
-    std::vector<ChainResult>& results
+    std::vector<ChainResult>& results,
+    ProgressManager& pm
   ) :
     observations(observations),
     num_categories(num_categories),
@@ -152,7 +155,8 @@ struct GibbsChainRunner : public Worker {
     nuts_max_depth(nuts_max_depth),
     learn_mass_matrix(learn_mass_matrix),
     chain_rngs(chain_rngs),
-    results(results)
+    results(results),
+    pm(pm)
   {}
 
   void operator()(std::size_t begin, std::size_t end) {
@@ -194,7 +198,8 @@ struct GibbsChainRunner : public Worker {
           hmc_num_leapfrogs,
           nuts_max_depth,
           learn_mass_matrix,
-          rng
+          rng,
+          pm
         );
         out.result = result;
 
@@ -301,6 +306,7 @@ Rcpp::List run_bgm_parallel(
     chain_rngs[c] = SafeRNG(seed + c);
   }
 
+  ProgressManager pm(num_chains, burnin + iter, 50);
   GibbsChainRunner worker(
       observations, num_categories,  pairwise_scale, edge_prior,
       inclusion_probability, beta_bernoulli_alpha, beta_bernoulli_beta,
@@ -308,8 +314,8 @@ Rcpp::List run_bgm_parallel(
       counts_per_category, blume_capel_stats, main_alpha, main_beta,
       na_impute, missing_index, is_ordinal_variable, baseline_category,
       edge_selection, update_method, pairwise_effect_indices, target_accept,
-      pairwise_stats, hmc_num_leapfrogs, nuts_max_depth, learn_mass_matrix,
-      chain_rngs, results
+      sufficient_pairwise, hmc_num_leapfrogs, nuts_max_depth, learn_mass_matrix,
+      chain_rngs, results, pm
   );
 
   {
