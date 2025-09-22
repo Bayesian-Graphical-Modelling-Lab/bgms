@@ -1303,11 +1303,15 @@ Rcpp::List run_gibbs_sampler_bgm(
 
   const int total_iter = warmup_schedule.total_burnin + iter;
 
+  bool userInterrupt = false;
   // --- Main Gibbs sampling loop
   for (int iteration = 0; iteration < total_iter; iteration++) {
 
     pm.update(chain_id - 1);
-    if (pm.shouldExit()) break;
+    if (pm.shouldExit()) {
+      userInterrupt = true;
+      break;
+    }
 
     // Shuffle update order of edge indices
     order = arma_randperm(rng, num_pairwise);
@@ -1424,6 +1428,7 @@ Rcpp::List run_gibbs_sampler_bgm(
     out["allocations"] = allocation_samples;
   }
 
+  out["userInterrupt"] = userInterrupt;
   out["chain_id"] = chain_id;
   return out;
 }

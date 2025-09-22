@@ -2,20 +2,17 @@
 #define PROGRESS_MANAGER_H
 
 #include <Rcpp.h>
-#include <RcppParallel.h>
 #include <algorithm>
-#include <atomic>
 #include <chrono>
 #include <iomanip>
 #include <iostream>
-#include <mutex>
 #include <sstream>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
+#include <numeric>
 
-using namespace Rcpp;
-using namespace RcppParallel;
 using Clock = std::chrono::steady_clock;
 
 // Interrupt checking functions
@@ -49,9 +46,9 @@ class ProgressManager {
 
 public:
 
-    ProgressManager(int nChains_, int nIter_, int printEvery_ = 10, bool useUnicode_ = false);
-    ~ProgressManager();
+    ProgressManager(int nChains_, int nIter_, int nWarmup_, int printEvery_ = 10, int progress_type = 2, bool useUnicode_ = false);
     void update(int chainId);
+    void finish();
     bool shouldExit() const;
 
 private:
@@ -63,17 +60,26 @@ private:
     void setupTheme();
     size_t getVisualLength(const std::string& str);
 
+    bool isWarmupPhase() const {
+        for (auto c : progress)
+            if (c < nWarmup)
+                return true;
+        return false;
+    }
+    bool isWarmupPhase(const int chain_id) const {
+      return progress[chain_id] < nWarmup;
+    }
+
     void print();
 
     void update_prefixes(int width);
 
-    std::string addPadding(const std::string& content);
-
-    std::string clearLineLeftovers(const std::string& newContent, int oldLineLength);
+    void maybePadToLength(std::string& content) const;
 
     // Configuration parameters
     int nChains;                    ///< Number of parallel chains
-    int nIter;                      ///< Iterations per chain
+    int nIter;                      ///< TOTAL Iterations per chain
+    int nWarmup;                    ///< Warmup iterations per chain
     int printEvery;                 ///< Print frequency
     int no_spaces_for_total;        ///< Spacing for total line alignment
     int lastPrintedLines = 0;       ///< Lines printed in last update
@@ -89,6 +95,7 @@ private:
 
     // Visual configuration
     int barWidth = 40;              ///< Progress bar width in characters
+    int progress_type = 2;          ///< Progress bar style type (0 = "none", 1 = "total", 2 = "per-chain")
     bool useUnicode = true;         ///< Use Unicode vs ASCII theme
 
     // Theme tokens
@@ -100,17 +107,14 @@ private:
     std::string partialTokenLess;   ///< Partial progress (<50%)
     std::string chain_prefix;       ///< Chain label prefix
     std::string total_prefix;       ///< Total label prefix
+    std::string total_padding;      ///< Padding for total line alignment
 
-    // Line tracking for cursor positioning
-    std::vector<int> lastLineLengths; ///< Track length of each printed line
-
-    // Thread-safe progress tracking
-    std::vector<std::atomic<int>> progress; ///< Per-chain progress counters
-    std::atomic<int> totalDone{0};          ///< Total completed iterations
+    // progress tracking
+    std::vector<int> progress; ///< Per-chain progress counters
 
     // Timing
     Clock::time_point start;                                ///< Start time
-    std::atomic<std::chrono::time_point<Clock>> lastPrint;  ///< Last print time
+    std::chrono::time_point<Clock> lastPrint;  ///< Last print time
 
     // Thread synchronization
     std::mutex printMutex;          ///< Mutex for thread-safe printing

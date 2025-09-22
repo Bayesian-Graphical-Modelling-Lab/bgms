@@ -7,6 +7,7 @@
 #include <string>
 #include "rng_utils.h"
 #include "progress_manager.h"
+#include "mcmc_adaptation.h"
 
 using namespace Rcpp;
 using namespace RcppParallel;
@@ -296,7 +297,8 @@ Rcpp::List run_bgm_parallel(
     bool learn_mass_matrix,
     int num_chains,
     int nThreads,
-    uint64_t seed
+    uint64_t seed,
+    int progress_type
 ) {
   std::vector<ChainResult> results(num_chains);
 
@@ -306,7 +308,11 @@ Rcpp::List run_bgm_parallel(
     chain_rngs[c] = SafeRNG(seed + c);
   }
 
-  ProgressManager pm(num_chains, burnin + iter, 50);
+  // only used to determine the total no. burnin iterations, a bit hacky
+  WarmupSchedule warmup_schedule_temp(burnin, edge_selection, (update_method != "adaptive-metropolis"));
+  int total_burnin = warmup_schedule_temp.total_burnin;
+
+  ProgressManager pm(num_chains, iter + total_burnin, total_burnin, 50, progress_type);
   GibbsChainRunner worker(
       observations, num_categories,  pairwise_scale, edge_prior,
       inclusion_probability, beta_bernoulli_alpha, beta_bernoulli_beta,
@@ -334,6 +340,8 @@ Rcpp::List run_bgm_parallel(
       output[i] = results[i].result;
     }
   }
+
+  pm.finish();
 
   return output;
 }

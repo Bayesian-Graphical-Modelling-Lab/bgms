@@ -13,12 +13,8 @@ get_explog_switch <- function() {
     .Call(`_bgms_get_explog_switch`)
 }
 
-rcpp_ieee754_exp <- function(x) {
-    .Call(`_bgms_rcpp_ieee754_exp`, x)
-}
-
-rcpp_ieee754_log <- function(x) {
-    .Call(`_bgms_rcpp_ieee754_log`, x)
+run_bgm_parallel <- function(observations, num_categories, interaction_scale, edge_prior, inclusion_probability, beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, lambda, interaction_index_matrix, iter, burnin, num_obs_categories, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, is_ordinal_variable, reference_category, edge_selection, update_method, pairwise_effect_indices, target_accept, sufficient_pairwise, hmc_num_leapfrogs, nuts_max_depth, learn_mass_matrix, num_chains, nThreads, seed, progress_type) {
+    .Call(`_bgms_run_bgm_parallel`, observations, num_categories, interaction_scale, edge_prior, inclusion_probability, beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, lambda, interaction_index_matrix, iter, burnin, num_obs_categories, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, is_ordinal_variable, reference_category, edge_selection, update_method, pairwise_effect_indices, target_accept, sufficient_pairwise, hmc_num_leapfrogs, nuts_max_depth, learn_mass_matrix, num_chains, nThreads, seed, progress_type)
 }
 
 sample_omrf_gibbs <- function(no_states, no_variables, no_categories, interactions, thresholds, iter) {
@@ -31,5 +27,9 @@ sample_bcomrf_gibbs <- function(no_states, no_variables, no_categories, interact
 
 compute_Vn_mfm_sbm <- function(no_variables, dirichlet_alpha, t_max, lambda) {
     .Call(`_bgms_compute_Vn_mfm_sbm`, no_variables, dirichlet_alpha, t_max, lambda)
+}
+
+runMCMC_parallel <- function(nChains = 4L, nIter = 100L, nWarmup = 100L, progress_type = 2L, useUnicode = FALSE) {
+    invisible(.Call(`_bgms_runMCMC_parallel`, nChains, nIter, nWarmup, progress_type, useUnicode))
 }
 
