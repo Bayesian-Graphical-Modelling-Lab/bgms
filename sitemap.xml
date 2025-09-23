@@ -1,7 +1,9 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/404.html</loc></url>
+<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/articles/comparison.html</loc></url>
+<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/articles/diagnostics.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/articles/index.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/articles/introduction.html</loc></url>
+<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/articles/intro.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/authors.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/index.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/news/index.html</loc></url>
@@ -11,11 +13,14 @@
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgms-package.html</loc></url>
+<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/coef.bgmCompare.html</loc></url>
+<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/coef.bgms.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extractor_functions.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/index.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/mrfSampler.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/print.bgmCompare.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/print.bgms.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/summarySBM.html</loc></url>
+<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/summary.bgmCompare.html</loc></url>
+<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/summary.bgms.html</loc></url>
 </urlset>
 

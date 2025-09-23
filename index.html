@@ -24,7 +24,7 @@
 
     <a class="navbar-brand me-2" href="index.html">bgms</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.5.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.6.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,7 +37,9 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="articles/introduction.html">Bayesian analysis of networks of binary and/or ordinal variables using the bgm function</a></li>
+<li><a class="dropdown-item" href="articles/comparison.html">Model Comparison with bgmCompare</a></li>
+    <li><a class="dropdown-item" href="articles/diagnostics.html">Diagnostics and Spike-and-Slab Summaries</a></li>
+    <li><a class="dropdown-item" href="articles/intro.html">Getting Started with bgms</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
@@ -59,9 +61,47 @@
 <div class="page-header"><h1 id="bgms-bayesian-analysis-of-networks-of-binary-andor-ordinal-variables">bgms: Bayesian Analysis of Networks of Binary and/or Ordinal Variables<a class="anchor" aria-label="anchor" href="#bgms-bayesian-analysis-of-networks-of-binary-andor-ordinal-variables"></a>
 </h1></div>
 <p><a href="https://bayesiangraphicalmodeling.com" class="external-link"><img src="inst/bgms_sticker.svg" height="200" align="right"></a></p>
-<p>The <code>R</code> package <strong>bgms</strong> provides tools for Bayesian analysis of the ordinal Markov random field, a graphical model describing a network of binary and/or ordinal variables (Marsman et al., 2025). A pseudolikelihood is used to approximate the likelihood of the graphical model, and Markov chain Monte Carlo methods are used to simulate from the corresponding pseudoposterior distribution of the graphical model parameters.</p>
-<p>The <strong>bgm</strong> function can be used for a one-sample design and the <strong>bgmCompare</strong> function can be used for an independent-sample design (see Marsman et al., 2024). Both functions can model the selection of effects. In one-sample designs, the <strong>bgm</strong> function models the presence or absence of edges between pairs of variables in the network. The estimated posterior inclusion probability indicates how plausible it is that a network with an edge between the two corresponding variables produced the observed data, and can be converted into a Bayes factor test for conditional independence. The <strong>bgm</strong> function can also model the presence or absence of communities or clusters of variables in the network. The estimated posterior probability distribution of the number of clusters indicates how plausible it is that a network with the corresponding number of clusters produced the observed data, and can be converted into a Bayes factor test for clustering (see Sekulovski et al., 2025).</p>
-<p>In an independent-sample design, the <strong>bgmCompare</strong> function models the selection of group differences in edge weights and possibly category thresholds. The estimated posterior inclusion probability indicates how plausible it is that graphical models with a difference in the corresponding edge weight or category threshold generated the data at hand, and can be converted to a Bayes factor test for parameter equivalence.</p>
+<p>The <strong>bgms</strong> package implements Bayesian estimation and model comparison for <strong>ordinal Markov random fields (MRFs)</strong>, graphical models that represent networks of binary and/or ordinal variables (Marsman et al., 2025). The likelihood is approximated with a pseudolikelihood, and Markov chain Monte Carlo (MCMC) methods are used to sample from the corresponding pseudoposterior distribution of the model parameters.</p>
+<div class="section level2">
+<h2 id="main-functions">Main functions<a class="anchor" aria-label="anchor" href="#main-functions"></a>
+</h2>
+<p>The package has two main entry points:</p>
+<ul>
+<li>
+<code><a href="reference/bgm.html">bgm()</a></code> – estimates a single network in a one-sample design.<br>
+</li>
+<li>
+<code><a href="reference/bgmCompare.html">bgmCompare()</a></code> – compares networks between groups in an independent-sample design (see Marsman et al., 2024).</li>
+</ul>
+</div>
+<div class="section level2">
+<h2 id="effect-selection">Effect selection<a class="anchor" aria-label="anchor" href="#effect-selection"></a>
+</h2>
+<p>Both functions support <strong>effect selection</strong> with spike-and-slab priors:</p>
+<ul>
+<li><p><strong>Edges in one-sample designs</strong>:<br><code><a href="reference/bgm.html">bgm()</a></code> models the presence or absence of edges between variables. Posterior inclusion probabilities indicate the plausibility of each edge and can be converted into Bayes factors for conditional independence tests Sekulovski et al. (2024).</p></li>
+<li><p><strong>Communities/clusters in one-sample designs</strong>:<br><code><a href="reference/bgm.html">bgm()</a></code> can also model community structure. Posterior probabilities for the number of clusters quantify the plausibility of clustering solutions and can be converted into Bayes factors (see Sekulovski et al., 2025).</p></li>
+<li><p><strong>Group differences in independent-sample designs</strong>:<br><code><a href="reference/bgmCompare.html">bgmCompare()</a></code> models differences in edge weights and category thresholds between groups. Posterior inclusion probabilities indicate the plausibility of parameter differences and can be converted into Bayes factors for tests of parameter equivalence [see MarsmanWaldorpSekulovskiHaslbeck_2024].</p></li>
+</ul>
+</div>
+<div class="section level2">
+<h2 id="learn-more">Learn more<a class="anchor" aria-label="anchor" href="#learn-more"></a>
+</h2>
+<p>For worked examples and tutorials, see the package vignettes:</p>
+<ul>
+<li>
+<a href="https://yourpkgdownsite/articles/intro.html" class="external-link">Getting Started</a><br>
+</li>
+<li>
+<a href="https://yourpkgdownsite/articles/comparison.html" class="external-link">Model Comparison</a><br>
+</li>
+<li><a href="https://yourpkgdownsite/articles/diagnostics.html" class="external-link">Diagnostics and Spike-and-Slab Summaries</a></li>
+</ul>
+<p>You can also access these directly from R with:</p>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/browseVignettes.html" class="external-link">browseVignettes</a></span><span class="op">(</span><span class="st">"bgms"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; No vignettes found by browseVignettes("bgms")</span></span></code></pre></div>
+</div>
 <div class="section level2">
 <h2 id="why-use-markov-random-fields">Why use Markov Random Fields?<a class="anchor" aria-label="anchor" href="#why-use-markov-random-fields"></a>
 </h2>
@@ -78,7 +118,7 @@
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
 <p>The current developmental version can be installed with</p>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"remotes"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span> </span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"remotes"</span><span class="op">)</span>   </span>
 <span><span class="op">}</span>   </span>
@@ -107,7 +147,7 @@ Marsman, M., &amp; Rhemtulla, M. (2022). Guest editors’ introduction to the sp
 Marsman, M., van den Bergh, D., &amp; Haslbeck, J. M. B. (2025). Bayesian analysis of the ordinal Markov random field. <em>Psychometrika</em>, <em>90</em>, 146–182.
 </div>
 <div id="ref-MarsmanWaldorpSekulovskiHaslbeck_2024" class="csl-entry">
-Marsman, M., Waldorp, L. J., Sekulovski, N., &amp; Haslbeck, J. M. B. (2024). A bayesian independent samples <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math> test for parameter differences in networks of binary and ordinal variables. <em>Retrieved from <a href="Https://Osf.io/Preprints/Osf/F4pk9" class="uri">Https://Osf.io/Preprints/Osf/F4pk9</a></em>.
+Marsman, M., Waldorp, L. J., Sekulovski, N., &amp; Haslbeck, J. M. B. (2024). Bayes factor tests for group differences in ordinal and binary graphical models. <em>Retrieved from <a href="Https://Osf.io/Preprints/Osf/F4pk9" class="uri">Https://Osf.io/Preprints/Osf/F4pk9</a></em>.
 </div>
 <div id="ref-RobinaughEtAl_2020" class="csl-entry">
 Robinaugh, D. J., Hoekstra, R. H. A., Toner, E. R., &amp; Borsboom, D. (2020). The network approach to psychopathology: A review of the literature 2008–2018 and an agenda for future research. <em>Psychological Medicine</em>, <em>50</em>, 353–366. <a href="https://doi.org/10.1017/S0033291719003404" class="external-link uri">https://doi.org/10.1017/S0033291719003404</a>
