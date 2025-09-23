@@ -1,6 +1,7 @@
 // [[Rcpp::depends(BH)]]
 #pragma once
 
+// the order of these two is mandatory, RcppArmadillo must com before dqrng
 #include <RcppArmadillo.h>
 #include <dqrng.h>
 #include <dqrng_generator.h>
@@ -8,6 +9,8 @@
 #include <xoshiro.h>
 #include <random>
 #include <boost/random/beta_distribution.hpp>
+
+// [[Rcpp::depends(dqrng, BH)]]
 
 struct SafeRNG {
   dqrng::xoshiro256plusplus eng;
@@ -108,3 +111,4 @@ inline arma::uvec arma_randperm(SafeRNG& rng, arma::uword n) {
   std::shuffle(out.begin(), out.end(), rng.eng);
   return out;
 }
+

@@ -1,11 +1,11 @@
 // [[Rcpp::depends(RcppParallel, RcppArmadillo, dqrng)]]
-#include <RcppParallel.h>
 #include <RcppArmadillo.h>
 #include "bgmCompare_sampler.h"
+#include "rng_utils.h" // must be included before RcppParallel
+#include <RcppParallel.h>
 #include <tbb/global_control.h>
 #include <vector>
 #include <string>
-#include "rng_utils.h"
 #include "progress_manager.h"
 #include "sampler_output.h"
 #include "mcmc_adaptation.h"
@@ -219,7 +219,7 @@ struct GibbsCompareChainRunner : public Worker {
 
       try {
         // per-chain RNG
-        SafeRNG rng(chain_rngs[i]);
+        SafeRNG rng = chain_rngs[i];
 
         // make per-chain copies
         std::vector<arma::imat> counts_per_category = counts_per_category_master;

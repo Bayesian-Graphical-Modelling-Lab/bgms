@@ -1,11 +1,11 @@
 // [[Rcpp::depends(RcppParallel, RcppArmadillo, dqrng)]]
-#include <RcppParallel.h>
 #include <RcppArmadillo.h>
+#include "rng_utils.h" // must be included before RcppParallel
+#include <RcppParallel.h>
 #include "bgm_sampler.h"
 #include <tbb/global_control.h>
 #include <vector>
 #include <string>
-#include "rng_utils.h"
 #include "progress_manager.h"
 #include "mcmc_adaptation.h"
 
@@ -297,7 +297,7 @@ Rcpp::List run_bgm_parallel(
     bool learn_mass_matrix,
     int num_chains,
     int nThreads,
-    uint64_t seed,
+    int seed,
     int progress_type
 ) {
   std::vector<ChainResult> results(num_chains);
