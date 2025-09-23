@@ -1,5 +1,4 @@
 #include <RcppArmadillo.h>
-#include <Rcpp.h>
 #include "bgm_helper.h"
 #include "bgm_logp_and_grad.h"
 #include "bgm_sampler.h"

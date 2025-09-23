@@ -9,7 +9,6 @@
 #include "mcmc_nuts.h"
 #include "mcmc_rwm.h"
 #include "mcmc_utils.h"
-#include "print_mutex.h"
 #include "rng_utils.h"
 #include "sampler_output.h"
 #include "explog_switch.h"
@@ -1645,7 +1644,6 @@ SamplerOutput run_gibbs_sampler_bgmCompare(
   );
 
   const int total_iter = warmup_schedule.total_warmup + iter;
-  const int print_every = std::max(1, total_iter / 10);
 
   // --- Main Gibbs sampling loop
   bool userInterrupt = false;

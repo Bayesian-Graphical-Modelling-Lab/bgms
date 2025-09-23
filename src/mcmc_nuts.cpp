@@ -4,7 +4,6 @@
 #include "mcmc_memoization.h"
 #include "mcmc_nuts.h"
 #include "mcmc_utils.h"
-#include <Rcpp.h>
 #include "rng_utils.h"
 using namespace Rcpp;
 

@@ -1,5 +1,4 @@
 #include <RcppArmadillo.h>
-#include <Rcpp.h>
 #include "rng_utils.h"
 #include "explog_switch.h"
 
