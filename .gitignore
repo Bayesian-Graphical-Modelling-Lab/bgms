@@ -8,3 +8,5 @@ src/*.dll
 .DS_Store
 /doc/
 /Meta/
+src/Makevars
+src/Makevars.win

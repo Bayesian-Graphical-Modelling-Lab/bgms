@@ -37,7 +37,7 @@ A matrix with 362 rows and 17 columns. Each row represents a participant.
 }
 }
 \source{
-\url{http://psychosystems.org/wp-content/uploads/2014/10/Wenchuan.csv}
+\url{https://psychosystems.org/wp-content/uploads/2014/10/Wenchuan.csv}
 }
 \usage{
 data("Wenchuan")

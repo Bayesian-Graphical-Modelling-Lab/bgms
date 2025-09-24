@@ -38,7 +38,7 @@
 #'   \item{startle}{Feeling jumpy or easily startled?}
 #' }
 #'
-#' @source \url{http://psychosystems.org/wp-content/uploads/2014/10/Wenchuan.csv}
+#' @source \url{https://psychosystems.org/wp-content/uploads/2014/10/Wenchuan.csv}
 #'
 #' @docType data
 #' @keywords datasets
@@ -93,7 +93,7 @@ NULL
 #' }
 #'
 #' @source \insertCite{Silk_2019_ADHD;textual}{bgms}.
-#' Data retrieved from \url{https://doi.org/10.1371/journal.pone.0211053.s004}.
+#' Data retrieved from \doi{doi:10.1371/journal.pone.0211053.s004}.
 #' Licensed under the CC-BY 4.0: https://creativecommons.org/licenses/by/4.0/
 #'
 #' @docType data

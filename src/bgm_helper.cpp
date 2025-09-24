@@ -33,7 +33,7 @@ arma::vec vectorize_main_effects_bgm (
   arma::vec main_effect_vector (num_parameters);
   int offset = 0;
 
-  for (int variable = 0; variable < main_effects.n_rows; variable++) {
+  for (int variable = 0; variable < static_cast<int>(main_effects.n_rows); variable++) {
     const int num_pars = is_ordinal_variable (variable) ? num_categories(variable) : 2;
     main_effect_vector.subvec (offset, offset + num_pars - 1) =
       main_effects.row (variable).cols (0, num_pars - 1).t ();

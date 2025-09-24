@@ -174,7 +174,7 @@ struct WarmupSchedule {
   int current_window(int i) const {
     for (size_t k = 0; k < window_ends.size(); ++k)
       if (i < window_ends[k]) return static_cast<int>(k);
-      return -1;
+    return -1;
   }
 };
 

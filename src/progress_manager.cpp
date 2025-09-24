@@ -1,10 +1,10 @@
 #include "progress_manager.h"
 
 ProgressManager::ProgressManager(int nChains_, int nIter_, int nWarmup_, int printEvery_, int progress_type_, bool useUnicode_)
-  : nChains(nChains_), nIter(nIter_ + nWarmup_), nWarmup(nWarmup_), progress(nChains_), printEvery(printEvery_),
-    progress_type(progress_type_), useUnicode(useUnicode_) { // +2 for total and time lines
+  : nChains(nChains_), nIter(nIter_ + nWarmup_), nWarmup(nWarmup_), printEvery(printEvery_),
+    progress_type(progress_type_), useUnicode(useUnicode_), progress(nChains_) {
 
-  for (int i = 0; i < nChains; i++) progress[i] = 0;
+  for (size_t i = 0; i < nChains; i++) progress[i] = 0;
   start = Clock::now();
   lastPrint = Clock::now();
 
@@ -15,13 +15,13 @@ ProgressManager::ProgressManager(int nChains_, int nIter_, int nWarmup_, int pri
   SEXP s = Sysgetenv("RSTUDIO");
   isRStudio = Rcpp::as<std::string>(s) == "1";
 
-  no_spaces_for_total = 3 + static_cast<int>(std::log10(nChains));
+  no_spaces_for_total = 3 + static_cast<size_t>(std::log10(nChains));
   if (progress_type == 1) no_spaces_for_total = 1; // no need to align, so one space is fine
   total_padding = std::string(no_spaces_for_total, ' ');
 
   if (isRStudio) {
     consoleWidth = getConsoleWidth();
-    lineWidth = std::max(10, std::min(consoleWidth - 25, 70));
+    lineWidth = std::max(10, std::min(static_cast<int>(consoleWidth) - 25, 70));
   } else {
     // For terminal, use default console width
     consoleWidth = 80;
@@ -36,12 +36,13 @@ ProgressManager::ProgressManager(int nChains_, int nIter_, int nWarmup_, int pri
     barWidth = lineWidth - 10;
   } else if (lineWidth < 40) {
     barWidth = lineWidth - 15;
-  } else { // > 40
-    barWidth = std::min(40, lineWidth - 30);
+  } else { // lineWidth > 40
+    barWidth = lineWidth > 70 ? 40 : lineWidth - 30;
   }
 
   if (isRStudio) {
-    barWidth = std::max(10, barWidth - 20); // minimum bar width of 10 for RStudio
+    barWidth = barWidth > 30 ? barWidth - 20 : 10; // minimum bar width of 10 for RStudio
+
   }
 
   // Set up theme
@@ -49,13 +50,19 @@ ProgressManager::ProgressManager(int nChains_, int nIter_, int nWarmup_, int pri
   update_prefixes(consoleWidth);
 }
 
-void ProgressManager::update(int chainId) {
+void ProgressManager::update(size_t chainId) {
   progress[chainId]++;
 
   // Only chain 0 actually does the printing/ checking for user interrupts
   if (chainId != 0) return;
 
   if (progress[chainId] % printEvery == 0) {
+
+    // Check for user interrupts
+    needsToExit = checkInterrupt();
+
+    if (needsToExit) return;
+
     auto now = Clock::now();
     std::chrono::duration<double> sinceLast = now - lastPrint;
 
@@ -66,13 +73,6 @@ void ProgressManager::update(int chainId) {
     }
   }
 
-  // Check for user interrupts and console width changes less frequently to reduce overhead
-  if (chainId == 0 && progress[chainId] % (printEvery * 5) == 0) {
-    needsToExit = checkInterrupt();
-    // would be a nice feature, but not working atm
-    // Also check for console width changes occasionally
-    // checkConsoleWidthChange();
-  }
 }
 
 void ProgressManager::finish() {
@@ -80,9 +80,9 @@ void ProgressManager::finish() {
   if (progress_type == 0) return; // No progress display
 
   // Mark all chains as complete and print one final time
-  for (int i = 0; i < nChains; i++) {
+  for (size_t i = 0; i < nChains; i++)
     progress[i] = nIter;
-  }
+
   print();
 
 }
@@ -96,7 +96,7 @@ void ProgressManager::checkConsoleWidthChange() {
 
   Rcpp::Environment base("package:base");
   Rcpp::Function getOption = base["getOption"];
-  int currentWidth = getConsoleWidth();
+  size_t currentWidth = getConsoleWidth();
 
   if (prevConsoleWidth == -1) {
     // First time, just store the current width
@@ -115,28 +115,26 @@ void ProgressManager::checkConsoleWidthChange() {
   }
 }
 
-int ProgressManager::getConsoleWidth() const {
+size_t ProgressManager::getConsoleWidth() const {
   Rcpp::Environment base("package:base");
   Rcpp::Function getOption = base["getOption"];
   SEXP s = getOption("width", 0);
-  int width = Rcpp::as<int>(s);
-  // Remove the +3 adjustment to test actual console width
-  return width + 3;
+  size_t width = std::max(0, Rcpp::as<int>(s));
+  return width + 3; // note: + 3 is not entirely accurate, in reality this is scales with the actual width
 }
 
-std::string ProgressManager::formatProgressBar(int chainId, int current, int total, double fraction, bool isTotal) const {
+std::string ProgressManager::formatProgressBar(size_t chainId, size_t current, size_t total, double fraction, bool isTotal) const {
     std::ostringstream builder;
 
     double exactFilled = fraction * barWidth;
-    int filled = std::max(0, std::min(int(exactFilled), barWidth));
+    size_t filled = std::min(static_cast<size_t>(exactFilled), barWidth);
 
     // Build progress bar with theme
     std::string progressBar = lhsToken;
 
     // Add filled tokens
-    for (int i = 0; i < filled; i++) {
+    for (size_t i = 0; i < filled; i++)
       progressBar += filledToken;
-    }
 
     // Add partial token if needed
     if (filled < barWidth) {
@@ -152,9 +150,8 @@ std::string ProgressManager::formatProgressBar(int chainId, int current, int tot
     }
 
     // Add empty tokens
-    for (int i = filled; i < barWidth; i++) {
+    for (size_t i = filled; i < barWidth; i++)
       progressBar += emptyToken;
-    }
 
     progressBar += rhsToken;
 
@@ -215,8 +212,8 @@ std::string ProgressManager::formatDuration(double seconds) const {
   }
   else if (seconds < 3600) {
     // Less than 1 hour: show minutes and seconds
-    int mins = static_cast<int>(seconds / 60);
-    int secs = static_cast<int>(seconds) % 60;
+    size_t mins = static_cast<size_t>(seconds / 60);
+    size_t secs = static_cast<size_t>(seconds) % 60;
     if (secs == 0) {
       return std::to_string(mins) + "m";
     } else {
@@ -225,8 +222,8 @@ std::string ProgressManager::formatDuration(double seconds) const {
   }
   else if (seconds < 86400) {
     // Less than 1 day: show hours and minutes
-    int hours = static_cast<int>(seconds / 3600);
-    int mins = static_cast<int>((seconds - hours * 3600) / 60);
+    size_t hours = static_cast<size_t>(seconds / 3600);
+    size_t mins = static_cast<size_t>((seconds - hours * 3600) / 60);
     if (mins == 0) {
       return std::to_string(hours) + "h";
     } else {
@@ -235,8 +232,8 @@ std::string ProgressManager::formatDuration(double seconds) const {
   }
   else {
     // 1 day or more: show days and hours
-    int days = static_cast<int>(seconds / 86400);
-    int hours = static_cast<int>((seconds - days * 86400) / 3600);
+    size_t days = static_cast<size_t>(seconds / 86400);
+    size_t hours = static_cast<size_t>((seconds - days * 86400) / 3600);
     if (hours == 0) {
       return std::to_string(days) + "d";
     } else {
@@ -272,8 +269,8 @@ void ProgressManager::print() {
   auto now = Clock::now();
   double elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
 
-  int totalWork = nChains * nIter;
-  int done = std::reduce(progress.begin(), progress.end());
+  size_t totalWork = nChains * nIter;
+  size_t done = std::reduce(progress.begin(), progress.end());
   double fracTotal = double(done) / totalWork;
   // should actually be the eta of the slowest chain!
   double eta = (fracTotal > 0) ? elapsed / fracTotal - elapsed : 0.0;
@@ -291,14 +288,14 @@ void ProgressManager::print() {
         // out << "\x1b[" << std::to_string(lastPrintedChars) << "D";
       } else {
         // Move cursor up to start of our content and clear everything
-        for (int i = 0; i < lastPrintedLines; i++) {
+        for (size_t i = 0; i < lastPrintedLines; i++) {
           out << "\x1b[1A\x1b[2K"; // Move up one line and clear entire line
         }
       }
     }
 
     // Print progress for each chain
-    for (int i = 0; i < nChains; i++) {
+    for (size_t i = 0; i < nChains; i++) {
       double frac = double(progress[i]) / nIter;
       std::string chainProgress = formatProgressBar(i + 1, progress[i], nIter, frac);
       out << chainProgress << "\n";
@@ -342,7 +339,7 @@ void ProgressManager::print() {
 
 }
 
-void ProgressManager::update_prefixes(int width) {
+void ProgressManager::update_prefixes(size_t width) {
   if (width < 20) {
     chain_prefix = "C";
     total_prefix = "T";

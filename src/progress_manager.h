@@ -47,15 +47,15 @@ class ProgressManager {
 public:
 
     ProgressManager(int nChains_, int nIter_, int nWarmup_, int printEvery_ = 10, int progress_type = 2, bool useUnicode_ = true);
-    void update(int chainId);
+    void update(size_t chainId);
     void finish();
     bool shouldExit() const;
 
 private:
 
     void checkConsoleWidthChange();
-    int getConsoleWidth() const;
-    std::string formatProgressBar(int chainId, int current, int total, double fraction, bool isTotal = false) const;
+    size_t getConsoleWidth() const;
+    std::string formatProgressBar(size_t chainId, size_t current, size_t total, double fraction, bool isTotal = false) const;
     std::string formatTimeInfo(double elapsed, double eta) const;
     std::string formatDuration(double seconds) const;
     void setupTheme();
@@ -66,27 +66,32 @@ private:
                 return true;
         return false;
     }
-    bool isWarmupPhase(const int chain_id) const {
+    bool isWarmupPhase(const size_t chain_id) const {
       return progress[chain_id] < nWarmup;
     }
 
     void print();
 
-    void update_prefixes(int width);
+    void update_prefixes(size_t  width);
 
     void maybePadToLength(std::string& content) const;
 
-    // Configuration parameters
-    int nChains;                    ///< Number of parallel chains
-    int nIter;                      ///< TOTAL Iterations per chain
-    int nWarmup;                    ///< Warmup iterations per chain
-    int printEvery;                 ///< Print frequency
-    int no_spaces_for_total;        ///< Spacing for total line alignment
-    int lastPrintedLines = 0;       ///< Lines printed in last update
-    int lastPrintedChars = 0;       ///< Characters printed in last update (RStudio)
-    int consoleWidth = 80;          ///< Current console width
-    int lineWidth = 80;             ///< Target line width for content
-    int prevConsoleWidth = -1;      ///< Previous console width for change detection
+    // set by constructor
+    size_t nChains;                    // Number of parallel chains
+    size_t nIter;                      // Total Iterations per chain
+    size_t nWarmup;                    // Warmup iterations per chain
+    size_t printEvery;                 // Print frequency
+    size_t progress_type = 2;          // Progress bar style type (0 = "none", 1 = "total", 2 = "per-chain")
+    bool useUnicode = true;            // Use Unicode vs ASCII theme
+    std::vector<size_t> progress;      // Per-chain progress counters
+
+    // internal config parameters/ data
+    size_t no_spaces_for_total;     // Spacing for total line alignment
+    size_t lastPrintedLines = 0;    // Lines printed in last update
+    size_t lastPrintedChars = 0;    // Characters printed in last update (RStudio)
+    size_t consoleWidth = 80;       // Current console width
+    size_t lineWidth = 80;          // Target line width for content
+    int prevConsoleWidth = -1;      // Previous console width for change detection
 
     // Environment and state flags
     bool isRStudio = false;         ///< Whether running in RStudio console
@@ -94,30 +99,25 @@ private:
     bool widthChanged = false;      ///< Console width changed flag
 
     // Visual configuration
-    int barWidth = 40;              ///< Progress bar width in characters
-    int progress_type = 2;          ///< Progress bar style type (0 = "none", 1 = "total", 2 = "per-chain")
-    bool useUnicode = true;         ///< Use Unicode vs ASCII theme
+    size_t barWidth = 40;              // Progress bar width in characters
 
     // Theme tokens
-    std::string lhsToken;           ///< Left bracket/delimiter
-    std::string rhsToken;           ///< Right bracket/delimiter
-    std::string filledToken;        ///< Filled progress character
-    std::string emptyToken;         ///< Empty progress character
-    std::string partialTokenMore;   ///< Partial progress (>50%)
-    std::string partialTokenLess;   ///< Partial progress (<50%)
-    std::string chain_prefix;       ///< Chain label prefix
-    std::string total_prefix;       ///< Total label prefix
-    std::string total_padding;      ///< Padding for total line alignment
-
-    // progress tracking
-    std::vector<int> progress; ///< Per-chain progress counters
+    std::string lhsToken;           // Left bracket/delimiter
+    std::string rhsToken;           // Right bracket/delimiter
+    std::string filledToken;        // Filled progress character
+    std::string emptyToken;         // Empty progress character
+    std::string partialTokenMore;   // Partial progress (>50%)
+    std::string partialTokenLess;   // Partial progress (<50%)
+    std::string chain_prefix;       // Chain label prefix
+    std::string total_prefix;       // Total label prefix
+    std::string total_padding;      // Padding for total line alignment
 
     // Timing
-    Clock::time_point start;                                ///< Start time
-    std::chrono::time_point<Clock> lastPrint;  ///< Last print time
+    Clock::time_point start;                   // Start time
+    std::chrono::time_point<Clock> lastPrint;  // Last print time
 
     // Thread synchronization
-    std::mutex printMutex;          ///< Mutex for thread-safe printing
+    std::mutex printMutex;          // Mutex for thread-safe printing
 };
 
 #endif // PROGRESS_MANAGER_H
