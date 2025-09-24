@@ -86,7 +86,7 @@ inline void initialise_graph_bgmcompare(
       indicator(i,j) = indicator(j,i) = draw;
       if (!draw) {
         int row = pairwise_indices(i, j);
-        pairwise.row(row).cols(1, G-1) = 0.0;
+        pairwise(row, arma::span(1, G-1)).zeros();
       }
     }
   }
@@ -97,9 +97,7 @@ inline void initialise_graph_bgmcompare(
     if(!draw) {
       int start = main_indices(i,0);
       int end = main_indices(i,1);
-      for(int row = start; row < end; row++) {
-        main.row(row).cols(1, G-1) = 0.0;
-      }
+      main(arma::span(start, end), arma::span(1, G - 1)).zeros();
     }
   }
 };
