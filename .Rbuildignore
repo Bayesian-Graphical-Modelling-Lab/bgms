@@ -11,4 +11,4 @@
 ^vignettes/introduction_cache
 ^doc$
 ^Meta$
-^src/Makevars.in$
+^\.vscode$
