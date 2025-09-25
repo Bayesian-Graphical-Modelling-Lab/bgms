@@ -8,6 +8,7 @@
 #include <string>
 #include "progress_manager.h"
 #include "mcmc_adaptation.h"
+#include "common_helpers.h"
 
 using namespace Rcpp;
 using namespace RcppParallel;
@@ -61,7 +62,7 @@ struct GibbsChainRunner : public Worker {
   const arma::imat& observations;
   const arma::ivec& num_categories;
   double  pairwise_scale;
-  const std::string& edge_prior;
+  const EdgePrior edge_prior;
   const arma::mat& inclusion_probability;
   double beta_bernoulli_alpha;
   double beta_bernoulli_beta;
@@ -79,7 +80,7 @@ struct GibbsChainRunner : public Worker {
   const arma::uvec& is_ordinal_variable;
   const arma::ivec& baseline_category;
   bool edge_selection;
-  const std::string& update_method;
+  const UpdateMethod update_method;
   const arma::imat& pairwise_effect_indices;
   double target_accept;
   const arma::imat& pairwise_stats;
@@ -98,7 +99,7 @@ struct GibbsChainRunner : public Worker {
     const arma::imat& observations,
     const arma::ivec& num_categories,
     double  pairwise_scale,
-    const std::string& edge_prior,
+    const EdgePrior edge_prior,
     const arma::mat& inclusion_probability,
     double beta_bernoulli_alpha,
     double beta_bernoulli_beta,
@@ -116,7 +117,7 @@ struct GibbsChainRunner : public Worker {
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
     bool edge_selection,
-    const std::string& update_method,
+    const UpdateMethod update_method,
     const arma::imat& pairwise_effect_indices,
     double target_accept,
     const arma::imat& pairwise_stats,
@@ -308,18 +309,20 @@ Rcpp::List run_bgm_parallel(
     chain_rngs[c] = SafeRNG(seed + c);
   }
 
+  UpdateMethod update_method_enum = update_method_from_string(update_method);
+  EdgePrior edge_prior_enum = edge_prior_from_string(edge_prior);
   // only used to determine the total no. warmup iterations, a bit hacky
-  WarmupSchedule warmup_schedule_temp(warmup, edge_selection, (update_method != "adaptive-metropolis"));
+  WarmupSchedule warmup_schedule_temp(warmup, edge_selection, (update_method_enum != adaptive_metropolis));
   int total_warmup = warmup_schedule_temp.total_warmup;
   ProgressManager pm(num_chains, iter, total_warmup, 50, progress_type);
 
   GibbsChainRunner worker(
-      observations, num_categories,  pairwise_scale, edge_prior,
+      observations, num_categories,  pairwise_scale, edge_prior_enum,
       inclusion_probability, beta_bernoulli_alpha, beta_bernoulli_beta,
       dirichlet_alpha, lambda, interaction_index_matrix, iter, warmup,
       counts_per_category, blume_capel_stats, main_alpha, main_beta,
       na_impute, missing_index, is_ordinal_variable, baseline_category,
-      edge_selection, update_method, pairwise_effect_indices, target_accept,
+      edge_selection, update_method_enum, pairwise_effect_indices, target_accept,
       pairwise_stats, hmc_num_leapfrogs, nuts_max_depth, learn_mass_matrix,
       chain_rngs, pm, results
   );

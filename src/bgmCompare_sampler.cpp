@@ -1389,7 +1389,7 @@ void gibbs_update_step_bgmcompare (
     SafeRNG& rng,
     arma::mat& inclusion_probability,
     int hmc_nuts_leapfrogs,
-    const std::string& update_method,
+    const UpdateMethod update_method,
     arma::mat& proposal_sd_main,
     arma::mat& proposal_sd_pair,
     const arma::imat& index
@@ -1416,7 +1416,7 @@ void gibbs_update_step_bgmcompare (
   }
 
   // Step 2: Update parameters
-  if(update_method == "adaptive-metropolis") {
+  if(update_method == adaptive_metropolis) {
     update_main_effects_metropolis_bgmcompare (
         main_effects, pairwise_effects, main_effect_indices,
         pairwise_effect_indices, inclusion_indicator, projection,
@@ -1434,7 +1434,7 @@ void gibbs_update_step_bgmcompare (
         pairwise_scale, difference_scale, iteration, rwm_adapt_pair, rng,
         proposal_sd_pair
     );
-  } else if (update_method == "hamiltonian-mc") {
+  } else if (update_method == hamiltonian_mc) {
     update_hmc_bgmcompare(
       main_effects, pairwise_effects, main_effect_indices,
       pairwise_effect_indices, inclusion_indicator, projection, num_categories,
@@ -1444,7 +1444,7 @@ void gibbs_update_step_bgmcompare (
       main_beta, hmc_nuts_leapfrogs, iteration, hmc_adapt, learn_mass_matrix,
       schedule.selection_enabled(iteration), rng
     );
-  } else if (update_method == "nuts") {
+  } else if (update_method == nuts) {
     SamplerResult result = update_nuts_bgmcompare(
       main_effects, pairwise_effects, main_effect_indices,
       pairwise_effect_indices, inclusion_indicator, projection, num_categories,
@@ -1577,7 +1577,7 @@ SamplerOutput run_gibbs_sampler_bgmCompare(
     const arma::imat& interaction_index_matrix,
     arma::mat inclusion_probability,
     SafeRNG& rng,
-    const std::string& update_method,
+    const UpdateMethod update_method,
     const int hmc_num_leapfrogs,
     ProgressManager& pm
 ) {
@@ -1618,7 +1618,7 @@ SamplerOutput run_gibbs_sampler_bgmCompare(
 
   // --- Optional HMC/NUTS warmup stage
   double initial_step_size = 1.0;
-  if (update_method == "hamiltonian-mc" || update_method == "nuts") {
+  if (update_method == hamiltonian_mc || update_method == nuts) {
     initial_step_size = find_initial_stepsize_bgmcompare(
       main_effects, pairwise_effects, main_effect_indices,
       pairwise_effect_indices, inclusion_indicator, projection, num_categories,

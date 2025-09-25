@@ -25,3 +25,30 @@ inline int count_num_main_effects(const arma::ivec& num_categories,
   }
   return n_params;
 }
+
+enum UpdateMethod { adaptive_metropolis, hamiltonian_mc, nuts };
+
+inline UpdateMethod update_method_from_string(const std::string& update_method) {
+  if (update_method == "adaptive-metropolis")
+    return adaptive_metropolis;
+
+  if (update_method == "hamiltonian-mc")
+    return hamiltonian_mc;
+
+  if (update_method == "nuts")
+    return nuts;
+
+  throw std::invalid_argument("Invalid update_method: " + update_method);
+}
+
+enum EdgePrior { Stochastic_Block, Beta_Bernoulli };
+
+inline EdgePrior edge_prior_from_string(const std::string& edge_prior) {
+  if (edge_prior == "stochastic-block")
+    return Stochastic_Block;
+
+  if (edge_prior == "Beta-Bernoulli")
+    return Beta_Bernoulli;
+
+  throw std::invalid_argument("Invalid edge_prior: " + edge_prior);
+}

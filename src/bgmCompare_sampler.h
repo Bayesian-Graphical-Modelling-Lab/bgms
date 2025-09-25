@@ -1,6 +1,7 @@
 #pragma once
 
 #include <RcppArmadillo.h>
+#include "common_helpers.h"
 #include <string>
 
 struct SamplerOutput;
@@ -40,7 +41,7 @@ SamplerOutput run_gibbs_sampler_bgmCompare(
     const arma::imat& interaction_index_matrix,
     arma::mat inclusion_probability,
     SafeRNG& rng,
-    const std::string& update_method,
+    const UpdateMethod update_method,
     const int hmc_num_leapfrogs,
     ProgressManager& pm
 );

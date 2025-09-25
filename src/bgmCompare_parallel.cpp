@@ -9,6 +9,7 @@
 #include "progress_manager.h"
 #include "sampler_output.h"
 #include "mcmc_adaptation.h"
+#include "common_helpers.h"
 
 using namespace Rcpp;
 using namespace RcppParallel;
@@ -131,7 +132,7 @@ struct GibbsCompareChainRunner : public Worker {
   const arma::mat& inclusion_probability_master;
   // RNG seeds
   const std::vector<SafeRNG>& chain_rngs;
-  const std::string& update_method;
+  const UpdateMethod update_method;
   const int hmc_num_leapfrogs;
   ProgressManager& pm;
   // output
@@ -169,7 +170,7 @@ struct GibbsCompareChainRunner : public Worker {
     const arma::imat& interaction_index_matrix,
     const arma::mat& inclusion_probability_master,
     const std::vector<SafeRNG>& chain_rngs,
-    const std::string& update_method,
+    const UpdateMethod update_method,
     const int hmc_num_leapfrogs,
     ProgressManager& pm,
     std::vector<ChainResultCompare>& results
@@ -394,8 +395,10 @@ Rcpp::List run_bgmCompare_parallel(
     chain_rngs[c] = SafeRNG(seed + c);
   }
 
+  UpdateMethod update_method_enum = update_method_from_string(update_method);
+
   // only used to determine the total no. warmup iterations, a bit hacky
-  WarmupSchedule warmup_schedule_temp(warmup, difference_selection, (update_method != "adaptive-metropolis"));
+  WarmupSchedule warmup_schedule_temp(warmup, difference_selection, (update_method_enum != adaptive_metropolis));
   int total_warmup = warmup_schedule_temp.total_warmup;
   ProgressManager pm(num_chains, iter, total_warmup, 50, progress_type);
 
@@ -408,7 +411,7 @@ Rcpp::List run_bgmCompare_parallel(
       baseline_category, difference_selection, main_effect_indices,
       pairwise_effect_indices, target_accept, nuts_max_depth, learn_mass_matrix,
       projection, group_membership, group_indices, interaction_index_matrix,
-      inclusion_probability, chain_rngs, update_method, hmc_num_leapfrogs,
+      inclusion_probability, chain_rngs, update_method_enum, hmc_num_leapfrogs,
       pm, results
   );
 

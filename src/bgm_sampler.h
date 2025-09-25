@@ -1,5 +1,6 @@
 #pragma once
 #include <RcppArmadillo.h>
+#include "common_helpers.h"
 // forward declaration
 struct SafeRNG;
 class ProgressManager;
@@ -9,7 +10,7 @@ Rcpp::List run_gibbs_sampler_bgm(
     arma::imat observations,
     const arma::ivec& num_categories,
     const double pairwise_scale,
-    const std::string& edge_prior,
+    const EdgePrior edge_prior,
     arma::mat inclusion_probability,
     const double beta_bernoulli_alpha,
     const double beta_bernoulli_beta,
@@ -27,7 +28,7 @@ Rcpp::List run_gibbs_sampler_bgm(
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
     bool edge_selection,
-    const std::string& update_method,
+    const UpdateMethod update_method,
     const arma::imat pairwise_effect_indices,
     const double target_accept,
     arma::imat pairwise_stats,

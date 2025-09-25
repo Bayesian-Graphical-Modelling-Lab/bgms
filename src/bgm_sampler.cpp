@@ -1015,7 +1015,7 @@ void gibbs_update_step_bgm (
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
     const int iteration,
-    const std::string& update_method,
+    const UpdateMethod update_method,
     const arma::imat& pairwise_effect_indices,
     arma::imat& pairwise_stats,
     const int hmc_num_leapfrogs,
@@ -1051,7 +1051,7 @@ void gibbs_update_step_bgm (
   }
 
   // Step 2a: Update interaction weights for active edges
-  if (update_method == "adaptive-metropolis") {
+  if (update_method == adaptive_metropolis) {
     update_pairwise_effects_metropolis_bgm (
         pairwise_effects, main_effects, inclusion_indicator, observations,
         num_categories, proposal_sd_pairwise, adapt_pairwise, pairwise_scale,
@@ -1061,7 +1061,7 @@ void gibbs_update_step_bgm (
   }
 
   // Step 2b: Update main effect (main_effect) parameters
-  if (update_method == "adaptive-metropolis") {
+  if (update_method == adaptive_metropolis) {
     update_main_effects_metropolis_bgm (
         main_effects, observations, num_categories, counts_per_category,
         blume_capel_stats, baseline_category, is_ordinal_variable,
@@ -1072,7 +1072,7 @@ void gibbs_update_step_bgm (
   }
 
   // Step 2: Update joint parameters if applicable
-  if (update_method == "hamiltonian-mc") {
+  if (update_method == hamiltonian_mc) {
     update_hmc_bgm(
       main_effects, pairwise_effects, inclusion_indicator, observations,
       num_categories, counts_per_category, blume_capel_stats,
@@ -1081,7 +1081,7 @@ void gibbs_update_step_bgm (
       iteration, adapt, learn_mass_matrix, schedule.selection_enabled(iteration),
       rng
     );
-  } else if (update_method == "nuts") {
+  } else if (update_method == nuts) {
     SamplerResult result = update_nuts_bgm(
       main_effects, pairwise_effects, inclusion_indicator,
       observations, num_categories, counts_per_category, blume_capel_stats,
@@ -1171,7 +1171,7 @@ Rcpp::List run_gibbs_sampler_bgm(
     arma::imat observations,
     const arma::ivec& num_categories,
     const double pairwise_scale,
-    const std::string& edge_prior,
+    const EdgePrior edge_prior,
     arma::mat inclusion_probability,
     const double beta_bernoulli_alpha,
     const double beta_bernoulli_beta,
@@ -1189,7 +1189,7 @@ Rcpp::List run_gibbs_sampler_bgm(
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
     bool edge_selection,
-    const std::string& update_method,
+    const UpdateMethod update_method,
     const arma::imat pairwise_effect_indices,
     const double target_accept,
     arma::imat pairwise_stats,
@@ -1223,7 +1223,7 @@ Rcpp::List run_gibbs_sampler_bgm(
   if (edge_selection) {
     indicator_samples.set_size(iter, num_pairwise);
   }
-  if (edge_selection && edge_prior == "Stochastic-Block") {
+  if (edge_selection && edge_prior == Stochastic_Block) {
     allocation_samples.set_size(iter, num_variables);
   }
 
@@ -1245,7 +1245,7 @@ Rcpp::List run_gibbs_sampler_bgm(
   arma::vec log_Vn(1);
 
   // --- Initialize SBM prior if applicable
-  if (edge_prior == "Stochastic-Block") {
+  if (edge_prior == Stochastic_Block) {
     cluster_allocations[0] = 0;
     cluster_allocations[1] = 1;
     for (int i = 2; i < num_variables; i++) {
@@ -1273,7 +1273,7 @@ Rcpp::List run_gibbs_sampler_bgm(
 
   // --- Optional HMC/NUTS warmup stage
   double initial_step_size_joint = 1.0;
-  if (update_method == "hamiltonian-mc" || update_method == "nuts") {
+  if (update_method == hamiltonian_mc || update_method == nuts) {
     initial_step_size_joint = find_initial_stepsize_bgm(
       main_effects, pairwise_effects, inclusion_indicator, observations,
       num_categories, counts_per_category, blume_capel_stats,
@@ -1283,7 +1283,7 @@ Rcpp::List run_gibbs_sampler_bgm(
   }
 
   // --- Warmup scheduling + adaptation controller
-  WarmupSchedule warmup_schedule(warmup, edge_selection, (update_method != "adaptive-metropolis"));
+  WarmupSchedule warmup_schedule(warmup, edge_selection, (update_method != adaptive_metropolis));
   HMCAdaptationController adapt_joint(
       num_main + num_pairwise, initial_step_size_joint, target_accept,
       warmup_schedule, learn_mass_matrix
@@ -1339,7 +1339,7 @@ Rcpp::List run_gibbs_sampler_bgm(
 
     // --- Update edge probabilities under the prior (if edge selection is active)
     if (warmup_schedule.selection_enabled(iteration)) {
-      if (edge_prior == "Beta-Bernoulli") {
+      if (edge_prior == Beta_Bernoulli) {
         int num_edges_included = 0;
         for (int i = 0; i < num_variables - 1; i++)
           for (int j = i + 1; j < num_variables; j++)
@@ -1354,7 +1354,7 @@ Rcpp::List run_gibbs_sampler_bgm(
           for (int j = i + 1; j < num_variables; j++)
             inclusion_probability(i, j) = inclusion_probability(j, i) = prob;
 
-      } else if (edge_prior == "Stochastic-Block") {
+      } else if (edge_prior == Stochastic_Block) {
         cluster_allocations = block_allocations_mfm_sbm(
           cluster_allocations, num_variables, log_Vn, cluster_prob,
           arma::conv_to<arma::umat>::from(inclusion_indicator), dirichlet_alpha,
@@ -1396,7 +1396,7 @@ Rcpp::List run_gibbs_sampler_bgm(
         }
       }
 
-      if (edge_selection && edge_prior == "Stochastic-Block") {
+      if (edge_selection && edge_prior == Stochastic_Block) {
         for (int v = 0; v < num_variables; v++) {
           allocation_samples(sample_index, v) = cluster_allocations[v] + 1;
         }
@@ -1408,7 +1408,7 @@ Rcpp::List run_gibbs_sampler_bgm(
   out["main_samples"] = main_effect_samples;
   out["pairwise_samples"] = pairwise_effect_samples;
 
-  if (update_method == "nuts") {
+  if (update_method == nuts) {
     out["treedepth__"] = treedepth_samples;
     out["divergent__"] = divergent_samples;
     out["energy__"] = energy_samples;
@@ -1418,7 +1418,7 @@ Rcpp::List run_gibbs_sampler_bgm(
     out["indicator_samples"] = indicator_samples;
   }
 
-  if (edge_selection && edge_prior == "Stochastic-Block") {
+  if (edge_selection && edge_prior == Stochastic_Block) {
     out["allocations"] = allocation_samples;
   }
 
