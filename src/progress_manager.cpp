@@ -77,7 +77,7 @@ void ProgressManager::update(size_t chainId) {
 
 void ProgressManager::finish() {
 
-  if (progress_type == 0) return; // No progress display
+  if (progress_type == 0 || needsToExit) return; // No progress display or user interrupt
 
   // Mark all chains as complete and print one final time
   for (size_t i = 0; i < nChains; i++)
