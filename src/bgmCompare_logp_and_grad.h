@@ -46,8 +46,8 @@ arma::vec gradient(
     const double main_beta,
     const double interaction_scale,
     const double difference_scale,
-    const arma::imat main_index,
-    const arma::imat pair_index
+    const arma::imat& main_index,
+    const arma::imat& pair_index
 );
 
 double log_pseudoposterior_main_component(

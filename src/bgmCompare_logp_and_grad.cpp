@@ -281,8 +281,8 @@ arma::vec gradient(
     const double main_beta,
     const double interaction_scale,
     const double difference_scale,
-    const arma::imat main_index,
-    const arma::imat pair_index
+    const arma::imat& main_index,
+    const arma::imat& pair_index
 ) {
   const int num_variables      = observations.n_cols;
   const int max_num_categories = num_categories.max();
@@ -300,22 +300,30 @@ arma::vec gradient(
       total_len += static_cast<long long>(r1 - r0 + 1) * (num_groups - 1);
     }
   }
-  for (int v1 = 0; v1 < num_variables - 1; ++v1) {
-    for (int v2 = v1 + 1; v2 < num_variables; ++v2) {
-      if (inclusion_indicator(v1, v2) == 1) total_len += (num_groups - 1);
+  for (int v2 = 0; v2 < num_variables - 1; ++v2) {
+    for (int v1 = v2 + 1; v1 < num_variables; ++v1) {
+      total_len += (inclusion_indicator(v1, v2) == 1) * (num_groups - 1);
     }
   }
 
   arma::vec grad(total_len, arma::fill::zeros);
   int off;
 
+  // -------------------------------------------------
+  // Allocate temporaries ONCE (reused inside loops)
+  // -------------------------------------------------
+  arma::mat main_group(num_variables, max_num_categories, arma::fill::zeros);
+  arma::mat pairwise_group(num_variables, num_variables, arma::fill::zeros);
+  arma::mat exponents; // resized per variable
+  arma::vec lin_score, quad_score;
+
   // -------------------------------
   // Observed sufficient statistics
   // -------------------------------
   for (int g = 0; g < num_groups; ++g) {
-    // list access
-    arma::imat counts_per_category      = counts_per_category_group[g];
-    arma::imat blume_capel_stats  = blume_capel_stats_group[g];
+    const arma::imat& counts_per_category = counts_per_category_group[g];
+    const arma::imat& blume_capel_stats   = blume_capel_stats_group[g];
+    const arma::mat& pairwise_stats       = pairwise_stats_group[g];
 
     // Main effects
     for (int v = 0; v < num_variables; ++v) {
@@ -324,15 +332,14 @@ arma::vec gradient(
 
       if (is_ordinal_variable(v)) {
         for (int c = 0; c < num_cats; ++c) {
-          // overall
           off = main_index(base + c, 0);
           grad(off) += counts_per_category(c, v);
 
-          // diffs
           if (inclusion_indicator(v, v) != 0) {
+            const int cnt = counts_per_category(c, v);
             for (int k = 1; k < num_groups; ++k) {
               off = main_index(base + c, k);
-              grad(off) += counts_per_category(c, v) * projection(g, k - 1);
+              grad(off) += cnt * projection(g, k - 1);
             }
           }
         }
@@ -344,7 +351,6 @@ arma::vec gradient(
         off = main_index(base + 1, 0);
         grad(off) += blume_capel_stats(1, v);
 
-        // diffs
         if (inclusion_indicator(v, v) != 0) {
           for (int k = 1; k < num_groups; ++k) {
             off = main_index(base, k);
@@ -358,7 +364,6 @@ arma::vec gradient(
     }
 
     // Pairwise (observed)
-    arma::mat pairwise_stats = pairwise_stats_group[g];
     for (int v1 = 0; v1 < num_variables - 1; ++v1) {
       for (int v2 = v1 + 1; v2 < num_variables; ++v2) {
         const int row = pairwise_effect_indices(v1, v2);
@@ -382,9 +387,9 @@ arma::vec gradient(
     const int r0 = group_indices(g, 0);
     const int r1 = group_indices(g, 1);
 
-    arma::mat main_group(num_variables, max_num_categories, arma::fill::zeros);
-    arma::mat pairwise_group(num_variables, num_variables, arma::fill::zeros);
-    const arma::vec proj_g = projection.row(g).t(); // length = num_groups-1
+    main_group.zeros();
+    pairwise_group.zeros();
+    arma::vec proj_g = projection.row(g).t(); // length = num_groups-1
 
     // build group-specific params
     for (int v = 0; v < num_variables; ++v) {
@@ -393,8 +398,7 @@ arma::vec gradient(
       );
       main_group(v, arma::span(0, me.n_elem - 1)) = me.t();
 
-      for (int u = v; u < num_variables; ++u) { // Combines with loop over v
-        if(u == v) continue;
+      for (int u = v + 1; u < num_variables; ++u) {
         double w = compute_group_pairwise_effects(
           v, u, num_groups, pairwise_effects, pairwise_effect_indices,
           inclusion_indicator, proj_g
@@ -415,15 +419,15 @@ arma::vec gradient(
 
       arma::vec rest_score = residual_matrix.col(v);
       arma::vec bound      = K * rest_score;
-      bound = arma::clamp(bound, 0.0, arma::datum::inf);
+      bound.clamp(0.0, arma::datum::inf);
 
-      arma::mat exponents(num_group_obs, K + 1, arma::fill::zeros);
+      exponents.set_size(num_group_obs, K + 1);
+      exponents.zeros();
 
       if (is_ordinal_variable(v)) {
         exponents.col(0) -= bound;
-        arma::vec main_param = main_group.row(v).cols(0, K - 1).t();
-        for (int j = 0; j < K; j++) {
-          exponents.col(j+1) = main_param(j) + (j + 1) * rest_score - bound;
+        for (int j = 0; j < K; ++j) {
+          exponents.col(j + 1) = main_group(v, j) + (j + 1) * rest_score - bound;
         }
       } else {
         const double lin_effect  = main_group(v, 0);
@@ -436,41 +440,56 @@ arma::vec gradient(
         }
       }
 
-      arma::mat probs = arma::exp(exponents);
-      arma::vec denom = arma::sum(probs, 1); // base term
-      probs.each_col() /= denom;
+      // exponentiate + normalize row-wise (in-place)
+      for (arma::uword i = 0; i < exponents.n_rows; ++i) {
+        double denom = 0.0;
+        for (arma::uword j = 0; j < exponents.n_cols; ++j) {
+          double val = MY_EXP(exponents(i, j));
+          exponents(i, j) = val;
+          denom += val;
+        }
+        double inv = 1.0 / denom;
+        for (arma::uword j = 0; j < exponents.n_cols; ++j)
+          exponents(i, j) *= inv;
+      }
 
       // ---- MAIN expected ----
       const int base = main_effect_indices(v, 0);
-
       if (is_ordinal_variable(v)) {
         for (int s = 1; s <= K; ++s) {
           const int j = s - 1;
+          double sum_col_s = arma::accu(exponents.col(s));
+
           off = main_index(base + j, 0);
-          grad(off) -= arma::accu(probs.col(s));
+          grad(off) -= sum_col_s;
 
           if (inclusion_indicator(v, v) == 0) continue;
           for (int k = 1; k < num_groups; ++k) {
             off = main_index(base + j, k);
-            grad(off) -= projection(g, k - 1) * arma::accu(probs.col(s));
+            grad(off) -= projection(g, k - 1) * sum_col_s;
           }
         }
       } else {
-        arma::vec lin_score  = arma::regspace<arma::vec>(0, K);          // length K+1
-        arma::vec quad_score = arma::square(lin_score - ref);
+        if (lin_score.n_elem != K + 1) {
+          lin_score  = arma::regspace<arma::vec>(0, K);
+          quad_score = arma::square(lin_score - ref);
+        }
+
+        double sum_lin  = arma::accu(exponents * lin_score);
+        double sum_quad = arma::accu(exponents * quad_score);
 
         off = main_index(base, 0);
-        grad(off) -= arma::accu(probs * lin_score);
-
+        grad(off) -= sum_lin;
         off = main_index(base + 1, 0);
-        grad(off) -= arma::accu(probs * quad_score);
+        grad(off) -= sum_quad;
 
         if (inclusion_indicator(v, v) == 0) continue;
         for (int k = 1; k < num_groups; ++k) {
           off = main_index(base, k);
-          grad(off) -= projection(g, k - 1) * arma::accu(probs * lin_score);
+          grad(off) -= projection(g, k - 1) * sum_lin;
+
           off = main_index(base + 1, k);
-          grad(off) -= projection(g, k - 1) * arma::accu(probs * quad_score);
+          grad(off) -= projection(g, k - 1) * sum_quad;
         }
       }
 
@@ -479,21 +498,20 @@ arma::vec gradient(
         if (v == v2) continue;
 
         const int row = (v < v2) ? pairwise_effect_indices(v, v2)
-          : pairwise_effect_indices(v2, v);
+                                 : pairwise_effect_indices(v2, v);
 
-        arma::vec expected_value(num_group_obs, arma::fill::zeros);
-
-        for (int s = 1; s <= K; ++s) {
-          expected_value += s * probs.col(s) % obs.col(v2);
-        }
+        double total = 0.0;
+        for (int s = 1; s <= K; ++s)
+          total += s * arma::dot(exponents.col(s), obs.col(v2));
 
         off = pair_index(row, 0);
-        grad(off) -= arma::accu(expected_value);
+        grad(off) -= total;
 
-        if (inclusion_indicator(v, v2) == 0) continue;
-        for (int k = 1; k < num_groups; ++k) {
-          off = pair_index(row, k);
-          grad(off) -= projection(g, k - 1) * arma::accu(expected_value);
+        if (inclusion_indicator(v, v2)) {
+          for (int k = 1; k < num_groups; ++k) {
+            off = pair_index(row, k);
+            grad(off) -= projection(g, k - 1) * total;
+          }
         }
       }
     }
