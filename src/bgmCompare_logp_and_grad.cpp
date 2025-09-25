@@ -321,9 +321,9 @@ arma::vec gradient(
   // Observed sufficient statistics
   // -------------------------------
   for (int g = 0; g < num_groups; ++g) {
-    const arma::imat& counts_per_category = counts_per_category_group[g];
-    const arma::imat& blume_capel_stats   = blume_capel_stats_group[g];
-    const arma::mat& pairwise_stats       = pairwise_stats_group[g];
+    const arma::imat counts_per_category = counts_per_category_group[g];
+    const arma::imat blume_capel_stats   = blume_capel_stats_group[g];
+    const arma::mat pairwise_stats       = pairwise_stats_group[g];
 
     // Main effects
     for (int v = 0; v < num_variables; ++v) {
