@@ -41,7 +41,7 @@ inline UpdateMethod update_method_from_string(const std::string& update_method) 
   throw std::invalid_argument("Invalid update_method: " + update_method);
 }
 
-enum EdgePrior { Stochastic_Block, Beta_Bernoulli };
+enum EdgePrior { Stochastic_Block, Beta_Bernoulli, Bernoulli };
 
 inline EdgePrior edge_prior_from_string(const std::string& edge_prior) {
   if (edge_prior == "stochastic-block")
@@ -49,6 +49,9 @@ inline EdgePrior edge_prior_from_string(const std::string& edge_prior) {
 
   if (edge_prior == "Beta-Bernoulli")
     return Beta_Bernoulli;
+
+  if (edge_prior == "Bernoulli")
+    return Bernoulli;
 
   throw std::invalid_argument("Invalid edge_prior: " + edge_prior);
 }
