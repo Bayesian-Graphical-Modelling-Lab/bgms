@@ -85,12 +85,8 @@ probabilities and Bayes factors.</p>
 <p>We use a subset of the Wenchuan dataset:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://Bayesian-Graphical-Modelling-Lab.github.io/bgms/" class="external-link">bgms</a></span><span class="op">)</span></span>
-<span></span>
-<span><span class="op">?</span><span class="va">Wenchuan</span></span>
 <span><span class="va">data</span> <span class="op">=</span> <span class="va">Wenchuan</span><span class="op">[</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">]</span></span>
-<span><span class="va">fit</span> <span class="op">=</span> <span class="fu"><a href="../reference/bgm.html">bgm</a></span><span class="op">(</span><span class="va">data</span>, seed <span class="op">=</span> <span class="fl">1234</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Warning: There were 7 rows with missing observations in the input matrix x.</span></span>
-<span><span class="co">#&gt; Since na_action = listwise these rows were excluded from the analysis.</span></span></code></pre></div>
+<span><span class="va">fit</span> <span class="op">=</span> <span class="fu"><a href="../reference/bgm.html">bgm</a></span><span class="op">(</span><span class="va">data</span>, seed <span class="op">=</span> <span class="fl">1234</span><span class="op">)</span></span></code></pre></div>
 <p>Note: During fitting, progress bars are shown in interactive
 sessions. In this vignette, they are suppressed for clarity. Sampling
 can take a while; the progress bars usually help track progress.</p>
@@ -102,28 +98,28 @@ can take a while; the progress bars usually help track progress.</p>
 diagnostics:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">$</span><span class="va">pairwise</span></span>
-<span><span class="co">#&gt;                          mean          sd         mcse     n_eff</span></span>
-<span><span class="co">#&gt; intrusion-dreams  0.630465218 0.001505695 0.0645952597 1840.4640</span></span>
-<span><span class="co">#&gt; intrusion-flash   0.336939066 0.001279900 0.0615246748 2310.7156</span></span>
-<span><span class="co">#&gt; intrusion-upset   0.198665557 0.067666296 0.0035274998  367.9686</span></span>
-<span><span class="co">#&gt; intrusion-physior 0.191577877 0.071227938 0.0050170985  201.5559</span></span>
-<span><span class="co">#&gt; dreams-flash      0.499277762 0.001398210 0.0596431449 1819.6018</span></span>
-<span><span class="co">#&gt; dreams-upset      0.230190853 0.055082965 0.0014218947 1500.7203</span></span>
-<span><span class="co">#&gt; dreams-physior    0.005329141 0.021891564 0.0008594282  648.8352</span></span>
-<span><span class="co">#&gt; flash-upset       0.007130963 0.025475978 0.0010207513  622.9050</span></span>
-<span><span class="co">#&gt; flash-physior     0.309372051 0.001159184 0.0533283561 2116.4689</span></span>
-<span><span class="co">#&gt; upset-physior     0.712758036 0.001639670 0.0602202440 1348.8769</span></span>
-<span><span class="co">#&gt;                       Rhat</span></span>
-<span><span class="co">#&gt; intrusion-dreams  1.000830</span></span>
-<span><span class="co">#&gt; intrusion-flash   1.001655</span></span>
-<span><span class="co">#&gt; intrusion-upset   1.011155</span></span>
-<span><span class="co">#&gt; intrusion-physior 1.009193</span></span>
-<span><span class="co">#&gt; dreams-flash      1.001358</span></span>
-<span><span class="co">#&gt; dreams-upset      1.004926</span></span>
-<span><span class="co">#&gt; dreams-physior    1.003559</span></span>
-<span><span class="co">#&gt; flash-upset       1.001278</span></span>
-<span><span class="co">#&gt; flash-physior     1.003235</span></span>
-<span><span class="co">#&gt; upset-physior     1.002455</span></span></code></pre></div>
+<span><span class="co">#&gt;                          mean          sd        mcse     n_eff</span></span>
+<span><span class="co">#&gt; intrusion-dreams  0.631924323 0.001551325 0.064266150 1716.1643</span></span>
+<span><span class="co">#&gt; intrusion-flash   0.338297975 0.001448421 0.061854243 1823.6826</span></span>
+<span><span class="co">#&gt; intrusion-upset   0.190695963 0.076279341 0.005921381  165.9464</span></span>
+<span><span class="co">#&gt; intrusion-physior 0.198176315 0.065555747 0.003647515  323.0185</span></span>
+<span><span class="co">#&gt; dreams-flash      0.498040695 0.001270565 0.060466106 2264.8025</span></span>
+<span><span class="co">#&gt; dreams-upset      0.230776860 0.056205053 0.002092867  721.2197</span></span>
+<span><span class="co">#&gt; dreams-physior    0.005254907 0.021861327 0.000843593  671.5636</span></span>
+<span><span class="co">#&gt; flash-upset       0.006462176 0.024675968 0.001036232  567.0671</span></span>
+<span><span class="co">#&gt; flash-physior     0.307138582 0.001205035 0.053371694 1961.6559</span></span>
+<span><span class="co">#&gt; upset-physior     0.707867139 0.001478310 0.059720575 1631.9869</span></span>
+<span><span class="co">#&gt;                        Rhat</span></span>
+<span><span class="co">#&gt; intrusion-dreams  0.9998582</span></span>
+<span><span class="co">#&gt; intrusion-flash   0.9999985</span></span>
+<span><span class="co">#&gt; intrusion-upset   1.0325834</span></span>
+<span><span class="co">#&gt; intrusion-physior 1.0053426</span></span>
+<span><span class="co">#&gt; dreams-flash      0.9999931</span></span>
+<span><span class="co">#&gt; dreams-upset      1.0076821</span></span>
+<span><span class="co">#&gt; dreams-physior    1.0051407</span></span>
+<span><span class="co">#&gt; flash-upset       1.0115874</span></span>
+<span><span class="co">#&gt; flash-physior     1.0013808</span></span>
+<span><span class="co">#&gt; upset-physior     0.9999992</span></span></code></pre></div>
 <ul>
 <li>R-hat values close to 1 (typically below 1.01) suggest convergence
 <span class="citation">(<a href="#ref-VehtariEtAl_2021">Vehtari et al.,
@@ -150,7 +146,7 @@ package to create a traceplot for a pairwise effect parameter.</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/coda/man/traceplot.html" class="external-link">traceplot</a></span><span class="op">(</span><span class="va">mcmc_obj</span>, col <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"firebrick"</span>, <span class="st">"steelblue"</span>, <span class="st">"darkgreen"</span>, <span class="st">"goldenrod"</span><span class="op">)</span>, </span>
 <span>          main <span class="op">=</span> <span class="st">"Traceplot of pairwise[1]"</span><span class="op">)</span> </span></code></pre></div>
-<p><img src="diagnostics_files/figure-html/unnamed-chunk-4-1.png" width="672"></p>
+<p><img src="diagnostics_files/figure-html/unnamed-chunk-5-1.png" width="672"></p>
 </div>
 <div class="section level2">
 <h2 id="spike-and-slab-summaries">Spike-and-slab summaries<a class="anchor" aria-label="anchor" href="#spike-and-slab-summaries"></a>
@@ -159,12 +155,12 @@ package to create a traceplot for a pairwise effect parameter.</p>
 edges:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">$</span><span class="va">indicator</span></span>
-<span><span class="co">#&gt;           intrusion dreams  flash   upset physior</span></span>
-<span><span class="co">#&gt; intrusion   0.00000 1.0000 1.0000 0.93975  0.0570</span></span>
-<span><span class="co">#&gt; dreams      1.00000 0.0000 0.9665 1.00000  0.0745</span></span>
-<span><span class="co">#&gt; flash       1.00000 0.9665 0.0000 0.99800  1.0000</span></span>
-<span><span class="co">#&gt; upset       0.93975 1.0000 0.9980 0.00000  1.0000</span></span>
-<span><span class="co">#&gt; physior     0.05700 0.0745 1.0000 1.00000  0.0000</span></span></code></pre></div>
+<span><span class="co">#&gt;           intrusion  dreams   flash   upset physior</span></span>
+<span><span class="co">#&gt; intrusion   0.00000 1.00000 1.00000 0.96575  0.0560</span></span>
+<span><span class="co">#&gt; dreams      1.00000 0.00000 0.92525 1.00000  0.0655</span></span>
+<span><span class="co">#&gt; flash       1.00000 0.92525 0.00000 0.99600  1.0000</span></span>
+<span><span class="co">#&gt; upset       0.96575 1.00000 0.99600 0.00000  1.0000</span></span>
+<span><span class="co">#&gt; physior     0.05600 0.06550 1.00000 1.00000  0.0000</span></span></code></pre></div>
 <ul>
 <li>Values near 1.0: strong evidence the edge is present.</li>
 <li>Values near 0.0: strong evidence the edge is absent.</li>
@@ -185,14 +181,14 @@ absence:</p>
 <span><span class="va">p</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">$</span><span class="va">indicator</span><span class="op">[</span><span class="fl">1</span>, <span class="fl">5</span><span class="op">]</span></span>
 <span><span class="va">BF_10</span> <span class="op">=</span> <span class="va">p</span> <span class="op">/</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">p</span><span class="op">)</span></span>
 <span><span class="va">BF_10</span></span>
-<span><span class="co">#&gt; [1] 0.06044539</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 0.05932203</span></span></code></pre></div>
 <p>Here the Bayes factor in favor of inclusion (H1) is small, meaning
 that there is little evidence for inclusion. Since the Bayes factor is
 transitive, we can use it to express the evidence in favor of exclusion
 (H0) as</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fl">1</span> <span class="op">/</span> <span class="va">BF_10</span></span>
-<span><span class="co">#&gt; [1] 16.54386</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 16.85714</span></span></code></pre></div>
 <p>This Bayes factor shows that there is strong evidence for the absence
 of a network relation between the variables <code>intrusion</code> and
 <code>physior</code>.</p>

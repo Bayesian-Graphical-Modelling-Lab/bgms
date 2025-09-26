@@ -42,7 +42,7 @@
 <h2 class="pkg-version" data-toc-text="0.1.6.0" id="bgms-0160">bgms 0.1.6.0<a class="anchor" aria-label="anchor" href="#bgms-0160"></a></h2>
 <div class="section level3">
 <h3 id="new-features-0-1-6-0">New features<a class="anchor" aria-label="anchor" href="#new-features-0-1-6-0"></a></h3>
-<ul><li>NUTS and HMC options are not provided for sampling the bgm and bgmCompare model</li>
+<ul><li>NUTS and HMC options are now provided for sampling the bgm and bgmCompare model</li>
 <li>Sampling for multiple chains can now be done in parallel</li>
 <li>Markov chain diagnostics are now offered for the sampled parameters</li>
 </ul></div>
@@ -50,12 +50,13 @@
 <h3 id="other-changes-0-1-6-0">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-0-1-6-0"></a></h3>
 <ul><li>Improved progress bar for parallel sampling</li>
 <li>User interrupt for parallel sampling</li>
-<li>More extensive summary and print options are provided</li>
+<li>More extensive summary and print options are provided; integrates summary_SBM</li>
+<li>Removed the options for modeling the main differences; main differences are now always estimated or selected similar to the old <code>main_difference_model = "collapse"</code> option.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="bug-fixes-0-1-6-0">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-1-6-0"></a></h3>
-<ul><li>Fixed a bug in the bgmCompare function with missing data handling</li>
-<li>Fixed a bug in the SBM prior handling</li>
+<ul><li>Fixed an out-of-bounds bug in the bgmCompare function with missing data handling</li>
+<li>Fixed a bug in the SBM prior computation</li>
 </ul></div>
 </div>
     <div class="section level2">
