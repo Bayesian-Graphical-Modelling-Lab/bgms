@@ -187,12 +187,6 @@ std::string ProgressManager::formatProgressBar(size_t chainId, size_t current, s
     return output;
 }
 
-// std::string ProgressManager::formatTimeInfo(double elapsed, double eta) {
-//   std::ostringstream builder;
-//   builder << "Elapsed: " << elapsed << "s | ETA: " << eta << "s";
-//   return builder.str();
-// }
-
 std::string ProgressManager::formatTimeInfo(double elapsed, double eta) const {
   std::ostringstream builder;
   builder << "Elapsed: " << formatDuration(elapsed) << " | ETA: " << formatDuration(eta);
@@ -302,9 +296,11 @@ void ProgressManager::print() {
       // totalChars += chainProgress.length() + 1; // +1 for newline
     }
 
-    // Print total progress
-    std::string totalProgress = formatProgressBar(0, done, totalWork, fracTotal, true);
-    out << totalProgress << "\n";
+    // Print total progress if there is more than one chain
+    if (nChains > 1) {
+      std::string totalProgress = formatProgressBar(0, done, totalWork, fracTotal, true);
+      out << totalProgress << "\n";
+    }
     // totalChars += totalProgress.length() + 1; // +1 for newline
 
     // Print time info
@@ -314,7 +310,9 @@ void ProgressManager::print() {
     // totalChars += timeInfo.length() + 1; // +1 for newline
 
     // Track total lines printed (chains + total + time)
-    lastPrintedLines = nChains + 2; // used in a generic terminal
+
+    lastPrintedLines = nChains + (nChains > 1 ? 2 : 1); // used in a generic terminal
+
     lastPrintedChars = 1;//totalChars;  // used by RStudio
 
   } else if (progress_type == 1) {

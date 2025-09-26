@@ -312,18 +312,16 @@ arma::vec gradient(
   // -------------------------------------------------
   // Allocate temporaries ONCE (reused inside loops)
   // -------------------------------------------------
-  arma::mat main_group(num_variables, max_num_categories, arma::fill::zeros);
-  arma::mat pairwise_group(num_variables, num_variables, arma::fill::zeros);
-  arma::mat exponents; // resized per variable
-  arma::vec lin_score, quad_score;
+  arma::mat main_group(num_variables, max_num_categories, arma::fill::none);
+  arma::mat pairwise_group(num_variables, num_variables, arma::fill::none);
 
   // -------------------------------
   // Observed sufficient statistics
   // -------------------------------
   for (int g = 0; g < num_groups; ++g) {
-    const arma::imat counts_per_category = counts_per_category_group[g];
-    const arma::imat blume_capel_stats   = blume_capel_stats_group[g];
-    const arma::mat pairwise_stats       = pairwise_stats_group[g];
+    // list access
+    arma::imat counts_per_category      = counts_per_category_group[g];
+    arma::imat blume_capel_stats  = blume_capel_stats_group[g];
 
     // Main effects
     for (int v = 0; v < num_variables; ++v) {
@@ -364,6 +362,7 @@ arma::vec gradient(
     }
 
     // Pairwise (observed)
+    arma::mat pairwise_stats = pairwise_stats_group[g];
     for (int v1 = 0; v1 < num_variables - 1; ++v1) {
       for (int v2 = v1 + 1; v2 < num_variables; ++v2) {
         const int row = pairwise_effect_indices(v1, v2);
@@ -387,9 +386,9 @@ arma::vec gradient(
     const int r0 = group_indices(g, 0);
     const int r1 = group_indices(g, 1);
 
+    const arma::vec proj_g = projection.row(g).t(); // length = num_groups-1
     main_group.zeros();
     pairwise_group.zeros();
-    arma::vec proj_g = projection.row(g).t(); // length = num_groups-1
 
     // build group-specific params
     for (int v = 0; v < num_variables; ++v) {
@@ -421,11 +420,10 @@ arma::vec gradient(
       arma::vec bound      = K * rest_score;
       bound.clamp(0.0, arma::datum::inf);
 
-      exponents.set_size(num_group_obs, K + 1);
-      exponents.zeros();
+      arma::mat exponents(num_group_obs, K + 1, arma::fill::none);
 
       if (is_ordinal_variable(v)) {
-        exponents.col(0) -= bound;
+        exponents.col(0) = -bound;
         for (int j = 0; j < K; ++j) {
           exponents.col(j + 1) = main_group(v, j) + (j + 1) * rest_score - bound;
         }
@@ -440,43 +438,36 @@ arma::vec gradient(
         }
       }
 
-      // exponentiate + normalize row-wise (in-place)
-      for (arma::uword i = 0; i < exponents.n_rows; ++i) {
-        double denom = 0.0;
-        for (arma::uword j = 0; j < exponents.n_cols; ++j) {
-          double val = MY_EXP(exponents(i, j));
-          exponents(i, j) = val;
-          denom += val;
-        }
-        double inv = 1.0 / denom;
-        for (arma::uword j = 0; j < exponents.n_cols; ++j)
-          exponents(i, j) *= inv;
-      }
+      arma::mat probs = arma::exp(exponents);
+      arma::vec denom = arma::sum(probs, 1); // base term
+      probs.each_col() /= denom;
 
       // ---- MAIN expected ----
       const int base = main_effect_indices(v, 0);
       if (is_ordinal_variable(v)) {
         for (int s = 1; s <= K; ++s) {
           const int j = s - 1;
-          double sum_col_s = arma::accu(exponents.col(s));
+          double sum_col_s = arma::accu(probs.col(s));
+
 
           off = main_index(base + j, 0);
           grad(off) -= sum_col_s;
+
 
           if (inclusion_indicator(v, v) == 0) continue;
           for (int k = 1; k < num_groups; ++k) {
             off = main_index(base + j, k);
             grad(off) -= projection(g, k - 1) * sum_col_s;
+
           }
         }
       } else {
-        if (lin_score.n_elem != K + 1) {
-          lin_score  = arma::regspace<arma::vec>(0, K);
-          quad_score = arma::square(lin_score - ref);
-        }
 
-        double sum_lin  = arma::accu(exponents * lin_score);
-        double sum_quad = arma::accu(exponents * quad_score);
+        arma::vec lin_score  = arma::regspace<arma::vec>(0, K);          // length K+1
+        arma::vec quad_score = arma::square(lin_score - ref);
+
+        double sum_lin  = arma::accu(probs * lin_score);
+        double sum_quad = arma::accu(probs * quad_score);
 
         off = main_index(base, 0);
         grad(off) -= sum_lin;
@@ -497,21 +488,28 @@ arma::vec gradient(
       for (int v2 = 0; v2 < num_variables; ++v2) {
         if (v == v2) continue;
 
-        const int row = (v < v2) ? pairwise_effect_indices(v, v2)
-                                 : pairwise_effect_indices(v2, v);
+        arma::vec expected_value(num_group_obs, arma::fill::zeros);
+        for (int s = 1; s <= K; ++s) {
+          expected_value += s * probs.col(s) % obs.col(v2);
+        }
+        double sum_expectation = arma::accu(expected_value);
 
-        double total = 0.0;
-        for (int s = 1; s <= K; ++s)
-          total += s * arma::dot(exponents.col(s), obs.col(v2));
+        // this is mathematically equivalent but numerically different...
+        // double sum_expectation = 0.0;
+        // for (int s = 1; s <= K; ++s) {
+        //   sum_expectation += s * arma::dot(probs.col(s), obs.col(v2));
+        // }
+
+        const int row = (v < v2) ? pairwise_effect_indices(v, v2)
+          : pairwise_effect_indices(v2, v);
 
         off = pair_index(row, 0);
-        grad(off) -= total;
+        grad(off) -= sum_expectation;
 
-        if (inclusion_indicator(v, v2)) {
-          for (int k = 1; k < num_groups; ++k) {
-            off = pair_index(row, k);
-            grad(off) -= projection(g, k - 1) * total;
-          }
+        if (inclusion_indicator(v, v2) == 0) continue;
+        for (int k = 1; k < num_groups; ++k) {
+          off = pair_index(row, k);
+          grad(off) -= projection(g, k - 1) * sum_expectation;
         }
       }
     }
