@@ -1166,12 +1166,11 @@ void update_indicator_differences_metropolis_bgmcompare (
 
     // Add prior inclusion probability contribution
     double inc_prob = inclusion_probability_difference(var, var);
+    double logit_inc_prob = MY_LOG(inc_prob / (1 - inc_prob));
     if(proposed_ind == 1) {
-      log_accept += MY_LOG(inc_prob);
-      log_accept -= MY_LOG(1 - inc_prob);
+      log_accept += logit_inc_prob;
     } else {
-      log_accept -= MY_LOG(inc_prob);
-      log_accept += MY_LOG(1 - inc_prob);
+      log_accept -= logit_inc_prob;
     }
 
     // Add parameter prior contribution
@@ -1244,12 +1243,11 @@ void update_indicator_differences_metropolis_bgmcompare (
 
     // Add prior inclusion probability contribution
     double inc_prob = inclusion_probability_difference(var1, var2);
+    double logit_inc_prob = MY_LOG(inc_prob / (1 - inc_prob));
     if(proposed_ind == 1) {
-      log_accept += MY_LOG(inc_prob);
-      log_accept -= MY_LOG(1 - inc_prob);
+      log_accept += logit_inc_prob;
     } else {
-      log_accept -= MY_LOG(inc_prob);
-      log_accept += MY_LOG(1 - inc_prob);
+      log_accept -= logit_inc_prob;
     }
 
     // Add parameter prior contribution
