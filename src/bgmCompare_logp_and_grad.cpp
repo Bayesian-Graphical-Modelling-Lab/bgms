@@ -148,12 +148,12 @@ double log_pseudoposterior(
 
       if (is_ordinal_variable(v)) {
         // base term exp(-bound)
-        denom = arma::exp(-bound);
+        denom = ARMA_MY_EXP(-bound);
         // main_effects from main_group
         for (int c = 0; c < num_cats; ++c) {
           const double th = main_group(v, c);
           const arma::vec exponent = th + (c + 1) * rest_score - bound;
-          denom += arma::exp(exponent);
+          denom += ARMA_MY_EXP(exponent);
         }
       } else {
         // linear/quadratic main effects from main_group
@@ -165,11 +165,11 @@ double log_pseudoposterior(
           const double quad = quad_effect * centered * centered;
           const double lin  = lin_effect * c;
           const arma::vec exponent = lin + quad + c * rest_score - bound;
-          denom += arma::exp(exponent);
+          denom += ARMA_MY_EXP(exponent);
         }
       }
       // - sum_i [ bound_i + log denom_i ]
-      log_pp -= arma::accu(bound + arma::log(denom));
+      log_pp -= arma::accu(bound + ARMA_MY_LOG(denom));
     }
   }
 
@@ -724,12 +724,12 @@ double log_pseudoposterior_main_component(
     arma::vec denom(rest_score.n_elem, arma::fill::zeros);
     if (is_ordinal_variable(variable)) {
       // base term exp(-bound)
-      denom = arma::exp(-bound);
+      denom = ARMA_MY_EXP(-bound);
       // main_effects from main_group
       for (int cat = 0; cat < num_cats; cat++) {
         const double th = main_group(variable, cat);
         const arma::vec exponent = th + (cat + 1) * rest_score - bound;
-        denom += arma::exp(exponent);
+        denom += ARMA_MY_EXP(exponent);
       }
     } else {
       // linear/quadratic main effects from main_group
@@ -741,11 +741,11 @@ double log_pseudoposterior_main_component(
         const double quad = quad_effect * centered * centered;
         const double lin  = lin_effect * cat;
         const arma::vec exponent = lin + quad + cat * rest_score - bound;
-        denom += arma::exp(exponent);
+        denom += ARMA_MY_EXP(exponent);
       }
     }
     // - sum_i [ bound_i + log denom_i ]
-    log_pp -= arma::accu(bound + arma::log(denom));
+    log_pp -= arma::accu(bound + ARMA_MY_LOG(denom));
   }
 
   // ---- priors ----
@@ -908,12 +908,12 @@ double log_pseudoposterior_pair_component(
 
       if (is_ordinal_variable(v)) {
         // base term exp(-bound)
-        denom = arma::exp(-bound);
+        denom = ARMA_MY_EXP(-bound);
         // main_effects from main_group
         for (int c = 0; c < num_cats; ++c) {
           const double th = main_group(v, c);
           const arma::vec exponent = th + (c + 1) * rest_score - bound;
-          denom += arma::exp(exponent);
+          denom += ARMA_MY_EXP(exponent);
         }
       } else {
         // linear/quadratic main effects from main_group
@@ -925,11 +925,11 @@ double log_pseudoposterior_pair_component(
           const double quad = quad_effect * centered * centered;
           const double lin  = lin_effect * c;
           const arma::vec exponent = lin + quad + c * rest_score - bound;
-          denom += arma::exp(exponent);
+          denom += ARMA_MY_EXP(exponent);
         }
       }
       // - sum_i [ bound_i + log denom_i ]
-      log_pp -= arma::accu(bound + arma::log(denom));
+      log_pp -= arma::accu(bound + ARMA_MY_LOG(denom));
     }
   }
 
@@ -1055,12 +1055,12 @@ double log_ratio_pseudolikelihood_constant_variable(
       bound_current = num_cats * arma::clamp(rest_current, 0.0, arma::datum::inf);
       bound_proposed = num_cats * arma::clamp(rest_proposed, 0.0, arma::datum::inf);
 
-      denom_current = arma::exp(-bound_current);
-      denom_proposed = arma::exp(-bound_proposed);
+      denom_current = ARMA_MY_EXP(-bound_current);
+      denom_proposed = ARMA_MY_EXP(-bound_proposed);
 
       for (int c = 0; c < num_cats; ++c) {
-        denom_current += arma::exp(main_current(c) + (c + 1) * rest_current - bound_current);
-        denom_proposed += arma::exp(main_proposed(c) + (c + 1) * rest_proposed - bound_proposed);
+        denom_current += ARMA_MY_EXP(main_current(c) + (c + 1) * rest_current - bound_current);
+        denom_proposed += ARMA_MY_EXP(main_proposed(c) + (c + 1) * rest_proposed - bound_proposed);
       }
     } else {
       // Blume-Capel: linear + quadratic
@@ -1081,14 +1081,14 @@ double log_ratio_pseudolikelihood_constant_variable(
       bound_proposed = lbound + num_cats * arma::clamp(rest_proposed, 0.0, arma::datum::inf);
 
       for (int s = 0; s <= num_cats; ++s) {
-        denom_current += arma::exp(const_current(s) + s * rest_current - bound_current);
-        denom_proposed += arma::exp(const_proposed(s) + s * rest_proposed - bound_proposed);
+        denom_current += ARMA_MY_EXP(const_current(s) + s * rest_current - bound_current);
+        denom_proposed += ARMA_MY_EXP(const_proposed(s) + s * rest_proposed - bound_proposed);
       }
     }
 
     // --- accumulate contribution ---
     log_ratio += arma::accu((bound_current - bound_proposed) +
-      arma::log(denom_current) - arma::log(denom_proposed));
+      ARMA_MY_LOG(denom_current) - ARMA_MY_LOG(denom_proposed));
   }
 
   return log_ratio;

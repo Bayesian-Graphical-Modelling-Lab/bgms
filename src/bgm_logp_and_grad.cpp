@@ -79,17 +79,17 @@ double log_pseudoposterior_main_effects_component (
     //   - main_effect_param_c is the main_effect parameter for category c (0-based)
     arma::vec residual_score = residual_matrix.col (variable);                     // rest scores for all persons
     arma::vec bound = num_cats * residual_score;                                  // numerical bound vector
-    arma::vec denom = arma::exp (-bound);                                      // initialize with base term
+    arma::vec denom = ARMA_MY_EXP (-bound);                                      // initialize with base term
     arma::vec main_effect_param = main_effects.row (variable).cols (0, num_cats - 1).t ();   // main_effect parameters
 
     for (int cat = 0; cat < num_cats; cat++) {
       arma::vec exponent = main_effect_param(cat) + (cat + 1) * residual_score - bound;       // exponent per person
-      denom += arma::exp (exponent);                                           // accumulate exp terms
+      denom += ARMA_MY_EXP (exponent);                                           // accumulate exp terms
     }
 
     // We then compute the total log-likelihood contribution as:
     //   log_posterior -= bound + log (denom), summed over all persons
-    log_posterior -= arma::accu (bound + arma::log (denom));                    // total contribution
+    log_posterior -= arma::accu (bound + ARMA_MY_LOG (denom));                    // total contribution
   } else {
     const double value = main_effects(variable, parameter);
     const double linear_main_effect = main_effects(variable, 0);
@@ -116,12 +116,12 @@ double log_pseudoposterior_main_effects_component (
       double lin_term = linear_main_effect * cat;                                      // precompute linear term
 
       arma::vec exponent = lin_term + quad_term + cat * residual_score - bound;
-      denom += arma::exp (exponent);                                           // accumulate over categories
+      denom += ARMA_MY_EXP (exponent);                                           // accumulate over categories
     }
 
     // The final log-likelihood contribution is then:
     //   log_posterior -= bound + log (denom), summed over all persons
-    log_posterior -= arma::accu (bound + arma::log (denom));                    // total contribution
+    log_posterior -= arma::accu (bound + ARMA_MY_LOG (denom));                    // total contribution
   }
 
   return log_posterior;
@@ -187,10 +187,10 @@ double log_pseudoposterior_interactions_component (
     if (is_ordinal_variable (var)) {
       // Ordinal variable: denominator includes exp (-bounds)
 
-      denominator += arma::exp (-bounds);
+      denominator += ARMA_MY_EXP (-bounds);
       for (int category = 0; category < num_categories_var; category++) {
         arma::vec exponent = main_effects (var, category) + (category + 1) * residual_scores - bounds;
-        denominator += arma::exp(exponent);
+        denominator += ARMA_MY_EXP(exponent);
       }
 
     } else {
@@ -201,12 +201,12 @@ double log_pseudoposterior_interactions_component (
         double lin_term = main_effects (var, 0) * category;
         double quad_term = main_effects (var, 1) * centered_cat * centered_cat;
         arma::vec exponent = lin_term + quad_term + category * residual_scores - bounds;
-        denominator += arma::exp (exponent);
+        denominator += ARMA_MY_EXP (exponent);
       }
     }
 
     // Subtract log partition function and bounds adjustment
-    log_pseudo_posterior -= arma::accu (arma::log (denominator));
+    log_pseudo_posterior -= arma::accu (ARMA_MY_LOG (denominator));
     log_pseudo_posterior -= arma::accu (bounds);
   }
 
@@ -319,11 +319,11 @@ double log_pseudoposterior (
 
     arma::vec denom;
     if (is_ordinal_variable(variable)) {
-      denom = arma::exp (-bound);                                     // initialize with base term
+      denom = ARMA_MY_EXP (-bound);                                     // initialize with base term
       arma::vec main_effect_param = main_effects.row (variable).cols (0, num_cats - 1).t ();   // main_effect parameters for variable
       for (int cat = 0; cat < num_cats; cat++) {
         arma::vec exponent = main_effect_param(cat) + (cat + 1) * residual_score - bound; // exponent per person
-        denom += arma::exp (exponent);                                          // accumulate exp terms
+        denom += ARMA_MY_EXP (exponent);                                          // accumulate exp terms
       }
     } else {
       const double lin_effect = main_effects(variable, 0);
@@ -336,11 +336,11 @@ double log_pseudoposterior (
         double quad = quad_effect * centered * centered;                    // precompute quadratic term
         double lin = lin_effect * cat;                                      // precompute linear term
         arma::vec exponent = lin + quad + cat * residual_score - bound;
-        denom += arma::exp (exponent);                                           // accumulate over categories
+        denom += ARMA_MY_EXP (exponent);                                           // accumulate over categories
       }
     }
 
-    log_pseudoposterior -= arma::accu (bound + arma::log (denom));                    // total contribution
+    log_pseudoposterior -= arma::accu (bound + ARMA_MY_LOG (denom));                    // total contribution
   }
 
   return log_pseudoposterior;
@@ -463,8 +463,8 @@ arma::vec gradient_log_pseudoposterior (
         exponents.col(cat) = main_effect_param(cat) + (cat + 1) * residual_score - bound;
       }
 
-      arma::mat probs = arma::exp (exponents);
-      arma::vec denom = arma::sum(probs, 1) + arma::exp (-bound);
+      arma::mat probs = ARMA_MY_EXP (exponents);
+      arma::vec denom = arma::sum(probs, 1) + ARMA_MY_EXP (-bound);
       probs.each_col() /= denom;
 
       // Expected sufficient statistics main effects
@@ -499,7 +499,7 @@ arma::vec gradient_log_pseudoposterior (
         double quad = quad_effect * centered * centered;
         exponents.col(cat) = lin + quad + score * residual_score - bound;
       }
-      arma::mat probs = arma::exp (exponents);
+      arma::mat probs = ARMA_MY_EXP (exponents);
       arma::vec denom = arma::sum(probs, 1);
       probs.each_col() /= denom;
 
@@ -712,8 +712,8 @@ double compute_log_likelihood_ratio_for_variable (
   arma::vec denom_proposed = arma::zeros (num_persons);
 
   if (is_ordinal_variable (variable)) {
-    denom_current += arma::exp(-bounds);
-    denom_proposed += arma::exp(-bounds);
+    denom_current += ARMA_MY_EXP(-bounds);
+    denom_proposed += ARMA_MY_EXP(-bounds);
 
     for (int category = 0; category < num_categories_var; category++) {
       const double main = main_effects(variable, category);
@@ -739,13 +739,13 @@ double compute_log_likelihood_ratio_for_variable (
       double quad_term = main_effects (variable, 1) * centered * centered;
       arma::vec exponent = lin_term + quad_term + category * residual_scores - bounds;
 
-      denom_current += arma::exp (exponent + category * interaction * current_state);
-      denom_proposed += arma::exp (exponent + category * interaction * proposed_state);
+      denom_current += ARMA_MY_EXP (exponent + category * interaction * current_state);
+      denom_proposed += ARMA_MY_EXP (exponent + category * interaction * proposed_state);
     }
   }
 
   // Accumulated log-likelihood difference across persons
-  return arma::accu (arma::log (denom_current) - arma::log (denom_proposed));
+  return arma::accu (ARMA_MY_LOG (denom_current) - ARMA_MY_LOG (denom_proposed));
 }
 
 

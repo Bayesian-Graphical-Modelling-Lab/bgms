@@ -21,9 +21,13 @@
 #if USE_CUSTOM_LOG
 
 #include "e_exp.h"
+#include "e_arma_exp.h"
 
 #define MY_EXP __ieee754_exp
 #define MY_LOG __ieee754_log
+
+#define ARMA_MY_EXP custom_arma_exp
+#define ARMA_MY_LOG custom_arma_log
 
 // TODO: add and use these
 // #define MY_EXPM1 std::expm1
@@ -35,6 +39,8 @@
 
 #define MY_EXP std::exp
 #define MY_LOG std::log
+#define ARMA_MY_EXP arma::exp
+#define ARMA_MY_LOG arma::log
 
 #endif
 
