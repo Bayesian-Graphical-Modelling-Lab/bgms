@@ -42,25 +42,82 @@
 <h2 class="pkg-version" data-toc-text="0.1.6.0" id="bgms-0160">bgms 0.1.6.0<a class="anchor" aria-label="anchor" href="#bgms-0160"></a></h2>
 <div class="section level3">
 <h3 id="new-features-0-1-6-0">New features<a class="anchor" aria-label="anchor" href="#new-features-0-1-6-0"></a></h3>
-<ul><li>NUTS and HMC options are now provided for sampling the bgm and bgmCompare model</li>
-<li>Sampling for multiple chains can now be done in parallel</li>
-<li>Markov chain diagnostics are now offered for the sampled parameters</li>
+<ul><li>added NUTS and HMC options for sampling <code><a href="../reference/bgm.html">bgm()</a></code> and <code><a href="../reference/bgmCompare.html">bgmCompare()</a></code> models</li>
+<li>added support for running multiple chains in parallel</li>
+<li>added user interrupt handling for parallel sampling</li>
+<li>added Markov chain diagnostics (effective sample size and R-hat) for sampled parameters</li>
+<li>added <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code>, and <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code> methods for fitted objects</li>
+<li>MCMC sampling in <code><a href="../reference/bgm.html">bgm()</a></code> and <code><a href="../reference/bgmCompare.html">bgmCompare()</a></code> is now reproducible when a <code>seed</code> argument is specified</li>
 </ul></div>
 <div class="section level3">
 <h3 id="other-changes-0-1-6-0">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-0-1-6-0"></a></h3>
-<ul><li>Improved progress bar for parallel sampling</li>
-<li>User interrupt for parallel sampling</li>
-<li>More extensive summary and print options are provided; integrates summary_SBM</li>
-<li>Removed the options for modeling the main differences; main differences are now always estimated or selected similar to the old <code>main_difference_model = "collapse"</code> option.</li>
+<ul><li>improved progress bar for parallel sampling</li>
+<li>
+<code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> now integrates the functionality of the old <code>summary_SBM()</code>
+</li>
+<li>removed options for modeling main differences; main differences are now always estimated or selected, equivalent to the previous <code>main_difference_model = "collapse"</code> setting</li>
 </ul></div>
 <div class="section level3">
 <h3 id="bug-fixes-0-1-6-0">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-1-6-0"></a></h3>
-<ul><li>Fixed an out-of-bounds bug in the bgmCompare function with missing data handling</li>
-<li>Fixed a bug in the SBM prior computation</li>
+<ul><li>fixed an out-of-bounds error in <code><a href="../reference/bgmCompare.html">bgmCompare()</a></code> when handling missing data</li>
+<li>fixed a bug in the SBM prior computation</li>
+</ul></div>
+<div class="section level3">
+<h3 id="deprecated-0-1-6-0">Deprecated<a class="anchor" aria-label="anchor" href="#deprecated-0-1-6-0"></a></h3>
+<ul><li>In <code><a href="../reference/bgm.html">bgm()</a></code>, the following arguments are deprecated:
+<ul><li>
+<code>interaction_scale</code> → use <code>pairwise_scale</code>
+</li>
+<li>
+<code>burnin</code> → use <code>warmup</code>
+</li>
+<li>
+<code>save</code> → no longer needed (all outputs are returned by default)</li>
+<li>
+<code>threshold_alpha</code>, <code>threshold_beta</code> → use <code>main_alpha</code>, <code>main_beta</code>
+</li>
+</ul></li>
+<li>In <code><a href="../reference/bgmCompare.html">bgmCompare()</a></code>, arguments related to difference models are deprecated:
+<ul><li>
+<code>main_difference_model</code> (removed without replacement)</li>
+<li>
+<code>reference_category</code> → use <code>baseline_category</code>
+</li>
+<li>
+<code>pairwise_difference_*</code>, <code>main_difference_*</code> → use unified <code>difference_*</code> arguments</li>
+<li>
+<code>pairwise_beta_bernoulli_*</code>, <code>main_beta_bernoulli_*</code> → use unified <code>beta_bernoulli_*</code> arguments</li>
+<li>
+<code>interaction_scale</code> → use <code>pairwise_scale</code>
+</li>
+<li>
+<code>threshold_alpha</code>, <code>threshold_beta</code> → use <code>main_alpha</code>, <code>main_beta</code>
+</li>
+<li>
+<code>burnin</code> → use <code>warmup</code>
+</li>
+<li>
+<code>save</code> → no longer needed</li>
+</ul></li>
+<li>Deprecated extractor functions:
+<ul><li>
+<code><a href="../reference/extractor_functions.html">extract_edge_indicators()</a></code> → use <code><a href="../reference/extractor_functions.html">extract_indicators()</a></code>
+</li>
+<li>
+<code><a href="../reference/extractor_functions.html">extract_pairwise_thresholds()</a></code> → use <code><a href="../reference/extractor_functions.html">extract_category_thresholds()</a></code>
+</li>
+</ul></li>
+<li>Deprecated object fields:
+<ul><li>
+<code>$gamma</code> (pre-0.1.4) and <code>$indicator</code> (0.1.4–0.1.5) → replaced by <code>$raw_samples$indicator</code>
+</li>
+<li>
+<code>$main_effects</code> (pre-0.1.4) and <code>$posterior_mean_main</code> (0.1.4–0.1.5) → replaced by <code>$raw_samples$main</code> (raw samples) and <code>$posterior_summary_main</code> (summaries)</li>
+</ul></li>
 </ul></div>
 </div>
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.1.5.0" id="bgms-0150">bgms 0.1.5.0<a class="anchor" aria-label="anchor" href="#bgms-0150"></a></h2>
+<h2 class="pkg-version" data-toc-text="0.1.5.0" id="bgms-0150-github-only">bgms 0.1.5.0 (GitHub only)<a class="anchor" aria-label="anchor" href="#bgms-0150-github-only"></a></h2>
 <div class="section level3">
 <h3 id="new-features-0-1-5-0">New features<a class="anchor" aria-label="anchor" href="#new-features-0-1-5-0"></a></h3>
 <ul><li>The bgmCompare function now allows for network comparison for two or more groups.</li>
@@ -84,7 +141,16 @@
 </div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.4.2" id="bgms-0142">bgms 0.1.4.2<a class="anchor" aria-label="anchor" href="#bgms-0142"></a></h2><p class="text-muted">CRAN release: 2024-12-05</p>
-<p>Fixed a bug with adjusting the variance of the proposal distributions. Fixed a bug with recoding data under the “collapse” condition. When selection = true, we run 2 * burnin iterations instead of 1 * burnin in the burnin phase. This helps ensure that the Markov chain used for estimating the pseudoposterior starts with good parameter values and that proposals are properly calibrated. In rare cases, the Markov chain could get stuck before. The default setting for the burnin is also changed from 1000 to 500. Changed the maximum standard deviation of the adaptive proposal from 20 back to 2.</p>
+<div class="section level3">
+<h3 id="bug-fixes-0-1-4-2">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-1-4-2"></a></h3>
+<ul><li>fixed a bug with adjusting the variance of the proposal distributions</li>
+<li>fixed a bug with recoding data under the “collapse” condition</li>
+</ul></div>
+<div class="section level3">
+<h3 id="other-changes-0-1-4-2">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-0-1-4-2"></a></h3>
+<ul><li>when <code>selection = TRUE</code>, the burnin phase now runs <code>2 * burnin</code> iterations instead of <code>1 * burnin</code>. This ensures the chain starts with well-calibrated parameter values</li>
+<li>changed the maximum standard deviation of the adaptive proposal from 20 back to 2</li>
+</ul></div>
 </div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.4.1" id="bgms-0141">bgms 0.1.4.1<a class="anchor" aria-label="anchor" href="#bgms-0141"></a></h2><p class="text-muted">CRAN release: 2024-11-12</p>
