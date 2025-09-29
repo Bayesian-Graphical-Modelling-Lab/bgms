@@ -10,7 +10,8 @@
 #' - `extract_pairwise_interactions()` – Posterior mean of pairwise interactions
 #' - `extract_category_thresholds()` – Posterior mean of category thresholds
 #' - `extract_indicator_priors()` – Prior structure used for edge indicators
-#'
+#' - `extract_sbm`  – Extract stochastic block model parameters (if applicable)
+ #'
 #' @name extractor_functions
 #' @title Extractor Functions for bgms Objects
 #' @keywords internal
@@ -174,6 +175,67 @@ extract_posterior_inclusion_probabilities.bgms = function(bgms_object) {
 
   return(pip_matrix)
 }
+
+
+#' @rdname extractor_functions
+#' @export
+extract_sbm = function(bgms_object) {
+  UseMethod("extract_sbm")
+}
+
+#' @rdname extractor_functions
+#' @export
+extract_sbm.bgms = function(bgms_object) {
+  if (!inherits(bgms_object, "bgms")) stop("Object must be of class 'bgms'.")
+
+  # Checks
+  ver = try(utils::packageVersion("bgms"), silent = TRUE)
+  if (inherits(ver, "try-error") || is.na(ver)) {
+    stop("Could not determine 'bgms' package version.")
+  }
+  if (utils::compareVersion(as.character(ver), "0.1.6.0") < 0) {
+    stop(paste0("Extractor functions for the SBM prior are defined for bgms version 0.1.6.0. ",
+                "The current installed version is ", as.character(ver), "."))
+  }
+
+  arguments = extract_arguments(bgms_object)
+
+  if (!isTRUE(arguments$edge_selection)) {
+    stop("To extract SBM summaries, run bgm() with edge_selection = TRUE.")
+  }
+  if (!identical(arguments$edge_prior, "Stochastic-Block")) {
+    stop(paste0("edge_prior must be 'Stochastic-Block' (got '",
+                as.character(arguments$edge_prior), "')."))
+  }
+
+  posterior_num_blocks               = try(bgms_object$posterior_num_blocks,               silent = TRUE)
+  posterior_mean_allocations         = try(bgms_object$posterior_mean_allocations,         silent = TRUE)
+  posterior_mode_allocations         = try(bgms_object$posterior_mode_allocations,         silent = TRUE)
+  posterior_mean_coclustering_matrix = try(bgms_object$posterior_mean_coclustering_matrix, silent = TRUE)
+
+  if (inherits(posterior_num_blocks, "try-error"))               posterior_num_blocks               = NULL
+  if (inherits(posterior_mean_allocations, "try-error"))         posterior_mean_allocations         = NULL
+  if (inherits(posterior_mode_allocations, "try-error"))         posterior_mode_allocations         = NULL
+  if (inherits(posterior_mean_coclustering_matrix, "try-error")) posterior_mean_coclustering_matrix = NULL
+
+  if (is.null(posterior_num_blocks) ||
+      is.null(posterior_mean_allocations) ||
+      is.null(posterior_mode_allocations) ||
+      is.null(posterior_mean_coclustering_matrix)) {
+    stop(paste0("SBM summaries not found in this object. Missing one or more of: ",
+                "posterior_num_blocks, posterior_mean_allocations, ",
+                "posterior_mode_allocations, posterior_mean_coclustering_matrix."))
+  }
+
+
+  return(list(
+    posterior_num_blocks               = posterior_num_blocks,
+    posterior_mean_allocations         = posterior_mean_allocations,
+    posterior_mode_allocations         = posterior_mode_allocations,
+    posterior_mean_coclustering_matrix = posterior_mean_coclustering_matrix
+  ))
+}
+
 
 #' @rdname extractor_functions
 #' @export

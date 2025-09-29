@@ -10,6 +10,8 @@
 \alias{extract_indicators.bgmCompare}
 \alias{extract_posterior_inclusion_probabilities}
 \alias{extract_posterior_inclusion_probabilities.bgms}
+\alias{extract_sbm}
+\alias{extract_sbm.bgms}
 \alias{extract_posterior_inclusion_probabilities.bgmCompare}
 \alias{extract_indicator_priors}
 \alias{extract_indicator_priors.bgms}
@@ -41,6 +43,10 @@ extract_indicators(bgms_object)
 extract_posterior_inclusion_probabilities(bgms_object)
 
 \method{extract_posterior_inclusion_probabilities}{bgms}(bgms_object)
+
+extract_sbm(bgms_object)
+
+\method{extract_sbm}{bgms}(bgms_object)
 
 \method{extract_posterior_inclusion_probabilities}{bgmCompare}(bgms_object)
 
@@ -99,6 +105,7 @@ in `$posterior_summary_main`. Access via older names is supported but deprecated
 - `extract_pairwise_interactions()` – Posterior mean of pairwise interactions
 - `extract_category_thresholds()` – Posterior mean of category thresholds
 - `extract_indicator_priors()` – Prior structure used for edge indicators
+- `extract_sbm`  – Extract stochastic block model parameters (if applicable)
 }
 
 \keyword{internal}
