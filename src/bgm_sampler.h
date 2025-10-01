@@ -4,9 +4,10 @@
 // forward declaration
 struct SafeRNG;
 class ProgressManager;
+struct ChainResult;
 
-Rcpp::List run_gibbs_sampler_bgm(
-    int chain_id,
+void run_gibbs_sampler_bgm(
+    ChainResult& chain_result,
     arma::imat observations,
     const arma::ivec& num_categories,
     const double pairwise_scale,

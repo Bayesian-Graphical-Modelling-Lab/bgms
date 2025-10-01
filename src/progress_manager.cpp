@@ -54,14 +54,18 @@ void ProgressManager::update(size_t chainId) {
   progress[chainId]++;
 
   // Only chain 0 actually does the printing/ checking for user interrupts
-  if (chainId != 0) return;
+  if (chainId != 0 || needsToExit) return;
 
   if (progress[chainId] % printEvery == 0) {
 
     // Check for user interrupts
     needsToExit = checkInterrupt();
 
-    if (needsToExit) return;
+    if (needsToExit && progress_type != 0) {
+      // This should be immediately-ish visible to the user
+      Rcpp::Rcout << "\nUser interrupt detected. Exiting gracefully. It may take a few seconds before all chains are terminated.\n";
+      return;
+    }
 
     auto now = Clock::now();
     std::chrono::duration<double> sinceLast = now - lastPrint;
@@ -77,7 +81,12 @@ void ProgressManager::update(size_t chainId) {
 
 void ProgressManager::finish() {
 
-  if (progress_type == 0 || needsToExit) return; // No progress display or user interrupt
+  if (progress_type == 0) return; // No progress display or user interrupt
+
+  if (needsToExit) {
+    Rcpp::Rcout << "All chains terminated.\n";
+    return;
+  }
 
   // Mark all chains as complete and print one final time
   for (size_t i = 0; i < nChains; i++)
@@ -364,14 +373,13 @@ void ProgressManager::maybePadToLength(std::string& content) const {
 
 // Example usage/ test with RcppParallel
 // #include <RcppParallel.h>
-// // Worker functor for RcppParallel
 // struct ChainWorker : public RcppParallel::Worker {
 //   int nIter;
+//   int delay; // no. milliseconds sleep per loop iteration
 //   ProgressManager &pm;
-//   bool display_progress;
 
-//   ChainWorker(int nIter_, ProgressManager &pm_, bool display_progress_)
-//     : nIter(nIter_), pm(pm_), display_progress(display_progress_) {}
+//   ChainWorker(int nIter_, int delay_, ProgressManager &pm_)
+//     : nIter(nIter_), delay(delay_), pm(pm_) {}
 
 //   void operator()(std::size_t begin, std::size_t end) {
 
@@ -379,7 +387,7 @@ void ProgressManager::maybePadToLength(std::string& content) const {
 
 //     for (int i = 0; i < nIter; i++) {
 //       // ---- Simulated work ----
-//       std::this_thread::sleep_for(std::chrono::milliseconds(20));
+//       std::this_thread::sleep_for(std::chrono::milliseconds(delay));
 
 //       // ---- Update state ----
 //       pm.update(chainId);
@@ -391,10 +399,11 @@ void ProgressManager::maybePadToLength(std::string& content) const {
 
 
 // // [[Rcpp::export]]
-// void runMCMC_parallel(int nChains = 4, int nIter = 100, int nWarmup = 100, int progress_type = 2, bool useUnicode = false) {
+// void runMCMC_parallel(int nChains = 4, int nIter = 100, int nWarmup = 100, int progress_type = 2, bool useUnicode = false,
+//   int delay = 20) {
 
 //   ProgressManager pm(nChains, nIter, nWarmup, 10, progress_type, useUnicode);
-//   ChainWorker worker(nIter + nWarmup, pm, true);
+//   ChainWorker worker(nIter + nWarmup, delay, pm);
 
 //   // Run each chain in parallel
 //   RcppParallel::parallelFor(0, nChains, worker);
@@ -407,4 +416,3 @@ void ProgressManager::maybePadToLength(std::string& content) const {
 //     Rcpp::Rcout << "\nAll chains finished!\n";
 //   }
 // }
-

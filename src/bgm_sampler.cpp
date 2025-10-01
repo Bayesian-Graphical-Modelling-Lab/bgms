@@ -12,8 +12,7 @@
 #include "sbm_edge_prior.h"
 #include "rng_utils.h"
 #include "progress_manager.h"
-
-using namespace Rcpp;
+#include "chainResults.h"
 
 
 
@@ -1166,8 +1165,8 @@ void gibbs_update_step_bgm (
  *  - Parallel execution across chains is handled by `run_bgm_parallel()`;
  *    this function is for one chain only.
  */
-Rcpp::List run_gibbs_sampler_bgm(
-    int chain_id,
+void run_gibbs_sampler_bgm(
+    ChainResult& chain_result,
     arma::imat observations,
     const arma::ivec& num_categories,
     const double pairwise_scale,
@@ -1199,6 +1198,9 @@ Rcpp::List run_gibbs_sampler_bgm(
     SafeRNG& rng,
     ProgressManager& pm
 ) {
+
+  int chain_id = chain_result.chain_id;
+
   // --- Setup: dimensions and storage structures
   const int num_variables = observations.n_cols;
   const int num_persons = observations.n_rows;
@@ -1231,7 +1233,6 @@ Rcpp::List run_gibbs_sampler_bgm(
   arma::ivec treedepth_samples(iter, arma::fill::zeros);
   arma::ivec divergent_samples(iter, arma::fill::zeros);
   arma::vec energy_samples(iter, arma::fill::zeros);
-
 
   // Edge update shuffling setup
   arma::uvec v = arma::regspace<arma::uvec>(0, num_pairwise - 1);
@@ -1284,6 +1285,7 @@ Rcpp::List run_gibbs_sampler_bgm(
 
   // --- Warmup scheduling + adaptation controller
   WarmupSchedule warmup_schedule(warmup, edge_selection, (update_method != adaptive_metropolis));
+
   HMCAdaptationController adapt_joint(
       num_main + num_pairwise, initial_step_size_joint, target_accept,
       warmup_schedule, learn_mass_matrix
@@ -1404,25 +1406,22 @@ Rcpp::List run_gibbs_sampler_bgm(
     }
   }
 
-  Rcpp::List out;
-  out["main_samples"] = main_effect_samples;
-  out["pairwise_samples"] = pairwise_effect_samples;
+  chain_result.userInterrupt = userInterrupt;
+
+  chain_result.main_effect_samples     = main_effect_samples;
+  chain_result.pairwise_effect_samples = pairwise_effect_samples;
 
   if (update_method == nuts) {
-    out["treedepth__"] = treedepth_samples;
-    out["divergent__"] = divergent_samples;
-    out["energy__"] = energy_samples;
+    chain_result.treedepth_samples = treedepth_samples;
+    chain_result.divergent_samples = divergent_samples;
+    chain_result.energy_samples    = energy_samples;
   }
 
   if (edge_selection) {
-    out["indicator_samples"] = indicator_samples;
+    chain_result.indicator_samples = indicator_samples;
+
+    if (edge_prior == Stochastic_Block)
+      chain_result.allocation_samples = allocation_samples;
   }
 
-  if (edge_selection && edge_prior == Stochastic_Block) {
-    out["allocations"] = allocation_samples;
-  }
-
-  out["userInterrupt"] = userInterrupt;
-  out["chain_id"] = chain_id;
-  return out;
 }

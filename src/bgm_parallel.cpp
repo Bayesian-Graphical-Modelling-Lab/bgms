@@ -9,31 +9,11 @@
 #include "progress_manager.h"
 #include "mcmc_adaptation.h"
 #include "common_helpers.h"
+#include "chainResults.h"
 
 using namespace Rcpp;
 using namespace RcppParallel;
 
-
-
-/**
- * Container for the result of a single MCMC chain.
- *
- * Fields:
- *  - error: True if the chain terminated with an error, false otherwise.
- *  - error_msg: Error message in case of failure (empty if no error).
- *  - chain_id: Integer identifier for the chain (1-based).
- *  - result: Rcpp::List containing the chain’s outputs (samples, diagnostics, etc.).
- *
- * Usage:
- *  - Used in parallel samplers to collect per-chain results.
- *  - Checked after execution to propagate errors or assemble outputs into R.
- */
-struct ChainResult {
-  bool error;
-  std::string error_msg;
-  int chain_id;
-  Rcpp::List result;
-};
 
 
 
@@ -163,15 +143,16 @@ struct GibbsChainRunner : public Worker {
 
   void operator()(std::size_t begin, std::size_t end) {
     for (std::size_t i = begin; i < end; ++i) {
-      ChainResult out;
-      out.chain_id = static_cast<int>(i + 1);
-      out.error = false;
+
+      ChainResult& chain_result = results[i];
+      chain_result.chain_id = static_cast<int>(i + 1);
+      chain_result.error = false;
+      SafeRNG rng = chain_rngs[i];
 
       try {
-        SafeRNG rng = chain_rngs[i];
 
-        Rcpp::List result = run_gibbs_sampler_bgm(
-          out.chain_id,
+        run_gibbs_sampler_bgm(
+          chain_result,
           observations,
           num_categories,
            pairwise_scale,
@@ -203,17 +184,14 @@ struct GibbsChainRunner : public Worker {
           rng,
           pm
         );
-        out.result = result;
 
       } catch (std::exception& e) {
-        out.error = true;
-        out.error_msg = e.what();
+        chain_result.error = true;
+        chain_result.error_msg = e.what();
       } catch (...) {
-        out.error = true;
-        out.error_msg = "Unknown error";
+        chain_result.error = true;
+        chain_result.error_msg = "Unknown error";
       }
-
-      results[i] = out;
     }
   }
 };
@@ -340,7 +318,27 @@ Rcpp::List run_bgm_parallel(
         Rcpp::Named("chain_id") = results[i].chain_id
       );
     } else {
-      output[i] = results[i].result;
+        Rcpp::List chain_i;
+        chain_i["main_samples"] = results[i].main_effect_samples;
+        chain_i["pairwise_samples"] = results[i].pairwise_effect_samples;
+
+        if (update_method_enum == nuts) {
+          chain_i["treedepth__"] = results[i].treedepth_samples;
+          chain_i["divergent__"] = results[i].divergent_samples;
+          chain_i["energy__"] = results[i].energy_samples;
+        }
+
+        if (edge_selection) {
+          chain_i["indicator_samples"] = results[i].indicator_samples;
+
+          if (edge_prior_enum == Stochastic_Block)
+            chain_i["allocations"] = results[i].allocation_samples;
+        }
+
+        chain_i["userInterrupt"] = results[i].userInterrupt;
+        chain_i["chain_id"] = results[i].chain_id;
+
+        output[i] = chain_i;
     }
   }
 
