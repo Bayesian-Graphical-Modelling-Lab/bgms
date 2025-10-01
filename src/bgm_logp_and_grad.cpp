@@ -4,8 +4,6 @@
 #include "common_helpers.h"
 #include "explog_switch.h"
 
-using namespace Rcpp;
-
 
 
 /**

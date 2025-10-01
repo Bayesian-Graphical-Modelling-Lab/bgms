@@ -2,8 +2,6 @@
 #include <functional>
 #include "mcmc_leapfrog.h"
 #include "mcmc_memoization.h"
-using namespace Rcpp;
-
 
 
  /**

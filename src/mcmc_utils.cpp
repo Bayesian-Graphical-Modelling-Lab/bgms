@@ -4,8 +4,6 @@
 #include "mcmc_leapfrog.h"
 #include "mcmc_utils.h"
 #include "rng_utils.h"
-using namespace Rcpp;
-
 
 
 /**

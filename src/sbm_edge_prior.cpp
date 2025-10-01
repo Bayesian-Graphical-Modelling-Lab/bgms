@@ -2,8 +2,6 @@
 #include "rng_utils.h"
 #include "explog_switch.h"
 
-using namespace Rcpp;
-
 // ----------------------------------------------------------------------------|
 // The c++ code below is based on the R code accompanying the paper:
 //  Geng, J., Bhattacharya, A., & Pati, D. (2019). Probabilistic Community

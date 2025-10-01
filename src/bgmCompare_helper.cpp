@@ -3,8 +3,6 @@
 #include "bgmCompare_helper.h"
 #include "common_helpers.h"
 
-using namespace Rcpp;
-
 
 
 /**

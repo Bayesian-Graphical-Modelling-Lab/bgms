@@ -15,7 +15,6 @@
 #include <string>
 #include "progress_manager.h"
 
-using namespace Rcpp;
 
 
 

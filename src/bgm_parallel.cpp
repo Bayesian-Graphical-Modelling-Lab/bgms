@@ -11,7 +11,6 @@
 #include "common_helpers.h"
 #include "chainResults.h"
 
-using namespace Rcpp;
 using namespace RcppParallel;
 
 

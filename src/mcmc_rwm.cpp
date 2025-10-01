@@ -4,8 +4,6 @@
 #include "mcmc_utils.h"
 #include "mcmc_rwm.h"
 #include "rng_utils.h"
-using namespace Rcpp;
-
 
 
 /**

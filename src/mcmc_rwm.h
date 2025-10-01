@@ -6,7 +6,6 @@
 #include "mcmc_utils.h"
 struct SafeRNG;
 
-using namespace Rcpp;
 
 SamplerResult rwm_sampler(
     double current_state,

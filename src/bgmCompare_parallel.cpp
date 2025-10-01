@@ -11,7 +11,6 @@
 #include "mcmc_adaptation.h"
 #include "common_helpers.h"
 
-using namespace Rcpp;
 using namespace RcppParallel;
 
 
