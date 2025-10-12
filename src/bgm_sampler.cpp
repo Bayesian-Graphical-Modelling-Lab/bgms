@@ -212,27 +212,35 @@ double find_initial_stepsize_bgm(
     num_categories, is_ordinal_variable
   );
 
+  arma::vec grad_obs;
+  arma::imat index_matrix;
+
+  std::tie(grad_obs, index_matrix) = gradient_observed_active(
+      inclusion_indicator, observations, num_categories, counts_per_category,
+      blume_capel_stats, baseline_category, is_ordinal_variable, pairwise_stats
+  );
+
   arma::mat current_main = main_effects;
   arma::mat current_pair = pairwise_effects;
 
-  auto log_post = [&](const arma::vec& theta_vec) {
-    unvectorize_model_parameters_bgm(theta_vec, current_main, current_pair,
-                                 inclusion_indicator,
-                                 num_categories, is_ordinal_variable);
+  auto grad = [&](const arma::vec& theta_vec) {
+    unvectorize_model_parameters_bgm(theta_vec, current_main, current_pair, inclusion_indicator,
+                                     num_categories, is_ordinal_variable);
     arma::mat rm = observations * current_pair;
-    return log_pseudoposterior(
-      current_main, current_pair, inclusion_indicator, observations,
-      num_categories, counts_per_category, blume_capel_stats,
-      baseline_category, is_ordinal_variable, main_alpha, main_beta,
-      pairwise_scale, pairwise_stats, rm
+
+    return gradient_log_pseudoposterior (
+        current_main, current_pair, inclusion_indicator, observations,
+        num_categories, baseline_category, is_ordinal_variable, main_alpha,
+        main_beta, pairwise_scale, rm, index_matrix, grad_obs
     );
   };
 
-  auto grad = [&](const arma::vec& theta_vec) {
-    unvectorize_model_parameters_bgm(theta_vec, current_main, current_pair, inclusion_indicator,
-                                 num_categories, is_ordinal_variable);
+  auto log_post = [&](const arma::vec& theta_vec) {
+    unvectorize_model_parameters_bgm(theta_vec, current_main, current_pair,
+                                     inclusion_indicator,
+                                     num_categories, is_ordinal_variable);
     arma::mat rm = observations * current_pair;
-    return gradient_log_pseudoposterior(
+    return log_pseudoposterior(
       current_main, current_pair, inclusion_indicator, observations,
       num_categories, counts_per_category, blume_capel_stats,
       baseline_category, is_ordinal_variable, main_alpha, main_beta,
@@ -521,6 +529,14 @@ void update_hmc_bgm(
     num_categories, is_ordinal_variable
   );
 
+  arma::vec grad_obs;
+  arma::imat index_matrix;
+
+  std::tie(grad_obs, index_matrix) = gradient_observed_active(
+      inclusion_indicator, observations, num_categories, counts_per_category,
+      blume_capel_stats, baseline_category, is_ordinal_variable, pairwise_stats
+  );
+
   arma::mat current_main = main_effects;
   arma::mat current_pair = pairwise_effects;
 
@@ -531,9 +547,8 @@ void update_hmc_bgm(
 
     return gradient_log_pseudoposterior (
       current_main, current_pair, inclusion_indicator, observations,
-      num_categories, counts_per_category, blume_capel_stats,
-      baseline_category, is_ordinal_variable, main_alpha,
-      main_beta, pairwise_scale, pairwise_stats, rm
+      num_categories, baseline_category, is_ordinal_variable, main_alpha,
+      main_beta, pairwise_scale, rm, index_matrix, grad_obs
     );
   };
 
@@ -641,20 +656,26 @@ SamplerResult update_nuts_bgm(
     num_categories, is_ordinal_variable
   );
 
+  arma::vec grad_obs;
+  arma::imat index_matrix;
+
+  std::tie(grad_obs, index_matrix) = gradient_observed_active(
+      inclusion_indicator, observations, num_categories, counts_per_category,
+      blume_capel_stats, baseline_category, is_ordinal_variable, pairwise_stats
+  );
+
   arma::mat current_main = main_effects;
   arma::mat current_pair = pairwise_effects;
 
   auto grad = [&](const arma::vec& theta_vec) {
-    unvectorize_model_parameters_bgm(theta_vec, current_main, current_pair,
-                                 inclusion_indicator, num_categories,
-                                 is_ordinal_variable);
+    unvectorize_model_parameters_bgm(theta_vec, current_main, current_pair, inclusion_indicator,
+                                     num_categories, is_ordinal_variable);
     arma::mat rm = observations * current_pair;
 
-    return gradient_log_pseudoposterior(
-      current_main, current_pair, inclusion_indicator, observations,
-      num_categories, counts_per_category, blume_capel_stats,
-      baseline_category, is_ordinal_variable, main_alpha,
-      main_beta, pairwise_scale, pairwise_stats, rm
+    return gradient_log_pseudoposterior (
+        current_main, current_pair, inclusion_indicator, observations,
+        num_categories, baseline_category, is_ordinal_variable, main_alpha,
+        main_beta, pairwise_scale, rm, index_matrix, grad_obs
     );
   };
 
