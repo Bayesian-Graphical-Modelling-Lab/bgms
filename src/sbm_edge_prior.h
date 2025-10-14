@@ -23,6 +23,8 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
                                                 arma::uword dirichlet_alpha,
                                                 double beta_bernoulli_alpha,
                                                 double beta_bernoulli_beta,
+                                                double beta_bernoulli_alpha_between,
+                                                double beta_bernoulli_beta_between,
                                                 SafeRNG& rng);
 
 // ----------------------------------------------------------------------------|
@@ -33,4 +35,6 @@ arma::mat block_probs_mfm_sbm(arma::uvec cluster_assign,
                                         arma::uword no_variables,
                                         double beta_bernoulli_alpha,
                                         double beta_bernoulli_beta,
+                                        double beta_bernoulli_alpha_between,
+                                        double beta_bernoulli_beta_between,
                                         SafeRNG& rng);
