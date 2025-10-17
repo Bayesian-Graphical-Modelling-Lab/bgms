@@ -359,6 +359,8 @@ bgm = function(
     inclusion_probability = 0.5,
     beta_bernoulli_alpha = 1,
     beta_bernoulli_beta = 1,
+    beta_bernoulli_alpha_between = NULL,
+    beta_bernoulli_beta_between = NULL,
     dirichlet_alpha = 1,
     lambda = 1,
     na_action = c("listwise", "impute"),
@@ -444,9 +446,21 @@ bgm = function(
                       inclusion_probability = inclusion_probability,
                       beta_bernoulli_alpha = beta_bernoulli_alpha,
                       beta_bernoulli_beta = beta_bernoulli_beta,
+                      beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+                      beta_bernoulli_beta_between = beta_bernoulli_beta_between,
                       dirichlet_alpha = dirichlet_alpha,
                       lambda = lambda)
 
+  # check hyperparameters input
+  # If user left them NULL, pass -1 to C++ (means: ignore between prior)
+  if (is.null(beta_bernoulli_alpha_between) && is.null(beta_bernoulli_beta_between)) {
+    beta_bernoulli_alpha_between <- -1.0
+    beta_bernoulli_beta_between  <- -1.0
+  } else if (is.null(beta_bernoulli_alpha_between) || is.null(beta_bernoulli_beta_between)) {
+    stop("If you wish to specify different between and within cluster probabilites,
+         provide both beta_bernoulli_alpha_between and beta_bernoulli_beta_between,
+         otherwise leave both NULL.")
+  }
   # ----------------------------------------------------------------------------
   # The vector variable_type is now coded as boolean.
   # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
@@ -572,6 +586,8 @@ bgm = function(
     inclusion_probability = inclusion_probability,
     beta_bernoulli_alpha = beta_bernoulli_alpha,
     beta_bernoulli_beta = beta_bernoulli_beta,
+    beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+    beta_bernoulli_beta_between = beta_bernoulli_beta_between,
     dirichlet_alpha = dirichlet_alpha, lambda = lambda,
     interaction_index_matrix = interaction_index_matrix, iter = iter,
     warmup = warmup, counts_per_category = counts_per_category,
@@ -603,6 +619,7 @@ bgm = function(
         na_action = na_action, na_impute = na_impute,
         edge_selection = edge_selection, edge_prior = edge_prior, inclusion_probability = inclusion_probability,
         beta_bernoulli_alpha = beta_bernoulli_alpha, beta_bernoulli_beta = beta_bernoulli_beta,
+        beta_bernoulli_alpha_between = beta_bernoulli_alpha_between, beta_bernoulli_beta_between = beta_bernoulli_beta_between,
         dirichlet_alpha = dirichlet_alpha, lambda = lambda,
         variable_type = variable_type,
         update_method = update_method,
@@ -634,6 +651,8 @@ bgm = function(
     edge_selection = edge_selection, edge_prior = edge_prior, inclusion_probability = inclusion_probability,
     beta_bernoulli_alpha = beta_bernoulli_alpha,
     beta_bernoulli_beta = beta_bernoulli_beta,
+    beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+    beta_bernoulli_beta_between = beta_bernoulli_beta_between,
     dirichlet_alpha = dirichlet_alpha, lambda = lambda,
     variable_type = variable_type,
     update_method = update_method,

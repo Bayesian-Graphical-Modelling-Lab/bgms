@@ -45,6 +45,8 @@ struct GibbsChainRunner : public Worker {
   const arma::mat& inclusion_probability;
   double beta_bernoulli_alpha;
   double beta_bernoulli_beta;
+  double beta_bernoulli_alpha_between;
+  double beta_bernoulli_beta_between;
   double dirichlet_alpha;
   double lambda;
   const arma::imat& interaction_index_matrix;
@@ -82,6 +84,8 @@ struct GibbsChainRunner : public Worker {
     const arma::mat& inclusion_probability,
     double beta_bernoulli_alpha,
     double beta_bernoulli_beta,
+    double beta_bernoulli_alpha_between,
+    double beta_bernoulli_beta_between,
     double dirichlet_alpha,
     double lambda,
     const arma::imat& interaction_index_matrix,
@@ -114,6 +118,8 @@ struct GibbsChainRunner : public Worker {
     inclusion_probability(inclusion_probability),
     beta_bernoulli_alpha(beta_bernoulli_alpha),
     beta_bernoulli_beta(beta_bernoulli_beta),
+    beta_bernoulli_alpha_between(beta_bernoulli_alpha_between),
+    beta_bernoulli_beta_between(beta_bernoulli_beta_between),
     dirichlet_alpha(dirichlet_alpha),
     lambda(lambda),
     interaction_index_matrix(interaction_index_matrix),
@@ -154,11 +160,13 @@ struct GibbsChainRunner : public Worker {
           chain_result,
           observations,
           num_categories,
-           pairwise_scale,
+          pairwise_scale,
           edge_prior,
           inclusion_probability,
           beta_bernoulli_alpha,
           beta_bernoulli_beta,
+          beta_bernoulli_alpha_between,
+          beta_bernoulli_beta_between,
           dirichlet_alpha,
           lambda,
           interaction_index_matrix,
@@ -252,6 +260,8 @@ Rcpp::List run_bgm_parallel(
     const arma::mat& inclusion_probability,
     double beta_bernoulli_alpha,
     double beta_bernoulli_beta,
+    double beta_bernoulli_alpha_between,
+    double beta_bernoulli_beta_between,
     double dirichlet_alpha,
     double lambda,
     const arma::imat& interaction_index_matrix,
@@ -296,6 +306,7 @@ Rcpp::List run_bgm_parallel(
   GibbsChainRunner worker(
       observations, num_categories,  pairwise_scale, edge_prior_enum,
       inclusion_probability, beta_bernoulli_alpha, beta_bernoulli_beta,
+      beta_bernoulli_alpha_between, beta_bernoulli_beta_between,
       dirichlet_alpha, lambda, interaction_index_matrix, iter, warmup,
       counts_per_category, blume_capel_stats, main_alpha, main_beta,
       na_impute, missing_index, is_ordinal_variable, baseline_category,

@@ -27,13 +27,20 @@ arma::uvec table_cpp(arma::uvec x) {
 
 // ----------------------------------------------------------------------------|
 // Add a row and column to a matrix (and fill with beta variables)
+// Modified to support separate within/between cluster hyperparameters
 // ----------------------------------------------------------------------------|
 arma::mat add_row_col_block_prob_matrix(arma::mat X,
-                                            double beta_alpha,
-                                            double beta_beta,
-                                            SafeRNG& rng) {
+                                        double beta_alpha,
+                                        double beta_beta,
+                                        SafeRNG& rng,
+                                        double beta_bernoulli_alpha_between = -1.0,
+                                        double beta_bernoulli_beta_between = -1.0) {
   arma::uword dim = X.n_rows;
   arma::mat Y(dim+1,dim+1,arma::fill::zeros);
+
+  // Check if separate between-cluster parameters are provided
+  bool use_separate_priors = (beta_bernoulli_alpha_between > 0 &&
+                              beta_bernoulli_beta_between > 0);
 
   for(arma::uword r = 0; r < dim; r++) {
     for(arma::uword c = 0; c < dim; c++) {
@@ -41,10 +48,18 @@ arma::mat add_row_col_block_prob_matrix(arma::mat X,
     }
   }
 
+  // Add new row and column for the new cluster
   for(arma::uword i = 0; i < dim; i++) {
-    Y(dim, i) = rbeta(rng, beta_alpha, beta_beta);
+    // Between-cluster edge probabilities (new cluster to existing clusters)
+    if (use_separate_priors) {
+      Y(dim, i) = rbeta(rng, beta_bernoulli_alpha_between, beta_bernoulli_beta_between);
+    } else {
+      Y(dim, i) = rbeta(rng, beta_alpha, beta_beta);
+    }
     Y(i, dim) = Y(dim, i);
   }
+
+  // Within-cluster edge probability (diagonal element for new cluster)
   Y(dim, dim) = rbeta(rng, beta_alpha, beta_beta);
 
   return Y;
@@ -56,9 +71,9 @@ arma::mat add_row_col_block_prob_matrix(arma::mat X,
 // ----------------------------------------------------------------------------|
 // [[Rcpp::export]]
 arma::vec compute_Vn_mfm_sbm(arma::uword no_variables,
-                                 double dirichlet_alpha,
-                                 arma::uword t_max,
-                                 double lambda) {
+                             double dirichlet_alpha,
+                             arma::uword t_max,
+                             double lambda) {
   arma::vec log_Vn(t_max);
   double r;
 
@@ -107,13 +122,20 @@ double log_likelihood_mfm_sbm(arma::uvec cluster_assign,
 
 // ----------------------------------------------------------------------------|
 // Compute log-marginal for the MFM - SBM
+// Modified to support separate within/between cluster hyperparameters
 // ----------------------------------------------------------------------------|
 double log_marginal_mfm_sbm(arma::uvec cluster_assign,
                             arma::umat indicator,
                             arma::uword node,
                             arma::uword no_variables,
                             double beta_bernoulli_alpha,
-                            double beta_bernoulli_beta) {
+                            double beta_bernoulli_beta,
+                            double beta_bernoulli_alpha_between = -1.0,
+                            double beta_bernoulli_beta_between = -1.0) {
+
+  // Check if separate between-cluster parameters are provided
+  bool use_separate_priors = (beta_bernoulli_alpha_between > 0 &&
+                              beta_bernoulli_beta_between > 0);
 
   arma::uvec indices = arma::regspace<arma::uvec>(0, no_variables-1); // vector of variables indices [0, 1, ..., no_variables-1]
   arma::uvec select_variables = indices(arma::find(indices != node)); // vector of variables indices excluding 'node'
@@ -121,13 +143,32 @@ double log_marginal_mfm_sbm(arma::uvec cluster_assign,
   arma::uvec indicator_node = indicator.col(node); // column of indicator matrix corresponding to 'node'
   arma::vec gamma_node = arma::conv_to<arma::vec>::from(indicator_node(select_variables)); // selecting only indicators between 'node' and the remaining variables (thus excluding indicator of node with itself -- that is indicator[node,node])
   arma::uvec table_cluster = table_cpp(cluster_assign_wo_node); // frequency table of clusters excluding node
+
+  // Get the cluster assignment of the current node
+  arma::uword node_cluster = cluster_assign(node);
+
   double output = 0;
   for(arma::uword i = 0; i < table_cluster.n_elem; i++){
     if(table_cluster(i) > 0){ // if the cluster is empty -- table_cluster(i) = 0 == then it is the previous cluster of 'node' where 'node' was the only member - a singleton, thus skip)
       arma::uvec which_variables_cluster_i = arma::find(cluster_assign_wo_node == i); // which variables belong to cluster i
       double sumG = arma::accu(gamma_node(which_variables_cluster_i)); // sum the indicator variables between node and those variables
       double sumN = static_cast<double>(which_variables_cluster_i.n_elem); // take the size of the group as maximum number of relations
-      output += R::lbeta(sumG + beta_bernoulli_alpha, sumN - sumG + beta_bernoulli_beta) - R::lbeta(beta_bernoulli_alpha, beta_bernoulli_beta); // calculate log-density for cluster i and sum it to the marginal log-likelihood
+
+      // Determine if this is within-cluster or between-cluster
+      bool is_within_cluster = (i == node_cluster);
+
+      double alpha, beta;
+      if (is_within_cluster || !use_separate_priors) {
+        // Within-cluster or no separate priors: use main parameters
+        alpha = beta_bernoulli_alpha;
+        beta = beta_bernoulli_beta;
+      } else {
+        // Between-cluster with separate priors
+        alpha = beta_bernoulli_alpha_between;
+        beta = beta_bernoulli_beta_between;
+      }
+
+      output += R::lbeta(sumG + alpha, sumN - sumG + beta) - R::lbeta(alpha, beta); // calculate log-density for cluster i and sum it to the marginal log-likelihood
     }
   }
   return output;
@@ -171,16 +212,24 @@ arma::uword sample_cluster(arma::vec cluster_prob,
 
 // ----------------------------------------------------------------------------|
 // Sample the block allocations for the MFM - SBM
+// Modified to support separate within/between cluster hyperparameters
 // ----------------------------------------------------------------------------|
 arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
-                                        arma::uword no_variables,
-                                        arma::vec log_Vn,
-                                        arma::mat block_probs,
-                                        arma::umat indicator,
-                                        arma::uword dirichlet_alpha,
-                                        double beta_bernoulli_alpha,
-                                        double beta_bernoulli_beta,
-                                        SafeRNG& rng) {
+                                     arma::uword no_variables,
+                                     arma::vec log_Vn,
+                                     arma::mat block_probs,
+                                     arma::umat indicator,
+                                     arma::uword dirichlet_alpha,
+                                     double beta_bernoulli_alpha,
+                                     double beta_bernoulli_beta,
+                                     double beta_bernoulli_alpha_between,
+                                     double beta_bernoulli_beta_between,
+                                     SafeRNG& rng) {
+
+  // Check if separate between-cluster parameters are provided
+  bool use_separate_priors = (beta_bernoulli_alpha_between > 0 &&
+                              beta_bernoulli_beta_between > 0);
+
   arma::uword old;
   arma::uword cluster;
   arma::uword no_clusters;
@@ -212,26 +261,37 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
 
         if (c < no_clusters) {
           if(c != old){
-          loglike = log_likelihood_mfm_sbm(cluster_assign_tmp,
-                                           block_probs,
-                                           indicator,
-                                           node,
-                                           no_variables);
+            loglike = log_likelihood_mfm_sbm(cluster_assign_tmp,
+                                             block_probs,
+                                             indicator,
+                                             node,
+                                             no_variables);
 
-          prob = (static_cast<double>(dirichlet_alpha) + static_cast<double>(cluster_size_node(c))) *
-            MY_EXP(loglike);
+            prob = (static_cast<double>(dirichlet_alpha) + static_cast<double>(cluster_size_node(c))) *
+              MY_EXP(loglike);
           }
           else{ // if old group, the probability is set to 0.0
             prob = 0.0;
           }
 
         } else {
-          logmarg = log_marginal_mfm_sbm(cluster_assign_tmp,
-                                         indicator,
-                                         node,
-                                         no_variables,
-                                         beta_bernoulli_alpha,
-                                         beta_bernoulli_beta);
+          if (use_separate_priors) {
+            logmarg = log_marginal_mfm_sbm(cluster_assign_tmp,
+                                           indicator,
+                                           node,
+                                           no_variables,
+                                           beta_bernoulli_alpha,
+                                           beta_bernoulli_beta,
+                                           beta_bernoulli_alpha_between,
+                                           beta_bernoulli_beta_between);
+          } else {
+            logmarg = log_marginal_mfm_sbm(cluster_assign_tmp,
+                                           indicator,
+                                           node,
+                                           no_variables,
+                                           beta_bernoulli_alpha,
+                                           beta_bernoulli_beta);
+          }
 
           prob = static_cast<double>(dirichlet_alpha) *
             MY_EXP(logmarg) *
@@ -278,12 +338,23 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
           prob = (static_cast<double>(dirichlet_alpha) + static_cast<double>(cluster_size_node(c))) *
             MY_EXP(loglike);
         } else {
-          logmarg = log_marginal_mfm_sbm(cluster_assign_tmp,
-                                         indicator,
-                                         node,
-                                         no_variables,
-                                         beta_bernoulli_alpha,
-                                         beta_bernoulli_beta);
+          if (use_separate_priors) {
+            logmarg = log_marginal_mfm_sbm(cluster_assign_tmp,
+                                           indicator,
+                                           node,
+                                           no_variables,
+                                           beta_bernoulli_alpha,
+                                           beta_bernoulli_beta,
+                                           beta_bernoulli_alpha_between,
+                                           beta_bernoulli_beta_between);
+          } else {
+            logmarg = log_marginal_mfm_sbm(cluster_assign_tmp,
+                                           indicator,
+                                           node,
+                                           no_variables,
+                                           beta_bernoulli_alpha,
+                                           beta_bernoulli_beta);
+          }
 
           prob = static_cast<double>(dirichlet_alpha) *
             MY_EXP(logmarg) *
@@ -300,9 +371,19 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
       cluster_assign(node) = cluster;
 
       if (cluster == no_clusters) {
-        block_probs = add_row_col_block_prob_matrix(block_probs,
-                                                    beta_bernoulli_alpha,
-                                                    beta_bernoulli_beta, rng);
+        if (use_separate_priors) {
+          block_probs = add_row_col_block_prob_matrix(block_probs,
+                                                      beta_bernoulli_alpha,
+                                                      beta_bernoulli_beta,
+                                                      rng,
+                                                      beta_bernoulli_alpha_between,
+                                                      beta_bernoulli_beta_between);
+        } else {
+          block_probs = add_row_col_block_prob_matrix(block_probs,
+                                                      beta_bernoulli_alpha,
+                                                      beta_bernoulli_beta,
+                                                      rng);
+        }
       }
     }
   }
@@ -312,13 +393,20 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
 
 // ----------------------------------------------------------------------------|
 // Sample the block parameters for the MFM - SBM
+// Modified to support separate within/between cluster hyperparameters
 // ----------------------------------------------------------------------------|
 arma::mat block_probs_mfm_sbm(arma::uvec cluster_assign,
-                                  arma::umat indicator,
-                                  arma::uword no_variables,
-                                  double beta_bernoulli_alpha,
-                                  double beta_bernoulli_beta,
-                                  SafeRNG& rng) {
+                              arma::umat indicator,
+                              arma::uword no_variables,
+                              double beta_bernoulli_alpha,
+                              double beta_bernoulli_beta,
+                              double beta_bernoulli_alpha_between,
+                              double beta_bernoulli_beta_between,
+                              SafeRNG& rng) {
+
+  // Check if separate between-cluster parameters are provided
+  bool use_separate_priors = (beta_bernoulli_alpha_between > 0 &&
+                              beta_bernoulli_beta_between > 0);
 
   arma::uvec cluster_size = table_cpp(cluster_assign);
   arma::uword no_clusters = cluster_size.n_elem;
@@ -332,15 +420,27 @@ arma::mat block_probs_mfm_sbm(arma::uvec cluster_assign,
   for(arma::uword r = 0; r < no_clusters; r++) {
     for(arma::uword s = r; s < no_clusters; s++) {
       sumG = 0;
+
       if(r == s) {
+        // Within-cluster: always use main parameters
         update_sumG(sumG, cluster_assign, indicator, r, r, no_variables);
         size = static_cast<double>(cluster_size(r)) * (static_cast<double>(cluster_size(r)) - 1) / 2;
+        block_probs(r, s) = rbeta(rng,
+                    sumG + beta_bernoulli_alpha,
+                    size - sumG + beta_bernoulli_beta);
       } else {
+        // Between-cluster: use separate parameters if provided
         update_sumG(sumG, cluster_assign, indicator, r, s, no_variables);
         update_sumG(sumG, cluster_assign, indicator, s, r, no_variables);
         size = static_cast<double>(cluster_size(s)) * static_cast<double>(cluster_size(r));
+
+        double alpha = use_separate_priors ? beta_bernoulli_alpha_between
+        : beta_bernoulli_alpha;
+        double beta = use_separate_priors ? beta_bernoulli_beta_between
+        : beta_bernoulli_beta;
+
+        block_probs(r, s) = rbeta(rng, sumG + alpha, size - sumG + beta);
       }
-      block_probs(r, s) = rbeta(rng, sumG + beta_bernoulli_alpha, size - sumG + beta_bernoulli_beta);
       block_probs(s, r) = block_probs(r, s);
     }
   }
