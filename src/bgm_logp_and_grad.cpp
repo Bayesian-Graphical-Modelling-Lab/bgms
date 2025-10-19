@@ -20,61 +20,144 @@
 //
 // If non-finite values arise (overflow, underflow, NaN), a safe fallback
 // recomputes the naive version using direct exponentials.
-// -----------------------------------------------------------------------------
-inline arma::vec compute_safe_exp_sum(const arma::vec& residual_score,
-                                      const arma::vec& main_effect_param,
-                                      const arma::vec& bound)
+// ----------------------------------------------------------------------------
+inline arma::vec compute_denom_ordinal(const arma::vec& residual,
+                                       const arma::vec& main_eff,
+                                       const arma::vec& bound)
 {
   constexpr double EXP_BOUND = 709.0;
-  const int K = static_cast<int>(main_effect_param.n_elem);
+  const int K = static_cast<int>(main_eff.n_elem);
+
+  // --- Binary shortcut (K == 1) ---------------------------------------------
+  if (K == 1) {
+    return ARMA_MY_EXP(-bound) + ARMA_MY_EXP(main_eff[0] + residual - bound);
+  }
+
   const arma::uword N = bound.n_elem;
+  arma::vec denom(N, arma::fill::none);
+  const arma::vec eM = ARMA_MY_EXP(main_eff);
 
-  arma::vec denom(N, arma::fill::zeros);
-
-  const arma::vec eM = ARMA_MY_EXP(main_effect_param);
-
+  // Fast block: uses eB inside the loop (avoids intermediate overflow)
   auto do_fast_block = [&](arma::uword i0, arma::uword i1) {
-    arma::vec r   = residual_score.rows(i0, i1);
-    arma::vec b   = bound.rows(i0, i1);
-    arma::vec eR  = ARMA_MY_EXP(r);
-    arma::vec eB  = ARMA_MY_EXP(-b);
+    arma::vec r = residual.rows(i0, i1);
+    arma::vec b = bound.rows(i0, i1);
+    arma::vec eR = ARMA_MY_EXP(r);
+    arma::vec eB = ARMA_MY_EXP(-b);
     arma::vec pow = eR;
 
     arma::vec d = eB;
-    for (int c = 0; c < K; c++) {
-      d   += eM[c] * pow % eB;
+    for (int c = 0; c < K; ++c) {
+      d += eM[c] * pow % eB;
       pow %= eR;
     }
     denom.rows(i0, i1) = d;
   };
 
+  // Safe block: stabilized exponent; NO clamp here by design
   auto do_safe_block = [&](arma::uword i0, arma::uword i1) {
-    arma::vec r = residual_score.rows(i0, i1);
+    arma::vec r = residual.rows(i0, i1);
     arma::vec b = bound.rows(i0, i1);
 
     arma::vec d = ARMA_MY_EXP(-b);
-    for (int c = 0; c < K; c++) {
-      arma::vec ex = main_effect_param[c] + (c + 1) * r - b;
+    for (int c = 0; c < K; ++c) {
+      arma::vec ex = main_eff[c] + (c + 1) * r - b;
       d += ARMA_MY_EXP(ex);
     }
     denom.rows(i0, i1) = d;
   };
 
+  // Single linear scan over contiguous runs
   const double* bp = bound.memptr();
   arma::uword i = 0;
   while (i < N) {
-    const bool fast = (std::abs(bp[i]) <= EXP_BOUND);
+    const bool fast = !(bp[i] < -EXP_BOUND || bp[i] > EXP_BOUND);
     arma::uword j = i + 1;
-    while (j < N && (std::abs(bp[j]) <= EXP_BOUND) == fast) j++;
-
+    while (j < N) {
+      const bool fast_j = !(bp[j] < -EXP_BOUND || bp[j] > EXP_BOUND);
+      if (fast_j != fast) break;
+      ++j;
+    }
     if (fast) do_fast_block(i, j - 1);
-    else      do_safe_block(i, j - 1);
-
+    else do_safe_block(i, j - 1);
     i = j;
   }
 
   return denom;
 }
+
+
+
+// inline arma::vec compute_denom_blumecapel(const arma::vec& residual,
+//                                           const arma::vec& bound,
+//                                           int num_cats,
+//                                           double theta_lin,
+//                                           double theta_quad,
+//                                           int ref)
+// {
+//   constexpr double EXP_BOUND = 709.0;
+//   const arma::uword N = bound.n_elem;
+//
+//   const int C = num_cats + 1;                   // number of terms
+//   std::vector<double> A(C);
+//   std::vector<int> S(C);
+//   for (int cat = 0; cat <= num_cats; ++cat) {
+//     const int s = cat - ref;
+//     S[cat] = s;
+//     A[cat] = ARMA_MY_EXP(theta_lin * s + theta_quad * double(s) * double(s));
+//   }
+//
+//   arma::vec denom(N, arma::fill::none);
+//
+//   // Fast block: factor via eB and power chain for exp(score * r)
+//   auto fast_block = [&](arma::uword i0, arma::uword i1) {
+//     arma::vec r = residual.rows(i0, i1);
+//     arma::vec b = bound.rows(i0, i1);
+//     arma::vec eB = ARMA_MY_EXP(-b);
+//     arma::vec eR = ARMA_MY_EXP(r);
+//
+//     // Start power at s_min = -ref: pow = exp(s_min * r) = exp(r)^{s_min}
+//     arma::vec pow = ARMA_MY_EXP( double(-ref) * r );
+//
+//     arma::vec d(pow.n_elem, arma::fill::zeros);
+//
+//     for (int cat = 0; cat <= num_cats; ++cat) {
+//       // term = A_c * exp(score*r) * exp(-b)
+//       arma::vec t = A[cat] * pow % eB;
+//       d += t;
+//       pow %= eR;                                 // score increments by +1 each step
+//     }
+//     denom.rows(i0, i1) = d;
+//   };
+//
+//   // Safe block: stabilized exponent; compute per-category exponents directly
+//   auto safe_block = [&](arma::uword i0, arma::uword i1) {
+//     arma::vec r = residual.rows(i0, i1);
+//     arma::vec b = bound.rows(i0, i1);
+//     arma::vec d = ARMA_MY_EXP(-b);               // see note above re "+ e^{-b}" term
+//     for (int cat = 0; cat <= num_cats; ++cat) {
+//       const int s = S[cat];
+//       arma::vec ex = theta_lin * s + theta_quad * double(s) * double(s)
+//         + double(s) * r - b;
+//       d += ARMA_MY_EXP(ex);
+//     }
+//     denom.rows(i0, i1) = d;
+//   };
+//
+//   // Span-wise over contiguous runs
+//   const double* bp = bound.memptr();
+//   for (arma::uword i = 0; i < N; ) {
+//     const bool fast = !(bp[i] < -EXP_BOUND || bp[i] > EXP_BOUND);
+//     arma::uword j = i + 1;
+//     while (j < N) {
+//       const bool fj = !(bp[j] < -EXP_BOUND || bp[j] > EXP_BOUND);
+//       if (fj != fast) break;
+//       ++j;
+//     }
+//     if (fast) fast_block(i, j - 1); else safe_block(i, j - 1);
+//     i = j;
+//   }
+//   return denom;
+// }
 
 
 
@@ -100,7 +183,17 @@ inline arma::mat compute_probs(const arma::vec& main_param,
   constexpr double EXP_BOUND = 709.0;
   const arma::uword N = bound.n_elem;
 
-  arma::mat probs(N, num_cats, arma::fill::zeros);
+  if (num_cats == 1) {
+    arma::vec b = arma::clamp(bound, 0.0, arma::datum::inf);
+    arma::vec ex = main_param(0) + residual_score - b;
+    arma::vec t = ARMA_MY_EXP(ex);
+    arma::vec den = ARMA_MY_EXP(-b) + t;
+    arma::mat probs(N, 1, arma::fill::none);
+    probs.col(0) = t / den;
+    return probs;
+  }
+
+  arma::mat probs(N, num_cats, arma::fill::none);
   const arma::vec eM = ARMA_MY_EXP(main_param);
 
   auto do_fast_block = [&](arma::uword i0, arma::uword i1) {
@@ -109,7 +202,6 @@ inline arma::mat compute_probs(const arma::vec& main_param,
     arma::vec eR = ARMA_MY_EXP(r);
     arma::vec pow = eR;
     arma::vec den(P.n_rows, arma::fill::ones);
-
     for (int c = 0; c < num_cats; c++) {
       arma::vec term = eM[c] * pow;
       P.col(c) = term;
@@ -123,7 +215,6 @@ inline arma::mat compute_probs(const arma::vec& main_param,
     auto P = probs.rows(i0, i1);
     arma::vec r = residual_score.rows(i0, i1);
     arma::vec b = arma::clamp(bound.rows(i0, i1), 0.0, arma::datum::inf);
-
     arma::vec den = ARMA_MY_EXP(-b);
     for (int c = 0; c < num_cats; c++) {
       arma::vec ex = main_param(c) + (c + 1) * r - b;
@@ -134,16 +225,22 @@ inline arma::mat compute_probs(const arma::vec& main_param,
     P.each_col() /= den;
   };
 
+  // Single linear scan; no std::abs
   const double* bp = bound.memptr();
   arma::uword i = 0;
   while (i < N) {
-    const bool fast = (std::abs(bp[i]) <= EXP_BOUND);
+    const bool fast = !(bp[i] < -EXP_BOUND || bp[i] > EXP_BOUND);
     arma::uword j = i + 1;
-    while (j < N && (std::abs(bp[j]) <= EXP_BOUND) == fast) j++;
+    while (j < N) {
+      const bool fast_j = !(bp[j] < -EXP_BOUND || bp[j] > EXP_BOUND);
+      if (fast_j != fast) break;
+      j++;
+    }
     if (fast) do_fast_block(i, j - 1);
     else do_safe_block(i, j - 1);
     i = j;
   }
+
   return probs;
 }
 
@@ -204,6 +301,7 @@ double log_pseudoposterior_main_effects_component (
   };
 
   const int num_cats = num_categories(variable);
+  arma::vec bound = num_cats * residual_matrix.col(variable);                   // numerical bound vector
 
   if (is_ordinal_variable(variable)) {
     // Prior contribution + sufficient statistic
@@ -212,10 +310,9 @@ double log_pseudoposterior_main_effects_component (
     log_posterior += log_beta_prior (value);
 
     arma::vec residual_score = residual_matrix.col (variable);                  // rest scores for all persons
-    arma::vec bound = num_cats * residual_score;                                // numerical bound vector
     arma::vec main_effect_param = main_effects.row (variable).cols (0, num_cats - 1).t ();   // main_effect parameters
 
-    arma::vec denom = compute_safe_exp_sum(
+    arma::vec denom = compute_denom_ordinal(
       residual_score, main_effect_param, bound
     );
 
@@ -240,14 +337,13 @@ double log_pseudoposterior_main_effects_component (
     //   - ref is the reference category (used for centering)
     //   - bound = num_cats * residual_score (stabilizes exponentials)
     arma::vec residual_score = residual_matrix.col(variable);                     // rest scores for all persons
-    arma::vec bound = num_cats * residual_score;                                  // numerical bound vector
     arma::vec denom(num_persons, arma::fill::zeros);                          // initialize denominator
     for (int cat = 0; cat <= num_cats; cat++) {
-      int centered = cat - ref;                                               // centered category
-      double quad_term = quadratic_main_effect * centered * centered;                    // precompute quadratic term
-      double lin_term = linear_main_effect * cat;                                      // precompute linear term
+      int score = cat - ref;                                               // centered category
+      double lin_term = linear_main_effect * score;                                      // precompute linear term
+      double quad_term = quadratic_main_effect * score * score;                    // precompute quadratic term
 
-      arma::vec exponent = lin_term + quad_term + cat * residual_score - bound;
+      arma::vec exponent = lin_term + quad_term + score * residual_score - bound;
       denom += ARMA_MY_EXP (exponent);                                           // accumulate over categories
     }
 
@@ -309,36 +405,36 @@ double log_pseudoposterior_interactions_component (
   double log_pseudo_posterior = 2.0 * pairwise_effects(var1, var2) * pairwise_stats(var1, var2);
 
   for (int var : {var1, var2}) {
-    int num_categories_var = num_categories (var);
+    int num_cats = num_categories (var);
 
     // Compute rest score: contribution from other variables
     arma::vec residual_scores = observations * pairwise_effects.col (var);
-    arma::vec bounds = arma::max (residual_scores, arma::zeros<arma::vec> (num_observations)) * num_categories_var;
     arma::vec denominator = arma::zeros (num_observations);
+    arma::vec bound = num_cats * residual_scores;                                // numerical bound vector
 
     if (is_ordinal_variable (var)) {
-      arma::vec bound = num_categories_var * residual_scores;                                // numerical bound vector
-      arma::vec main_effect_param = main_effects.row (var).cols (0, num_categories_var - 1).t ();   // main_effect parameters
+      arma::vec main_effect_param = main_effects.row (var).cols (0, num_cats - 1).t ();   // main_effect parameters
 
-      denominator += compute_safe_exp_sum(
+      denominator += compute_denom_ordinal(
         residual_scores, main_effect_param, bound
       );
 
     } else {
+
       // Binary/categorical variable: quadratic + linear term
-      const int ref_cat = baseline_category (var);
-      for (int category = 0; category <= num_categories_var; category++) {
-        int centered_cat = category - ref_cat;
-        double lin_term = main_effects (var, 0) * category;
-        double quad_term = main_effects (var, 1) * centered_cat * centered_cat;
-        arma::vec exponent = lin_term + quad_term + category * residual_scores - bounds;
+      const int ref = baseline_category (var);
+      for (int category = 0; category <= num_cats; category++) {
+        int score = category - ref;
+        double lin_term = main_effects (var, 0) * score;
+        double quad_term = main_effects (var, 1) * score * score;
+        arma::vec exponent = lin_term + quad_term + score * residual_scores - bound;
         denominator += ARMA_MY_EXP (exponent);
       }
     }
 
     // Subtract log partition function and bounds adjustment
     log_pseudo_posterior -= arma::accu (ARMA_MY_LOG (denominator));
-    log_pseudo_posterior -= arma::accu (bounds);
+    log_pseudo_posterior -= arma::accu (bound);
   }
 
   // Add Cauchy prior terms for included pairwise effects
@@ -444,30 +540,30 @@ double log_pseudoposterior (
   // Calculate the log denominators
   for (int variable = 0; variable < num_variables; variable++) {
     const int num_cats = num_categories(variable);
-    arma::vec residual_score = residual_matrix.col (variable);                    // rest scores for all persons
-    arma::vec bound = num_cats * residual_score;                                  // numerical bound vector
+    arma::vec residual_score = residual_matrix.col (variable);                  // rest scores for all persons
+    arma::vec bound = num_cats * residual_score;                              // numerical bound vector
 
     arma::vec denom(num_persons, arma::fill::zeros);
     if (is_ordinal_variable(variable)) {
       arma::vec main_effect_param = main_effects.row (variable).cols (0, num_cats - 1).t ();   // main_effect parameters for variable
-      denom += compute_safe_exp_sum(
+      denom += compute_denom_ordinal(
         residual_score, main_effect_param, bound
       );
     } else {
+      const int ref = baseline_category(variable);
       const double lin_effect = main_effects(variable, 0);
       const double quad_effect = main_effects(variable, 1);
-      const int ref = baseline_category(variable);
 
       for (int cat = 0; cat <= num_cats; cat++) {
-        int centered = cat - ref;                                               // centered category
-        double quad = quad_effect * centered * centered;                    // precompute quadratic term
-        double lin = lin_effect * cat;                                      // precompute linear term
-        arma::vec exponent = lin + quad + cat * residual_score - bound;
-        denom += ARMA_MY_EXP (exponent);                                           // accumulate over categories
+        int score = cat - ref;                                                  // centered category
+        double lin = lin_effect * score;                                        // precompute linear term
+        double quad = quad_effect * score * score;                              // precompute quadratic term
+        arma::vec exponent = lin + quad + score * residual_score - bound;
+        denom += ARMA_MY_EXP (exponent);                                        // accumulate over categories
       }
     }
 
-    log_pseudoposterior -= arma::accu (bound + ARMA_MY_LOG (denom));                    // total contribution
+    log_pseudoposterior -= arma::accu (bound + ARMA_MY_LOG (denom));            // total contribution
   }
 
   return log_pseudoposterior;
@@ -475,7 +571,7 @@ double log_pseudoposterior (
 
 
 
-std::pair<arma::vec, arma::imat>  gradient_observed_active(
+std::pair<arma::vec, arma::imat> gradient_observed_active(
     const arma::imat& inclusion_indicator,
     const arma::imat& observations,
     const arma::ivec& num_categories,
@@ -486,7 +582,6 @@ std::pair<arma::vec, arma::imat>  gradient_observed_active(
     const arma::imat& pairwise_stats
 ) {
   const int num_variables = observations.n_cols;
-  const int num_persons = observations.n_rows;
   const int num_main = count_num_main_effects(num_categories, is_ordinal_variable);
   arma::imat index_matrix(num_variables, num_variables, arma::fill::zeros);
 
@@ -579,7 +674,6 @@ arma::vec gradient_log_pseudoposterior(
 ) {
   const int num_variables = observations.n_cols;
   const int num_persons = observations.n_rows;
-  const int num_main = count_num_main_effects(num_categories, is_ordinal_variable);
 
   // Allocate gradient vector (main + active pairwise only)
   arma::vec gradient = grad_obs;
@@ -620,18 +714,17 @@ arma::vec gradient_log_pseudoposterior(
 
       arma::mat exponents(num_persons, num_cats + 1);
       for (int cat = 0; cat <= num_cats; cat++) {
-        int score = cat;
-        int centered = score - ref;
+        int score = cat - ref;
         double lin  = lin_eff * score;
-        double quad = quad_eff * centered * centered;
+        double quad = quad_eff * score * score;
         exponents.col(cat) = lin + quad + score * residual_score - bound;
       }
       arma::mat probs = ARMA_MY_EXP(exponents);
       arma::vec denom = arma::sum(probs, 1);
       probs.each_col() /= denom;
 
-      arma::ivec lin_score  = arma::regspace<arma::ivec>(0, num_cats);
-      arma::ivec quad_score = arma::square(lin_score - ref);
+      arma::ivec lin_score = arma::regspace<arma::ivec>(0 - ref, num_cats - ref);
+      arma::ivec quad_score = arma::square(lin_score);
 
       // main effects
       gradient(offset) -= arma::accu(probs * lin_score);
@@ -641,8 +734,9 @@ arma::vec gradient_log_pseudoposterior(
       for (int j = 0; j < num_variables; j++) {
         if (inclusion_indicator(variable, j) == 0 || variable == j) continue;
         arma::vec expected_value = arma::zeros(num_persons);
-        for (int cat = 0; cat < num_cats; cat++) {
-          expected_value += (cat + 1) * probs.col(cat + 1) % observations.col(j);
+        for (int cat = 0; cat <= num_cats; cat++) {
+          int score = cat - ref;
+          expected_value += score * probs.col(cat) % observations.col(j);
         }
         int location = (variable < j) ? index_matrix(variable, j) : index_matrix(j, variable);
         gradient(location) -= arma::accu(expected_value);
@@ -731,25 +825,23 @@ double compute_log_likelihood_ratio_for_variable (
   arma::vec interaction = arma::conv_to<arma::vec>::from (interacting_score);
 
   const int num_persons = residual_matrix.n_rows;
-  const int num_categories_var = num_categories (variable);
+  const int num_cats = num_categories (variable);
 
   // Compute adjusted linear predictors without the current interaction
   arma::vec residual_scores = residual_matrix.col (variable) - interaction * current_state;
-
-  // Stability bound for softmax (scaled by number of categories)
-  arma::vec bounds = arma::max (residual_scores, arma::zeros<arma::vec> (num_persons)) * num_categories_var;
+  arma::vec bounds = residual_scores * num_cats;
 
   arma::vec denom_current = arma::zeros (num_persons);
   arma::vec denom_proposed = arma::zeros (num_persons);
 
   if (is_ordinal_variable (variable)) {
-    arma::vec main_param = main_effects.row(variable).cols(0, num_categories_var - 1).t();
+    arma::vec main_param = main_effects.row(variable).cols(0, num_cats - 1).t();
 
     // ---- main change: use safe helper ----
-    denom_current += compute_safe_exp_sum(
+    denom_current += compute_denom_ordinal(
       residual_scores + interaction * current_state, main_param, bounds
     );
-    denom_proposed += compute_safe_exp_sum(
+    denom_proposed += compute_denom_ordinal(
       residual_scores + interaction * proposed_state, main_param, bounds
     );
 
@@ -757,14 +849,14 @@ double compute_log_likelihood_ratio_for_variable (
     // Binary or categorical variable: linear + quadratic score
     const int ref_cat = baseline_category (variable);
 
-    for (int category = 0; category <= num_categories_var; category++) {
-      int centered = category - ref_cat;
-      double lin_term = main_effects (variable, 0) * category;
-      double quad_term = main_effects (variable, 1) * centered * centered;
-      arma::vec exponent = lin_term + quad_term + category * residual_scores - bounds;
+    for (int category = 0; category <= num_cats; category++) {
+      int score = category - ref_cat;
+      double lin_term = main_effects (variable, 0) * score;
+      double quad_term = main_effects (variable, 1) * score * score;
+      arma::vec exponent = lin_term + quad_term + score * residual_scores - bounds;
 
-      denom_current += ARMA_MY_EXP (exponent + category * interaction * current_state);
-      denom_proposed += ARMA_MY_EXP (exponent + category * interaction * proposed_state);
+      denom_current += ARMA_MY_EXP (exponent + score * interaction * current_state);
+      denom_proposed += ARMA_MY_EXP (exponent + score * interaction * proposed_state);
     }
   }
 

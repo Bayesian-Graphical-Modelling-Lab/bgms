@@ -160,10 +160,10 @@ double log_pseudoposterior(
         const double quad_effect = main_group(v, 1);
         const int ref = baseline_category(v);
         for (int c = 0; c <= num_cats; ++c) {
-          const int centered = c - ref;
-          const double quad = quad_effect * centered * centered;
-          const double lin  = lin_effect * c;
-          const arma::vec exponent = lin + quad + c * rest_score - bound;
+          const int score = c - ref;
+          const double lin  = lin_effect * score;
+          const double quad = quad_effect * score * score;
+          const arma::vec exponent = lin + quad + score * rest_score - bound;
           denom += ARMA_MY_EXP(exponent);
         }
       }
@@ -566,10 +566,10 @@ arma::vec gradient(
         const double lin_effect  = main_group(v, 0);
         const double quad_effect = main_group(v, 1);
         for (int s = 0; s <= K; ++s) {
-          const int centered = s - ref;
-          const double lin  = lin_effect * s;
-          const double quad = quad_effect * centered * centered;
-          exponents.col(s) = lin + quad + s * rest_score - bound;
+          const int score = s - ref;
+          const double lin  = lin_effect * score;
+          const double quad = quad_effect * score * score;
+          exponents.col(s) = lin + quad + score * rest_score - bound;
         }
       }
 
@@ -594,7 +594,7 @@ arma::vec gradient(
           }
         }
       } else {
-        arma::vec lin_score  = arma::regspace<arma::vec>(0, K);          // length K+1
+        arma::vec lin_score  = arma::regspace<arma::vec>(0 - ref, K - ref);          // length K+1
         arma::vec quad_score = arma::square(lin_score - ref);
 
         double sum_lin  = arma::accu(probs * lin_score);
@@ -619,8 +619,15 @@ arma::vec gradient(
         if (v == v2) continue;
 
         arma::vec expected_value(num_group_obs, arma::fill::zeros);
-        for (int s = 1; s <= K; ++s) {
-          expected_value += s * probs.col(s) % obs.col(v2);
+        if (is_ordinal_variable(v)) {
+          for (int s = 1; s <= K; ++s) {
+            expected_value += s * probs.col(s) % obs.col(v2);
+          }
+        } else {
+          for (int s = 0; s <= K; ++s) {
+            int score = s - ref;
+            expected_value += score * probs.col(s) % obs.col(v2);
+          }
         }
         double sum_expectation = arma::accu(expected_value);
 
@@ -860,10 +867,10 @@ double log_pseudoposterior_main_component(
       const double quad_effect = main_group(variable, 1);
       const int ref = baseline_category(variable);
       for (int cat = 0; cat <= num_cats; cat++) {
-        const int centered = cat - ref;
-        const double quad = quad_effect * centered * centered;
-        const double lin  = lin_effect * cat;
-        const arma::vec exponent = lin + quad + cat * rest_score - bound;
+        const int score = cat - ref;
+        const double quad = quad_effect * score * score;
+        const double lin  = lin_effect * score;
+        const arma::vec exponent = lin + quad + score * rest_score - bound;
         denom += ARMA_MY_EXP(exponent);
       }
     }
@@ -1044,10 +1051,10 @@ double log_pseudoposterior_pair_component(
         const double quad_effect = main_group(v, 1);
         const int ref = baseline_category(v);
         for (int c = 0; c <= num_cats; ++c) {
-          const int centered = c - ref;
-          const double quad = quad_effect * centered * centered;
-          const double lin  = lin_effect * c;
-          const arma::vec exponent = lin + quad + c * rest_score - bound;
+          const int score = c - ref;
+          const double lin  = lin_effect * score;
+          const double quad = quad_effect * score * score;
+          const arma::vec exponent = lin + quad + score * rest_score - bound;
           denom += ARMA_MY_EXP(exponent);
         }
       }
@@ -1192,9 +1199,9 @@ double log_ratio_pseudolikelihood_constant_variable(
       arma::vec const_current(num_cats + 1, arma::fill::zeros);
       arma::vec const_proposed(num_cats + 1, arma::fill::zeros);
       for (int s = 0; s <= num_cats; ++s) {
-        const int centered = s - ref;
-        const_current(s) = main_current(0) * s + main_current(1) * centered * centered;
-        const_proposed(s) = main_proposed(0) * s + main_proposed(1) * centered * centered;
+        const int score = s - ref;
+        const_current(s) = main_current(0) * score + main_current(1) * score* score;
+        const_proposed(s) = main_proposed(0) * score + main_proposed(1) * score * score;
       }
 
       double lbound = std::max(const_current.max(), const_proposed.max());
@@ -1204,8 +1211,9 @@ double log_ratio_pseudolikelihood_constant_variable(
       bound_proposed = lbound + num_cats * arma::clamp(rest_proposed, 0.0, arma::datum::inf);
 
       for (int s = 0; s <= num_cats; ++s) {
-        denom_current += ARMA_MY_EXP(const_current(s) + s * rest_current - bound_current);
-        denom_proposed += ARMA_MY_EXP(const_proposed(s) + s * rest_proposed - bound_proposed);
+        const int score = s - ref;
+        denom_current += ARMA_MY_EXP(const_current(s) + score * rest_current - bound_current);
+        denom_proposed += ARMA_MY_EXP(const_proposed(s) + score * rest_proposed - bound_proposed);
       }
     }
 

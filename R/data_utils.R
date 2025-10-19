@@ -210,7 +210,7 @@ compute_blume_capel_stats = function(x, baseline_category, ordinal_variable, gro
     sufficient_stats = matrix(0, nrow = 2, ncol = ncol(x))
     bc_vars = which(!ordinal_variable)
     for (i in bc_vars) {
-      sufficient_stats[1, i] = sum(x[, i])
+      sufficient_stats[1, i] = sum(x[, i] - baseline_category[i])
       sufficient_stats[2, i] = sum((x[, i] - baseline_category[i]) ^ 2)
     }
     return(sufficient_stats)
@@ -220,7 +220,7 @@ compute_blume_capel_stats = function(x, baseline_category, ordinal_variable, gro
       sufficient_stats_gr = matrix(0, nrow = 2, ncol = ncol(x))
       bc_vars = which(!ordinal_variable)
       for (i in bc_vars) {
-        sufficient_stats_gr[1, i] = sum(x[group == g, i])
+        sufficient_stats_gr[1, i] = sum(x[group == g, i] - baseline_category[i])
         sufficient_stats_gr[2, i] = sum((x[group == g, i] - baseline_category[i]) ^ 2)
       }
       sufficient_stats[[g]] = sufficient_stats_gr
