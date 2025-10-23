@@ -38,9 +38,9 @@ double kinetic_energy(const arma::vec& r, const arma::vec& inv_mass_diag) {
  *  - theta: Current parameter vector.
  *  - log_post: Function to compute log posterior.
  *  - grad: Function to compute gradient of log posterior.
- *  - target_acceptance: Target acceptance rate (default 0.65).
+ *  - target_acceptance: Target acceptance rate (default 0.8).
  *  - init_step: Initial step size to try (default 1.0).
- *  - max_attempts: Max number of doubling/halving attempts (default 20).
+ *  - max_attempts: Max number of doubling/halving attempts (default 100).
  *
  * Returns:
  *  - A step size epsilon resulting in log acceptance near -log(2).

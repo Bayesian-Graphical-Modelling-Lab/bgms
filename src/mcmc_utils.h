@@ -218,7 +218,7 @@ double heuristic_initial_step_size(
     const std::function<double(const arma::vec&)>& log_post,
     const std::function<arma::vec(const arma::vec&)>& grad,
     SafeRNG& rng,
-    double target_acceptance = 0.625,
+    double target_acceptance = 0.8,
     double init_step = 1.0,
-    int max_attempts = 20
+    int max_attempts = 100
 );

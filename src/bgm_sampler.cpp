@@ -100,18 +100,19 @@ void impute_missing_bgm (
       // Compute probabilities for Blume-Capel variable
       const int ref = baseline_category (variable);
 
-      cumsum = MY_EXP (main_effects (variable, 1) * ref * ref);
+      cumsum = MY_EXP (
+        main_effects (variable, 0) * ref + main_effects (variable, 1) * ref * ref
+      );
       category_probabilities[0] = cumsum;
 
-      for (int cat = 0; cat < num_cats; cat++) {
-        const int score = cat + 1;
-        const int centered = score - ref;
+      for (int cat = 0; cat <= num_cats; cat++) {
+        const int score = cat - ref;
         const double exponent =
           main_effects (variable, 0) * score +
-          main_effects (variable, 1) * centered * centered +
+          main_effects (variable, 1) * score * score +
           score * residual_score;
         cumsum += MY_EXP (exponent);
-        category_probabilities[score] = cumsum;
+        category_probabilities[cat] = cumsum;
       }
     }
 
@@ -122,7 +123,9 @@ void impute_missing_bgm (
       sampled_score++;
     }
 
-    const int new_value = sampled_score;
+    int new_value = sampled_score;
+    if(!is_ordinal)
+      new_value -= baseline_category (variable);
     const int old_value = observations(person, variable);
 
     if (new_value != old_value) {
@@ -133,11 +136,8 @@ void impute_missing_bgm (
         counts_per_category(old_value, variable)--;
         counts_per_category(new_value, variable)++;
       } else {
-        const int ref = baseline_category(variable);
         const int delta = new_value - old_value;
-        const int delta_sq =
-          (new_value - ref) * (new_value - ref) -
-          (old_value - ref) * (old_value - ref);
+        const int delta_sq = new_value * new_value - old_value * old_value;
 
         blume_capel_stats(0, variable) += delta;
         blume_capel_stats(1, variable) += delta_sq;
@@ -212,27 +212,35 @@ double find_initial_stepsize_bgm(
     num_categories, is_ordinal_variable
   );
 
+  arma::vec grad_obs;
+  arma::imat index_matrix;
+
+  std::tie(grad_obs, index_matrix) = gradient_observed_active(
+      inclusion_indicator, observations, num_categories, counts_per_category,
+      blume_capel_stats, baseline_category, is_ordinal_variable, pairwise_stats
+  );
+
   arma::mat current_main = main_effects;
   arma::mat current_pair = pairwise_effects;
 
-  auto log_post = [&](const arma::vec& theta_vec) {
-    unvectorize_model_parameters_bgm(theta_vec, current_main, current_pair,
-                                 inclusion_indicator,
-                                 num_categories, is_ordinal_variable);
+  auto grad = [&](const arma::vec& theta_vec) {
+    unvectorize_model_parameters_bgm(theta_vec, current_main, current_pair, inclusion_indicator,
+                                     num_categories, is_ordinal_variable);
     arma::mat rm = observations * current_pair;
-    return log_pseudoposterior(
-      current_main, current_pair, inclusion_indicator, observations,
-      num_categories, counts_per_category, blume_capel_stats,
-      baseline_category, is_ordinal_variable, main_alpha, main_beta,
-      pairwise_scale, pairwise_stats, rm
+
+    return gradient_log_pseudoposterior (
+        current_main, current_pair, inclusion_indicator, observations,
+        num_categories, baseline_category, is_ordinal_variable, main_alpha,
+        main_beta, pairwise_scale, rm, index_matrix, grad_obs
     );
   };
 
-  auto grad = [&](const arma::vec& theta_vec) {
-    unvectorize_model_parameters_bgm(theta_vec, current_main, current_pair, inclusion_indicator,
-                                 num_categories, is_ordinal_variable);
+  auto log_post = [&](const arma::vec& theta_vec) {
+    unvectorize_model_parameters_bgm(theta_vec, current_main, current_pair,
+                                     inclusion_indicator,
+                                     num_categories, is_ordinal_variable);
     arma::mat rm = observations * current_pair;
-    return gradient_log_pseudoposterior(
+    return log_pseudoposterior(
       current_main, current_pair, inclusion_indicator, observations,
       num_categories, counts_per_category, blume_capel_stats,
       baseline_category, is_ordinal_variable, main_alpha, main_beta,
@@ -521,6 +529,14 @@ void update_hmc_bgm(
     num_categories, is_ordinal_variable
   );
 
+  arma::vec grad_obs;
+  arma::imat index_matrix;
+
+  std::tie(grad_obs, index_matrix) = gradient_observed_active(
+      inclusion_indicator, observations, num_categories, counts_per_category,
+      blume_capel_stats, baseline_category, is_ordinal_variable, pairwise_stats
+  );
+
   arma::mat current_main = main_effects;
   arma::mat current_pair = pairwise_effects;
 
@@ -531,9 +547,8 @@ void update_hmc_bgm(
 
     return gradient_log_pseudoposterior (
       current_main, current_pair, inclusion_indicator, observations,
-      num_categories, counts_per_category, blume_capel_stats,
-      baseline_category, is_ordinal_variable, main_alpha,
-      main_beta, pairwise_scale, pairwise_stats, rm
+      num_categories, baseline_category, is_ordinal_variable, main_alpha,
+      main_beta, pairwise_scale, rm, index_matrix, grad_obs
     );
   };
 
@@ -641,20 +656,26 @@ SamplerResult update_nuts_bgm(
     num_categories, is_ordinal_variable
   );
 
+  arma::vec grad_obs;
+  arma::imat index_matrix;
+
+  std::tie(grad_obs, index_matrix) = gradient_observed_active(
+      inclusion_indicator, observations, num_categories, counts_per_category,
+      blume_capel_stats, baseline_category, is_ordinal_variable, pairwise_stats
+  );
+
   arma::mat current_main = main_effects;
   arma::mat current_pair = pairwise_effects;
 
   auto grad = [&](const arma::vec& theta_vec) {
-    unvectorize_model_parameters_bgm(theta_vec, current_main, current_pair,
-                                 inclusion_indicator, num_categories,
-                                 is_ordinal_variable);
+    unvectorize_model_parameters_bgm(theta_vec, current_main, current_pair, inclusion_indicator,
+                                     num_categories, is_ordinal_variable);
     arma::mat rm = observations * current_pair;
 
-    return gradient_log_pseudoposterior(
-      current_main, current_pair, inclusion_indicator, observations,
-      num_categories, counts_per_category, blume_capel_stats,
-      baseline_category, is_ordinal_variable, main_alpha,
-      main_beta, pairwise_scale, pairwise_stats, rm
+    return gradient_log_pseudoposterior (
+        current_main, current_pair, inclusion_indicator, observations,
+        num_categories, baseline_category, is_ordinal_variable, main_alpha,
+        main_beta, pairwise_scale, rm, index_matrix, grad_obs
     );
   };
 

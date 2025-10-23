@@ -402,6 +402,9 @@ bgmCompare = function(
   blume_capel_stats = compute_blume_capel_stats(
     x, baseline_category, ordinal_variable, group
   )
+  for (i in which(!ordinal_variable)) {
+    x[, i] = sum(x[, i] - baseline_category[i])
+  }
 
   # Compute sufficient statistics for pairwise interactions
   pairwise_stats = compute_pairwise_stats(
