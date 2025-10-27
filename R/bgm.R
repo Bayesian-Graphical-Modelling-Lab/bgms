@@ -209,6 +209,12 @@
 #'   for the beta distribution in the Beta–Bernoulli and the Stochastic-Block
 #'   priors. Must be positive. Defaults: \code{beta_bernoulli_alpha = 1} and
 #'   \code{beta_bernoulli_beta = 1}.
+#' @param beta_bernoulli_alpha_between,beta_bernoulli_beta_between Double.
+#' Second set of shape parameters for the Stochastic-Block prior. Default: \code{NULL}.
+#' If the users supply values for these parameters, the model will use different
+#' between-cluster and within-cluster edge inclusion probabilities. In this case
+#' the beta_bernoulli_alpha and beta_bernoulli_beta will be used as the within-cluster
+#' parameters.
 #'
 #' @param dirichlet_alpha Double. Concentration parameter of the Dirichlet
 #'   prior on block assignments (used with the Stochastic Block model).
