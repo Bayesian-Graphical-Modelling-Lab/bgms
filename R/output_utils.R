@@ -278,10 +278,11 @@ generate_param_names_bgmCompare = function(
 
 prepare_output_bgmCompare = function(
     out, observations, num_categories, is_ordinal_variable,
-    num_groups, iter, warmup,
+    num_groups, group, iter, warmup,
     main_effect_indices, pairwise_effect_indices,
     data_columnnames, difference_selection,
     difference_prior, difference_selection_alpha, difference_selection_beta,
+    inclusion_probability,
     pairwise_scale, difference_scale,
     update_method, target_accept, nuts_max_depth, hmc_num_leapfrogs,
     learn_mass_matrix, num_chains, projection
@@ -300,6 +301,7 @@ prepare_output_bgmCompare = function(
     difference_prior = difference_prior,
     difference_selection_alpha = difference_selection_alpha,
     difference_selection_beta = difference_selection_beta,
+    inclusion_probability = inclusion_probability,
     version = packageVersion("bgms"),
     update_method = update_method,
     target_accept = target_accept,
@@ -311,7 +313,8 @@ prepare_output_bgmCompare = function(
     data_columnnames = data_columnnames,
     projection = projection,
     num_categories = num_categories,
-    is_ordinal_variable = is_ordinal_variable
+    is_ordinal_variable = is_ordinal_variable,
+    group = group
   )
 
   # --- parameter names

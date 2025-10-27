@@ -239,7 +239,7 @@
 #' @param target_accept Numeric between 0 and 1. Target acceptance rate for
 #'   the sampler. Defaults are set automatically if not supplied:
 #'   \code{0.44} for adaptive Metropolis, \code{0.65} for HMC,
-#'   and \code{0.60} for NUTS.
+#'   and \code{0.80} for NUTS.
 #'
 #' @param hmc_num_leapfrogs Integer. Number of leapfrog steps for Hamiltonian
 #'   Monte Carlo. Must be positive. Default: \code{100}.
@@ -420,7 +420,7 @@ bgm = function(
     } else if(update_method == "hamiltonian-mc") {
       target_accept = 0.65
     } else if(update_method == "nuts") {
-      target_accept = 0.60
+      target_accept = 0.80
     }
   }
 
