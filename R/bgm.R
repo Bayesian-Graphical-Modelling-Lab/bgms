@@ -209,6 +209,7 @@
 #'   for the beta distribution in the Beta–Bernoulli and the Stochastic-Block
 #'   priors. Must be positive. Defaults: \code{beta_bernoulli_alpha = 1} and
 #'   \code{beta_bernoulli_beta = 1}.
+#'
 #' @param beta_bernoulli_alpha_between,beta_bernoulli_beta_between Double.
 #' Second set of shape parameters for the Stochastic-Block prior. Default: \code{NULL}.
 #' If the users supply values for these parameters, the model will use different
@@ -245,7 +246,7 @@
 #' @param target_accept Numeric between 0 and 1. Target acceptance rate for
 #'   the sampler. Defaults are set automatically if not supplied:
 #'   \code{0.44} for adaptive Metropolis, \code{0.65} for HMC,
-#'   and \code{0.80} for NUTS.
+#'   and \code{0.60} for NUTS.
 #'
 #' @param hmc_num_leapfrogs Integer. Number of leapfrog steps for Hamiltonian
 #'   Monte Carlo. Must be positive. Default: \code{100}.
@@ -426,7 +427,7 @@ bgm = function(
     } else if(update_method == "hamiltonian-mc") {
       target_accept = 0.65
     } else if(update_method == "nuts") {
-      target_accept = 0.80
+      target_accept = 0.60
     }
   }
 
