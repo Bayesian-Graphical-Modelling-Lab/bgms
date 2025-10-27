@@ -119,7 +119,7 @@ Default: \code{"nuts"}.}
 \item{target_accept}{Numeric between 0 and 1. Target acceptance rate for
 the sampler. Defaults are set automatically if not supplied:
 \code{0.44} for adaptive Metropolis, \code{0.65} for HMC,
-and \code{0.60} for NUTS.}
+and \code{0.80} for NUTS.}
 
 \item{hmc_num_leapfrogs}{Integer. Number of leapfrog steps for Hamiltonian
 Monte Carlo. Must be positive. Default: \code{100}.}

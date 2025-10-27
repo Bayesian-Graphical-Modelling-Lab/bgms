@@ -112,7 +112,7 @@
 #'   \code{"adaptive-metropolis"}, \code{"hamiltonian-mc"}, or \code{"nuts"}.
 #'   Default: \code{"nuts"}.
 #' @param target_accept Numeric between 0 and 1. Target acceptance rate.
-#'   Defaults: 0.44 (Metropolis), 0.65 (HMC), 0.60 (NUTS).
+#'   Defaults: 0.44 (Metropolis), 0.65 (HMC), 0.80 (NUTS).
 #' @param hmc_num_leapfrogs Integer. Leapfrog steps for HMC. Default: \code{100}.
 #' @param nuts_max_depth Integer. Maximum tree depth for NUTS. Default: \code{10}.
 #' @param learn_mass_matrix Logical. If \code{TRUE}, adapt the mass matrix
@@ -314,7 +314,7 @@ bgmCompare = function(
     } else if(update_method == "hamiltonian-mc") {
       target_accept = 0.65
     } else if(update_method == "nuts") {
-      target_accept = 0.60
+      target_accept = 0.80
     }
   }
 
@@ -524,6 +524,7 @@ bgmCompare = function(
         num_categories = num_categories,
         is_ordinal_variable = ordinal_variable,
         num_groups = num_groups,
+        group = sorted_group,
         iter = iter,
         warmup = warmup,
         main_effect_indices = main_effect_indices,
@@ -533,6 +534,7 @@ bgmCompare = function(
         difference_prior = difference_prior,
         difference_selection_alpha = beta_bernoulli_alpha,
         difference_selection_beta = beta_bernoulli_beta,
+        inclusion_probability = model$inclusion_probability_difference,
         pairwise_scale = pairwise_scale,
         difference_scale = difference_scale,
         update_method = update_method,
@@ -560,6 +562,7 @@ bgmCompare = function(
     num_categories = num_categories,
     is_ordinal_variable = ordinal_variable,
     num_groups = num_groups,
+    group = sorted_group,
     iter = iter,
     warmup = warmup,
     main_effect_indices = main_effect_indices,
@@ -569,6 +572,7 @@ bgmCompare = function(
     difference_prior = difference_prior,
     difference_selection_alpha = beta_bernoulli_alpha,
     difference_selection_beta = beta_bernoulli_beta,
+    inclusion_probability = model$inclusion_probability_difference,
     pairwise_scale = pairwise_scale,
     difference_scale = difference_scale,
     update_method = update_method,
