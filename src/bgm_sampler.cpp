@@ -1174,6 +1174,8 @@ void run_gibbs_sampler_bgm(
     arma::mat inclusion_probability,
     const double beta_bernoulli_alpha,
     const double beta_bernoulli_beta,
+    const double beta_bernoulli_alpha_between,
+    const double beta_bernoulli_beta_between,
     const double dirichlet_alpha,
     const double lambda,
     const arma::imat& interaction_index_matrix,
@@ -1255,7 +1257,8 @@ void run_gibbs_sampler_bgm(
 
     cluster_prob = block_probs_mfm_sbm(
       cluster_allocations, arma::conv_to<arma::umat>::from(inclusion_indicator),
-      num_variables, beta_bernoulli_alpha, beta_bernoulli_beta, rng
+      num_variables, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between,
+      beta_bernoulli_beta_between, rng
     );
 
     for (int i = 0; i < num_variables - 1; i++) {
@@ -1360,13 +1363,15 @@ void run_gibbs_sampler_bgm(
         cluster_allocations = block_allocations_mfm_sbm(
           cluster_allocations, num_variables, log_Vn, cluster_prob,
           arma::conv_to<arma::umat>::from(inclusion_indicator), dirichlet_alpha,
-          beta_bernoulli_alpha, beta_bernoulli_beta, rng
+          beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between,
+          beta_bernoulli_beta_between, rng
         );
 
         cluster_prob = block_probs_mfm_sbm(
           cluster_allocations,
           arma::conv_to<arma::umat>::from(inclusion_indicator), num_variables,
-          beta_bernoulli_alpha, beta_bernoulli_beta, rng
+          beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between,
+          beta_bernoulli_beta_between, rng
         );
 
         for (int i = 0; i < num_variables - 1; i++) {

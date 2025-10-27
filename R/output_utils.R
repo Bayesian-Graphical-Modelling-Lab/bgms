@@ -2,7 +2,8 @@ prepare_output_bgm = function(
     out, x, num_categories, iter, data_columnnames, is_ordinal_variable,
     warmup, pairwise_scale, main_alpha, main_beta,
     na_action, na_impute, edge_selection, edge_prior, inclusion_probability,
-    beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, lambda,
+    beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between,
+    beta_bernoulli_beta_between,dirichlet_alpha, lambda,
     variable_type, update_method, target_accept, hmc_num_leapfrogs,
     nuts_max_depth, learn_mass_matrix, num_chains
 ) {
@@ -22,6 +23,8 @@ prepare_output_bgm = function(
     inclusion_probability = inclusion_probability,
     beta_bernoulli_alpha = beta_bernoulli_alpha,
     beta_bernoulli_beta = beta_bernoulli_beta,
+    beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+    beta_bernoulli_beta_between = beta_bernoulli_beta_between,
     dirichlet_alpha = dirichlet_alpha,
     lambda = lambda,
     na_action = na_action,
