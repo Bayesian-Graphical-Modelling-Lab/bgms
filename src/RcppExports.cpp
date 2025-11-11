@@ -101,6 +101,55 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+<<<<<<< HEAD
+=======
+// chol_update_arma
+arma::mat chol_update_arma(arma::mat& R, arma::vec& u, bool downdate, double eps);
+RcppExport SEXP _bgms_chol_update_arma(SEXP RSEXP, SEXP uSEXP, SEXP downdateSEXP, SEXP epsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat& >::type R(RSEXP);
+    Rcpp::traits::input_parameter< arma::vec& >::type u(uSEXP);
+    Rcpp::traits::input_parameter< bool >::type downdate(downdateSEXP);
+    Rcpp::traits::input_parameter< double >::type eps(epsSEXP);
+    rcpp_result_gen = Rcpp::wrap(chol_update_arma(R, u, downdate, eps));
+    return rcpp_result_gen;
+END_RCPP
+}
+// get_explog_switch
+Rcpp::String get_explog_switch();
+RcppExport SEXP _bgms_get_explog_switch() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    rcpp_result_gen = Rcpp::wrap(get_explog_switch());
+    return rcpp_result_gen;
+END_RCPP
+}
+// rcpp_ieee754_exp
+Rcpp::NumericVector rcpp_ieee754_exp(Rcpp::NumericVector x);
+RcppExport SEXP _bgms_rcpp_ieee754_exp(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_ieee754_exp(x));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rcpp_ieee754_log
+Rcpp::NumericVector rcpp_ieee754_log(Rcpp::NumericVector x);
+RcppExport SEXP _bgms_rcpp_ieee754_log(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_ieee754_log(x));
+    return rcpp_result_gen;
+END_RCPP
+}
+>>>>>>> 7252076 (ggm compiles but runtime has a weird error)
 // sample_omrf_gibbs
 IntegerMatrix sample_omrf_gibbs(int no_states, int no_variables, IntegerVector no_categories, NumericMatrix interactions, NumericMatrix thresholds, int iter);
 RcppExport SEXP _bgms_sample_omrf_gibbs(SEXP no_statesSEXP, SEXP no_variablesSEXP, SEXP no_categoriesSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP iterSEXP) {
@@ -135,6 +184,26 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// sample_ggm
+Rcpp::List sample_ggm(const arma::mat& X, const arma::mat& prior_inclusion_prob, const arma::imat& initial_edge_indicators, const int no_iter, const int no_warmup, const int no_chains, const bool edge_selection, const int seed, const int no_threads, int progress_type);
+RcppExport SEXP _bgms_sample_ggm(SEXP XSEXP, SEXP prior_inclusion_probSEXP, SEXP initial_edge_indicatorsSEXP, SEXP no_iterSEXP, SEXP no_warmupSEXP, SEXP no_chainsSEXP, SEXP edge_selectionSEXP, SEXP seedSEXP, SEXP no_threadsSEXP, SEXP progress_typeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type prior_inclusion_prob(prior_inclusion_probSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type initial_edge_indicators(initial_edge_indicatorsSEXP);
+    Rcpp::traits::input_parameter< const int >::type no_iter(no_iterSEXP);
+    Rcpp::traits::input_parameter< const int >::type no_warmup(no_warmupSEXP);
+    Rcpp::traits::input_parameter< const int >::type no_chains(no_chainsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type edge_selection(edge_selectionSEXP);
+    Rcpp::traits::input_parameter< const int >::type seed(seedSEXP);
+    Rcpp::traits::input_parameter< const int >::type no_threads(no_threadsSEXP);
+    Rcpp::traits::input_parameter< int >::type progress_type(progress_typeSEXP);
+    rcpp_result_gen = Rcpp::wrap(sample_ggm(X, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type));
+    return rcpp_result_gen;
+END_RCPP
+}
 // compute_Vn_mfm_sbm
 arma::vec compute_Vn_mfm_sbm(arma::uword no_variables, double dirichlet_alpha, arma::uword t_max, double lambda);
 RcppExport SEXP _bgms_compute_Vn_mfm_sbm(SEXP no_variablesSEXP, SEXP dirichlet_alphaSEXP, SEXP t_maxSEXP, SEXP lambdaSEXP) {
@@ -153,8 +222,16 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_bgms_run_bgmCompare_parallel", (DL_FUNC) &_bgms_run_bgmCompare_parallel, 36},
     {"_bgms_run_bgm_parallel", (DL_FUNC) &_bgms_run_bgm_parallel, 34},
+<<<<<<< HEAD
+=======
+    {"_bgms_chol_update_arma", (DL_FUNC) &_bgms_chol_update_arma, 4},
+    {"_bgms_get_explog_switch", (DL_FUNC) &_bgms_get_explog_switch, 0},
+    {"_bgms_rcpp_ieee754_exp", (DL_FUNC) &_bgms_rcpp_ieee754_exp, 1},
+    {"_bgms_rcpp_ieee754_log", (DL_FUNC) &_bgms_rcpp_ieee754_log, 1},
+>>>>>>> 7252076 (ggm compiles but runtime has a weird error)
     {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 6},
     {"_bgms_sample_bcomrf_gibbs", (DL_FUNC) &_bgms_sample_bcomrf_gibbs, 8},
+    {"_bgms_sample_ggm", (DL_FUNC) &_bgms_sample_ggm, 10},
     {"_bgms_compute_Vn_mfm_sbm", (DL_FUNC) &_bgms_compute_Vn_mfm_sbm, 4},
     {NULL, NULL, 0}
 };
