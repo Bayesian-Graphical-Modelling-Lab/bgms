@@ -22,9 +22,12 @@ public:
         proposal_(AdaptiveProposal(dim_, 500)),
         omega_(arma::eye<arma::mat>(p_, p_)),
         phi_(arma::eye<arma::mat>(p_, p_)),
+        inv_phi_(arma::eye<arma::mat>(p_, p_)),
         inv_omega_(arma::eye<arma::mat>(p_, p_)),
         edge_indicators_(initial_edge_indicators),
         vectorized_parameters_(dim_),
+        vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
+        omega_prop_(arma::mat(p_, p_, arma::fill::none)),
         constants_(6)
     {}
 
@@ -38,9 +41,11 @@ public:
           edge_selection_(other.edge_selection_),
           omega_(other.omega_),
           phi_(other.phi_),
+          inv_phi_(other.inv_phi_),
           inv_omega_(other.inv_omega_),
           edge_indicators_(other.edge_indicators_),
           vectorized_parameters_(other.vectorized_parameters_),
+          vectorized_indicator_parameters_(other.vectorized_indicator_parameters_),
           proposal_(other.proposal_),
           rng_(other.rng_),
           omega_prop_(other.omega_prop_),
@@ -55,10 +60,10 @@ public:
         proposal_ = proposal;
     }
 
-    virtual bool has_gradient()    const          { return false; }
-    virtual bool has_adaptive_mh() const override { return true; }
+    bool has_gradient()    const          { return false; }
+    bool has_adaptive_mh() const override { return true; }
 
-    double logp(const std::vector<double>& parameters) override {
+    double logp(const arma::vec& parameters) override {
         // Implement log probability computation
         return 0.0;
     }
@@ -70,7 +75,6 @@ public:
     void do_one_mh_step() override;
 
     size_t parameter_dimension() const override {
-        Rcpp::Rcout << "GGMModel::parameter_dimension() returning: " << dim_ << std::endl;
         return dim_;
     }
 
@@ -79,14 +83,27 @@ public:
     }
 
     arma::vec get_vectorized_parameters() override {
+        // upper triangle of omega_
         size_t e = 0;
         for (size_t j = 0; j < p_; ++j) {
             for (size_t i = 0; i <= j; ++i) {
                 vectorized_parameters_(e) = omega_(i, j);
-                e++;
+                ++e;
             }
         }
         return vectorized_parameters_;
+    }
+
+    arma::ivec get_vectorized_indicator_parameters() override {
+        // upper triangle of omega_
+        size_t e = 0;
+        for (size_t j = 0; j < p_; ++j) {
+            for (size_t i = 0; i <= j; ++i) {
+                vectorized_indicator_parameters_(e) = edge_indicators_(i, j);
+                ++e;
+            }
+        }
+        return vectorized_indicator_parameters_;
     }
 
     std::unique_ptr<BaseModel> clone() const override {
@@ -95,17 +112,18 @@ public:
 
 private:
     // data
-    size_t dim_;
-    arma::mat suf_stat_;
     size_t n_;
     size_t p_;
+    size_t dim_;
+    arma::mat suf_stat_;
     arma::mat prior_inclusion_prob_;
-    bool edge_selection_ = true;
+    bool edge_selection_;
 
     // parameters
-    arma::mat omega_, phi_, inv_omega_;
+    arma::mat omega_, phi_, inv_phi_, inv_omega_;
     arma::imat edge_indicators_;
     arma::vec vectorized_parameters_;
+    arma::ivec vectorized_indicator_parameters_;
 
 
     AdaptiveProposal proposal_;
@@ -126,7 +144,9 @@ private:
     double R(const double x) const;
 
     double log_density_impl(const arma::mat& omega, const arma::mat& phi) const;
-
+    double log_density_impl_edge(size_t i, size_t j) const;
+    double log_density_impl_diag(size_t j) const;
+    double get_log_det(arma::mat triangular_A) const;
     // double find_reasonable_step_size_edge(const arma::mat& omega, size_t i, size_t j);
     // double find_reasonable_step_size_diag(const arma::mat& omega, size_t i);
     // double edge_log_ratio(const arma::mat& omega, size_t i, size_t j, double proposal);
