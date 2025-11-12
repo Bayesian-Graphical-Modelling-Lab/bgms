@@ -185,7 +185,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // sample_ggm
-Rcpp::List sample_ggm(const arma::mat& X, const arma::mat& prior_inclusion_prob, const arma::imat& initial_edge_indicators, const int no_iter, const int no_warmup, const int no_chains, const bool edge_selection, const int seed, const int no_threads, int progress_type);
+Rcpp::List sample_ggm(const arma::mat& X, const arma::mat& prior_inclusion_prob, const arma::imat& initial_edge_indicators, const int no_iter, const int no_warmup, const int no_chains, const bool edge_selection, const int seed, const int no_threads, const int progress_type);
 RcppExport SEXP _bgms_sample_ggm(SEXP XSEXP, SEXP prior_inclusion_probSEXP, SEXP initial_edge_indicatorsSEXP, SEXP no_iterSEXP, SEXP no_warmupSEXP, SEXP no_chainsSEXP, SEXP edge_selectionSEXP, SEXP seedSEXP, SEXP no_threadsSEXP, SEXP progress_typeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -199,7 +199,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const bool >::type edge_selection(edge_selectionSEXP);
     Rcpp::traits::input_parameter< const int >::type seed(seedSEXP);
     Rcpp::traits::input_parameter< const int >::type no_threads(no_threadsSEXP);
-    Rcpp::traits::input_parameter< int >::type progress_type(progress_typeSEXP);
+    Rcpp::traits::input_parameter< const int >::type progress_type(progress_typeSEXP);
     rcpp_result_gen = Rcpp::wrap(sample_ggm(X, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type));
     return rcpp_result_gen;
 END_RCPP
