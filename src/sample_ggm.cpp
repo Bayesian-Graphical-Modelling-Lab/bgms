@@ -17,6 +17,7 @@ void run_mcmc_sampler_single_thread(
     ProgressManager& pm
 ) {
 
+    chain_result.chain_id = chain_id + 1;
     size_t i = 0;
     for (size_t iter = 0; iter < no_iter + no_warmup; ++iter) {
 
@@ -25,7 +26,7 @@ void run_mcmc_sampler_single_thread(
         if (iter >= no_warmup) {
 
             chain_result.store_sample(i, model.get_vectorized_parameters());
-            i++;
+            ++i;
         }
 
         pm.update(chain_id);
@@ -64,8 +65,6 @@ struct GGMChainRunner : public RcppParallel::Worker {
     for (std::size_t i = begin; i < end; ++i) {
 
         ChainResultNew& chain_result = results_[i];
-        chain_result.chain_id = static_cast<int>(i + 1);
-        chain_result.error = false;
         BaseModel& model = *models_[i];
         model.set_seed(seed_ + i);
       try {
@@ -124,12 +123,17 @@ std::vector<ChainResultNew> run_mcmc_sampler(
             models.push_back(model.clone());  // deep copy via virtual clone
         }
         run_mcmc_sampler_threaded(results, models, no_iter, no_warmup, seed, no_threads, pm);
+
     } else {
+
         model.set_seed(seed);
         Rcpp::Rcout << "Running single-threaded MCMC sampling..." << std::endl;
+        // TODO: this is actually not correct, each chain should have its own model object
+        // now chain 2 continues from chain 1 state
         for (size_t c = 0; c < no_chains; ++c) {
             run_mcmc_sampler_single_thread(results[c], model, no_iter, no_warmup, c, pm);
         }
+
     }
     return results;
 }
@@ -164,14 +168,12 @@ Rcpp::List sample_ggm(
     const bool edge_selection,
     const int seed,
     const int no_threads,
-    int progress_type
+    const int progress_type
 ) {
 
     // should be done dynamically
     // also adaptation method should be specified differently
     GGMModel model(X, prior_inclusion_prob, initial_edge_indicators, edge_selection);
-
-    Rcpp::Rcout << "GGMModel::parameter_dimension() returning: " << model.parameter_dimension() << std::endl;
 
     ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type);
 

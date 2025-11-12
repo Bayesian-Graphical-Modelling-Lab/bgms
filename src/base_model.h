@@ -13,9 +13,9 @@ public:
     virtual bool has_adaptive_mh() const { return false; }
 
     // Core methods (to be overridden by derived classes)
-    virtual double logp(const std::vector<double>& parameters) = 0;
+    virtual double logp(const arma::vec& parameters) = 0;
 
-    virtual arma::vec gradient(const std::vector<double>& parameters) {
+    virtual arma::vec gradient(const arma::vec& parameters) {
         if (!has_gradient()) {
             throw std::runtime_error("Gradient not implemented for this model");
         }
@@ -23,7 +23,7 @@ public:
     }
 
     virtual std::pair<double, arma::vec> logp_and_gradient(
-        const std::vector<double>& parameters) {
+        const arma::vec& parameters) {
         if (!has_gradient()) {
             throw std::runtime_error("Gradient not implemented for this model");
         }
@@ -37,6 +37,10 @@ public:
 
     virtual arma::vec get_vectorized_parameters() {
         throw std::runtime_error("get_vectorized_parameters method must be implemented in derived class");
+    }
+
+    virtual arma::ivec get_vectorized_indicator_parameters() {
+        throw std::runtime_error("get_vectorized_indicator_parameters method must be implemented in derived class");
     }
 
     // Return dimensionality of the parameter space
