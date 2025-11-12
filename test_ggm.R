@@ -1,7 +1,7 @@
 library(bgms)
 
 # Dimension and true precision
-p <- 10
+p <- 50
 
 adj <- matrix(0, nrow = p, ncol = p)
 adj[lower.tri(adj)] <- rbinom(p * (p - 1) / 2, size = 1, prob = 0.3)
@@ -12,7 +12,7 @@ Sigma <- solve(Omega)
 zapsmall(Omega)
 
 # Data
-n <- 1e2
+n <- 1e3
 x <- mvtnorm::rmvnorm(n = n, mean = rep(0, p), sigma = Sigma)
 
 
@@ -23,14 +23,54 @@ sampling_results <- bgms:::sample_ggm(
   X = x,
   prior_inclusion_prob = matrix(.5, p, p),
   initial_edge_indicators = adj,
-  no_iter = 4000,
-  no_warmup = 4000,
+  no_iter = 500,
+  no_warmup = 500,
   no_chains = 3,
   edge_selection = FALSE,
   no_threads = 1,
   seed = 123,
-  progress_type = 2
+  progress_type = 1
 )
+
+true_values     <- zapsmall(Omega[upper.tri(Omega, TRUE)])
+posterior_means <- rowMeans(sampling_results[[2]]$samples)
+
+plot(true_values, posterior_means)
+abline(0, 1)
+
+sampling_results2 <- bgms:::sample_ggm(
+  X = x,
+  prior_inclusion_prob = matrix(.5, p, p),
+  initial_edge_indicators = adj,
+  no_iter = 500,
+  no_warmup = 500,
+  no_chains = 3,
+  edge_selection = TRUE,
+  no_threads = 1,
+  seed = 123,
+  progress_type = 1
+)
+
+true_values     <- zapsmall(Omega[upper.tri(Omega, TRUE)])
+posterior_means <- rowMeans(sampling_results2[[2]]$samples)
+
+plot(true_values, posterior_means)
+abline(0, 1)
+
+plot(posterior_means, rowMeans(sampling_results2[[2]]$samples != 0))
+
+
+mmm <- matrix(c(
+  1.6735,   0,        0,        0,        0,
+  0,   1.0000,        0,        0,  -3.4524,
+  0,        0,   1.0000,        0,        0,
+  0,        0,        0,   1.0000,        0,
+  0,  -3.4524,        0,        0,   9.6674
+), p, p)
+mmm
+chol(mmm)
+base::isSymmetric(mmm)
+eigen(mmm)
 
 profvis::profvis({
   sampling_results <- bgm_gaussian(
