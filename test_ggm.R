@@ -1,7 +1,7 @@
 library(bgms)
 
 # Dimension and true precision
-p <- 50
+p <- 10
 
 adj <- matrix(0, nrow = p, ncol = p)
 adj[lower.tri(adj)] <- rbinom(p * (p - 1) / 2, size = 1, prob = 0.3)
@@ -34,6 +34,7 @@ sampling_results <- bgms:::sample_ggm(
 
 true_values     <- zapsmall(Omega[upper.tri(Omega, TRUE)])
 posterior_means <- rowMeans(sampling_results[[2]]$samples)
+cbind(true_values, posterior_means)
 
 plot(true_values, posterior_means)
 abline(0, 1)
