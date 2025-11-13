@@ -80,7 +80,7 @@ IntegerMatrix sample_bcomrf_gibbs(int no_states,
                                   NumericMatrix interactions,
                                   NumericMatrix thresholds,
                                   StringVector variable_type,
-                                  IntegerVector reference_category,
+                                  IntegerVector baseline_category,
                                   int iter) {
 
   IntegerMatrix observations(no_states, no_variables);
@@ -118,21 +118,26 @@ IntegerMatrix sample_bcomrf_gibbs(int no_states,
       for(int person =  0; person < no_states; person++) {
         rest_score = 0.0;
         for(int vertex = 0; vertex < no_variables; vertex++) {
-          rest_score += observations(person, vertex) *
-            interactions(vertex, variable);
+          if(variable_type[vertex] != "blume-capel") {
+            rest_score += observations(person, vertex) * interactions(vertex, variable);
+          } else {
+            int ref = baseline_category[vertex];
+            int obs = observations(person, vertex);
+            rest_score += (obs - ref) * interactions(vertex, variable);
+          }
         }
 
         if(variable_type[variable] == "blume-capel") {
           cumsum = 0.0;
+          int ref = baseline_category[variable];
           for(int category = 0; category < no_categories[variable] + 1; category++) {
+            const int score = category - ref;
             //The linear term of the Blume-Capel variable
-            exponent = thresholds(variable, 0) * category;
+            exponent = thresholds(variable, 0) * score;
             //The quadratic term of the Blume-Capel variable
-            exponent += thresholds(variable, 1) *
-              (category - reference_category[variable]) *
-              (category - reference_category[variable]);
+            exponent += thresholds(variable, 1) * score * score;
             //The pairwise interactions
-            exponent += category * rest_score;
+            exponent += rest_score * score;
             cumsum += MY_EXP(exponent);
             probabilities[category] = cumsum;
           }

@@ -13,7 +13,7 @@
 #' in specifying their model.
 #'
 #' The Blume-Capel option is specifically designed for ordinal variables that
-#' have a special type of reference_category category, such as the neutral
+#' have a special type of baseline_category category, such as the neutral
 #' category in a Likert scale. The Blume-Capel model specifies the following
 #' quadratic model for the threshold parameters:
 #' \deqn{\mu_{\text{c}} = \alpha \times \text{c} + \beta \times (\text{c} - \text{r})^2,}{{\mu_{\text{c}} = \alpha \times \text{c} + \beta \times (\text{c} - \text{r})^2,}}
@@ -23,8 +23,8 @@
 #' \eqn{\alpha > 0}{\alpha > 0} and decreasing threshold values if
 #' \eqn{\alpha <0}{\alpha <0}), if \eqn{\beta < 0}{\beta < 0}, it offers an
 #' increasing penalty for responding in a category further away from the
-#' reference_category category r, while \eqn{\beta > 0}{\beta > 0} suggests a
-#' preference for responding in the reference_category category.
+#' baseline_category category r, while \eqn{\beta > 0}{\beta > 0} suggests a
+#' preference for responding in the baseline_category category.
 #'
 #' @param no_states The number of states of the ordinal MRF to be generated.
 #'
@@ -53,8 +53,8 @@
 #' ``blume-capel''. Binary variables are automatically treated as ``ordinal’’.
 #' Defaults to \code{variable_type = "ordinal"}.
 #'
-#' @param reference_category An integer vector of length \code{no_variables} specifying the
-#' reference_category category that is used for the Blume-Capel model (details below).
+#' @param baseline_category An integer vector of length \code{no_variables} specifying the
+#' baseline_category category that is used for the Blume-Capel model (details below).
 #' Can be any integer value between \code{0} and \code{no_categories} (or
 #' \code{no_categories[i]}).
 #'
@@ -103,7 +103,7 @@
 #'                interactions = Interactions,
 #'                thresholds = Thresholds,
 #'                variable_type = c("b","b","o","b","o"),
-#'                reference_category = 2)
+#'                baseline_category = 2)
 #'
 #' @export
 mrfSampler = function(no_states,
@@ -112,7 +112,7 @@ mrfSampler = function(no_states,
                       interactions,
                       thresholds,
                       variable_type = "ordinal",
-                      reference_category,
+                      baseline_category,
                       iter = 1e3) {
   # Check no_states, no_variables, iter --------------------------------------------
   if(no_states <= 0 ||
@@ -168,20 +168,20 @@ mrfSampler = function(no_states,
     }
   }
 
-  # Check the reference_category for Blume-Capel variables ---------------------
+  # Check the baseline_category for Blume-Capel variables ---------------------
   if(any(variable_type == "blume-capel")) {
-    if(length(reference_category) == 1) {
-      reference_category = rep(reference_category, no_variables)
+    if(length(baseline_category) == 1) {
+      baseline_category = rep(baseline_category, no_variables)
     }
-    if(any(reference_category < 0) || any(abs(reference_category - round(reference_category)) > .Machine$double.eps)) {
+    if(any(baseline_category < 0) || any(abs(baseline_category - round(baseline_category)) > .Machine$double.eps)) {
       stop(paste0("For variables ",
-                  which(reference_category < 0),
-                  " ``reference_category'' was either negative or not integer."))
+                  which(baseline_category < 0),
+                  " ``baseline_category'' was either negative or not integer."))
     }
-    if(any(reference_category - no_categories > 0)) {
+    if(any(baseline_category - no_categories > 0)) {
       stop(paste0("For variables ",
-                  which(reference_category - no_categories > 0),
-                  " the ``reference_category'' category was larger than the maximum category value."))
+                  which(baseline_category - no_categories > 0),
+                  " the ``baseline_category'' category was larger than the maximum category value."))
     }
   }
 
@@ -300,7 +300,7 @@ mrfSampler = function(no_states,
                              interactions = interactions,
                              thresholds = thresholds,
                              variable_type = variable_type,
-                             reference_category = reference_category,
+                             baseline_category = baseline_category,
                              iter = iter)
   }
 

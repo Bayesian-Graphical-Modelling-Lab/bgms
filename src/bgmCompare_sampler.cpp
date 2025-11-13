@@ -89,7 +89,7 @@ void impute_missing_bgmcompare(
 
   arma::vec category_response_probabilities(max_num_categories + 1);
   double exponent, cumsum, u;
-  int score, person, variable, new_observation, old_observation, group;
+  int score, person, variable, new_value, old_value, group;
 
   //Impute missing data
   for(int missing = 0; missing < num_missings; missing++) {
@@ -132,12 +132,12 @@ void impute_missing_bgmcompare(
     } else {
       // For Blume-Capel variables
       cumsum = 0.0;
+      const int ref = baseline_category[variable];
       for(int category = 0; category <= num_categories(variable); category++) {
-        exponent = group_main_effects[0] * category;
-        exponent += group_main_effects[1] *
-          (category - baseline_category[variable]) *
-          (category - baseline_category[variable]);
-        exponent += category * rest_score;
+        score = category - ref;
+        exponent = group_main_effects[0] * score;
+        exponent += group_main_effects[1] * score * score;
+        exponent += rest_score * score;
         cumsum += MY_EXP(exponent);
         category_response_probabilities[category] = cumsum;
       }
@@ -149,31 +149,30 @@ void impute_missing_bgmcompare(
     while (u > category_response_probabilities[score]) {
       score++;
     }
-    new_observation = score;
-    old_observation = observations(person, variable);
 
-    if(old_observation != new_observation) {
+    new_value = score;
+    if(!is_ordinal_variable[variable])
+      new_value -= baseline_category[variable];
+    old_value = observations(person, variable);
+
+    if(old_value != new_value) {
       // Update raw observations
-      observations(person, variable) = new_observation;
+      observations(person, variable) = new_value;
 
       // Update sufficient statistics for main effects
       if(is_ordinal_variable[variable] == true) {
         arma::imat counts_per_category_group = counts_per_category[group];
-        if(old_observation > 0)
-          counts_per_category_group(old_observation-1, variable)--;
-        if(new_observation > 0)
-          counts_per_category_group(new_observation-1, variable)++;
+        if(old_value > 0)
+          counts_per_category_group(old_value-1, variable)--;
+        if(new_value > 0)
+          counts_per_category_group(new_value-1, variable)++;
         counts_per_category[group] = counts_per_category_group;
       } else {
         arma::imat blume_capel_stats_group = blume_capel_stats[group];
-        blume_capel_stats_group(0, variable) -= old_observation;
-        blume_capel_stats_group(0, variable) += new_observation;
-        blume_capel_stats_group(1, variable) -=
-          (old_observation - baseline_category[variable]) *
-          (old_observation - baseline_category[variable]);
-        blume_capel_stats_group(1, variable) +=
-          (new_observation - baseline_category[variable]) *
-          (new_observation - baseline_category[variable]);
+        blume_capel_stats_group(0, variable) -= old_value;
+        blume_capel_stats_group(0, variable) += new_value;
+        blume_capel_stats_group(1, variable) -= old_value * old_value;
+        blume_capel_stats_group(1, variable) += new_value * new_value;
         blume_capel_stats[group] = blume_capel_stats_group;
       }
 

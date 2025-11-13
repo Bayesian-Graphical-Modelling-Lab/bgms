@@ -426,7 +426,7 @@ bgm = function(
     } else if(update_method == "hamiltonian-mc") {
       target_accept = 0.65
     } else if(update_method == "nuts") {
-      target_accept = 0.60
+      target_accept = 0.80
     }
   }
 
@@ -544,8 +544,9 @@ bgm = function(
     # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
     bc_vars = which(!variable_bool)
     for(i in bc_vars) {
-      blume_capel_stats[1, i] = sum(x[, i])
+      blume_capel_stats[1, i] = sum(x[, i] - baseline_category[i])
       blume_capel_stats[2, i] = sum((x[, i] - baseline_category[i]) ^ 2)
+      x[, i] = x[, i] - baseline_category[i]
     }
   }
   pairwise_stats = t(x) %*% x
@@ -609,7 +610,6 @@ bgm = function(
     learn_mass_matrix = learn_mass_matrix, num_chains = chains,
     nThreads = cores, seed = seed, progress_type = progress_type
   )
-
 
   userInterrupt = any(vapply(out, FUN = `[[`, FUN.VALUE = logical(1L), "userInterrupt"))
   if (userInterrupt) {

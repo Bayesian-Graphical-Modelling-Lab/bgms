@@ -7,12 +7,12 @@
 #' @param ... Ignored.
 #'
 #' @export
-print.bgms <- function(x, ...) {
-  arguments <- extract_arguments(x)
+print.bgms = function(x, ...) {
+  arguments = extract_arguments(x)
 
   # Model type
   if (isTRUE(arguments$edge_selection)) {
-    prior_msg <- switch(arguments$edge_prior,
+    prior_msg = switch(arguments$edge_prior,
                         "Bernoulli" = "Bayesian Edge Selection using a Bernoulli prior on edge inclusion",
                         "Beta-Bernoulli" = "Bayesian Edge Selection using a Beta-Bernoulli prior on edge inclusion",
                         "Stochastic-Block" = "Bayesian Edge Selection using a Stochastic Block prior on edge inclusion",
@@ -33,7 +33,7 @@ print.bgms <- function(x, ...) {
 
   # Iterations and chains
   if (!is.null(arguments$num_chains)) {
-    total_iter <- arguments$iter * arguments$num_chains
+    total_iter = arguments$iter * arguments$num_chains
     cat(paste0(" Number of post-burnin MCMC iterations: ", total_iter, "\n"))
     cat(paste0(" Number of MCMC chains: ", arguments$num_chains, "\n"))
   } else {
@@ -56,27 +56,27 @@ print.bgms <- function(x, ...) {
 #'
 #' @return An object of class `summary.bgms` with posterior summaries.
 #' @export
-summary.bgms <- function(object, ...) {
-  arguments <- extract_arguments(object)
+summary.bgms = function(object, ...) {
+  arguments = extract_arguments(object)
 
   if (!is.null(object$posterior_summary_main) && !is.null(object$posterior_summary_pairwise)) {
-    out <- list(
+    out = list(
       main = object$posterior_summary_main,
       pairwise = object$posterior_summary_pairwise
     )
 
     if (!is.null(object$posterior_summary_indicator)) {
-      out$indicator <- object$posterior_summary_indicator
+      out$indicator = object$posterior_summary_indicator
     }
 
     if (!is.null(object$posterior_summary_pairwise_allocations)) {
-      out$allocations <- object$posterior_summary_pairwise_allocations
-      out$mean_allocations <- object$posterior_mean_allocations
-      out$mode_allocations <- object$posterior_mode_allocations
-      out$num_blocks <- object$posterior_num_blocks
+      out$allocations = object$posterior_summary_pairwise_allocations
+      out$mean_allocations = object$posterior_mean_allocations
+      out$mode_allocations = object$posterior_mode_allocations
+      out$num_blocks = object$posterior_num_blocks
     }
 
-    class(out) <- "summary.bgms"
+    class(out) = "summary.bgms"
     return(out)
   }
 
@@ -89,20 +89,22 @@ summary.bgms <- function(object, ...) {
 
 
 #' @export
-print.summary.bgms <- function(x, digits = 3, ...) {
+print.summary.bgms = function(x, digits = 3, ...) {
   cat("Posterior summaries from Bayesian estimation:\n\n")
 
   if (!is.null(x$main)) {
     cat("Category thresholds:\n")
-    print(round(head(x$main, 6), digits = digits))
+    main = head(x$main, 6)
+    main[] <- lapply(main, function(col) ifelse(is.na(col), "", round(col, digits)))
+    print(main)
     if (nrow(x$main) > 6) cat("... (use `summary(fit)$main` to see full output)\n")
     cat("\n")
   }
 
   if (!is.null(x$pairwise)) {
     cat("Pairwise interactions:\n")
-    pair <- head(x$pairwise, 6)
-    pair[] <- lapply(pair, function(col) ifelse(is.na(col), "", round(col, digits)))
+    pair = head(x$pairwise, 6)
+    pair[] = lapply(pair, function(col) ifelse(is.na(col), "", round(col, digits)))
     print(pair)
     #print(round(head(x$pairwise, 6), digits = digits))
     if (nrow(x$pairwise) > 6) cat("... (use `summary(fit)$pairwise` to see full output)\n")
@@ -116,8 +118,8 @@ print.summary.bgms <- function(x, digits = 3, ...) {
 
   if (!is.null(x$indicator)) {
     cat("Inclusion probabilities:\n")
-    ind <- head(x$indicator, 6)
-    ind[] <- lapply(ind, function(col) ifelse(is.na(col), "", round(col, digits)))
+    ind = head(x$indicator, 6)
+    ind[] = lapply(ind, function(col) ifelse(is.na(col), "", round(col, digits)))
     print(ind)
     if (nrow(x$indicator) > 6) cat("... (use `summary(fit)$indicator` to see full output)\n")
     cat("Note: NA values are suppressed in the print table. They occur when an indicator\n")
@@ -168,29 +170,29 @@ print.summary.bgms <- function(x, digits = 3, ...) {
 #' }
 #'
 #' @export
-coef.bgms <- function(object, ...) {
-  out <- list(
+coef.bgms = function(object, ...) {
+  out = list(
     main = object$posterior_mean_main,
     pairwise = object$posterior_mean_pairwise
   )
   if (!is.null(object$posterior_mean_indicator)) {
-    out$indicator <- object$posterior_mean_indicator
+    out$indicator = object$posterior_mean_indicator
   }
 
   if (!is.null(object$posterior_mean_allocations)) {
-    out$mean_allocations <- object$posterior_mean_allocations
-    out$mode_allocations <- object$posterior_mode_allocations
-    out$num_blocks <- object$posterior_num_blocks
+    out$mean_allocations = object$posterior_mean_allocations
+    out$mode_allocations = object$posterior_mode_allocations
+    out$num_blocks = object$posterior_num_blocks
   }
 
   return(out)
 }
 
 
-.warning_issued <- FALSE
-warning_once <- function(msg) {
+.warning_issued = FALSE
+warning_once = function(msg) {
   if (!.warning_issued) {
     warning(msg, call. = FALSE)
-    .warning_issued <<- TRUE
+    .warning_issued <= TRUE
   }
 }
