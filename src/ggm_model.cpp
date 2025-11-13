@@ -94,14 +94,6 @@ double GGMModel::log_density_impl_edge(size_t i, size_t j) const {
 
     double trace_prod = -2 * (suf_stat_(j, j) * Uj2 + suf_stat_(i, j) * Ui2);
 
-    // This function uses the fact that the determinant doesn't change during edge updates.
-    // double trace_prod = 0.0;
-    // // TODO: we only need one of the two lines below, but it's not entirely clear which one
-    // trace_prod +=     suf_stat_(j, j) * (omega_prop(j, j) - omega(j, j));
-    // trace_prod +=     suf_stat_(i, i) * (omega_prop(i, i) - omega(i, i));
-    // trace_prod += 2 * suf_stat_(i, j) * (omega_prop(i, j) - omega(i, j));
-    // trace_prod - sum((aOmega_prop - aOmega) * SufStat)
-
     double log_likelihood_ratio = (n_ * logdet - trace_prod) / 2;
     return log_likelihood_ratio;
 
@@ -115,7 +107,7 @@ double GGMModel::log_density_impl_diag(size_t j) const {
     double cc12 = 1 - inv_omega_(j, j) * Uj2;
     double cc22 = 0 + Uj2 * Uj2 * inv_omega_(j, j);
 
-    double logdet = log(abs(cc11 * cc22 - cc12 * cc12));
+    double logdet = std::log(std::abs(cc11 * cc22 - cc12 * cc12));
     double trace_prod = -2 * suf_stat_(j, j) * Uj2;
 
     // This function uses the fact that the determinant doesn't change during edge updates.
@@ -182,9 +174,15 @@ void GGMModel::update_edge_parameter(size_t i, size_t j) {
     // double ln_alpha = log_density(omega_prop_) - log_density();
     double ln_alpha = log_density_impl_edge(i, j);
 
-    if (std::abs(ln_alpha - (log_density(omega_prop_) - log_density())) > 1e-6) {
-        Rcpp::Rcout << "Warning: log density implementations do not match for edge (" << i << ", " << j << ")" << std::endl;
-    }
+    // {
+    //     double ln_alpha_ref = log_density(omega_prop_) - log_density();
+    //     if (std::abs(ln_alpha - ln_alpha_ref) > 1e-6) {
+    //         Rcpp::Rcout << "Warning: log density implementations do not match for edge (" << i << ", " << j << ")" << std::endl;
+    //         omega_.print(Rcpp::Rcout, "Current omega:");
+    //         omega_prop_.print(Rcpp::Rcout, "Proposed omega:");
+    //         Rcpp::Rcout << "ln_alpha: " << ln_alpha << ", ln_alpha_ref: " << ln_alpha_ref << std::endl;
+    //     }
+    // }
 
     ln_alpha += R::dcauchy(omega_prop_(i, j), 0.0, 2.5, true);
     ln_alpha -= R::dcauchy(omega_(i, j), 0.0, 2.5, true);
@@ -262,9 +260,16 @@ void GGMModel::update_diagonal_parameter(size_t i) {
     // 5) Acceptance ratio
     // double ln_alpha = log_density(omega_prop_) - log_density();
     double ln_alpha = log_density_impl_diag(i);
-    if (std::abs(ln_alpha - (log_density(omega_prop_) - log_density())) > 1e-6) {
-        Rcpp::Rcout << "Warning: log density implementations do not match for diag (" << i << ", " << i << ")" << std::endl;
-    }
+    // {
+    //     double ln_alpha_ref = log_density(omega_prop_) - log_density();
+    //     if (std::abs(ln_alpha - ln_alpha_ref) > 1e-6) {
+    //         Rcpp::Rcout << "Warning: log density implementations do not match for diag (" << i << ", " << i << ")" << std::endl;
+    //         // omega_.print(Rcpp::Rcout, "Current omega:");
+    //         // omega_prop_.print(Rcpp::Rcout, "Proposed omega:");
+    //         Rcpp::Rcout << "ln_alpha: " << ln_alpha << ", ln_alpha_ref: " << ln_alpha_ref << std::endl;
+    //         Rcpp::Rcout << "1e4 * diff: " << 10000 * (ln_alpha - ln_alpha_ref) << std::endl;
+    //     }
+    // }
 
     ln_alpha += R::dgamma(exp(theta_prop), 1.0, 1.0, true);
     ln_alpha -= R::dgamma(exp(theta_curr), 1.0, 1.0, true);
@@ -315,9 +320,16 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 
         // double ln_alpha = log_density(omega_prop_) - log_density();
         double ln_alpha = log_density_impl_edge(i, j);
-        if (std::abs(ln_alpha - (log_density(omega_prop_) - log_density())) > 1e-6) {
-            Rcpp::Rcout << "Warning: log density indicator implementations do not match for edge (" << i << ", " << j << ")" << std::endl;
-        }
+        // {
+        //     double ln_alpha_ref = log_density(omega_prop_) - log_density();
+        //     if (std::abs(ln_alpha - ln_alpha_ref) > 1e-6) {
+        //         Rcpp::Rcout << "Warning: log density implementations do not match for edge indicator (" << i << ", " << j << ")" << std::endl;
+        //         omega_.print(Rcpp::Rcout, "Current omega:");
+        //         omega_prop_.print(Rcpp::Rcout, "Proposed omega:");
+        //         Rcpp::Rcout << "ln_alpha: " << ln_alpha << ", ln_alpha_ref: " << ln_alpha_ref << std::endl;
+        //     }
+        // }
+
 
         ln_alpha += std::log(1.0 - prior_inclusion_prob_(i, j)) - std::log(prior_inclusion_prob_(i, j));
 
@@ -378,9 +390,15 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 
         // double ln_alpha = log_density(omega_prop_) - log_density();
         double ln_alpha = log_density_impl_edge(i, j);
-        if (std::abs(ln_alpha - (log_density(omega_prop_) - log_density())) > 1e-6) {
-            Rcpp::Rcout << "Warning: log density indicator implementations do not match for edge (" << i << ", " << j << ")" << std::endl;
-        }
+        // {
+        //     double ln_alpha_ref = log_density(omega_prop_) - log_density();
+        //     if (std::abs(ln_alpha - ln_alpha_ref) > 1e-6) {
+        //         Rcpp::Rcout << "Warning: log density implementations do not match for edge indicator (" << i << ", " << j << ")" << std::endl;
+        //         omega_.print(Rcpp::Rcout, "Current omega:");
+        //         omega_prop_.print(Rcpp::Rcout, "Proposed omega:");
+        //         Rcpp::Rcout << "ln_alpha: " << ln_alpha << ", ln_alpha_ref: " << ln_alpha_ref << std::endl;
+        //     }
+        // }
         ln_alpha += std::log(prior_inclusion_prob_(i, j)) - std::log(1.0 - prior_inclusion_prob_(i, j));
 
         // Prior change: add slab (Cauchy prior)
