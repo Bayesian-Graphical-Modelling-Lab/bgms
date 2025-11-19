@@ -1,11 +1,11 @@
 prepare_output_bgm = function(
-    out, x, num_categories, iter, data_columnnames, is_ordinal_variable,
-    warmup, pairwise_scale, main_alpha, main_beta,
-    na_action, na_impute, edge_selection, edge_prior, inclusion_probability,
-    beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between,
-    beta_bernoulli_beta_between,dirichlet_alpha, lambda,
-    variable_type, update_method, target_accept, hmc_num_leapfrogs,
-    nuts_max_depth, learn_mass_matrix, num_chains
+  out, x, num_categories, iter, data_columnnames, is_ordinal_variable,
+  warmup, pairwise_scale, main_alpha, main_beta,
+  na_action, na_impute, edge_selection, edge_prior, inclusion_probability,
+  beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between,
+  beta_bernoulli_beta_between, dirichlet_alpha, lambda,
+  variable_type, update_method, target_accept, hmc_num_leapfrogs,
+  nuts_max_depth, learn_mass_matrix, num_chains
 ) {
   arguments = list(
     prepared_data = x,
@@ -37,7 +37,7 @@ prepare_output_bgm = function(
     num_chains = num_chains,
     num_categories = num_categories,
     data_columnnames = data_columnnames,
-    no_variables = ncol(x) #backwards compatibility easybgm
+    no_variables = ncol(x) # backwards compatibility easybgm
   )
 
   num_variables = ncol(x)
@@ -45,8 +45,8 @@ prepare_output_bgm = function(
 
   # ======= Parameter name generation =======
   names_variable_categories = character()
-  for (v in seq_len(num_variables)) {
-    if (is_ordinal_variable[v]) {
+  for(v in seq_len(num_variables)) {
+    if(is_ordinal_variable[v]) {
       cats = seq_len(num_categories[v])
       names_variable_categories = c(
         names_variable_categories,
@@ -62,8 +62,8 @@ prepare_output_bgm = function(
   }
 
   edge_names = character()
-  for (i in 1:(num_variables - 1)) {
-    for (j in (i + 1):num_variables) {
+  for(i in 1:(num_variables - 1)) {
+    for(j in (i + 1):num_variables) {
       edge_names = c(edge_names, paste0(data_columnnames[i], "-", data_columnnames[j]))
     }
   }
@@ -79,11 +79,11 @@ prepare_output_bgm = function(
   results$posterior_summary_main = main_summary
   results$posterior_summary_pairwise = pairwise_summary
 
-  if (edge_selection) {
+  if(edge_selection) {
     indicator_summary = summarize_indicator(out, param_names = edge_names)[, -1]
     rownames(indicator_summary) = edge_names
     results$posterior_summary_indicator = indicator_summary
-    if (identical(edge_prior, "Stochastic-Block") && "allocations" %in% names(out[[1]])) {
+    if(identical(edge_prior, "Stochastic-Block") && "allocations" %in% names(out[[1]])) {
       # convergence diagnostics of the co-apperance of the nodes
       sbm_convergence = summarize_alloc_pairs(
         allocations = lapply(out, `[[`, "allocations"),
@@ -116,7 +116,7 @@ prepare_output_bgm = function(
 
   results$posterior_mean_main = pmm
   rownames(results$posterior_mean_main) = data_columnnames
-  colnames(results$posterior_mean_main) = paste0("cat (",1:ncol(pmm), ")")
+  colnames(results$posterior_mean_main) = paste0("cat (", 1:ncol(pmm), ")")
 
   results$posterior_mean_pairwise = matrix(0, nrow = num_variables, ncol = num_variables)
   results$posterior_mean_pairwise[lower.tri(results$posterior_mean_pairwise)] = pairwise_summary$mean
@@ -124,7 +124,7 @@ prepare_output_bgm = function(
   rownames(results$posterior_mean_pairwise) = data_columnnames
   colnames(results$posterior_mean_pairwise) = data_columnnames
 
-  if (edge_selection) {
+  if(edge_selection) {
     indicator_means = indicator_summary$mean
     results$posterior_mean_indicator = matrix(0, nrow = num_variables, ncol = num_variables)
     results$posterior_mean_indicator[upper.tri(results$posterior_mean_indicator)] = indicator_means
@@ -133,7 +133,7 @@ prepare_output_bgm = function(
     rownames(results$posterior_mean_indicator) = data_columnnames
     colnames(results$posterior_mean_indicator) = data_columnnames
 
-    if (identical(edge_prior, "Stochastic-Block") && "allocations" %in% names(out[[1]])) {
+    if(identical(edge_prior, "Stochastic-Block") && "allocations" %in% names(out[[1]])) {
       # convergence diagnostics of the co-apperance of the nodes
       sbm_convergence = summarize_alloc_pairs(
         allocations = lapply(out, `[[`, "allocations"),
@@ -141,8 +141,10 @@ prepare_output_bgm = function(
       )
       results$posterior_mean_coclustering_matrix = sbm_convergence$co_occur_matrix
       # calculate the estimated clustering and block probabilities
-      sbm_summary = posterior_summary_SBM(allocations = lapply(out, `[[`, "allocations"),
-                                          arguments = arguments)  # check if only arguments would work
+      sbm_summary = posterior_summary_SBM(
+        allocations = lapply(out, `[[`, "allocations"),
+        arguments = arguments
+      ) # check if only arguments would work
       # extract the posterior mean and median
       results$posterior_mean_allocations = sbm_summary$allocations_mean
       results$posterior_mode_allocations = sbm_summary$allocations_mode
@@ -157,17 +159,17 @@ prepare_output_bgm = function(
   class(results) = "bgms"
 
   results$raw_samples = list(
-    main      = lapply(out, function(chain) chain$main_samples),
-    pairwise  = lapply(out, function(chain) chain$pairwise_samples),
-    indicator = if (edge_selection) lapply(out, function(chain) chain$indicator_samples) else NULL,
-    allocations = if (edge_selection && identical(edge_prior, "Stochastic-Block") && "allocations" %in% names(out[[1]])) lapply(out, `[[`, "allocations") else NULL,
-    nchains   = length(out),
-    niter     = nrow(out[[1]]$main_samples),
+    main = lapply(out, function(chain) chain$main_samples),
+    pairwise = lapply(out, function(chain) chain$pairwise_samples),
+    indicator = if(edge_selection) lapply(out, function(chain) chain$indicator_samples) else NULL,
+    allocations = if(edge_selection && identical(edge_prior, "Stochastic-Block") && "allocations" %in% names(out[[1]])) lapply(out, `[[`, "allocations") else NULL,
+    nchains = length(out),
+    niter = nrow(out[[1]]$main_samples),
     parameter_names = list(
-      main     = names_variable_categories,
+      main = names_variable_categories,
       pairwise = edge_names,
-      indicator = if (edge_selection) edge_names else NULL,
-      allocations = if (identical(edge_prior, "Stochastic-Block")) edge_names else NULL
+      indicator = if(edge_selection) edge_names else NULL,
+      allocations = if(identical(edge_prior, "Stochastic-Block")) edge_names else NULL
     )
   )
 
@@ -175,19 +177,18 @@ prepare_output_bgm = function(
 }
 
 
-
 # Generate names for bgmCompare parameters
 generate_param_names_bgmCompare = function(
-    data_columnnames,
-    num_categories,
-    is_ordinal_variable,
-    num_variables,
-    num_groups
+  data_columnnames,
+  num_categories,
+  is_ordinal_variable,
+  num_variables,
+  num_groups
 ) {
   # --- main baselines
   names_main_baseline = character()
-  for (v in seq_len(num_variables)) {
-    if (is_ordinal_variable[v]) {
+  for(v in seq_len(num_variables)) {
+    if(is_ordinal_variable[v]) {
       cats = seq_len(num_categories[v])
       names_main_baseline = c(
         names_main_baseline,
@@ -204,9 +205,9 @@ generate_param_names_bgmCompare = function(
 
   # --- main differences
   names_main_diff = character()
-  for (g in 2:num_groups) {
-    for (v in seq_len(num_variables)) {
-      if (is_ordinal_variable[v]) {
+  for(g in 2:num_groups) {
+    for(v in seq_len(num_variables)) {
+      if(is_ordinal_variable[v]) {
         cats = seq_len(num_categories[v])
         names_main_diff = c(
           names_main_diff,
@@ -224,8 +225,8 @@ generate_param_names_bgmCompare = function(
 
   # --- pairwise baselines
   names_pairwise_baseline = character()
-  for (i in 1:(num_variables - 1)) {
-    for (j in (i + 1):num_variables) {
+  for(i in 1:(num_variables - 1)) {
+    for(j in (i + 1):num_variables) {
       names_pairwise_baseline = c(
         names_pairwise_baseline,
         paste0(data_columnnames[i], "-", data_columnnames[j])
@@ -235,9 +236,9 @@ generate_param_names_bgmCompare = function(
 
   # --- pairwise differences
   names_pairwise_diff = character()
-  for (g in 2:num_groups) {
-    for (i in 1:(num_variables - 1)) {
-      for (j in (i + 1):num_variables) {
+  for(g in 2:num_groups) {
+    for(i in 1:(num_variables - 1)) {
+      for(j in (i + 1):num_variables) {
         names_pairwise_diff = c(
           names_pairwise_diff,
           paste0(data_columnnames[i], "-", data_columnnames[j], " (diff", g - 1, ")")
@@ -248,14 +249,14 @@ generate_param_names_bgmCompare = function(
 
   # --- indicators
   generate_indicator_names <- function(data_columnnames) {
-    V   <- length(data_columnnames)
+    V <- length(data_columnnames)
     out <- character()
-    for (i in seq_len(V)) {
+    for(i in seq_len(V)) {
       # main (diagonal)
       out <- c(out, paste0(data_columnnames[i], " (main)"))
       # then all pairs with i as the first index
-      if (i < V) {
-        for (j in seq.int(i + 1L, V)) {
+      if(i < V) {
+        for(j in seq.int(i + 1L, V)) {
           out <- c(out, paste0(data_columnnames[i], "-", data_columnnames[j], " (pairwise)"))
         }
       }
@@ -277,15 +278,15 @@ generate_param_names_bgmCompare = function(
 
 
 prepare_output_bgmCompare = function(
-    out, observations, num_categories, is_ordinal_variable,
-    num_groups, group, iter, warmup,
-    main_effect_indices, pairwise_effect_indices,
-    data_columnnames, difference_selection,
-    difference_prior, difference_selection_alpha, difference_selection_beta,
-    inclusion_probability,
-    pairwise_scale, difference_scale,
-    update_method, target_accept, nuts_max_depth, hmc_num_leapfrogs,
-    learn_mass_matrix, num_chains, projection
+  out, observations, num_categories, is_ordinal_variable,
+  num_groups, group, iter, warmup,
+  main_effect_indices, pairwise_effect_indices,
+  data_columnnames, difference_selection,
+  difference_prior, difference_selection_alpha, difference_selection_beta,
+  inclusion_probability,
+  pairwise_scale, difference_scale,
+  update_method, target_accept, nuts_max_depth, hmc_num_leapfrogs,
+  learn_mass_matrix, num_chains, projection
 ) {
   num_variables = ncol(observations)
 
@@ -345,7 +346,7 @@ prepare_output_bgmCompare = function(
     posterior_summary_pairwise_differences = summary_list$pairwise_differences
   )
 
-  if (difference_selection) {
+  if(difference_selection) {
     results$posterior_summary_indicator = summary_list$indicators
   }
 
@@ -372,7 +373,7 @@ prepare_output_bgmCompare = function(
 
   results$posterior_mean_main_baseline = pmm
   rownames(results$posterior_mean_main_baseline) = data_columnnames
-  colnames(results$posterior_mean_main_baseline) = paste0("cat (",1:ncol(pmm), ")")
+  colnames(results$posterior_mean_main_baseline) = paste0("cat (", 1:ncol(pmm), ")")
 
   results$posterior_mean_pairwise_baseline = matrix(0, num_variables, num_variables)
   results$posterior_mean_pairwise_baseline[lower.tri(results$posterior_mean_pairwise_baseline)] =
@@ -384,11 +385,11 @@ prepare_output_bgmCompare = function(
 
   # --- raw samples (like in prepare_output_bgm)
   results$raw_samples = list(
-    main      = lapply(out, function(chain) chain$main_samples),
-    pairwise  = lapply(out, function(chain) chain$pairwise_samples),
-    indicator = if (difference_selection) lapply(out, function(chain) chain$indicator_samples) else NULL,
-    nchains   = length(out),
-    niter     = nrow(out[[1]]$main_samples),
+    main = lapply(out, function(chain) chain$main_samples),
+    pairwise = lapply(out, function(chain) chain$pairwise_samples),
+    indicator = if(difference_selection) lapply(out, function(chain) chain$indicator_samples) else NULL,
+    nchains = length(out),
+    niter = nrow(out[[1]]$main_samples),
     parameter_names = names_all
   )
 
@@ -396,4 +397,3 @@ prepare_output_bgmCompare = function(
   class(results) = c("bgmCompare")
   results
 }
-

@@ -10,9 +10,8 @@ print.bgmCompare = function(x, ...) {
   arguments = extract_arguments(x)
 
   # Model type
-  if (isTRUE(arguments$difference_selection)) {
-    prior_msg = switch(
-      as.character(arguments$difference_prior),
+  if(isTRUE(arguments$difference_selection)) {
+    prior_msg = switch(as.character(arguments$difference_prior),
       "Bernoulli" = "Bayesian Difference Selection (Bernoulli prior on inclusion)",
       "Beta-Bernoulli" = "Bayesian Difference Selection (Beta-Bernoulli prior on inclusion)",
       "Bayesian Difference Selection"
@@ -24,12 +23,12 @@ print.bgmCompare = function(x, ...) {
 
   # Dataset info
   cat(paste0(" Number of variables: ", arguments$num_variables, "\n"))
-  if (!is.null(arguments$num_groups)) {
+  if(!is.null(arguments$num_groups)) {
     cat(paste0(" Number of groups: ", arguments$num_groups, "\n"))
   }
-  if (!is.null(arguments$num_cases)) {
+  if(!is.null(arguments$num_cases)) {
     # In our prepare_output_bgmCompare() we stored total cases in num_cases.
-    if (isTRUE(arguments$na_impute)) {
+    if(isTRUE(arguments$na_impute)) {
       cat(paste0(" Number of cases: ", arguments$num_cases, " (missings imputed)\n"))
     } else {
       cat(paste0(" Number of cases: ", arguments$num_cases, "\n"))
@@ -37,7 +36,7 @@ print.bgmCompare = function(x, ...) {
   }
 
   # Iterations and chains
-  if (!is.null(arguments$num_chains)) {
+  if(!is.null(arguments$num_chains)) {
     total_iter = arguments$iter * arguments$num_chains
     cat(paste0(" Number of post-burnin MCMC iterations: ", total_iter, "\n"))
     cat(paste0(" Number of MCMC chains: ", arguments$num_chains, "\n"))
@@ -48,7 +47,6 @@ print.bgmCompare = function(x, ...) {
   cat("Use the `summary()` function for posterior summaries and diagnostics.\n")
   cat("See the `easybgm` package for additional summaries and plotting.\n")
 }
-
 
 
 #' @name summary.bgmCompare
@@ -64,23 +62,22 @@ print.bgmCompare = function(x, ...) {
 summary.bgmCompare = function(object, ...) {
   arguments = extract_arguments(object)
 
-  if (!is.null(object$posterior_summary_main_baseline) &&
-      !is.null(object$posterior_summary_pairwise_baseline)) {
-
+  if(!is.null(object$posterior_summary_main_baseline) &&
+    !is.null(object$posterior_summary_pairwise_baseline)) {
     out = list(
       main      = object$posterior_summary_main_baseline,
       pairwise  = object$posterior_summary_pairwise_baseline
     )
 
-    if (!is.null(object$posterior_summary_indicator)) {
+    if(!is.null(object$posterior_summary_indicator)) {
       out$indicator = object$posterior_summary_indicator
     }
 
-    if (!is.null(object$posterior_summary_main_differences)) {
+    if(!is.null(object$posterior_summary_main_differences)) {
       out$main_diff = object$posterior_summary_main_differences
     }
 
-    if (!is.null(object$posterior_summary_pairwise_differences)) {
+    if(!is.null(object$posterior_summary_pairwise_differences)) {
       out$pairwise_diff = object$posterior_summary_pairwise_differences
     }
 
@@ -89,9 +86,11 @@ summary.bgmCompare = function(object, ...) {
     return(out)
   }
 
-  message("No summary statistics available for this model object.\n",
-          "Try fitting the model again using the latest bgms version,\n",
-          "or use the `easybgm` package for diagnostic summaries and plotting.")
+  message(
+    "No summary statistics available for this model object.\n",
+    "Try fitting the model again using the latest bgms version,\n",
+    "or use the `easybgm` package for diagnostic summaries and plotting."
+  )
   invisible(NULL)
 }
 
@@ -102,35 +101,37 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
 
   print_df = function(df, digits) {
     df2 = df
-    if (ncol(df2) > 1) {
-      df2[ , -1] = lapply(df2[ , -1, drop = FALSE], round, digits = digits)
+    if(ncol(df2) > 1) {
+      df2[, -1] = lapply(df2[, -1, drop = FALSE], round, digits = digits)
     }
     print(head(df2, 6))
   }
 
-  if (!is.null(x$main)) {
+  if(!is.null(x$main)) {
     cat("Category thresholds:\n")
     print_df(x$main, digits)
-    if (nrow(x$main) > 6)
+    if(nrow(x$main) > 6) {
       cat("... (use `summary(fit)$main` to see full output)\n")
+    }
     cat("\n")
   }
 
-  if (!is.null(x$pairwise)) {
+  if(!is.null(x$pairwise)) {
     cat("Pairwise interactions:\n")
     print_df(x$pairwise, digits)
-    if (nrow(x$pairwise) > 6)
+    if(nrow(x$pairwise) > 6) {
       cat("... (use `summary(fit)$pairwise` to see full output)\n")
+    }
     cat("\n")
   }
 
-  if (!is.null(x$indicator)) {
+  if(!is.null(x$indicator)) {
     cat("Inclusion probabilities:\n")
     ind <- head(x$indicator, 6)
 
     # round only numeric columns
     ind[] <- lapply(ind, function(col) {
-      if (is.numeric(col)) {
+      if(is.numeric(col)) {
         round(col, digits)
       } else {
         col
@@ -143,29 +144,33 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
     })
 
     print(ind, row.names = FALSE)
-    if (nrow(x$indicator) > 6)
+    if(nrow(x$indicator) > 6) {
       cat("... (use `summary(fit)$indicator` to see full output)\n")
+    }
     cat("Note: NA values are suppressed in the print table. They occur when an indicator\n")
     cat("was constant (all 0 or all 1) across all iterations, so sd/mcse/n_eff/Rhat\n")
     cat("are undefined; `summary(fit)$indicator` still contains the NA values.\n\n")
   }
 
-  if (!is.null(x$main_diff)) {
+  if(!is.null(x$main_diff)) {
     cat("Group differences (main effects):\n")
 
     maind <- head(x$main_diff, 6)
 
     # Only round numeric columns
     is_num <- vapply(maind, is.numeric, logical(1))
-    maind[is_num] <- lapply(maind[is_num],
-                            function(col) ifelse(is.na(col), "", round(col, digits)))
+    maind[is_num] <- lapply(
+      maind[is_num],
+      function(col) ifelse(is.na(col), "", round(col, digits))
+    )
 
     print(maind, row.names = FALSE)
 
-    if (nrow(x$main_diff) > 6)
+    if(nrow(x$main_diff) > 6) {
       cat("... (use `summary(fit)$main_diff` to see full output)\n")
+    }
 
-    if (!is.null(x$indicator)) {
+    if(!is.null(x$indicator)) {
       cat("Note: NA values are suppressed in the print table. They occur here when an\n")
       cat("indicator was zero across all iterations, so mcse/n_eff/Rhat are undefined;\n")
       cat("`summary(fit)$main_diff` still contains the NA values.\n")
@@ -173,22 +178,25 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
     cat("\n")
   }
 
-  if (!is.null(x$pairwise_diff)) {
+  if(!is.null(x$pairwise_diff)) {
     cat("Group differences (pairwise effects):\n")
 
     pairwised <- head(x$pairwise_diff, 6)
 
     # Only round numeric columns
     is_num <- vapply(pairwised, is.numeric, logical(1))
-    pairwised[is_num] <- lapply(pairwised[is_num],
-                                function(col) ifelse(is.na(col), "", round(col, digits)))
+    pairwised[is_num] <- lapply(
+      pairwised[is_num],
+      function(col) ifelse(is.na(col), "", round(col, digits))
+    )
 
     print(pairwised, row.names = FALSE)
 
-    if (nrow(x$pairwise_diff) > 6)
+    if(nrow(x$pairwise_diff) > 6) {
       cat("... (use `summary(fit)$pairwise_diff` to see full output)\n")
+    }
 
-    if (!is.null(x$indicator)) {
+    if(!is.null(x$indicator)) {
       cat("Note: NA values are suppressed in the print table. They occur here when an\n")
       cat("indicator was zero across all iterations, so mcse/n_eff/Rhat are undefined;\n")
       cat("`summary(fit)$pairwise_diff` still contains the NA values.\n")
@@ -199,7 +207,6 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
   cat("Use `summary(fit)$<component>` to access full results.\n")
   cat("See the `easybgm` package for other summary and plotting tools.\n")
 }
-
 
 
 #' @title Extract Coefficients from a bgmCompare Object
@@ -227,26 +234,28 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
 coef.bgmCompare <- function(object, ...) {
   args <- extract_arguments(object)
 
-  var_names      <- args$data_columnnames
+  var_names <- args$data_columnnames
   num_categories <- as.integer(args$num_categories)
-  is_ordinal     <- as.logical(args$is_ordinal_variable)
-  num_groups     <- as.integer(args$num_groups)
-  num_variables  <- as.integer(args$num_variables)
-  projection     <- args$projection   # [num_groups x (num_groups-1)]
+  is_ordinal <- as.logical(args$is_ordinal_variable)
+  num_groups <- as.integer(args$num_groups)
+  num_variables <- as.integer(args$num_variables)
+  projection <- args$projection # [num_groups x (num_groups-1)]
 
   # ---- helper: combine chains into [iter, chain, param], robust to vectors/1-col
   to_array3d <- function(xlist) {
-    if (is.null(xlist)) return(NULL)
+    if(is.null(xlist)) {
+      return(NULL)
+    }
     stopifnot(length(xlist) >= 1)
     mats <- lapply(xlist, function(x) {
       m <- as.matrix(x)
-      if (is.null(dim(m))) m <- matrix(m, ncol = 1L)
+      if(is.null(dim(m))) m <- matrix(m, ncol = 1L)
       m
     })
-    niter  <- nrow(mats[[1]])
+    niter <- nrow(mats[[1]])
     nparam <- ncol(mats[[1]])
     arr <- array(NA_real_, dim = c(niter, length(mats), nparam))
-    for (c in seq_along(mats)) arr[, c, ] <- mats[[c]]
+    for(c in seq_along(mats)) arr[, c, ] <- mats[[c]]
     arr
   }
 
@@ -263,20 +272,22 @@ coef.bgmCompare <- function(object, ...) {
 
   # row names in sampler row order
   rownames(main_mat) <- unlist(lapply(seq_len(num_variables), function(v) {
-    if (is_ordinal[v]) {
+    if(is_ordinal[v]) {
       paste0(var_names[v], "(c", seq_len(num_categories[v]), ")")
     } else {
-      c(paste0(var_names[v], "(linear)"),
-        paste0(var_names[v], "(quadratic)"))
+      c(
+        paste0(var_names[v], "(linear)"),
+        paste0(var_names[v], "(quadratic)")
+      )
     }
   }))
   colnames(main_mat) <- c("baseline", paste0("diff", seq_len(num_groups - 1L)))
 
   # group-specific main effects: baseline + P %*% diffs
   main_effects_groups <- matrix(NA_real_, nrow = num_main, ncol = num_groups)
-  for (r in seq_len(num_main)) {
+  for(r in seq_len(num_main)) {
     baseline <- main_mat[r, 1]
-    diffs    <- main_mat[r, -1, drop = TRUE]
+    diffs <- main_mat[r, -1, drop = TRUE]
     main_effects_groups[r, ] <- baseline + as.vector(projection %*% diffs)
   }
   rownames(main_effects_groups) <- rownames(main_mat)
@@ -295,9 +306,9 @@ coef.bgmCompare <- function(object, ...) {
 
   # row names in sampler row order (upper-tri i<j)
   pair_names <- character()
-  if (num_variables >= 2L) {
-    for (i in 1L:(num_variables - 1L)) {
-      for (j in (i + 1L):num_variables) {
+  if(num_variables >= 2L) {
+    for(i in 1L:(num_variables - 1L)) {
+      for(j in (i + 1L):num_variables) {
         pair_names <- c(pair_names, paste0(var_names[i], "-", var_names[j]))
       }
     }
@@ -307,9 +318,9 @@ coef.bgmCompare <- function(object, ...) {
 
   # group-specific pairwise effects
   pairwise_effects_groups <- matrix(NA_real_, nrow = num_pair, ncol = num_groups)
-  for (r in seq_len(num_pair)) {
+  for(r in seq_len(num_pair)) {
     baseline <- pairwise_mat[r, 1]
-    diffs    <- pairwise_mat[r, -1, drop = TRUE]
+    diffs <- pairwise_mat[r, -1, drop = TRUE]
     pairwise_effects_groups[r, ] <- baseline + as.vector(projection %*% diffs)
   }
   rownames(pairwise_effects_groups) <- rownames(pairwise_mat)
@@ -319,7 +330,7 @@ coef.bgmCompare <- function(object, ...) {
   # ---- indicators (present only if selection was used) ----
   indicators <- NULL
   array3d_ind <- to_array3d(object$raw_samples$indicator)
-  if (!is.null(array3d_ind)) {
+  if(!is.null(array3d_ind)) {
     mean_ind <- apply(array3d_ind, 3, mean)
 
     # reconstruct VxV matrix using the sampler’s interleaved order:
@@ -327,15 +338,19 @@ coef.bgmCompare <- function(object, ...) {
     V <- num_variables
     stopifnot(length(mean_ind) == V * (V + 1L) / 2L)
 
-    ind_mat <- matrix(0, nrow = V, ncol = V,
-                      dimnames = list(var_names, var_names))
+    ind_mat <- matrix(0,
+      nrow = V, ncol = V,
+      dimnames = list(var_names, var_names)
+    )
     pos <- 1L
-    for (i in seq_len(V)) {
+    for(i in seq_len(V)) {
       # diagonal (main indicator)
-      ind_mat[i, i] <- mean_ind[pos]; pos <- pos + 1L
-      if (i < V) {
-        for (j in (i + 1L):V) {
-          val <- mean_ind[pos]; pos <- pos + 1L
+      ind_mat[i, i] <- mean_ind[pos]
+      pos <- pos + 1L
+      if(i < V) {
+        for(j in (i + 1L):V) {
+          val <- mean_ind[pos]
+          pos <- pos + 1L
           ind_mat[i, j] <- val
           ind_mat[j, i] <- val
         }
