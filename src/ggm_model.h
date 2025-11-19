@@ -133,6 +133,13 @@ private:
     arma::mat omega_prop_;
     arma::vec constants_; // Phi_q1q, Phi_q1q1, c[1], c[2], c[3], c[4]
 
+    arma::vec v1_ = {0, -1};
+    arma::vec v2_ = {0, 0};
+    arma::vec vf1_ = arma::zeros<arma::vec>(p_);
+    arma::vec vf2_ = arma::zeros<arma::vec>(p_);
+    arma::vec u1_ = arma::zeros<arma::vec>(p_);
+    arma::vec u2_ = arma::zeros<arma::vec>(p_);
+
     // Parameter group updates with optimized likelihood evaluations
     void update_edge_parameter(size_t i, size_t j);
     void update_diagonal_parameter(size_t i);
@@ -147,6 +154,8 @@ private:
     double log_density_impl_edge(size_t i, size_t j) const;
     double log_density_impl_diag(size_t j) const;
     double get_log_det(arma::mat triangular_A) const;
+    void   cholesky_update_after_edge(double omega_ij_old, double omega_jj_old, size_t i, size_t j);
+    void   cholesky_update_after_diag(double omega_ii_old, size_t i);
     // double find_reasonable_step_size_edge(const arma::mat& omega, size_t i, size_t j);
     // double find_reasonable_step_size_diag(const arma::mat& omega, size_t i);
     // double edge_log_ratio(const arma::mat& omega, size_t i, size_t j, double proposal);
