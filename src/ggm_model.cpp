@@ -12,13 +12,12 @@ void GGMModel::get_constants(size_t i, size_t j) {
     // TODO: helper function?
     double logdet_omega = get_log_det(phi_);
 
-    double log_adj_omega_ii = logdet_omega + log(abs(inv_omega_(i, i)));
-    double log_adj_omega_ij = logdet_omega + log(abs(inv_omega_(i, j)));
-    double log_adj_omega_jj = logdet_omega + log(abs(inv_omega_(j, j)));
+    double log_adj_omega_ii = logdet_omega + std::log(std::abs(inv_omega_(i, i)));
+    double log_adj_omega_ij = logdet_omega + std::log(std::abs(inv_omega_(i, j)));
+    double log_adj_omega_jj = logdet_omega + std::log(std::abs(inv_omega_(j, j)));
 
     double inv_omega_sub_j1j1 = compute_inv_submatrix_i(inv_omega_, i, j, j);
-    double log_abs_inv_omega_sub_jj = log_adj_omega_ii + log(abs(inv_omega_sub_j1j1));
-
+    double log_abs_inv_omega_sub_jj = log_adj_omega_ii + std::log(std::abs(inv_omega_sub_j1j1));
     double Phi_q1q  = (2 * std::signbit(inv_omega_(i, j)) - 1) * std::exp(
         (log_adj_omega_ij - (log_adj_omega_jj + log_abs_inv_omega_sub_jj) / 2)
     );
@@ -191,49 +190,89 @@ void GGMModel::update_edge_parameter(size_t i, size_t j) {
         // accept proposal
         proposal_.increment_accepts(e);
 
-        double omega_ij = omega_(i, j);
-        double omega_jj = omega_(j, j);
+        double omega_ij_old = omega_(i, j);
+        double omega_jj_old = omega_(j, j);
+
 
         omega_(i, j) = omega_prop_q1q;
         omega_(j, i) = omega_prop_q1q;
         omega_(j, j) = omega_prop_qq;
 
-        // TODO: preallocate?
-        // find v for low rank update
-        arma::vec v1 = {0, -1};
-        arma::vec v2 = {omega_ij - omega_prop_(i, j), (omega_jj - omega_prop_(j, j)) / 2};
+        cholesky_update_after_edge(omega_ij_old, omega_jj_old, i, j);
 
-        arma::vec vf1 = arma::zeros<arma::vec>(p_);
-        arma::vec vf2 = arma::zeros<arma::vec>(p_);
-        vf1[i] = v1[0];
-        vf1[j] = v1[1];
-        vf2[i] = v2[0];
-        vf2[j] = v2[1];
+        // // TODO: preallocate?
+        // // find v for low rank update
+        // arma::vec v1 = {0, -1};
+        // arma::vec v2 = {omega_ij - omega_prop_(i, j), (omega_jj - omega_prop_(j, j)) / 2};
 
-        // we now have
-        // aOmega_prop - (aOmega + vf1 %*% t(vf2) + vf2 %*% t(vf1))
+        // arma::vec vf1 = arma::zeros<arma::vec>(p_);
+        // arma::vec vf2 = arma::zeros<arma::vec>(p_);
+        // vf1[i] = v1[0];
+        // vf1[j] = v1[1];
+        // vf2[i] = v2[0];
+        // vf2[j] = v2[1];
 
-        arma::vec u1 = (vf1 + vf2) / sqrt(2);
-        arma::vec u2 = (vf1 - vf2) / sqrt(2);
+        // // we now have
+        // // aOmega_prop - (aOmega + vf1 %*% t(vf2) + vf2 %*% t(vf1))
 
-        // we now have
-        // omega_prop_ - (aOmega + u1 %*% t(u1) - u2 %*% t(u2))
-        // and also
-        // aOmega_prop - (aOmega + cbind(vf1, vf2) %*% matrix(c(0, 1, 1, 0), 2, 2) %*% t(cbind(vf1, vf2)))
+        // arma::vec u1 = (vf1 + vf2) / sqrt(2);
+        // arma::vec u2 = (vf1 - vf2) / sqrt(2);
 
-        // update phi (2x O(p^2))
-        cholesky_update(phi_, u1);
-        cholesky_downdate(phi_, u2);
+        // // we now have
+        // // omega_prop_ - (aOmega + u1 %*% t(u1) - u2 %*% t(u2))
+        // // and also
+        // // aOmega_prop - (aOmega + cbind(vf1, vf2) %*% matrix(c(0, 1, 1, 0), 2, 2) %*% t(cbind(vf1, vf2)))
 
-        // update inverse (2x O(p^2))
-        arma::inv(inv_phi_, arma::trimatu(phi_));
-        inv_omega_ = inv_phi_ * inv_phi_.t();
+        // // update phi (2x O(p^2))
+        // cholesky_update(phi_, u1);
+        // cholesky_downdate(phi_, u2);
+
+        // // update inverse (2x O(p^2))
+        // arma::inv(inv_phi_, arma::trimatu(phi_));
+        // inv_omega_ = inv_phi_ * inv_phi_.t();
 
     }
 
     proposal_.update_proposal_sd(e);
 }
 
+void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_old, size_t i, size_t j)
+{
+
+    v2_[0] = omega_ij_old - omega_prop_(i, j);
+    v2_[1] = (omega_jj_old - omega_prop_(j, j)) / 2;
+
+    vf1_[i] = v1_[0];
+    vf1_[j] = v1_[1];
+    vf2_[i] = v2_[0];
+    vf2_[j] = v2_[1];
+
+    // we now have
+    // aOmega_prop - (aOmega + vf1 %*% t(vf2) + vf2 %*% t(vf1))
+
+    u1_ = (vf1_ + vf2_) / sqrt(2);
+    u2_ = (vf1_ - vf2_) / sqrt(2);
+
+    // we now have
+    // omega_prop_ - (aOmega + u1 %*% t(u1) - u2 %*% t(u2))
+    // and also
+    // aOmega_prop - (aOmega + cbind(vf1, vf2) %*% matrix(c(0, 1, 1, 0), 2, 2) %*% t(cbind(vf1, vf2)))
+
+    // update phi (2x O(p^2))
+    cholesky_update(phi_, u1_);
+    cholesky_downdate(phi_, u2_);
+
+    // update inverse (2x O(p^2))
+    arma::inv(inv_phi_, arma::trimatu(phi_));
+    inv_omega_ = inv_phi_ * inv_phi_.t();
+
+    // reset for next iteration
+    vf1_[i] = 0.0;
+    vf1_[j] = 0.0;
+    vf2_[i] = 0.0;
+    vf2_[j] = 0.0;
+
+}
 
 void GGMModel::update_diagonal_parameter(size_t i) {
     // Implementation of diagonal parameter update
@@ -280,28 +319,52 @@ void GGMModel::update_diagonal_parameter(size_t i) {
         proposal_.increment_accepts(e);
 
         double omega_ii = omega_(i, i);
-
-        arma::vec u(p_, arma::fill::zeros);
-        double delta = omega_ii - omega_prop_(i, i);
-        bool s = delta > 0;
-        u(i) = std::sqrt(std::abs(delta));
-
         omega_(i, i) = omega_prop_(i, i);
 
-        if (s)
-            cholesky_downdate(phi_, u);
-        else
-            cholesky_update(phi_, u);
+        cholesky_update_after_diag(omega_ii, i);
 
-        // update inverse (2x O(p^2))
-        arma::inv(inv_phi_, arma::trimatu(phi_));
-        inv_omega_ = inv_phi_ * inv_phi_.t();
+        // arma::vec u(p_, arma::fill::zeros);
+        // double delta = omega_ii - omega_prop_(i, i);
+        // bool s = delta > 0;
+        // u(i) = std::sqrt(std::abs(delta));
+
+
+        // if (s)
+        //     cholesky_downdate(phi_, u);
+        // else
+        //     cholesky_update(phi_, u);
+
+        // // update inverse (2x O(p^2))
+        // arma::inv(inv_phi_, arma::trimatu(phi_));
+        // inv_omega_ = inv_phi_ * inv_phi_.t();
 
 
     }
 
     proposal_.update_proposal_sd(e);
 }
+
+void GGMModel::cholesky_update_after_diag(double omega_ii_old, size_t i)
+{
+
+    double delta = omega_ii_old - omega_prop_(i, i);
+
+    bool s = delta > 0;
+    vf1_(i) = std::sqrt(std::abs(delta));
+
+    if (s)
+        cholesky_downdate(phi_, vf1_);
+    else
+        cholesky_update(phi_, vf1_);
+
+    // update inverse (2x O(p^2))
+    arma::inv(inv_phi_, arma::trimatu(phi_));
+    inv_omega_ = inv_phi_ * inv_phi_.t();
+
+    // reset for next iteration
+    vf1_(i) = 0.0;
+}
+
 
 void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 
@@ -351,27 +414,28 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
             edge_indicators_(i, j) = 0;
             edge_indicators_(j, i) = 0;
 
-            // Cholesky update vectors
-            arma::vec v1 = {0, -1};
-            arma::vec v2 = {omega_ij_old - 0.0, (omega_jj_old - omega_(j, j)) / 2};
+            cholesky_update_after_edge(omega_ij_old, omega_jj_old, i, j);
+            // // Cholesky update vectors
+            // arma::vec v1 = {0, -1};
+            // arma::vec v2 = {omega_ij_old - 0.0, (omega_jj_old - omega_(j, j)) / 2};
 
-            arma::vec vf1 = arma::zeros<arma::vec>(p_);
-            arma::vec vf2 = arma::zeros<arma::vec>(p_);
-            vf1[i] = v1[0];
-            vf1[j] = v1[1];
-            vf2[i] = v2[0];
-            vf2[j] = v2[1];
+            // arma::vec vf1 = arma::zeros<arma::vec>(p_);
+            // arma::vec vf2 = arma::zeros<arma::vec>(p_);
+            // vf1[i] = v1[0];
+            // vf1[j] = v1[1];
+            // vf2[i] = v2[0];
+            // vf2[j] = v2[1];
 
-            arma::vec u1 = (vf1 + vf2) / sqrt(2);
-            arma::vec u2 = (vf1 - vf2) / sqrt(2);
+            // arma::vec u1 = (vf1 + vf2) / sqrt(2);
+            // arma::vec u2 = (vf1 - vf2) / sqrt(2);
 
-            // Update Cholesky factor
-            cholesky_update(phi_, u1);
-            cholesky_downdate(phi_, u2);
+            // // Update Cholesky factor
+            // cholesky_update(phi_, u1);
+            // cholesky_downdate(phi_, u2);
 
-            // Update inverse
-            arma::inv(inv_phi_, arma::trimatu(phi_));
-            inv_omega_ = inv_phi_ * inv_phi_.t();
+            // // Update inverse
+            // arma::inv(inv_phi_, arma::trimatu(phi_));
+            // inv_omega_ = inv_phi_ * inv_phi_.t();
         }
 
     } else {
@@ -425,27 +489,28 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
             edge_indicators_(i, j) = 1;
             edge_indicators_(j, i) = 1;
 
-            // Cholesky update vectors
-            arma::vec v1 = {0, -1};
-            arma::vec v2 = {omega_ij_old - omega_(i, j), (omega_jj_old - omega_(j, j)) / 2};
+            cholesky_update_after_edge(omega_ij_old, omega_jj_old, i, j);
+            // // Cholesky update vectors
+            // arma::vec v1 = {0, -1};
+            // arma::vec v2 = {omega_ij_old - omega_(i, j), (omega_jj_old - omega_(j, j)) / 2};
 
-            arma::vec vf1 = arma::zeros<arma::vec>(p_);
-            arma::vec vf2 = arma::zeros<arma::vec>(p_);
-            vf1[i] = v1[0];
-            vf1[j] = v1[1];
-            vf2[i] = v2[0];
-            vf2[j] = v2[1];
+            // arma::vec vf1 = arma::zeros<arma::vec>(p_);
+            // arma::vec vf2 = arma::zeros<arma::vec>(p_);
+            // vf1[i] = v1[0];
+            // vf1[j] = v1[1];
+            // vf2[i] = v2[0];
+            // vf2[j] = v2[1];
 
-            arma::vec u1 = (vf1 + vf2) / sqrt(2);
-            arma::vec u2 = (vf1 - vf2) / sqrt(2);
+            // arma::vec u1 = (vf1 + vf2) / sqrt(2);
+            // arma::vec u2 = (vf1 - vf2) / sqrt(2);
 
-            // Update Cholesky factor
-            cholesky_update(phi_, u1);
-            cholesky_downdate(phi_, u2);
+            // // Update Cholesky factor
+            // cholesky_update(phi_, u1);
+            // cholesky_downdate(phi_, u2);
 
-            // Update inverse
-            arma::inv(inv_phi_, arma::trimatu(phi_));
-            inv_omega_ = inv_phi_ * inv_phi_.t();
+            // // Update inverse
+            // arma::inv(inv_phi_, arma::trimatu(phi_));
+            // inv_omega_ = inv_phi_ * inv_phi_.t();
         }
     }
 }
