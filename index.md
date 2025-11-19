@@ -1,4 +1,7 @@
-# bgms [![](inst/bgms_sticker.svg)](https://bayesiangraphicalmodeling.com)
+# bgms
+
+[![bgms
+website](reference/figures/bgms_sticker.svg)](https://bayesiangraphicalmodeling.com)
 
 **Bayesian analysis of graphical models with binary and ordinal
 variables**
@@ -15,7 +18,7 @@ corresponding pseudoposterior distribution of the model parameters.
 The package has two main entry points:
 
 - [`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)
-  – estimates a single network in a one-sample design.  
+  – estimates a single network in a one-sample design.
 - [`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md)
   – compares networks between groups in an independent-sample design.
 
@@ -23,20 +26,20 @@ The package has two main entry points:
 
 Both functions support **effect selection** with spike-and-slab priors:
 
-- **Edges in one-sample designs**:  
+- **Edges in one-sample designs**:
   [`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)
   models the presence or absence of edges between variables. Posterior
   inclusion probabilities indicate the plausibility of each edge and can
   be converted into Bayes factors for conditional independence tests
   (see Marsman et al., 2025; Sekulovski et al., 2024).
 
-- **Communities/clusters in one-sample designs**:  
+- **Communities/clusters in one-sample designs**:
   [`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)
   can also model community structure. Posterior probabilities for the
   number of clusters quantify the plausibility of clustering solutions
   and can be converted into Bayes factors (see Sekulovski et al., 2025).
 
-- **Group differences in independent-sample designs**:  
+- **Group differences in independent-sample designs**:
   [`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md)
   models differences in edge weights and category thresholds between
   groups. Posterior inclusion probabilities indicate the plausibility of
@@ -48,9 +51,9 @@ Both functions support **effect selection** with spike-and-slab priors:
 For worked examples and tutorials, see the package vignettes:
 
 - [Getting
-  Started](https://bayesian-graphical-modelling-lab.github.io/bgms/articles/intro.html)  
+  Started](https://bayesian-graphical-modelling-lab.github.io/bgms/articles/intro.html)
 - [Model
-  Comparison](https://bayesian-graphical-modelling-lab.github.io/bgms/articles/comparison.html)  
+  Comparison](https://bayesian-graphical-modelling-lab.github.io/bgms/articles/comparison.html)
 - [Diagnostics and Spike-and-Slab
   Summaries](https://bayesian-graphical-modelling-lab.github.io/bgms/articles/diagnostics.html)
 
@@ -78,7 +81,7 @@ association between the unconnected pair.
 When analyzing an MRF, we often want to compare competing hypotheses:
 
 - **Edge presence vs. edge absence** (conditional dependence
-  vs. independence) in one-sample designs.  
+  vs. independence) in one-sample designs.
 - **Parameter difference vs. parameter equivalence** in
   independent-sample designs.
 
@@ -91,7 +94,7 @@ Bayesian inference avoids this problem. Using **inclusion Bayes
 factors** (Huth et al., 2023; Sekulovski et al., 2024), we can quantify
 evidence in both directions:
 
-- **Evidence of edge presence** vs. **evidence of edge absence**, or  
+- **Evidence of edge presence** vs. **evidence of edge absence**, or
 - **Evidence of parameter difference** vs. **evidence of parameter
   equivalence**.
 
@@ -104,9 +107,9 @@ evidence*.
 The current developmental version can be installed with
 
 ``` r
-if (!requireNamespace("remotes")) { 
-  install.packages("remotes")   
-}   
+if (!requireNamespace("remotes")) {
+  install.packages("remotes")
+}
 remotes::install_github("Bayesian-Graphical-Modelling-Lab/bgms")
 ```
 

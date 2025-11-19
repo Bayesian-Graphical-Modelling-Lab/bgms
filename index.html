@@ -57,10 +57,12 @@
 </nav><div class="container template-home" id="container">
 <div class="row">
   <main id="main" class="col-md-9">
-<div class="section level1">
-<div class="page-header"><h1 id="bgms-">bgms <a href="https://bayesiangraphicalmodeling.com" class="external-link"><img src="inst/bgms_sticker.svg" height="200" align="right"></a>
-<a class="anchor" aria-label="anchor" href="#bgms-"></a>
+<div style="display:flex; align-items:center; justify-content:space-between;">
+<div class="page-header"><h1>
+bgms
 </h1></div>
+<p><a href="https://bayesiangraphicalmodeling.com" class="external-link"> <img src="reference/figures/bgms_sticker.svg" height="200" alt="bgms website"></a></p>
+</div>
 <p><strong>Bayesian analysis of graphical models with binary and ordinal variables</strong></p>
 <p>The <strong>bgms</strong> package implements Bayesian estimation and model comparison for <strong>ordinal Markov random fields (MRFs)</strong>, graphical models that represent networks of binary and/or ordinal variables (Marsman et al., 2025). The likelihood is approximated with a pseudolikelihood, and Markov chain Monte Carlo (MCMC) methods are used to sample from the corresponding pseudoposterior distribution of the model parameters.</p>
 <div class="section level2">
@@ -69,8 +71,7 @@
 <p>The package has two main entry points:</p>
 <ul>
 <li>
-<code><a href="reference/bgm.html">bgm()</a></code> – estimates a single network in a one-sample design.<br>
-</li>
+<code><a href="reference/bgm.html">bgm()</a></code> – estimates a single network in a one-sample design.</li>
 <li>
 <code><a href="reference/bgmCompare.html">bgmCompare()</a></code> – compares networks between groups in an independent-sample design.</li>
 </ul>
@@ -80,9 +81,9 @@
 </h2>
 <p>Both functions support <strong>effect selection</strong> with spike-and-slab priors:</p>
 <ul>
-<li><p><strong>Edges in one-sample designs</strong>:<br><code><a href="reference/bgm.html">bgm()</a></code> models the presence or absence of edges between variables. Posterior inclusion probabilities indicate the plausibility of each edge and can be converted into Bayes factors for conditional independence tests (see Marsman et al., 2025; Sekulovski et al., 2024).</p></li>
-<li><p><strong>Communities/clusters in one-sample designs</strong>:<br><code><a href="reference/bgm.html">bgm()</a></code> can also model community structure. Posterior probabilities for the number of clusters quantify the plausibility of clustering solutions and can be converted into Bayes factors (see Sekulovski et al., 2025).</p></li>
-<li><p><strong>Group differences in independent-sample designs</strong>:<br><code><a href="reference/bgmCompare.html">bgmCompare()</a></code> models differences in edge weights and category thresholds between groups. Posterior inclusion probabilities indicate the plausibility of parameter differences and can be converted into Bayes factors for tests of parameter equivalence (see Marsman et al., 2024).</p></li>
+<li><p><strong>Edges in one-sample designs</strong>: <code><a href="reference/bgm.html">bgm()</a></code> models the presence or absence of edges between variables. Posterior inclusion probabilities indicate the plausibility of each edge and can be converted into Bayes factors for conditional independence tests (see Marsman et al., 2025; Sekulovski et al., 2024).</p></li>
+<li><p><strong>Communities/clusters in one-sample designs</strong>: <code><a href="reference/bgm.html">bgm()</a></code> can also model community structure. Posterior probabilities for the number of clusters quantify the plausibility of clustering solutions and can be converted into Bayes factors (see Sekulovski et al., 2025).</p></li>
+<li><p><strong>Group differences in independent-sample designs</strong>: <code><a href="reference/bgmCompare.html">bgmCompare()</a></code> models differences in edge weights and category thresholds between groups. Posterior inclusion probabilities indicate the plausibility of parameter differences and can be converted into Bayes factors for tests of parameter equivalence (see Marsman et al., 2024).</p></li>
 </ul>
 </div>
 <div class="section level2">
@@ -90,12 +91,8 @@
 </h2>
 <p>For worked examples and tutorials, see the package vignettes:</p>
 <ul>
-<li>
-<a href="https://bayesian-graphical-modelling-lab.github.io/bgms/articles/intro.html">Getting Started</a><br>
-</li>
-<li>
-<a href="https://bayesian-graphical-modelling-lab.github.io/bgms/articles/comparison.html">Model Comparison</a><br>
-</li>
+<li><a href="https://bayesian-graphical-modelling-lab.github.io/bgms/articles/intro.html">Getting Started</a></li>
+<li><a href="https://bayesian-graphical-modelling-lab.github.io/bgms/articles/comparison.html">Model Comparison</a></li>
 <li><a href="https://bayesian-graphical-modelling-lab.github.io/bgms/articles/diagnostics.html">Diagnostics and Spike-and-Slab Summaries</a></li>
 </ul>
 <p>You can also access these directly from R with:</p>
@@ -114,8 +111,7 @@
 <p>When analyzing an MRF, we often want to compare competing hypotheses:</p>
 <ul>
 <li>
-<strong>Edge presence vs. edge absence</strong> (conditional dependence vs. independence) in one-sample designs.<br>
-</li>
+<strong>Edge presence vs. edge absence</strong> (conditional dependence vs. independence) in one-sample designs.</li>
 <li>
 <strong>Parameter difference vs. parameter equivalence</strong> in independent-sample designs.</li>
 </ul>
@@ -123,8 +119,7 @@
 <p>Bayesian inference avoids this problem. Using <strong>inclusion Bayes factors</strong> (Huth et al., 2023; Sekulovski et al., 2024), we can quantify evidence in both directions:</p>
 <ul>
 <li>
-<strong>Evidence of edge presence</strong> vs. <strong>evidence of edge absence</strong>, or<br>
-</li>
+<strong>Evidence of edge presence</strong> vs. <strong>evidence of edge absence</strong>, or</li>
 <li>
 <strong>Evidence of parameter difference</strong> vs. <strong>evidence of parameter equivalence</strong>.</li>
 </ul>
@@ -135,9 +130,9 @@
 </h2>
 <p>The current developmental version can be installed with</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"remotes"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span> </span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"remotes"</span><span class="op">)</span>   </span>
-<span><span class="op">}</span>   </span>
+<code class="sourceCode R"><span><span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"remotes"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"remotes"</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
 <span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"Bayesian-Graphical-Modelling-Lab/bgms"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
@@ -173,7 +168,6 @@ Sekulovski, N., Arena, G., Haslbeck, J. M. B., Huth, K. B. S., Friel, N., &amp; 
 </div>
 <div id="ref-SekulovskiEtAl_2024" class="csl-entry">
 Sekulovski, N., Keetelaar, S., Huth, K. B. S., Wagenmakers, E.-J., van Bork, R., van den Bergh, D., &amp; Marsman, M. (2024). Testing conditional independence in psychometric networks: An analysis of three Bayesian methods. <em>Multivariate Behavioral Research</em>, <em>59</em>, 913–933. <a href="https://doi.org/10.1080/00273171.2024.2345915" class="external-link uri">https://doi.org/10.1080/00273171.2024.2345915</a>
-</div>
 </div>
 </div>
 </div>
