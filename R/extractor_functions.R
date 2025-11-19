@@ -11,7 +11,7 @@
 #' - `extract_category_thresholds()` – Posterior mean of category thresholds
 #' - `extract_indicator_priors()` – Prior structure used for edge indicators
 #' - `extract_sbm`  – Extract stochastic block model parameters (if applicable)
- #'
+#'
 #' @name extractor_functions
 #' @title Extractor Functions for bgms Objects
 #' @keywords internal
@@ -26,8 +26,8 @@ extract_arguments = function(bgms_object) {
 #' @rdname extractor_functions
 #' @export
 extract_arguments.bgms = function(bgms_object) {
-  if (!inherits(bgms_object, "bgms")) stop("Object must be of class 'bgms'.")
-  if (is.null(bgms_object$arguments)) {
+  if(!inherits(bgms_object, "bgms")) stop("Object must be of class 'bgms'.")
+  if(is.null(bgms_object$arguments)) {
     stop("Fit object predates bgms version 0.1.3. Upgrade the model output.")
   }
   return(bgms_object$arguments)
@@ -37,8 +37,10 @@ extract_arguments.bgms = function(bgms_object) {
 #' @export
 extract_arguments.bgmCompare = function(bgms_object) {
   if(is.null(bgms_object$arguments)) {
-    stop(paste0("Extractor functions have been defined for bgms versions 0.1.3 and up but not \n",
-                "for older versions. The current fit object predates version 0.1.3."))
+    stop(paste0(
+      "Extractor functions have been defined for bgms versions 0.1.3 and up but not \n",
+      "for older versions. The current fit object predates version 0.1.3."
+    ))
   } else {
     return(bgms_object$arguments)
   }
@@ -59,20 +61,24 @@ extract_indicators = function(bgms_object) {
 extract_indicators.bgms = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
 
-  if (!isTRUE(arguments$edge_selection)) {
+  if(!isTRUE(arguments$edge_selection)) {
     stop("To access edge indicators, the model must be run with edge_selection = TRUE.")
   }
 
   # Resolve indicator samples
   indicators_list = bgms_object$raw_samples$indicator
-  if (is.null(indicators_list)) {
-    if (!is.null(bgms_object$indicator)) {
-      lifecycle::deprecate_warn("0.1.6.0", "bgms_object$indicator",
-                                "bgms_object$raw_samples$indicator")
+  if(is.null(indicators_list)) {
+    if(!is.null(bgms_object$indicator)) {
+      lifecycle::deprecate_warn(
+        "0.1.6.0", "bgms_object$indicator",
+        "bgms_object$raw_samples$indicator"
+      )
       indicators_list = bgms_object$indicator
-    } else if (!is.null(bgms_object$gamma)) {
-      lifecycle::deprecate_warn("0.1.4.2", "bgms_object$gamma",
-                                "bgms_object$raw_samples$indicator")
+    } else if(!is.null(bgms_object$gamma)) {
+      lifecycle::deprecate_warn(
+        "0.1.4.2", "bgms_object$gamma",
+        "bgms_object$raw_samples$indicator"
+      )
       indicators_list = bgms_object$gamma
     } else {
       stop("No indicator samples found in this object.")
@@ -84,7 +90,7 @@ extract_indicators.bgms = function(bgms_object) {
 
   # Assign column names if available
   param_names = bgms_object$raw_samples$parameter_names$indicator
-  if (!is.null(param_names)) {
+  if(!is.null(param_names)) {
     colnames(indicator_samples) = param_names
   }
 
@@ -96,18 +102,18 @@ extract_indicators.bgms = function(bgms_object) {
 extract_indicators.bgmCompare = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
 
-  if (!isTRUE(arguments$difference_selection)) {
+  if(!isTRUE(arguments$difference_selection)) {
     stop("To access difference indicators, the model must be run with difference_selection = TRUE.")
   }
 
   indicators_list = bgms_object$raw_samples$indicator
-  if (is.null(indicators_list)) {
+  if(is.null(indicators_list)) {
     stop("No indicator samples found in this object.")
   }
 
   indicator_samples = do.call(rbind, indicators_list)
   param_names = bgms_object$raw_samples$parameter_names$indicators
-  if (!is.null(param_names)) {
+  if(!is.null(param_names)) {
     colnames(indicator_samples) = param_names
   }
   return(indicator_samples)
@@ -130,7 +136,7 @@ extract_posterior_inclusion_probabilities = function(bgms_object) {
 extract_posterior_inclusion_probabilities.bgms = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
 
-  if (!isTRUE(arguments$edge_selection)) {
+  if(!isTRUE(arguments$edge_selection)) {
     stop("To estimate posterior inclusion probabilities, run bgm() with edge_selection = TRUE.")
   }
 
@@ -139,25 +145,27 @@ extract_posterior_inclusion_probabilities.bgms = function(bgms_object) {
 
   edge_means = NULL
   # New format: use extract_indicators()
-  if (!is.null(bgms_object$raw_samples$indicator)) {
+  if(!is.null(bgms_object$raw_samples$indicator)) {
     indicator_samples = extract_indicators(bgms_object)
     edge_means = colMeans(indicator_samples)
-  } else if (!is.null(bgms_object$indicator)) {
-    lifecycle::deprecate_warn("0.1.6.0",
-                              "bgms_object$indicator",
-                              "bgms_object$raw_samples$indicator"
+  } else if(!is.null(bgms_object$indicator)) {
+    lifecycle::deprecate_warn(
+      "0.1.6.0",
+      "bgms_object$indicator",
+      "bgms_object$raw_samples$indicator"
     )
-    if (!is.null(arguments$save) && isTRUE(arguments$save)) {
+    if(!is.null(arguments$save) && isTRUE(arguments$save)) {
       edge_means = colMeans(bgms_object$indicator)
     } else {
       edge_means = bgms_object$indicator
     }
-  } else if (!is.null(bgms_object$gamma)) {
-    lifecycle::deprecate_warn("0.1.4.2",
-                              "bgms_object$gamma",
-                              "bgms_object$raw_samples$indicator"
+  } else if(!is.null(bgms_object$gamma)) {
+    lifecycle::deprecate_warn(
+      "0.1.4.2",
+      "bgms_object$gamma",
+      "bgms_object$raw_samples$indicator"
     )
-    if (!is.null(arguments$save) && isTRUE(arguments$save)) {
+    if(!is.null(arguments$save) && isTRUE(arguments$save)) {
       edge_means = colMeans(bgms_object$gamma)
     } else {
       edge_means = bgms_object$gamma
@@ -186,45 +194,51 @@ extract_sbm = function(bgms_object) {
 #' @rdname extractor_functions
 #' @export
 extract_sbm.bgms = function(bgms_object) {
-  if (!inherits(bgms_object, "bgms")) stop("Object must be of class 'bgms'.")
+  if(!inherits(bgms_object, "bgms")) stop("Object must be of class 'bgms'.")
 
   # Checks
   ver = try(utils::packageVersion("bgms"), silent = TRUE)
-  if (inherits(ver, "try-error") || is.na(ver)) {
+  if(inherits(ver, "try-error") || is.na(ver)) {
     stop("Could not determine 'bgms' package version.")
   }
-  if (utils::compareVersion(as.character(ver), "0.1.6.0") < 0) {
-    stop(paste0("Extractor functions for the SBM prior are defined for bgms version 0.1.6.0. ",
-                "The current installed version is ", as.character(ver), "."))
+  if(utils::compareVersion(as.character(ver), "0.1.6.0") < 0) {
+    stop(paste0(
+      "Extractor functions for the SBM prior are defined for bgms version 0.1.6.0. ",
+      "The current installed version is ", as.character(ver), "."
+    ))
   }
 
   arguments = extract_arguments(bgms_object)
 
-  if (!isTRUE(arguments$edge_selection)) {
+  if(!isTRUE(arguments$edge_selection)) {
     stop("To extract SBM summaries, run bgm() with edge_selection = TRUE.")
   }
-  if (!identical(arguments$edge_prior, "Stochastic-Block")) {
-    stop(paste0("edge_prior must be 'Stochastic-Block' (got '",
-                as.character(arguments$edge_prior), "')."))
+  if(!identical(arguments$edge_prior, "Stochastic-Block")) {
+    stop(paste0(
+      "edge_prior must be 'Stochastic-Block' (got '",
+      as.character(arguments$edge_prior), "')."
+    ))
   }
 
-  posterior_num_blocks               = try(bgms_object$posterior_num_blocks,               silent = TRUE)
-  posterior_mean_allocations         = try(bgms_object$posterior_mean_allocations,         silent = TRUE)
-  posterior_mode_allocations         = try(bgms_object$posterior_mode_allocations,         silent = TRUE)
+  posterior_num_blocks = try(bgms_object$posterior_num_blocks, silent = TRUE)
+  posterior_mean_allocations = try(bgms_object$posterior_mean_allocations, silent = TRUE)
+  posterior_mode_allocations = try(bgms_object$posterior_mode_allocations, silent = TRUE)
   posterior_mean_coclustering_matrix = try(bgms_object$posterior_mean_coclustering_matrix, silent = TRUE)
 
-  if (inherits(posterior_num_blocks, "try-error"))               posterior_num_blocks               = NULL
-  if (inherits(posterior_mean_allocations, "try-error"))         posterior_mean_allocations         = NULL
-  if (inherits(posterior_mode_allocations, "try-error"))         posterior_mode_allocations         = NULL
-  if (inherits(posterior_mean_coclustering_matrix, "try-error")) posterior_mean_coclustering_matrix = NULL
+  if(inherits(posterior_num_blocks, "try-error")) posterior_num_blocks = NULL
+  if(inherits(posterior_mean_allocations, "try-error")) posterior_mean_allocations = NULL
+  if(inherits(posterior_mode_allocations, "try-error")) posterior_mode_allocations = NULL
+  if(inherits(posterior_mean_coclustering_matrix, "try-error")) posterior_mean_coclustering_matrix = NULL
 
-  if (is.null(posterior_num_blocks) ||
-      is.null(posterior_mean_allocations) ||
-      is.null(posterior_mode_allocations) ||
-      is.null(posterior_mean_coclustering_matrix)) {
-    stop(paste0("SBM summaries not found in this object. Missing one or more of: ",
-                "posterior_num_blocks, posterior_mean_allocations, ",
-                "posterior_mode_allocations, posterior_mean_coclustering_matrix."))
+  if(is.null(posterior_num_blocks) ||
+    is.null(posterior_mean_allocations) ||
+    is.null(posterior_mode_allocations) ||
+    is.null(posterior_mean_coclustering_matrix)) {
+    stop(paste0(
+      "SBM summaries not found in this object. Missing one or more of: ",
+      "posterior_num_blocks, posterior_mean_allocations, ",
+      "posterior_mode_allocations, posterior_mean_coclustering_matrix."
+    ))
   }
 
 
@@ -242,35 +256,37 @@ extract_sbm.bgms = function(bgms_object) {
 extract_posterior_inclusion_probabilities.bgmCompare = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
 
-  if (!isTRUE(arguments$difference_selection)) {
+  if(!isTRUE(arguments$difference_selection)) {
     stop("To estimate posterior inclusion probabilities, run bgmCompare() with difference_selection = TRUE.")
   }
 
-  var_names      = arguments$data_columnnames
+  var_names = arguments$data_columnnames
   num_categories = as.integer(arguments$num_categories)
-  is_ordinal     = as.logical(arguments$is_ordinal_variable)
-  num_groups     = as.integer(arguments$num_groups)
-  num_variables  = as.integer(arguments$num_variables)
-  projection     = arguments$projection   # [num_groups x (num_groups-1)]
+  is_ordinal = as.logical(arguments$is_ordinal_variable)
+  num_groups = as.integer(arguments$num_groups)
+  num_variables = as.integer(arguments$num_variables)
+  projection = arguments$projection # [num_groups x (num_groups-1)]
 
   # ---- helper: combine chains into [iter, chain, param], robust to vectors/1-col
   to_array3d = function(xlist) {
-    if (is.null(xlist)) return(NULL)
+    if(is.null(xlist)) {
+      return(NULL)
+    }
     stopifnot(length(xlist) >= 1)
     mats = lapply(xlist, function(x) {
       m = as.matrix(x)
-      if (is.null(dim(m))) m = matrix(m, ncol = 1L)
+      if(is.null(dim(m))) m = matrix(m, ncol = 1L)
       m
     })
-    niter  = nrow(mats[[1]])
+    niter = nrow(mats[[1]])
     nparam = ncol(mats[[1]])
     arr = array(NA_real_, dim = c(niter, length(mats), nparam))
-    for (c in seq_along(mats)) arr[, c, ] = mats[[c]]
+    for(c in seq_along(mats)) arr[, c, ] = mats[[c]]
     arr
   }
 
   array3d_ind = to_array3d(bgms_object$raw_samples$indicator)
-  if (!is.null(array3d_ind)) {
+  if(!is.null(array3d_ind)) {
     mean_ind = apply(array3d_ind, 3, mean)
 
     # reconstruct VxV matrix using the sampler’s interleaved order:
@@ -278,15 +294,19 @@ extract_posterior_inclusion_probabilities.bgmCompare = function(bgms_object) {
     V = num_variables
     stopifnot(length(mean_ind) == V * (V + 1L) / 2L)
 
-    ind_mat = matrix(0, nrow = V, ncol = V,
-                      dimnames = list(var_names, var_names))
+    ind_mat = matrix(0,
+      nrow = V, ncol = V,
+      dimnames = list(var_names, var_names)
+    )
     pos = 1L
-    for (i in seq_len(V)) {
+    for(i in seq_len(V)) {
       # diagonal (main indicator)
-      ind_mat[i, i] = mean_ind[pos]; pos = pos + 1L
-      if (i < V) {
-        for (j in (i + 1L):V) {
-          val = mean_ind[pos]; pos = pos + 1L
+      ind_mat[i, i] = mean_ind[pos]
+      pos = pos + 1L
+      if(i < V) {
+        for(j in (i + 1L):V) {
+          val = mean_ind[pos]
+          pos = pos + 1L
           ind_mat[i, j] = val
           ind_mat[j, i] = val
         }
@@ -312,10 +332,9 @@ extract_indicator_priors = function(bgms_object) {
 #' @export
 extract_indicator_priors.bgms = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
-  if (!isTRUE(arguments$edge_selection)) stop("No edge selection performed.")
+  if(!isTRUE(arguments$edge_selection)) stop("No edge selection performed.")
 
-  switch(
-    arguments$edge_prior,
+  switch(arguments$edge_prior,
     "Bernoulli" = list(type = "Bernoulli", prior_inclusion_probability = arguments$inclusion_probability),
     "Beta-Bernoulli" = list(type = "Beta-Bernoulli", alpha = arguments$beta_bernoulli_alpha, beta = arguments$beta_bernoulli_beta),
     "Stochastic-Block" = list(
@@ -333,13 +352,12 @@ extract_indicator_priors.bgms = function(bgms_object) {
 extract_indicator_priors.bgmCompare = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
 
-  if (!isTRUE(arguments$difference_selection)) {
+  if(!isTRUE(arguments$difference_selection)) {
     stop("The model ran without selection, so there are no indicator priors specified.")
   }
 
   return(arguments$difference_prior)
 }
-
 
 
 #' @rdname extractor_functions
@@ -359,26 +377,26 @@ extract_pairwise_interactions.bgms = function(bgms_object) {
     nchains = length(bgms_object$raw_samples$pairwise)
     mat = NULL
     mats = bgms_object$raw_samples$pairwise
-    mat  = do.call(rbind, mats)
+    mat = do.call(rbind, mats)
 
     edge_names = character()
-    for (i in 1:(num_vars - 1)) {
-      for (j in (i + 1):num_vars) {
+    for(i in 1:(num_vars - 1)) {
+      for(j in (i + 1):num_vars) {
         edge_names = c(edge_names, paste0(var_names[i], "-", var_names[j]))
       }
     }
 
     dimnames(mat) = list(paste0("iter", 1:nrow(mat)), edge_names)
-  } else if (!is.null(bgms_object$posterior_summary_pairwise)) {
+  } else if(!is.null(bgms_object$posterior_summary_pairwise)) {
     vec = bgms_object$posterior_summary_pairwise[, "mean"]
     mat = matrix(0, nrow = num_vars, ncol = num_vars)
     mat[upper.tri(mat)] = vec
     mat[lower.tri(mat)] = t(mat)[lower.tri(mat)]
     dimnames(mat) = list(var_names, var_names)
-  } else if (!is.null(bgms_object$posterior_mean_pairwise)) {
+  } else if(!is.null(bgms_object$posterior_mean_pairwise)) {
     mat = bgms_object$posterior_mean_pairwise
     dimnames(mat) = list(var_names, var_names)
-  } else if (!is.null(bgms_object$pairwise_effects)) {
+  } else if(!is.null(bgms_object$pairwise_effects)) {
     mat = bgms_object$pairwise_effects
     dimnames(mat) = list(var_names, var_names)
   } else {
@@ -395,7 +413,7 @@ extract_pairwise_interactions.bgmCompare = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
 
   if(is.null(bgms_object$raw_samples$pairwise)) {
-    stop('No raw samples found for the pairwise effects in the object.')
+    stop("No raw samples found for the pairwise effects in the object.")
   }
 
   pairwise_list = bgms_object$raw_samples$pairwise
@@ -426,7 +444,7 @@ extract_category_thresholds.bgms = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
   var_names = arguments$data_columnnames
 
-  if (!is.null(bgms_object$posterior_summary_main)) {
+  if(!is.null(bgms_object$posterior_summary_main)) {
     vec = bgms_object$posterior_summary_main[, "mean"]
     num_vars = arguments$num_variables
     variable_type = arguments$variable_type
@@ -438,8 +456,8 @@ extract_category_thresholds.bgms = function(bgms_object) {
     mat = matrix(NA_real_, nrow = num_vars, ncol = max_cats)
     rownames(mat) = var_names
     pos = 1
-    for (v in seq_len(num_vars)) {
-      if (variable_type[v] == "ordinal") {
+    for(v in seq_len(num_vars)) {
+      if(variable_type[v] == "ordinal") {
         k = num_cats[v]
         mat[v, 1:k] = vec[pos:(pos + k - 1)]
         pos = pos + k
@@ -449,18 +467,20 @@ extract_category_thresholds.bgms = function(bgms_object) {
       }
     }
     return(mat)
-  } else if (!is.null(bgms_object$posterior_mean_main)) {
+  } else if(!is.null(bgms_object$posterior_mean_main)) {
     # Deprecated intermediate format
-    lifecycle::deprecate_warn("0.1.6.0",
-                              "bgms_object$posterior_mean_main",
-                              "bgms_object$posterior_summary_main"
+    lifecycle::deprecate_warn(
+      "0.1.6.0",
+      "bgms_object$posterior_mean_main",
+      "bgms_object$posterior_summary_main"
     )
     mat = bgms_object$posterior_mean_main
-  } else if (!is.null(bgms_object$main_effects)) {
+  } else if(!is.null(bgms_object$main_effects)) {
     # Deprecated old format
-    lifecycle::deprecate_warn("0.1.4.2",
-                              "bgms_object$main_effects",
-                              "bgms_object$posterior_summary_main"
+    lifecycle::deprecate_warn(
+      "0.1.4.2",
+      "bgms_object$main_effects",
+      "bgms_object$posterior_summary_main"
     )
     mat = bgms_object$main_effects
   } else {
@@ -477,7 +497,7 @@ extract_category_thresholds.bgmCompare = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
 
   if(is.null(bgms_object$raw_samples$main)) {
-    stop('No raw samples found for the main effects in the object.')
+    stop("No raw samples found for the main effects in the object.")
   }
 
   main_list = bgms_object$raw_samples$main
@@ -508,21 +528,23 @@ extract_group_params.bgmCompare = function(bgms_object) {
   is_ordinal = as.logical(arguments$is_ordinal_variable)
   num_groups = as.integer(arguments$num_groups)
   num_variables = as.integer(arguments$num_variables)
-  projection = arguments$projection   # [num_groups x (num_groups-1)]
+  projection = arguments$projection # [num_groups x (num_groups-1)]
 
   # ---- helper: combine chains into [iter, chain, param], robust to vectors/1-col
   to_array3d = function(xlist) {
-    if (is.null(xlist)) return(NULL)
+    if(is.null(xlist)) {
+      return(NULL)
+    }
     stopifnot(length(xlist) >= 1)
     mats = lapply(xlist, function(x) {
       m = as.matrix(x)
-      if (is.null(dim(m))) m = matrix(m, ncol = 1L)
+      if(is.null(dim(m))) m = matrix(m, ncol = 1L)
       m
     })
-    niter  = nrow(mats[[1]])
+    niter = nrow(mats[[1]])
     nparam = ncol(mats[[1]])
     arr = array(NA_real_, dim = c(niter, length(mats), nparam))
-    for (c in seq_along(mats)) arr[, c, ] = mats[[c]]
+    for(c in seq_along(mats)) arr[, c, ] = mats[[c]]
     arr
   }
 
@@ -539,20 +561,22 @@ extract_group_params.bgmCompare = function(bgms_object) {
 
   # row names in sampler row order
   rownames(main_mat) = unlist(lapply(seq_len(num_variables), function(v) {
-    if (is_ordinal[v]) {
+    if(is_ordinal[v]) {
       paste0(var_names[v], "(c", seq_len(num_categories[v]), ")")
     } else {
-      c(paste0(var_names[v], "(linear)"),
-        paste0(var_names[v], "(quadratic)"))
+      c(
+        paste0(var_names[v], "(linear)"),
+        paste0(var_names[v], "(quadratic)")
+      )
     }
   }))
   colnames(main_mat) = c("baseline", paste0("diff", seq_len(num_groups - 1L)))
 
   # group-specific main effects: baseline + P %*% diffs
   main_effects_groups = matrix(NA_real_, nrow = num_main, ncol = num_groups)
-  for (r in seq_len(num_main)) {
+  for(r in seq_len(num_main)) {
     baseline = main_mat[r, 1]
-    diffs    = main_mat[r, -1, drop = TRUE]
+    diffs = main_mat[r, -1, drop = TRUE]
     main_effects_groups[r, ] = baseline + as.vector(projection %*% diffs)
   }
   rownames(main_effects_groups) = rownames(main_mat)
@@ -571,9 +595,9 @@ extract_group_params.bgmCompare = function(bgms_object) {
 
   # row names in sampler row order (upper-tri i<j)
   pair_names = character()
-  if (num_variables >= 2L) {
-    for (i in 1L:(num_variables - 1L)) {
-      for (j in (i + 1L):num_variables) {
+  if(num_variables >= 2L) {
+    for(i in 1L:(num_variables - 1L)) {
+      for(j in (i + 1L):num_variables) {
         pair_names = c(pair_names, paste0(var_names[i], "-", var_names[j]))
       }
     }
@@ -583,9 +607,9 @@ extract_group_params.bgmCompare = function(bgms_object) {
 
   # group-specific pairwise effects
   pairwise_effects_groups = matrix(NA_real_, nrow = num_pair, ncol = num_groups)
-  for (r in seq_len(num_pair)) {
+  for(r in seq_len(num_pair)) {
     baseline = pairwise_mat[r, 1]
-    diffs    = pairwise_mat[r, -1, drop = TRUE]
+    diffs = pairwise_mat[r, -1, drop = TRUE]
     pairwise_effects_groups[r, ] = baseline + as.vector(projection %*% diffs)
   }
   rownames(pairwise_effects_groups) = rownames(pairwise_mat)

@@ -107,9 +107,9 @@ This makes it possible not only to detect structure and group differences, but a
 
 ## Installation
 
-The current developmental version can be installed with
-```{r gh-installation, eval = FALSE}
-if (!requireNamespace("remotes")) {
+The current developmental version can be installed with	
+```{r gh-installation, eval = FALSE}	
+if(!requireNamespace("remotes")) {
   install.packages("remotes")
 }
 remotes::install_github("Bayesian-Graphical-Modelling-Lab/bgms")
