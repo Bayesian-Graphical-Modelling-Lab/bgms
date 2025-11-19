@@ -76,8 +76,10 @@ param_index = 1
 chains = lapply(fit$raw_samples$pairwise, function(mat) mat[, param_index])
 mcmc_obj = mcmc.list(lapply(chains, mcmc))
 
-traceplot(mcmc_obj, col = c("firebrick", "steelblue", "darkgreen", "goldenrod"), 
-          main = "Traceplot of pairwise[1]") 
+traceplot(mcmc_obj,
+  col = c("firebrick", "steelblue", "darkgreen", "goldenrod"),
+  main = "Traceplot of pairwise[1]"
+)
 ```
 
 ![](diagnostics_files/figure-html/unnamed-chunk-5-1.png)

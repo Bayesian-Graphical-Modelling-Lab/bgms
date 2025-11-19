@@ -147,13 +147,14 @@ library(qgraph)
 median_probability_network = coef(fit)$pairwise
 median_probability_network[coef(fit)$indicator < 0.5] = 0.0
 
-qgraph(median_probability_network, 
-       theme = "TeamFortress", 
-       maximum = 1,
-       fade = FALSE,
-       color = c("#f0ae0e"), vsize = 10, repulsion = .9, 
-       label.cex = 1, label.scale = "FALSE", 
-       labels = colnames(data))
+qgraph(median_probability_network,
+  theme = "TeamFortress",
+  maximum = 1,
+  fade = FALSE,
+  color = c("#f0ae0e"), vsize = 10, repulsion = .9,
+  label.cex = 1, label.scale = "FALSE",
+  labels = colnames(data)
+)
 ```
 
 ![](intro_files/figure-html/unnamed-chunk-7-1.png)

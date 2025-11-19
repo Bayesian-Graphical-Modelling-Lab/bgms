@@ -236,12 +236,13 @@ colnames(french_network) = colnames(data_french)
 rownames(french_network) = colnames(data_french)
 
 qgraph(french_network,
-       theme = "TeamFortress",
-       maximum = 1,
-       fade = FALSE,
-       color = c("#f0ae0e"), vsize = 10, repulsion = .9,
-       label.cex = 1, label.scale = "FALSE",
-       labels = colnames(data_french))
+  theme = "TeamFortress",
+  maximum = 1,
+  fade = FALSE,
+  color = c("#f0ae0e"), vsize = 10, repulsion = .9,
+  label.cex = 1, label.scale = "FALSE",
+  labels = colnames(data_french)
+)
 ```
 
 ![](comparison_files/figure-html/unnamed-chunk-7-1.png)
