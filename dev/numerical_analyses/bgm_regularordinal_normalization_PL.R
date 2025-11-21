@@ -271,12 +271,12 @@ plot_errors_jitter <- function(res, offset_for_visibility = TRUE) {
 ################################################################################
 # Run test for a moderate K and r-range.
 # Expand range (e.g. seq(-100, 80, 1)) to probe overflow/underflow limits.
-res <- compare_all_methods(K = 10, r_vals = seq(-71, 71, length.out = 1e4))
-
-# Plot and summarize
-plot_errors(res)
-summary_table <- summarize_accuracy(res)
-print(summary_table, digits = 3)
+# res <- compare_all_methods(K = 10, r_vals = seq(-71, 71, length.out = 1e4))
+#
+# # Plot and summarize
+# plot_errors(res)
+# summary_table <- summarize_accuracy(res)
+# print(summary_table, digits = 3)
 # plot_errors_jitter(res)   # optional visualization with offsets
 ################################################################################
 
@@ -373,50 +373,50 @@ compare_prob_ratios <- function(K = 5,
 # 7. Example usage: compare probability ratio stability
 ################################################################################
 
-K <- 10
-r_vals <- seq(-75, 75, length.out = 1e4)
-set.seed(123)
-m_vals <- runif(K, -1, 1)
-
-res_ratio <- compare_prob_ratios(K = K, r_vals = r_vals, m_vals = m_vals)
-
-eps <- .Machine$double.eps
-plot(res_ratio$r, pmax(res_ratio$err_direct_bound, eps),
-     type = "l", log = "y", lwd = 2, col = "red",
-     xlab = "r", ylab = "Relative error (vs MPFR reference)",
-     main = "Numerical stability of p_c ratio computations — 4 variants")
-
-lines(res_ratio$r, pmax(res_ratio$err_direct_clip, eps),  col = "blue",   lwd = 2)
-lines(res_ratio$r, pmax(res_ratio$err_preexp_bound, eps), col = "orange", lwd = 2)
-lines(res_ratio$r, pmax(res_ratio$err_preexp_clip, eps),  col = "purple", lwd = 2)
-
-abline(h = .Machine$double.eps, col = "darkgray", lty = 2)
-legend("top",
-       legend = c("Direct + Bound", "Direct + Clipped Bound",
-                  "Preexp + Bound", "Preexp + Clipped Bound"),
-       col = c("red", "blue", "orange", "purple"),
-       lwd = 2, bty = "n")
-
-abline(v = -70)
-abline(v = 70)
-
-# Summarize numeric accuracy
-summary_df <- data.frame(
-  Method = c("Direct + Bound", "Direct + Clipped Bound",
-             "Preexp + Bound", "Preexp + Clipped Bound"),
-  Mean_error = c(mean(res_ratio$err_direct_bound, na.rm = TRUE),
-                 mean(res_ratio$err_direct_clip,  na.rm = TRUE),
-                 mean(res_ratio$err_preexp_bound, na.rm = TRUE),
-                 mean(res_ratio$err_preexp_clip,  na.rm = TRUE)),
-  Median_error = c(median(res_ratio$err_direct_bound, na.rm = TRUE),
-                   median(res_ratio$err_direct_clip,  na.rm = TRUE),
-                   median(res_ratio$err_preexp_bound, na.rm = TRUE),
-                   median(res_ratio$err_preexp_clip,  na.rm = TRUE)),
-  Max_error = c(max(res_ratio$err_direct_bound, na.rm = TRUE),
-                max(res_ratio$err_direct_clip,  na.rm = TRUE),
-                max(res_ratio$err_preexp_bound, na.rm = TRUE),
-                max(res_ratio$err_preexp_clip,  na.rm = TRUE))
-)
-print(summary_df, digits = 3)
-
-
+# K <- 10
+# r_vals <- seq(-75, 75, length.out = 1e4)
+# set.seed(123)
+# m_vals <- runif(K, -1, 1)
+#
+# res_ratio <- compare_prob_ratios(K = K, r_vals = r_vals, m_vals = m_vals)
+#
+# eps <- .Machine$double.eps
+# plot(res_ratio$r, pmax(res_ratio$err_direct_bound, eps),
+#      type = "l", log = "y", lwd = 2, col = "red",
+#      xlab = "r", ylab = "Relative error (vs MPFR reference)",
+#      main = "Numerical stability of p_c ratio computations — 4 variants")
+#
+# lines(res_ratio$r, pmax(res_ratio$err_direct_clip, eps),  col = "blue",   lwd = 2)
+# lines(res_ratio$r, pmax(res_ratio$err_preexp_bound, eps), col = "orange", lwd = 2)
+# lines(res_ratio$r, pmax(res_ratio$err_preexp_clip, eps),  col = "purple", lwd = 2)
+#
+# abline(h = .Machine$double.eps, col = "darkgray", lty = 2)
+# legend("top",
+#        legend = c("Direct + Bound", "Direct + Clipped Bound",
+#                   "Preexp + Bound", "Preexp + Clipped Bound"),
+#        col = c("red", "blue", "orange", "purple"),
+#        lwd = 2, bty = "n")
+#
+# abline(v = -70)
+# abline(v = 70)
+#
+# # Summarize numeric accuracy
+# summary_df <- data.frame(
+#   Method = c("Direct + Bound", "Direct + Clipped Bound",
+#              "Preexp + Bound", "Preexp + Clipped Bound"),
+#   Mean_error = c(mean(res_ratio$err_direct_bound, na.rm = TRUE),
+#                  mean(res_ratio$err_direct_clip,  na.rm = TRUE),
+#                  mean(res_ratio$err_preexp_bound, na.rm = TRUE),
+#                  mean(res_ratio$err_preexp_clip,  na.rm = TRUE)),
+#   Median_error = c(median(res_ratio$err_direct_bound, na.rm = TRUE),
+#                    median(res_ratio$err_direct_clip,  na.rm = TRUE),
+#                    median(res_ratio$err_preexp_bound, na.rm = TRUE),
+#                    median(res_ratio$err_preexp_clip,  na.rm = TRUE)),
+#   Max_error = c(max(res_ratio$err_direct_bound, na.rm = TRUE),
+#                 max(res_ratio$err_direct_clip,  na.rm = TRUE),
+#                 max(res_ratio$err_preexp_bound, na.rm = TRUE),
+#                 max(res_ratio$err_preexp_clip,  na.rm = TRUE))
+# )
+# print(summary_df, digits = 3)
+#
+#
