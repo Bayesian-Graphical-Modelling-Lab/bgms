@@ -12,5 +12,4 @@
 ^doc$
 ^Meta$
 ^\.vscode$
-^dev$
-^dev/numerical_analyses$
+^dev/

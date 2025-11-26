@@ -365,10 +365,6 @@ compare_prob_ratios <- function(K = 5,
 }
 
 
-
-
-
-
 ################################################################################
 # 7. Example usage: compare probability ratio stability
 ################################################################################
@@ -418,5 +414,3 @@ compare_prob_ratios <- function(K = 5,
 #                 max(res_ratio$err_preexp_clip,  na.rm = TRUE))
 # )
 # print(summary_df, digits = 3)
-#
-#
