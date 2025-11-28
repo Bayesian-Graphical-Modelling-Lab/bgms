@@ -603,22 +603,10 @@ double log_pseudoposterior (
       const double lin_effect = main_effects(variable, 0);
       const double quad_effect = main_effects(variable, 1);
 
-      if(false) {
-        denom = compute_denom_blume_capel(
-          residual_score, lin_effect, quad_effect, ref, num_cats, bound
-        );
-      } else {
-        arma::mat exponents(num_persons, num_cats + 1);
-        for (int cat = 0; cat <= num_cats; cat++) {
-          int score = cat - ref;                                                  // centered category
-          double lin = lin_effect * score;                                        // precompute linear term
-          double quad = quad_effect * score * score;                              // precompute quadratic term
-          exponents.col(cat) = lin + quad + cat * residual_score;
-        }
-        bound = arma::max(exponents, /*dim=*/1);
-        exponents.each_col() -= bound;
-        denom = arma::sum(ARMA_MY_EXP(exponents), 1);
-      }
+      //This updates bound
+      denom = compute_denom_blume_capel(
+        residual_score, lin_effect, quad_effect, ref, num_cats, bound
+      );
     }
     log_pseudoposterior -= arma::accu (bound + ARMA_MY_LOG (denom));            // total contribution
   }
@@ -926,31 +914,19 @@ double compute_log_likelihood_ratio_for_variable (
     // Binary or categorical variable: linear + quadratic score
     const int ref_cat = baseline_category (variable);
 
-    if(false) {
-      denom_current = compute_denom_blume_capel(
-        residual_score + interaction * current_state, main_effects (variable, 0),
-        main_effects (variable, 1), ref_cat, num_cats, bounds
-      );
-      double log_ratio = arma::accu(ARMA_MY_LOG (denom_current) + bounds);
+    denom_current = compute_denom_blume_capel(
+      residual_score + interaction * current_state, main_effects (variable, 0),
+      main_effects (variable, 1), ref_cat, num_cats, bounds
+    );
+    double log_ratio = arma::accu(ARMA_MY_LOG (denom_current) + bounds);
 
-      denom_proposed = compute_denom_blume_capel(
-        residual_score + interaction * proposed_state, main_effects (variable, 0),
-        main_effects (variable, 1), ref_cat, num_cats, bounds
-      );
-      log_ratio -= arma::accu(ARMA_MY_LOG (denom_proposed) + bounds);
+    denom_proposed = compute_denom_blume_capel(
+      residual_score + interaction * proposed_state, main_effects (variable, 0),
+      main_effects (variable, 1), ref_cat, num_cats, bounds
+    );
+    log_ratio -= arma::accu(ARMA_MY_LOG (denom_proposed) + bounds);
 
-      return log_ratio;
-    } else {
-      for (int category = 0; category <= num_cats; category++) {
-        int score = category - ref_cat;
-        double lin_term = main_effects (variable, 0) * score;
-        double quad_term = main_effects (variable, 1) * score * score;
-        arma::vec exponent = lin_term + quad_term + score * residual_score - bounds;
-
-        denom_current += ARMA_MY_EXP (exponent + score * interaction * current_state);
-        denom_proposed += ARMA_MY_EXP (exponent + score * interaction * proposed_state);
-      }
-    }
+    return log_ratio;
   }
 
   // Accumulated log-likelihood difference across persons
