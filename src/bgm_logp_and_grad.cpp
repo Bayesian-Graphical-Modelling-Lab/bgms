@@ -87,6 +87,115 @@ inline arma::vec compute_denom_ordinal(const arma::vec& residual,
 
 
 
+// -----------------------------------------------------------------------------
+// Compute denom = Σ_c exp( θ(c) + c*r - b ), with
+//    θ(c) = lin_eff*(c-ref) + quad_eff*(c-ref)^2
+//    b    = max_c( θ(c) + c*r )   (vectorized)
+//
+// Two modes:
+//
+// FAST (preexp + power-chain):
+//    denom = Σ_c exp_theta[c] * exp(-b) * exp(r)^c
+// Used only when all exponent terms are safe:
+//    |b| ≤ EXP_BOUND,
+//    underflow_bound ≥ -EXP_BOUND,
+//    num_cats*r - b ≤ EXP_BOUND.
+// This guarantees the recursive pow-chain stays finite.
+//
+// SAFE (direct evaluation):
+//    denom = Σ_c exp(θ(c) + c*r - b)
+// Used whenever any FAST-condition fails. Slower but always stable.
+//
+// FAST gives identical results when safe, otherwise SAFE is used.
+// -----------------------------------------------------------------------------
+inline arma::vec compute_denom_blume_capel(
+    const arma::vec& residual,
+    const double lin_eff,
+    const double quad_eff,
+    const int ref,
+    const int num_cats,
+    arma::vec& b          // update in place: per-person bound b[i]
+) {
+
+  constexpr double EXP_BOUND = 709.0;
+  const arma::uword N = residual.n_elem;
+  arma::vec denom(N);
+
+  // ---- 1. Precompute theta_part[cat] and exp(theta_part) ----
+  arma::vec cat = arma::regspace<arma::vec>(0, num_cats);
+  arma::vec centered = cat - double(ref);
+  arma::vec theta = lin_eff * centered + quad_eff * arma::square(centered);
+  arma::vec exp_theta = ARMA_MY_EXP(theta);
+
+  // ---- 2. Numerical bounds [b] ----
+  b.set_size(N);
+  b.fill(theta[0]);
+  for (int c = 1; c <= num_cats; c++)
+    b = arma::max(b, theta[c] + double(c) * residual);
+
+  // ---- 3. Bounds for the FAST power chain: c*r - b ----
+  // For fixed i, c*r[i] - b[i] ranges between -b[i] and num_cats*r[i] - b[i].
+  // We need max_c (c*r[i] - b[i]) <= EXP_BOUND to avoid overflow in pow.
+  arma::vec pow_bound = double(num_cats) * residual - b;
+
+  // ---- 4. FAST BLOCK: Preexp + bounded power chain ----
+  auto do_fast_block = [&](arma::uword i0, arma::uword i1) {
+    arma::vec r = residual.rows(i0, i1);
+    arma::vec bb = b.rows(i0, i1);
+
+    arma::vec eR = ARMA_MY_EXP(r);         // exp(r)
+    arma::vec pow = ARMA_MY_EXP(-bb);       // start at cat=0 term: exp(0*r - b)
+    arma::vec d = exp_theta[0] * pow;
+
+    for (int c = 1; c <= num_cats; c++) {
+      pow %= eR;                            // exp(c*r - b)
+      d += exp_theta[c] * pow;
+    }
+    denom.rows(i0, i1) = d;
+  };
+
+  // ---- 5. SAFE BLOCK: direct exp(theta[c] + c*r - b) ----
+  auto do_safe_block = [&](arma::uword i0, arma::uword i1) {
+    arma::vec r = residual.rows(i0, i1);
+    arma::vec bb = b.rows(i0, i1);
+
+    arma::vec d(bb.n_elem, arma::fill::zeros);
+    for (int c = 0; c <= num_cats; c++) {
+      arma::vec ex = theta[c] + double(c) * r - bb;
+      d += ARMA_MY_EXP(ex);
+    }
+
+
+
+    denom.rows(i0, i1) = d;
+  };
+
+  // ---- 6. BLOCK SCAN: decide FAST vs SAFE per contiguous run ----
+  const double* bp = b.memptr();
+  const double* pp = pow_bound.memptr();
+
+  arma::uword i = 0;
+  while (i < N) {
+    const bool fast_i = (std::abs(bp[i]) <= EXP_BOUND) && (pp[i] <= EXP_BOUND);
+
+    arma::uword j = i + 1;
+    while (j < N) {
+      const bool fast_j = (std::abs(bp[j]) <= EXP_BOUND) && (pp[j] <= EXP_BOUND);
+      if (fast_j != fast_i) break;
+      ++j;
+    }
+
+    if (fast_i) do_fast_block(i, j - 1);
+    else  do_safe_block(i, j - 1);
+
+    i = j;
+  }
+
+  return denom;
+}
+
+
+
 /**
  * Compute category probabilities in a numerically stable manner.
  *
@@ -255,22 +364,29 @@ double log_pseudoposterior_main_effects_component (
     log_posterior += value * blume_capel_stats(parameter, variable);
     log_posterior += log_beta_prior(value);
 
-    // Vectorized likelihood contribution
-    // For each person, we compute the unnormalized log-likelihood denominator:
-    //   denom = sum_c exp (θ_lin * c + θ_quad * (c - ref)^2 + c * residual_score - bound)
-    // Where:
-    //   - θ_lin, θ_quad are linear and quadratic main_effects
-    //   - ref is the reference category (used for centering)
-    //   - bound = num_cats * residual_score (stabilizes exponentials)
     arma::vec residual_score = residual_matrix.col(variable);                     // rest scores for all persons
     arma::vec denom(num_persons, arma::fill::zeros);                          // initialize denominator
-    for (int cat = 0; cat <= num_cats; cat++) {
-      int score = cat - ref;                                               // centered category
-      double lin_term = linear_main_effect * score;                                      // precompute linear term
-      double quad_term = quadratic_main_effect * score * score;                    // precompute quadratic term
+    if(false) {
+      denom = compute_denom_blume_capel(
+        residual_score, linear_main_effect, quadratic_main_effect, ref,
+        num_cats, bound
+      );
+    } else {
+      // Vectorized likelihood contribution
+      // For each person, we compute the unnormalized log-likelihood denominator:
+      //   denom = sum_c exp (θ_lin * c + θ_quad * (c - ref)^2 + c * residual_score - bound)
+      // Where:
+      //   - θ_lin, θ_quad are linear and quadratic main_effects
+      //   - ref is the reference category (used for centering)
+      //   - bound = num_cats * residual_score (stabilizes exponentials)
+      for (int cat = 0; cat <= num_cats; cat++) {
+        int score = cat - ref;                                               // centered category
+        double lin_term = linear_main_effect * score;                                      // precompute linear term
+        double quad_term = quadratic_main_effect * score * score;                    // precompute quadratic term
 
-      arma::vec exponent = lin_term + quad_term + score * residual_score - bound;
-      denom += ARMA_MY_EXP (exponent);                                           // accumulate over categories
+        arma::vec exponent = lin_term + quad_term + score * residual_score - bound;
+        denom += ARMA_MY_EXP (exponent);                                           // accumulate over categories
+      }
     }
 
     // The final log-likelihood contribution is then:
@@ -334,27 +450,34 @@ double log_pseudoposterior_interactions_component (
     int num_cats = num_categories (var);
 
     // Compute rest score: contribution from other variables
-    arma::vec residual_scores = observations * pairwise_effects.col (var);
+    arma::vec residual_score = observations * pairwise_effects.col (var);
     arma::vec denominator = arma::zeros (num_observations);
-    arma::vec bound = num_cats * residual_scores;                                // numerical bound vector
+    arma::vec bound = num_cats * residual_score;                                // numerical bound vector
 
     if (is_ordinal_variable (var)) {
       arma::vec main_effect_param = main_effects.row (var).cols (0, num_cats - 1).t ();   // main_effect parameters
 
       denominator += compute_denom_ordinal(
-        residual_scores, main_effect_param, bound
+        residual_score, main_effect_param, bound
       );
 
     } else {
-
-      // Binary/categorical variable: quadratic + linear term
       const int ref = baseline_category (var);
-      for (int category = 0; category <= num_cats; category++) {
-        int score = category - ref;
-        double lin_term = main_effects (var, 0) * score;
-        double quad_term = main_effects (var, 1) * score * score;
-        arma::vec exponent = lin_term + quad_term + score * residual_scores - bound;
-        denominator += ARMA_MY_EXP (exponent);
+
+      if(false) {
+        denominator = compute_denom_blume_capel(
+          residual_score, main_effects (var, 0), main_effects (var, 1), ref,
+          num_cats, bound
+        );
+      } else {
+        // Binary/categorical variable: quadratic + linear term
+        for (int category = 0; category <= num_cats; category++) {
+          int score = category - ref;
+          double lin_term = main_effects (var, 0) * score;
+          double quad_term = main_effects (var, 1) * score * score;
+          arma::vec exponent = lin_term + quad_term + score * residual_score - bound;
+          denominator += ARMA_MY_EXP (exponent);
+        }
       }
     }
 
@@ -480,16 +603,22 @@ double log_pseudoposterior (
       const double lin_effect = main_effects(variable, 0);
       const double quad_effect = main_effects(variable, 1);
 
-      arma::mat exponents(num_persons, num_cats + 1);
-      for (int cat = 0; cat <= num_cats; cat++) {
-        int score = cat - ref;                                                  // centered category
-        double lin = lin_effect * score;                                        // precompute linear term
-        double quad = quad_effect * score * score;                              // precompute quadratic term
-        exponents.col(cat) = lin + quad + cat * residual_score;
+      if(false) {
+        denom = compute_denom_blume_capel(
+          residual_score, lin_effect, quad_effect, ref, num_cats, bound
+        );
+      } else {
+        arma::mat exponents(num_persons, num_cats + 1);
+        for (int cat = 0; cat <= num_cats; cat++) {
+          int score = cat - ref;                                                  // centered category
+          double lin = lin_effect * score;                                        // precompute linear term
+          double quad = quad_effect * score * score;                              // precompute quadratic term
+          exponents.col(cat) = lin + quad + cat * residual_score;
+        }
+        bound = arma::max(exponents, /*dim=*/1);
+        exponents.each_col() -= bound;
+        denom = arma::sum(ARMA_MY_EXP(exponents), 1);
       }
-      bound = arma::max(exponents, /*dim=*/1);
-      exponents.each_col() -= bound;
-      denom = arma::sum(ARMA_MY_EXP(exponents), 1);
     }
     log_pseudoposterior -= arma::accu (bound + ARMA_MY_LOG (denom));            // total contribution
   }
@@ -776,8 +905,8 @@ double compute_log_likelihood_ratio_for_variable (
   const int num_cats = num_categories (variable);
 
   // Compute adjusted linear predictors without the current interaction
-  arma::vec residual_scores = residual_matrix.col (variable) - interaction * current_state;
-  arma::vec bounds = residual_scores * num_cats;
+  arma::vec residual_score = residual_matrix.col (variable) - interaction * current_state;
+  arma::vec bounds = residual_score * num_cats;
 
   arma::vec denom_current = arma::zeros (num_persons);
   arma::vec denom_proposed = arma::zeros (num_persons);
@@ -787,24 +916,40 @@ double compute_log_likelihood_ratio_for_variable (
 
     // ---- main change: use safe helper ----
     denom_current += compute_denom_ordinal(
-      residual_scores + interaction * current_state, main_param, bounds
+      residual_score + interaction * current_state, main_param, bounds
     );
     denom_proposed += compute_denom_ordinal(
-      residual_scores + interaction * proposed_state, main_param, bounds
+      residual_score + interaction * proposed_state, main_param, bounds
     );
 
   } else {
     // Binary or categorical variable: linear + quadratic score
     const int ref_cat = baseline_category (variable);
 
-    for (int category = 0; category <= num_cats; category++) {
-      int score = category - ref_cat;
-      double lin_term = main_effects (variable, 0) * score;
-      double quad_term = main_effects (variable, 1) * score * score;
-      arma::vec exponent = lin_term + quad_term + score * residual_scores - bounds;
+    if(false) {
+      denom_current = compute_denom_blume_capel(
+        residual_score + interaction * current_state, main_effects (variable, 0),
+        main_effects (variable, 1), ref_cat, num_cats, bounds
+      );
+      double log_ratio = arma::accu(ARMA_MY_LOG (denom_current) + bounds);
 
-      denom_current += ARMA_MY_EXP (exponent + score * interaction * current_state);
-      denom_proposed += ARMA_MY_EXP (exponent + score * interaction * proposed_state);
+      denom_proposed = compute_denom_blume_capel(
+        residual_score + interaction * proposed_state, main_effects (variable, 0),
+        main_effects (variable, 1), ref_cat, num_cats, bounds
+      );
+      log_ratio -= arma::accu(ARMA_MY_LOG (denom_proposed) + bounds);
+
+      return log_ratio;
+    } else {
+      for (int category = 0; category <= num_cats; category++) {
+        int score = category - ref_cat;
+        double lin_term = main_effects (variable, 0) * score;
+        double quad_term = main_effects (variable, 1) * score * score;
+        arma::vec exponent = lin_term + quad_term + score * residual_score - bounds;
+
+        denom_current += ARMA_MY_EXP (exponent + score * interaction * current_state);
+        denom_proposed += ARMA_MY_EXP (exponent + score * interaction * proposed_state);
+      }
     }
   }
 
