@@ -105,7 +105,7 @@ Default: \code{"listwise"}.}
 Default: \code{"nuts"}.}
 
 \item{target_accept}{Numeric between 0 and 1. Target acceptance rate.
-Defaults: 0.44 (Metropolis), 0.65 (HMC), 0.60 (NUTS).}
+Defaults: 0.44 (Metropolis), 0.65 (HMC), 0.80 (NUTS).}
 
 \item{hmc_num_leapfrogs}{Integer. Leapfrog steps for HMC. Default: \code{100}.}
 

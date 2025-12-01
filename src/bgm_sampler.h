@@ -15,6 +15,8 @@ void run_gibbs_sampler_bgm(
     arma::mat inclusion_probability,
     const double beta_bernoulli_alpha,
     const double beta_bernoulli_beta,
+    const double beta_bernoulli_alpha_between,
+    const double beta_bernoulli_beta_between,
     const double dirichlet_alpha,
     const double lambda,
     const arma::imat& interaction_index_matrix,

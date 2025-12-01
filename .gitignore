@@ -10,3 +10,4 @@ src/*.dll
 /Meta/
 src/Makevars
 src/Makevars.win
+docs/*

@@ -112,7 +112,7 @@
 #'   \code{"adaptive-metropolis"}, \code{"hamiltonian-mc"}, or \code{"nuts"}.
 #'   Default: \code{"nuts"}.
 #' @param target_accept Numeric between 0 and 1. Target acceptance rate.
-#'   Defaults: 0.44 (Metropolis), 0.65 (HMC), 0.60 (NUTS).
+#'   Defaults: 0.44 (Metropolis), 0.65 (HMC), 0.80 (NUTS).
 #' @param hmc_num_leapfrogs Integer. Leapfrog steps for HMC. Default: \code{100}.
 #' @param nuts_max_depth Integer. Maximum tree depth for NUTS. Default: \code{10}.
 #' @param learn_mass_matrix Logical. If \code{TRUE}, adapt the mass matrix
@@ -176,127 +176,134 @@
 #'
 #' @export
 bgmCompare = function(
-    x,
-    y,
-    group_indicator,
-    difference_selection = TRUE,
-    variable_type = "ordinal",
-    baseline_category,
-    difference_scale = 1,
-    difference_prior = c("Bernoulli", "Beta-Bernoulli"),
-    difference_probability = 0.5,
-    beta_bernoulli_alpha = 1,
-    beta_bernoulli_beta = 1,
-    pairwise_scale = 2.5,
-    main_alpha = 0.5,
-    main_beta = 0.5,
-    iter = 1e3,
-    warmup = 1e3,
-    na_action = c("listwise", "impute"),
-    update_method = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
-    target_accept,
-    hmc_num_leapfrogs = 100,
-    nuts_max_depth = 10,
-    learn_mass_matrix = FALSE,
-    chains = 4,
-    cores = parallel::detectCores(),
-    display_progress =  c("per-chain", "total", "none"),
-    seed = NULL,
-    main_difference_model,
-    reference_category,
-    main_difference_scale,
-    pairwise_difference_scale,
-    pairwise_difference_prior,
-    main_difference_prior,
-    pairwise_difference_probability,
-    main_difference_probability,
-    pairwise_beta_bernoulli_alpha,
-    pairwise_beta_bernoulli_beta,
-    main_beta_bernoulli_alpha,
-    main_beta_bernoulli_beta,
-    interaction_scale,
-    threshold_alpha,
-    threshold_beta,
-    burnin,
-    save
+  x,
+  y,
+  group_indicator,
+  difference_selection = TRUE,
+  variable_type = "ordinal",
+  baseline_category,
+  difference_scale = 1,
+  difference_prior = c("Bernoulli", "Beta-Bernoulli"),
+  difference_probability = 0.5,
+  beta_bernoulli_alpha = 1,
+  beta_bernoulli_beta = 1,
+  pairwise_scale = 2.5,
+  main_alpha = 0.5,
+  main_beta = 0.5,
+  iter = 1e3,
+  warmup = 1e3,
+  na_action = c("listwise", "impute"),
+  update_method = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
+  target_accept,
+  hmc_num_leapfrogs = 100,
+  nuts_max_depth = 10,
+  learn_mass_matrix = FALSE,
+  chains = 4,
+  cores = parallel::detectCores(),
+  display_progress = c("per-chain", "total", "none"),
+  seed = NULL,
+  main_difference_model,
+  reference_category,
+  main_difference_scale,
+  pairwise_difference_scale,
+  pairwise_difference_prior,
+  main_difference_prior,
+  pairwise_difference_probability,
+  main_difference_probability,
+  pairwise_beta_bernoulli_alpha,
+  pairwise_beta_bernoulli_beta,
+  main_beta_bernoulli_alpha,
+  main_beta_bernoulli_beta,
+  interaction_scale,
+  threshold_alpha,
+  threshold_beta,
+  burnin,
+  save
 ) {
-  if (hasArg(main_difference_model)) {
+  if(hasArg(main_difference_model)) {
     lifecycle::deprecate_warn("0.1.6.0", "bgmCompare(main_difference_model =)")
   }
 
-  if (hasArg(reference_category)) {
+  if(hasArg(reference_category)) {
     lifecycle::deprecate_warn("0.1.6.0", "bgmCompare(reference_category =)", "bgmCompare(baseline_category =)")
-    if (!hasArg(baseline_category)) baseline_category = reference_category
+    if(!hasArg(baseline_category)) baseline_category = reference_category
   }
 
-  if (hasArg(pairwise_difference_scale) || hasArg(main_difference_scale)) {
-    lifecycle::deprecate_warn("0.1.6.0", "bgmCompare(pairwise_difference_scale =, main_difference_scale =)",
-                              "bgmCompare(difference_scale =)")
-    if (!hasArg(difference_scale)) {
-      difference_scale = if (!missing(pairwise_difference_scale)) pairwise_difference_scale else main_difference_scale
-    }
-  }
-
-  if (hasArg(pairwise_difference_prior) || hasArg(main_difference_prior)) {
-    lifecycle::deprecate_warn("0.1.6.0",
-                              "bgmCompare(pairwise_difference_prior =, main_difference_prior =)",
-                              "bgmCompare(difference_prior =)"
+  if(hasArg(pairwise_difference_scale) || hasArg(main_difference_scale)) {
+    lifecycle::deprecate_warn(
+      "0.1.6.0", "bgmCompare(pairwise_difference_scale =, main_difference_scale =)",
+      "bgmCompare(difference_scale =)"
     )
-    if (!hasArg(difference_prior)) {
-      difference_prior = if (!missing(pairwise_difference_prior)) pairwise_difference_prior else main_difference_prior
+    if(!hasArg(difference_scale)) {
+      difference_scale = if(!missing(pairwise_difference_scale)) pairwise_difference_scale else main_difference_scale
     }
   }
 
-  if (hasArg(pairwise_difference_probability) || hasArg(main_difference_probability)) {
-    lifecycle::deprecate_warn("0.1.6.0",
-                              "bgmCompare(pairwise_difference_probability =, main_difference_probability =)",
-                              "bgmCompare(difference_probability =)"
+  if(hasArg(pairwise_difference_prior) || hasArg(main_difference_prior)) {
+    lifecycle::deprecate_warn(
+      "0.1.6.0",
+      "bgmCompare(pairwise_difference_prior =, main_difference_prior =)",
+      "bgmCompare(difference_prior =)"
     )
-    if (!hasArg(difference_probability)) {
-      difference_probability = if (!missing(pairwise_difference_probability)) pairwise_difference_probability else main_difference_probability
+    if(!hasArg(difference_prior)) {
+      difference_prior = if(!missing(pairwise_difference_prior)) pairwise_difference_prior else main_difference_prior
     }
   }
 
-  if (hasArg(pairwise_beta_bernoulli_alpha) || hasArg(main_beta_bernoulli_alpha)) {
-    lifecycle::deprecate_warn("0.1.6.0",
-                              "bgmCompare(pairwise_beta_bernoulli_alpha =, main_beta_bernoulli_alpha =)",
-                              "bgmCompare(beta_bernoulli_alpha =)"
+  if(hasArg(pairwise_difference_probability) || hasArg(main_difference_probability)) {
+    lifecycle::deprecate_warn(
+      "0.1.6.0",
+      "bgmCompare(pairwise_difference_probability =, main_difference_probability =)",
+      "bgmCompare(difference_probability =)"
     )
-    if (!hasArg(beta_bernoulli_alpha)) {
-      beta_bernoulli_alpha = if (!missing(pairwise_beta_bernoulli_alpha)) pairwise_beta_bernoulli_alpha else main_beta_bernoulli_alpha
+    if(!hasArg(difference_probability)) {
+      difference_probability = if(!missing(pairwise_difference_probability)) pairwise_difference_probability else main_difference_probability
     }
   }
 
-  if (hasArg(pairwise_beta_bernoulli_beta) || hasArg(main_beta_bernoulli_beta)) {
-    lifecycle::deprecate_warn("0.1.6.0",
-                              "bgmCompare(pairwise_beta_bernoulli_beta =, main_beta_bernoulli_beta =)",
-                              "bgmCompare(beta_bernoulli_beta =)"
+  if(hasArg(pairwise_beta_bernoulli_alpha) || hasArg(main_beta_bernoulli_alpha)) {
+    lifecycle::deprecate_warn(
+      "0.1.6.0",
+      "bgmCompare(pairwise_beta_bernoulli_alpha =, main_beta_bernoulli_alpha =)",
+      "bgmCompare(beta_bernoulli_alpha =)"
     )
-    if (!hasArg(beta_bernoulli_beta)) {
-      beta_bernoulli_beta = if (!missing(pairwise_beta_bernoulli_beta)) pairwise_beta_bernoulli_beta else main_beta_bernoulli_beta
+    if(!hasArg(beta_bernoulli_alpha)) {
+      beta_bernoulli_alpha = if(!missing(pairwise_beta_bernoulli_alpha)) pairwise_beta_bernoulli_alpha else main_beta_bernoulli_alpha
     }
   }
 
-  if (hasArg(interaction_scale)) {
+  if(hasArg(pairwise_beta_bernoulli_beta) || hasArg(main_beta_bernoulli_beta)) {
+    lifecycle::deprecate_warn(
+      "0.1.6.0",
+      "bgmCompare(pairwise_beta_bernoulli_beta =, main_beta_bernoulli_beta =)",
+      "bgmCompare(beta_bernoulli_beta =)"
+    )
+    if(!hasArg(beta_bernoulli_beta)) {
+      beta_bernoulli_beta = if(!missing(pairwise_beta_bernoulli_beta)) pairwise_beta_bernoulli_beta else main_beta_bernoulli_beta
+    }
+  }
+
+  if(hasArg(interaction_scale)) {
     lifecycle::deprecate_warn("0.1.6.0", "bgmCompare(interaction_scale =)", "bgmCompare(pairwise_scale =)")
-    if (!hasArg(pairwise_scale)) pairwise_scale = interaction_scale
+    if(!hasArg(pairwise_scale)) pairwise_scale = interaction_scale
   }
 
-  if (hasArg(threshold_alpha) || hasArg(threshold_beta)) {
-    lifecycle::deprecate_warn("0.1.6.0",
-                              "bgmCompare(threshold_alpha =, threshold_beta =)",
-                              "bgmCompare(main_alpha =, main_beta =)" # = double-check if these are still part of bgmCompare
+  if(hasArg(threshold_alpha) || hasArg(threshold_beta)) {
+    lifecycle::deprecate_warn(
+      "0.1.6.0",
+      "bgmCompare(threshold_alpha =, threshold_beta =)",
+      "bgmCompare(main_alpha =, main_beta =)" # = double-check if these are still part of bgmCompare
     )
-    if (!hasArg(main_alpha)) main_alpha = threshold_alpha
-    if (!hasArg(main_beta)) main_beta = threshold_beta
+    if(!hasArg(main_alpha)) main_alpha = threshold_alpha
+    if(!hasArg(main_beta)) main_beta = threshold_beta
   }
 
-  if (hasArg(burnin)) {
+  if(hasArg(burnin)) {
     lifecycle::deprecate_warn("0.1.6.0", "bgmCompare(burnin =)", "bgmCompare(warmup =)")
-    if (!hasArg(warmup)) warmup = burnin
+    if(!hasArg(warmup)) warmup = burnin
   }
 
-  if (hasArg(save)) {
+  if(hasArg(save)) {
     lifecycle::deprecate_warn("0.1.6.0", "bgmCompare(save =)")
   }
 
@@ -314,33 +321,38 @@ bgmCompare = function(
     } else if(update_method == "hamiltonian-mc") {
       target_accept = 0.65
     } else if(update_method == "nuts") {
-      target_accept = 0.60
+      target_accept = 0.80
     }
   }
 
   # Check and preprocess data
   x = data_check(x, "x")
-  if (hasArg(y)) {
+  if(hasArg(y)) {
     y = data_check(y, "y")
-    if (ncol(x) != ncol(y)) stop("x and y must have the same number of columns.")
+    if(ncol(x) != ncol(y)) stop("x and y must have the same number of columns.")
   }
 
-  if(!hasArg(y) & !hasArg(group_indicator))
-    stop(paste0("For multi-group designs, the bgmCompare function requires input for\n",
-                "either y (group 2 data) or group_indicator (group indicator)."))
+  if(!hasArg(y) & !hasArg(group_indicator)) {
+    stop(paste0(
+      "For multi-group designs, the bgmCompare function requires input for\n",
+      "either y (group 2 data) or group_indicator (group indicator)."
+    ))
+  }
 
   # Validate group indicators
-  if (!hasArg(y) && hasArg(group_indicator)) {
+  if(!hasArg(y) && hasArg(group_indicator)) {
     group_indicator = as.vector(group_indicator)
-    if (anyNA(group_indicator)) stop("group_indicator cannot contain missing values.")
-    if (length(group_indicator) != nrow(x)) stop("Length of group_indicator must match number of rows in x.")
+    if(anyNA(group_indicator)) stop("group_indicator cannot contain missing values.")
+    if(length(group_indicator) != nrow(x)) stop("Length of group_indicator must match number of rows in x.")
   }
 
   # Model and preprocessing
-  if(!hasArg(y))
+  if(!hasArg(y)) {
     y = NULL
-  if(!hasArg(group_indicator))
+  }
+  if(!hasArg(group_indicator)) {
     group_indicator = NULL
+  }
 
   model = check_compare_model(
     x = x, y = y, group_indicator = group_indicator, difference_selection = difference_selection,
@@ -366,7 +378,7 @@ bgmCompare = function(
   # Check na_action
   na_action_input = na_action
   na_action = try(match.arg(na_action), silent = TRUE)
-  if (inherits(na_action, "try-error")) {
+  if(inherits(na_action, "try-error")) {
     stop(sprintf("Invalid value for `na_action`. Expected 'listwise' or 'impute', got: %s", na_action_input))
   }
 
@@ -417,7 +429,7 @@ bgmCompare = function(
   counter = 0
   for(variable1 in 1:(num_variables - 1)) {
     for(variable2 in (variable1 + 1):num_variables) {
-      counter =  counter + 1
+      counter = counter + 1
       Index[counter, ] = c(counter, variable1 - 1, variable2 - 1)
     }
   }
@@ -425,13 +437,13 @@ bgmCompare = function(
   # Gibbs sampling
   # Prepare indices for main and pairwise effects
   main_effect_indices = matrix(NA, nrow = num_variables, ncol = 2)
-  for (variable in seq_len(num_variables)) {
-    if (variable > 1) {
+  for(variable in seq_len(num_variables)) {
+    if(variable > 1) {
       main_effect_indices[variable, 1] = 1 + main_effect_indices[variable - 1, 2]
     } else {
-      main_effect_indices[variable, 1] = 0  # C++ starts at zero
+      main_effect_indices[variable, 1] = 0 # C++ starts at zero
     }
-    if (ordinal_variable[variable]) {
+    if(ordinal_variable[variable]) {
       main_effect_indices[variable, 2] = main_effect_indices[variable, 1] + num_categories[variable] - 1
     } else {
       main_effect_indices[variable, 2] = main_effect_indices[variable, 1] + 1
@@ -440,11 +452,11 @@ bgmCompare = function(
 
   pairwise_effect_indices = matrix(NA, nrow = num_variables, ncol = num_variables)
   tel = 0
-  for (v1 in seq_len(num_variables - 1)) {
-    for (v2 in seq((v1 + 1), num_variables)) {
+  for(v1 in seq_len(num_variables - 1)) {
+    for(v2 in seq((v1 + 1), num_variables)) {
       pairwise_effect_indices[v1, v2] = tel
       pairwise_effect_indices[v2, v1] = tel
-      tel = tel + 1  # C++ starts at zero
+      tel = tel + 1 # C++ starts at zero
     }
   }
 
@@ -455,27 +467,27 @@ bgmCompare = function(
   # Align observations with sorted group
   observations = x
   sorted_group = sort(group)
-  for (g in unique(group)) {
+  for(g in unique(group)) {
     observations[which(sorted_group == g), ] = x[which(group == g), ]
-    group_indices[g, 1] = min(which(sorted_group == g)) - 1  # C++ starts at zero
-    group_indices[g, 2] = max(which(sorted_group == g)) - 1  # C++ starts at zero
+    group_indices[g, 1] = min(which(sorted_group == g)) - 1 # C++ starts at zero
+    group_indices[g, 2] = max(which(sorted_group == g)) - 1 # C++ starts at zero
   }
 
   # Compute projection matrix for group differences
   one = matrix(1, nrow = num_groups, ncol = num_groups)
   V = diag(num_groups) - one / num_groups
   projection = eigen(V)$vectors[, -num_groups]
-  if (num_groups == 2) {
+  if(num_groups == 2) {
     projection = matrix(projection, ncol = 1) / sqrt(2)
   }
 
-  #Setting the seed
-  if (missing(seed) || is.null(seed)) {
+  # Setting the seed
+  if(missing(seed) || is.null(seed)) {
     # Draw a random seed if none provided
     seed = sample.int(.Machine$integer.max, 1)
   }
 
-  if (!is.numeric(seed) || length(seed) != 1 || is.na(seed) || seed < 0) {
+  if(!is.numeric(seed) || length(seed) != 1 || is.na(seed) || seed < 0) {
     stop("Argument 'seed' must be a single non-negative integer.")
   }
 
@@ -518,7 +530,7 @@ bgmCompare = function(
   )
 
   userInterrupt = any(vapply(out, FUN = `[[`, FUN.VALUE = logical(1L), "userInterrupt"))
-  if (userInterrupt) {
+  if(userInterrupt) {
     warning("Stopped sampling after user interrupt, results are likely uninterpretable.")
     output <- tryCatch(
       prepare_output_bgmCompare(
@@ -527,15 +539,17 @@ bgmCompare = function(
         num_categories = num_categories,
         is_ordinal_variable = ordinal_variable,
         num_groups = num_groups,
+        group = sorted_group,
         iter = iter,
         warmup = warmup,
         main_effect_indices = main_effect_indices,
         pairwise_effect_indices = pairwise_effect_indices,
-        data_columnnames = if (is.null(colnames(x))) paste0("Variable ", seq_len(ncol(x))) else colnames(x),
+        data_columnnames = if(is.null(colnames(x))) paste0("Variable ", seq_len(ncol(x))) else colnames(x),
         difference_selection = difference_selection,
         difference_prior = difference_prior,
         difference_selection_alpha = beta_bernoulli_alpha,
         difference_selection_beta = beta_bernoulli_beta,
+        inclusion_probability = model$inclusion_probability_difference,
         pairwise_scale = pairwise_scale,
         difference_scale = difference_scale,
         update_method = update_method,
@@ -563,15 +577,17 @@ bgmCompare = function(
     num_categories = num_categories,
     is_ordinal_variable = ordinal_variable,
     num_groups = num_groups,
+    group = sorted_group,
     iter = iter,
     warmup = warmup,
     main_effect_indices = main_effect_indices,
     pairwise_effect_indices = pairwise_effect_indices,
-    data_columnnames = if (is.null(colnames(x))) paste0("Variable ", seq_len(ncol(x))) else colnames(x),
+    data_columnnames = if(is.null(colnames(x))) paste0("Variable ", seq_len(ncol(x))) else colnames(x),
     difference_selection = difference_selection,
     difference_prior = difference_prior,
     difference_selection_alpha = beta_bernoulli_alpha,
     difference_selection_beta = beta_bernoulli_beta,
+    inclusion_probability = model$inclusion_probability_difference,
     pairwise_scale = pairwise_scale,
     difference_scale = difference_scale,
     update_method = update_method,
@@ -582,7 +598,7 @@ bgmCompare = function(
     num_chains = chains, projection = projection
   )
 
-  if (update_method == "nuts") {
+  if(update_method == "nuts") {
     nuts_diag = summarize_nuts_diagnostics(out, nuts_max_depth = nuts_max_depth)
     output$nuts_diag = nuts_diag
   }

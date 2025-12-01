@@ -3,7 +3,7 @@ output: github_document
 bibliography: inst/REFERENCES.bib
 csl: inst/apa.csl
 ---
-  
+
 ```{r, echo = FALSE, message=F}
 knitr::opts_chunk$set(
   collapse = TRUE,
@@ -11,11 +11,18 @@ knitr::opts_chunk$set(
   fig.path = "man/figures/README-",
   dev = "png",
   dpi = 200,
-  fig.align = "center",
   knitr::opts_chunk$set(comment = NA)
 )
 library(bgms)
 ```
+
+<!-- # bgms <a href="https://bayesiangraphicalmodeling.com"><img src="man/figures/bgms_sticker.svg" height="200" align="right" alt="bgms website" /></a> -->
+<div style="display:flex; align-items:center; justify-content:space-between;">
+  <h1>bgms</h1>
+  <a href="https://bayesiangraphicalmodeling.com">
+    <img src="man/figures/bgms_sticker.svg" height="200" alt="bgms website" />
+  </a>
+</div>
 
 <!-- badges: start -->
 [![CRAN Version](https://www.r-pkg.org/badges/version/bgms)](https://cran.r-project.org/package=bgms)
@@ -23,7 +30,6 @@ library(bgms)
 [![Total](https://cranlogs.r-pkg.org/badges/grand-total/bgms)](https://cran.r-project.org/package=bgms)
 <!-- badges: end -->
 
-# bgms <a href="https://bayesiangraphicalmodeling.com"><img src="inst/bgms_sticker.svg" height="200" align="right" /></a>
 
 **Bayesian analysis of graphical models with binary and ordinal variables**
 
@@ -38,7 +44,7 @@ distribution of the model parameters.
 
 The package has two main entry points:
 
-- `bgm()` – estimates a single network in a one-sample design.  
+- `bgm()` – estimates a single network in a one-sample design.
 - `bgmCompare()` – compares networks between groups in an independent-sample
   design.
 
@@ -46,29 +52,29 @@ The package has two main entry points:
 
 Both functions support **effect selection** with spike-and-slab priors:
 
-- **Edges in one-sample designs**:  
+- **Edges in one-sample designs**:
   `bgm()` models the presence or absence of edges between variables. Posterior
   inclusion probabilities indicate the plausibility of each edge and can be
   converted into Bayes factors for conditional independence tests [see @MarsmanVandenBerghHaslbeck_2024; @SekulovskiEtAl_2024].
 
-- **Communities/clusters in one-sample designs**:  
+- **Communities/clusters in one-sample designs**:
   `bgm()` can also model community structure. Posterior probabilities for the
   number of clusters quantify the plausibility of clustering solutions and can
   be converted into Bayes factors [see @SekulovskiEtAl_2025].
 
-- **Group differences in independent-sample designs**:  
+- **Group differences in independent-sample designs**:
   `bgmCompare()` models differences in edge weights and category thresholds
   between groups. Posterior inclusion probabilities indicate the plausibility
   of parameter differences and can be converted into Bayes factors for tests of
   parameter equivalence [see @MarsmanWaldorpSekulovskiHaslbeck_2024].
-  
+
 ## Learn more
 
 For worked examples and tutorials, see the package vignettes:
 
-- [Getting Started](https://bayesian-graphical-modelling-lab.github.io/bgms/articles/intro.html)  
-- [Model Comparison](https://bayesian-graphical-modelling-lab.github.io/bgms/articles/comparison.html)  
-- [Diagnostics and Spike-and-Slab Summaries](https://bayesian-graphical-modelling-lab.github.io/bgms/articles/diagnostics.html)  
+- [Getting Started](https://bayesian-graphical-modelling-lab.github.io/bgms/articles/intro.html)
+- [Model Comparison](https://bayesian-graphical-modelling-lab.github.io/bgms/articles/comparison.html)
+- [Diagnostics and Spike-and-Slab Summaries](https://bayesian-graphical-modelling-lab.github.io/bgms/articles/diagnostics.html)
 
 You can also access these directly from R with:
 
@@ -79,7 +85,7 @@ browseVignettes("bgms")
 
 ## Why use Markov Random Fields?
 
-Graphical models or networks have become central in recent psychological and psychometric research [@RobinaughEtAl_2020; @MarsmanRhemtulla_2022_SIintro; @ContrerasEtAl_2019]. Most are **Markov random field (MRF)** models, where the graph structure reflects partial associations between variables [@KindermannSnell1980].  
+Graphical models or networks have become central in recent psychological and psychometric research [@RobinaughEtAl_2020; @MarsmanRhemtulla_2022_SIintro; @ContrerasEtAl_2019]. Most are **Markov random field (MRF)** models, where the graph structure reflects partial associations between variables [@KindermannSnell1980].
 
 In an MRF, a missing edge between two variables implies **conditional independence** given the rest of the network [@Lauritzen2004]. In other words, the remaining variables fully explain away any potential association between the unconnected pair.
 
@@ -87,15 +93,15 @@ In an MRF, a missing edge between two variables implies **conditional independen
 
 When analyzing an MRF, we often want to compare competing hypotheses:
 
-- **Edge presence vs. edge absence** (conditional dependence vs. independence) in one-sample designs.  
+- **Edge presence vs. edge absence** (conditional dependence vs. independence) in one-sample designs.
 - **Parameter difference vs. parameter equivalence** in independent-sample designs.
 
 Frequentist approaches are limited in such comparisons: they can reject a null hypothesis, but they cannot provide evidence *for* it. As a result, when an edge or difference is excluded, it remains unclear whether this reflects true absence or simply insufficient power.
 
 Bayesian inference avoids this problem. Using **inclusion Bayes factors** [@HuthEtAl_2023_intro; @SekulovskiEtAl_2024], we can quantify evidence in both directions:
 
-- **Evidence of edge presence** vs. **evidence of edge absence**, or  
-- **Evidence of parameter difference** vs. **evidence of parameter equivalence**.  
+- **Evidence of edge presence** vs. **evidence of edge absence**, or
+- **Evidence of parameter difference** vs. **evidence of parameter equivalence**.
 
 This makes it possible not only to detect structure and group differences, but also to conclude when there is an *absence of evidence*.
 
@@ -103,9 +109,9 @@ This makes it possible not only to detect structure and group differences, but a
 
 The current developmental version can be installed with	
 ```{r gh-installation, eval = FALSE}	
-if (!requireNamespace("remotes")) {	
-  install.packages("remotes")	
-}	
+if(!requireNamespace("remotes")) {
+  install.packages("remotes")
+}
 remotes::install_github("Bayesian-Graphical-Modelling-Lab/bgms")
 ```
 

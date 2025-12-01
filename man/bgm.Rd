@@ -18,6 +18,8 @@ bgm(
   inclusion_probability = 0.5,
   beta_bernoulli_alpha = 1,
   beta_bernoulli_beta = 1,
+  beta_bernoulli_alpha_between = 1,
+  beta_bernoulli_beta_between = 1,
   dirichlet_alpha = 1,
   lambda = 1,
   na_action = c("listwise", "impute"),
@@ -81,8 +83,14 @@ of each edge (used with the Bernoulli prior). Default: \code{0.5}.}
 
 \item{beta_bernoulli_alpha, beta_bernoulli_beta}{Double. Shape parameters
 for the beta distribution in the Beta–Bernoulli and the Stochastic-Block
-priors. Must be positive. Defaults: \code{beta_bernoulli_alpha = 1} and
-\code{beta_bernoulli_beta = 1}.}
+priors. Must be positive. For the Stochastic-Block prior these are the shape
+parameters for the within-cluster edge inclusion probabilities.
+Defaults: \code{beta_bernoulli_alpha = 1} and \code{beta_bernoulli_beta = 1}.}
+
+\item{beta_bernoulli_alpha_between, beta_bernoulli_beta_between}{Double.
+Shape parameters for the between-cluster edge inclusion probabilities in the
+Stochastic-Block prior. Must be positive.
+Default: \code{beta_bernoulli_alpha_between = 1} and \code{beta_bernoulli_beta_between = 1}}
 
 \item{dirichlet_alpha}{Double. Concentration parameter of the Dirichlet
 prior on block assignments (used with the Stochastic Block model).
@@ -110,7 +118,7 @@ Default: \code{"nuts"}.}
 \item{target_accept}{Numeric between 0 and 1. Target acceptance rate for
 the sampler. Defaults are set automatically if not supplied:
 \code{0.44} for adaptive Metropolis, \code{0.65} for HMC,
-and \code{0.60} for NUTS.}
+and \code{0.80} for NUTS.}
 
 \item{hmc_num_leapfrogs}{Integer. Number of leapfrog steps for Hamiltonian
 Monte Carlo. Must be positive. Default: \code{100}.}
