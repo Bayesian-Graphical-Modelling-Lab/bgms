@@ -42,7 +42,7 @@ summarize_nuts_diagnostics <- function(out, nuts_max_depth = 10, verbose = TRUE)
         100 * divergence_rate,
         total_divergences,
         nrow(divergent_mat) * ncol(divergent_mat)
-      ), "Consider increasing the target acceptance rate.")
+      ), "Consider increasing the target acceptance rate or change to update_method = ``adaptive-metropolis''.")
     } else if (divergence_rate > 0) {
       message(sprintf(
         "Note: %.3f%% of transitions ended with a divergence (%d of %d).\n",
@@ -89,7 +89,7 @@ summarize_nuts_diagnostics <- function(out, nuts_max_depth = 10, verbose = TRUE)
         paste(low_ebfmi_chains, collapse = ", ")
       ),
       "This suggests inefficient momentum resampling in those chains.\n",
-      "Sampling efficiency may be reduced. Consider longer chains or checking convergence diagnostics.")
+      "Sampling efficiency may be reduced. Consider longer chains and check convergence diagnostics.")
     }
 
   }
