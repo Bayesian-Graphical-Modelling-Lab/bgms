@@ -281,6 +281,126 @@ inline arma::mat compute_probs_ordinal(const arma::vec& main_param,
 
 
 
+// -----------------------------------------------------------------------------
+// Blume–Capel probabilities, numerically stable via FAST/SAFE split.
+//
+// Model:
+//   θ(c) = lin_eff * (c - ref) + quad_eff * (c - ref)^2,  c = 0..num_cats
+//   exps_i(c) = θ(c) + c * r_i
+//   b_i       = max_c exps_i(c)
+//
+// Probabilities:
+//   p_i(c) ∝ exp( exps_i(c) - b_i )
+//
+// FAST (preexp + power-chain, same bounds as compute_denom_blume_capel):
+//   used when |b_i| ≤ EXP_BOUND and pow_bound_i = num_cats * r_i - b_i ≤ EXP_BOUND
+//
+// SAFE (direct):
+//   used otherwise: direct exp(θ(c) + c * r_i - b_i)
+//
+// Under these conditions, denom is finite and > 0, so no one-hot fallback.
+// -----------------------------------------------------------------------------
+inline arma::mat compute_probs_blume_capel(const arma::vec& residual,
+                                           const double lin_eff,
+                                           const double quad_eff,
+                                           const int ref,
+                                           const int num_cats,
+                                           arma::vec& b)   // updated in place
+{
+  constexpr double EXP_BOUND = 709.0;
+
+  const arma::uword N = residual.n_elem;
+  arma::mat probs(N, num_cats + 1, arma::fill::none);
+
+  // 1. Precompute θ(c) and exp(θ(c))
+  arma::vec cat = arma::regspace<arma::vec>(0, num_cats);
+  arma::vec centered = cat - double(ref);
+  arma::vec theta = lin_eff * centered + quad_eff * arma::square(centered);
+  arma::vec exp_theta = ARMA_MY_EXP(theta);
+
+  // 2. Compute bounds b[i] = max_c (θ(c) + c * r_i)
+  b.set_size(N);
+  b.fill(theta[0]);
+  for (int c = 1; c <= num_cats; ++c) {
+    b = arma::max(b, theta[c] + double(c) * residual);
+  }
+
+  // 3. Bound for the power chain: max_c (c * r_i - b_i) = num_cats * r_i - b_i
+  arma::vec pow_bound = double(num_cats) * residual - b;
+
+  // FAST block: preexp + bounded power chain
+  auto do_fast_block = [&](arma::uword i0, arma::uword i1) {
+    auto P = probs.rows(i0, i1);
+    arma::vec r = residual.rows(i0, i1);
+    arma::vec bb = b.rows(i0, i1);
+    const arma::uword B = bb.n_elem;
+
+    arma::vec eR = ARMA_MY_EXP(r);        // exp(r_i)
+    arma::vec pow = ARMA_MY_EXP(-bb);      // exp(0 * r_i - b_i)
+    arma::vec denom(B, arma::fill::zeros);
+
+    // c = 0
+    arma::vec col0 = exp_theta[0] * pow;
+    P.col(0) = col0;
+    denom += col0;
+
+    // c = 1..num_cats
+    for (int c = 1; c <= num_cats; ++c) {
+      pow %= eR;                           // exp(c * r_i - b_i)
+      arma::vec col = exp_theta[c] * pow;
+      P.col(c) = col;
+      denom += col;
+    }
+
+    P.each_col() /= denom;
+  };
+
+  // SAFE block: direct exp(θ(c) + c * r_i - b_i)
+  auto do_safe_block = [&](arma::uword i0, arma::uword i1) {
+    auto P = probs.rows(i0, i1);
+    arma::vec r = residual.rows(i0, i1);
+    arma::vec bb = b.rows(i0, i1);
+    const arma::uword B = bb.n_elem;
+
+    arma::vec denom(B, arma::fill::zeros);
+
+    for (int c = 0; c <= num_cats; ++c) {
+      arma::vec ex = theta[c] + double(c) * r - bb;
+      arma::vec col = ARMA_MY_EXP(ex);
+      P.col(c) = col;
+      denom += col;
+    }
+
+    P.each_col() /= denom;
+  };
+
+  // 4. Single linear scan over contiguous FAST/SAFE runs (same as denom)
+  const double* bp = b.memptr();
+  const double* pp = pow_bound.memptr();
+  arma::uword i = 0;
+  while (i < N) {
+    const bool fast_i =
+      (std::abs(bp[i]) <= EXP_BOUND) && (pp[i] <= EXP_BOUND);
+
+    arma::uword j = i + 1;
+    while (j < N) {
+      const bool fast_j =
+        (std::abs(bp[j]) <= EXP_BOUND) && (pp[j] <= EXP_BOUND);
+      if (fast_j != fast_i) break;
+      ++j;
+    }
+
+    if (fast_i) do_fast_block(i, j - 1);
+    else do_safe_block(i, j - 1);
+
+    i = j;
+  }
+
+  return probs;
+}
+
+
+
 /**
  * Computes the log-pseudoposterior contribution for a single main-effect parameter (bgm model).
  *
@@ -730,54 +850,31 @@ arma::vec gradient_log_pseudoposterior(
       const int ref = baseline_category(variable);
       const double lin_eff = main_effects(variable, 0);
       const double quad_eff = main_effects(variable, 1);
-      arma::vec scores = arma::regspace<arma::vec>(0 - ref, num_cats - ref);
 
-      arma::mat exponents(num_persons, num_cats + 1);
-      for (int cat = 0; cat <= num_cats; cat++) {
-        int score = cat - ref;                                                  // centered category
-        double lin = lin_eff * score;                                        // precompute linear term
-        double quad = quad_eff * score * score;                              // precompute quadratic term
-        exponents.col(cat) = lin + quad + cat * residual_score;
-      }
-      bound = arma::max(exponents, /*dim=*/1);
-      exponents.each_col() -= bound;
+      arma::mat probs = compute_probs_blume_capel(
+          residual_score, lin_eff, quad_eff, ref, num_cats, bound
+        );
 
-      // Compute probabilities
-      arma::mat probs = ARMA_MY_EXP(exponents);
-      arma::vec denom = arma::sum(probs, 1);
-      // Guard against zeros/NaNs in denom (can happen if all entries underflow to 0)
-      arma::uvec bad = arma::find_nonfinite(denom);
-      bad = arma::join_vert(bad, arma::find(denom <= 0));
-      bad = arma::unique(bad);
-      if (!bad.is_empty()) {
-        // Fallback: make the max-exponent entry 1 and others 0 for those rows
-        // (softmax limit)
-        arma::uvec idx_max = arma::index_max(exponents.rows(bad), 1);
-        probs.rows(bad).zeros();
-        for (arma::uword i = 0; i < bad.n_elem; ++i) {
-          probs(bad(i), idx_max(i)) = 1.0;
-        }
-        // fix denom to 1 for those rows so the division below is safe
-        denom.elem(bad).ones();
-      }
-      probs.each_col() /= denom;
-
-      arma::ivec lin_score = arma::conv_to<arma::ivec>::from(scores);
-      arma::ivec quad_score = arma::square(lin_score);
+      arma::vec score = arma::regspace<arma::vec>(0, num_cats) - double(ref);
+      arma::vec sq_score = arma::square(score);
 
       // main effects
-      gradient(offset) -= arma::accu(probs * lin_score);
-      gradient(offset + 1) -= arma::accu(probs * quad_score);
+      gradient(offset) -= arma::accu(probs * score);
+      gradient(offset + 1) -= arma::accu(probs * sq_score);
 
       // pairwise effects
       for (int j = 0; j < num_variables; j++) {
         if (inclusion_indicator(variable, j) == 0 || variable == j) continue;
         arma::vec expected_value = arma::zeros(num_persons);
         for (int cat = 0; cat <= num_cats; cat++) {
-          int score = cat - ref;
-          expected_value += score * probs.col(cat) % observations.col(j);
+          int s = score(cat);
+          expected_value += s * probs.col(cat) % observations.col(j);
         }
-        int location = (variable < j) ? index_matrix(variable, j) : index_matrix(j, variable);
+
+        int location = (variable < j)
+          ? index_matrix(variable, j)
+          : index_matrix(j, variable);
+
         gradient(location) -= arma::accu(expected_value);
       }
       offset += 2;

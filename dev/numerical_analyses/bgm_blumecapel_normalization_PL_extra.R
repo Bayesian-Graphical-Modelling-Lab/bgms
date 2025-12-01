@@ -396,3 +396,505 @@ of this switching threshold in the C++ Blume–Capel normalization code.
 ############################################################
 # End of script
 ############################################################
+
+
+
+
+
+
+
+
+############################################################
+# Blume–Capel probability analysis:
+# Numerical comparison of FAST vs SAFE probability evaluation
+#
+# Objective
+# ---------
+# This script provides a numerical investigation of two methods
+# to compute the *probabilities* under the Blume–Capel
+# pseudolikelihood:
+#
+#   p_s(r) = exp( θ_part(s) + s*r - M(r) ) / Z_scaled(r)
+#
+# where
+#   θ_part(s) = θ_lin * (s - ref) + θ_quad * (s - ref)^2
+#   M(r)      = max_s ( θ_part(s) + s*r )
+#   Z_scaled  = sum_s exp( θ_part(s) + s*r - M(r) )
+#
+# We compare two implementations:
+#
+#   SAFE  = direct exponentials with numerical bound M(r)
+#   FAST  = preexp + power-chain for exp(s*r - M(r))
+#
+# MPFR (256-bit) is used as the ground-truth reference.
+#
+# Goals
+# -----
+#  1. Check numerical stability of SAFE vs FAST for probabilities
+#     across wide ranges of (max_cat, ref, θ_lin, θ_quad, r).
+#  2. Confirm that the same switching rule used for the
+#     normalization carries over safely to probabilities:
+#
+#        FAST is used only if
+#
+#          |M(r)| <= EXP_BOUND  AND
+#          pow_bound = max_cat * r - M(r) <= EXP_BOUND
+#
+#     where EXP_BOUND ≈ 709.
+#
+#  3. Document the error behaviour in terms of:
+#       - max absolute difference per probability vector
+#       - max relative difference
+#       - KL divergence to MPFR reference.
+#
+# Outcome (to be checked empirically)
+# -----------------------------------
+# - SAFE should be stable across the tested ranges.
+# - FAST should exhibit negligible error whenever the
+#   switching bounds are satisfied.
+#
+############################################################
+
+library(Rmpfr)
+library(dplyr)
+library(ggplot2)
+
+EXP_BOUND <- 709  # double overflow limit for exp()
+
+
+############################################################
+# 1. Helper: MPFR probability reference for a single config
+############################################################
+
+bc_prob_ref_mpfr <- function(max_cat, ref, theta_lin, theta_quad,
+                             r_vals,
+                             mpfr_prec = 256) {
+  # Categories and centered scores
+  scores   <- 0:max_cat
+  centered <- scores - ref
+
+  # MPFR parameters
+  tl  <- mpfr(theta_lin,  mpfr_prec)
+  tq  <- mpfr(theta_quad, mpfr_prec)
+  sc  <- mpfr(scores,     mpfr_prec)
+  s0  <- mpfr(centered,   mpfr_prec)
+
+  n_r <- length(r_vals)
+  n_s <- length(scores)
+
+  # reference probability matrix (rows = r, cols = s)
+  P_ref <- matrix(NA_real_, nrow = n_r, ncol = n_s)
+
+  for (i in seq_len(n_r)) {
+    r_mp <- mpfr(r_vals[i], mpfr_prec)
+
+    # exponent(s) = θ_part(s) + s*r
+    term <- tl * s0 + tq * s0 * s0 + sc * r_mp
+
+    # numeric bound M(r)
+    term_max <- max(asNumeric(term))
+    term_max_mp <- mpfr(term_max, mpfr_prec)
+
+    num <- exp(term - term_max_mp)   # scaled numerators
+    Z   <- sum(num)
+    p   <- num / Z
+
+    P_ref[i, ] <- asNumeric(p)
+  }
+
+  P_ref
+}
+
+
+############################################################
+# 2. SAFE probabilities (double) for a single config
+############################################################
+
+bc_prob_safe <- function(max_cat, ref, theta_lin, theta_quad,
+                         r_vals) {
+  scores   <- 0:max_cat
+  centered <- scores - ref
+  theta_part <- theta_lin * centered + theta_quad * centered^2
+
+  n_r <- length(r_vals)
+  n_s <- length(scores)
+
+  P_safe <- matrix(NA_real_, nrow = n_r, ncol = n_s)
+
+  for (i in seq_len(n_r)) {
+    r <- r_vals[i]
+
+    # exponents before scaling
+    exps <- theta_part + scores * r
+    b    <- max(exps)
+
+    numer <- exp(exps - b)
+    denom <- sum(numer)
+
+    # NO fallback here; let denom=0 or non-finite propagate
+    p <- numer / denom
+
+    P_safe[i, ] <- p
+  }
+
+  P_safe
+}
+
+
+
+############################################################
+# 3. FAST probabilities (double) for a single config
+#
+#    This mirrors what a C++ compute_probs_blume_capel(FAST)
+#    implementation would do: precompute exp(theta_part),
+#    then use a power chain for exp(s*r - b).
+############################################################
+
+bc_prob_fast <- function(max_cat, ref, theta_lin, theta_quad,
+                         r_vals) {
+  scores   <- 0:max_cat
+  centered <- scores - ref
+  theta_part <- theta_lin * centered + theta_quad * centered^2
+  exp_theta <- exp(theta_part)
+
+  n_r <- length(r_vals)
+  n_s <- length(scores)
+
+  P_fast <- matrix(NA_real_, nrow = n_r, ncol = n_s)
+  bounds <- numeric(n_r)
+  pow_bounds <- numeric(n_r)
+
+  for (i in seq_len(n_r)) {
+    r <- r_vals[i]
+
+    # exponents before scaling
+    exps <- theta_part + scores * r
+    b    <- max(exps)
+    bounds[i] <- b
+
+    # pow_bound = max_s (s*r - b) is attained at s = max_cat
+    pow_bounds[i] <- max_cat * r - b
+
+    eR  <- exp(r)
+    pow <- exp(-b)
+
+    numer <- numeric(n_s)
+    denom <- 0.0
+
+    for (j in seq_along(scores)) {
+      numer[j] <- exp_theta[j] * pow
+      denom    <- denom + numer[j]
+      pow      <- pow * eR
+    }
+
+    # Again: NO fallback, just divide and let problems show
+    p <- numer / denom
+
+    P_fast[i, ] <- p
+  }
+
+  list(
+    probs      = P_fast,
+    bound      = bounds,
+    pow_bound  = pow_bounds
+  )
+}
+
+
+
+############################################################
+# 4. Main simulation:
+#    Explore param_grid × r_vals and compare:
+#      - P_ref (MPFR)
+#      - P_safe
+#      - P_fast
+############################################################
+
+simulate_bc_prob_fast_safe <- function(param_grid,
+                                       r_vals,
+                                       mpfr_prec = 256,
+                                       tol_prob  = 1e-12) {
+
+  if (!all(c("max_cat", "ref", "theta_lin", "theta_quad") %in% names(param_grid))) {
+    stop("param_grid must have columns: max_cat, ref, theta_lin, theta_quad")
+  }
+
+  out_list <- vector("list", nrow(param_grid))
+
+  for (cfg_idx in seq_len(nrow(param_grid))) {
+    cfg <- param_grid[cfg_idx, ]
+    max_cat    <- as.integer(cfg$max_cat)
+    ref        <- as.integer(cfg$ref)
+    theta_lin  <- as.numeric(cfg$theta_lin)
+    theta_quad <- as.numeric(cfg$theta_quad)
+
+    n_r <- length(r_vals)
+
+    # Reference
+    P_ref  <- bc_prob_ref_mpfr(max_cat, ref, theta_lin, theta_quad,
+                               r_vals, mpfr_prec = mpfr_prec)
+    # SAFE
+    P_safe <- bc_prob_safe(max_cat, ref, theta_lin, theta_quad,
+                           r_vals)
+    # FAST (+ bounds)
+    fast_res <- bc_prob_fast(max_cat, ref, theta_lin, theta_quad,
+                             r_vals)
+    P_fast    <- fast_res$probs
+    bound     <- fast_res$bound
+    pow_bound <- fast_res$pow_bound
+
+    # Error metrics per r
+    max_abs_fast <- numeric(n_r)
+    max_rel_fast <- numeric(n_r)
+    kl_fast      <- numeric(n_r)
+
+    max_abs_safe <- numeric(n_r)
+    max_rel_safe <- numeric(n_r)
+    kl_safe      <- numeric(n_r)
+
+    # Helper: KL divergence D(p || q)
+    kl_div <- function(p, q) {
+      # If either vector has non-finite entries, KL is undefined → NA
+      if (!all(is.finite(p)) || !all(is.finite(q))) {
+        return(NA_real_)
+      }
+
+      # Valid domain for KL: where both p and q are strictly positive
+      mask <- (p > 0) & (q > 0)
+
+      # mask may contain NA → remove NA via na.rm=TRUE
+      if (!any(mask, na.rm = TRUE)) {
+        return(NA_real_)
+      }
+
+      sum(p[mask] * (log(p[mask]) - log(q[mask])))
+    }
+
+
+    for (i in seq_len(n_r)) {
+      p_ref  <- P_ref[i, ]
+      p_safe <- P_safe[i, ]
+      p_fast <- P_fast[i, ]
+
+      # max abs diff
+      max_abs_fast[i] <- max(abs(p_fast - p_ref))
+      max_abs_safe[i] <- max(abs(p_safe - p_ref))
+
+      # max relative diff (avoid divide-by-zero)
+      rel_fast <- abs(p_fast - p_ref)
+      rel_safe <- abs(p_safe - p_ref)
+
+      rel_fast[p_ref > 0] <- rel_fast[p_ref > 0] / p_ref[p_ref > 0]
+      rel_safe[p_ref > 0] <- rel_safe[p_ref > 0] / p_ref[p_ref > 0]
+
+      rel_fast[p_ref == 0] <- 0
+      rel_safe[p_ref == 0] <- 0
+
+      max_rel_fast[i] <- max(rel_fast)
+      max_rel_safe[i] <- max(rel_safe)
+
+      # KL
+      kl_fast[i] <- kl_div(p_ref, p_fast)
+      kl_safe[i] <- kl_div(p_ref, p_safe)
+    }
+
+    # "ok" flags using tol_prob on max_abs
+    ok_fast <- is.finite(max_abs_fast) & (max_abs_fast < tol_prob)
+    ok_safe <- is.finite(max_abs_safe) & (max_abs_safe < tol_prob)
+
+    # FAST switching condition as in C++:
+    #   use FAST only if |bound| <= EXP_BOUND and pow_bound <= EXP_BOUND
+    use_fast <- (abs(bound) <= EXP_BOUND) & (pow_bound <= EXP_BOUND)
+
+    res_cfg <- data.frame(
+      config_id   = rep(cfg_idx, n_r),
+      max_cat     = rep(max_cat, n_r),
+      ref         = rep(ref, n_r),
+      theta_lin   = rep(theta_lin, n_r),
+      theta_quad  = rep(theta_quad, n_r),
+      r           = r_vals,
+      bound       = bound,
+      pow_bound   = pow_bound,
+      use_fast    = use_fast,
+      max_abs_fast = max_abs_fast,
+      max_rel_fast = max_rel_fast,
+      kl_fast      = kl_fast,
+      max_abs_safe = max_abs_safe,
+      max_rel_safe = max_rel_safe,
+      kl_safe      = kl_safe,
+      ok_fast      = ok_fast,
+      ok_safe      = ok_safe,
+      stringsAsFactors = FALSE
+    )
+
+    out_list[[cfg_idx]] <- res_cfg
+  }
+
+  do.call(rbind, out_list)
+}
+
+
+############################################################
+# 5. Example simulation setup
+############################################################
+
+# Parameter grid similar in spirit to the BC normalization script
+param_grid <- expand.grid(
+  max_cat    = c(4, 10),            # Blume–Capel max categories (example)
+  ref        = c(0, 2, 4, 5, 10),   # include both interior & boundary refs
+  theta_lin  = c(-0.5, 0.0, 0.5),
+  theta_quad = c(-0.2, 0.0, 0.2),
+  KEEP.OUT.ATTRS = FALSE,
+  stringsAsFactors = FALSE
+)
+
+# Wide r-range; adjust as needed to match your empirical residuals
+r_vals <- seq(-80, 80, length.out = 2001)
+
+tol_prob <- 1e-12
+
+sim_probs <- simulate_bc_prob_fast_safe(
+  param_grid = param_grid,
+  r_vals     = r_vals,
+  mpfr_prec  = 256,
+  tol_prob   = tol_prob
+)
+
+
+############################################################
+# 6. Post-processing and diagnostics
+############################################################
+
+df <- sim_probs %>%
+  mutate(
+    abs_bound = abs(bound),
+    region = case_when(
+      use_fast & ok_fast           ~ "fast_ok_when_used",
+      use_fast & !ok_fast          ~ "fast_bad_when_used",
+      !use_fast & ok_safe          ~ "safe_ok_when_used",
+      !use_fast & !ok_safe         ~ "safe_bad_when_used"
+    )
+  )
+
+# Check: any bad FAST cases *within* the intended FAST region?
+fast_bad_inside <- df %>%
+  filter(use_fast, !ok_fast)
+
+cat("\nNumber of FAST probability failures where use_fast == TRUE: ",
+    nrow(fast_bad_inside), "\n\n")
+
+# Also track purely based on bounds (even if not marked use_fast)
+fast_bad_bound_region <- df %>%
+  filter(abs(bound) <= EXP_BOUND,
+         pow_bound <= EXP_BOUND,
+         !ok_fast)
+
+cat("Number of FAST probability failures with |bound| <= 709 & pow_bound <= 709: ",
+    nrow(fast_bad_bound_region), "\n\n")
+
+
+############################################################
+# 7. Plots: error vs bound (FAST only)
+############################################################
+
+df_fast <- df %>%
+  filter(use_fast) %>%
+  mutate(
+    log10_max_abs_fast = log10(pmax(max_abs_fast, 1e-300))
+  )
+
+ggplot(df_fast, aes(x = bound, y = log10_max_abs_fast)) +
+  geom_point(alpha = 0.3, size = 0.6) +
+  geom_hline(yintercept = log10(tol_prob), linetype = 2, colour = "darkgreen") +
+  geom_vline(xintercept =  EXP_BOUND,  linetype = 2, colour = "red") +
+  geom_vline(xintercept = -EXP_BOUND,  linetype = 2, colour = "red") +
+  labs(
+    x = "bound = max_s (θ_part(s) + s*r)",
+    y = "log10(max absolute error) of FAST p_s(r)",
+    title = "FAST Blume–Capel probabilities vs bound (used region only)",
+    subtitle = paste(
+      "FAST failures in use_fast region:", nrow(fast_bad_inside)
+    )
+  ) +
+  theme_minimal()
+
+
+############################################################
+# 8. Binned summary by |bound|
+############################################################
+
+df_bins <- df %>%
+  mutate(
+    abs_bound = abs(bound),
+    bound_bin = cut(
+      abs_bound,
+      breaks = seq(0, max(abs_bound, na.rm = TRUE) + 10, by = 10),
+      include_lowest = TRUE
+    )
+  ) %>%
+  group_by(bound_bin) %>%
+  summarise(
+    mid_abs_bound   = mean(abs_bound, na.rm = TRUE),
+    frac_fast_ok    = mean(ok_fast[use_fast],    na.rm = TRUE),
+    frac_safe_ok    = mean(ok_safe[!use_fast],   na.rm = TRUE),
+    max_abs_fast_99 = quantile(max_abs_fast[use_fast], 0.99, na.rm = TRUE),
+    max_abs_safe_99 = quantile(max_abs_safe[!use_fast], 0.99, na.rm = TRUE),
+    n               = n(),
+    .groups         = "drop"
+  )
+
+ggplot(df_bins, aes(x = mid_abs_bound)) +
+  geom_line(aes(y = frac_fast_ok, colour = "FAST ok (used)"), na.rm = TRUE) +
+  geom_line(aes(y = frac_safe_ok, colour = "SAFE ok (used)"), na.rm = TRUE) +
+  geom_vline(xintercept = EXP_BOUND, linetype = 2) +
+  scale_colour_manual(values = c(
+    "FAST ok (used)" = "blue",
+    "SAFE ok (used)" = "darkgreen"
+  )) +
+  labs(
+    x = "|bound| bin center",
+    y = "fraction of configurations with max_abs_error < tol_prob",
+    colour = "",
+    title = "Numerical stability of Blume–Capel probabilities by |bound|"
+  ) +
+  theme_minimal()
+
+
+############################################################
+# 9. Console summary
+############################################################
+
+cat("\n================ PROBABILITY SUMMARY =================\n")
+
+cat("Total rows in simulation:", nrow(df), "\n\n")
+
+cat("FAST probability failures where use_fast == TRUE: ",
+    nrow(fast_bad_inside), "\n")
+cat("FAST probability failures with |bound| <= 709 & pow_bound <= 709: ",
+    nrow(fast_bad_bound_region), "\n\n")
+
+cat("Typical 99th percentile max_abs_error per |bound|-bin (FAST used):\n")
+print(
+  df_bins %>%
+    select(bound_bin, mid_abs_bound, max_abs_fast_99) %>%
+    arrange(mid_abs_bound),
+  digits = 4
+)
+
+cat("
+Interpretation guide
+--------------------
+- `ok_fast`/`ok_safe` are defined by max absolute error vs MPFR reference
+  being below tol_prob (default 1e-12).
+
+- `use_fast` encodes the **intended** C++ switching rule:
+      use_fast = (|bound| <= 709) & (pow_bound <= 709)
+
+- Ideally:
+    * `fast_bad_inside` should be empty or extremely rare,
+      showing that FAST is safe whenever used.
+    * errors for SAFE should be negligible everywhere.
+
+You can tighten the switching margin if needed (e.g. require
+`pow_bound <= 700`) by adjusting `use_fast` in the code above.
+")

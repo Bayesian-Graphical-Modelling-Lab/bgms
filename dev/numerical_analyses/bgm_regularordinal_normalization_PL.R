@@ -414,3 +414,282 @@ compare_prob_ratios <- function(K = 5,
 #                 max(res_ratio$err_preexp_clip,  na.rm = TRUE))
 # )
 # print(summary_df, digits = 3)
+################################################################################
+
+############################################################
+# Blume–Capel probabilities:
+# Numerical comparison of FAST vs SAFE methods
+#
+# Objective
+# ---------
+# For a single Blume–Capel configuration (max_cat, ref, theta_lin, theta_quad),
+# and a grid of residual scores r, we compare
+#
+#   p_s(r) ∝ exp( theta_part(s) + s * r ),   s = 0..max_cat
+#
+# with
+#
+#   theta_part(s) = theta_lin * (s - ref) + theta_quad * (s - ref)^2
+#
+# computed three ways:
+#
+#   (1) MPFR reference softmax (high precision)
+#   (2) SAFE  : double, direct exponentials with bound (subtract M(r))
+#   (3) FAST  : double, preexp(theta_part) + power chain for exp(s*r - M(r))
+#
+# We record, for each r:
+#
+#   - numeric bound    M(r) = max_s [theta_part(s) + s * r]
+#   - pow_bound        = max_cat * r - M(r)
+#   - max relative error of SAFE
+#   - max relative error of FAST
+#
+# No fallbacks, no patching of non-finite values: we let under/overflow
+# show up as Inf/NaN in the errors and inspect those.
+############################################################
+
+library(Rmpfr)  # for high-precision reference
+
+############################################################
+# 1. Reference probabilities using MPFR
+############################################################
+
+bc_prob_ref_mpfr <- function(max_cat, ref, theta_lin, theta_quad,
+                             r_vals,
+                             mpfr_prec = 256) {
+  # categories and centered scores
+  s_vals <- 0:max_cat
+  c_vals <- s_vals - ref
+
+  # MPFR parameters
+  tl <- mpfr(theta_lin,  precBits = mpfr_prec)
+  tq <- mpfr(theta_quad, precBits = mpfr_prec)
+  s_mp  <- mpfr(s_vals,  precBits = mpfr_prec)
+  c_mp  <- mpfr(c_vals,  precBits = mpfr_prec)
+
+  n_r <- length(r_vals)
+  n_s <- length(s_vals)
+
+  P_ref <- matrix(NA_real_, nrow = n_r, ncol = n_s)
+
+  for (i in seq_len(n_r)) {
+    r_mp <- mpfr(r_vals[i], precBits = mpfr_prec)
+
+    # exponent(s) = theta_part(s) + s * r
+    term_mp <- tl * c_mp + tq * c_mp * c_mp + s_mp * r_mp
+
+    # numeric bound M(r)
+    M_num <- max(asNumeric(term_mp))
+    M_mp  <- mpfr(M_num, precBits = mpfr_prec)
+
+    # scaled numerators
+    num_mp <- exp(term_mp - M_mp)
+    Z_mp   <- sum(num_mp)
+    p_mp   <- num_mp / Z_mp
+
+    P_ref[i, ] <- asNumeric(p_mp)
+  }
+
+  P_ref
+}
+
+############################################################
+# 2. SAFE probabilities (double, direct + bound)
+############################################################
+
+bc_prob_safe <- function(max_cat, ref, theta_lin, theta_quad,
+                         r_vals) {
+  s_vals <- 0:max_cat
+  c_vals <- s_vals - ref
+
+  theta_part <- theta_lin * c_vals + theta_quad * c_vals^2
+
+  n_r <- length(r_vals)
+  n_s <- length(s_vals)
+
+  P_safe <- matrix(NA_real_, nrow = n_r, ncol = n_s)
+  bound  <- numeric(n_r)
+
+  for (i in seq_len(n_r)) {
+    r <- r_vals[i]
+
+    exps  <- theta_part + s_vals * r
+    M     <- max(exps)
+    bound[i] <- M
+
+    numer <- exp(exps - M)
+    denom <- sum(numer)
+
+    # no fallback here; denom can be 0 or Inf
+    P_safe[i, ] <- numer / denom
+  }
+
+  list(
+    probs = P_safe,
+    bound = bound
+  )
+}
+
+############################################################
+# 3. FAST probabilities (double, preexp + power chain)
+############################################################
+
+bc_prob_fast <- function(max_cat, ref, theta_lin, theta_quad,
+                         r_vals) {
+  s_vals <- 0:max_cat
+  c_vals <- s_vals - ref
+
+  theta_part <- theta_lin * c_vals + theta_quad * c_vals^2
+  exp_theta  <- exp(theta_part)
+
+  n_r <- length(r_vals)
+  n_s <- length(s_vals)
+
+  P_fast    <- matrix(NA_real_, nrow = n_r, ncol = n_s)
+  bound     <- numeric(n_r)
+  pow_bound <- numeric(n_r)
+
+  for (i in seq_len(n_r)) {
+    r <- r_vals[i]
+
+    # exponents before scaling
+    exps <- theta_part + s_vals * r
+    M    <- max(exps)
+    bound[i] <- M
+
+    # pow_bound = max_s (s*r - M) attained at s = max_cat
+    pow_bound[i] <- max_cat * r - M
+
+    eR  <- exp(r)
+    pow <- exp(-M)
+
+    numer <- numeric(n_s)
+    denom <- 0
+
+    for (j in seq_len(n_s)) {
+      numer[j] <- exp_theta[j] * pow
+      denom    <- denom + numer[j]
+      pow      <- pow * eR
+    }
+
+    # again: no fallback; denom can be 0/Inf
+    P_fast[i, ] <- numer / denom
+  }
+
+  list(
+    probs     = P_fast,
+    bound     = bound,
+    pow_bound = pow_bound
+  )
+}
+
+############################################################
+# 4. Core comparison function (one BC config)
+############################################################
+
+compare_bc_prob_methods <- function(max_cat    = 4,
+                                    ref        = 2,
+                                    theta_lin  = 0.0,
+                                    theta_quad = 0.0,
+                                    r_vals     = seq(-20, 20, length.out = 200),
+                                    mpfr_prec  = 256) {
+  # MPFR reference
+  P_ref <- bc_prob_ref_mpfr(
+    max_cat    = max_cat,
+    ref        = ref,
+    theta_lin  = theta_lin,
+    theta_quad = theta_quad,
+    r_vals     = r_vals,
+    mpfr_prec  = mpfr_prec
+  )
+
+  # SAFE
+  safe_res <- bc_prob_safe(
+    max_cat    = max_cat,
+    ref        = ref,
+    theta_lin  = theta_lin,
+    theta_quad = theta_quad,
+    r_vals     = r_vals
+  )
+  P_safe <- safe_res$probs
+  bound_safe <- safe_res$bound
+
+  # FAST
+  fast_res <- bc_prob_fast(
+    max_cat    = max_cat,
+    ref        = ref,
+    theta_lin  = theta_lin,
+    theta_quad = theta_quad,
+    r_vals     = r_vals
+  )
+  P_fast    <- fast_res$probs
+  bound_fast <- fast_res$bound
+  pow_bound  <- fast_res$pow_bound
+
+  stopifnot(all.equal(bound_safe, bound_fast))
+
+  n_r <- length(r_vals)
+
+  res <- data.frame(
+    r           = r_vals,
+    bound       = bound_fast,
+    pow_bound   = pow_bound,
+    err_safe    = NA_real_,
+    err_fast    = NA_real_
+  )
+
+  for (i in seq_len(n_r)) {
+    p_ref  <- P_ref[i, ]
+    p_safe <- P_safe[i, ]
+    p_fast <- P_fast[i, ]
+
+    # max relative error vs MPFR reference
+    # (this is exactly in the spirit of compare_prob_ratios)
+    res$err_safe[i] <- max(abs(p_safe - p_ref) / p_ref)
+    res$err_fast[i] <- max(abs(p_fast - p_ref) / p_ref)
+  }
+
+  res
+}
+
+############################################################
+# 5. Example usage
+############################################################
+
+# Example: small BC variable
+# max_cat    <- 4
+# ref        <- 2
+# theta_lin  <- 0.3
+# theta_quad <- -0.1
+# r_vals     <- seq(-80, 80, length.out = 2000)
+#
+# res_bc <- compare_bc_prob_methods(
+#   max_cat    = max_cat,
+#   ref        = ref,
+#   theta_lin  = theta_lin,
+#   theta_quad = theta_quad,
+#   r_vals     = r_vals,
+#   mpfr_prec  = 256
+# )
+#
+# # Quick inspection: log10 errors
+# eps <- .Machine$double.eps
+# plot(res_bc$r, pmax(res_bc$err_safe, eps),
+#      type = "l", log = "y", col = "black", lwd = 2,
+#      xlab = "r", ylab = "Relative error (vs MPFR)",
+#      main = "Blume–Capel probabilities: SAFE vs FAST")
+# lines(res_bc$r, pmax(res_bc$err_fast, eps), col = "red", lwd = 2)
+# abline(h = eps, col = "darkgray", lty = 2)
+# legend("topright",
+#        legend = c("SAFE (direct + bound)", "FAST (preexp + power chain)"),
+#        col    = c("black", "red"),
+#        lwd    = 2, bty = "n")
+#
+# # You can then condition on bound/pow_bound just like in the
+# # Blume–Capel normalization script to decide where FAST is safe.
+############################################################
+
+
+
+
+
