@@ -366,28 +366,12 @@ double log_pseudoposterior_main_effects_component (
 
     arma::vec residual_score = residual_matrix.col(variable);                     // rest scores for all persons
     arma::vec denom(num_persons, arma::fill::zeros);                          // initialize denominator
-    if(false) {
-      denom = compute_denom_blume_capel(
-        residual_score, linear_main_effect, quadratic_main_effect, ref,
-        num_cats, bound
-      );
-    } else {
-      // Vectorized likelihood contribution
-      // For each person, we compute the unnormalized log-likelihood denominator:
-      //   denom = sum_c exp (θ_lin * c + θ_quad * (c - ref)^2 + c * residual_score - bound)
-      // Where:
-      //   - θ_lin, θ_quad are linear and quadratic main_effects
-      //   - ref is the reference category (used for centering)
-      //   - bound = num_cats * residual_score (stabilizes exponentials)
-      for (int cat = 0; cat <= num_cats; cat++) {
-        int score = cat - ref;                                               // centered category
-        double lin_term = linear_main_effect * score;                                      // precompute linear term
-        double quad_term = quadratic_main_effect * score * score;                    // precompute quadratic term
 
-        arma::vec exponent = lin_term + quad_term + score * residual_score - bound;
-        denom += ARMA_MY_EXP (exponent);                                           // accumulate over categories
-      }
-    }
+    denom = compute_denom_blume_capel(
+      residual_score, linear_main_effect, quadratic_main_effect, ref,
+      num_cats, bound
+    );
+
 
     // The final log-likelihood contribution is then:
     //   log_posterior -= bound + log (denom), summed over all persons
@@ -464,21 +448,11 @@ double log_pseudoposterior_interactions_component (
     } else {
       const int ref = baseline_category (var);
 
-      if(false) {
-        denominator = compute_denom_blume_capel(
-          residual_score, main_effects (var, 0), main_effects (var, 1), ref,
-          num_cats, bound
-        );
-      } else {
-        // Binary/categorical variable: quadratic + linear term
-        for (int category = 0; category <= num_cats; category++) {
-          int score = category - ref;
-          double lin_term = main_effects (var, 0) * score;
-          double quad_term = main_effects (var, 1) * score * score;
-          arma::vec exponent = lin_term + quad_term + score * residual_score - bound;
-          denominator += ARMA_MY_EXP (exponent);
-        }
-      }
+      denominator = compute_denom_blume_capel(
+        residual_score, main_effects (var, 0), main_effects (var, 1), ref,
+        num_cats, bound
+      );
+
     }
 
     // Subtract log partition function and bounds adjustment
