@@ -5,6 +5,7 @@
 #include "adaptiveMetropolis.h"
 #include "rng_utils.h"
 
+
 class GGMModel : public BaseModel {
 public:
 
@@ -17,6 +18,30 @@ public:
         p_(X.n_cols),
         dim_((p_ * (p_ + 1)) / 2),
         suf_stat_(X.t() * X),
+        prior_inclusion_prob_(prior_inclusion_prob),
+        edge_selection_(edge_selection),
+        proposal_(AdaptiveProposal(dim_, 500)),
+        omega_(arma::eye<arma::mat>(p_, p_)),
+        phi_(arma::eye<arma::mat>(p_, p_)),
+        inv_phi_(arma::eye<arma::mat>(p_, p_)),
+        inv_omega_(arma::eye<arma::mat>(p_, p_)),
+        edge_indicators_(initial_edge_indicators),
+        vectorized_parameters_(dim_),
+        vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
+        omega_prop_(arma::mat(p_, p_, arma::fill::none)),
+        constants_(6)
+    {}
+
+    GGMModel(
+            const int n,
+            const arma::mat& suf_stat,
+            const arma::mat& prior_inclusion_prob,
+            const arma::imat& initial_edge_indicators,
+            const bool edge_selection = true
+    ) : n_(n),
+        p_(suf_stat.n_cols),
+        dim_((p_ * (p_ + 1)) / 2),
+        suf_stat_(suf_stat),
         prior_inclusion_prob_(prior_inclusion_prob),
         edge_selection_(edge_selection),
         proposal_(AdaptiveProposal(dim_, 500)),
@@ -161,3 +186,11 @@ private:
     // double edge_log_ratio(const arma::mat& omega, size_t i, size_t j, double proposal);
     // double diag_log_ratio(const arma::mat& omega, size_t i, double proposal);
 };
+
+
+GGMModel createGGMFromR(
+    const Rcpp::List& inputFromR,
+    const arma::mat& prior_inclusion_prob,
+    const arma::imat& initial_edge_indicators,
+    const bool edge_selection = true
+);
