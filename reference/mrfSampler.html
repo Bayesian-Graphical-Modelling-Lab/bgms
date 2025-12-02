@@ -162,11 +162,13 @@ preference for responding in the reference_category category.</p>
 <span class="r-in"><span><span class="va">Interactions</span> <span class="op">=</span> <span class="va">Interactions</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">Interactions</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">Thresholds</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fl">0</span>, nrow <span class="op">=</span> <span class="va">no_variables</span>, ncol <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">no_categories</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="va">x</span> <span class="op">=</span> <span class="fu">mrfSampler</span><span class="op">(</span>no_states <span class="op">=</span> <span class="fl">1e3</span>,</span></span>
-<span class="r-in"><span>               no_variables <span class="op">=</span> <span class="va">no_variables</span>,</span></span>
-<span class="r-in"><span>               no_categories <span class="op">=</span> <span class="va">no_categories</span>,</span></span>
-<span class="r-in"><span>               interactions <span class="op">=</span> <span class="va">Interactions</span>,</span></span>
-<span class="r-in"><span>               thresholds <span class="op">=</span> <span class="va">Thresholds</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">x</span> <span class="op">=</span> <span class="fu">mrfSampler</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  no_states <span class="op">=</span> <span class="fl">1e3</span>,</span></span>
+<span class="r-in"><span>  no_variables <span class="op">=</span> <span class="va">no_variables</span>,</span></span>
+<span class="r-in"><span>  no_categories <span class="op">=</span> <span class="va">no_categories</span>,</span></span>
+<span class="r-in"><span>  interactions <span class="op">=</span> <span class="va">Interactions</span>,</span></span>
+<span class="r-in"><span>  thresholds <span class="op">=</span> <span class="va">Thresholds</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>The matrix ``thresholds'' contains numeric values for variable 1 for category </span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> (categories, i.e., columns) exceding the maximum of 1. These values will </span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> be ignored.</span>
@@ -189,13 +191,15 @@ preference for responding in the reference_category category.</p>
 <span class="r-in"><span><span class="va">Thresholds</span><span class="op">[</span><span class="fl">3</span>, <span class="op">]</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="op">-</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">4</span><span class="op">)</span><span class="op">)</span>, decreasing <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">Thresholds</span><span class="op">[</span><span class="fl">5</span>, <span class="op">]</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="op">-</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">4</span><span class="op">)</span><span class="op">)</span>, decreasing <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="va">x</span> <span class="op">=</span> <span class="fu">mrfSampler</span><span class="op">(</span>no_states <span class="op">=</span> <span class="fl">1e3</span>,</span></span>
-<span class="r-in"><span>               no_variables <span class="op">=</span> <span class="va">no_variables</span>,</span></span>
-<span class="r-in"><span>               no_categories <span class="op">=</span> <span class="va">no_categories</span>,</span></span>
-<span class="r-in"><span>               interactions <span class="op">=</span> <span class="va">Interactions</span>,</span></span>
-<span class="r-in"><span>               thresholds <span class="op">=</span> <span class="va">Thresholds</span>,</span></span>
-<span class="r-in"><span>               variable_type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"b"</span>,<span class="st">"b"</span>,<span class="st">"o"</span>,<span class="st">"b"</span>,<span class="st">"o"</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>               reference_category <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">x</span> <span class="op">=</span> <span class="fu">mrfSampler</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  no_states <span class="op">=</span> <span class="fl">1e3</span>,</span></span>
+<span class="r-in"><span>  no_variables <span class="op">=</span> <span class="va">no_variables</span>,</span></span>
+<span class="r-in"><span>  no_categories <span class="op">=</span> <span class="va">no_categories</span>,</span></span>
+<span class="r-in"><span>  interactions <span class="op">=</span> <span class="va">Interactions</span>,</span></span>
+<span class="r-in"><span>  thresholds <span class="op">=</span> <span class="va">Thresholds</span>,</span></span>
+<span class="r-in"><span>  variable_type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"b"</span>, <span class="st">"b"</span>, <span class="st">"o"</span>, <span class="st">"b"</span>, <span class="st">"o"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  reference_category <span class="op">=</span> <span class="fl">2</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

@@ -30,7 +30,7 @@ priors.
   differences in edge weights and category thresholds. Posterior
   inclusion probabilities quantify the evidence for differences and can
   be converted into Bayes factors for parameter equivalence tests
-  (Marsman et al. 2024) .
+  (Marsman et al. in press) .
 
 ## Tools
 
@@ -64,9 +64,9 @@ For tutorials and worked examples, see:
 Marsman M, van den Bergh D, Haslbeck JMB (2025). “Bayesian analysis of
 the ordinal Markov random field.” *Psychometrika*, **90**, 146–-182.  
   
-Marsman M, Waldorp LJ, Sekulovski N, Haslbeck JMB (2024). “Bayes factor
-tests for group differences in ordinal and binary graphical models.”
-*Retrieved from https://osf.io/preprints/osf/f4pk9*. OSF preprint.  
+Marsman M, Waldorp LJ, Sekulovski N, Haslbeck JMB (in press). “Bayes
+factor tests for group differences in ordinal and binary graphical
+models.” *Psychometrika*.  
   
 Sekulovski N, Arena G, Haslbeck JMB, Huth KBS, Friel N, Marsman M
 (2025). “A Stochastic Block Prior for Clustering in Graphical Models.”
@@ -78,6 +78,8 @@ preprint.
 Useful links:
 
 - <https://Bayesian-Graphical-Modelling-Lab.github.io/bgms/>
+
+- <https://github.com/Bayesian-Graphical-Modelling-Lab/bgms>
 
 - Report bugs at
   <https://github.com/Bayesian-Graphical-Modelling-Lab/bgms/issues>

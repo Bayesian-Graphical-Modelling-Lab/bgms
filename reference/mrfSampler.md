@@ -115,11 +115,13 @@ Interactions[2, 1] = Interactions[4, 1] = Interactions[3, 2] =
 Interactions = Interactions + t(Interactions)
 Thresholds = matrix(0, nrow = no_variables, ncol = max(no_categories))
 
-x = mrfSampler(no_states = 1e3,
-               no_variables = no_variables,
-               no_categories = no_categories,
-               interactions = Interactions,
-               thresholds = Thresholds)
+x = mrfSampler(
+  no_states = 1e3,
+  no_variables = no_variables,
+  no_categories = no_categories,
+  interactions = Interactions,
+  thresholds = Thresholds
+)
 #> Warning: The matrix ``thresholds'' contains numeric values for variable 1 for category 
 #> (categories, i.e., columns) exceding the maximum of 1. These values will 
 #> be ignored.
@@ -142,11 +144,13 @@ Thresholds[, 2] = -1
 Thresholds[3, ] = sort(-abs(rnorm(4)), decreasing = TRUE)
 Thresholds[5, ] = sort(-abs(rnorm(4)), decreasing = TRUE)
 
-x = mrfSampler(no_states = 1e3,
-               no_variables = no_variables,
-               no_categories = no_categories,
-               interactions = Interactions,
-               thresholds = Thresholds,
-               variable_type = c("b","b","o","b","o"),
-               reference_category = 2)
+x = mrfSampler(
+  no_states = 1e3,
+  no_variables = no_variables,
+  no_categories = no_categories,
+  interactions = Interactions,
+  thresholds = Thresholds,
+  variable_type = c("b", "b", "o", "b", "o"),
+  reference_category = 2
+)
 ```
