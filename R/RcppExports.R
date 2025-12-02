@@ -29,8 +29,8 @@ run_simulation_parallel <- function(pairwise_samples, main_samples, draw_indices
     .Call(`_bgms_run_simulation_parallel`, pairwise_samples, main_samples, draw_indices, no_states, no_variables, no_categories, variable_type_r, baseline_category, iter, nThreads, seed, progress_type)
 }
 
-sample_ggm <- function(X, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type) {
-    .Call(`_bgms_sample_ggm`, X, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type)
+sample_ggm <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type) {
+    .Call(`_bgms_sample_ggm`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type)
 }
 
 compute_Vn_mfm_sbm <- function(no_variables, dirichlet_alpha, t_max, lambda) {
