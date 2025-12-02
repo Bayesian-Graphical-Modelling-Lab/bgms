@@ -610,3 +610,35 @@ void GGMModel::do_one_mh_step() {
     // could also be called in the main MCMC loop
     proposal_.increment_iteration();
 }
+
+
+GGMModel createGGMFromR(
+    const Rcpp::List& inputFromR,
+    const arma::mat& prior_inclusion_prob,
+    const arma::imat& initial_edge_indicators,
+    const bool edge_selection
+) {
+
+    if (inputFromR.containsElementNamed("n") && inputFromR.containsElementNamed("suf_stat")) {
+        int n = Rcpp::as<int>(inputFromR["n"]);
+        arma::mat suf_stat = Rcpp::as<arma::mat>(inputFromR["suf_stat"]);
+        return GGMModel(
+            n,
+            suf_stat,
+            prior_inclusion_prob,
+            initial_edge_indicators,
+            edge_selection
+        );
+    } else if (inputFromR.containsElementNamed("X")) {
+        arma::mat X = Rcpp::as<arma::mat>(inputFromR["X"]);
+        return GGMModel(
+            X,
+            prior_inclusion_prob,
+            initial_edge_indicators,
+            edge_selection
+        );
+    } else {
+        throw std::invalid_argument("Input list must contain either 'X' or both 'n' and 'suf_stat'.");
+    }
+
+}

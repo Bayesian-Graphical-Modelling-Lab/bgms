@@ -159,7 +159,7 @@ Rcpp::List convert_sampler_output_to_ggm_result(const std::vector<ChainResultNew
 
 // [[Rcpp::export]]
 Rcpp::List sample_ggm(
-    const arma::mat& X,
+    const Rcpp::List& inputFromR,
     const arma::mat& prior_inclusion_prob,
     const arma::imat& initial_edge_indicators,
     const int no_iter,
@@ -173,7 +173,8 @@ Rcpp::List sample_ggm(
 
     // should be done dynamically
     // also adaptation method should be specified differently
-    GGMModel model(X, prior_inclusion_prob, initial_edge_indicators, edge_selection);
+    // GGMModel model(X, prior_inclusion_prob, initial_edge_indicators, edge_selection);
+    GGMModel model = createGGMFromR(inputFromR, prior_inclusion_prob, initial_edge_indicators, edge_selection);
 
     ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type);
 
