@@ -33,7 +33,7 @@
 #' Assume a baseline category (e.g., a “neutral” response) and score responses
 #' by distance from this baseline. Category thresholds are modeled as:
 #'
-#' \deqn{\mu_{c} = \alpha \cdot c + \beta \cdot (c - b)^2}
+#' \deqn{\mu_{c} = \alpha \cdot (c-b) + \beta \cdot (c - b)^2}
 #'
 #' where:
 #' \itemize{
@@ -48,7 +48,8 @@
 #'    }
 #'   \item \eqn{b}: baseline category
 #' }
-#'
+#' Accordingly, pairwise interactions between Blume-Capel variables are modeled
+#' in terms of \eqn{c-b} scores.
 #'
 #' @section Edge Selection:
 #' When \code{edge_selection = TRUE}, the function performs Bayesian variable

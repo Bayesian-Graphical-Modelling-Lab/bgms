@@ -1,3 +1,17 @@
+# bgms 0.1.6.2
+
+## New features
+
+* added option to separately specify beta priors for the within- and between-cluster probabilities for the SBM prior.
+
+## Other changes
+
+* reparameterized the Blume-capel model to use (score-baseline) instead of score.
+
+## Bug fixes
+
+* Fixed numerical problems with Blume-Capel variables using HMC and NUTS for bgm().
+
 # bgms 0.1.6.1
 
 ## Other changes
