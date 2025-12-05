@@ -106,7 +106,7 @@
 #'   interactions = Interactions,
 #'   thresholds = Thresholds,
 #'   variable_type = c("b", "b", "o", "b", "o"),
-#'   reference_category = 2
+#'   baseline_category = 2
 #' )
 #'
 #' @export

@@ -69,6 +69,7 @@ For tutorials and worked examples, see:
 Useful links:
 \itemize{
   \item \url{https://Bayesian-Graphical-Modelling-Lab.github.io/bgms/}
+  \item \url{https://github.com/Bayesian-Graphical-Modelling-Lab/bgms}
   \item Report bugs at \url{https://github.com/Bayesian-Graphical-Modelling-Lab/bgms/issues}
 }
 
