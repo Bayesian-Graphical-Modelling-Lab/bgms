@@ -4,6 +4,7 @@
 #include <cmath>
 #include "explog_switch.h"
 #include "common_helpers.h"
+#include "variable_helpers.h"
 
 
 
@@ -91,7 +92,7 @@ double log_pseudoposterior(
     const arma::vec proj_g = projection.row(group).t(); // length = num_groups-1
 
     // ---- build group-specific main & pairwise effects ----
-    for (int v = 0; v < num_variables; ++v) {
+    for (int v = 0; v < num_variables; v++) {
       arma::vec me = compute_group_main_effects(
         v, num_groups, main_effects, main_effect_indices, proj_g
       );
@@ -100,7 +101,7 @@ double log_pseudoposterior(
       main_group(v, arma::span(0, me.n_elem - 1)) = me.t();
 
       // upper triangle incl. base value; mirror to keep symmetry
-      for (int u = v; u < num_variables; ++u) { // Combines with loop over v
+      for (int u = v; u < num_variables; u++) { // Combines with loop over v
         if(u == v) continue;
         double w = compute_group_pairwise_effects(
           v, u, num_groups, pairwise_effects, pairwise_effect_indices,
@@ -114,7 +115,7 @@ double log_pseudoposterior(
       const int num_cats = num_categories(v);
       if (is_ordinal_variable(v)) {
         // use group-specific main_effects
-        for (int c = 0; c < num_cats; ++c) {
+        for (int c = 0; c < num_cats; c++) {
           const double val = main_group(v, c);
           log_pp += static_cast<double>(counts_per_category(c, v)) * val;
         }
@@ -141,32 +142,25 @@ double log_pseudoposterior(
 
       // bound to stabilize exp; use group-specific params consistently
       arma::vec bound = num_cats * rest_score;
-      bound = arma::clamp(bound, 0.0, arma::datum::inf);
-
       arma::vec denom(rest_score.n_elem, arma::fill::zeros);
 
       if (is_ordinal_variable(v)) {
-        // base term exp(-bound)
-        denom = ARMA_MY_EXP(-bound);
-        // main_effects from main_group
-        for (int c = 0; c < num_cats; ++c) {
-          const double th = main_group(v, c);
-          const arma::vec exponent = th + (c + 1) * rest_score - bound;
-          denom += ARMA_MY_EXP(exponent);
-        }
+        arma::vec main_eff = main_group.row(v).cols(0, num_cats - 1).t();
+        denom = compute_denom_ordinal(
+          rest_score, main_eff, bound
+        );
       } else {
         // linear/quadratic main effects from main_group
         const double lin_effect  = main_group(v, 0);
         const double quad_effect = main_group(v, 1);
         const int ref = baseline_category(v);
-        for (int c = 0; c <= num_cats; ++c) {
-          const int score = c - ref;
-          const double lin  = lin_effect * score;
-          const double quad = quad_effect * score * score;
-          const arma::vec exponent = lin + quad + score * rest_score - bound;
-          denom += ARMA_MY_EXP(exponent);
-        }
+
+        denom = compute_denom_blume_capel(
+          rest_score, lin_effect, quad_effect, ref, num_cats,
+          /*updated in place:*/bound
+        );
       }
+
       // - sum_i [ bound_i + log denom_i ]
       log_pp -= arma::accu(bound + ARMA_MY_LOG(denom));
     }
@@ -178,27 +172,27 @@ double log_pseudoposterior(
   };
 
   // Main effects prior
-  for (int v = 0; v < num_variables; ++v) {
+  for (int v = 0; v < num_variables; v++) {
     const int row0 = main_effect_indices(v, 0);
     const int row1 = main_effect_indices(v, 1);
-    for (int r = row0; r <= row1; ++r) {
+    for (int r = row0; r <= row1; r++) {
       log_pp += log_beta_prior(main_effects(r, 0));
 
       if (inclusion_indicator(v, v) == 0) continue;
-      for (int eff = 1; eff < num_groups; ++eff) {
+      for (int eff = 1; eff < num_groups; eff++) {
         log_pp += R::dcauchy(main_effects(r, eff), 0.0, difference_scale, true);
       }
     }
   }
 
   // Pairwise effects prior
-  for (int v1 = 0; v1 < num_variables - 1; ++v1) {
-    for (int v2 = v1 + 1; v2 < num_variables; ++v2) {
+  for (int v1 = 0; v1 < num_variables - 1; v1++) {
+    for (int v2 = v1 + 1; v2 < num_variables; v2++) {
       const int idx = pairwise_effect_indices(v1, v2);
       log_pp += R::dcauchy(pairwise_effects(idx, 0), 0.0, interaction_scale, true);
 
       if (inclusion_indicator(v1, v2) == 0) continue;
-      for (int eff = 1; eff < num_groups; ++eff) {
+      for (int eff = 1; eff < num_groups; eff++) {
         log_pp += R::dcauchy(pairwise_effects(idx, eff), 0.0, difference_scale, true);
       }
     }
@@ -344,19 +338,19 @@ arma::vec gradient_observed_active(
   // -------------------------------
   // Observed sufficient statistics
   // -------------------------------
-  for (int g = 0; g < num_groups; ++g) {
+  for (int g = 0; g < num_groups; g++) {
     // list access
     arma::imat counts_per_category = counts_per_category_group[g];
     arma::imat blume_capel_stats = blume_capel_stats_group[g];
     const arma::vec proj_g = projection.row(g).t(); // length = num_groups-1
 
     // Main effects
-    for (int v = 0; v < num_variables; ++v) {
-      const int base     = main_effect_indices(v, 0);
+    for (int v = 0; v < num_variables; v++) {
+      const int base = main_effect_indices(v, 0);
       const int num_cats = num_categories(v);
 
       if (is_ordinal_variable(v)) {
-        for (int c = 0; c < num_cats; ++c) {
+        for (int c = 0; c < num_cats; c++) {
           const int count = counts_per_category(c, v);
           // overall
           off = main_index(base + c, 0);
@@ -364,7 +358,7 @@ arma::vec gradient_observed_active(
 
           // diffs
           if(inclusion_indicator(v, v) != 0) {
-            for (int k = 1; k < num_groups; ++k) {
+            for (int k = 1; k < num_groups; k++) {
               off = main_index(base + c, k);
               grad_obs(off) += count * proj_g(k-1);
             }
@@ -383,7 +377,7 @@ arma::vec gradient_observed_active(
 
         // diffs
         if(inclusion_indicator(v, v) != 0) {
-          for (int k = 1; k < num_groups; ++k) {
+          for (int k = 1; k < num_groups; k++) {
             off = main_index(base, k);
             grad_obs(off) += bc_0 * proj_g(k-1);
 
@@ -396,8 +390,8 @@ arma::vec gradient_observed_active(
 
     // Pairwise (observed)
     arma::mat pairwise_stats = pairwise_stats_group[g];
-    for (int v1 = 0; v1 < num_variables - 1; ++v1) {
-      for (int v2 = v1 + 1; v2 < num_variables; ++v2) {
+    for (int v1 = 0; v1 < num_variables - 1; v1++) {
+      for (int v2 = v1 + 1; v2 < num_variables; v2++) {
         const int row = pairwise_effect_indices(v1, v2);
         const double pw_stats = 2.0 * pairwise_stats(v1, v2);
 
@@ -405,7 +399,7 @@ arma::vec gradient_observed_active(
         grad_obs(off) += pw_stats; // upper tri counted once
 
         if(inclusion_indicator(v1, v2) != 0){
-          for (int k = 1; k < num_groups; ++k) {
+          for (int k = 1; k < num_groups; k++) {
             off = pair_index(row, k);
             grad_obs(off) += pw_stats * proj_g(k-1);
           }
@@ -548,39 +542,30 @@ arma::vec gradient(
     const int num_group_obs = obs.n_rows;
 
     for (int v = 0; v < num_variables; ++v) {
-      const int K   = num_categories(v);
+      const int K = num_categories(v);
       const int ref = baseline_category(v);
 
       arma::vec rest_score = residual_matrix.col(v);
-      arma::vec bound      = K * rest_score;
-      bound.clamp(0.0, arma::datum::inf);
+      arma::vec bound = K * rest_score;
 
-      arma::mat exponents(num_group_obs, K + 1, arma::fill::none);
-
+      arma::mat probs;
       if (is_ordinal_variable(v)) {
-        exponents.col(0) = -bound;
-        for (int j = 0; j < K; ++j) {
-          exponents.col(j + 1) = main_group(v, j) + (j + 1) * rest_score - bound;
-        }
+        arma::vec main_param = main_group.row(v).cols(0, K - 1).t();
+        probs = compute_probs_ordinal(
+          main_param, rest_score, bound, K
+        );
       } else {
-        const double lin_effect  = main_group(v, 0);
+        const double lin_effect = main_group(v, 0);
         const double quad_effect = main_group(v, 1);
-        for (int s = 0; s <= K; ++s) {
-          const int score = s - ref;
-          const double lin  = lin_effect * score;
-          const double quad = quad_effect * score * score;
-          exponents.col(s) = lin + quad + score * rest_score - bound;
-        }
+        probs = compute_probs_blume_capel(
+          rest_score, lin_effect, quad_effect, ref, K, bound
+        );
       }
-
-      arma::mat probs = ARMA_MY_EXP(exponents);
-      arma::vec denom = arma::sum(probs, 1); // base term
-      probs.each_col() /= denom;
 
       // ---- MAIN expected ----
       const int base = main_effect_indices(v, 0);
       if (is_ordinal_variable(v)) {
-        for (int s = 1; s <= K; ++s) {
+        for (int s = 1; s <= K; s++) {
           const int j = s - 1;
           double sum_col_s = arma::accu(probs.col(s));
 
@@ -588,14 +573,14 @@ arma::vec gradient(
           grad(off) -= sum_col_s;
 
           if (inclusion_indicator(v, v) == 0) continue;
-          for (int k = 1; k < num_groups; ++k) {
+          for (int k = 1; k < num_groups; k++) {
             off = main_index(base + j, k);
             grad(off) -= proj_g(k - 1) * sum_col_s;
           }
         }
       } else {
         arma::vec lin_score  = arma::regspace<arma::vec>(0 - ref, K - ref);          // length K+1
-        arma::vec quad_score = arma::square(lin_score - ref);
+        arma::vec quad_score = arma::square(lin_score);
 
         double sum_lin  = arma::accu(probs * lin_score);
         double sum_quad = arma::accu(probs * quad_score);
@@ -606,7 +591,7 @@ arma::vec gradient(
         grad(off) -= sum_quad;
 
         if (inclusion_indicator(v, v) == 0) continue;
-        for (int k = 1; k < num_groups; ++k) {
+        for (int k = 1; k < num_groups; k++) {
           off = main_index(base, k);
           grad(off) -= proj_g(k - 1) * sum_lin;
           off = main_index(base + 1, k);
@@ -615,7 +600,7 @@ arma::vec gradient(
       }
 
       // ---- PAIRWISE expected ----
-      for (int v2 = 0; v2 < num_variables; ++v2) {
+      for (int v2 = 0; v2 < num_variables; v2++) {
         if (v == v2) continue;
 
         arma::vec expected_value(num_group_obs, arma::fill::zeros);
@@ -624,7 +609,7 @@ arma::vec gradient(
             expected_value += s * probs.col(s) % obs.col(v2);
           }
         } else {
-          for (int s = 0; s <= K; ++s) {
+          for (int s = 0; s <= K; s++) {
             int score = s - ref;
             expected_value += score * probs.col(s) % obs.col(v2);
           }
@@ -638,7 +623,7 @@ arma::vec gradient(
         grad(off) -= sum_expectation;
 
         if (inclusion_indicator(v, v2) == 0) continue;
-        for (int k = 1; k < num_groups; ++k) {
+        for (int k = 1; k < num_groups; k++) {
           off = pair_index(row, k);
           grad(off) -= proj_g(k - 1) * sum_expectation;
 
@@ -789,7 +774,7 @@ double log_pseudoposterior_main_component(
     int variable,
     int category, // for ordinal variables only
     int par, // for Blume-Capel variables only
-    int h // Overall = 0, differences are 1, ....
+    int h // Overall = 0, differences are 1,2,...
 ) {
   if(h > 0 && inclusion_indicator(variable, variable) == 0) {
     return 0.0; // No contribution if differences not included
@@ -814,7 +799,7 @@ double log_pseudoposterior_main_component(
       variable, num_groups, main_effects, main_effect_indices, proj_g
     );
 
-    // store into row v (padded with zeros if variable has < max_num_categories params)
+    // store into row v
     main_group(variable, arma::span(0, me.n_elem - 1)) = me.t();
 
     // upper triangle incl. base value; mirror to keep symmetry
@@ -831,8 +816,7 @@ double log_pseudoposterior_main_component(
     // ---- data contribution pseudolikelihood (linear terms) ----
     if (is_ordinal_variable(variable)) {
       const double val = main_group(variable, category);
-      log_pp += static_cast<double>(counts_per_category(category, variable)) *
-        val;
+      log_pp += static_cast<double>(counts_per_category(category, variable)) * val;
     } else {
       log_pp += static_cast<double>(blume_capel_stats(par, variable)) *
         main_group(variable, par);
@@ -849,31 +833,25 @@ double log_pseudoposterior_main_component(
 
     // bound to stabilize exp; use group-specific params consistently
     arma::vec bound = num_cats * rest_score;
-    bound = arma::clamp(bound, 0.0, arma::datum::inf);
-
     arma::vec denom(rest_score.n_elem, arma::fill::zeros);
+
     if (is_ordinal_variable(variable)) {
-      // base term exp(-bound)
-      denom = ARMA_MY_EXP(-bound);
-      // main_effects from main_group
-      for (int cat = 0; cat < num_cats; cat++) {
-        const double th = main_group(variable, cat);
-        const arma::vec exponent = th + (cat + 1) * rest_score - bound;
-        denom += ARMA_MY_EXP(exponent);
-      }
+      arma::vec main_eff = main_group.row(variable).cols(0, num_cats - 1).t();
+      denom = compute_denom_ordinal(
+        rest_score, main_eff, bound
+      );
     } else {
       // linear/quadratic main effects from main_group
       const double lin_effect  = main_group(variable, 0);
       const double quad_effect = main_group(variable, 1);
       const int ref = baseline_category(variable);
-      for (int cat = 0; cat <= num_cats; cat++) {
-        const int score = cat - ref;
-        const double quad = quad_effect * score * score;
-        const double lin  = lin_effect * score;
-        const arma::vec exponent = lin + quad + score * rest_score - bound;
-        denom += ARMA_MY_EXP(exponent);
-      }
+
+      denom = compute_denom_blume_capel(
+        rest_score, lin_effect, quad_effect, ref, num_cats,
+        /*updated in place:*/bound
+      );
     }
+
     // - sum_i [ bound_i + log denom_i ]
     log_pp -= arma::accu(bound + ARMA_MY_LOG(denom));
   }
@@ -1032,32 +1010,25 @@ double log_pseudoposterior_pair_component(
 
       // bound to stabilize exp; use group-specific params consistently
       arma::vec bound = num_cats * rest_score;
-      bound = arma::clamp(bound, 0.0, arma::datum::inf);
-
       arma::vec denom(rest_score.n_elem, arma::fill::zeros);
 
       if (is_ordinal_variable(v)) {
-        // base term exp(-bound)
-        denom = ARMA_MY_EXP(-bound);
-        // main_effects from main_group
-        for (int c = 0; c < num_cats; ++c) {
-          const double th = main_group(v, c);
-          const arma::vec exponent = th + (c + 1) * rest_score - bound;
-          denom += ARMA_MY_EXP(exponent);
-        }
+        arma::vec main_eff = main_group.row(v).cols(0, num_cats - 1).t();
+        denom = compute_denom_ordinal(
+          rest_score, main_eff, bound
+        );
       } else {
         // linear/quadratic main effects from main_group
         const double lin_effect  = main_group(v, 0);
         const double quad_effect = main_group(v, 1);
         const int ref = baseline_category(v);
-        for (int c = 0; c <= num_cats; ++c) {
-          const int score = c - ref;
-          const double lin  = lin_effect * score;
-          const double quad = quad_effect * score * score;
-          const arma::vec exponent = lin + quad + score * rest_score - bound;
-          denom += ARMA_MY_EXP(exponent);
-        }
+
+        denom = compute_denom_blume_capel(
+          rest_score, lin_effect, quad_effect, ref, num_cats,
+          /*updated in place:*/bound
+        );
       }
+
       // - sum_i [ bound_i + log denom_i ]
       log_pp -= arma::accu(bound + ARMA_MY_LOG(denom));
     }
@@ -1180,41 +1151,31 @@ double log_ratio_pseudolikelihood_constant_variable(
     arma::vec denom_current(rest_current.n_elem, arma::fill::zeros);
     arma::vec denom_proposed(rest_proposed.n_elem, arma::fill::zeros);
 
-    if (is_ordinal_variable(variable)) {
-      // regular ordinal/binary
-      bound_current = num_cats * arma::clamp(rest_current, 0.0, arma::datum::inf);
-      bound_proposed = num_cats * arma::clamp(rest_proposed, 0.0, arma::datum::inf);
+    if (is_ordinal_variable (variable)) {
+      bound_current = rest_current * num_cats;
+      bound_proposed = rest_proposed * num_cats;
 
-      denom_current = ARMA_MY_EXP(-bound_current);
-      denom_proposed = ARMA_MY_EXP(-bound_proposed);
-
-      for (int c = 0; c < num_cats; ++c) {
-        denom_current += ARMA_MY_EXP(main_current(c) + (c + 1) * rest_current - bound_current);
-        denom_proposed += ARMA_MY_EXP(main_proposed(c) + (c + 1) * rest_proposed - bound_proposed);
-      }
+      denom_current += compute_denom_ordinal(
+        rest_current, main_current, bound_current
+      );
+      denom_proposed += compute_denom_ordinal(
+        rest_proposed, main_proposed, bound_proposed
+      );
     } else {
-      // Blume-Capel: linear + quadratic
-      const int ref = baseline_category(variable);
+      // Binary or categorical variable: linear + quadratic score
+      const int ref_cat = baseline_category (variable);
+      bound_current = rest_current * num_cats;
+      bound_proposed = rest_proposed * num_cats;
 
-      arma::vec const_current(num_cats + 1, arma::fill::zeros);
-      arma::vec const_proposed(num_cats + 1, arma::fill::zeros);
-      for (int s = 0; s <= num_cats; ++s) {
-        const int score = s - ref;
-        const_current(s) = main_current(0) * score + main_current(1) * score* score;
-        const_proposed(s) = main_proposed(0) * score + main_proposed(1) * score * score;
-      }
+      denom_current = compute_denom_blume_capel(
+        rest_current, main_current (0), main_current (1),
+        ref_cat, num_cats, /*Updated in place:*/bound_current
+      );
 
-      double lbound = std::max(const_current.max(), const_proposed.max());
-      if (lbound < 0.0) lbound = 0.0;
-
-      bound_current = lbound + num_cats * arma::clamp(rest_current, 0.0, arma::datum::inf);
-      bound_proposed = lbound + num_cats * arma::clamp(rest_proposed, 0.0, arma::datum::inf);
-
-      for (int s = 0; s <= num_cats; ++s) {
-        const int score = s - ref;
-        denom_current += ARMA_MY_EXP(const_current(s) + score * rest_current - bound_current);
-        denom_proposed += ARMA_MY_EXP(const_proposed(s) + score * rest_proposed - bound_proposed);
-      }
+      denom_proposed = compute_denom_blume_capel(
+        rest_proposed, main_proposed (0), main_proposed (1),
+        ref_cat, num_cats, /*Updated in place:*/bound_proposed
+      );
     }
 
     // --- accumulate contribution ---
