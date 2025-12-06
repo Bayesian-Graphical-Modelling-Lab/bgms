@@ -243,7 +243,7 @@ compute_counts_per_category = function(x, num_categories, group = NULL) {
         counts_per_category_gr[category, variable] = sum(x[group == g, variable] == category)
       }
     }
-    counts_per_category[[g]] = counts_per_category_gr
+    counts_per_category[[length(counts_per_category) + 1]] = counts_per_category_gr
   }
   return(counts_per_category)
 }
@@ -253,9 +253,9 @@ compute_blume_capel_stats = function(x, baseline_category, ordinal_variable, gro
   if(is.null(group)) { # One-group design
     sufficient_stats = matrix(0, nrow = 2, ncol = ncol(x))
     bc_vars = which(!ordinal_variable)
-    for(i in bc_vars) {
-      sufficient_stats[1, i] = sum(x[, i])
-      sufficient_stats[2, i] = sum((x[, i] - baseline_category[i])^2)
+    for (i in bc_vars) {
+      sufficient_stats[1, i] = sum(x[, i] - baseline_category[i])
+      sufficient_stats[2, i] = sum((x[, i] - baseline_category[i]) ^ 2)
     }
     return(sufficient_stats)
   } else { # Multi-group design
@@ -263,11 +263,11 @@ compute_blume_capel_stats = function(x, baseline_category, ordinal_variable, gro
     for(g in unique(group)) {
       sufficient_stats_gr = matrix(0, nrow = 2, ncol = ncol(x))
       bc_vars = which(!ordinal_variable)
-      for(i in bc_vars) {
-        sufficient_stats_gr[1, i] = sum(x[group == g, i])
-        sufficient_stats_gr[2, i] = sum((x[group == g, i] - baseline_category[i])^2)
+      for (i in bc_vars) {
+        sufficient_stats_gr[1, i] = sum(x[group == g, i] - baseline_category[i])
+        sufficient_stats_gr[2, i] = sum((x[group == g, i] - baseline_category[i]) ^ 2)
       }
-      sufficient_stats[[g]] = sufficient_stats_gr
+      sufficient_stats[[length(sufficient_stats) + 1]] = sufficient_stats_gr
     }
     return(sufficient_stats)
   }
@@ -275,12 +275,12 @@ compute_blume_capel_stats = function(x, baseline_category, ordinal_variable, gro
 
 # Helper function for computing sufficient statistics for pairwise interactions
 compute_pairwise_stats <- function(x, group) {
-  result <- vector("list", length(unique(group)))
+  result <- list()
 
   for(g in unique(group)) {
     obs <- x[group == g, , drop = FALSE]
     # cross-product: gives number of co-occurrences of categories
-    result[[g]] <- t(obs) %*% obs
+    result[[length(result) + 1]] <- t(obs) %*% obs
   }
 
   result

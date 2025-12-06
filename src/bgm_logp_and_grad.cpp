@@ -3,6 +3,7 @@
 #include "bgm_logp_and_grad.h"
 #include "common_helpers.h"
 #include "explog_switch.h"
+#include "variable_helpers.h"
 
 
 
@@ -61,6 +62,7 @@ double log_pseudoposterior_main_effects_component (
   };
 
   const int num_cats = num_categories(variable);
+  arma::vec bound = num_cats * residual_matrix.col(variable);                   // numerical bound vector
 
   if (is_ordinal_variable(variable)) {
     // Prior contribution + sufficient statistic
@@ -68,22 +70,12 @@ double log_pseudoposterior_main_effects_component (
     log_posterior += value * counts_per_category(category + 1, variable);
     log_posterior += log_beta_prior (value);
 
-    // Vectorized likelihood contribution
-    // For each person, we compute the unnormalized log-likelihood denominator:
-    //   denom = exp (-bound) + sum_c exp (main_effect_param_c + (c+1) * residual_score - bound)
-    // Where:
-    //   - residual_score is the summed interaction score excluding the variable itself
-    //   - bound = num_cats * residual_score (for numerical stability)
-    //   - main_effect_param_c is the main_effect parameter for category c (0-based)
-    arma::vec residual_score = residual_matrix.col (variable);                     // rest scores for all persons
-    arma::vec bound = num_cats * residual_score;                                  // numerical bound vector
-    arma::vec denom = ARMA_MY_EXP (-bound);                                      // initialize with base term
+    arma::vec residual_score = residual_matrix.col (variable);                  // rest scores for all persons
     arma::vec main_effect_param = main_effects.row (variable).cols (0, num_cats - 1).t ();   // main_effect parameters
 
-    for (int cat = 0; cat < num_cats; cat++) {
-      arma::vec exponent = main_effect_param(cat) + (cat + 1) * residual_score - bound;       // exponent per person
-      denom += ARMA_MY_EXP (exponent);                                           // accumulate exp terms
-    }
+    arma::vec denom = compute_denom_ordinal(
+      residual_score, main_effect_param, bound
+    );
 
     // We then compute the total log-likelihood contribution as:
     //   log_posterior -= bound + log (denom), summed over all persons
@@ -98,24 +90,14 @@ double log_pseudoposterior_main_effects_component (
     log_posterior += value * blume_capel_stats(parameter, variable);
     log_posterior += log_beta_prior(value);
 
-    // Vectorized likelihood contribution
-    // For each person, we compute the unnormalized log-likelihood denominator:
-    //   denom = sum_c exp (θ_lin * c + θ_quad * (c - ref)^2 + c * residual_score - bound)
-    // Where:
-    //   - θ_lin, θ_quad are linear and quadratic main_effects
-    //   - ref is the reference category (used for centering)
-    //   - bound = num_cats * residual_score (stabilizes exponentials)
     arma::vec residual_score = residual_matrix.col(variable);                     // rest scores for all persons
-    arma::vec bound = num_cats * residual_score;                                  // numerical bound vector
     arma::vec denom(num_persons, arma::fill::zeros);                          // initialize denominator
-    for (int cat = 0; cat <= num_cats; cat++) {
-      int centered = cat - ref;                                               // centered category
-      double quad_term = quadratic_main_effect * centered * centered;                    // precompute quadratic term
-      double lin_term = linear_main_effect * cat;                                      // precompute linear term
 
-      arma::vec exponent = lin_term + quad_term + cat * residual_score - bound;
-      denom += ARMA_MY_EXP (exponent);                                           // accumulate over categories
-    }
+    denom = compute_denom_blume_capel(
+      residual_score, linear_main_effect, quadratic_main_effect, ref,
+      num_cats, bound
+    );
+
 
     // The final log-likelihood contribution is then:
     //   log_posterior -= bound + log (denom), summed over all persons
@@ -175,37 +157,33 @@ double log_pseudoposterior_interactions_component (
   double log_pseudo_posterior = 2.0 * pairwise_effects(var1, var2) * pairwise_stats(var1, var2);
 
   for (int var : {var1, var2}) {
-    int num_categories_var = num_categories (var);
+    int num_cats = num_categories (var);
 
     // Compute rest score: contribution from other variables
-    arma::vec residual_scores = observations * pairwise_effects.col (var);
-    arma::vec bounds = arma::max (residual_scores, arma::zeros<arma::vec> (num_observations)) * num_categories_var;
+    arma::vec residual_score = observations * pairwise_effects.col (var);
     arma::vec denominator = arma::zeros (num_observations);
+    arma::vec bound = num_cats * residual_score;                                // numerical bound vector
 
     if (is_ordinal_variable (var)) {
-      // Ordinal variable: denominator includes exp (-bounds)
+      arma::vec main_effect_param = main_effects.row (var).cols (0, num_cats - 1).t ();   // main_effect parameters
 
-      denominator += ARMA_MY_EXP (-bounds);
-      for (int category = 0; category < num_categories_var; category++) {
-        arma::vec exponent = main_effects (var, category) + (category + 1) * residual_scores - bounds;
-        denominator += ARMA_MY_EXP(exponent);
-      }
+      denominator += compute_denom_ordinal(
+        residual_score, main_effect_param, bound
+      );
 
     } else {
-      // Binary/categorical variable: quadratic + linear term
-      const int ref_cat = baseline_category (var);
-      for (int category = 0; category <= num_categories_var; category++) {
-        int centered_cat = category - ref_cat;
-        double lin_term = main_effects (var, 0) * category;
-        double quad_term = main_effects (var, 1) * centered_cat * centered_cat;
-        arma::vec exponent = lin_term + quad_term + category * residual_scores - bounds;
-        denominator += ARMA_MY_EXP (exponent);
-      }
+      const int ref = baseline_category (var);
+
+      denominator = compute_denom_blume_capel(
+        residual_score, main_effects (var, 0), main_effects (var, 1), ref,
+        num_cats, bound
+      );
+
     }
 
     // Subtract log partition function and bounds adjustment
     log_pseudo_posterior -= arma::accu (ARMA_MY_LOG (denominator));
-    log_pseudo_posterior -= arma::accu (bounds);
+    log_pseudo_posterior -= arma::accu (bound);
   }
 
   // Add Cauchy prior terms for included pairwise effects
@@ -311,37 +289,85 @@ double log_pseudoposterior (
   // Calculate the log denominators
   for (int variable = 0; variable < num_variables; variable++) {
     const int num_cats = num_categories(variable);
-    arma::vec residual_score = residual_matrix.col (variable);                    // rest scores for all persons
-    arma::vec bound = num_cats * residual_score;                                  // numerical bound vector
-    bound = arma::clamp(bound, 0.0, arma::datum::inf);                        // only positive bounds to prevent overflow
+    arma::vec residual_score = residual_matrix.col (variable);                  // rest scores for all persons
+    arma::vec bound = num_cats * residual_score;                              // numerical bound vector
 
-    arma::vec denom;
+    arma::vec denom(num_persons, arma::fill::zeros);
     if (is_ordinal_variable(variable)) {
-      denom = ARMA_MY_EXP (-bound);                                     // initialize with base term
       arma::vec main_effect_param = main_effects.row (variable).cols (0, num_cats - 1).t ();   // main_effect parameters for variable
-      for (int cat = 0; cat < num_cats; cat++) {
-        arma::vec exponent = main_effect_param(cat) + (cat + 1) * residual_score - bound; // exponent per person
-        denom += ARMA_MY_EXP (exponent);                                          // accumulate exp terms
-      }
+      denom += compute_denom_ordinal(
+        residual_score, main_effect_param, bound
+      );
     } else {
+      const int ref = baseline_category(variable);
       const double lin_effect = main_effects(variable, 0);
       const double quad_effect = main_effects(variable, 1);
-      const int ref = baseline_category(variable);
 
-      denom.zeros(num_persons);
-      for (int cat = 0; cat <= num_cats; cat++) {
-        int centered = cat - ref;                                               // centered category
-        double quad = quad_effect * centered * centered;                    // precompute quadratic term
-        double lin = lin_effect * cat;                                      // precompute linear term
-        arma::vec exponent = lin + quad + cat * residual_score - bound;
-        denom += ARMA_MY_EXP (exponent);                                           // accumulate over categories
-      }
+      //This updates bound
+      denom = compute_denom_blume_capel(
+        residual_score, lin_effect, quad_effect, ref, num_cats, bound
+      );
     }
-
-    log_pseudoposterior -= arma::accu (bound + ARMA_MY_LOG (denom));                    // total contribution
+    log_pseudoposterior -= arma::accu (bound + ARMA_MY_LOG (denom));            // total contribution
   }
 
   return log_pseudoposterior;
+}
+
+
+
+std::pair<arma::vec, arma::imat> gradient_observed_active(
+    const arma::imat& inclusion_indicator,
+    const arma::imat& observations,
+    const arma::ivec& num_categories,
+    const arma::imat& counts_per_category,
+    const arma::imat& blume_capel_stats,
+    const arma::ivec& baseline_category,
+    const arma::uvec& is_ordinal_variable,
+    const arma::imat& pairwise_stats
+) {
+  const int num_variables = observations.n_cols;
+  const int num_main = count_num_main_effects(num_categories, is_ordinal_variable);
+  arma::imat index_matrix(num_variables, num_variables, arma::fill::zeros);
+
+  // Count active pairwise effects + Index map for pairwise parameters
+  int num_active = 0;
+  for (int i = 0; i < num_variables - 1; i++) {
+    for (int j = i + 1; j < num_variables; j++) {
+      if (inclusion_indicator(i, j) == 1){
+        index_matrix(i, j) = num_main + num_active++;
+        index_matrix(j, i) = index_matrix(i, j);
+      }
+    }
+  }
+
+  // Allocate gradient vector (main + active pairwise only)
+  arma::vec gradient(num_main + num_active, arma::fill::zeros);
+
+  // ---- STEP 1: Observed statistics ----
+  int offset = 0;
+  for (int variable = 0; variable < num_variables; variable++) {
+    if (is_ordinal_variable(variable)) {
+      const int num_cats = num_categories(variable);
+      for (int cat = 0; cat < num_cats; cat++) {
+        gradient(offset + cat) = counts_per_category(cat + 1, variable);
+      }
+      offset += num_cats;
+    } else {
+      gradient(offset) = blume_capel_stats(0, variable);
+      gradient(offset + 1) = blume_capel_stats(1, variable);
+      offset += 2;
+    }
+  }
+  for (int i = 0; i < num_variables - 1; i++) {
+    for (int j = i + 1; j < num_variables; j++) {
+      if (inclusion_indicator(i, j) == 0) continue;
+      int location = index_matrix(i, j);
+      gradient(location) = 2.0 * pairwise_stats(i, j);
+    }
+  }
+
+  return {gradient, index_matrix};
 }
 
 
@@ -382,90 +408,45 @@ arma::vec gradient_log_pseudoposterior(
     const arma::imat& inclusion_indicator,
     const arma::imat& observations,
     const arma::ivec& num_categories,
-    const arma::imat& counts_per_category,
-    const arma::imat& blume_capel_stats,
     const arma::ivec& baseline_category,
     const arma::uvec& is_ordinal_variable,
     const double main_alpha,
     const double main_beta,
     const double pairwise_scale,
-    const arma::imat& pairwise_stats,
-    const arma::mat& residual_matrix
+    const arma::mat& residual_matrix,
+    const arma::imat index_matrix,
+    const arma::vec grad_obs
 ) {
   const int num_variables = observations.n_cols;
-  const int num_persons   = observations.n_rows;
-  const int num_main      = count_num_main_effects(num_categories, is_ordinal_variable);
-  arma::imat index_matrix(num_variables, num_variables, arma::fill::zeros);
-
-  // Count active pairwise effects + Index map for pairwise parameters
-  int num_active = 0;
-  for (int i = 0; i < num_variables - 1; i++) {
-    for (int j = i + 1; j < num_variables; j++) {
-      if (inclusion_indicator(i, j) == 1){
-        index_matrix(i, j) = num_main + num_active++;
-        index_matrix(j, i) = index_matrix(i, j);
-      }
-    }
-  }
+  const int num_persons = observations.n_rows;
 
   // Allocate gradient vector (main + active pairwise only)
-  arma::vec gradient(num_main + num_active, arma::fill::zeros);
-
-  // ---- STEP 1: Observed statistics ----
-  int offset = 0;
-  for (int variable = 0; variable < num_variables; variable++) {
-    if (is_ordinal_variable(variable)) {
-      const int num_cats = num_categories(variable);
-      for (int cat = 0; cat < num_cats; cat++) {
-        gradient(offset + cat) = counts_per_category(cat + 1, variable);
-      }
-      offset += num_cats;
-    } else {
-      gradient(offset) = blume_capel_stats(0, variable);
-      gradient(offset + 1) = blume_capel_stats(1, variable);
-      offset += 2;
-    }
-  }
-  for (int i = 0; i < num_variables - 1; i++) {
-    for (int j = i + 1; j < num_variables; j++) {
-      if (inclusion_indicator(i, j) == 0) continue;
-      int location = index_matrix(i, j);
-      gradient(location) = 2.0 * pairwise_stats(i, j);
-    }
-  }
+  arma::vec gradient = grad_obs;
 
   // ---- STEP 2: Expected statistics ----
-  offset = 0;
+  int offset = 0;
   for (int variable = 0; variable < num_variables; variable++) {
     const int num_cats = num_categories(variable);
     arma::vec residual_score = residual_matrix.col(variable);
     arma::vec bound = num_cats * residual_score;
-    bound = arma::clamp(bound, 0.0, arma::datum::inf);
 
     if (is_ordinal_variable(variable)) {
       arma::vec main_param = main_effects.row(variable).cols(0, num_cats - 1).t();
-      bound += main_param.max();
-
-      arma::mat exponents(num_persons, num_cats);
-      for (int cat = 0; cat < num_cats; cat++) {
-        exponents.col(cat) = main_param(cat) + (cat + 1) * residual_score - bound;
-      }
-
-      arma::mat probs = ARMA_MY_EXP(exponents);
-      arma::vec denom = arma::sum(probs, 1) + ARMA_MY_EXP(-bound);
-      probs.each_col() /= denom;
+      arma::mat probs = compute_probs_ordinal(
+        main_param, residual_score, bound, num_cats
+      );
 
       // main effects
       for (int cat = 0; cat < num_cats; cat++) {
-        gradient(offset + cat) -= arma::accu(probs.col(cat));
+        gradient(offset + cat) -= arma::accu(probs.col(cat + 1));
       }
 
       // pairwise effects
       for (int j = 0; j < num_variables; j++) {
         if (inclusion_indicator(variable, j) == 0 || variable == j) continue;
         arma::vec expected_value = arma::zeros(num_persons);
-        for (int cat = 0; cat < num_cats; cat++) {
-          expected_value += (cat + 1) * probs.col(cat) % observations.col(j);
+        for (int cat = 1; cat <= num_cats; cat++) {
+          expected_value += cat * probs.col(cat) % observations.col(j);
         }
         int location = (variable < j) ? index_matrix(variable, j) : index_matrix(j, variable);
         gradient(location) -= arma::accu(expected_value);
@@ -476,33 +457,30 @@ arma::vec gradient_log_pseudoposterior(
       const double lin_eff = main_effects(variable, 0);
       const double quad_eff = main_effects(variable, 1);
 
-      arma::mat exponents(num_persons, num_cats + 1);
-      for (int cat = 0; cat <= num_cats; cat++) {
-        int score = cat;
-        int centered = score - ref;
-        double lin  = lin_eff * score;
-        double quad = quad_eff * centered * centered;
-        exponents.col(cat) = lin + quad + score * residual_score - bound;
-      }
-      arma::mat probs = ARMA_MY_EXP(exponents);
-      arma::vec denom = arma::sum(probs, 1);
-      probs.each_col() /= denom;
+      arma::mat probs = compute_probs_blume_capel(
+          residual_score, lin_eff, quad_eff, ref, num_cats, bound
+        );
 
-      arma::ivec lin_score  = arma::regspace<arma::ivec>(0, num_cats);
-      arma::ivec quad_score = arma::square(lin_score - ref);
+      arma::vec score = arma::regspace<arma::vec>(0, num_cats) - double(ref);
+      arma::vec sq_score = arma::square(score);
 
       // main effects
-      gradient(offset) -= arma::accu(probs * lin_score);
-      gradient(offset + 1) -= arma::accu(probs * quad_score);
+      gradient(offset) -= arma::accu(probs * score);
+      gradient(offset + 1) -= arma::accu(probs * sq_score);
 
       // pairwise effects
       for (int j = 0; j < num_variables; j++) {
         if (inclusion_indicator(variable, j) == 0 || variable == j) continue;
         arma::vec expected_value = arma::zeros(num_persons);
-        for (int cat = 0; cat < num_cats; cat++) {
-          expected_value += (cat + 1) * probs.col(cat + 1) % observations.col(j);
+        for (int cat = 0; cat <= num_cats; cat++) {
+          int s = score(cat);
+          expected_value += s * probs.col(cat) % observations.col(j);
         }
-        int location = (variable < j) ? index_matrix(variable, j) : index_matrix(j, variable);
+
+        int location = (variable < j)
+          ? index_matrix(variable, j)
+          : index_matrix(j, variable);
+
         gradient(location) -= arma::accu(expected_value);
       }
       offset += 2;
@@ -589,48 +567,43 @@ double compute_log_likelihood_ratio_for_variable (
   arma::vec interaction = arma::conv_to<arma::vec>::from (interacting_score);
 
   const int num_persons = residual_matrix.n_rows;
-  const int num_categories_var = num_categories (variable);
+  const int num_cats = num_categories (variable);
 
   // Compute adjusted linear predictors without the current interaction
-  arma::vec residual_scores = residual_matrix.col (variable) - interaction * current_state;
-
-  // Stability bound for softmax (scaled by number of categories)
-  arma::vec bounds = arma::max (residual_scores, arma::zeros<arma::vec> (num_persons)) * num_categories_var;
+  arma::vec residual_score = residual_matrix.col (variable) - interaction * current_state;
+  arma::vec bounds = residual_score * num_cats;
 
   arma::vec denom_current = arma::zeros (num_persons);
   arma::vec denom_proposed = arma::zeros (num_persons);
 
   if (is_ordinal_variable (variable)) {
-    denom_current += ARMA_MY_EXP(-bounds);
-    denom_proposed += ARMA_MY_EXP(-bounds);
+    arma::vec main_param = main_effects.row(variable).cols(0, num_cats - 1).t();
 
-    for (int category = 0; category < num_categories_var; category++) {
-      const double main = main_effects(variable, category);
-      const int score = category + 1;
+    // ---- main change: use safe helper ----
+    denom_current += compute_denom_ordinal(
+      residual_score + interaction * current_state, main_param, bounds
+    );
+    denom_proposed += compute_denom_ordinal(
+      residual_score + interaction * proposed_state, main_param, bounds
+    );
 
-      for (int person = 0; person < num_persons; person++) {
-        const double base = main + score * residual_scores[person] - bounds[person];
-
-        const double exp_current = MY_EXP(base + score * interaction[person] * current_state);
-        const double exp_proposed = MY_EXP(base + score * interaction[person] * proposed_state);
-
-        denom_current[person] += exp_current;
-        denom_proposed[person] += exp_proposed;
-      }
-    }
   } else {
     // Binary or categorical variable: linear + quadratic score
     const int ref_cat = baseline_category (variable);
 
-    for (int category = 0; category <= num_categories_var; category++) {
-      int centered = category - ref_cat;
-      double lin_term = main_effects (variable, 0) * category;
-      double quad_term = main_effects (variable, 1) * centered * centered;
-      arma::vec exponent = lin_term + quad_term + category * residual_scores - bounds;
+    denom_current = compute_denom_blume_capel(
+      residual_score + interaction * current_state, main_effects (variable, 0),
+      main_effects (variable, 1), ref_cat, num_cats, bounds
+    );
+    double log_ratio = arma::accu(ARMA_MY_LOG (denom_current) + bounds);
 
-      denom_current += ARMA_MY_EXP (exponent + category * interaction * current_state);
-      denom_proposed += ARMA_MY_EXP (exponent + category * interaction * proposed_state);
-    }
+    denom_proposed = compute_denom_blume_capel(
+      residual_score + interaction * proposed_state, main_effects (variable, 0),
+      main_effects (variable, 1), ref_cat, num_cats, bounds
+    );
+    log_ratio -= arma::accu(ARMA_MY_LOG (denom_proposed) + bounds);
+
+    return log_ratio;
   }
 
   // Accumulated log-likelihood difference across persons

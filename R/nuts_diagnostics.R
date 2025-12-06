@@ -42,18 +42,16 @@ summarize_nuts_diagnostics <- function(out, nuts_max_depth = 10, verbose = TRUE)
         100 * divergence_rate,
         total_divergences,
         nrow(divergent_mat) * ncol(divergent_mat)
-      ), "Consider increasing the target acceptance rate.")
-    } else if(divergence_rate > 0) {
-      message(
-        sprintf(
-          "Note: %.3f%% of transitions ended with a divergence (%d of %d).\n",
-          100 * divergence_rate,
-          total_divergences,
-          nrow(divergent_mat) * ncol(divergent_mat)
-        ),
-        "Check R-hat and effective sample size (ESS) to ensure the chains are\n",
-        "mixing well."
-      )
+      ), "Consider increasing the target acceptance rate or change to update_method = ``adaptive-metropolis''.")
+    } else if (divergence_rate > 0) {
+      message(sprintf(
+        "Note: %.3f%% of transitions ended with a divergence (%d of %d).\n",
+        100 * divergence_rate,
+        total_divergences,
+        nrow(divergent_mat) * ncol(divergent_mat)
+      ),
+      "Check R-hat and effective sample size (ESS) to ensure the chains are\n",
+      "mixing well.")
     }
 
     depth_hit_rate <- max_tree_depth_hits / (nrow(treedepth_mat) * ncol(treedepth_mat))
@@ -84,16 +82,14 @@ summarize_nuts_diagnostics <- function(out, nuts_max_depth = 10, verbose = TRUE)
     low_ebfmi_chains <- which(ebfmi_per_chain < 0.3)
     min_ebfmi <- min(ebfmi_per_chain)
 
-    if(length(low_ebfmi_chains) > 0) {
-      warning(
-        sprintf(
-          "E-BFMI below 0.3 detected in %d chain(s): %s.\n",
-          length(low_ebfmi_chains),
-          paste(low_ebfmi_chains, collapse = ", ")
-        ),
-        "This suggests inefficient momentum resampling in those chains.\n",
-        "Sampling efficiency may be reduced. Consider longer chains or checking convergence diagnostics."
-      )
+    if (length(low_ebfmi_chains) > 0) {
+      warning(sprintf(
+        "E-BFMI below 0.3 detected in %d chain(s): %s.\n",
+        length(low_ebfmi_chains),
+        paste(low_ebfmi_chains, collapse = ", ")
+      ),
+      "This suggests inefficient momentum resampling in those chains.\n",
+      "Sampling efficiency may be reduced. Consider longer chains and check convergence diagnostics.")
     }
   }
 

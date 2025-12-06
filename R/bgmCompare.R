@@ -321,7 +321,7 @@ bgmCompare = function(
     } else if(update_method == "hamiltonian-mc") {
       target_accept = 0.65
     } else if(update_method == "nuts") {
-      target_accept = 0.80
+      target_accept = 0.65
     }
   }
 
@@ -414,12 +414,14 @@ bgmCompare = function(
   blume_capel_stats = compute_blume_capel_stats(
     x, baseline_category, ordinal_variable, group
   )
+  for (i in which(!ordinal_variable)) {
+    x[, i] = x[, i] - baseline_category[i]
+  }
 
   # Compute sufficient statistics for pairwise interactions
   pairwise_stats = compute_pairwise_stats(
     x, group
   )
-
 
   # Index vector used to sample interactions in a random order -----------------
   Index = matrix(0, nrow = num_interactions, ncol = 3)
@@ -489,7 +491,6 @@ bgmCompare = function(
   }
 
   seed <- as.integer(seed)
-
 
   # Call the Rcpp function
   out = run_bgmCompare_parallel(
