@@ -16,7 +16,7 @@ mrfSampler(
   interactions,
   thresholds,
   variable_type = "ordinal",
-  reference_category,
+  baseline_category,
   iter = 1000
 )
 ```
@@ -62,10 +62,10 @@ mrfSampler(
   “blume-capel”. Binary variables are automatically treated as
   “ordinal’’. Defaults to `variable_type = "ordinal"`.
 
-- reference_category:
+- baseline_category:
 
   An integer vector of length `no_variables` specifying the
-  reference_category category that is used for the Blume-Capel model
+  baseline_category category that is used for the Blume-Capel model
   (details below). Can be any integer value between `0` and
   `no_categories` (or `no_categories[i]`).
 
@@ -90,7 +90,7 @@ This option is useful for any type of ordinal variable and gives the
 user the most freedom in specifying their model.
 
 The Blume-Capel option is specifically designed for ordinal variables
-that have a special type of reference_category category, such as the
+that have a special type of baseline_category category, such as the
 neutral category in a Likert scale. The Blume-Capel model specifies the
 following quadratic model for the threshold parameters:
 \$\$\mu\_{\text{c}} = \alpha \times \text{c} + \beta \times (\text{c} -
@@ -99,8 +99,8 @@ c (which now includes zero), \\\alpha\\ offers a linear trend across
 categories (increasing threshold values if \\\alpha \> 0\\ and
 decreasing threshold values if \\\alpha \<0\\), if \\\beta \< 0\\, it
 offers an increasing penalty for responding in a category further away
-from the reference_category category r, while \\\beta \> 0\\ suggests a
-preference for responding in the reference_category category.
+from the baseline_category category r, while \\\beta \> 0\\ suggests a
+preference for responding in the baseline_category category.
 
 ## Examples
 
@@ -151,6 +151,6 @@ x = mrfSampler(
   interactions = Interactions,
   thresholds = Thresholds,
   variable_type = c("b", "b", "o", "b", "o"),
-  reference_category = 2
+  baseline_category = 2
 )
 ```
