@@ -1,5 +1,17 @@
+# NOTE:
+
+# This Makevars.in uses only POSIX make features.
+# The SOURCES → OBJECTS substitution is required for portability
+# and does not rely on GNU make extensions.
+
+# See "Writing R Extensions", section "Writing portable packages".
+
 CXX_STD = CXX20
 
-PKG_CPPFLAGS = @RCPP_PARALLEL_CPPFLAGS@ -DARMA_NO_DEBUG
+include sources.mk
+
+OBJECTS = $(SOURCES:.cpp=.o)
+
+PKG_CPPFLAGS = @RCPP_PARALLEL_CPPFLAGS@ -DARMA_NO_DEBUG -I. -Ibgm -IbgmCompare
 
 PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) @RCPP_PARALLEL_LIBS@

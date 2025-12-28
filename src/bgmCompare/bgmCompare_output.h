@@ -21,13 +21,15 @@
  *  - chain_id:         Identifier of the chain.
  *  - has_indicator:    True if indicator samples are stored.
  */
-struct SamplerOutput {
+struct bgmCompareOutput {
   arma::mat main_samples;
   arma::mat pairwise_samples;
   arma::imat indicator_samples;
+
   arma::ivec treedepth_samples;
   arma::ivec divergent_samples;
   arma::vec energy_samples;
+
   int chain_id;
   bool has_indicator;
   bool userInterrupt;

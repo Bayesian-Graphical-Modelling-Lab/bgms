@@ -7,7 +7,7 @@
 #include <vector>
 #include <string>
 #include "progress_manager.h"
-#include "sampler_output.h"
+#include "bgmCompare_output.h"
 #include "mcmc_adaptation.h"
 #include "common_helpers.h"
 
@@ -22,24 +22,19 @@ using namespace RcppParallel;
  *  - error: True if the chain terminated with an error, false otherwise.
  *  - error_msg: Error message if an error occurred (empty if none).
  *  - chain_id: Integer identifier for the chain (1-based).
- *  - result: SamplerOutput object containing chain results
+ *  - result: bgmCompareOutput object containing chain results
  *    (samples, diagnostics, metadata).
  *
  * Usage:
  *  - Used in parallel execution to collect results from each chain.
  *  - Checked after execution to propagate errors or assemble outputs
  *    into an R-accessible list.
- *
- * Notes:
- *  - This struct mirrors `ChainResult` from bgm, but stores a
- *    `SamplerOutput` instead of an `Rcpp::List`.
- *  - If `error == true`, the `result` field should be ignored.
  */
-struct ChainResultCompare {
+struct bgmCompareChainResult {
   bool error;
   std::string error_msg;
   int chain_id;
-  SamplerOutput result;
+  bgmCompareOutput result;
 };
 
 
@@ -90,7 +85,7 @@ struct ChainResultCompare {
  *  - hmc_num_leapfrogs: Number of leapfrog steps (HMC).
  *
  * Output:
- *  - results: Vector of `ChainResultCompare` objects, one per chain, filled in place.
+ *  - results: Vector of `bgmCompareChainResult` objects, one per chain, filled in place.
  *
  * Notes:
  *  - Each worker instance is shared across threads but invoked with different
@@ -135,7 +130,7 @@ struct GibbsCompareChainRunner : public Worker {
   const int hmc_num_leapfrogs;
   ProgressManager& pm;
   // output
-  std::vector<ChainResultCompare>& results;
+  std::vector<bgmCompareChainResult>& results;
 
   GibbsCompareChainRunner(
     const arma::imat& observations_master,
@@ -172,7 +167,7 @@ struct GibbsCompareChainRunner : public Worker {
     const UpdateMethod update_method,
     const int hmc_num_leapfrogs,
     ProgressManager& pm,
-    std::vector<ChainResultCompare>& results
+    std::vector<bgmCompareChainResult>& results
   ) :
     observations_master(observations_master),
     num_groups(num_groups),
@@ -213,7 +208,7 @@ struct GibbsCompareChainRunner : public Worker {
 
   void operator()(std::size_t begin, std::size_t end) {
     for (std::size_t i = begin; i < end; ++i) {
-      ChainResultCompare out;
+      bgmCompareChainResult out;
       out.chain_id = static_cast<int>(i + 1);
       out.error = false;
 
@@ -229,7 +224,7 @@ struct GibbsCompareChainRunner : public Worker {
         arma::imat observations = observations_master;
 
         // run sampler (pure C++)
-        SamplerOutput result = run_gibbs_sampler_bgmCompare(
+        bgmCompareOutput result = run_gibbs_sampler_bgmCompare(
           out.chain_id,
           observations,
           num_groups,
@@ -386,7 +381,7 @@ Rcpp::List run_bgmCompare_parallel(
     int hmc_num_leapfrogs,
     int progress_type
 ) {
-  std::vector<ChainResultCompare> results(num_chains);
+  std::vector<bgmCompareChainResult> results(num_chains);
 
   // per-chain seeds
   std::vector<SafeRNG> chain_rngs(num_chains);

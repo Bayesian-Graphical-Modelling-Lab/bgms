@@ -10,7 +10,7 @@
 #include "mcmc_rwm.h"
 #include "mcmc_utils.h"
 #include "rng_utils.h"
-#include "sampler_output.h"
+#include "bgmCompare_output.h"
 #include "explog_switch.h"
 #include <string>
 #include "progress_manager.h"
@@ -1564,7 +1564,7 @@ void gibbs_update_step_bgmcompare (
  *  - This function runs entirely in C++ and is wrapped for parallel execution
  *    via `GibbsCompareChainRunner`.
  */
-SamplerOutput run_gibbs_sampler_bgmCompare(
+bgmCompareOutput run_gibbs_sampler_bgmCompare(
     int chain_id,
     arma::imat observations,
     const int num_groups,
@@ -1761,7 +1761,7 @@ SamplerOutput run_gibbs_sampler_bgmCompare(
     }
   }
 
-  SamplerOutput out;
+  bgmCompareOutput out;
   out.chain_id = chain_id;
   out.main_samples = main_effect_samples;
   out.pairwise_samples = pairwise_effect_samples;
@@ -1774,7 +1774,7 @@ SamplerOutput run_gibbs_sampler_bgmCompare(
   } else {
     out.indicator_samples = arma::imat();
   }
- out.userInterrupt = userInterrupt;
+  out.userInterrupt = userInterrupt;
 
   return out;
 }

@@ -1,15 +1,35 @@
-^renv$
-^renv\.lock$
+# RStudio / IDE
 ^.*\.Rproj$
 ^\.Rproj\.user$
+^\.vscode$
 
-^Readme.Rmd$
-^\.github$
-^_pkgdown\.yml$
+# renv
+^renv$
+^renv\.lock$
+
+# pkgdown / docs
 ^docs$
 ^pkgdown$
-^vignettes/introduction_cache
+^_pkgdown\.yml$
+^Readme\.Rmd$
+^vignettes/introduction_cache$
+
+# GitHub / CI
+^\.github$
+
+# R CMD build artifacts
 ^doc$
 ^Meta$
-^\.vscode$
-^dev/
+
+# Development helpers
+^dev$
+
+# ---- C/C++ build artifacts (REQUIRED) ----
+^src/.*\.o$
+^src/.*\.so$
+^src/.*\.dll$
+
+# ---- Generated build files ----
+^src/Makevars$
+^src/Makevars\.win$
+^src/sources\.mk$

@@ -2,13 +2,13 @@
 
 #include <RcppArmadillo.h>
 #include "common_helpers.h"
+#include "bgmCompare_output.h"
 #include <string>
 
-struct SamplerOutput;
 struct SafeRNG;
 class ProgressManager;
 
-SamplerOutput run_gibbs_sampler_bgmCompare(
+bgmCompareOutput run_gibbs_sampler_bgmCompare(
     int chain_id,
     arma::imat observations,
     const int num_groups,

@@ -1,13 +1,14 @@
 #pragma once
 #include <RcppArmadillo.h>
 #include "common_helpers.h"
+#include "bgm_output.h"
+
 // forward declaration
 struct SafeRNG;
 class ProgressManager;
-struct ChainResult;
 
-void run_gibbs_sampler_bgm(
-    ChainResult& chain_result,
+bgmOutput run_gibbs_sampler_bgm(
+    int chain_id,
     arma::imat observations,
     const arma::ivec& num_categories,
     const double pairwise_scale,

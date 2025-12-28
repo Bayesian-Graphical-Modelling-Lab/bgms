@@ -9,10 +9,33 @@
 #include "progress_manager.h"
 #include "mcmc_adaptation.h"
 #include "common_helpers.h"
-#include "chainResults.h"
+#include "bgm_output.h"
 
 using namespace RcppParallel;
 
+
+
+/**
+ * Container for the result of a single MCMC chain (bgm model).
+ *
+ * Fields:
+ *  - error: True if the chain terminated with an error, false otherwise.
+ *  - error_msg: Error message if an error occurred (empty if none).
+ *  - chain_id: Integer identifier for the chain (1-based).
+ *  - result: bgmOutput object containing chain results
+ *    (samples, diagnostics, metadata).
+ *
+ * Usage:
+ *  - Used in parallel execution to collect results from each chain.
+ *  - Checked after execution to propagate errors or assemble outputs
+ *    into an R-accessible list.
+ */
+struct bgmChainResult {
+  bool error;
+  std::string error_msg;
+  int chain_id;
+  bgmOutput result;
+};
 
 
 
@@ -40,7 +63,7 @@ using namespace RcppParallel;
 struct GibbsChainRunner : public Worker {
   const arma::imat& observations;
   const arma::ivec& num_categories;
-  double  pairwise_scale;
+  double pairwise_scale;
   const EdgePrior edge_prior;
   const arma::mat& inclusion_probability;
   double beta_bernoulli_alpha;
@@ -74,12 +97,12 @@ struct GibbsChainRunner : public Worker {
   ProgressManager& pm;
 
   // output buffer
-  std::vector<ChainResult>& results;
+  std::vector<bgmChainResult>& results;
 
   GibbsChainRunner(
     const arma::imat& observations,
     const arma::ivec& num_categories,
-    double  pairwise_scale,
+    double pairwise_scale,
     const EdgePrior edge_prior,
     const arma::mat& inclusion_probability,
     double beta_bernoulli_alpha,
@@ -109,11 +132,11 @@ struct GibbsChainRunner : public Worker {
     bool learn_mass_matrix,
     const std::vector<SafeRNG>& chain_rngs,
     ProgressManager& pm,
-    std::vector<ChainResult>& results
+    std::vector<bgmChainResult>& results
   ) :
     observations(observations),
     num_categories(num_categories),
-     pairwise_scale( pairwise_scale),
+    pairwise_scale( pairwise_scale),
     edge_prior(edge_prior),
     inclusion_probability(inclusion_probability),
     beta_bernoulli_alpha(beta_bernoulli_alpha),
@@ -148,16 +171,16 @@ struct GibbsChainRunner : public Worker {
 
   void operator()(std::size_t begin, std::size_t end) {
     for (std::size_t i = begin; i < end; ++i) {
-
-      ChainResult& chain_result = results[i];
+      bgmChainResult chain_result;
       chain_result.chain_id = static_cast<int>(i + 1);
       chain_result.error = false;
-      SafeRNG rng = chain_rngs[i];
 
       try {
+        // per-chain RNG
+        SafeRNG rng = chain_rngs[i];
 
-        run_gibbs_sampler_bgm(
-          chain_result,
+        bgmOutput result = run_gibbs_sampler_bgm(
+          chain_result.chain_id,
           observations,
           num_categories,
           pairwise_scale,
@@ -192,6 +215,8 @@ struct GibbsChainRunner : public Worker {
           pm
         );
 
+        chain_result.result = result;
+
       } catch (std::exception& e) {
         chain_result.error = true;
         chain_result.error_msg = e.what();
@@ -199,6 +224,8 @@ struct GibbsChainRunner : public Worker {
         chain_result.error = true;
         chain_result.error_msg = "Unknown error";
       }
+
+      results[i] = chain_result;
     }
   }
 };
@@ -288,7 +315,7 @@ Rcpp::List run_bgm_parallel(
     int seed,
     int progress_type
 ) {
-  std::vector<ChainResult> results(num_chains);
+  std::vector<bgmChainResult> results(num_chains);
 
   // Prepare one independent RNG per chain via jump()
   std::vector<SafeRNG> chain_rngs(num_chains);
@@ -328,27 +355,28 @@ Rcpp::List run_bgm_parallel(
         Rcpp::Named("chain_id") = results[i].chain_id
       );
     } else {
-        Rcpp::List chain_i;
-        chain_i["main_samples"] = results[i].main_effect_samples;
-        chain_i["pairwise_samples"] = results[i].pairwise_effect_samples;
+      const auto& r = results[i].result;
+      Rcpp::List chain_i;
+      chain_i["main_samples"] = r.main_samples;
+      chain_i["pairwise_samples"] = r.pairwise_samples;
 
-        if (update_method_enum == nuts) {
-          chain_i["treedepth__"] = results[i].treedepth_samples;
-          chain_i["divergent__"] = results[i].divergent_samples;
-          chain_i["energy__"] = results[i].energy_samples;
-        }
+      if (update_method_enum == nuts) {
+        chain_i["treedepth__"] = r.treedepth_samples;
+        chain_i["divergent__"] = r.divergent_samples;
+        chain_i["energy__"] = r.energy_samples;
+      }
 
-        if (edge_selection) {
-          chain_i["indicator_samples"] = results[i].indicator_samples;
+      if (edge_selection) {
+        chain_i["indicator_samples"] = r.indicator_samples;
 
-          if (edge_prior_enum == Stochastic_Block)
-            chain_i["allocations"] = results[i].allocation_samples;
-        }
+        if (edge_prior_enum == Stochastic_Block)
+          chain_i["allocations"] = r.allocation_samples;
+      }
 
-        chain_i["userInterrupt"] = results[i].userInterrupt;
-        chain_i["chain_id"] = results[i].chain_id;
+      chain_i["userInterrupt"] = r.userInterrupt;
+      chain_i["chain_id"] = r.chain_id;
 
-        output[i] = chain_i;
+      output[i] = chain_i;
     }
   }
 

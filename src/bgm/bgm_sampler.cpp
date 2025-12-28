@@ -12,7 +12,7 @@
 #include "sbm_edge_prior.h"
 #include "rng_utils.h"
 #include "progress_manager.h"
-#include "chainResults.h"
+#include "bgm_output.h"
 
 
 
@@ -1186,8 +1186,8 @@ void gibbs_update_step_bgm (
  *  - Parallel execution across chains is handled by `run_bgm_parallel()`;
  *    this function is for one chain only.
  */
-void run_gibbs_sampler_bgm(
-    ChainResult& chain_result,
+bgmOutput run_gibbs_sampler_bgm(
+    int chain_id,
     arma::imat observations,
     const arma::ivec& num_categories,
     const double pairwise_scale,
@@ -1221,9 +1221,6 @@ void run_gibbs_sampler_bgm(
     SafeRNG& rng,
     ProgressManager& pm
 ) {
-
-  int chain_id = chain_result.chain_id;
-
   // --- Setup: dimensions and storage structures
   const int num_variables = observations.n_cols;
   const int num_persons = observations.n_rows;
@@ -1432,22 +1429,22 @@ void run_gibbs_sampler_bgm(
     }
   }
 
+  bgmOutput chain_result;
+  chain_result.chain_id = chain_id;
   chain_result.userInterrupt = userInterrupt;
 
-  chain_result.main_effect_samples = main_effect_samples;
-  chain_result.pairwise_effect_samples = pairwise_effect_samples;
-
+  chain_result.main_samples = main_effect_samples;
+  chain_result.pairwise_samples = pairwise_effect_samples;
   if (update_method == nuts) {
     chain_result.treedepth_samples = treedepth_samples;
     chain_result.divergent_samples = divergent_samples;
     chain_result.energy_samples    = energy_samples;
   }
-
   if (edge_selection) {
     chain_result.indicator_samples = indicator_samples;
-
     if (edge_prior == Stochastic_Block)
       chain_result.allocation_samples = allocation_samples;
   }
 
+  return chain_result;
 }
