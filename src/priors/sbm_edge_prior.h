@@ -4,13 +4,6 @@
 struct SafeRNG;
 
 
-// ----------------------------------------------------------------------------|
-// Compute partition coefficient for the MFM - SBM
-// ----------------------------------------------------------------------------|
-arma::vec compute_Vn_mfm_sbm(arma::uword no_variables,
-                                        double dirichlet_alpha,
-                                        arma::uword t_max,
-                                        double lambda);
 
 // ----------------------------------------------------------------------------|
 // Sample the block allocations for the MFM - SBM

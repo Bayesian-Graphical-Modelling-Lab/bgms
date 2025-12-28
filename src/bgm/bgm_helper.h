@@ -1,7 +1,7 @@
 #pragma once
 
 #include <RcppArmadillo.h>
-#include "rng_utils.h"
+#include "rng/rng_utils.h"
 
 // Vectorize main_effect matrix
 arma::vec vectorize_main_effects_bgm(

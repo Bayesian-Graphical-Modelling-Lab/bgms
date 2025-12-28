@@ -1,9 +1,9 @@
 #include <RcppArmadillo.h>
-#include "bgm_helper.h"
-#include "bgm_logp_and_grad.h"
-#include "common_helpers.h"
-#include "explog_switch.h"
-#include "variable_helpers.h"
+#include "bgm/bgm_helper.h"
+#include "bgm/bgm_logp_and_grad.h"
+#include "utils/common_helpers.h"
+#include "math/explog_switch.h"
+#include "utils/variable_helpers.h"
 
 
 

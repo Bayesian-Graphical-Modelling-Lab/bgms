@@ -1,7 +1,7 @@
 #pragma once
 #include <RcppArmadillo.h>
-#include "common_helpers.h"
-#include "bgm_output.h"
+#include "utils/common_helpers.h"
+#include "bgm/bgm_output.h"
 
 // forward declaration
 struct SafeRNG;

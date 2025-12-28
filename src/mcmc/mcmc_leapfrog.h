@@ -3,7 +3,7 @@
 
 #include <RcppArmadillo.h>
 #include <functional>
-#include "mcmc_memoization.h"
+#include "mcmc/mcmc_memoization.h"
 
 
 

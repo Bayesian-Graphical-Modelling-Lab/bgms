@@ -1,10 +1,10 @@
 #include <RcppArmadillo.h>
-#include "bgmCompare_helper.h"
-#include "bgmCompare_logp_and_grad.h"
+#include "bgmCompare/bgmCompare_helper.h"
+#include "bgmCompare/bgmCompare_logp_and_grad.h"
 #include <cmath>
-#include "explog_switch.h"
-#include "common_helpers.h"
-#include "variable_helpers.h"
+#include "math/explog_switch.h"
+#include "utils/common_helpers.h"
+#include "utils/variable_helpers.h"
 
 
 

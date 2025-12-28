@@ -1,9 +1,9 @@
 #include <RcppArmadillo.h>
 #include <functional>
-#include "mcmc_hmc.h"
-#include "mcmc_leapfrog.h"
-#include "mcmc_utils.h"
-#include "rng_utils.h"
+#include "mcmc/mcmc_hmc.h"
+#include "mcmc/mcmc_leapfrog.h"
+#include "mcmc/mcmc_utils.h"
+#include "rng/rng_utils.h"
 
 
 

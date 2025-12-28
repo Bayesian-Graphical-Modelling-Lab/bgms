@@ -5,9 +5,9 @@
 #include <cmath>
 #include <algorithm>
 #include <vector>
-#include "mcmc_utils.h"
-#include "mcmc_rwm.h"
-#include "explog_switch.h"
+#include "mcmc/mcmc_utils.h"
+#include "mcmc/mcmc_rwm.h"
+#include "math/explog_switch.h"
 
 class DualAveraging {
 public:

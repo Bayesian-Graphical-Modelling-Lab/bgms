@@ -3,7 +3,7 @@
 #include <RcppArmadillo.h>
 #include <cmath>
 #include <functional>
-#include "mcmc_utils.h"
+#include "mcmc/mcmc_utils.h"
 struct SafeRNG;
 
 

@@ -1,19 +1,19 @@
 #include <RcppArmadillo.h>
-#include "bgmCompare_helper.h"
-#include "bgmCompare_logp_and_grad.h"
-#include "bgmCompare_sampler.h"
-#include "common_helpers.h"
-#include "mcmc_adaptation.h"
-#include "mcmc_hmc.h"
-#include "mcmc_leapfrog.h"
-#include "mcmc_nuts.h"
-#include "mcmc_rwm.h"
-#include "mcmc_utils.h"
-#include "rng_utils.h"
-#include "bgmCompare_output.h"
-#include "explog_switch.h"
+#include "bgmCompare/bgmCompare_helper.h"
+#include "bgmCompare/bgmCompare_logp_and_grad.h"
+#include "bgmCompare/bgmCompare_sampler.h"
+#include "bgmCompare/bgmCompare_output.h"
+#include "mcmc/mcmc_adaptation.h"
+#include "mcmc/mcmc_hmc.h"
+#include "mcmc/mcmc_leapfrog.h"
+#include "mcmc/mcmc_nuts.h"
+#include "mcmc/mcmc_rwm.h"
+#include "mcmc/mcmc_utils.h"
+#include "rng/rng_utils.h"
+#include "math/explog_switch.h"
 #include <string>
-#include "progress_manager.h"
+#include "utils/progress_manager.h"
+#include "utils/common_helpers.h"
 
 
 

@@ -5,7 +5,7 @@
 #include <cmath>
 #include <functional>
 #include <memory>
-#include "explog_switch.h"
+#include "math/explog_switch.h"
 struct SafeRNG;
 
 // (only if <algorithm> didn’t already provide it under C++17)

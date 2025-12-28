@@ -1,10 +1,10 @@
 #include <RcppArmadillo.h>
 #include <functional>
-#include "mcmc_leapfrog.h"
-#include "mcmc_memoization.h"
-#include "mcmc_nuts.h"
-#include "mcmc_utils.h"
-#include "rng_utils.h"
+#include "mcmc/mcmc_leapfrog.h"
+#include "mcmc/mcmc_memoization.h"
+#include "mcmc/mcmc_nuts.h"
+#include "mcmc/mcmc_utils.h"
+#include "rng/rng_utils.h"
 
 
 /**

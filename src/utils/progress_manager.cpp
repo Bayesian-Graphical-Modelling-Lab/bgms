@@ -1,4 +1,4 @@
-#include "progress_manager.h"
+#include "utils/progress_manager.h"
 
 ProgressManager::ProgressManager(int nChains_, int nIter_, int nWarmup_, int printEvery_, int progress_type_, bool useUnicode_)
   : nChains(nChains_), nIter(nIter_ + nWarmup_), nWarmup(nWarmup_), printEvery(printEvery_),
@@ -398,7 +398,7 @@ void ProgressManager::maybePadToLength(std::string& content) const {
 // };
 
 
-// // [[Rcpp::export]]
+// // [[Rcpp::export]] // if uncommented, must move .cpp file to src/ for Rcpp to compile
 // void runMCMC_parallel(int nChains = 4, int nIter = 100, int nWarmup = 100, int progress_type = 2, bool useUnicode = false,
 //   int delay = 20) {
 

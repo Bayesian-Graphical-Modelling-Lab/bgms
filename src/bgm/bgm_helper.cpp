@@ -1,6 +1,6 @@
 #include <RcppArmadillo.h>
-#include "bgm_helper.h"
-#include "common_helpers.h"
+#include "bgm/bgm_helper.h"
+#include "utils/common_helpers.h"
 
 
 

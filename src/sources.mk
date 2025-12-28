@@ -13,14 +13,15 @@ SOURCES = \
   bgmCompare/bgmCompare_sampler.cpp \
   bgmCompare_interface.cpp \
   bgm_interface.cpp \
-  custom_exp.cpp \
   data_simulation.cpp \
-  e_exp.cpp \
-  mcmc_hmc.cpp \
-  mcmc_leapfrog.cpp \
-  mcmc_nuts.cpp \
-  mcmc_rwm.cpp \
-  mcmc_utils.cpp \
-  progress_manager.cpp \
-  sbm_edge_prior.cpp \
+  math/custom_exp.cpp \
+  math/e_exp.cpp \
+  mcmc/mcmc_hmc.cpp \
+  mcmc/mcmc_leapfrog.cpp \
+  mcmc/mcmc_nuts.cpp \
+  mcmc/mcmc_rwm.cpp \
+  mcmc/mcmc_utils.cpp \
+  priors/sbm_edge_prior.cpp \
+  sbm_edge_prior_interface.cpp \
+  utils/progress_manager.cpp \
 

@@ -1,7 +1,7 @@
 #include <RcppArmadillo.h>
 #include <functional>
-#include "mcmc_leapfrog.h"
-#include "mcmc_memoization.h"
+#include "mcmc/mcmc_leapfrog.h"
+#include "mcmc/mcmc_memoization.h"
 
 
 

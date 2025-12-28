@@ -2,7 +2,7 @@
 
 #include <RcppArmadillo.h>
 #include <functional>
-#include "mcmc_utils.h"
+#include "mcmc/mcmc_utils.h"
 struct SafeRNG;
 
 SamplerResult hmc_sampler(

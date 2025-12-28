@@ -1,0 +1,2 @@
+arma::log() in sbm_edge_prior_interface.cpp
+mcmc_adaptation.h in bgm/bgmCompare _interface.cpp

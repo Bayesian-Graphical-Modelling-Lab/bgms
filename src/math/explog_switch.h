@@ -20,8 +20,8 @@
 
 #if USE_CUSTOM_LOG
 
-#include "e_exp.h"
-#include "e_arma_exp.h"
+#include "math/e_exp.h"
+#include "math/e_arma_exp.h"
 
 #define MY_EXP __ieee754_exp
 #define MY_LOG __ieee754_log

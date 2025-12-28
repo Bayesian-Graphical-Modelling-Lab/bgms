@@ -3,9 +3,9 @@
 #include <RcppArmadillo.h>
 #include <functional>
 #include <utility>
-#include "mcmc_leapfrog.h"
-#include "mcmc_memoization.h"
-#include "mcmc_utils.h"
+#include "mcmc/mcmc_leapfrog.h"
+#include "mcmc/mcmc_memoization.h"
+#include "mcmc/mcmc_utils.h"
 struct SafeRNG;
 
 

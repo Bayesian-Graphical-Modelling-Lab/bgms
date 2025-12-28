@@ -1,9 +1,9 @@
 #include <RcppArmadillo.h>
 #include <cmath>
 #include <functional>
-#include "mcmc_utils.h"
-#include "mcmc_rwm.h"
-#include "rng_utils.h"
+#include "mcmc/mcmc_utils.h"
+#include "mcmc/mcmc_rwm.h"
+#include "rng/rng_utils.h"
 
 
 /**

@@ -1,8 +1,8 @@
 #pragma once
 
 #include <RcppArmadillo.h>
-#include "common_helpers.h"
-#include "bgmCompare_output.h"
+#include "utils/common_helpers.h"
+#include "bgmCompare/bgmCompare_output.h"
 #include <string>
 
 struct SafeRNG;

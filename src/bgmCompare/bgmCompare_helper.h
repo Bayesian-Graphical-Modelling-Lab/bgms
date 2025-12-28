@@ -1,7 +1,7 @@
 #pragma once
 
 #include <RcppArmadillo.h>
-#include "rng_utils.h"
+#include "rng/rng_utils.h"
 
 
 
