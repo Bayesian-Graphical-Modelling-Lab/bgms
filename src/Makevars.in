@@ -1,11 +1,3 @@
-# NOTE:
-
-# This Makevars.in uses only POSIX make features.
-# The SOURCES → OBJECTS substitution is required for portability
-# and does not rely on GNU make extensions.
-
-# See "Writing R Extensions", section "Writing portable packages".
-
 CXX_STD = CXX20
 
 include sources.mk
