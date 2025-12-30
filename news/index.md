@@ -14,6 +14,7 @@
 - implemented a new way to compute the denominators and probabilities.
   This made their computation both faster and more stable.
 - refactored c++ code for better maintainability.
+- removed the prepared_data field from bgm objects.
 
 ### Bug fixes
 
