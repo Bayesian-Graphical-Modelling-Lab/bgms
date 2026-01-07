@@ -5,10 +5,10 @@ cpp <- list.files(
   full.names = TRUE
 )
 
-# strip leading "src/"
-cpp <- sub("^src/", "", cpp)
+# strip leading "src/" (MacOs/ Linux) or leading "src\\" (Windows)
+cpp <- sub("^src[\\\\/]", "", cpp)
 
-con <- file("src/sources.mk", open = "w")
+con <- file(file.path("src", "sources.mk"), open = "w")
 
 writeLines(c(
   "# ------------------------------------------------------------------",
