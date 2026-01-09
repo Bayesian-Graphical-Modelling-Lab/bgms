@@ -33,7 +33,7 @@
 #' Assume a baseline category (e.g., a “neutral” response) and score responses
 #' by distance from this baseline. Category thresholds are modeled as:
 #'
-#' \deqn{\mu_{c} = \alpha \cdot c + \beta \cdot (c - b)^2}
+#' \deqn{\mu_{c} = \alpha \cdot (c-b) + \beta \cdot (c - b)^2}
 #'
 #' where:
 #' \itemize{
@@ -48,7 +48,8 @@
 #'    }
 #'   \item \eqn{b}: baseline category
 #' }
-#'
+#' Accordingly, pairwise interactions between Blume-Capel variables are modeled
+#' in terms of \eqn{c-b} scores.
 #'
 #' @section Edge Selection:
 #' When \code{edge_selection = TRUE}, the function performs Bayesian variable
@@ -559,8 +560,9 @@ bgm = function(
     # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
     bc_vars = which(!variable_bool)
     for(i in bc_vars) {
-      blume_capel_stats[1, i] = sum(x[, i])
-      blume_capel_stats[2, i] = sum((x[, i] - baseline_category[i])^2)
+      blume_capel_stats[1, i] = sum(x[, i] - baseline_category[i])
+      blume_capel_stats[2, i] = sum((x[, i] - baseline_category[i]) ^ 2)
+      x[, i] = x[, i] - baseline_category[i]
     }
   }
   pairwise_stats = t(x) %*% x
@@ -625,7 +627,6 @@ bgm = function(
     learn_mass_matrix = learn_mass_matrix, num_chains = chains,
     nThreads = cores, seed = seed, progress_type = progress_type
   )
-
 
   userInterrupt = any(vapply(out, FUN = `[[`, FUN.VALUE = logical(1L), "userInterrupt"))
   if(userInterrupt) {

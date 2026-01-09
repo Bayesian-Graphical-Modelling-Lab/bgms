@@ -6,11 +6,14 @@
 
 ## Other changes
 
-* reparameterized the Blume-capel model to use (score-baseline) instead of score for mrfSampler() and bgm().
+* reparameterized the Blume-capel model to use (score-baseline) instead of score.
+* implemented a new way to compute the denominators and probabilities. This made their computation both faster and more stable.
+* refactored c++ code for better maintainability.
+* removed the prepared_data field from bgm objects.
 
 ## Bug fixes
 
-* Fixed numerical problems with Blume-Capel variables using HMC and NUTS for bgm().
+* fixed numerical problems with Blume-Capel variables using HMC and NUTS.
 
 # bgms 0.1.6.1
 
@@ -22,9 +25,9 @@
 
 ## Bug fixes
 
-* Fixed a problem with warmup scheduling for adaptive-metropolis in bgmCompare()
-* Fixed stability problems with parallel sampling for bgm()
-* Fixed spurious output errors printing to console after user interrupt. 
+* fixed a problem with warmup scheduling for adaptive-metropolis in bgmCompare()
+* fixed stability problems with parallel sampling for bgm()
+* fixed spurious output errors printing to console after user interrupt. 
 
 # bgms 0.1.6.0
 

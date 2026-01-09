@@ -8,7 +8,6 @@ prepare_output_bgm = function(
   nuts_max_depth, learn_mass_matrix, num_chains
 ) {
   arguments = list(
-    prepared_data = x,
     num_variables = ncol(x),
     num_cases = nrow(x),
     na_impute = na_impute,
@@ -291,7 +290,6 @@ prepare_output_bgmCompare = function(
   num_variables = ncol(observations)
 
   arguments = list(
-    prepared_data = observations,
     num_variables = num_variables,
     num_cases = nrow(observations),
     iter = iter,

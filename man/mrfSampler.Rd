@@ -11,7 +11,7 @@ mrfSampler(
   interactions,
   thresholds,
   variable_type = "ordinal",
-  reference_category,
+  baseline_category,
   iter = 1000
 )
 }
@@ -43,8 +43,8 @@ for each variable separately. Currently, bgm supports ``ordinal'' and
 ``blume-capel''. Binary variables are automatically treated as ``ordinal’’.
 Defaults to \code{variable_type = "ordinal"}.}
 
-\item{reference_category}{An integer vector of length \code{no_variables} specifying the
-reference_category category that is used for the Blume-Capel model (details below).
+\item{baseline_category}{An integer vector of length \code{no_variables} specifying the
+baseline_category category that is used for the Blume-Capel model (details below).
 Can be any integer value between \code{0} and \code{no_categories} (or
 \code{no_categories[i]}).}
 
@@ -71,7 +71,7 @@ useful for any type of ordinal variable and gives the user the most freedom
 in specifying their model.
 
 The Blume-Capel option is specifically designed for ordinal variables that
-have a special type of reference_category category, such as the neutral
+have a special type of baseline_category category, such as the neutral
 category in a Likert scale. The Blume-Capel model specifies the following
 quadratic model for the threshold parameters:
 \deqn{\mu_{\text{c}} = \alpha \times \text{c} + \beta \times (\text{c} - \text{r})^2,}{{\mu_{\text{c}} = \alpha \times \text{c} + \beta \times (\text{c} - \text{r})^2,}}
@@ -81,8 +81,8 @@ across categories (increasing threshold values if
 \eqn{\alpha > 0}{\alpha > 0} and decreasing threshold values if
 \eqn{\alpha <0}{\alpha <0}), if \eqn{\beta < 0}{\beta < 0}, it offers an
 increasing penalty for responding in a category further away from the
-reference_category category r, while \eqn{\beta > 0}{\beta > 0} suggests a
-preference for responding in the reference_category category.
+baseline_category category r, while \eqn{\beta > 0}{\beta > 0} suggests a
+preference for responding in the baseline_category category.
 }
 \examples{
 # Generate responses from a network of five binary and ordinal variables.
@@ -95,11 +95,13 @@ Interactions[2, 1] = Interactions[4, 1] = Interactions[3, 2] =
 Interactions = Interactions + t(Interactions)
 Thresholds = matrix(0, nrow = no_variables, ncol = max(no_categories))
 
-x = mrfSampler(no_states = 1e3,
-               no_variables = no_variables,
-               no_categories = no_categories,
-               interactions = Interactions,
-               thresholds = Thresholds)
+x = mrfSampler(
+  no_states = 1e3,
+  no_variables = no_variables,
+  no_categories = no_categories,
+  interactions = Interactions,
+  thresholds = Thresholds
+)
 
 # Generate responses from a network of 2 ordinal and 3 Blume-Capel variables.
 no_variables = 5
@@ -116,12 +118,14 @@ Thresholds[, 2] = -1
 Thresholds[3, ] = sort(-abs(rnorm(4)), decreasing = TRUE)
 Thresholds[5, ] = sort(-abs(rnorm(4)), decreasing = TRUE)
 
-x = mrfSampler(no_states = 1e3,
-               no_variables = no_variables,
-               no_categories = no_categories,
-               interactions = Interactions,
-               thresholds = Thresholds,
-               variable_type = c("b","b","o","b","o"),
-               reference_category = 2)
+x = mrfSampler(
+  no_states = 1e3,
+  no_variables = no_variables,
+  no_categories = no_categories,
+  interactions = Interactions,
+  thresholds = Thresholds,
+  variable_type = c("b", "b", "o", "b", "o"),
+  baseline_category = 2
+)
 
 }
