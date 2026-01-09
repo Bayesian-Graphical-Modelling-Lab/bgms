@@ -1,7 +1,7 @@
-#include "ggm_model.h"
-#include "adaptiveMetropolis.h"
-#include "rng_utils.h"
-#include "cholupdate.h"
+#include "models/ggm/ggm_model.h"
+#include "models/adaptiveMetropolis.h"
+#include "rng/rng_utils.h"
+#include "models/ggm/cholupdate.h"
 
 double GGMModel::compute_inv_submatrix_i(const arma::mat& A, const size_t i, const size_t ii, const size_t jj) const {
     return(A(ii, jj) - A(ii, i) * A(jj, i) / A(i, i));

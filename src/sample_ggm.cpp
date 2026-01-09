@@ -4,8 +4,8 @@
 #include <RcppParallel.h>
 #include <tbb/global_control.h>
 
-#include "ggm_model.h"
-#include "progress_manager.h"
+#include "models/ggm/ggm_model.h"
+#include "utils/progress_manager.h"
 #include "chainResultNew.h"
 
 void run_mcmc_sampler_single_thread(

@@ -1,9 +1,9 @@
 #pragma once
 
 #include <memory>
-#include "base_model.h"
-#include "adaptiveMetropolis.h"
-#include "rng_utils.h"
+#include "models/base_model.h"
+#include "models/adaptiveMetropolis.h"
+#include "rng/rng_utils.h"
 
 
 class GGMModel : public BaseModel {
