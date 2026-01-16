@@ -20,6 +20,9 @@
 
 - fixed numerical problems with Blume-Capel variables using HMC and
   NUTS.
+- Fixed a reporting bug where category thresholds for ordinal variables
+  with a single category were incorrectly expanded to two parameters,
+  resulting in spurious NA values.
 
 ## bgms 0.1.6.1
 
