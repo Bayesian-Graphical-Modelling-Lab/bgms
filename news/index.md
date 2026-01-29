@@ -2,6 +2,8 @@
 
 ## bgms 0.1.6.2
 
+CRAN release: 2026-01-20
+
 ### New features
 
 - added option to separately specify beta priors for the within- and
