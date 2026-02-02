@@ -3,7 +3,7 @@
 #include <memory>
 #include "base_model.h"
 #include "adaptiveMetropolis.h"
-#include "rng_utils.h"
+#include "rng/rng_utils.h"
 
 
 class GGMModel : public BaseModel {
