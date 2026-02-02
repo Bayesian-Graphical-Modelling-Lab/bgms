@@ -10,28 +10,18 @@ run_bgm_parallel <- function(observations, num_categories, pairwise_scale, edge_
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 compute_conditional_probs <- function(observations, predict_vars, interactions, thresholds, no_categories, variable_type, baseline_category) {
     .Call(`_bgms_compute_conditional_probs`, observations, predict_vars, interactions, thresholds, no_categories, variable_type, baseline_category)
 =======
 <<<<<<< HEAD
 =======
+=======
+>>>>>>> cbdbf65 (regenerate RcppExports)
 chol_update_arma <- function(R, u, downdate = FALSE, eps = 1e-12) {
     .Call(`_bgms_chol_update_arma`, R, u, downdate, eps)
 }
 
-get_explog_switch <- function() {
-    .Call(`_bgms_get_explog_switch`)
-}
-
-rcpp_ieee754_exp <- function(x) {
-    .Call(`_bgms_rcpp_ieee754_exp`, x)
-}
-
-rcpp_ieee754_log <- function(x) {
-    .Call(`_bgms_rcpp_ieee754_log`, x)
-}
-
->>>>>>> 7252076 (ggm compiles but runtime has a weird error)
 sample_omrf_gibbs <- function(no_states, no_variables, no_categories, interactions, thresholds, iter) {
     .Call(`_bgms_sample_omrf_gibbs`, no_states, no_variables, no_categories, interactions, thresholds, iter)
 >>>>>>> efc05b4 (ggm compiles but runtime has a weird error)

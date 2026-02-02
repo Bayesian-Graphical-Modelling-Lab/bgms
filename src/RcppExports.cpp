@@ -102,6 +102,7 @@ BEGIN_RCPP
 END_RCPP
 }
 <<<<<<< HEAD
+<<<<<<< HEAD
 // compute_conditional_probs
 Rcpp::List compute_conditional_probs(arma::imat observations, arma::ivec predict_vars, arma::mat interactions, arma::mat thresholds, arma::ivec no_categories, Rcpp::StringVector variable_type, arma::ivec baseline_category);
 RcppExport SEXP _bgms_compute_conditional_probs(SEXP observationsSEXP, SEXP predict_varsSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP no_categoriesSEXP, SEXP variable_typeSEXP, SEXP baseline_categorySEXP) {
@@ -122,6 +123,8 @@ END_RCPP
 =======
 <<<<<<< HEAD
 =======
+=======
+>>>>>>> cbdbf65 (regenerate RcppExports)
 // chol_update_arma
 arma::mat chol_update_arma(arma::mat& R, arma::vec& u, bool downdate, double eps);
 RcppExport SEXP _bgms_chol_update_arma(SEXP RSEXP, SEXP uSEXP, SEXP downdateSEXP, SEXP epsSEXP) {
@@ -136,6 +139,7 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+<<<<<<< HEAD
 // get_explog_switch
 Rcpp::String get_explog_switch();
 RcppExport SEXP _bgms_get_explog_switch() {
@@ -170,6 +174,8 @@ END_RCPP
 }
 >>>>>>> 7252076 (ggm compiles but runtime has a weird error)
 >>>>>>> efc05b4 (ggm compiles but runtime has a weird error)
+=======
+>>>>>>> cbdbf65 (regenerate RcppExports)
 // sample_omrf_gibbs
 IntegerMatrix sample_omrf_gibbs(int no_states, int no_variables, IntegerVector no_categories, NumericMatrix interactions, NumericMatrix thresholds, int iter, int seed);
 RcppExport SEXP _bgms_sample_omrf_gibbs(SEXP no_statesSEXP, SEXP no_variablesSEXP, SEXP no_categoriesSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP iterSEXP, SEXP seedSEXP) {
@@ -267,6 +273,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_run_bgmCompare_parallel", (DL_FUNC) &_bgms_run_bgmCompare_parallel, 36},
     {"_bgms_run_bgm_parallel", (DL_FUNC) &_bgms_run_bgm_parallel, 34},
 <<<<<<< HEAD
+<<<<<<< HEAD
     {"_bgms_compute_conditional_probs", (DL_FUNC) &_bgms_compute_conditional_probs, 7},
     {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 7},
     {"_bgms_sample_bcomrf_gibbs", (DL_FUNC) &_bgms_sample_bcomrf_gibbs, 9},
@@ -274,11 +281,9 @@ static const R_CallMethodDef CallEntries[] = {
 =======
 <<<<<<< HEAD
 =======
+=======
+>>>>>>> cbdbf65 (regenerate RcppExports)
     {"_bgms_chol_update_arma", (DL_FUNC) &_bgms_chol_update_arma, 4},
-    {"_bgms_get_explog_switch", (DL_FUNC) &_bgms_get_explog_switch, 0},
-    {"_bgms_rcpp_ieee754_exp", (DL_FUNC) &_bgms_rcpp_ieee754_exp, 1},
-    {"_bgms_rcpp_ieee754_log", (DL_FUNC) &_bgms_rcpp_ieee754_log, 1},
->>>>>>> 7252076 (ggm compiles but runtime has a weird error)
     {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 6},
     {"_bgms_sample_bcomrf_gibbs", (DL_FUNC) &_bgms_sample_bcomrf_gibbs, 8},
     {"_bgms_sample_ggm", (DL_FUNC) &_bgms_sample_ggm, 10},
