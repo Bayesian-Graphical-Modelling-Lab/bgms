@@ -101,8 +101,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-<<<<<<< HEAD
-=======
 // chol_update_arma
 arma::mat chol_update_arma(arma::mat& R, arma::vec& u, bool downdate, double eps);
 RcppExport SEXP _bgms_chol_update_arma(SEXP RSEXP, SEXP uSEXP, SEXP downdateSEXP, SEXP epsSEXP) {
@@ -117,39 +115,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// get_explog_switch
-Rcpp::String get_explog_switch();
-RcppExport SEXP _bgms_get_explog_switch() {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    rcpp_result_gen = Rcpp::wrap(get_explog_switch());
-    return rcpp_result_gen;
-END_RCPP
-}
-// rcpp_ieee754_exp
-Rcpp::NumericVector rcpp_ieee754_exp(Rcpp::NumericVector x);
-RcppExport SEXP _bgms_rcpp_ieee754_exp(SEXP xSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type x(xSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_ieee754_exp(x));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rcpp_ieee754_log
-Rcpp::NumericVector rcpp_ieee754_log(Rcpp::NumericVector x);
-RcppExport SEXP _bgms_rcpp_ieee754_log(SEXP xSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type x(xSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_ieee754_log(x));
-    return rcpp_result_gen;
-END_RCPP
-}
->>>>>>> 7252076 (ggm compiles but runtime has a weird error)
 // sample_omrf_gibbs
 IntegerMatrix sample_omrf_gibbs(int no_states, int no_variables, IntegerVector no_categories, NumericMatrix interactions, NumericMatrix thresholds, int iter);
 RcppExport SEXP _bgms_sample_omrf_gibbs(SEXP no_statesSEXP, SEXP no_variablesSEXP, SEXP no_categoriesSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP iterSEXP) {
@@ -222,13 +187,7 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_bgms_run_bgmCompare_parallel", (DL_FUNC) &_bgms_run_bgmCompare_parallel, 36},
     {"_bgms_run_bgm_parallel", (DL_FUNC) &_bgms_run_bgm_parallel, 34},
-<<<<<<< HEAD
-=======
     {"_bgms_chol_update_arma", (DL_FUNC) &_bgms_chol_update_arma, 4},
-    {"_bgms_get_explog_switch", (DL_FUNC) &_bgms_get_explog_switch, 0},
-    {"_bgms_rcpp_ieee754_exp", (DL_FUNC) &_bgms_rcpp_ieee754_exp, 1},
-    {"_bgms_rcpp_ieee754_log", (DL_FUNC) &_bgms_rcpp_ieee754_log, 1},
->>>>>>> 7252076 (ggm compiles but runtime has a weird error)
     {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 6},
     {"_bgms_sample_bcomrf_gibbs", (DL_FUNC) &_bgms_sample_bcomrf_gibbs, 8},
     {"_bgms_sample_ggm", (DL_FUNC) &_bgms_sample_ggm, 10},
