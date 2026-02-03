@@ -6,74 +6,82 @@
 #include "rng/rng_utils.h"
 
 
-class GGMModel : public BaseModel {
+class GaussianVariables : public BaseModel {
 public:
 
-    GGMModel(
-            const arma::mat& X,
-            const arma::mat& prior_inclusion_prob,
+    // constructor from raw data
+    GaussianVariables(
+            const arma::mat& observations,
+            const arma::mat& inclusion_probability,
             const arma::imat& initial_edge_indicators,
             const bool edge_selection = true
-    ) : n_(X.n_rows),
-        p_(X.n_cols),
+    ) : n_(observations.n_rows),
+        p_(observations.n_cols),
+        // TODO: need to estimate the means! so + 1
         dim_((p_ * (p_ + 1)) / 2),
-        suf_stat_(X.t() * X),
-        prior_inclusion_prob_(prior_inclusion_prob),
+        // TODO: need to store sample means!
+        suf_stat_(observations.t() * observations),
+        inclusion_probability_(inclusion_probability),
         edge_selection_(edge_selection),
         proposal_(AdaptiveProposal(dim_, 500)),
-        omega_(arma::eye<arma::mat>(p_, p_)),
-        phi_(arma::eye<arma::mat>(p_, p_)),
-        inv_phi_(arma::eye<arma::mat>(p_, p_)),
-        inv_omega_(arma::eye<arma::mat>(p_, p_)),
+        precision_matrix_(arma::eye<arma::mat>(p_, p_)),
+        cholesky_of_precision_(arma::eye<arma::mat>(p_, p_)),
+        inv_cholesky_of_precision_(arma::eye<arma::mat>(p_, p_)),
+        covariance_matrix_(arma::eye<arma::mat>(p_, p_)),
+
         edge_indicators_(initial_edge_indicators),
+
         vectorized_parameters_(dim_),
         vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
-        omega_prop_(arma::mat(p_, p_, arma::fill::none)),
+        precision_proposal_(arma::mat(p_, p_, arma::fill::none)),
         constants_(6)
     {}
 
-    GGMModel(
+    // constructor from sufficient statistics
+    // TODO: needs to implement same TODOs as above constructor
+    GaussianVariables(
             const int n,
             const arma::mat& suf_stat,
-            const arma::mat& prior_inclusion_prob,
+            const arma::mat& inclusion_probability,
             const arma::imat& initial_edge_indicators,
             const bool edge_selection = true
     ) : n_(n),
         p_(suf_stat.n_cols),
         dim_((p_ * (p_ + 1)) / 2),
         suf_stat_(suf_stat),
-        prior_inclusion_prob_(prior_inclusion_prob),
+        inclusion_probability_(inclusion_probability),
         edge_selection_(edge_selection),
         proposal_(AdaptiveProposal(dim_, 500)),
-        omega_(arma::eye<arma::mat>(p_, p_)),
-        phi_(arma::eye<arma::mat>(p_, p_)),
-        inv_phi_(arma::eye<arma::mat>(p_, p_)),
-        inv_omega_(arma::eye<arma::mat>(p_, p_)),
+        precision_matrix_(arma::eye<arma::mat>(p_, p_)),
+        cholesky_of_precision_(arma::eye<arma::mat>(p_, p_)),
+        inv_cholesky_of_precision_(arma::eye<arma::mat>(p_, p_)),
+        covariance_matrix_(arma::eye<arma::mat>(p_, p_)),
         edge_indicators_(initial_edge_indicators),
         vectorized_parameters_(dim_),
         vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
-        omega_prop_(arma::mat(p_, p_, arma::fill::none)),
+        precision_proposal_(arma::mat(p_, p_, arma::fill::none)),
         constants_(6)
     {}
 
-    GGMModel(const GGMModel& other)
+    // copy constructor
+    GaussianVariables(const GaussianVariables& other)
         : BaseModel(other),
           dim_(other.dim_),
           suf_stat_(other.suf_stat_),
           n_(other.n_),
           p_(other.p_),
-          prior_inclusion_prob_(other.prior_inclusion_prob_),
+          inclusion_probability_(other.inclusion_probability_),
           edge_selection_(other.edge_selection_),
-          omega_(other.omega_),
-          phi_(other.phi_),
-          inv_phi_(other.inv_phi_),
-          inv_omega_(other.inv_omega_),
+          precision_matrix_(other.precision_matrix_),
+          cholesky_of_precision_(other.cholesky_of_precision_),
+          inv_cholesky_of_precision_(other.inv_cholesky_of_precision_),
+          covariance_matrix_(other.covariance_matrix_),
           edge_indicators_(other.edge_indicators_),
           vectorized_parameters_(other.vectorized_parameters_),
           vectorized_indicator_parameters_(other.vectorized_indicator_parameters_),
           proposal_(other.proposal_),
           rng_(other.rng_),
-          omega_prop_(other.omega_prop_),
+          precision_proposal_(other.precision_proposal_),
           constants_(other.constants_)
     {}
 
@@ -94,8 +102,8 @@ public:
     }
 
     // TODO: this can be done more efficiently, no need for the Cholesky!
-    double log_density(const arma::mat& omega) const { return log_density_impl(omega,  arma::chol(omega)); };
-    double log_density()                       const { return log_density_impl(omega_, phi_); }
+    double log_likelihood(const arma::mat& omega) const { return log_density_impl(omega,  arma::chol(omega)); };
+    double log_likelihood()                       const { return log_density_impl(precision_matrix_, cholesky_of_precision_); }
 
     void do_one_mh_step() override;
 
@@ -108,11 +116,11 @@ public:
     }
 
     arma::vec get_vectorized_parameters() override {
-        // upper triangle of omega_
+        // upper triangle of precision_matrix_
         size_t e = 0;
         for (size_t j = 0; j < p_; ++j) {
             for (size_t i = 0; i <= j; ++i) {
-                vectorized_parameters_(e) = omega_(i, j);
+                vectorized_parameters_(e) = precision_matrix_(i, j);
                 ++e;
             }
         }
@@ -120,7 +128,7 @@ public:
     }
 
     arma::ivec get_vectorized_indicator_parameters() override {
-        // upper triangle of omega_
+        // upper triangle of precision_matrix_
         size_t e = 0;
         for (size_t j = 0; j < p_; ++j) {
             for (size_t i = 0; i <= j; ++i) {
@@ -132,7 +140,7 @@ public:
     }
 
     std::unique_ptr<BaseModel> clone() const override {
-        return std::make_unique<GGMModel>(*this); // uses copy constructor
+        return std::make_unique<GaussianVariables>(*this); // uses copy constructor
     }
 
 private:
@@ -141,21 +149,22 @@ private:
     size_t p_;
     size_t dim_;
     arma::mat suf_stat_;
-    arma::mat prior_inclusion_prob_;
+    arma::mat inclusion_probability_;
     bool edge_selection_;
 
     // parameters
-    arma::mat omega_, phi_, inv_phi_, inv_omega_;
+    arma::mat precision_matrix_, cholesky_of_precision_, inv_cholesky_of_precision_, covariance_matrix_;
     arma::imat edge_indicators_;
     arma::vec vectorized_parameters_;
     arma::ivec vectorized_indicator_parameters_;
 
 
     AdaptiveProposal proposal_;
+
     SafeRNG rng_;
 
     // internal helper variables
-    arma::mat omega_prop_;
+    arma::mat precision_proposal_;
     arma::vec constants_; // Phi_q1q, Phi_q1q1, c[1], c[2], c[3], c[4]
 
     arma::vec v1_ = {0, -1};
@@ -187,10 +196,35 @@ private:
     // double diag_log_ratio(const arma::mat& omega, size_t i, double proposal);
 };
 
+// class MixedVariableTypes : public BaseModel {
+// public:
 
-GGMModel createGGMFromR(
+//     function arma::vec gradient(const arma::vec& parameters) override
+//     {
+
+//         arma::vec grad = arma::zeros<arma::vec>(dim_);
+
+//         size_t from = 0;
+//         size_t to = 0;
+//         for (const auto& var_type : variable_types_) {
+//             to += var_type->parameter_dimension();
+//             grad += var_type->gradient(arma::span(parameters, from, to - 1));
+//             from = to;
+//         }
+//         return grad;
+//     }
+
+// private:
+//     std::vector<std::unique_ptr<BaseModel>> variable_types_;
+//     std::vector<arma::mat> interactions_;
+//     size_t dim_;
+
+// };
+
+
+GaussianVariables createGaussianVariablesFromR(
     const Rcpp::List& inputFromR,
-    const arma::mat& prior_inclusion_prob,
+    const arma::mat& inclusion_probability,
     const arma::imat& initial_edge_indicators,
     const bool edge_selection = true
 );

@@ -23,6 +23,8 @@ void run_mcmc_sampler_single_thread(
 
         model.do_one_mh_step();
 
+        // update hyperparameters (BetaBinomial, SBM, etc.)
+
         if (iter >= no_warmup) {
 
             chain_result.store_sample(i, model.get_vectorized_parameters());
@@ -173,8 +175,8 @@ Rcpp::List sample_ggm(
 
     // should be done dynamically
     // also adaptation method should be specified differently
-    // GGMModel model(X, prior_inclusion_prob, initial_edge_indicators, edge_selection);
-    GGMModel model = createGGMFromR(inputFromR, prior_inclusion_prob, initial_edge_indicators, edge_selection);
+    // GaussianVariables model(X, prior_inclusion_prob, initial_edge_indicators, edge_selection);
+    GaussianVariables model = createGaussianVariablesFromR(inputFromR, prior_inclusion_prob, initial_edge_indicators, edge_selection);
 
     ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type);
 
