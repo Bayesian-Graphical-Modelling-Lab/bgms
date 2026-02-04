@@ -4,6 +4,10 @@
 #include <stdexcept>
 #include <memory>
 
+// Forward declarations
+struct SamplerResult;
+struct SafeRNG;
+
 class BaseModel {
 public:
     virtual ~BaseModel() = default;
@@ -11,6 +15,8 @@ public:
     // Capability queries
     virtual bool has_gradient() const { return false; }
     virtual bool has_adaptive_mh() const { return false; }
+    virtual bool has_nuts() const { return has_gradient(); }
+    virtual bool has_edge_selection() const { return false; }
 
     // Core methods (to be overridden by derived classes)
     virtual double logp(const arma::vec& parameters) = 0;
@@ -35,15 +41,34 @@ public:
         throw std::runtime_error("do_one_mh_step method must be implemented in derived class");
     }
 
-    virtual arma::vec get_vectorized_parameters() {
+    // Edge selection (for models with spike-and-slab priors)
+    virtual void update_edge_indicators() {
+        throw std::runtime_error("update_edge_indicators not implemented for this model");
+    }
+
+    virtual arma::vec get_vectorized_parameters() const {
         throw std::runtime_error("get_vectorized_parameters method must be implemented in derived class");
+    }
+
+    virtual void set_vectorized_parameters(const arma::vec& parameters) {
+        throw std::runtime_error("set_vectorized_parameters method must be implemented in derived class");
     }
 
     virtual arma::ivec get_vectorized_indicator_parameters() {
         throw std::runtime_error("get_vectorized_indicator_parameters method must be implemented in derived class");
     }
 
-    // Return dimensionality of the parameter space
+    // Full parameter dimension (for fixed-size output, includes all possible params)
+    virtual size_t full_parameter_dimension() const {
+        return parameter_dimension();  // Default: same as active dimension
+    }
+
+    // Get full vectorized parameters (zeros for inactive, for consistent output)
+    virtual arma::vec get_full_vectorized_parameters() const {
+        throw std::runtime_error("get_full_vectorized_parameters must be implemented in derived class");
+    }
+
+    // Return dimensionality of the active parameter space
     virtual size_t parameter_dimension() const = 0;
 
     virtual void set_seed(int seed) {
@@ -54,7 +79,24 @@ public:
         throw std::runtime_error("clone method must be implemented in derived class");
     }
 
+    // RNG access for samplers
+    virtual SafeRNG& get_rng() {
+        throw std::runtime_error("get_rng method must be implemented in derived class");
+    }
+
+    // Step size for gradient-based samplers
+    virtual void set_step_size(double step_size) { step_size_ = step_size; }
+    virtual double get_step_size() const { return step_size_; }
+
+    // Inverse mass matrix for HMC/NUTS
+    virtual void set_inv_mass(const arma::vec& inv_mass) { inv_mass_ = inv_mass; }
+    virtual const arma::vec& get_inv_mass() const { return inv_mass_; }
+
+    // Get active inverse mass (for models with edge selection, may be subset)
+    virtual arma::vec get_active_inv_mass() const { return inv_mass_; }
 
 protected:
     BaseModel() = default;
+    double step_size_ = 0.1;
+    arma::vec inv_mass_;
 };

@@ -29,8 +29,16 @@ run_simulation_parallel <- function(pairwise_samples, main_samples, draw_indices
     .Call(`_bgms_run_simulation_parallel`, pairwise_samples, main_samples, draw_indices, no_states, no_variables, no_categories, variable_type_r, baseline_category, iter, nThreads, seed, progress_type)
 }
 
+sample_omrf_classed <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, edge_selection, sampler_type, seed) {
+    .Call(`_bgms_sample_omrf_classed`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, edge_selection, sampler_type, seed)
+}
+
 sample_ggm <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type) {
     .Call(`_bgms_sample_ggm`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type)
+}
+
+sample_omrf <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, target_acceptance = 0.8, max_tree_depth = 10L, num_leapfrogs = 10L, edge_selection_start = -1L) {
+    .Call(`_bgms_sample_omrf`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, target_acceptance, max_tree_depth, num_leapfrogs, edge_selection_start)
 }
 
 compute_Vn_mfm_sbm <- function(no_variables, dirichlet_alpha, t_max, lambda) {
