@@ -41,16 +41,11 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.6.3" id="bgms-0163">bgms 0.1.6.3<a class="anchor" aria-label="anchor" href="#bgms-0163"></a></h2>
 <div class="section level3">
-<h3 id="new-features-0-1-6-3">New features<a class="anchor" aria-label="anchor" href="#new-features-0-1-6-3"></a></h3>
-<ul><li>…</li>
-</ul></div>
-<div class="section level3">
-<h3 id="other-changes-0-1-6-3">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-0-1-6-3"></a></h3>
-<ul><li>…</li>
-</ul></div>
-<div class="section level3">
 <h3 id="bug-fixes-0-1-6-3">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-1-6-3"></a></h3>
-<ul><li>fixed mass matrix adaptation for NUTS/HMC: inverse mass matrix now correctly equals variance (following STAN convention), substantially improving sampling efficiency.</li>
+<ul><li>fixed mass matrix adaptation for NUTS/HMC: inverse mass matrix now correctly uses variance (following STAN convention) instead of precision, substantially improving sampling efficiency.</li>
+<li>fixed step size heuristic to re-run after each mass matrix update during warmup, ensuring step size is appropriate for the current mass matrix.</li>
+<li>fixed step size heuristic to resample momentum on each iteration (matching STAN’s init_stepsize behavior), improving step size selection.</li>
+<li>fixed energy diagnostic computation in NUTS to use actual accepted trajectory momentum instead of a random sample, making E-BFMI diagnostic meaningful.</li>
 </ul></div>
 </div>
     <div class="section level2">

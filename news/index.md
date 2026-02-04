@@ -2,19 +2,20 @@
 
 ## bgms 0.1.6.3
 
-### New features
-
-- …
-
-### Other changes
-
-- …
-
 ### Bug fixes
 
 - fixed mass matrix adaptation for NUTS/HMC: inverse mass matrix now
-  correctly equals variance (following STAN convention), substantially
-  improving sampling efficiency.
+  correctly uses variance (following STAN convention) instead of
+  precision, substantially improving sampling efficiency.
+- fixed step size heuristic to re-run after each mass matrix update
+  during warmup, ensuring step size is appropriate for the current mass
+  matrix.
+- fixed step size heuristic to resample momentum on each iteration
+  (matching STAN’s init_stepsize behavior), improving step size
+  selection.
+- fixed energy diagnostic computation in NUTS to use actual accepted
+  trajectory momentum instead of a random sample, making E-BFMI
+  diagnostic meaningful.
 
 ## bgms 0.1.6.2
 
