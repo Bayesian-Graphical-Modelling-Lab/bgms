@@ -95,6 +95,7 @@ public:
 
     bool has_gradient()    const          { return false; }
     bool has_adaptive_mh() const override { return true; }
+    bool has_edge_selection() const override { return edge_selection_; }
 
     double logp(const arma::vec& parameters) override {
         // Implement log probability computation
@@ -111,20 +112,39 @@ public:
         return dim_;
     }
 
+    // For GGM, full dimension is the same as parameter dimension (no edge selection filtering)
+    size_t full_parameter_dimension() const override {
+        return dim_;
+    }
+
     void set_seed(int seed) override {
         rng_ = SafeRNG(seed);
     }
 
-    arma::vec get_vectorized_parameters() override {
+    arma::vec get_vectorized_parameters() const override {
         // upper triangle of precision_matrix_
+        arma::vec result(dim_);
         size_t e = 0;
         for (size_t j = 0; j < p_; ++j) {
             for (size_t i = 0; i <= j; ++i) {
-                vectorized_parameters_(e) = precision_matrix_(i, j);
+                result(e) = precision_matrix_(i, j);
                 ++e;
             }
         }
-        return vectorized_parameters_;
+        return result;
+    }
+
+    // For GGM, full and active parameter vectors are the same
+    arma::vec get_full_vectorized_parameters() const override {
+        arma::vec result(dim_);
+        size_t e = 0;
+        for (size_t j = 0; j < p_; ++j) {
+            for (size_t i = 0; i <= j; ++i) {
+                result(e) = precision_matrix_(i, j);
+                ++e;
+            }
+        }
+        return result;
     }
 
     arma::ivec get_vectorized_indicator_parameters() override {
@@ -195,31 +215,6 @@ private:
     // double edge_log_ratio(const arma::mat& omega, size_t i, size_t j, double proposal);
     // double diag_log_ratio(const arma::mat& omega, size_t i, double proposal);
 };
-
-// class MixedVariableTypes : public BaseModel {
-// public:
-
-//     function arma::vec gradient(const arma::vec& parameters) override
-//     {
-
-//         arma::vec grad = arma::zeros<arma::vec>(dim_);
-
-//         size_t from = 0;
-//         size_t to = 0;
-//         for (const auto& var_type : variable_types_) {
-//             to += var_type->parameter_dimension();
-//             grad += var_type->gradient(arma::span(parameters, from, to - 1));
-//             from = to;
-//         }
-//         return grad;
-//     }
-
-// private:
-//     std::vector<std::unique_ptr<BaseModel>> variable_types_;
-//     std::vector<arma::mat> interactions_;
-//     size_t dim_;
-
-// };
 
 
 GaussianVariables createGaussianVariablesFromR(
