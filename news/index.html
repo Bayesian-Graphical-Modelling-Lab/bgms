@@ -50,10 +50,6 @@
 <code>baseline_category</code> is now stored in the fitted object’s arguments for use with Blume-Capel variables in simulation and prediction</li>
 </ul></div>
 <div class="section level3">
-<h3 id="other-changes-0-1-6-3">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-0-1-6-3"></a></h3>
-<ul><li>refactored prediction code to use numerically stable vectorized probability computation from <code>variable_helpers.h</code>, improving both performance and stability with extreme parameter values</li>
-</ul></div>
-<div class="section level3">
 <h3 id="bug-fixes-0-1-6-3">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-1-6-3"></a></h3>
 <ul><li>fixed mass matrix adaptation for NUTS/HMC: inverse mass matrix now correctly uses variance (following STAN convention) instead of precision, substantially improving sampling efficiency.</li>
 <li>fixed step size heuristic to re-run after each mass matrix update during warmup, ensuring step size is appropriate for the current mass matrix.</li>
