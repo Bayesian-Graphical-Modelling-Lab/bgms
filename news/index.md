@@ -2,6 +2,34 @@
 
 ## bgms 0.1.6.3
 
+### New features
+
+- added
+  [`simulate_mrf()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate_mrf.md)
+  function for standalone MRF data simulation with user-specified
+  parameters
+- added
+  [`simulate.bgms()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate.bgms.md)
+  S3 method to generate new observations from a fitted model using
+  estimated parameters. Supports parallel processing via `cores`
+  argument when using `method = "posterior-sample"` with optional
+  progress bar
+- added
+  [`predict.bgms()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/predict.bgms.md)
+  S3 method to compute conditional probability distributions P(X_j \|
+  X\_{-j}) for one or more variables given observed data
+- both methods support using posterior mean parameters
+  (`method = "posterior-mean"`) or averaging over posterior draws
+  (`method = "posterior-sample"`) for full uncertainty propagation
+- `baseline_category` is now stored in the fitted object’s arguments for
+  use with Blume-Capel variables in simulation and prediction
+
+### Other changes
+
+- refactored prediction code to use numerically stable vectorized
+  probability computation from `variable_helpers.h`, improving both
+  performance and stability with extreme parameter values
+
 ### Bug fixes
 
 - fixed mass matrix adaptation for NUTS/HMC: inverse mass matrix now
@@ -16,6 +44,17 @@
 - fixed energy diagnostic computation in NUTS to use actual accepted
   trajectory momentum instead of a random sample, making E-BFMI
   diagnostic meaningful.
+- fixed Blume-Capel interaction term computation to use centered scores
+  `(c - ref)` instead of raw category `c` in the pseudolikelihood
+  denominator. This bug caused severe NUTS performance degradation (100%
+  max tree depth hits) when using non-zero baseline categories.
+
+### Deprecated
+
+- [`mrfSampler()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/mrfSampler.md)
+  is deprecated in favor of
+  [`simulate_mrf()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate_mrf.md)
+  for consistency with S3 method naming conventions
 
 ## bgms 0.1.6.2
 

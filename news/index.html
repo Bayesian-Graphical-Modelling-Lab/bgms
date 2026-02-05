@@ -41,11 +41,30 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.6.3" id="bgms-0163">bgms 0.1.6.3<a class="anchor" aria-label="anchor" href="#bgms-0163"></a></h2>
 <div class="section level3">
+<h3 id="new-features-0-1-6-3">New features<a class="anchor" aria-label="anchor" href="#new-features-0-1-6-3"></a></h3>
+<ul><li>added <code><a href="../reference/simulate_mrf.html">simulate_mrf()</a></code> function for standalone MRF data simulation with user-specified parameters</li>
+<li>added <code><a href="../reference/simulate.bgms.html">simulate.bgms()</a></code> S3 method to generate new observations from a fitted model using estimated parameters. Supports parallel processing via <code>cores</code> argument when using <code>method = "posterior-sample"</code> with optional progress bar</li>
+<li>added <code><a href="../reference/predict.bgms.html">predict.bgms()</a></code> S3 method to compute conditional probability distributions P(X_j | X_{-j}) for one or more variables given observed data</li>
+<li>both methods support using posterior mean parameters (<code>method = "posterior-mean"</code>) or averaging over posterior draws (<code>method = "posterior-sample"</code>) for full uncertainty propagation</li>
+<li>
+<code>baseline_category</code> is now stored in the fitted object’s arguments for use with Blume-Capel variables in simulation and prediction</li>
+</ul></div>
+<div class="section level3">
+<h3 id="other-changes-0-1-6-3">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-0-1-6-3"></a></h3>
+<ul><li>refactored prediction code to use numerically stable vectorized probability computation from <code>variable_helpers.h</code>, improving both performance and stability with extreme parameter values</li>
+</ul></div>
+<div class="section level3">
 <h3 id="bug-fixes-0-1-6-3">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-1-6-3"></a></h3>
 <ul><li>fixed mass matrix adaptation for NUTS/HMC: inverse mass matrix now correctly uses variance (following STAN convention) instead of precision, substantially improving sampling efficiency.</li>
 <li>fixed step size heuristic to re-run after each mass matrix update during warmup, ensuring step size is appropriate for the current mass matrix.</li>
 <li>fixed step size heuristic to resample momentum on each iteration (matching STAN’s init_stepsize behavior), improving step size selection.</li>
 <li>fixed energy diagnostic computation in NUTS to use actual accepted trajectory momentum instead of a random sample, making E-BFMI diagnostic meaningful.</li>
+<li>fixed Blume-Capel interaction term computation to use centered scores <code>(c - ref)</code> instead of raw category <code>c</code> in the pseudolikelihood denominator. This bug caused severe NUTS performance degradation (100% max tree depth hits) when using non-zero baseline categories.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="deprecated-0-1-6-3">Deprecated<a class="anchor" aria-label="anchor" href="#deprecated-0-1-6-3"></a></h3>
+<ul><li>
+<code><a href="../reference/mrfSampler.html">mrfSampler()</a></code> is deprecated in favor of <code><a href="../reference/simulate_mrf.html">simulate_mrf()</a></code> for consistency with S3 method naming conventions</li>
 </ul></div>
 </div>
     <div class="section level2">
