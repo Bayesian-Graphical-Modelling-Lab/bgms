@@ -6,13 +6,10 @@
 
 - added `main_difference_selection` argument to
   [`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md)
-  to control whether spike-and-slab selection is applied to main effect
+  to control whether difference selection is applied to main effect
   (threshold) differences. When `FALSE` (the new default), main effect
   differences are always estimated without selection, while pairwise
-  effect selection proceeds independently. This prevents interference
-  between main and pairwise selection under the Beta-Bernoulli prior,
-  which is particularly useful when main effects are nuisance
-  parameters.
+  effect selection proceeds independently.
 - added `standardize` argument to
   [`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)
   and
