@@ -926,12 +926,10 @@ arma::vec OMRFModel::gradient_internal() const {
 
 
 std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& parameters) {
-    // Ensure gradient cache is initialized
     ensure_gradient_cache();
 
-    // Use the external-state versions
-    arma::mat temp_main = main_effects_;
-    arma::mat temp_pairwise = pairwise_effects_;
+    arma::mat temp_main(main_effects_.n_rows, main_effects_.n_cols, arma::fill::none);
+    arma::mat temp_pairwise(p_, p_, arma::fill::zeros);
 
     // Unvectorize parameters into temporaries
     int offset = 0;
@@ -958,10 +956,118 @@ std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& param
 
     arma::mat temp_residual = observations_double_ * temp_pairwise;
 
-    double lp = log_pseudoposterior_with_state(temp_main, temp_pairwise, temp_residual);
-    arma::vec grad = gradient_with_state(temp_main, temp_pairwise, temp_residual);
+    // Initialize gradient from cached observed statistics
+    arma::vec gradient = grad_obs_cache_;
+    double log_post = 0.0;
 
-    return {lp, grad};
+    // Merged per-variable loop: compute probability table ONCE per variable
+    // and derive both logp and gradient contributions from it.
+    offset = 0;
+    for (size_t v = 0; v < p_; ++v) {
+        int num_cats = num_categories_(v);
+        arma::vec residual_score = temp_residual.col(v);
+        arma::vec bound = num_cats * residual_score;
+
+        if (is_ordinal_variable_(v)) {
+            arma::vec main_param = temp_main.row(v).cols(0, num_cats - 1).t();
+
+            // Prior + sufficient statistics for logp
+            for (int c = 0; c < num_cats; ++c) {
+                double x = temp_main(v, c);
+                log_post += x * main_alpha_ - std::log1p(std::exp(x)) * (main_alpha_ + main_beta_);
+                log_post += x * counts_per_category_(c + 1, v);
+            }
+
+            // Compute probability table ONCE (replaces separate denom + probs)
+            arma::mat probs = compute_probs_ordinal(main_param, residual_score, bound, num_cats);
+
+            // Log-partition: bound + log(denom) = -log(probs(:, 0))
+            log_post += arma::accu(ARMA_MY_LOG(probs.col(0)));
+
+            // Gradient: main effects
+            for (int c = 0; c < num_cats; ++c) {
+                gradient(offset + c) -= arma::accu(probs.col(c + 1));
+            }
+
+            // Gradient: pairwise effects
+            for (size_t j = 0; j < p_; ++j) {
+                if (edge_indicators_(v, j) == 0 || v == j) continue;
+                arma::vec expected_value = arma::zeros<arma::vec>(n_);
+                for (int c = 1; c <= num_cats; ++c) {
+                    expected_value += c * probs.col(c) % observations_double_.col(j);
+                }
+                int location = (v < j) ? index_matrix_cache_(v, j) : index_matrix_cache_(j, v);
+                gradient(location) -= arma::accu(expected_value);
+            }
+
+            offset += num_cats;
+        } else {
+            int ref = baseline_category_(v);
+            double lin_eff = temp_main(v, 0);
+            double quad_eff = temp_main(v, 1);
+
+            // Prior + sufficient statistics for logp
+            log_post += lin_eff * main_alpha_ - std::log1p(std::exp(lin_eff)) * (main_alpha_ + main_beta_);
+            log_post += quad_eff * main_alpha_ - std::log1p(std::exp(quad_eff)) * (main_alpha_ + main_beta_);
+            log_post += lin_eff * blume_capel_stats_(0, v);
+            log_post += quad_eff * blume_capel_stats_(1, v);
+
+            // Compute probability table ONCE (bound is updated in-place)
+            arma::mat probs = compute_probs_blume_capel(residual_score, lin_eff, quad_eff, ref, num_cats, bound);
+
+            // Log-partition: bound + log(denom) = ref * r - log(probs(:, ref))
+            log_post -= static_cast<double>(ref) * arma::accu(residual_score)
+                      - arma::accu(ARMA_MY_LOG(probs.col(ref)));
+
+            // Gradient: main effects
+            arma::vec score = arma::regspace<arma::vec>(0, num_cats) - static_cast<double>(ref);
+            arma::vec sq_score = arma::square(score);
+            gradient(offset) -= arma::accu(probs * score);
+            gradient(offset + 1) -= arma::accu(probs * sq_score);
+
+            // Gradient: pairwise effects
+            for (size_t j = 0; j < p_; ++j) {
+                if (edge_indicators_(v, j) == 0 || v == j) continue;
+                arma::vec expected_value = arma::zeros<arma::vec>(n_);
+                for (int c = 0; c <= num_cats; ++c) {
+                    int s = c - ref;
+                    expected_value += s * probs.col(c) % observations_double_.col(j);
+                }
+                int location = (v < j) ? index_matrix_cache_(v, j) : index_matrix_cache_(j, v);
+                gradient(location) -= arma::accu(expected_value);
+            }
+
+            offset += 2;
+        }
+    }
+
+    // Gradient: main effect prior (Beta-prime)
+    offset = 0;
+    for (size_t v = 0; v < p_; ++v) {
+        int num_pars = is_ordinal_variable_(v) ? num_categories_(v) : 2;
+        for (int c = 0; c < num_pars; ++c) {
+            double x = temp_main(v, c);
+            double prob = 1.0 / (1.0 + std::exp(-x));
+            gradient(offset + c) += main_alpha_ - (main_alpha_ + main_beta_) * prob;
+        }
+        offset += num_pars;
+    }
+
+    // Pairwise: sufficient statistics + Cauchy prior (logp) and gradient
+    for (size_t v1 = 0; v1 < p_ - 1; ++v1) {
+        for (size_t v2 = v1 + 1; v2 < p_; ++v2) {
+            if (edge_indicators_(v1, v2) == 1) {
+                double effect = temp_pairwise(v1, v2);
+                log_post += 2.0 * pairwise_stats_(v1, v2) * effect;
+                log_post += R::dcauchy(effect, 0.0, pairwise_scale_, true);
+
+                int idx = index_matrix_cache_(v1, v2);
+                gradient(idx) -= 2.0 * effect / (pairwise_scale_ * pairwise_scale_ + effect * effect);
+            }
+        }
+    }
+
+    return {log_post, std::move(gradient)};
 }
 
 

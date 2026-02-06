@@ -8,7 +8,6 @@
 #include "mcmc_utils.h"
 #include "mcmc_nuts.h"
 #include "mcmc_adaptation.h"
-#include "mcmc_leapfrog.h"
 #include "sampler_config.h"
 #include "../base_model.h"
 
@@ -52,10 +51,14 @@ public:
                 // Push adapted mass matrix to model
                 model.set_inv_mass(inv_mass_);
 
-                // Re-run heuristic step size with new mass matrix
                 arma::vec theta = model.get_vectorized_parameters();
                 SafeRNG& rng = model.get_rng();
-                auto [log_post, grad_fn] = make_model_functions(model);
+                auto log_post = [&model](const arma::vec& params) -> double {
+                    return model.logp_and_gradient(params).first;
+                };
+                auto grad_fn = [&model](const arma::vec& params) -> arma::vec {
+                    return model.logp_and_gradient(params).second;
+                };
                 arma::vec active_inv_mass = model.get_active_inv_mass();
 
                 double new_eps = heuristic_initial_step_size(
@@ -111,59 +114,22 @@ private:
         return false;
     }
 
-    /**
-     * Create log_post and grad lambdas that share a single logp_and_gradient call.
-     * Avoids doubling computation when the memoizer requests both at the same point.
-     */
-    static std::pair<
-        std::function<double(const arma::vec&)>,
-        std::function<arma::vec(const arma::vec&)>
-    > make_model_functions(BaseModel& model) {
-        struct JointCache {
-            arma::vec theta;
-            double logp;
-            arma::vec grad;
-            bool valid = false;
-        };
-        auto cache = std::make_shared<JointCache>();
-
-        auto ensure = [&model, cache](const arma::vec& params) {
-            if (!cache->valid ||
-                params.n_elem != cache->theta.n_elem ||
-                !arma::approx_equal(params, cache->theta, "absdiff", 1e-14)) {
-                auto [lp, gr] = model.logp_and_gradient(params);
-                cache->theta = params;
-                cache->logp = lp;
-                cache->grad = std::move(gr);
-                cache->valid = true;
-            }
-        };
-
-        auto log_post = [ensure, cache](const arma::vec& params) -> double {
-            ensure(params);
-            return cache->logp;
-        };
-        auto grad_fn = [ensure, cache](const arma::vec& params) -> arma::vec {
-            ensure(params);
-            return cache->grad;
-        };
-
-        return {log_post, grad_fn};
-    }
-
     void initialize(BaseModel& model) {
         arma::vec theta = model.get_vectorized_parameters();
         SafeRNG& rng = model.get_rng();
 
-        // Initialize inverse mass from model (defaults to ones)
         inv_mass_ = arma::ones<arma::vec>(model.full_parameter_dimension());
         model.set_inv_mass(inv_mass_);
 
-        // Mass matrix accumulator uses full dimension
         mass_accumulator_ = std::make_unique<DiagMassMatrixAccumulator>(
             static_cast<int>(model.full_parameter_dimension()));
 
-        auto [log_post, grad_fn] = make_model_functions(model);
+        auto log_post = [&model](const arma::vec& params) -> double {
+            return model.logp_and_gradient(params).first;
+        };
+        auto grad_fn = [&model](const arma::vec& params) -> arma::vec {
+            return model.logp_and_gradient(params).second;
+        };
 
         step_size_ = heuristic_initial_step_size(
             theta, log_post, grad_fn, rng, target_acceptance_);
@@ -175,12 +141,15 @@ private:
         arma::vec theta = model.get_vectorized_parameters();
         SafeRNG& rng = model.get_rng();
 
-        auto [log_post, grad_fn] = make_model_functions(model);
+        auto joint_fn = [&model](const arma::vec& params)
+            -> std::pair<double, arma::vec> {
+            return model.logp_and_gradient(params);
+        };
 
         arma::vec active_inv_mass = model.get_active_inv_mass();
 
-        SamplerResult result = nuts_sampler(
-            theta, step_size_, log_post, grad_fn,
+        SamplerResult result = nuts_sampler_joint(
+            theta, step_size_, joint_fn,
             active_inv_mass, rng, max_tree_depth_
         );
 

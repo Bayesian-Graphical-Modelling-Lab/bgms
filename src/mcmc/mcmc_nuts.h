@@ -57,3 +57,11 @@ SamplerResult nuts_sampler(const arma::vec& init_theta,
                            const arma::vec& inv_mass_diag,
                            SafeRNG& rng,
                            int max_depth = 10);
+
+SamplerResult nuts_sampler_joint(
+    const arma::vec& init_theta,
+    double step_size,
+    const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint_fn,
+    const arma::vec& inv_mass_diag,
+    SafeRNG& rng,
+    int max_depth = 10);
