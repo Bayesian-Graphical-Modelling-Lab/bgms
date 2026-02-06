@@ -4,6 +4,16 @@
 
 ### New features
 
+- added `standardize` argument to
+  [`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)
+  and
+  [`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md)
+  to optionally scale the Cauchy prior for pairwise interactions based
+  on the range of response scores. When enabled, the prior scale is
+  multiplied by the maximum score product for each pair, ensuring
+  equivalent relative shrinkage regardless of the number of response
+  categories. The scaling factors are stored in
+  `fit$arguments$pairwise_scaling_factors`.
 - added
   [`simulate_mrf()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate_mrf.md)
   function for standalone MRF data simulation with user-specified
