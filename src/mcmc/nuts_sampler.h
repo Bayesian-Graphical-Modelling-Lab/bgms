@@ -212,7 +212,7 @@ private:
     }
 
     /**
-     * Execute one NUTS step using the sampler's learned mass matrix
+     * Execute one NUTS step using the model's active inverse mass matrix
      */
     SamplerResult do_nuts_step(BaseModel& model) {
         // Get current state
@@ -227,13 +227,22 @@ private:
             return model.logp_and_gradient(params).second;
         };
 
-        // Call the NUTS free function with our learned inverse mass
+        // Get active inverse mass from model (handles dimension changes for edge selection)
+        arma::vec active_inv_mass = model.get_active_inv_mass();
+
+        // Debug: check dimension match
+        if (theta.n_elem != active_inv_mass.n_elem) {
+            Rcpp::Rcout << "DIMENSION MISMATCH: theta=" << theta.n_elem
+                        << " active_inv_mass=" << active_inv_mass.n_elem << std::endl;
+        }
+
+        // Call the NUTS free function with the active inverse mass
         SamplerResult result = nuts_sampler(
             theta,
             step_size_,
             log_post,
             grad_fn,
-            inv_mass_,
+            active_inv_mass,
             rng,
             max_tree_depth_
         );
