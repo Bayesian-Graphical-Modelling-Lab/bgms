@@ -8,48 +8,12 @@
 #include "mcmc_utils.h"
 #include "mcmc_nuts.h"
 #include "mcmc_adaptation.h"
+#include "mcmc_leapfrog.h"
 #include "sampler_config.h"
 #include "../base_model.h"
 
-/**
- * NUTSSampler - No-U-Turn Sampler implementation
- *
- * Provides a clean interface to the NUTS algorithm for any BaseModel
- * with gradient support. Handles:
- * - Step size adaptation via dual averaging during warmup
- * - Mass matrix adaptation using Welford's algorithm during warmup
- * - Trajectory simulation with the no-U-turn criterion
- * - Diagnostics collection (tree depth, divergence, energy)
- *
- * The sampler fully owns all sampling logic. The model only provides:
- * - logp_and_gradient(theta): Compute log posterior and gradient
- * - get_vectorized_parameters(): Get current state as vector
- * - set_vectorized_parameters(theta): Update model state from vector
- * - get_active_inv_mass(): Get inverse mass diagonal (used for initialization)
- * - get_rng(): Get random number generator
- *
- * Warmup Schedule (Stan-style):
- * - Stage 1 (7.5%): Initial adaptation, step size only
- * - Stage 2 (82.5%): Mass matrix learning in doubling windows
- * - Stage 3 (10%): Final step size tuning with fixed mass
- *
- * Usage:
- *   NUTSSampler nuts(config, n_warmup);
- *   for (iter in warmup) {
- *       auto result = nuts.warmup_step(model);
- *   }
- *   nuts.finalize_warmup();
- *   for (iter in sampling) {
- *       auto result = nuts.sample_step(model);
- *   }
- */
 class NUTSSampler : public BaseSampler {
 public:
-    /**
-     * Construct NUTS sampler with configuration
-     * @param config   Sampler configuration (step size, target acceptance, etc.)
-     * @param n_warmup Number of warmup iterations (for scheduling mass matrix adaptation)
-     */
     explicit NUTSSampler(const SamplerConfig& config, int n_warmup = 1000)
         : step_size_(config.initial_step_size),
           target_acceptance_(config.target_acceptance),
@@ -63,13 +27,7 @@ public:
         build_warmup_schedule(n_warmup);
     }
 
-    /**
-     * Perform one NUTS step during warmup (with step size and mass matrix adaptation)
-     * @param model  The model to sample from
-     * @return SamplerResult with state and diagnostics
-     */
     SamplerResult warmup_step(BaseModel& model) override {
-        // Initialize on first warmup iteration
         if (!initialized_) {
             initialize(model);
             initialized_ = true;
@@ -83,16 +41,28 @@ public:
 
         // During Stage 2, accumulate samples for mass matrix estimation
         if (in_stage2()) {
-            mass_accumulator_->update(result.state);
+            arma::vec full_params = model.get_full_vectorized_parameters();
+            mass_accumulator_->update(full_params);
 
-            // Check if we're at the end of a window
             if (at_window_end()) {
-                // Update mass matrix from accumulated samples
-                inv_mass_ = mass_accumulator_->inverse_mass();
+                // Stan convention: inv_mass = variance (high-variance params move more)
+                inv_mass_ = mass_accumulator_->variance();
                 mass_accumulator_->reset();
 
-                // Restart step size adaptation with new mass matrix
-                step_adapter_.restart(step_size_);
+                // Push adapted mass matrix to model
+                model.set_inv_mass(inv_mass_);
+
+                // Re-run heuristic step size with new mass matrix
+                arma::vec theta = model.get_vectorized_parameters();
+                SafeRNG& rng = model.get_rng();
+                auto [log_post, grad_fn] = make_model_functions(model);
+                arma::vec active_inv_mass = model.get_active_inv_mass();
+
+                double new_eps = heuristic_initial_step_size(
+                    theta, log_post, grad_fn, active_inv_mass, rng,
+                    0.625, step_size_);
+                step_size_ = new_eps;
+                step_adapter_.restart(new_eps);
             }
         }
 
@@ -100,59 +70,27 @@ public:
         return result;
     }
 
-    /**
-     * Finalize warmup phase (fix step size to averaged value)
-     */
     void finalize_warmup() override {
         step_size_ = step_adapter_.averaged();
     }
 
-    /**
-     * Perform one NUTS step during sampling (fixed step size and mass matrix)
-     * @param model  The model to sample from
-     * @return SamplerResult with state and diagnostics
-     */
     SamplerResult sample_step(BaseModel& model) override {
         return do_nuts_step(model);
     }
 
-    /**
-     * NUTS produces tree depth, divergence, and energy diagnostics
-     */
     bool has_nuts_diagnostics() const override { return true; }
-
-    /**
-     * Get the current (or final) step size
-     */
     double get_step_size() const { return step_size_; }
-
-    /**
-     * Get the averaged step size (for reporting after warmup)
-     */
-    double get_averaged_step_size() const {
-        return step_adapter_.averaged();
-    }
-
-    /**
-     * Get the current inverse mass matrix diagonal
-     */
+    double get_averaged_step_size() const { return step_adapter_.averaged(); }
     const arma::vec& get_inv_mass() const { return inv_mass_; }
 
 private:
-    /**
-     * Build Stan-style warmup schedule with doubling windows
-     */
     void build_warmup_schedule(int n_warmup) {
-        // Stage 1: 7.5% of warmup
         stage1_end_ = static_cast<int>(0.075 * n_warmup);
-
-        // Stage 3 starts at 90% of warmup
         stage3_start_ = n_warmup - static_cast<int>(0.10 * n_warmup);
 
-        // Stage 2: build doubling windows between stage1_end and stage3_start
         window_ends_.clear();
         int cur = stage1_end_;
-        int wsize = 25;  // Initial window size
+        int wsize = 25;
 
         while (cur < stage3_start_) {
             int win = std::min(wsize, stage3_start_ - cur);
@@ -162,94 +100,91 @@ private:
         }
     }
 
-    /**
-     * Check if we're in Stage 2 (mass matrix learning phase)
-     */
     bool in_stage2() const {
         return warmup_iteration_ >= stage1_end_ && warmup_iteration_ < stage3_start_;
     }
 
-    /**
-     * Check if we're at the end of a Stage 2 window
-     */
     bool at_window_end() const {
         for (int end : window_ends_) {
-            if (warmup_iteration_ + 1 == end) {
-                return true;
-            }
+            if (warmup_iteration_ + 1 == end) return true;
         }
         return false;
     }
 
     /**
-     * Initialize step size and mass matrix on first iteration
+     * Create log_post and grad lambdas that share a single logp_and_gradient call.
+     * Avoids doubling computation when the memoizer requests both at the same point.
      */
+    static std::pair<
+        std::function<double(const arma::vec&)>,
+        std::function<arma::vec(const arma::vec&)>
+    > make_model_functions(BaseModel& model) {
+        struct JointCache {
+            arma::vec theta;
+            double logp;
+            arma::vec grad;
+            bool valid = false;
+        };
+        auto cache = std::make_shared<JointCache>();
+
+        auto ensure = [&model, cache](const arma::vec& params) {
+            if (!cache->valid ||
+                params.n_elem != cache->theta.n_elem ||
+                !arma::approx_equal(params, cache->theta, "absdiff", 1e-14)) {
+                auto [lp, gr] = model.logp_and_gradient(params);
+                cache->theta = params;
+                cache->logp = lp;
+                cache->grad = std::move(gr);
+                cache->valid = true;
+            }
+        };
+
+        auto log_post = [ensure, cache](const arma::vec& params) -> double {
+            ensure(params);
+            return cache->logp;
+        };
+        auto grad_fn = [ensure, cache](const arma::vec& params) -> arma::vec {
+            ensure(params);
+            return cache->grad;
+        };
+
+        return {log_post, grad_fn};
+    }
+
     void initialize(BaseModel& model) {
         arma::vec theta = model.get_vectorized_parameters();
         SafeRNG& rng = model.get_rng();
 
-        // Initialize inverse mass to identity (or from model)
-        inv_mass_ = model.get_active_inv_mass();
+        // Initialize inverse mass from model (defaults to ones)
+        inv_mass_ = arma::ones<arma::vec>(model.full_parameter_dimension());
+        model.set_inv_mass(inv_mass_);
 
-        // Initialize mass matrix accumulator
+        // Mass matrix accumulator uses full dimension
         mass_accumulator_ = std::make_unique<DiagMassMatrixAccumulator>(
-            static_cast<int>(theta.n_elem));
+            static_cast<int>(model.full_parameter_dimension()));
 
-        // Create log posterior and gradient functions
-        auto log_post = [&model](const arma::vec& params) -> double {
-            return model.logp_and_gradient(params).first;
-        };
-        auto grad_fn = [&model](const arma::vec& params) -> arma::vec {
-            return model.logp_and_gradient(params).second;
-        };
+        auto [log_post, grad_fn] = make_model_functions(model);
 
-        // Use heuristic to find good initial step size
         step_size_ = heuristic_initial_step_size(
             theta, log_post, grad_fn, rng, target_acceptance_);
 
-        // Restart dual averaging with the heuristic step size
         step_adapter_.restart(step_size_);
     }
 
-    /**
-     * Execute one NUTS step using the model's active inverse mass matrix
-     */
     SamplerResult do_nuts_step(BaseModel& model) {
-        // Get current state
         arma::vec theta = model.get_vectorized_parameters();
         SafeRNG& rng = model.get_rng();
 
-        // Create log posterior and gradient functions that call the model
-        auto log_post = [&model](const arma::vec& params) -> double {
-            return model.logp_and_gradient(params).first;
-        };
-        auto grad_fn = [&model](const arma::vec& params) -> arma::vec {
-            return model.logp_and_gradient(params).second;
-        };
+        auto [log_post, grad_fn] = make_model_functions(model);
 
-        // Get active inverse mass from model (handles dimension changes for edge selection)
         arma::vec active_inv_mass = model.get_active_inv_mass();
 
-        // Debug: check dimension match
-        if (theta.n_elem != active_inv_mass.n_elem) {
-            Rcpp::Rcout << "DIMENSION MISMATCH: theta=" << theta.n_elem
-                        << " active_inv_mass=" << active_inv_mass.n_elem << std::endl;
-        }
-
-        // Call the NUTS free function with the active inverse mass
         SamplerResult result = nuts_sampler(
-            theta,
-            step_size_,
-            log_post,
-            grad_fn,
-            active_inv_mass,
-            rng,
-            max_tree_depth_
+            theta, step_size_, log_post, grad_fn,
+            active_inv_mass, rng, max_tree_depth_
         );
 
-        // Update model state with new parameters
         model.set_vectorized_parameters(result.state);
-
         return result;
     }
 

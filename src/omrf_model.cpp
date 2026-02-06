@@ -191,8 +191,13 @@ void OMRFModel::build_interaction_index() {
 
 
 void OMRFModel::update_residual_matrix() {
-    // Use pre-computed transformed observations (computed once in constructor)
     residual_matrix_ = observations_double_ * pairwise_effects_;
+}
+
+
+void OMRFModel::update_residual_columns(int var1, int var2, double delta) {
+    residual_matrix_.col(var1) += delta * observations_double_.col(var2);
+    residual_matrix_.col(var2) += delta * observations_double_.col(var1);
 }
 
 
@@ -597,57 +602,34 @@ double OMRFModel::log_pseudoposterior_internal() const {
 double OMRFModel::log_pseudoposterior_main_component(int variable, int category, int parameter) const {
     double log_post = 0.0;
 
-    // Lambda for Beta-prime prior on main effects (matches original implementation)
-    // log p(theta) = alpha * theta - (alpha + beta) * log(1 + exp(theta))
     auto log_beta_prior = [this](double x) {
         return x * main_alpha_ - std::log1p(std::exp(x)) * (main_alpha_ + main_beta_);
     };
 
     int num_cats = num_categories_(variable);
-    arma::vec bound = num_cats * residual_matrix_.col(variable);
 
     if (is_ordinal_variable_(variable)) {
-        // Ordinal variable: use category
         log_post += log_beta_prior(main_effects_(variable, category));
         log_post += main_effects_(variable, category) * counts_per_category_(category + 1, variable);
 
-        // Log-denominator contribution
-        for (size_t i = 0; i < n_; ++i) {
-            double max_val = 0.0;
-            for (int c = 0; c < num_cats; ++c) {
-                double val = main_effects_(variable, c) + (c + 1) * residual_matrix_(i, variable);
-                if (val > max_val) max_val = val;
-            }
+        arma::vec residual_score = residual_matrix_.col(variable);
+        arma::vec main_param = main_effects_.row(variable).cols(0, num_cats - 1).t();
+        arma::vec bound = num_cats * residual_score;
 
-            double denom = std::exp(-max_val);
-            for (int c = 0; c < num_cats; ++c) {
-                double val = main_effects_(variable, c) + (c + 1) * residual_matrix_(i, variable);
-                denom += std::exp(val - max_val);
-            }
-            log_post -= (max_val + std::log(denom));
-        }
+        arma::vec denom = compute_denom_ordinal(residual_score, main_param, bound);
+        log_post -= arma::accu(bound + ARMA_MY_LOG(denom));
     } else {
-        // Blume-Capel: use parameter (0 = linear, 1 = quadratic)
         log_post += log_beta_prior(main_effects_(variable, parameter));
         log_post += main_effects_(variable, parameter) * blume_capel_stats_(parameter, variable);
 
-        int baseline = baseline_category_(variable);
-        for (size_t i = 0; i < n_; ++i) {
-            double max_val = -std::numeric_limits<double>::infinity();
-            for (int c = 0; c <= num_cats; ++c) {
-                int s = c - baseline;
-                double val = main_effects_(variable, 0) * s + main_effects_(variable, 1) * s * s + s * residual_matrix_(i, variable);
-                if (val > max_val) max_val = val;
-            }
+        arma::vec residual_score = residual_matrix_.col(variable);
+        arma::vec bound(n_);
 
-            double denom = 0.0;
-            for (int c = 0; c <= num_cats; ++c) {
-                int s = c - baseline;
-                double val = main_effects_(variable, 0) * s + main_effects_(variable, 1) * s * s + s * residual_matrix_(i, variable);
-                denom += std::exp(val - max_val);
-            }
-            log_post -= (max_val + std::log(denom));
-        }
+        arma::vec denom = compute_denom_blume_capel(
+            residual_score, main_effects_(variable, 0), main_effects_(variable, 1),
+            baseline_category_(variable), num_cats, bound
+        );
+        log_post -= arma::accu(bound + ARMA_MY_LOG(denom));
     }
 
     return log_post;
@@ -657,47 +639,25 @@ double OMRFModel::log_pseudoposterior_main_component(int variable, int category,
 double OMRFModel::log_pseudoposterior_pairwise_component(int var1, int var2) const {
     double log_post = 2.0 * pairwise_effects_(var1, var2) * pairwise_stats_(var1, var2);
 
-    // Contribution from both variables' pseudo-likelihoods
     for (int var : {var1, var2}) {
         int num_cats = num_categories_(var);
-        int other_var = (var == var1) ? var2 : var1;
+        arma::vec residual_score = residual_matrix_.col(var);
 
-        for (size_t i = 0; i < n_; ++i) {
-            double max_val = -std::numeric_limits<double>::infinity();
-
-            if (is_ordinal_variable_(var)) {
-                max_val = 0.0;
-                for (int c = 0; c < num_cats; ++c) {
-                    double val = main_effects_(var, c) + (c + 1) * residual_matrix_(i, var);
-                    if (val > max_val) max_val = val;
-                }
-
-                double denom = std::exp(-max_val);
-                for (int c = 0; c < num_cats; ++c) {
-                    double val = main_effects_(var, c) + (c + 1) * residual_matrix_(i, var);
-                    denom += std::exp(val - max_val);
-                }
-                log_post -= (max_val + std::log(denom));
-            } else {
-                int baseline = baseline_category_(var);
-                for (int c = 0; c <= num_cats; ++c) {
-                    int s = c - baseline;
-                    double val = main_effects_(var, 0) * s + main_effects_(var, 1) * s * s + s * residual_matrix_(i, var);
-                    if (val > max_val) max_val = val;
-                }
-
-                double denom = 0.0;
-                for (int c = 0; c <= num_cats; ++c) {
-                    int s = c - baseline;
-                    double val = main_effects_(var, 0) * s + main_effects_(var, 1) * s * s + s * residual_matrix_(i, var);
-                    denom += std::exp(val - max_val);
-                }
-                log_post -= (max_val + std::log(denom));
-            }
+        if (is_ordinal_variable_(var)) {
+            arma::vec main_param = main_effects_.row(var).cols(0, num_cats - 1).t();
+            arma::vec bound = num_cats * residual_score;
+            arma::vec denom = compute_denom_ordinal(residual_score, main_param, bound);
+            log_post -= arma::accu(bound + ARMA_MY_LOG(denom));
+        } else {
+            arma::vec bound(n_);
+            arma::vec denom = compute_denom_blume_capel(
+                residual_score, main_effects_(var, 0), main_effects_(var, 1),
+                baseline_category_(var), num_cats, bound
+            );
+            log_post -= arma::accu(bound + ARMA_MY_LOG(denom));
         }
     }
 
-    // Cauchy prior if edge is included
     if (edge_indicators_(var1, var2) == 1) {
         log_post += R::dcauchy(pairwise_effects_(var1, var2), 0.0, pairwise_scale_, true);
     }
@@ -712,62 +672,43 @@ double OMRFModel::compute_log_likelihood_ratio_for_variable(
     double proposed_state,
     double current_state
 ) const {
-    double log_ratio = 0.0;
     int num_cats = num_categories_(variable);
 
-    for (size_t i = 0; i < n_; ++i) {
-        double rest_minus = residual_matrix_(i, variable) - current_state * interacting_score(i);
-        double rest_prop = rest_minus + proposed_state * interacting_score(i);
-        double rest_curr = rest_minus + current_state * interacting_score(i);
+    // Residual without the current interaction contribution
+    arma::vec rest_base = residual_matrix_.col(variable) - current_state * interacting_score;
 
-        double max_prop = -std::numeric_limits<double>::infinity();
-        double max_curr = -std::numeric_limits<double>::infinity();
+    if (is_ordinal_variable_(variable)) {
+        arma::vec main_param = main_effects_.row(variable).cols(0, num_cats - 1).t();
 
-        if (is_ordinal_variable_(variable)) {
-            max_prop = 0.0;
-            max_curr = 0.0;
-            for (int c = 0; c < num_cats; ++c) {
-                double val_prop = main_effects_(variable, c) + (c + 1) * rest_prop;
-                double val_curr = main_effects_(variable, c) + (c + 1) * rest_curr;
-                if (val_prop > max_prop) max_prop = val_prop;
-                if (val_curr > max_curr) max_curr = val_curr;
-            }
+        arma::vec rest_curr = rest_base + current_state * interacting_score;
+        arma::vec bound_curr = num_cats * rest_curr;
+        arma::vec denom_curr = compute_denom_ordinal(rest_curr, main_param, bound_curr);
 
-            double denom_prop = std::exp(-max_prop);
-            double denom_curr = std::exp(-max_curr);
-            for (int c = 0; c < num_cats; ++c) {
-                double val_prop = main_effects_(variable, c) + (c + 1) * rest_prop;
-                double val_curr = main_effects_(variable, c) + (c + 1) * rest_curr;
-                denom_prop += std::exp(val_prop - max_prop);
-                denom_curr += std::exp(val_curr - max_curr);
-            }
+        arma::vec rest_prop = rest_base + proposed_state * interacting_score;
+        arma::vec bound_prop = num_cats * rest_prop;
+        arma::vec denom_prop = compute_denom_ordinal(rest_prop, main_param, bound_prop);
 
-            log_ratio += (max_curr + std::log(denom_curr)) - (max_prop + std::log(denom_prop));
-        } else {
-            int baseline = baseline_category_(variable);
-            for (int c = 0; c <= num_cats; ++c) {
-                int s = c - baseline;
-                double val_prop = main_effects_(variable, 0) * s + main_effects_(variable, 1) * s * s + s * rest_prop;
-                double val_curr = main_effects_(variable, 0) * s + main_effects_(variable, 1) * s * s + s * rest_curr;
-                if (val_prop > max_prop) max_prop = val_prop;
-                if (val_curr > max_curr) max_curr = val_curr;
-            }
+        return arma::accu(bound_curr + ARMA_MY_LOG(denom_curr))
+             - arma::accu(bound_prop + ARMA_MY_LOG(denom_prop));
+    } else {
+        arma::vec rest_curr = rest_base + current_state * interacting_score;
+        arma::vec bound_curr(n_);
+        arma::vec denom_curr = compute_denom_blume_capel(
+            rest_curr, main_effects_(variable, 0), main_effects_(variable, 1),
+            baseline_category_(variable), num_cats, bound_curr
+        );
+        double log_ratio = arma::accu(ARMA_MY_LOG(denom_curr) + bound_curr);
 
-            double denom_prop = 0.0;
-            double denom_curr = 0.0;
-            for (int c = 0; c <= num_cats; ++c) {
-                int s = c - baseline;
-                double val_prop = main_effects_(variable, 0) * s + main_effects_(variable, 1) * s * s + s * rest_prop;
-                double val_curr = main_effects_(variable, 0) * s + main_effects_(variable, 1) * s * s + s * rest_curr;
-                denom_prop += std::exp(val_prop - max_prop);
-                denom_curr += std::exp(val_curr - max_curr);
-            }
+        arma::vec rest_prop = rest_base + proposed_state * interacting_score;
+        arma::vec bound_prop(n_);
+        arma::vec denom_prop = compute_denom_blume_capel(
+            rest_prop, main_effects_(variable, 0), main_effects_(variable, 1),
+            baseline_category_(variable), num_cats, bound_prop
+        );
+        log_ratio -= arma::accu(ARMA_MY_LOG(denom_prop) + bound_prop);
 
-            log_ratio += (max_curr + std::log(denom_curr)) - (max_prop + std::log(denom_prop));
-        }
+        return log_ratio;
     }
-
-    return log_ratio;
 }
 
 
@@ -780,22 +721,15 @@ double OMRFModel::log_pseudolikelihood_ratio_interaction(
     double delta = proposed_state - current_state;
     double log_ratio = 2.0 * delta * pairwise_stats_(variable1, variable2);
 
-    // For Blume-Capel variables, transform observations by subtracting baseline
-    auto get_transformed_score = [this](int var) -> arma::vec {
-        arma::vec score = arma::conv_to<arma::vec>::from(observations_.col(var));
-        if (!is_ordinal_variable_(var)) {
-            score -= static_cast<double>(baseline_category_(var));
-        }
-        return score;
-    };
+    // Contribution from variable1 (interacting with variable2's observations)
+    log_ratio += compute_log_likelihood_ratio_for_variable(
+        variable1, observations_double_.col(variable2),
+        proposed_state, current_state);
 
-    // Contribution from variable1
-    arma::vec interacting_score = get_transformed_score(variable2);
-    log_ratio += compute_log_likelihood_ratio_for_variable(variable1, interacting_score, proposed_state, current_state);
-
-    // Contribution from variable2
-    interacting_score = get_transformed_score(variable1);
-    log_ratio += compute_log_likelihood_ratio_for_variable(variable2, interacting_score, proposed_state, current_state);
+    // Contribution from variable2 (interacting with variable1's observations)
+    log_ratio += compute_log_likelihood_ratio_for_variable(
+        variable2, observations_double_.col(variable1),
+        proposed_state, current_state);
 
     return log_ratio;
 }
@@ -1036,55 +970,57 @@ std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& param
 // =============================================================================
 
 void OMRFModel::update_main_effect_parameter(int variable, int category, int parameter) {
-    double proposal_sd;
     double& current = is_ordinal_variable_(variable)
         ? main_effects_(variable, category)
         : main_effects_(variable, parameter);
 
-    proposal_sd = is_ordinal_variable_(variable)
+    double proposal_sd = is_ordinal_variable_(variable)
         ? proposal_sd_main_(variable, category)
         : proposal_sd_main_(variable, parameter);
 
     int cat_for_log = is_ordinal_variable_(variable) ? category : -1;
     int par_for_log = is_ordinal_variable_(variable) ? -1 : parameter;
 
-    auto log_post = [&](double theta) {
-        double old_val = current;
-        current = theta;
-        double lp = log_pseudoposterior_main_component(variable, cat_for_log, par_for_log);
-        current = old_val;
-        return lp;
-    };
+    double current_value = current;
+    double proposed_value = rnorm(rng_, current_value, proposal_sd);
 
-    SamplerResult result = rwm_sampler(current, proposal_sd, log_post, rng_);
-    current = result.state[0];
-    invalidate_gradient_cache();
+    // Evaluate log-posterior at proposed
+    current = proposed_value;
+    double lp_proposed = log_pseudoposterior_main_component(variable, cat_for_log, par_for_log);
+
+    // Evaluate log-posterior at current
+    current = current_value;
+    double lp_current = log_pseudoposterior_main_component(variable, cat_for_log, par_for_log);
+
+    double log_accept = lp_proposed - lp_current;
+    if (MY_LOG(runif(rng_)) < log_accept) {
+        current = proposed_value;
+    }
 }
 
 
 void OMRFModel::update_pairwise_effect(int var1, int var2) {
     if (edge_indicators_(var1, var2) == 0) return;
 
-    double& value = pairwise_effects_(var1, var2);
+    double current_value = pairwise_effects_(var1, var2);
     double proposal_sd = proposal_sd_pairwise_(var1, var2);
-    double current = value;
+    double proposed_value = rnorm(rng_, current_value, proposal_sd);
 
-    auto log_post = [&](double theta) {
-        pairwise_effects_(var1, var2) = theta;
-        pairwise_effects_(var2, var1) = theta;
-        update_residual_matrix();
-        return log_pseudoposterior_pairwise_component(var1, var2);
-    };
+    double log_accept = log_pseudolikelihood_ratio_interaction(
+        var1, var2, proposed_value, current_value);
 
-    SamplerResult result = rwm_sampler(current, proposal_sd, log_post, rng_);
+    // Cauchy prior ratio
+    log_accept += R::dcauchy(proposed_value, 0.0, pairwise_scale_, true)
+                - R::dcauchy(current_value, 0.0, pairwise_scale_, true);
 
-    value = result.state[0];
-    pairwise_effects_(var2, var1) = value;
+    double accept_prob = std::min(1.0, MY_EXP(log_accept));
 
-    if (current != value) {
-        update_residual_matrix();
+    if (runif(rng_) < accept_prob) {
+        double delta = proposed_value - current_value;
+        pairwise_effects_(var1, var2) = proposed_value;
+        pairwise_effects_(var2, var1) = proposed_value;
+        update_residual_columns(var1, var2, delta);
     }
-    invalidate_gradient_cache();
 }
 
 
@@ -1114,11 +1050,11 @@ void OMRFModel::update_edge_indicator(int var1, int var2) {
         edge_indicators_(var1, var2) = updated;
         edge_indicators_(var2, var1) = updated;
 
+        double delta = proposed_state - current_state;
         pairwise_effects_(var1, var2) = proposed_state;
         pairwise_effects_(var2, var1) = proposed_state;
 
-        update_residual_matrix();
-        invalidate_gradient_cache();
+        update_residual_columns(var1, var2, delta);
     }
 }
 
@@ -1149,11 +1085,7 @@ void OMRFModel::do_one_mh_step() {
         }
     }
 
-    // Update edge indicators if in selection phase
-    if (edge_selection_active_) {
-        update_edge_indicators();
-    }
-
+    invalidate_gradient_cache();
     proposal_.increment_iteration();
 }
 

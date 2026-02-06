@@ -37,7 +37,6 @@ public:
         model.do_one_mh_step();
 
         SamplerResult result;
-        result.state = model.get_full_vectorized_parameters();
         result.accept_prob = 1.0;  // Not tracked for component-wise MH
         return result;
     }
@@ -58,7 +57,6 @@ public:
         model.do_one_mh_step();
 
         SamplerResult result;
-        result.state = model.get_full_vectorized_parameters();
         result.accept_prob = 1.0;
         return result;
     }

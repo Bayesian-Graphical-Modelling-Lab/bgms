@@ -219,12 +219,18 @@ public:
       mass_accumulator.update(theta);
       int w = schedule.current_window(iteration);
       if (iteration + 1 == schedule.window_ends[w]) {
+<<<<<<< HEAD
         // STAN convention: inv_mass = variance (not 1/variance!)
         // Higher variance → higher inverse mass → parameter moves more freely
         inv_mass_ = mass_accumulator.variance();
         mass_accumulator.reset();
         // Signal that mass matrix was updated - caller should run heuristic
         // and call reinit_stepsize() with the new step size
+=======
+        // Stan convention: inv_mass = variance (higher variance → moves more)
+        inv_mass_ = mass_accumulator.variance();
+        mass_accumulator.reset();
+>>>>>>> 49b8e07 (functional and fast but code needs double checking)
         mass_matrix_updated_ = true;
       }
     }
@@ -242,6 +248,7 @@ public:
   const arma::vec& inv_mass_diag() const { return inv_mass_; }
   bool has_fixed_mass_matrix() const { return finalized_mass_; }
 
+<<<<<<< HEAD
   /**
    * Check if the mass matrix was just updated and needs step size re-initialization.
    * After calling this, call reinit_stepsize() with the result of the heuristic.
@@ -262,6 +269,13 @@ public:
     step_size_ = new_step_size;
     step_adapter.restart(new_step_size);
     // Set mu to log(10 * epsilon) as per STAN's approach
+=======
+  bool mass_matrix_just_updated() const { return mass_matrix_updated_; }
+
+  void reinit_stepsize(double new_step_size) {
+    step_size_ = new_step_size;
+    step_adapter.restart(new_step_size);
+>>>>>>> 49b8e07 (functional and fast but code needs double checking)
     step_adapter.mu = MY_LOG(10.0 * new_step_size);
     mass_matrix_updated_ = false;
   }
