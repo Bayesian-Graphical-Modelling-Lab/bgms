@@ -136,7 +136,7 @@ public:
     /**
      * Initialize random graph structure (for starting edge selection)
      */
-    void initialize_graph();
+    void initialize_graph() override;
 
     /**
      * Impute missing values (if any)
@@ -188,7 +188,7 @@ public:
     arma::mat& get_proposal_sd_pairwise() { return proposal_sd_pairwise_; }
 
     // Control edge selection phase
-    void set_edge_selection_active(bool active) { edge_selection_active_ = active; }
+    void set_edge_selection_active(bool active) override { edge_selection_active_ = active; }
     bool is_edge_selection_active() const { return edge_selection_active_; }
 
 private:

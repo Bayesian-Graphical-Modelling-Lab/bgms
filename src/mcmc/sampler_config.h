@@ -27,7 +27,7 @@ struct SamplerConfig {
 
     // Edge selection settings
     bool edge_selection = false;
-    int edge_selection_start = -1;  // -1 = no_warmup / 2 (default)
+    int edge_selection_start = -1;  // -1 = no_warmup (default, start at sampling)
 
     // Random seed
     int seed = 42;
@@ -38,7 +38,7 @@ struct SamplerConfig {
     // Get actual edge selection start iteration
     int get_edge_selection_start() const {
         if (edge_selection_start < 0) {
-            return no_warmup / 2;  // Default: start at half of warmup
+            return no_warmup;  // Default: start at beginning of sampling
         }
         return edge_selection_start;
     }

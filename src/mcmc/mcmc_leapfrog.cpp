@@ -82,7 +82,16 @@ std::pair<arma::vec, arma::vec> leapfrog_memo(
   arma::vec theta_new = theta;
 
   auto grad1 = memo.cached_grad(theta_new);
+  if (grad1.n_elem != theta_new.n_elem) {
+      Rcpp::Rcout << "LEAPFROG: grad1.n_elem=" << grad1.n_elem
+                  << " theta.n_elem=" << theta_new.n_elem << std::endl;
+  }
   r_half += 0.5 * eps * grad1;
+
+  if (inv_mass_diag.n_elem != r_half.n_elem) {
+      Rcpp::Rcout << "LEAPFROG: inv_mass_diag.n_elem=" << inv_mass_diag.n_elem
+                  << " r_half.n_elem=" << r_half.n_elem << std::endl;
+  }
   theta_new += eps * (inv_mass_diag % r_half);
   auto grad2 = memo.cached_grad(theta_new);
   r_half += 0.5 * eps * grad2;

@@ -95,6 +95,16 @@ public:
     // Get active inverse mass (for models with edge selection, may be subset)
     virtual arma::vec get_active_inv_mass() const { return inv_mass_; }
 
+    // Edge selection activation
+    virtual void set_edge_selection_active(bool active) {
+        (void)active;  // Default: no-op
+    }
+
+    // Initialize graph structure for edge selection
+    virtual void initialize_graph() {
+        // Default: no-op
+    }
+
 protected:
     BaseModel() = default;
     double step_size_ = 0.1;

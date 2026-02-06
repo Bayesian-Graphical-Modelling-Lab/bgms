@@ -89,6 +89,14 @@ inline void run_mcmc_chain(
     sampler->finalize_warmup();
 
     // =========================================================================
+    // Activate edge selection mode (if enabled)
+    // =========================================================================
+    if (config.edge_selection && model.has_edge_selection()) {
+        model.set_edge_selection_active(true);
+        model.initialize_graph();  // Randomly initialize graph structure
+    }
+
+    // =========================================================================
     // Sampling phase
     // =========================================================================
     for (int iter = 0; iter < config.no_iter; ++iter) {
