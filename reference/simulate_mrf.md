@@ -103,14 +103,14 @@ The Blume-Capel option is specifically designed for ordinal variables
 that have a special type of baseline_category category, such as the
 neutral category in a Likert scale. The Blume-Capel model specifies the
 following quadratic model for the threshold parameters:
-\$\$\mu\_{\text{c}} = \alpha \times \text{c} + \beta \times (\text{c} -
-\text{r})^2,\$\$ where \\\mu\_{\text{c}}\\ is the threshold for category
-c (which now includes zero), \\\alpha\\ offers a linear trend across
-categories (increasing threshold values if \\\alpha \> 0\\ and
-decreasing threshold values if \\\alpha \<0\\), if \\\beta \< 0\\, it
-offers an increasing penalty for responding in a category further away
-from the baseline_category category r, while \\\beta \> 0\\ suggests a
-preference for responding in the baseline_category category.
+\$\$\mu\_{\text{c}} = \alpha \times (\text{c} - \text{r}) + \beta \times
+(\text{c} - \text{r})^2,\$\$ where \\\mu\_{\text{c}}\\ is the threshold
+for category c (which now includes zero), \\\alpha\\ offers a linear
+trend across categories (increasing threshold values if \\\alpha \> 0\\
+and decreasing threshold values if \\\alpha \<0\\), if \\\beta \< 0\\,
+it offers an increasing penalty for responding in a category further
+away from the baseline_category category r, while \\\beta \> 0\\
+suggests a preference for responding in the baseline_category category.
 
 ## See also
 
