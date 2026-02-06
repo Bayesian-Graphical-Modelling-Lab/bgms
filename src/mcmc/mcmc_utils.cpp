@@ -1,6 +1,7 @@
 #include <RcppArmadillo.h>
 #include <cmath>
 #include <functional>
+#include <limits>
 #include "mcmc/mcmc_leapfrog.h"
 #include "mcmc/mcmc_utils.h"
 #include "rng/rng_utils.h"
@@ -58,14 +59,9 @@ double heuristic_initial_step_size(
   arma::vec inv_mass_diag = arma::ones<arma::vec>(theta.n_elem);
 
   double eps = init_step;
-<<<<<<< HEAD
   double logp0 = log_post(theta);  // Only compute once - position doesn't change
-  
-  // Sample initial momentum and evaluate
-=======
-  double logp0 = log_post(theta);
 
->>>>>>> 49b8e07 (functional and fast but code needs double checking)
+  // Sample initial momentum and evaluate
   arma::vec r = arma_rnorm_vec(rng, theta.n_elem);
   double kin0 = kinetic_energy(r, inv_mass_diag);
   double H0 = logp0 - kin0;
@@ -78,29 +74,33 @@ double heuristic_initial_step_size(
   double kin1 = kinetic_energy(r_new, inv_mass_diag);
   double H1 = logp1 - kin1;
 
-  int direction = 2 * (H1 - H0 > MY_LOG(0.5)) - 1;  // +1 or -1
+  // NaN guard: treat non-finite H as bad step (force halving)
+  auto safe_delta_H = [](double H1, double H0) -> double {
+    double delta = H1 - H0;
+    return std::isfinite(delta) ? delta : -std::numeric_limits<double>::infinity();
+  };
+
+  int direction = 2 * (safe_delta_H(H1, H0) > MY_LOG(0.5)) - 1;  // +1 or -1
 
   int attempts = 0;
-  while (direction * (H1 - H0) > -direction * MY_LOG(2.0) && attempts < max_attempts) {
+  while (attempts < max_attempts) {
+    double delta = safe_delta_H(H1, H0);
+    bool keep_going = (direction == 1)
+      ? (delta > -MY_LOG(2.0))
+      : (delta < MY_LOG(2.0));
+    if (!keep_going) break;
+
     eps = (direction == 1) ? 2.0 * eps : 0.5 * eps;
 
-<<<<<<< HEAD
     // Resample momentum (STAN resamples on each iteration)
-=======
->>>>>>> 49b8e07 (functional and fast but code needs double checking)
     r = arma_rnorm_vec(rng, theta.n_elem);
     kin0 = kinetic_energy(r, inv_mass_diag);
     H0 = logp0 - kin0;
 
-<<<<<<< HEAD
     // One leapfrog step from original position with new momentum
     std::tie(theta_new, r_new) = leapfrog(theta, r, eps, grad, 1, inv_mass_diag);
 
     // Evaluate Hamiltonian
-=======
-    std::tie(theta_new, r_new) = leapfrog(theta, r, eps, grad, 1, inv_mass_diag);
-
->>>>>>> 49b8e07 (functional and fast but code needs double checking)
     logp1 = log_post(theta_new);
     kin1 = kinetic_energy(r_new, inv_mass_diag);
     H1 = logp1 - kin1;
@@ -112,7 +112,6 @@ double heuristic_initial_step_size(
 }
 
 
-<<<<<<< HEAD
 
 /**
  * Function: heuristic_initial_step_size (with mass matrix)
@@ -133,8 +132,6 @@ double heuristic_initial_step_size(
  * Returns:
  *  - A step size epsilon appropriate for the given mass matrix.
  */
-=======
->>>>>>> 49b8e07 (functional and fast but code needs double checking)
 double heuristic_initial_step_size(
     const arma::vec& theta,
     const std::function<double(const arma::vec&)>& log_post,
@@ -146,22 +143,14 @@ double heuristic_initial_step_size(
     int max_attempts
 ) {
   double eps = init_step;
-<<<<<<< HEAD
   double logp0 = log_post(theta);  // Only compute once - position doesn't change
-  
-  // Sample initial momentum from N(0, M) where M = diag(1/inv_mass_diag)
-=======
-  double logp0 = log_post(theta);
 
->>>>>>> 49b8e07 (functional and fast but code needs double checking)
+  // Sample initial momentum from N(0, M) where M = diag(1/inv_mass_diag)
   arma::vec r = arma::sqrt(1.0 / inv_mass_diag) % arma_rnorm_vec(rng, theta.n_elem);
   double kin0 = kinetic_energy(r, inv_mass_diag);
   double H0 = logp0 - kin0;
 
-<<<<<<< HEAD
   // One leapfrog step
-=======
->>>>>>> 49b8e07 (functional and fast but code needs double checking)
   arma::vec theta_new, r_new;
   std::tie(theta_new, r_new) = leapfrog(theta, r, eps, grad, 1, inv_mass_diag);
 
@@ -169,28 +158,30 @@ double heuristic_initial_step_size(
   double kin1 = kinetic_energy(r_new, inv_mass_diag);
   double H1 = logp1 - kin1;
 
-<<<<<<< HEAD
-  int direction = 2 * (H1 - H0 > MY_LOG(0.5)) - 1;  // +1 or -1
-=======
-  int direction = 2 * (H1 - H0 > MY_LOG(0.5)) - 1;
->>>>>>> 49b8e07 (functional and fast but code needs double checking)
+  // NaN guard: treat non-finite H as bad step (force halving)
+  auto safe_delta_H = [](double H1_val, double H0_val) -> double {
+    double delta = H1_val - H0_val;
+    return std::isfinite(delta) ? delta : -std::numeric_limits<double>::infinity();
+  };
+
+  int direction = 2 * (safe_delta_H(H1, H0) > MY_LOG(0.5)) - 1;  // +1 or -1
 
   int attempts = 0;
-  while (direction * (H1 - H0) > -direction * MY_LOG(2.0) && attempts < max_attempts) {
+  while (attempts < max_attempts) {
+    double delta = safe_delta_H(H1, H0);
+    bool keep_going = (direction == 1)
+      ? (delta > -MY_LOG(2.0))
+      : (delta < MY_LOG(2.0));
+    if (!keep_going) break;
+
     eps = (direction == 1) ? 2.0 * eps : 0.5 * eps;
 
-<<<<<<< HEAD
     // Resample momentum (STAN resamples on each iteration)
-=======
->>>>>>> 49b8e07 (functional and fast but code needs double checking)
     r = arma::sqrt(1.0 / inv_mass_diag) % arma_rnorm_vec(rng, theta.n_elem);
     kin0 = kinetic_energy(r, inv_mass_diag);
     H0 = logp0 - kin0;
 
-<<<<<<< HEAD
     // One leapfrog step from original position with new momentum
-=======
->>>>>>> 49b8e07 (functional and fast but code needs double checking)
     std::tie(theta_new, r_new) = leapfrog(theta, r, eps, grad, 1, inv_mass_diag);
 
     logp1 = log_post(theta_new);

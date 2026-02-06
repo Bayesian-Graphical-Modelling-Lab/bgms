@@ -101,8 +101,20 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-<<<<<<< HEAD
-<<<<<<< HEAD
+// chol_update_arma
+arma::mat chol_update_arma(arma::mat& R, arma::vec& u, bool downdate, double eps);
+RcppExport SEXP _bgms_chol_update_arma(SEXP RSEXP, SEXP uSEXP, SEXP downdateSEXP, SEXP epsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat& >::type R(RSEXP);
+    Rcpp::traits::input_parameter< arma::vec& >::type u(uSEXP);
+    Rcpp::traits::input_parameter< bool >::type downdate(downdateSEXP);
+    Rcpp::traits::input_parameter< double >::type eps(epsSEXP);
+    rcpp_result_gen = Rcpp::wrap(chol_update_arma(R, u, downdate, eps));
+    return rcpp_result_gen;
+END_RCPP
+}
 // compute_conditional_probs
 Rcpp::List compute_conditional_probs(arma::imat observations, arma::ivec predict_vars, arma::mat interactions, arma::mat thresholds, arma::ivec no_categories, Rcpp::StringVector variable_type, arma::ivec baseline_category);
 RcppExport SEXP _bgms_compute_conditional_probs(SEXP observationsSEXP, SEXP predict_varsSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP no_categoriesSEXP, SEXP variable_typeSEXP, SEXP baseline_categorySEXP) {
@@ -120,62 +132,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-=======
-<<<<<<< HEAD
-=======
-=======
->>>>>>> cbdbf65 (regenerate RcppExports)
-// chol_update_arma
-arma::mat chol_update_arma(arma::mat& R, arma::vec& u, bool downdate, double eps);
-RcppExport SEXP _bgms_chol_update_arma(SEXP RSEXP, SEXP uSEXP, SEXP downdateSEXP, SEXP epsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::mat& >::type R(RSEXP);
-    Rcpp::traits::input_parameter< arma::vec& >::type u(uSEXP);
-    Rcpp::traits::input_parameter< bool >::type downdate(downdateSEXP);
-    Rcpp::traits::input_parameter< double >::type eps(epsSEXP);
-    rcpp_result_gen = Rcpp::wrap(chol_update_arma(R, u, downdate, eps));
-    return rcpp_result_gen;
-END_RCPP
-}
-<<<<<<< HEAD
-// get_explog_switch
-Rcpp::String get_explog_switch();
-RcppExport SEXP _bgms_get_explog_switch() {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    rcpp_result_gen = Rcpp::wrap(get_explog_switch());
-    return rcpp_result_gen;
-END_RCPP
-}
-// rcpp_ieee754_exp
-Rcpp::NumericVector rcpp_ieee754_exp(Rcpp::NumericVector x);
-RcppExport SEXP _bgms_rcpp_ieee754_exp(SEXP xSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type x(xSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_ieee754_exp(x));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rcpp_ieee754_log
-Rcpp::NumericVector rcpp_ieee754_log(Rcpp::NumericVector x);
-RcppExport SEXP _bgms_rcpp_ieee754_log(SEXP xSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type x(xSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_ieee754_log(x));
-    return rcpp_result_gen;
-END_RCPP
-}
->>>>>>> 7252076 (ggm compiles but runtime has a weird error)
->>>>>>> efc05b4 (ggm compiles but runtime has a weird error)
-=======
->>>>>>> cbdbf65 (regenerate RcppExports)
 // sample_omrf_gibbs
 IntegerMatrix sample_omrf_gibbs(int no_states, int no_variables, IntegerVector no_categories, NumericMatrix interactions, NumericMatrix thresholds, int iter, int seed);
 RcppExport SEXP _bgms_sample_omrf_gibbs(SEXP no_statesSEXP, SEXP no_variablesSEXP, SEXP no_categoriesSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP iterSEXP, SEXP seedSEXP) {
@@ -315,27 +271,14 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_bgms_run_bgmCompare_parallel", (DL_FUNC) &_bgms_run_bgmCompare_parallel, 36},
     {"_bgms_run_bgm_parallel", (DL_FUNC) &_bgms_run_bgm_parallel, 34},
-<<<<<<< HEAD
-<<<<<<< HEAD
+    {"_bgms_chol_update_arma", (DL_FUNC) &_bgms_chol_update_arma, 4},
     {"_bgms_compute_conditional_probs", (DL_FUNC) &_bgms_compute_conditional_probs, 7},
     {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 7},
     {"_bgms_sample_bcomrf_gibbs", (DL_FUNC) &_bgms_sample_bcomrf_gibbs, 9},
     {"_bgms_run_simulation_parallel", (DL_FUNC) &_bgms_run_simulation_parallel, 12},
-=======
-<<<<<<< HEAD
-=======
-=======
->>>>>>> cbdbf65 (regenerate RcppExports)
-    {"_bgms_chol_update_arma", (DL_FUNC) &_bgms_chol_update_arma, 4},
-    {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 6},
-    {"_bgms_sample_bcomrf_gibbs", (DL_FUNC) &_bgms_sample_bcomrf_gibbs, 8},
     {"_bgms_sample_omrf_classed", (DL_FUNC) &_bgms_sample_omrf_classed, 8},
     {"_bgms_sample_ggm", (DL_FUNC) &_bgms_sample_ggm, 10},
-<<<<<<< HEAD
->>>>>>> efc05b4 (ggm compiles but runtime has a weird error)
-=======
     {"_bgms_sample_omrf", (DL_FUNC) &_bgms_sample_omrf, 15},
->>>>>>> d481885 (mostly functional)
     {"_bgms_compute_Vn_mfm_sbm", (DL_FUNC) &_bgms_compute_Vn_mfm_sbm, 4},
     {NULL, NULL, 0}
 };

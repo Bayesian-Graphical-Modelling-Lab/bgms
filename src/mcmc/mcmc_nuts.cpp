@@ -262,3 +262,81 @@ SamplerResult nuts_sampler(
 
   return {theta, accept_prob, diag};
 }
+
+
+SamplerResult nuts_sampler_joint(
+    const arma::vec& init_theta,
+    double step_size,
+    const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint_fn,
+    const arma::vec& inv_mass_diag,
+    SafeRNG& rng,
+    int max_depth
+) {
+  Memoizer memo(joint_fn);
+  bool any_divergence = false;
+
+  arma::vec r0 = arma::sqrt(1.0 / inv_mass_diag) % arma_rnorm_vec(rng, init_theta.n_elem);
+  auto logp0 = memo.cached_log_post(init_theta);
+  double kin0 = kinetic_energy(r0, inv_mass_diag);
+  double joint0 = logp0 - kin0;
+  double log_u = log(runif(rng)) + joint0;
+  arma::vec theta_min = init_theta, r_min = r0;
+  arma::vec theta_plus = init_theta, r_plus = r0;
+  arma::vec theta = init_theta;
+  arma::vec r = r0;
+  int j = 0;
+  int n = 1, s = 1;
+
+  double alpha = 0.5;
+  int n_alpha = 1;
+
+  while (s == 1 && j < max_depth) {
+    int v = runif(rng) < 0.5 ? -1 : 1;
+
+    BuildTreeResult result;
+    if (v == -1) {
+      result = build_tree(
+        theta_min, r_min, log_u, v, j, step_size, init_theta, r0, logp0, kin0,
+        memo, inv_mass_diag, rng
+      );
+      theta_min = result.theta_min;
+      r_min = result.r_min;
+    } else {
+      result = build_tree(
+        theta_plus, r_plus, log_u, v, j, step_size, init_theta, r0, logp0, kin0,
+        memo, inv_mass_diag, rng
+      );
+      theta_plus = result.theta_plus;
+      r_plus = result.r_plus;
+    }
+
+    any_divergence = any_divergence || result.divergent;
+    alpha = result.alpha;
+    n_alpha = result.n_alpha;
+
+    if (result.s_prime == 1) {
+      double prob = static_cast<double>(result.n_prime) / static_cast<double>(n);
+      if (runif(rng) < prob) {
+        theta = result.theta_prime;
+        r = result.r_prime;
+      }
+    }
+    bool no_uturn = !is_uturn(theta_min, theta_plus, r_min, r_plus, inv_mass_diag);
+    s = result.s_prime * no_uturn;
+    n += result.n_prime;
+    j++;
+  }
+
+  double accept_prob = alpha / static_cast<double>(n_alpha);
+
+  auto logp_final = memo.cached_log_post(theta);
+  double kin_final = kinetic_energy(r, inv_mass_diag);
+  double energy = -logp_final + kin_final;
+
+  auto diag = std::make_shared<NUTSDiagnostics>();
+  diag->tree_depth = j;
+  diag->divergent = any_divergence;
+  diag->energy = energy;
+
+  return {theta, accept_prob, diag};
+}

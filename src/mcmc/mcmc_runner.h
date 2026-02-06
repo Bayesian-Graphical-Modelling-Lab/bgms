@@ -28,10 +28,12 @@
 inline std::unique_ptr<BaseSampler> create_sampler(const SamplerConfig& config) {
     if (config.sampler_type == "nuts") {
         return std::make_unique<NUTSSampler>(config, config.no_warmup);
-    } else if (config.sampler_type == "hmc") {
+    } else if (config.sampler_type == "hmc" || config.sampler_type == "hamiltonian-mc") {
         return std::make_unique<HMCSampler>(config);
-    } else {
+    } else if (config.sampler_type == "mh" || config.sampler_type == "adaptive-metropolis") {
         return std::make_unique<MHSampler>(config);
+    } else {
+        Rcpp::stop("Unknown sampler_type: '%s'", config.sampler_type.c_str());
     }
 }
 
