@@ -113,12 +113,19 @@ if (!requireNamespace("remotes")) {
 remotes::install_github("Bayesian-Graphical-Modelling-Lab/bgms")
 ```
 
+## Contributors
+
+**bgms** is developed by the Bayesian Graphical Modelling Lab in
+collaboration with contributors from across the R community. See
+[CONTRIBUTORS.md](https://bayesian-graphical-modelling-lab.github.io/bgms/CONTRIBUTORS.md)
+for acknowledgments and detailed information on contributions.
+
 ## References
 
 Contreras, A., Nieto, I., Valiente, C., Espinosa, R., & Vazquez, C.
 (2019). The study of psychopathology from the network analysis
 perspective: A systematic review. *Psychotherapy and Psychosomatics*,
-*88*, 71–83. <https://doi.org/10.1159/000497425>
+*88*(2), 71–83. <https://doi.org/10.1159/000497425>
 
 Huth, K., de Ron, J., Goudriaan, A. E., Luigjes, K., Mohammadi, R., van
 Holst, R. J., Wagenmakers, E.-J., & Marsman, M. (2023). Bayesian
@@ -137,12 +144,13 @@ innovations inspired by empirical problems. *Psychometrika*, *87*, 1–11.
 <https://doi.org/10.1007/s11336-022-09861-x>
 
 Marsman, M., van den Bergh, D., & Haslbeck, J. M. B. (2025). Bayesian
-analysis of the ordinal Markov random field. *Psychometrika*, *90*,
-146–182.
+analysis of the ordinal Markov random field. *Psychometrika*, *90*(1),
+146–182. <https://doi.org/10.1017/psy.2024.4>
 
 Marsman, M., Waldorp, L. J., Sekulovski, N., & Haslbeck, J. M. B.
-(2024). Bayes factor tests for group differences in ordinal and binary
-graphical models. *Retrieved from <Https://Osf.io/Preprints/Osf/F4pk9>*.
+(2025). Bayes factor tests for group differences in ordinal and binary
+graphical models. *Psychometrika*, *90*(5), 1809–1842.
+<https://doi.org/10.1017/psy.2025.10060>
 
 Robinaugh, D. J., Hoekstra, R. H. A., Toner, E. R., & Borsboom, D.
 (2020). The network approach to psychopathology: A review of the
@@ -151,8 +159,7 @@ Medicine*, *50*, 353–366. <https://doi.org/10.1017/S0033291719003404>
 
 Sekulovski, N., Arena, G., Haslbeck, J. M. B., Huth, K. B. S., Friel,
 N., & Marsman, M. (2025). A stochastic block prior for clustering in
-graphical models. *Retrieved from
-[Https://Osf.io/Preprints/Psyarxiv/29p3m_v1](https://osf.io/preprints/psyarxiv/29p3m_v1)*.
+graphical models. <https://osf.io/preprints/psyarxiv/29p3m_v1>
 
 Sekulovski, N., Keetelaar, S., Huth, K. B. S., Wagenmakers, E.-J., van
 Bork, R., van den Bergh, D., & Marsman, M. (2024). Testing conditional

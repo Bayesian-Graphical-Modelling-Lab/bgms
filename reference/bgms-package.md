@@ -30,7 +30,7 @@ priors.
   differences in edge weights and category thresholds. Posterior
   inclusion probabilities quantify the evidence for differences and can
   be converted into Bayes factors for parameter equivalence tests
-  (Marsman et al. in press) .
+  (Marsman et al. 2025) .
 
 ## Tools
 
@@ -62,11 +62,13 @@ For tutorials and worked examples, see:
 ## References
 
 Marsman M, van den Bergh D, Haslbeck JMB (2025). “Bayesian analysis of
-the ordinal Markov random field.” *Psychometrika*, **90**, 146–-182.  
+the ordinal Markov random field.” *Psychometrika*, **90**(1), 146–182.
+[doi:10.1017/psy.2024.4](https://doi.org/10.1017/psy.2024.4) .  
   
-Marsman M, Waldorp LJ, Sekulovski N, Haslbeck JMB (in press). “Bayes
-factor tests for group differences in ordinal and binary graphical
-models.” *Psychometrika*.  
+Marsman M, Waldorp LJ, Sekulovski N, Haslbeck JMB (2025). “Bayes factor
+tests for group differences in ordinal and binary graphical models.”
+*Psychometrika*, **90**(5), 1809–1842.
+[doi:10.1017/psy.2025.10060](https://doi.org/10.1017/psy.2025.10060) .  
   
 Sekulovski N, Arena G, Haslbeck JMB, Huth KBS, Friel N, Marsman M
 (2025). “A Stochastic Block Prior for Clustering in Graphical Models.”
@@ -89,16 +91,18 @@ Useful links:
 **Maintainer**: Maarten Marsman <m.marsman@uva.nl>
 ([ORCID](https://orcid.org/0000-0001-5309-7502))
 
+Authors:
+
+- Don van den Bergh ([ORCID](https://orcid.org/0000-0002-9838-7308))
+
 Other contributors:
-
-- Giuseppe Arena ([ORCID](https://orcid.org/0000-0001-5204-3326))
-  \[contributor\]
-
-- Karoline Huth ([ORCID](https://orcid.org/0000-0002-0662-1591))
-  \[contributor\]
 
 - Nikola Sekulovski ([ORCID](https://orcid.org/0000-0001-7032-1684))
   \[contributor\]
 
-- Don van den Bergh ([ORCID](https://orcid.org/0000-0002-9838-7308))
+- Giuseppe Arena ([ORCID](https://orcid.org/0000-0001-5204-3326))
   \[contributor\]
+
+- Laura Groot \[contributor\]
+
+- Gali Geller \[contributor\]
