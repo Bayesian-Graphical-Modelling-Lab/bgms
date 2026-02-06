@@ -279,6 +279,11 @@ private:
     void update_residual_matrix();
 
     /**
+     * Incrementally update two residual columns after a single pairwise effect change
+     */
+    void update_residual_columns(int var1, int var2, double delta);
+
+    /**
      * Invalidate gradient cache (call after parameter changes)
      */
     void invalidate_gradient_cache() { gradient_cache_valid_ = false; }

@@ -94,7 +94,7 @@ public:
 
 
 // === Dynamic Warmup Schedule with Adaptive Windows ===
-// 
+//
 // For edge_selection = FALSE:
 //   Stage 1 (init), Stage 2 (doubling windows), Stage 3a (terminal)
 //   total_warmup = user-specified warmup
@@ -108,7 +108,7 @@ public:
 // Warning types:
 //   0 = none
 //   1 = warmup extremely short (< 50)
-//   2 = core stages using proportional fallback 
+//   2 = core stages using proportional fallback
 //   3 = limited proposal SD tuning (edge_selection && warmup < 300)
 //   4 = Stage 3b skipped (would have < 20 iterations)
 //
@@ -228,7 +228,7 @@ struct WarmupSchedule {
   bool in_stage3b(int i) const { return !stage3b_skipped && i >= stage3b_start && i < stage3c_start; }
   bool in_stage3c(int i) const { return enable_selection && !stage3b_skipped && i >= stage3c_start && i < total_warmup; }
   bool sampling (int i) const { return i >= total_warmup; }
-  
+
   bool has_warning() const { return warning_type > 0; }
   bool warmup_extremely_short() const { return warning_type == 1; }
   bool using_proportional_fallback() const { return warning_type == 2; }
@@ -298,7 +298,7 @@ public:
       mass_accumulator.update(theta);
       int w = schedule.current_window(iteration);
       if (iteration + 1 == schedule.window_ends[w]) {
-        // inv_mass = variance (not 1/variance)
+        // STAN convention: inv_mass = variance (not 1/variance!)
         // Higher variance → higher inverse mass → parameter moves more freely
         inv_mass_ = mass_accumulator.variance();
         mass_accumulator.reset();
@@ -339,7 +339,7 @@ public:
   void reinit_stepsize(double new_step_size) {
     step_size_ = new_step_size;
     step_adapter.restart(new_step_size);
-    // Set mu to log(10 * epsilon) for dual averaging
+    // Set mu to log(10 * epsilon) as per STAN's approach
     step_adapter.mu = MY_LOG(10.0 * new_step_size);
     mass_matrix_updated_ = false;
   }
