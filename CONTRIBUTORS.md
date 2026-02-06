@@ -63,14 +63,6 @@ We are grateful to everyone who has contributed to the development of
 We acknowledge Karoline Huth for contributions to the early development
 of the bgms package.
 
-## Citation
-
-If you use **bgms** in your research, please cite:
-
-Marsman, M., & van den Bergh, D. (2025). bgms: Bayesian analysis of
-networks of binary and/or ordinal variables.
-<https://CRAN.R-project.org/package=bgms>
-
 ## Attribution Standards
 
 This package follows R community standards for author attribution using
