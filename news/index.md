@@ -4,67 +4,45 @@
 
 ### New features
 
-- added `main_difference_selection` argument to
-  [`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md)
-  to control whether difference selection is applied to main effect
-  (threshold) differences. When `FALSE` (the new default), main effect
-  differences are always estimated without selection, while pairwise
-  effect selection proceeds independently.
-- added `standardize` argument to
-  [`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)
-  and
-  [`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md)
-  to optionally scale the Cauchy prior for pairwise interactions based
-  on the range of response scores. When enabled, the prior scale is
-  multiplied by the maximum score product for each pair, ensuring
-  equivalent relative shrinkage regardless of the number of response
-  categories. The scaling factors are stored in
-  `fit$arguments$pairwise_scaling_factors`.
-- added
-  [`simulate_mrf()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate_mrf.md)
-  function for standalone MRF data simulation with user-specified
-  parameters
-- added
-  [`simulate.bgms()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate.bgms.md)
-  S3 method to generate new observations from a fitted model using
-  estimated parameters. Supports parallel processing via `cores`
-  argument when using `method = "posterior-sample"` with optional
-  progress bar
-- added
-  [`predict.bgms()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/predict.bgms.md)
-  S3 method to compute conditional probability distributions P(X_j \|
-  X\_{-j}) for one or more variables given observed data
-- both methods support using posterior mean parameters
-  (`method = "posterior-mean"`) or averaging over posterior draws
-  (`method = "posterior-sample"`) for full uncertainty propagation
-- `baseline_category` is now stored in the fitted object’s arguments for
-  use with Blume-Capel variables in simulation and prediction
+- [`simulate_mrf()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate_mrf.md):
+  standalone MRF simulation with user-specified parameters
+- [`simulate.bgms()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate.bgms.md):
+  generate observations from fitted models (supports parallel
+  processing)
+- [`predict.bgms()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/predict.bgms.md):
+  compute conditional probabilities P(X_j \| X\_{-j})
+- `main_difference_selection` argument in
+  [`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md):
+  control threshold difference selection
+- `standardize` argument: scale Cauchy prior by response score range
+- `baseline_category` now stored in fitted object for Blume-Capel
+  simulation/prediction
 
 ### Bug fixes
 
-- fixed mass matrix adaptation for NUTS/HMC: inverse mass matrix now
-  correctly uses variance (following STAN convention) instead of
-  precision, substantially improving sampling efficiency.
-- fixed step size heuristic to re-run after each mass matrix update
-  during warmup, ensuring step size is appropriate for the current mass
-  matrix.
-- fixed step size heuristic to resample momentum on each iteration
-  (matching STAN’s init_stepsize behavior), improving step size
-  selection.
-- fixed energy diagnostic computation in NUTS to use actual accepted
-  trajectory momentum instead of a random sample, making E-BFMI
-  diagnostic meaningful.
-- fixed Blume-Capel interaction term computation to use centered scores
-  `(c - ref)` instead of raw category `c` in the pseudolikelihood
-  denominator. This bug caused severe NUTS performance degradation (100%
-  max tree depth hits) when using non-zero baseline categories.
+- fixed mass matrix adaptation: now correctly uses variance instead of
+  precision
+- fixed step size heuristic: re-runs after mass matrix updates,
+  resamples momentum each iteration
+- fixed E-BFMI diagnostic: now uses actual accepted trajectory momentum
+- fixed Blume-Capel interaction: uses centered scores `(c - ref)` in
+  pseudolikelihood denominator
+
+### Other changes
+
+- improved warmup schedule: fixed buffers (75/25/50) with proportional
+  fallback for short warmup
+- edge selection warmup now within user budget: 85%/10%/5% split for
+  stages 1-3a/3b/3c
+- streamlined user messages: concise warnings, consolidated NUTS
+  diagnostics
+- E-BFMI threshold adjusted to 0.2 (standard)
 
 ### Deprecated
 
 - [`mrfSampler()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/mrfSampler.md)
-  is deprecated in favor of
+  → use
   [`simulate_mrf()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate_mrf.md)
-  for consistency with S3 method naming conventions
 
 ## bgms 0.1.6.2
 

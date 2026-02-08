@@ -42,27 +42,38 @@
 <h2 class="pkg-version" data-toc-text="0.1.6.3" id="bgms-0163">bgms 0.1.6.3<a class="anchor" aria-label="anchor" href="#bgms-0163"></a></h2>
 <div class="section level3">
 <h3 id="new-features-0-1-6-3">New features<a class="anchor" aria-label="anchor" href="#new-features-0-1-6-3"></a></h3>
-<ul><li>added <code>main_difference_selection</code> argument to <code><a href="../reference/bgmCompare.html">bgmCompare()</a></code> to control whether difference selection is applied to main effect (threshold) differences. When <code>FALSE</code> (the new default), main effect differences are always estimated without selection, while pairwise effect selection proceeds independently.</li>
-<li>added <code>standardize</code> argument to <code><a href="../reference/bgm.html">bgm()</a></code> and <code><a href="../reference/bgmCompare.html">bgmCompare()</a></code> to optionally scale the Cauchy prior for pairwise interactions based on the range of response scores. When enabled, the prior scale is multiplied by the maximum score product for each pair, ensuring equivalent relative shrinkage regardless of the number of response categories. The scaling factors are stored in <code>fit$arguments$pairwise_scaling_factors</code>.</li>
-<li>added <code><a href="../reference/simulate_mrf.html">simulate_mrf()</a></code> function for standalone MRF data simulation with user-specified parameters</li>
-<li>added <code><a href="../reference/simulate.bgms.html">simulate.bgms()</a></code> S3 method to generate new observations from a fitted model using estimated parameters. Supports parallel processing via <code>cores</code> argument when using <code>method = "posterior-sample"</code> with optional progress bar</li>
-<li>added <code><a href="../reference/predict.bgms.html">predict.bgms()</a></code> S3 method to compute conditional probability distributions P(X_j | X_{-j}) for one or more variables given observed data</li>
-<li>both methods support using posterior mean parameters (<code>method = "posterior-mean"</code>) or averaging over posterior draws (<code>method = "posterior-sample"</code>) for full uncertainty propagation</li>
+<ul><li>
+<code><a href="../reference/simulate_mrf.html">simulate_mrf()</a></code>: standalone MRF simulation with user-specified parameters</li>
 <li>
-<code>baseline_category</code> is now stored in the fitted object’s arguments for use with Blume-Capel variables in simulation and prediction</li>
+<code><a href="../reference/simulate.bgms.html">simulate.bgms()</a></code>: generate observations from fitted models (supports parallel processing)</li>
+<li>
+<code><a href="../reference/predict.bgms.html">predict.bgms()</a></code>: compute conditional probabilities P(X_j | X_{-j})</li>
+<li>
+<code>main_difference_selection</code> argument in <code><a href="../reference/bgmCompare.html">bgmCompare()</a></code>: control threshold difference selection</li>
+<li>
+<code>standardize</code> argument: scale Cauchy prior by response score range</li>
+<li>
+<code>baseline_category</code> now stored in fitted object for Blume-Capel simulation/prediction</li>
 </ul></div>
 <div class="section level3">
 <h3 id="bug-fixes-0-1-6-3">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-1-6-3"></a></h3>
-<ul><li>fixed mass matrix adaptation for NUTS/HMC: inverse mass matrix now correctly uses variance (following STAN convention) instead of precision, substantially improving sampling efficiency.</li>
-<li>fixed step size heuristic to re-run after each mass matrix update during warmup, ensuring step size is appropriate for the current mass matrix.</li>
-<li>fixed step size heuristic to resample momentum on each iteration (matching STAN’s init_stepsize behavior), improving step size selection.</li>
-<li>fixed energy diagnostic computation in NUTS to use actual accepted trajectory momentum instead of a random sample, making E-BFMI diagnostic meaningful.</li>
-<li>fixed Blume-Capel interaction term computation to use centered scores <code>(c - ref)</code> instead of raw category <code>c</code> in the pseudolikelihood denominator. This bug caused severe NUTS performance degradation (100% max tree depth hits) when using non-zero baseline categories.</li>
+<ul><li>fixed mass matrix adaptation: now correctly uses variance instead of precision</li>
+<li>fixed step size heuristic: re-runs after mass matrix updates, resamples momentum each iteration</li>
+<li>fixed E-BFMI diagnostic: now uses actual accepted trajectory momentum</li>
+<li>fixed Blume-Capel interaction: uses centered scores <code>(c - ref)</code> in pseudolikelihood denominator</li>
+</ul></div>
+<div class="section level3">
+<h3 id="other-changes-0-1-6-3">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-0-1-6-3"></a></h3>
+<ul><li>improved warmup schedule: fixed buffers (75/25/50) with proportional fallback for short warmup</li>
+<li>edge selection warmup now within user budget: 85%/10%/5% split for stages 1-3a/3b/3c</li>
+<li>streamlined user messages: concise warnings, consolidated NUTS diagnostics</li>
+<li>E-BFMI threshold adjusted to 0.2 (standard)</li>
 </ul></div>
 <div class="section level3">
 <h3 id="deprecated-0-1-6-3">Deprecated<a class="anchor" aria-label="anchor" href="#deprecated-0-1-6-3"></a></h3>
 <ul><li>
-<code><a href="../reference/mrfSampler.html">mrfSampler()</a></code> is deprecated in favor of <code><a href="../reference/simulate_mrf.html">simulate_mrf()</a></code> for consistency with S3 method naming conventions</li>
+<code><a href="../reference/mrfSampler.html">mrfSampler()</a></code> → use <code><a href="../reference/simulate_mrf.html">simulate_mrf()</a></code>
+</li>
 </ul></div>
 </div>
     <div class="section level2">
