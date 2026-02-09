@@ -107,7 +107,7 @@ void GaussianVariables::update_edge_parameter(size_t i, size_t j) {
     double Phi_q1q  = constants_[1];
     double Phi_q1q1 = constants_[2];
 
-    size_t e = i * (i + 1) / 2 + j; // parameter index in vectorized form
+    size_t e = j * (j + 1) / 2 + i; // parameter index in vectorized form (column-major upper triangle)
     double proposal_sd = proposal_.get_proposal_sd(e);
 
     double phi_prop       = rnorm(rng_, Phi_q1q, proposal_sd);
@@ -184,7 +184,7 @@ void GaussianVariables::update_diagonal_parameter(size_t i) {
     double logdet_omega = get_log_det(cholesky_of_precision_);
     double logdet_omega_sub_ii = logdet_omega + std::log(covariance_matrix_(i, i));
 
-    size_t e = i * (i + 1) / 2 + i; // parameter index in vectorized form
+    size_t e = i * (i + 3) / 2; // parameter index in vectorized form (column-major upper triangle, i==j)
     double proposal_sd = proposal_.get_proposal_sd(e);
 
     double theta_curr = (logdet_omega - logdet_omega_sub_ii) / 2;
@@ -238,7 +238,7 @@ void GaussianVariables::cholesky_update_after_diag(double omega_ii_old, size_t i
 
 void GaussianVariables::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 
-    size_t e = i * (i + 1) / 2 + j; // parameter index in vectorized form
+    size_t e = j * (j + 1) / 2 + i; // parameter index in vectorized form (column-major upper triangle)
     double proposal_sd = proposal_.get_proposal_sd(e);
 
     if (edge_indicators_(i, j) == 1) {
@@ -359,7 +359,7 @@ void GaussianVariables::do_one_mh_step() {
         update_diagonal_parameter(i);
     }
 
-    if (edge_selection_) {
+    if (edge_selection_active_) {
         for (size_t i = 0; i < p_ - 1; ++i) {
             for (size_t j = i + 1; j < p_; ++j) {
                 update_edge_indicator_parameter_pair(i, j);
@@ -369,6 +369,31 @@ void GaussianVariables::do_one_mh_step() {
 
     // could also be called in the main MCMC loop
     proposal_.increment_iteration();
+}
+
+void GaussianVariables::initialize_graph() {
+    for (size_t i = 0; i < p_ - 1; ++i) {
+        for (size_t j = i + 1; j < p_; ++j) {
+            double p = inclusion_probability_(i, j);
+            int draw = (runif(rng_) < p) ? 1 : 0;
+            edge_indicators_(i, j) = draw;
+            edge_indicators_(j, i) = draw;
+            if (!draw) {
+                precision_proposal_ = precision_matrix_;
+                precision_proposal_(i, j) = 0.0;
+                precision_proposal_(j, i) = 0.0;
+                get_constants(i, j);
+                precision_proposal_(j, j) = R(0.0);
+
+                double omega_ij_old = precision_matrix_(i, j);
+                double omega_jj_old = precision_matrix_(j, j);
+                precision_matrix_(j, j) = precision_proposal_(j, j);
+                precision_matrix_(i, j) = 0.0;
+                precision_matrix_(j, i) = 0.0;
+                cholesky_update_after_edge(omega_ij_old, omega_jj_old, i, j);
+            }
+        }
+    }
 }
 
 

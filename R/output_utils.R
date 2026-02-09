@@ -178,6 +178,193 @@ prepare_output_bgm = function(
 }
 
 
+prepare_output_ggm = function(
+  out, x, iter, data_columnnames,
+  warmup, edge_selection, edge_prior, inclusion_probability,
+  beta_bernoulli_alpha, beta_bernoulli_beta,
+  beta_bernoulli_alpha_between, beta_bernoulli_beta_between,
+  dirichlet_alpha, lambda,
+  na_action, na_impute,
+  variable_type, update_method, target_accept,
+  num_chains
+) {
+  num_variables = ncol(x)
+
+  arguments = list(
+    num_variables = num_variables,
+    num_cases = nrow(x),
+    na_impute = na_impute,
+    variable_type = variable_type,
+    iter = iter,
+    warmup = warmup,
+    edge_selection = edge_selection,
+    edge_prior = edge_prior,
+    inclusion_probability = inclusion_probability,
+    beta_bernoulli_alpha = beta_bernoulli_alpha,
+    beta_bernoulli_beta = beta_bernoulli_beta,
+    beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+    beta_bernoulli_beta_between = beta_bernoulli_beta_between,
+    dirichlet_alpha = dirichlet_alpha,
+    lambda = lambda,
+    na_action = na_action,
+    version = packageVersion("bgms"),
+    update_method = update_method,
+    target_accept = target_accept,
+    num_chains = num_chains,
+    data_columnnames = data_columnnames,
+    no_variables = num_variables,
+    is_continuous = TRUE
+  )
+
+  results = list()
+
+  # Parameter names: diagonal = "Var (precision)", off-diagonal = "Var1-Var2"
+  diag_names = paste0(data_columnnames, " (precision)")
+
+  edge_names = character()
+  for (i in 1:(num_variables - 1)) {
+    for (j in (i + 1):num_variables) {
+      edge_names = c(edge_names, paste0(data_columnnames[i], "-", data_columnnames[j]))
+    }
+  }
+
+  # Summarize MCMC chains
+  summary_list = summarize_fit(out, edge_selection = edge_selection)
+  main_summary = summary_list$main[, -1]
+  pairwise_summary = summary_list$pairwise[, -1]
+
+  rownames(main_summary) = diag_names
+  rownames(pairwise_summary) = edge_names
+
+  results$posterior_summary_main = main_summary
+  results$posterior_summary_pairwise = pairwise_summary
+
+  if (edge_selection) {
+    indicator_summary = summarize_indicator(out, param_names = edge_names)[, -1]
+    rownames(indicator_summary) = edge_names
+    results$posterior_summary_indicator = indicator_summary
+
+    has_sbm = identical(edge_prior, "Stochastic-Block") &&
+      "allocations" %in% names(out[[1]])
+
+    if (has_sbm) {
+      sbm_convergence = summarize_alloc_pairs(
+        allocations = lapply(out, `[[`, "allocations"),
+        node_names = data_columnnames
+      )
+      results$posterior_summary_pairwise_allocations = sbm_convergence$sbm_summary
+    }
+  }
+
+  # Posterior mean matrices
+  results$posterior_mean_main = matrix(main_summary$mean,
+    nrow = num_variables, ncol = 1,
+    dimnames = list(data_columnnames, "precision_diag"))
+
+  results$posterior_mean_pairwise = matrix(0,
+    nrow = num_variables, ncol = num_variables,
+    dimnames = list(data_columnnames, data_columnnames))
+  results$posterior_mean_pairwise[lower.tri(results$posterior_mean_pairwise)] = pairwise_summary$mean
+  results$posterior_mean_pairwise = results$posterior_mean_pairwise + t(results$posterior_mean_pairwise)
+
+  if (edge_selection) {
+    indicator_means = indicator_summary$mean
+    results$posterior_mean_indicator = matrix(0,
+      nrow = num_variables, ncol = num_variables,
+      dimnames = list(data_columnnames, data_columnnames))
+    results$posterior_mean_indicator[upper.tri(results$posterior_mean_indicator)] = indicator_means
+    results$posterior_mean_indicator[lower.tri(results$posterior_mean_indicator)] =
+      t(results$posterior_mean_indicator)[lower.tri(results$posterior_mean_indicator)]
+
+    if (has_sbm) {
+      sbm_convergence = summarize_alloc_pairs(
+        allocations = lapply(out, `[[`, "allocations"),
+        node_names = data_columnnames
+      )
+      results$posterior_mean_coclustering_matrix = sbm_convergence$co_occur_matrix
+
+      sbm_summary = posterior_summary_SBM(
+        allocations = lapply(out, `[[`, "allocations"),
+        arguments = arguments
+      )
+      results$posterior_mean_allocations = sbm_summary$allocations_mean
+      results$posterior_mode_allocations = sbm_summary$allocations_mode
+      results$posterior_num_blocks = sbm_summary$blocks
+    }
+  }
+
+  results$arguments = arguments
+  class(results) = "bgms"
+
+  results$raw_samples = list(
+    main = lapply(out, function(chain) chain$main_samples),
+    pairwise = lapply(out, function(chain) chain$pairwise_samples),
+    indicator = if (edge_selection) lapply(out, function(chain) chain$indicator_samples) else NULL,
+    allocations = if (edge_selection && identical(edge_prior, "Stochastic-Block") && "allocations" %in% names(out[[1]])) lapply(out, `[[`, "allocations") else NULL,
+    nchains = length(out),
+    niter = nrow(out[[1]]$main_samples),
+    parameter_names = list(
+      main = diag_names,
+      pairwise = edge_names,
+      indicator = if (edge_selection) edge_names else NULL,
+      allocations = if (identical(edge_prior, "Stochastic-Block")) data_columnnames else NULL
+    )
+  )
+
+  return(results)
+}
+
+
+# Transform sample_ggm output to match the old backend format.
+#
+# The GGM backend returns a `samples` matrix (params x iters) where params
+# are the upper triangle of the precision matrix stored column-by-column:
+# (0,0), (0,1), (1,1), (0,2), (1,2), (2,2), ...
+# We split these into diagonal elements ("main") and off-diagonal ("pairwise").
+transform_ggm_backend_output = function(out, p) {
+  # Build index maps for upper triangle (column-major)
+  diag_idx = integer(p)
+  offdiag_idx = integer(p * (p - 1) / 2)
+  pos = 0L
+  d = 0L
+  od = 0L
+  for (j in seq_len(p)) {
+    for (i in seq_len(j)) {
+      pos = pos + 1L
+      if (i == j) {
+        d = d + 1L
+        diag_idx[d] = pos
+      } else {
+        od = od + 1L
+        offdiag_idx[od] = pos
+      }
+    }
+  }
+
+  lapply(out, function(chain) {
+    samples_t = t(chain$samples)  # (params x iters) -> (iters x params)
+
+    res = list(
+      main_samples = samples_t[, diag_idx, drop = FALSE],
+      pairwise_samples = samples_t[, offdiag_idx, drop = FALSE],
+      userInterrupt = isTRUE(chain$userInterrupt),
+      chain_id = chain$chain_id
+    )
+
+    if (!is.null(chain$indicator_samples)) {
+      indic_t = t(chain$indicator_samples)  # (params x iters) -> (iters x params)
+      res$indicator_samples = indic_t[, offdiag_idx, drop = FALSE]
+    }
+
+    if (!is.null(chain$allocation_samples)) {
+      res$allocations = t(chain$allocation_samples)  # (variables x iters) -> (iters x variables)
+    }
+
+    res
+  })
+}
+
+
 # Transform sample_omrf output to match the old backend format.
 #
 # The new backend returns a flat `samples` matrix (params x iters) containing

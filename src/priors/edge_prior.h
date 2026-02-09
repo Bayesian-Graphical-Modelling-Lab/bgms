@@ -32,6 +32,9 @@ public:
     ) = 0;
 
     virtual std::unique_ptr<BaseEdgePrior> clone() const = 0;
+
+    virtual bool has_allocations() const { return false; }
+    virtual arma::ivec get_allocations() const { return arma::ivec(); }
 };
 
 
@@ -203,6 +206,12 @@ public:
 
     std::unique_ptr<BaseEdgePrior> clone() const override {
         return std::make_unique<StochasticBlockEdgePrior>(*this);
+    }
+
+    bool has_allocations() const override { return initialized_; }
+
+    arma::ivec get_allocations() const override {
+        return arma::conv_to<arma::ivec>::from(cluster_allocations_) + 1; // 1-based
     }
 
 private:

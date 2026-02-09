@@ -6,6 +6,7 @@
 
 #include "ggm_model.h"
 #include "utils/progress_manager.h"
+#include "utils/common_helpers.h"
 #include "priors/edge_prior.h"
 #include "chainResultNew.h"
 #include "mcmc/mcmc_runner.h"
@@ -22,7 +23,14 @@ Rcpp::List sample_ggm(
     const bool edge_selection,
     const int seed,
     const int no_threads,
-    const int progress_type
+    const int progress_type,
+    const std::string& edge_prior = "Bernoulli",
+    const double beta_bernoulli_alpha = 1.0,
+    const double beta_bernoulli_beta = 1.0,
+    const double beta_bernoulli_alpha_between = 1.0,
+    const double beta_bernoulli_beta_between = 1.0,
+    const double dirichlet_alpha = 1.0,
+    const double lambda = 1.0
 ) {
 
     // Create model from R input
@@ -36,17 +44,22 @@ Rcpp::List sample_ggm(
     config.no_warmup = no_warmup;
     config.edge_selection = edge_selection;
     config.seed = seed;
-    // Edge selection starts at no_warmup/2 by default (handled by get_edge_selection_start())
 
     // Set up progress manager
     ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type);
 
-    // Create default edge prior (Bernoulli = no-op)
-    BernoulliEdgePrior edge_prior;
+    // Create edge prior
+    EdgePrior edge_prior_enum = edge_prior_from_string(edge_prior);
+    auto edge_prior_obj = create_edge_prior(
+        edge_prior_enum,
+        beta_bernoulli_alpha, beta_bernoulli_beta,
+        beta_bernoulli_alpha_between, beta_bernoulli_beta_between,
+        dirichlet_alpha, lambda
+    );
 
     // Run MCMC using unified infrastructure
     std::vector<ChainResultNew> results = run_mcmc_sampler(
-        model, edge_prior, config, no_chains, no_threads, pm);
+        model, *edge_prior_obj, config, no_chains, no_threads, pm);
 
     // Convert to R list format
     Rcpp::List output = convert_results_to_list(results);

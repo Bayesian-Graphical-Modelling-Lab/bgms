@@ -509,6 +509,23 @@ bgm = function(
   edge_selection = model$edge_selection
   edge_prior = model$edge_prior
   inclusion_probability = model$inclusion_probability
+  is_continuous = model$is_continuous
+
+  # Block NUTS/HMC for the Gaussian model --------------------------------------
+  if(is_continuous) {
+    user_chose_method = length(update_method_input) == 1
+    if(user_chose_method && update_method %in% c("nuts", "hamiltonian-mc")) {
+      stop(paste0(
+        "The Gaussian model (variable_type = 'continuous') only supports ",
+        "update_method = 'adaptive-metropolis'. ",
+        "Got '", update_method, "'."
+      ))
+    }
+    update_method = "adaptive-metropolis"
+    if(!hasArg(target_accept)) {
+      target_accept = 0.44
+    }
+  }
 
   # Check Gibbs input -----------------------------------------------------------
   check_positive_integer(iter, "iter")
@@ -557,6 +574,99 @@ bgm = function(
 
   # Check display_progress ------------------------------------------------------
   progress_type = progress_type_from_display_progress(display_progress)
+
+# Setting the seed
+  if(missing(seed) || is.null(seed)) {
+    seed = sample.int(.Machine$integer.max, 1)
+  }
+
+  if(!is.numeric(seed) || length(seed) != 1 || is.na(seed) || seed < 0) {
+    stop("Argument 'seed' must be a single non-negative integer.")
+  }
+
+  seed <- as.integer(seed)
+
+  data_columnnames = if(is.null(colnames(x))) paste0("Variable ", seq_len(ncol(x))) else colnames(x)
+
+  # ==========================================================================
+  # Gaussian (continuous) path
+  # ==========================================================================
+  if (is_continuous) {
+    num_variables = ncol(x)
+
+    # Handle missing data for continuous variables
+    if (na_action == "listwise") {
+      missing_rows = apply(x, 1, anyNA)
+      if (all(missing_rows)) {
+        stop("All rows in x contain at least one missing response.\n",
+             "You could try option na_action = 'impute'.")
+      }
+      if (sum(missing_rows) > 0) {
+        warning(sum(missing_rows), " row(s) with missing observations removed (na_action = 'listwise').",
+                call. = FALSE)
+      }
+      x = x[!missing_rows, , drop = FALSE]
+      na_impute = FALSE
+    } else {
+      stop("Imputation is not yet supported for the Gaussian model. ",
+           "Use na_action = 'listwise'.")
+    }
+
+    indicator = matrix(1L, nrow = num_variables, ncol = num_variables)
+
+    out_raw = sample_ggm(
+      inputFromR = list(X = x),
+      prior_inclusion_prob = matrix(inclusion_probability,
+        nrow = num_variables, ncol = num_variables),
+      initial_edge_indicators = indicator,
+      no_iter = iter,
+      no_warmup = warmup,
+      no_chains = chains,
+      edge_selection = edge_selection,
+      seed = seed,
+      no_threads = cores,
+      progress_type = progress_type,
+      edge_prior = edge_prior,
+      beta_bernoulli_alpha = beta_bernoulli_alpha,
+      beta_bernoulli_beta = beta_bernoulli_beta,
+      beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+      beta_bernoulli_beta_between = beta_bernoulli_beta_between,
+      dirichlet_alpha = dirichlet_alpha,
+      lambda = lambda
+    )
+
+    out = transform_ggm_backend_output(out_raw, num_variables)
+
+    userInterrupt = any(vapply(out, FUN = `[[`, FUN.VALUE = logical(1L), "userInterrupt"))
+    if (userInterrupt) {
+      warning("Stopped sampling after user interrupt, results are likely uninterpretable.")
+    }
+
+    output = prepare_output_ggm(
+      out = out, x = x, iter = iter,
+      data_columnnames = data_columnnames,
+      warmup = warmup,
+      edge_selection = edge_selection, edge_prior = edge_prior,
+      inclusion_probability = inclusion_probability,
+      beta_bernoulli_alpha = beta_bernoulli_alpha,
+      beta_bernoulli_beta = beta_bernoulli_beta,
+      beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+      beta_bernoulli_beta_between = beta_bernoulli_beta_between,
+      dirichlet_alpha = dirichlet_alpha,
+      lambda = lambda,
+      na_action = na_action, na_impute = na_impute,
+      variable_type = variable_type,
+      update_method = update_method,
+      target_accept = target_accept,
+      num_chains = chains
+    )
+
+    return(output)
+  }
+
+  # ==========================================================================
+  # Ordinal / Blume-Capel path
+  # ==========================================================================
 
   # Format the data input -------------------------------------------------------
   data = reformat_data(
@@ -773,7 +883,7 @@ bgm = function(
     output <- tryCatch(
       prepare_output_bgm(
         out = out, x = x, num_categories = num_categories, iter = iter,
-        data_columnnames = if(is.null(colnames(x))) paste0("Variable ", seq_len(ncol(x))) else colnames(x),
+        data_columnnames = data_columnnames,
         is_ordinal_variable = variable_bool,
         warmup = warmup, pairwise_scale = pairwise_scale, standardize = standardize,
         pairwise_scaling_factors = pairwise_scaling_factors,
@@ -806,7 +916,7 @@ bgm = function(
   # Main output handler in the wrapper function
   output = prepare_output_bgm(
     out = out, x = x, num_categories = num_categories, iter = iter,
-    data_columnnames = if(is.null(colnames(x))) paste0("Variable ", seq_len(ncol(x))) else colnames(x),
+    data_columnnames = data_columnnames,
     is_ordinal_variable = variable_bool,
     warmup = warmup, pairwise_scale = pairwise_scale, standardize = standardize,
     pairwise_scaling_factors = pairwise_scaling_factors,

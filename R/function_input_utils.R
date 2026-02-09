@@ -36,24 +36,30 @@ check_model = function(x,
                        dirichlet_alpha = dirichlet_alpha,
                        lambda = lambda) {
   # Check variable type input ---------------------------------------------------
+  is_continuous = FALSE
   if(length(variable_type) == 1) {
     variable_input = variable_type
     variable_type = try(
       match.arg(
         arg = variable_type,
-        choices = c("ordinal", "blume-capel")
+        choices = c("ordinal", "blume-capel", "continuous")
       ),
       silent = TRUE
     )
     if(inherits(variable_type, what = "try-error")) {
       stop(paste0(
-        "The bgm function supports variables of type ordinal and blume-capel, \n",
-        "but not of type ",
+        "The bgm function supports variables of type ordinal, blume-capel, ",
+        "and continuous, but not of type ",
         variable_input, "."
       ))
     }
-    variable_bool = (variable_type == "ordinal")
-    variable_bool = rep(variable_bool, ncol(x))
+    if(variable_type == "continuous") {
+      is_continuous = TRUE
+      variable_bool = rep(TRUE, ncol(x))
+    } else {
+      variable_bool = (variable_type == "ordinal")
+      variable_bool = rep(variable_bool, ncol(x))
+    }
   } else {
     if(length(variable_type) != ncol(x)) {
       stop(paste0(
@@ -62,41 +68,54 @@ check_model = function(x,
       ))
     }
 
-    variable_input = unique(variable_type)
-    variable_type = try(match.arg(
-      arg = variable_type,
-      choices = c("ordinal", "blume-capel"),
-      several.ok = TRUE
-    ), silent = TRUE)
-
-    if(inherits(variable_type, what = "try-error")) {
+    has_continuous = any(variable_type == "continuous")
+    if(has_continuous && !all(variable_type == "continuous")) {
       stop(paste0(
-        "The bgm function supports variables of type ordinal and blume-capel, \n",
-        "but not of type ",
-        paste0(variable_input, collapse = ", "), "."
+        "When using continuous variables, all variables must be of type ",
+        "'continuous'. Mixtures of continuous and ordinal/blume-capel ",
+        "variables are not supported."
       ))
     }
+    if(has_continuous) {
+      is_continuous = TRUE
+      variable_bool = rep(TRUE, ncol(x))
+    } else {
+      variable_input = unique(variable_type)
+      variable_type = try(match.arg(
+        arg = variable_type,
+        choices = c("ordinal", "blume-capel"),
+        several.ok = TRUE
+      ), silent = TRUE)
 
-    num_types = sapply(variable_input, function(type) {
-      tmp = try(
-        match.arg(
-          arg = type,
-          choices = c("ordinal", "blume-capel")
-        ),
-        silent = TRUE
-      )
-      inherits(tmp, what = "try-error")
-    })
+      if(inherits(variable_type, what = "try-error")) {
+        stop(paste0(
+          "The bgm function supports variables of type ordinal, blume-capel, ",
+          "and continuous, but not of type ",
+          paste0(variable_input, collapse = ", "), "."
+        ))
+      }
 
-    if(length(variable_type) != ncol(x)) {
-      stop(paste0(
-        "The bgm function supports variables of type ordinal and blume-capel, \n",
-        "but not of type ",
-        paste0(variable_input[num_types], collapse = ", "), "."
-      ))
+      num_types = sapply(variable_input, function(type) {
+        tmp = try(
+          match.arg(
+            arg = type,
+            choices = c("ordinal", "blume-capel")
+          ),
+          silent = TRUE
+        )
+        inherits(tmp, what = "try-error")
+      })
+
+      if(length(variable_type) != ncol(x)) {
+        stop(paste0(
+          "The bgm function supports variables of type ordinal, blume-capel, ",
+          "and continuous, but not of type ",
+          paste0(variable_input[num_types], collapse = ", "), "."
+        ))
+      }
+
+      variable_bool = (variable_type == "ordinal")
     }
-
-    variable_bool = (variable_type == "ordinal")
   }
 
   # Check Blume-Capel variable input --------------------------------------------
@@ -316,7 +335,8 @@ check_model = function(x,
     baseline_category = baseline_category,
     edge_selection = edge_selection,
     edge_prior = edge_prior,
-    inclusion_probability = theta
+    inclusion_probability = theta,
+    is_continuous = is_continuous
   ))
 }
 

@@ -159,6 +159,11 @@ inline void run_mcmc_chain(
             chain_result.store_indicators(iter, model.get_vectorized_indicator_parameters());
         }
 
+        // Store SBM allocations if applicable
+        if (chain_result.has_allocations && edge_prior.has_allocations()) {
+            chain_result.store_allocations(iter, edge_prior.get_allocations());
+        }
+
         // Progress and interrupt check
         pm.update(chain_id);
         if (pm.shouldExit()) {
@@ -238,6 +243,8 @@ inline std::vector<ChainResultNew> run_mcmc_sampler(
     ProgressManager& pm
 ) {
     const bool has_nuts_diag = (config.sampler_type == "nuts");
+    const bool has_sbm_alloc = edge_prior.has_allocations() ||
+        (config.edge_selection && dynamic_cast<StochasticBlockEdgePrior*>(&edge_prior) != nullptr);
 
     // Allocate result storage
     std::vector<ChainResultNew> results(no_chains);
@@ -247,6 +254,10 @@ inline std::vector<ChainResultNew> run_mcmc_sampler(
         if (config.edge_selection) {
             size_t n_edges = model.get_vectorized_indicator_parameters().n_elem;
             results[c].reserve_indicators(n_edges, config.no_iter);
+        }
+
+        if (has_sbm_alloc) {
+            results[c].reserve_allocations(model.get_num_variables(), config.no_iter);
         }
 
         if (has_nuts_diag) {
@@ -318,6 +329,10 @@ inline Rcpp::List convert_results_to_list(const std::vector<ChainResultNew>& res
 
             if (chain.has_indicators) {
                 chain_list["indicator_samples"] = chain.indicator_samples;
+            }
+
+            if (chain.has_allocations) {
+                chain_list["allocation_samples"] = chain.allocation_samples;
             }
 
             if (chain.has_nuts_diagnostics) {

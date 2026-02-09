@@ -29,6 +29,10 @@ public:
     arma::imat  indicator_samples;
     bool        has_indicators = false;
 
+    // SBM allocation samples (n_variables × n_iter), only if SBM edge prior
+    arma::imat  allocation_samples;
+    bool        has_allocations = false;
+
     // NUTS/HMC diagnostics (n_iter), only if using NUTS/HMC
     arma::ivec  treedepth_samples;
     arma::ivec  divergent_samples;
@@ -52,6 +56,16 @@ public:
     void reserve_indicators(const size_t n_edges, const size_t n_iter) {
         indicator_samples.set_size(n_edges, n_iter);
         has_indicators = true;
+    }
+
+    /**
+     * Reserve storage for SBM allocation samples
+     * @param n_variables  Number of variables
+     * @param n_iter       Number of sampling iterations
+     */
+    void reserve_allocations(const size_t n_variables, const size_t n_iter) {
+        allocation_samples.set_size(n_variables, n_iter);
+        has_allocations = true;
     }
 
     /**
@@ -81,6 +95,15 @@ public:
      */
     void store_indicators(const size_t iter, const arma::ivec& indicators) {
         indicator_samples.col(iter) = indicators;
+    }
+
+    /**
+     * Store SBM allocation sample
+     * @param iter         Iteration index (0-based)
+     * @param allocations  Allocation vector (1-based cluster labels)
+     */
+    void store_allocations(const size_t iter, const arma::ivec& allocations) {
+        allocation_samples.col(iter) = allocations;
     }
 
     /**

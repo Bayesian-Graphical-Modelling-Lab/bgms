@@ -97,6 +97,16 @@ public:
     bool has_adaptive_mh() const override { return true; }
     bool has_edge_selection() const override { return edge_selection_; }
 
+    void set_edge_selection_active(bool active) override {
+        edge_selection_active_ = active;
+    }
+
+    void initialize_graph() override;
+
+    // GGM handles edge indicator updates inside do_one_mh_step(), so the
+    // external call from the MCMC runner is a no-op.
+    void update_edge_indicators() override {}
+
     double logp(const arma::vec& parameters) override {
         // Implement log probability computation
         return 0.0;
@@ -189,6 +199,7 @@ private:
     arma::mat suf_stat_;
     arma::mat inclusion_probability_;
     bool edge_selection_;
+    bool edge_selection_active_ = false;
 
     // parameters
     arma::mat precision_matrix_, cholesky_of_precision_, inv_cholesky_of_precision_, covariance_matrix_;
