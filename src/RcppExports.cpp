@@ -193,24 +193,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// sample_omrf_classed
-Rcpp::List sample_omrf_classed(const Rcpp::List& inputFromR, const arma::mat& prior_inclusion_prob, const arma::imat& initial_edge_indicators, const int no_iter, const int no_warmup, const bool edge_selection, const std::string& sampler_type, const int seed);
-RcppExport SEXP _bgms_sample_omrf_classed(SEXP inputFromRSEXP, SEXP prior_inclusion_probSEXP, SEXP initial_edge_indicatorsSEXP, SEXP no_iterSEXP, SEXP no_warmupSEXP, SEXP edge_selectionSEXP, SEXP sampler_typeSEXP, SEXP seedSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type inputFromR(inputFromRSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type prior_inclusion_prob(prior_inclusion_probSEXP);
-    Rcpp::traits::input_parameter< const arma::imat& >::type initial_edge_indicators(initial_edge_indicatorsSEXP);
-    Rcpp::traits::input_parameter< const int >::type no_iter(no_iterSEXP);
-    Rcpp::traits::input_parameter< const int >::type no_warmup(no_warmupSEXP);
-    Rcpp::traits::input_parameter< const bool >::type edge_selection(edge_selectionSEXP);
-    Rcpp::traits::input_parameter< const std::string& >::type sampler_type(sampler_typeSEXP);
-    Rcpp::traits::input_parameter< const int >::type seed(seedSEXP);
-    rcpp_result_gen = Rcpp::wrap(sample_omrf_classed(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, edge_selection, sampler_type, seed));
-    return rcpp_result_gen;
-END_RCPP
-}
 // sample_ggm
 Rcpp::List sample_ggm(const Rcpp::List& inputFromR, const arma::mat& prior_inclusion_prob, const arma::imat& initial_edge_indicators, const int no_iter, const int no_warmup, const int no_chains, const bool edge_selection, const int seed, const int no_threads, const int progress_type, const std::string& edge_prior, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double beta_bernoulli_alpha_between, const double beta_bernoulli_beta_between, const double dirichlet_alpha, const double lambda);
 RcppExport SEXP _bgms_sample_ggm(SEXP inputFromRSEXP, SEXP prior_inclusion_probSEXP, SEXP initial_edge_indicatorsSEXP, SEXP no_iterSEXP, SEXP no_warmupSEXP, SEXP no_chainsSEXP, SEXP edge_selectionSEXP, SEXP seedSEXP, SEXP no_threadsSEXP, SEXP progress_typeSEXP, SEXP edge_priorSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP beta_bernoulli_alpha_betweenSEXP, SEXP beta_bernoulli_beta_betweenSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP) {
@@ -295,7 +277,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 7},
     {"_bgms_sample_bcomrf_gibbs", (DL_FUNC) &_bgms_sample_bcomrf_gibbs, 9},
     {"_bgms_run_simulation_parallel", (DL_FUNC) &_bgms_run_simulation_parallel, 12},
-    {"_bgms_sample_omrf_classed", (DL_FUNC) &_bgms_sample_omrf_classed, 8},
     {"_bgms_sample_ggm", (DL_FUNC) &_bgms_sample_ggm, 17},
     {"_bgms_sample_omrf", (DL_FUNC) &_bgms_sample_omrf, 24},
     {"_bgms_compute_Vn_mfm_sbm", (DL_FUNC) &_bgms_compute_Vn_mfm_sbm, 4},

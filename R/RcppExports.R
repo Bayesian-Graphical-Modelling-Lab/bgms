@@ -29,10 +29,6 @@ run_simulation_parallel <- function(pairwise_samples, main_samples, draw_indices
     .Call(`_bgms_run_simulation_parallel`, pairwise_samples, main_samples, draw_indices, no_states, no_variables, no_categories, variable_type_r, baseline_category, iter, nThreads, seed, progress_type)
 }
 
-sample_omrf_classed <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, edge_selection, sampler_type, seed) {
-    .Call(`_bgms_sample_omrf_classed`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, edge_selection, sampler_type, seed)
-}
-
 sample_ggm <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0) {
     .Call(`_bgms_sample_ggm`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda)
 }
