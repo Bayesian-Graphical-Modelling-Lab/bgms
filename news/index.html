@@ -43,6 +43,12 @@
 <div class="section level3">
 <h3 id="new-features-0-1-6-3">New features<a class="anchor" aria-label="anchor" href="#new-features-0-1-6-3"></a></h3>
 <ul><li>
+<code><a href="../reference/extractor_functions.html">extract_rhat()</a></code>: extract R-hat convergence diagnostics from fitted objects</li>
+<li>
+<code><a href="../reference/extractor_functions.html">extract_ess()</a></code>: extract effective sample size estimates from fitted objects</li>
+<li>
+<code>verbose</code> argument: control informational messages; set <code>options(bgms.verbose = FALSE)</code> to suppress globally</li>
+<li>
 <code><a href="../reference/simulate_mrf.html">simulate_mrf()</a></code>: standalone MRF simulation with user-specified parameters</li>
 <li>
 <code><a href="../reference/simulate.bgms.html">simulate.bgms()</a></code>: generate observations from fitted models (supports parallel processing)</li>
@@ -64,7 +70,8 @@
 </ul></div>
 <div class="section level3">
 <h3 id="other-changes-0-1-6-3">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-0-1-6-3"></a></h3>
-<ul><li>improved warmup schedule: fixed buffers (75/25/50) with proportional fallback for short warmup</li>
+<ul><li>expanded test suite: input validation, extractor functions, S3 methods, simulation, and numerical sanity tests</li>
+<li>improved warmup schedule: fixed buffers (75/25/50) with proportional fallback for short warmup</li>
 <li>edge selection warmup now within user budget: 85%/10%/5% split for stages 1-3a/3b/3c</li>
 <li>streamlined user messages: concise warnings, consolidated NUTS diagnostics</li>
 <li>E-BFMI threshold adjusted to 0.2 (standard)</li>

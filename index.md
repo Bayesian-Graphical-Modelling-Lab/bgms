@@ -8,10 +8,11 @@ variables**
 
 The **bgms** package implements Bayesian estimation and model comparison
 for **ordinal Markov random fields (MRFs)**, graphical models that
-represent networks of binary and/or ordinal variables (Marsman et al.,
-2025). The likelihood is approximated with a pseudolikelihood, and
-Markov chain Monte Carlo (MCMC) methods are used to sample from the
-corresponding pseudoposterior distribution of the model parameters.
+represent networks of binary and/or ordinal variables (Marsman, van den
+Bergh, et al., 2025). The likelihood is approximated with a
+pseudolikelihood, and Markov chain Monte Carlo (MCMC) methods are used
+to sample from the corresponding pseudoposterior distribution of the
+model parameters.
 
 ## Main functions
 
@@ -31,7 +32,7 @@ Both functions support **effect selection** with spike-and-slab priors:
   models the presence or absence of edges between variables. Posterior
   inclusion probabilities indicate the plausibility of each edge and can
   be converted into Bayes factors for conditional independence tests
-  (see Marsman et al., 2025; Sekulovski et al., 2024).
+  (see Marsman, van den Bergh, et al., 2025; Sekulovski et al., 2024).
 
 - **Communities/clusters in one-sample designs**:
   [`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)
@@ -44,7 +45,7 @@ Both functions support **effect selection** with spike-and-slab priors:
   models differences in edge weights and category thresholds between
   groups. Posterior inclusion probabilities indicate the plausibility of
   parameter differences and can be converted into Bayes factors for
-  tests of parameter equivalence (see Marsman et al., 2024).
+  tests of parameter equivalence (see Marsman, Waldorp, et al., 2025).
 
 ## Learn more
 
@@ -107,18 +108,11 @@ evidence*.
 The current developmental version can be installed with
 
 ``` r
-if (!requireNamespace("remotes")) {
+if(!requireNamespace("remotes")) {
   install.packages("remotes")
 }
 remotes::install_github("Bayesian-Graphical-Modelling-Lab/bgms")
 ```
-
-## Contributors
-
-**bgms** is developed by the Bayesian Graphical Modelling Lab in
-collaboration with contributors from across the R community. See
-[CONTRIBUTORS.md](https://bayesian-graphical-modelling-lab.github.io/bgms/inst/CONTRIBUTORS.md)
-for acknowledgments and detailed information on contributions.
 
 ## References
 
@@ -159,7 +153,8 @@ Medicine*, *50*, 353–366. <https://doi.org/10.1017/S0033291719003404>
 
 Sekulovski, N., Arena, G., Haslbeck, J. M. B., Huth, K. B. S., Friel,
 N., & Marsman, M. (2025). A stochastic block prior for clustering in
-graphical models. <https://osf.io/preprints/psyarxiv/29p3m_v1>
+graphical models. *Retrieved from
+[Https://Osf.io/Preprints/Psyarxiv/29p3m_v1](https://osf.io/preprints/psyarxiv/29p3m_v1)*.
 
 Sekulovski, N., Keetelaar, S., Huth, K. B. S., Wagenmakers, E.-J., van
 Bork, R., van den Bergh, D., & Marsman, M. (2024). Testing conditional

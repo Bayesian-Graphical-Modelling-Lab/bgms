@@ -4,6 +4,12 @@
 
 ### New features
 
+- [`extract_rhat()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extractor_functions.md):
+  extract R-hat convergence diagnostics from fitted objects
+- [`extract_ess()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extractor_functions.md):
+  extract effective sample size estimates from fitted objects
+- `verbose` argument: control informational messages; set
+  `options(bgms.verbose = FALSE)` to suppress globally
 - [`simulate_mrf()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate_mrf.md):
   standalone MRF simulation with user-specified parameters
 - [`simulate.bgms()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate.bgms.md):
@@ -30,6 +36,8 @@
 
 ### Other changes
 
+- expanded test suite: input validation, extractor functions, S3
+  methods, simulation, and numerical sanity tests
 - improved warmup schedule: fixed buffers (75/25/50) with proportional
   fallback for short warmup
 - edge selection warmup now within user budget: 85%/10%/5% split for

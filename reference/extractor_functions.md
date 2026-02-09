@@ -66,7 +66,29 @@ extract_group_params(bgms_object)
 extract_edge_indicators(bgms_object)
 
 extract_pairwise_thresholds(bgms_object)
+
+extract_rhat(bgms_object)
+
+# S3 method for class 'bgms'
+extract_rhat(bgms_object)
+
+# S3 method for class 'bgmCompare'
+extract_rhat(bgms_object)
+
+extract_ess(bgms_object)
+
+# S3 method for class 'bgms'
+extract_ess(bgms_object)
+
+# S3 method for class 'bgmCompare'
+extract_ess(bgms_object)
 ```
+
+## Arguments
+
+- bgms_object:
+
+  An object of class \`bgms\` or \`bgmCompare\`.
 
 ## Details
 
@@ -100,5 +122,7 @@ inclusion probabilities - \`extract_pairwise_interactions()\` –
 Posterior mean of pairwise interactions -
 \`extract_category_thresholds()\` – Posterior mean of category
 thresholds - \`extract_indicator_priors()\` – Prior structure used for
-edge indicators - \`extract_sbm\` – Extract stochastic block model
-parameters (if applicable)
+edge indicators - \`extract_sbm()\` – Extract stochastic block model
+parameters (if applicable) - \`extract_rhat()\` – Extract R-hat
+convergence diagnostics - \`extract_ess()\` – Extract effective sample
+size estimates

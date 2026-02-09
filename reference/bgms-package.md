@@ -37,7 +37,7 @@ priors.
 The package also provides:
 
 1.  Simulation of response data from MRFs with a Gibbs sampler
-    ([`mrfSampler`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/mrfSampler.md)).
+    ([`simulate_mrf`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate_mrf.md)).
 
 2.  Posterior estimation and edge selection in one-sample designs
     ([`bgm`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)).

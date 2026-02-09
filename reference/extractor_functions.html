@@ -105,9 +105,33 @@
 <span></span>
 <span><span class="fu">extract_edge_indicators</span><span class="op">(</span><span class="va">bgms_object</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">extract_pairwise_thresholds</span><span class="op">(</span><span class="va">bgms_object</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">extract_pairwise_thresholds</span><span class="op">(</span><span class="va">bgms_object</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">extract_rhat</span><span class="op">(</span><span class="va">bgms_object</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># S3 method for class 'bgms'</span></span>
+<span><span class="fu">extract_rhat</span><span class="op">(</span><span class="va">bgms_object</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># S3 method for class 'bgmCompare'</span></span>
+<span><span class="fu">extract_rhat</span><span class="op">(</span><span class="va">bgms_object</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">extract_ess</span><span class="op">(</span><span class="va">bgms_object</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># S3 method for class 'bgms'</span></span>
+<span><span class="fu">extract_ess</span><span class="op">(</span><span class="va">bgms_object</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># S3 method for class 'bgmCompare'</span></span>
+<span><span class="fu">extract_ess</span><span class="op">(</span><span class="va">bgms_object</span><span class="op">)</span></span></code></pre></div>
     </div>
 
+    <div class="section level2">
+    <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
+
+
+<dl><dt id="arg-bgms-object">bgms_object<a class="anchor" aria-label="anchor" href="#arg-bgms-object"></a></dt>
+<dd><p>An object of class `bgms` or `bgmCompare`.</p></dd>
+
+</dl></div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>These functions extract various components from objects returned by the `bgm()` function,
@@ -133,7 +157,9 @@ in `$posterior_summary_main`. Access via older names is supported but deprecated
 - `extract_pairwise_interactions()` – Posterior mean of pairwise interactions
 - `extract_category_thresholds()` – Posterior mean of category thresholds
 - `extract_indicator_priors()` – Prior structure used for edge indicators
-- `extract_sbm`  – Extract stochastic block model parameters (if applicable)</p>
+- `extract_sbm()` – Extract stochastic block model parameters (if applicable)
+- `extract_rhat()` – Extract R-hat convergence diagnostics
+- `extract_ess()` – Extract effective sample size estimates</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

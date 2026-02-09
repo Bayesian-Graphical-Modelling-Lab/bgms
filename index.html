@@ -56,15 +56,16 @@
   </div>
 </nav><div class="container template-home" id="container">
 <div class="row">
-  <main id="main" class="col-md-9">
-<div style="display:flex; align-items:center; justify-content:space-between;">
+  <main id="main" class="col-md-9"><div style="display:flex; align-items:center; justify-content:space-between;">
 <div class="page-header"><h1>
 bgms
 </h1></div>
 <p><a href="https://bayesiangraphicalmodeling.com" class="external-link"> <img src="reference/figures/bgms_sticker.svg" height="200" alt="bgms website"></a></p>
 </div>
+<!-- badges: start -->
+
 <p><strong>Bayesian analysis of graphical models with binary and ordinal variables</strong></p>
-<p>The <strong>bgms</strong> package implements Bayesian estimation and model comparison for <strong>ordinal Markov random fields (MRFs)</strong>, graphical models that represent networks of binary and/or ordinal variables (Marsman et al., 2025). The likelihood is approximated with a pseudolikelihood, and Markov chain Monte Carlo (MCMC) methods are used to sample from the corresponding pseudoposterior distribution of the model parameters.</p>
+<p>The <strong>bgms</strong> package implements Bayesian estimation and model comparison for <strong>ordinal Markov random fields (MRFs)</strong>, graphical models that represent networks of binary and/or ordinal variables (Marsman, van den Bergh, et al., 2025). The likelihood is approximated with a pseudolikelihood, and Markov chain Monte Carlo (MCMC) methods are used to sample from the corresponding pseudoposterior distribution of the model parameters.</p>
 <div class="section level2">
 <h2 id="main-functions">Main functions<a class="anchor" aria-label="anchor" href="#main-functions"></a>
 </h2>
@@ -81,9 +82,9 @@ bgms
 </h2>
 <p>Both functions support <strong>effect selection</strong> with spike-and-slab priors:</p>
 <ul>
-<li><p><strong>Edges in one-sample designs</strong>: <code><a href="reference/bgm.html">bgm()</a></code> models the presence or absence of edges between variables. Posterior inclusion probabilities indicate the plausibility of each edge and can be converted into Bayes factors for conditional independence tests (see Marsman et al., 2025; Sekulovski et al., 2024).</p></li>
+<li><p><strong>Edges in one-sample designs</strong>: <code><a href="reference/bgm.html">bgm()</a></code> models the presence or absence of edges between variables. Posterior inclusion probabilities indicate the plausibility of each edge and can be converted into Bayes factors for conditional independence tests (see Marsman, van den Bergh, et al., 2025; Sekulovski et al., 2024).</p></li>
 <li><p><strong>Communities/clusters in one-sample designs</strong>: <code><a href="reference/bgm.html">bgm()</a></code> can also model community structure. Posterior probabilities for the number of clusters quantify the plausibility of clustering solutions and can be converted into Bayes factors (see Sekulovski et al., 2025).</p></li>
-<li><p><strong>Group differences in independent-sample designs</strong>: <code><a href="reference/bgmCompare.html">bgmCompare()</a></code> models differences in edge weights and category thresholds between groups. Posterior inclusion probabilities indicate the plausibility of parameter differences and can be converted into Bayes factors for tests of parameter equivalence (see Marsman et al., 2024).</p></li>
+<li><p><strong>Group differences in independent-sample designs</strong>: <code><a href="reference/bgmCompare.html">bgmCompare()</a></code> models differences in edge weights and category thresholds between groups. Posterior inclusion probabilities indicate the plausibility of parameter differences and can be converted into Bayes factors for tests of parameter equivalence (see Marsman, Waldorp, et al., 2025).</p></li>
 </ul>
 </div>
 <div class="section level2">
@@ -130,15 +131,10 @@ bgms
 </h2>
 <p>The current developmental version can be installed with</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"remotes"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<code class="sourceCode R"><span><span class="kw">if</span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"remotes"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"remotes"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"Bayesian-Graphical-Modelling-Lab/bgms"</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level2">
-<h2 id="contributors">Contributors<a class="anchor" aria-label="anchor" href="#contributors"></a>
-</h2>
-<p><strong>bgms</strong> is developed by the Bayesian Graphical Modelling Lab in collaboration with contributors from across the R community. See <a href="inst/CONTRIBUTORS.html">CONTRIBUTORS.md</a> for acknowledgments and detailed information on contributions.</p>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
@@ -159,7 +155,7 @@ Lauritzen, S. L. (2004). <em>Graphical models</em>. Oxford University Press.
 <div id="ref-MarsmanRhemtulla_2022_SIintro" class="csl-entry">
 Marsman, M., &amp; Rhemtulla, M. (2022). Guest editors’ introduction to the special issue “network psychometrics in action”: Methodological innovations inspired by empirical problems. <em>Psychometrika</em>, <em>87</em>, 1–11. <a href="https://doi.org/10.1007/s11336-022-09861-x" class="external-link uri">https://doi.org/10.1007/s11336-022-09861-x</a>
 </div>
-<div id="ref-MarsmanVandenBerghHaslbeck_2024" class="csl-entry">
+<div id="ref-MarsmanVandenBerghHaslbeck_2025" class="csl-entry">
 Marsman, M., van den Bergh, D., &amp; Haslbeck, J. M. B. (2025). Bayesian analysis of the ordinal Markov random field. <em>Psychometrika</em>, <em>90</em>(1), 146–182. <a href="https://doi.org/10.1017/psy.2024.4" class="external-link uri">https://doi.org/10.1017/psy.2024.4</a>
 </div>
 <div id="ref-MarsmanWaldorpSekulovskiHaslbeck_2024" class="csl-entry">
@@ -169,7 +165,7 @@ Marsman, M., Waldorp, L. J., Sekulovski, N., &amp; Haslbeck, J. M. B. (2025). Ba
 Robinaugh, D. J., Hoekstra, R. H. A., Toner, E. R., &amp; Borsboom, D. (2020). The network approach to psychopathology: A review of the literature 2008–2018 and an agenda for future research. <em>Psychological Medicine</em>, <em>50</em>, 353–366. <a href="https://doi.org/10.1017/S0033291719003404" class="external-link uri">https://doi.org/10.1017/S0033291719003404</a>
 </div>
 <div id="ref-SekulovskiEtAl_2025" class="csl-entry">
-Sekulovski, N., Arena, G., Haslbeck, J. M. B., Huth, K. B. S., Friel, N., &amp; Marsman, M. (2025). A stochastic block prior for clustering in graphical models. <a href="https://osf.io/preprints/psyarxiv/29p3m_v1" class="external-link uri">https://osf.io/preprints/psyarxiv/29p3m_v1</a>
+Sekulovski, N., Arena, G., Haslbeck, J. M. B., Huth, K. B. S., Friel, N., &amp; Marsman, M. (2025). A stochastic block prior for clustering in graphical models. <em>Retrieved from <a href="https://osf.io/preprints/psyarxiv/29p3m_v1" class="external-link uri">Https://Osf.io/Preprints/Psyarxiv/29p3m_v1</a></em>.
 </div>
 <div id="ref-SekulovskiEtAl_2024" class="csl-entry">
 Sekulovski, N., Keetelaar, S., Huth, K. B. S., Wagenmakers, E.-J., van Bork, R., van den Bergh, D., &amp; Marsman, M. (2024). Testing conditional independence in psychometric networks: An analysis of three Bayesian methods. <em>Multivariate Behavioral Research</em>, <em>59</em>, 913–933. <a href="https://doi.org/10.1080/00273171.2024.2345915" class="external-link uri">https://doi.org/10.1080/00273171.2024.2345915</a>
@@ -216,6 +212,8 @@ Sekulovski, N., Keetelaar, S., Huth, K. B. S., Wagenmakers, E.-J., van Bork, R.,
 <li><a href="https://cran.r-project.org/package=bgms" class="external-link"><img src="https://www.r-pkg.org/badges/version/bgms" alt="CRAN Version"></a></li>
 <li><a href="https://cran.r-project.org/package=bgms" class="external-link"><img src="https://cranlogs.r-pkg.org/badges/bgms" alt="Downloads"></a></li>
 <li><a href="https://cran.r-project.org/package=bgms" class="external-link"><img src="https://cranlogs.r-pkg.org/badges/grand-total/bgms" alt="Total"></a></li>
+<li><a href="https://lifecycle.r-lib.org/articles/stages.html#stable" class="external-link"><img src="https://img.shields.io/badge/lifecycle-stable-brightgreen.svg" alt="Lifecycle: stable"></a></li>
+<li><a href="https://codecov.io/gh/Bayesian-Graphical-Modelling-Lab/bgms" class="external-link"><img src="https://codecov.io/gh/Bayesian-Graphical-Modelling-Lab/bgms/branch/main/graph/badge.svg" alt="Codecov"></a></li>
 </ul>
 </div>
 
