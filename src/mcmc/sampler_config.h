@@ -29,6 +29,9 @@ struct SamplerConfig {
     bool edge_selection = false;
     int edge_selection_start = -1;  // -1 = no_warmup (default, start at sampling)
 
+    // Missing data imputation
+    bool na_impute = false;
+
     // Random seed
     int seed = 42;
 

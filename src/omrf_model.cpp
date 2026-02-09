@@ -1227,52 +1227,93 @@ void OMRFModel::initialize_graph() {
 void OMRFModel::impute_missing() {
     if (!has_missing_) return;
 
-    // For each missing value, sample from conditional distribution
-    for (size_t m = 0; m < missing_index_.n_rows; ++m) {
-        int person = missing_index_(m, 0);
-        int variable = missing_index_(m, 1);
-        int num_cats = num_categories_(variable);
+    const int num_variables = p_;
+    const int num_missings = missing_index_.n_rows;
+    const int max_num_categories = num_categories_.max();
 
-        arma::vec log_probs;
-        if (is_ordinal_variable_(variable)) {
-            log_probs.set_size(num_cats + 1);
-            log_probs(0) = 0.0;
-            for (int c = 0; c < num_cats; ++c) {
-                log_probs(c + 1) = main_effects_(variable, c) + (c + 1) * residual_matrix_(person, variable);
+    arma::vec category_probabilities(max_num_categories + 1);
+
+    for (int miss = 0; miss < num_missings; miss++) {
+        const int person = missing_index_(miss, 0);
+        const int variable = missing_index_(miss, 1);
+
+        const double residual_score = residual_matrix_(person, variable);
+        const int num_cats = num_categories_(variable);
+        const bool is_ordinal = is_ordinal_variable_(variable);
+
+        double cumsum = 0.0;
+
+        if (is_ordinal) {
+            cumsum = 1.0;
+            category_probabilities[0] = cumsum;
+            for (int cat = 0; cat < num_cats; cat++) {
+                const int score = cat + 1;
+                const double exponent = main_effects_(variable, cat) + score * residual_score;
+                cumsum += MY_EXP(exponent);
+                category_probabilities[score] = cumsum;
             }
         } else {
-            int baseline = baseline_category_(variable);
-            log_probs.set_size(num_cats + 1);
-            for (int c = 0; c <= num_cats; ++c) {
-                int s = c - baseline;
-                log_probs(c) = main_effects_(variable, 0) * s + main_effects_(variable, 1) * s * s + s * residual_matrix_(person, variable);
+            const int ref = baseline_category_(variable);
+
+            cumsum = MY_EXP(
+                main_effects_(variable, 0) * ref + main_effects_(variable, 1) * ref * ref
+            );
+            category_probabilities[0] = cumsum;
+
+            for (int cat = 0; cat <= num_cats; cat++) {
+                const int score = cat - ref;
+                const double exponent =
+                    main_effects_(variable, 0) * score +
+                    main_effects_(variable, 1) * score * score +
+                    score * residual_score;
+                cumsum += MY_EXP(exponent);
+                category_probabilities[cat] = cumsum;
             }
         }
 
-        // Sample from categorical
-        double max_val = log_probs.max();
-        arma::vec probs = arma::exp(log_probs - max_val);
-        probs /= arma::sum(probs);
-
-        double u = runif(rng_);
-        double cumsum = 0.0;
-        int new_value = 0;
-        for (size_t c = 0; c < probs.n_elem; ++c) {
-            cumsum += probs(c);
-            if (u < cumsum) {
-                new_value = c;
-                break;
-            }
+        // Sample from categorical distribution via inverse transform
+        const double u = runif(rng_) * cumsum;
+        int sampled_score = 0;
+        while (u > category_probabilities[sampled_score]) {
+            sampled_score++;
         }
 
-        int old_value = observations_(person, variable);
+        int new_value = sampled_score;
+        if (!is_ordinal)
+            new_value -= baseline_category_(variable);
+        const int old_value = observations_(person, variable);
+
         if (new_value != old_value) {
             observations_(person, variable) = new_value;
-            // Update sufficient statistics
-            compute_sufficient_statistics();
-            update_residual_matrix();
+            observations_double_(person, variable) = static_cast<double>(new_value);
+
+            if (is_ordinal) {
+                counts_per_category_(old_value, variable)--;
+                counts_per_category_(new_value, variable)++;
+            } else {
+                const int delta = new_value - old_value;
+                const int delta_sq = new_value * new_value - old_value * old_value;
+                blume_capel_stats_(0, variable) += delta;
+                blume_capel_stats_(1, variable) += delta_sq;
+            }
+
+            // Incrementally update residuals across all variables
+            for (int var = 0; var < num_variables; var++) {
+                const double delta_score = (new_value - old_value) * pairwise_effects_(var, variable);
+                residual_matrix_(person, var) += delta_score;
+            }
         }
     }
+
+    // Recompute pairwise sufficient statistics
+    arma::mat ps = observations_double_.t() * observations_double_;
+    pairwise_stats_ = arma::conv_to<arma::imat>::from(ps);
+}
+
+
+void OMRFModel::set_missing_data(const arma::imat& missing_index) {
+    missing_index_ = missing_index;
+    has_missing_ = (missing_index.n_rows > 0 && missing_index.n_cols == 2);
 }
 
 

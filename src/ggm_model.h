@@ -159,6 +159,24 @@ public:
         return vectorized_indicator_parameters_;
     }
 
+    SafeRNG& get_rng() override { return rng_; }
+
+    const arma::imat& get_edge_indicators() const override {
+        return edge_indicators_;
+    }
+
+    arma::mat& get_inclusion_probability() override {
+        return inclusion_probability_;
+    }
+
+    int get_num_variables() const override {
+        return static_cast<int>(p_);
+    }
+
+    int get_num_pairwise() const override {
+        return static_cast<int>(p_ * (p_ - 1) / 2);
+    }
+
     std::unique_ptr<BaseModel> clone() const override {
         return std::make_unique<GaussianVariables>(*this); // uses copy constructor
     }

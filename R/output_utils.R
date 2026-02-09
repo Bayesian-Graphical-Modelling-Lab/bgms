@@ -178,6 +178,39 @@ prepare_output_bgm = function(
 }
 
 
+# Transform sample_omrf output to match the old backend format.
+#
+# The new backend returns a flat `samples` matrix (params x iters) containing
+# all main + pairwise parameters concatenated. The old backend stores separate
+# `main_samples` and `pairwise_samples` matrices (iters x params). NUTS fields
+# also differ in naming. This function bridges the gap so that
+# `prepare_output_bgm()` can process both backends identically.
+transform_new_backend_output = function(out, num_thresholds) {
+  lapply(out, function(chain) {
+    samples_t = t(chain$samples)  # (params x iters) -> (iters x params)
+    n_params = ncol(samples_t)
+
+    res = list(
+      main_samples = samples_t[, seq_len(num_thresholds), drop = FALSE],
+      pairwise_samples = samples_t[, seq(num_thresholds + 1, n_params), drop = FALSE],
+      userInterrupt = isTRUE(chain$userInterrupt),
+      chain_id = chain$chain_id
+    )
+
+    if (!is.null(chain$indicator_samples)) {
+      res$indicator_samples = t(chain$indicator_samples)
+    }
+
+    # Rename NUTS diagnostics to match old backend convention (trailing __)
+    if (!is.null(chain$treedepth)) res[["treedepth__"]] = chain$treedepth
+    if (!is.null(chain$divergent))  res[["divergent__"]]  = chain$divergent
+    if (!is.null(chain$energy))     res[["energy__"]]     = chain$energy
+
+    res
+  })
+}
+
+
 # Generate names for bgmCompare parameters
 generate_param_names_bgmCompare = function(
   data_columnnames,

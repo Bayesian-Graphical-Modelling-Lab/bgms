@@ -105,6 +105,27 @@ public:
         // Default: no-op
     }
 
+    // Missing data imputation
+    virtual bool has_missing_data() const { return false; }
+    virtual void impute_missing() {
+        // Default: no-op
+    }
+
+    // Edge prior support: models expose these so the external edge prior
+    // class can read current indicators and update inclusion probabilities.
+    virtual const arma::imat& get_edge_indicators() const {
+        throw std::runtime_error("get_edge_indicators not implemented for this model");
+    }
+    virtual arma::mat& get_inclusion_probability() {
+        throw std::runtime_error("get_inclusion_probability not implemented for this model");
+    }
+    virtual int get_num_variables() const {
+        throw std::runtime_error("get_num_variables not implemented for this model");
+    }
+    virtual int get_num_pairwise() const {
+        throw std::runtime_error("get_num_pairwise not implemented for this model");
+    }
+
 protected:
     BaseModel() = default;
     double step_size_ = 0.1;

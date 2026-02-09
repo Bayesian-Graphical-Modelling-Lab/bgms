@@ -6,6 +6,7 @@
 #include "adaptiveMetropolis.h"
 #include "rng/rng_utils.h"
 #include "mcmc/mcmc_utils.h"
+#include "utils/common_helpers.h"
 
 /**
  * OMRFModel - Ordinal Markov Random Field Model
@@ -63,6 +64,7 @@ public:
     bool has_gradient()    const override { return true; }
     bool has_adaptive_mh() const override { return true; }
     bool has_edge_selection() const override { return edge_selection_; }
+    bool has_missing_data() const override { return has_missing_; }
 
     /**
      * Compute log-pseudoposterior for given parameter vector
@@ -141,7 +143,12 @@ public:
     /**
      * Impute missing values (if any)
      */
-    void impute_missing();
+    void impute_missing() override;
+
+    /**
+     * Set missing data information
+     */
+    void set_missing_data(const arma::imat& missing_index);
 
     // =========================================================================
     // Accessors
@@ -149,13 +156,16 @@ public:
 
     const arma::mat& get_main_effects() const { return main_effects_; }
     const arma::mat& get_pairwise_effects() const { return pairwise_effects_; }
-    const arma::imat& get_edge_indicators() const { return edge_indicators_; }
+    const arma::imat& get_edge_indicators() const override { return edge_indicators_; }
+    arma::mat& get_inclusion_probability() override { return inclusion_probability_; }
     const arma::mat& get_residual_matrix() const { return residual_matrix_; }
 
     void set_main_effects(const arma::mat& main_effects) { main_effects_ = main_effects; }
     void set_pairwise_effects(const arma::mat& pairwise_effects);
     void set_edge_indicators(const arma::imat& edge_indicators) { edge_indicators_ = edge_indicators; }
 
+    int get_num_variables() const override { return static_cast<int>(p_); }
+    int get_num_pairwise() const override { return static_cast<int>(num_pairwise_); }
     size_t num_variables() const { return p_; }
     size_t num_observations() const { return n_; }
     size_t num_main_effects() const { return num_main_; }

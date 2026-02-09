@@ -8,6 +8,7 @@
 
 #include "../base_model.h"
 #include "../chainResultNew.h"
+#include "../priors/edge_prior.h"
 #include "../utils/progress_manager.h"
 #include "sampler_config.h"
 #include "base_sampler.h"
@@ -53,6 +54,7 @@ inline std::unique_ptr<BaseSampler> create_sampler(const SamplerConfig& config) 
 inline void run_mcmc_chain(
     ChainResultNew& chain_result,
     BaseModel& model,
+    BaseEdgePrior& edge_prior,
     const SamplerConfig& config,
     const int chain_id,
     ProgressManager& pm
@@ -69,7 +71,10 @@ inline void run_mcmc_chain(
     // =========================================================================
     for (int iter = 0; iter < config.no_warmup; ++iter) {
 
-        // model->impute_missing_data();
+        // Impute missing data if applicable
+        if (config.na_impute && model.has_missing_data()) {
+            model.impute_missing();
+        }
 
         // Edge selection starts after edge_start iterations
         if (config.edge_selection && iter >= edge_start && model.has_edge_selection()) {
@@ -78,6 +83,17 @@ inline void run_mcmc_chain(
 
         // Sampler step (unified interface)
         sampler->warmup_step(model);
+
+        // Update edge prior parameters (Beta-Bernoulli, SBM, etc.)
+        if (config.edge_selection && iter >= edge_start && model.has_edge_selection()) {
+            edge_prior.update(
+                model.get_edge_indicators(),
+                model.get_inclusion_probability(),
+                model.get_num_variables(),
+                model.get_num_pairwise(),
+                model.get_rng()
+            );
+        }
 
         // Progress and interrupt check
         pm.update(chain_id);
@@ -103,7 +119,10 @@ inline void run_mcmc_chain(
     // =========================================================================
     for (int iter = 0; iter < config.no_iter; ++iter) {
 
-        // model->impute_missing_data();
+        // Impute missing data if applicable
+        if (config.na_impute && model.has_missing_data()) {
+            model.impute_missing();
+        }
 
         // Edge selection continues during sampling
         if (config.edge_selection && model.has_edge_selection()) {
@@ -112,6 +131,17 @@ inline void run_mcmc_chain(
 
         // Sampler step (unified interface)
         SamplerResult result = sampler->sample_step(model);
+
+        // Update edge prior parameters (Beta-Bernoulli, SBM, etc.)
+        if (config.edge_selection && model.has_edge_selection()) {
+            edge_prior.update(
+                model.get_edge_indicators(),
+                model.get_inclusion_probability(),
+                model.get_num_variables(),
+                model.get_num_pairwise(),
+                model.get_rng()
+            );
+        }
 
         // Store NUTS diagnostics if available
         if (chain_result.has_nuts_diagnostics && sampler->has_nuts_diagnostics()) {
@@ -145,17 +175,20 @@ inline void run_mcmc_chain(
 struct MCMCChainRunner : public RcppParallel::Worker {
     std::vector<ChainResultNew>& results_;
     std::vector<std::unique_ptr<BaseModel>>& models_;
+    std::vector<std::unique_ptr<BaseEdgePrior>>& edge_priors_;
     const SamplerConfig& config_;
     ProgressManager& pm_;
 
     MCMCChainRunner(
         std::vector<ChainResultNew>& results,
         std::vector<std::unique_ptr<BaseModel>>& models,
+        std::vector<std::unique_ptr<BaseEdgePrior>>& edge_priors,
         const SamplerConfig& config,
         ProgressManager& pm
     ) :
         results_(results),
         models_(models),
+        edge_priors_(edge_priors),
         config_(config),
         pm_(pm)
     {}
@@ -164,10 +197,11 @@ struct MCMCChainRunner : public RcppParallel::Worker {
         for (std::size_t i = begin; i < end; ++i) {
             ChainResultNew& chain_result = results_[i];
             BaseModel& model = *models_[i];
+            BaseEdgePrior& edge_prior = *edge_priors_[i];
             model.set_seed(config_.seed + static_cast<int>(i));
 
             try {
-                run_mcmc_chain(chain_result, model, config_, static_cast<int>(i), pm_);
+                run_mcmc_chain(chain_result, model, edge_prior, config_, static_cast<int>(i), pm_);
             } catch (std::exception& e) {
                 chain_result.error = true;
                 chain_result.error_msg = e.what();
@@ -197,6 +231,7 @@ struct MCMCChainRunner : public RcppParallel::Worker {
  */
 inline std::vector<ChainResultNew> run_mcmc_sampler(
     BaseModel& model,
+    BaseEdgePrior& edge_prior,
     const SamplerConfig& config,
     const int no_chains,
     const int no_threads,
@@ -222,13 +257,16 @@ inline std::vector<ChainResultNew> run_mcmc_sampler(
     if (no_threads > 1) {
         // Multi-threaded execution
         std::vector<std::unique_ptr<BaseModel>> models;
+        std::vector<std::unique_ptr<BaseEdgePrior>> edge_priors;
         models.reserve(no_chains);
+        edge_priors.reserve(no_chains);
         for (int c = 0; c < no_chains; ++c) {
             models.push_back(model.clone());
             models[c]->set_seed(config.seed + c);
+            edge_priors.push_back(edge_prior.clone());
         }
 
-        MCMCChainRunner runner(results, models, config, pm);
+        MCMCChainRunner runner(results, models, edge_priors, config, pm);
         tbb::global_control control(tbb::global_control::max_allowed_parallelism, no_threads);
         RcppParallel::parallelFor(0, static_cast<size_t>(no_chains), runner);
 
@@ -238,7 +276,8 @@ inline std::vector<ChainResultNew> run_mcmc_sampler(
         for (int c = 0; c < no_chains; ++c) {
             auto chain_model = model.clone();
             chain_model->set_seed(config.seed + c);
-            run_mcmc_chain(results[c], *chain_model, config, c, pm);
+            auto chain_edge_prior = edge_prior.clone();
+            run_mcmc_chain(results[c], *chain_model, *chain_edge_prior, config, c, pm);
         }
     }
 

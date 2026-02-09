@@ -6,6 +6,7 @@
 
 #include "ggm_model.h"
 #include "utils/progress_manager.h"
+#include "priors/edge_prior.h"
 #include "chainResultNew.h"
 #include "mcmc/mcmc_runner.h"
 #include "mcmc/sampler_config.h"
@@ -40,9 +41,12 @@ Rcpp::List sample_ggm(
     // Set up progress manager
     ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type);
 
+    // Create default edge prior (Bernoulli = no-op)
+    BernoulliEdgePrior edge_prior;
+
     // Run MCMC using unified infrastructure
     std::vector<ChainResultNew> results = run_mcmc_sampler(
-        model, config, no_chains, no_threads, pm);
+        model, edge_prior, config, no_chains, no_threads, pm);
 
     // Convert to R list format
     Rcpp::List output = convert_results_to_list(results);

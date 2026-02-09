@@ -400,6 +400,7 @@ bgm = function(
   chains = 4,
   cores = parallel::detectCores(),
   display_progress = c("per-chain", "total", "none"),
+  backend = c("legacy", "new"),
   seed = NULL,
   standardize = FALSE,
   interaction_scale,
@@ -551,6 +552,9 @@ bgm = function(
     ))
   }
 
+  # Check backend ---------------------------------------------------------------
+  backend = match.arg(backend)
+
   # Check display_progress ------------------------------------------------------
   progress_type = progress_type_from_display_progress(display_progress)
 
@@ -591,6 +595,9 @@ bgm = function(
       counts_per_category[category + 1, variable] = sum(x[, variable] == category)
     }
   }
+
+  # Save data before Blume-Capel centering (needed by the new backend)
+  x_raw = x
 
   # Precompute the sufficient statistics for the two Blume-Capel parameters -----
   blume_capel_stats = matrix(0, nrow = 2, ncol = num_variables)
@@ -691,6 +698,47 @@ bgm = function(
 
   seed <- as.integer(seed)
 
+  if (backend == "new") {
+    input_list = list(
+      observations = x_raw,
+      num_categories = num_categories,
+      is_ordinal_variable = variable_bool,
+      baseline_category = baseline_category,
+      main_alpha = main_alpha,
+      main_beta = main_beta,
+      pairwise_scale = pairwise_scale
+    )
+
+    out_raw = sample_omrf(
+      inputFromR = input_list,
+      prior_inclusion_prob = matrix(inclusion_probability,
+        nrow = num_variables, ncol = num_variables),
+      initial_edge_indicators = indicator,
+      no_iter = iter,
+      no_warmup = warmup,
+      no_chains = chains,
+      no_threads = cores,
+      progress_type = progress_type,
+      edge_selection = edge_selection,
+      sampler_type = update_method,
+      seed = seed,
+      edge_prior = edge_prior,
+      na_impute = na_impute,
+      missing_index = missing_index,
+      beta_bernoulli_alpha = beta_bernoulli_alpha,
+      beta_bernoulli_beta = beta_bernoulli_beta,
+      beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+      beta_bernoulli_beta_between = beta_bernoulli_beta_between,
+      dirichlet_alpha = dirichlet_alpha,
+      lambda = lambda,
+      target_acceptance = target_accept,
+      max_tree_depth = nuts_max_depth,
+      num_leapfrogs = hmc_num_leapfrogs
+    )
+
+    out = transform_new_backend_output(out_raw, num_thresholds)
+  } else {
+
   out = run_bgm_parallel(
     observations = x, num_categories = num_categories,
     pairwise_scale = pairwise_scale, edge_prior = edge_prior,
@@ -715,6 +763,8 @@ bgm = function(
     nThreads = cores, seed = seed, progress_type = progress_type,
     pairwise_scaling_factors = pairwise_scaling_factors
   )
+
+  } # end backend branch
 
   userInterrupt = any(vapply(out, FUN = `[[`, FUN.VALUE = logical(1L), "userInterrupt"))
   if(userInterrupt) {

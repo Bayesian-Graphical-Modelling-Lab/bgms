@@ -1,0 +1,249 @@
+#pragma once
+
+#include <memory>
+#include <RcppArmadillo.h>
+#include "../rng/rng_utils.h"
+#include "../utils/common_helpers.h"
+#include "sbm_edge_prior.h"
+#include "../sbm_edge_prior_interface.h"
+
+
+/**
+ * Abstract base class for edge inclusion priors.
+ *
+ * The edge prior updates the inclusion probability matrix based on the
+ * current edge indicators. This is independent of the model type (GGM, OMRF,
+ * etc.), so it is implemented as a separate class hierarchy.
+ *
+ * The MCMC runner calls update() after each edge indicator update, passing
+ * the current edge indicators and inclusion probability matrix. The edge
+ * prior modifies inclusion_probability in place.
+ */
+class BaseEdgePrior {
+public:
+    virtual ~BaseEdgePrior() = default;
+
+    virtual void update(
+        const arma::imat& edge_indicators,
+        arma::mat& inclusion_probability,
+        int num_variables,
+        int num_pairwise,
+        SafeRNG& rng
+    ) = 0;
+
+    virtual std::unique_ptr<BaseEdgePrior> clone() const = 0;
+};
+
+
+/**
+ * Bernoulli edge prior (fixed inclusion probabilities, no update needed).
+ */
+class BernoulliEdgePrior : public BaseEdgePrior {
+public:
+    void update(
+        const arma::imat& /*edge_indicators*/,
+        arma::mat& /*inclusion_probability*/,
+        int /*num_variables*/,
+        int /*num_pairwise*/,
+        SafeRNG& /*rng*/
+    ) override {
+        // No-op: inclusion probabilities are fixed
+    }
+
+    std::unique_ptr<BaseEdgePrior> clone() const override {
+        return std::make_unique<BernoulliEdgePrior>(*this);
+    }
+};
+
+
+/**
+ * Beta-Bernoulli edge prior.
+ *
+ * Draws a shared inclusion probability from Beta(alpha + #included,
+ * beta + #excluded) and assigns it to all edges.
+ */
+class BetaBernoulliEdgePrior : public BaseEdgePrior {
+public:
+    BetaBernoulliEdgePrior(double alpha = 1.0, double beta = 1.0)
+        : alpha_(alpha), beta_(beta) {}
+
+    void update(
+        const arma::imat& edge_indicators,
+        arma::mat& inclusion_probability,
+        int num_variables,
+        int num_pairwise,
+        SafeRNG& rng
+    ) override {
+        int num_edges_included = 0;
+        for (int i = 0; i < num_variables - 1; i++) {
+            for (int j = i + 1; j < num_variables; j++) {
+                num_edges_included += edge_indicators(i, j);
+            }
+        }
+
+        double prob = rbeta(rng,
+            alpha_ + num_edges_included,
+            beta_ + num_pairwise - num_edges_included
+        );
+
+        for (int i = 0; i < num_variables - 1; i++) {
+            for (int j = i + 1; j < num_variables; j++) {
+                inclusion_probability(i, j) = prob;
+                inclusion_probability(j, i) = prob;
+            }
+        }
+    }
+
+    std::unique_ptr<BaseEdgePrior> clone() const override {
+        return std::make_unique<BetaBernoulliEdgePrior>(*this);
+    }
+
+private:
+    double alpha_;
+    double beta_;
+};
+
+
+/**
+ * Stochastic Block Model (MFM-SBM) edge prior.
+ *
+ * Maintains cluster allocations and block-level inclusion probabilities.
+ * Each edge's inclusion probability depends on its endpoints' cluster
+ * assignments.
+ */
+class StochasticBlockEdgePrior : public BaseEdgePrior {
+public:
+    StochasticBlockEdgePrior(
+        double beta_bernoulli_alpha,
+        double beta_bernoulli_beta,
+        double beta_bernoulli_alpha_between,
+        double beta_bernoulli_beta_between,
+        double dirichlet_alpha,
+        double lambda
+    ) : beta_bernoulli_alpha_(beta_bernoulli_alpha),
+        beta_bernoulli_beta_(beta_bernoulli_beta),
+        beta_bernoulli_alpha_between_(beta_bernoulli_alpha_between),
+        beta_bernoulli_beta_between_(beta_bernoulli_beta_between),
+        dirichlet_alpha_(dirichlet_alpha),
+        lambda_(lambda),
+        initialized_(false)
+    {}
+
+    /**
+     * Initialize SBM state from the current edge indicators. Called
+     * automatically on first update().
+     */
+    void initialize(
+        const arma::imat& edge_indicators,
+        arma::mat& inclusion_probability,
+        int num_variables,
+        SafeRNG& rng
+    ) {
+        cluster_allocations_.set_size(num_variables);
+        cluster_allocations_[0] = 0;
+        cluster_allocations_[1] = 1;
+        for (int i = 2; i < num_variables; i++) {
+            cluster_allocations_[i] = (runif(rng) > 0.5) ? 1 : 0;
+        }
+
+        cluster_prob_ = block_probs_mfm_sbm(
+            cluster_allocations_,
+            arma::conv_to<arma::umat>::from(edge_indicators),
+            num_variables,
+            beta_bernoulli_alpha_, beta_bernoulli_beta_,
+            beta_bernoulli_alpha_between_, beta_bernoulli_beta_between_,
+            rng
+        );
+
+        for (int i = 0; i < num_variables - 1; i++) {
+            for (int j = i + 1; j < num_variables; j++) {
+                inclusion_probability(i, j) = cluster_prob_(cluster_allocations_[i], cluster_allocations_[j]);
+                inclusion_probability(j, i) = inclusion_probability(i, j);
+            }
+        }
+
+        log_Vn_ = compute_Vn_mfm_sbm(
+            num_variables, dirichlet_alpha_, num_variables + 10, lambda_);
+
+        initialized_ = true;
+    }
+
+    void update(
+        const arma::imat& edge_indicators,
+        arma::mat& inclusion_probability,
+        int num_variables,
+        int /*num_pairwise*/,
+        SafeRNG& rng
+    ) override {
+        if (!initialized_) {
+            initialize(edge_indicators, inclusion_probability, num_variables, rng);
+        }
+
+        cluster_allocations_ = block_allocations_mfm_sbm(
+            cluster_allocations_, num_variables, log_Vn_, cluster_prob_,
+            arma::conv_to<arma::umat>::from(edge_indicators), dirichlet_alpha_,
+            beta_bernoulli_alpha_, beta_bernoulli_beta_,
+            beta_bernoulli_alpha_between_, beta_bernoulli_beta_between_, rng
+        );
+
+        cluster_prob_ = block_probs_mfm_sbm(
+            cluster_allocations_,
+            arma::conv_to<arma::umat>::from(edge_indicators), num_variables,
+            beta_bernoulli_alpha_, beta_bernoulli_beta_,
+            beta_bernoulli_alpha_between_, beta_bernoulli_beta_between_, rng
+        );
+
+        for (int i = 0; i < num_variables - 1; i++) {
+            for (int j = i + 1; j < num_variables; j++) {
+                inclusion_probability(i, j) = cluster_prob_(cluster_allocations_[i], cluster_allocations_[j]);
+                inclusion_probability(j, i) = inclusion_probability(i, j);
+            }
+        }
+    }
+
+    std::unique_ptr<BaseEdgePrior> clone() const override {
+        return std::make_unique<StochasticBlockEdgePrior>(*this);
+    }
+
+private:
+    double beta_bernoulli_alpha_;
+    double beta_bernoulli_beta_;
+    double beta_bernoulli_alpha_between_;
+    double beta_bernoulli_beta_between_;
+    double dirichlet_alpha_;
+    double lambda_;
+
+    bool initialized_;
+    arma::uvec cluster_allocations_;
+    arma::mat cluster_prob_;
+    arma::vec log_Vn_;
+};
+
+
+/**
+ * Factory: create an edge prior from an EdgePrior enum and hyperparameters.
+ */
+inline std::unique_ptr<BaseEdgePrior> create_edge_prior(
+    EdgePrior type,
+    double beta_bernoulli_alpha = 1.0,
+    double beta_bernoulli_beta = 1.0,
+    double beta_bernoulli_alpha_between = 1.0,
+    double beta_bernoulli_beta_between = 1.0,
+    double dirichlet_alpha = 1.0,
+    double lambda = 1.0
+) {
+    switch (type) {
+    case Beta_Bernoulli:
+        return std::make_unique<BetaBernoulliEdgePrior>(
+            beta_bernoulli_alpha, beta_bernoulli_beta);
+    case Stochastic_Block:
+        return std::make_unique<StochasticBlockEdgePrior>(
+            beta_bernoulli_alpha, beta_bernoulli_beta,
+            beta_bernoulli_alpha_between, beta_bernoulli_beta_between,
+            dirichlet_alpha, lambda);
+    case Bernoulli:
+    case Not_Applicable:
+    default:
+        return std::make_unique<BernoulliEdgePrior>();
+    }
+}
