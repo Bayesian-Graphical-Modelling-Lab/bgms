@@ -1,7 +1,6 @@
 #include <RcppArmadillo.h>
 #include <cmath>
 #include <functional>
-#include <limits>
 #include "mcmc/mcmc_leapfrog.h"
 #include "mcmc/mcmc_utils.h"
 #include "rng/rng_utils.h"
@@ -74,22 +73,10 @@ double heuristic_initial_step_size(
   double kin1 = kinetic_energy(r_new, inv_mass_diag);
   double H1 = logp1 - kin1;
 
-  // NaN guard: treat non-finite H as bad step (force halving)
-  auto safe_delta_H = [](double H1, double H0) -> double {
-    double delta = H1 - H0;
-    return std::isfinite(delta) ? delta : -std::numeric_limits<double>::infinity();
-  };
-
-  int direction = 2 * (safe_delta_H(H1, H0) > MY_LOG(0.5)) - 1;  // +1 or -1
+  int direction = 2 * (H1 - H0 > MY_LOG(0.5)) - 1;  // +1 or -1
 
   int attempts = 0;
-  while (attempts < max_attempts) {
-    double delta = safe_delta_H(H1, H0);
-    bool keep_going = (direction == 1)
-      ? (delta > -MY_LOG(2.0))
-      : (delta < MY_LOG(2.0));
-    if (!keep_going) break;
-
+  while (direction * (H1 - H0) > -direction * MY_LOG(2.0) && attempts < max_attempts) {
     eps = (direction == 1) ? 2.0 * eps : 0.5 * eps;
 
     // Resample momentum on each iteration for step size search
@@ -161,16 +148,10 @@ double heuristic_initial_step_size(
   int direction = 2 * (H1 - H0 > MY_LOG(0.5)) - 1;  // +1 or -1
 
   int attempts = 0;
-  while (attempts < max_attempts) {
-    double delta = safe_delta_H(H1, H0);
-    bool keep_going = (direction == 1)
-      ? (delta > -MY_LOG(2.0))
-      : (delta < MY_LOG(2.0));
-    if (!keep_going) break;
-
+  while (direction * (H1 - H0) > -direction * MY_LOG(2.0) && attempts < max_attempts) {
     eps = (direction == 1) ? 2.0 * eps : 0.5 * eps;
 
-    // Resample momentum (STAN resamples on each iteration)
+    // Resample momentum on each iteration for step size search
     r = arma::sqrt(1.0 / inv_mass_diag) % arma_rnorm_vec(rng, theta.n_elem);
     kin0 = kinetic_energy(r, inv_mass_diag);
     H0 = logp0 - kin0;
@@ -178,6 +159,7 @@ double heuristic_initial_step_size(
     // One leapfrog step from original position with new momentum
     std::tie(theta_new, r_new) = leapfrog(theta, r, eps, grad, 1, inv_mass_diag);
 
+    // Evaluate Hamiltonian
     logp1 = log_post(theta_new);
     kin1 = kinetic_energy(r_new, inv_mass_diag);
     H1 = logp1 - kin1;
