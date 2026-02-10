@@ -26,6 +26,9 @@
 
 ### Bug fixes
 
+- fixed matrix indexing for `posterior_mean_indicator`: now correctly
+  maps C++ row-major order to R matrices
+  ([\#77](https://github.com/Bayesian-Graphical-Modelling-Lab/bgms/issues/77))
 - fixed mass matrix adaptation: now correctly uses variance instead of
   precision
 - fixed step size heuristic: re-runs after mass matrix updates,

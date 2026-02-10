@@ -63,7 +63,8 @@
 </ul></div>
 <div class="section level3">
 <h3 id="bug-fixes-0-1-6-3">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-1-6-3"></a></h3>
-<ul><li>fixed mass matrix adaptation: now correctly uses variance instead of precision</li>
+<ul><li>fixed matrix indexing for <code>posterior_mean_indicator</code>: now correctly maps C++ row-major order to R matrices (<a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms/issues/77" class="external-link">#77</a>)</li>
+<li>fixed mass matrix adaptation: now correctly uses variance instead of precision</li>
 <li>fixed step size heuristic: re-runs after mass matrix updates, resamples momentum each iteration</li>
 <li>fixed E-BFMI diagnostic: now uses actual accepted trajectory momentum</li>
 <li>fixed Blume-Capel interaction: uses centered scores <code>(c - ref)</code> in pseudolikelihood denominator</li>
