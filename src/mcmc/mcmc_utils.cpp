@@ -59,7 +59,7 @@ double heuristic_initial_step_size(
 
   double eps = init_step;
   double logp0 = log_post(theta);  // Only compute once - position doesn't change
-  
+
   // Sample initial momentum and evaluate
   arma::vec r = arma_rnorm_vec(rng, theta.n_elem);
   double kin0 = kinetic_energy(r, inv_mass_diag);
@@ -131,7 +131,7 @@ double heuristic_initial_step_size(
 ) {
   double eps = init_step;
   double logp0 = log_post(theta);  // Only compute once - position doesn't change
-  
+
   // Sample initial momentum from N(0, M) where M = diag(1/inv_mass_diag)
   arma::vec r = arma::sqrt(1.0 / inv_mass_diag) % arma_rnorm_vec(rng, theta.n_elem);
   double kin0 = kinetic_energy(r, inv_mass_diag);
