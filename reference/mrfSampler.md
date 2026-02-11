@@ -9,11 +9,11 @@ follow the package's naming conventions.
 
 ``` r
 mrfSampler(
-  no_states,
-  no_variables,
-  no_categories,
-  interactions,
-  thresholds,
+  num_states,
+  num_variables,
+  num_categories,
+  pairwise,
+  main,
   variable_type = "ordinal",
   baseline_category,
   iter = 1000,
@@ -23,31 +23,31 @@ mrfSampler(
 
 ## Arguments
 
-- no_states:
+- num_states:
 
   The number of states of the ordinal MRF to be generated.
 
-- no_variables:
+- num_variables:
 
   The number of variables in the ordinal MRF.
 
-- no_categories:
+- num_categories:
 
   Either a positive integer or a vector of positive integers of length
-  `no_variables`. The number of response categories on top of the base
-  category: `no_categories = 1` generates binary states.
+  `num_variables`. The number of response categories on top of the base
+  category: `num_categories = 1` generates binary states.
 
-- interactions:
+- pairwise:
 
-  A symmetric `no_variables` by `no_variables` matrix of pairwise
+  A symmetric `num_variables` by `num_variables` matrix of pairwise
   interactions. Only its off-diagonal elements are used.
 
-- thresholds:
+- main:
 
-  A `no_variables` by `max(no_categories)` matrix of category
+  A `num_variables` by `max(num_categories)` matrix of category
   thresholds. The elements in row `i` indicate the thresholds of
-  variable `i`. If `no_categories` is a vector, only the first
-  `no_categories[i]` elements are used in row `i`. If the Blume-Capel
+  variable `i`. If `num_categories` is a vector, only the first
+  `num_categories[i]` elements are used in row `i`. If the Blume-Capel
   model is used for the category thresholds for variable `i`, then row
   `i` requires two values (details below); the first is \\\alpha\\, the
   linear contribution of the Blume-Capel model and the second is
@@ -64,10 +64,10 @@ mrfSampler(
 
 - baseline_category:
 
-  An integer vector of length `no_variables` specifying the
+  An integer vector of length `num_variables` specifying the
   baseline_category category that is used for the Blume-Capel model
   (details below). Can be any integer value between `0` and
-  `no_categories` (or `no_categories[i]`).
+  `num_categories` (or `num_categories[i]`).
 
 - iter:
 

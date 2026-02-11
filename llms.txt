@@ -181,12 +181,16 @@ methods. *Multivariate Behavioral Research*, *59*, 913–933.
   : Extract Coefficients from a bgmCompare Object
 - [`coef(`*`<bgms>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/coef.bgms.md)
   : Extract Coefficients from a bgms Object
+- [`predict(`*`<bgmCompare>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/predict.bgmCompare.md)
+  : Predict Conditional Probabilities from a Fitted bgmCompare Model
 - [`predict(`*`<bgms>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/predict.bgms.md)
   : Predict Conditional Probabilities from a Fitted bgms Model
 - [`print(`*`<bgmCompare>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/print.bgmCompare.md)
   : Print method for \`bgmCompare\` objects
 - [`print(`*`<bgms>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/print.bgms.md)
   : Print method for \`bgms\` objects
+- [`simulate(`*`<bgmCompare>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate.bgmCompare.md)
+  : Simulate Data from a Fitted bgmCompare Model
 - [`simulate(`*`<bgms>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate.bgms.md)
   : Simulate Data from a Fitted bgms Model
 - [`simulate_mrf()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate_mrf.md)

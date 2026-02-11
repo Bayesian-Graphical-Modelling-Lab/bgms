@@ -7,11 +7,11 @@ Field using Gibbs sampling with user-specified parameters.
 
 ``` r
 simulate_mrf(
-  no_states,
-  no_variables,
-  no_categories,
-  interactions,
-  thresholds,
+  num_states,
+  num_variables,
+  num_categories,
+  pairwise,
+  main,
   variable_type = "ordinal",
   baseline_category,
   iter = 1000,
@@ -21,31 +21,31 @@ simulate_mrf(
 
 ## Arguments
 
-- no_states:
+- num_states:
 
   The number of states of the ordinal MRF to be generated.
 
-- no_variables:
+- num_variables:
 
   The number of variables in the ordinal MRF.
 
-- no_categories:
+- num_categories:
 
   Either a positive integer or a vector of positive integers of length
-  `no_variables`. The number of response categories on top of the base
-  category: `no_categories = 1` generates binary states.
+  `num_variables`. The number of response categories on top of the base
+  category: `num_categories = 1` generates binary states.
 
-- interactions:
+- pairwise:
 
-  A symmetric `no_variables` by `no_variables` matrix of pairwise
+  A symmetric `num_variables` by `num_variables` matrix of pairwise
   interactions. Only its off-diagonal elements are used.
 
-- thresholds:
+- main:
 
-  A `no_variables` by `max(no_categories)` matrix of category
+  A `num_variables` by `max(num_categories)` matrix of category
   thresholds. The elements in row `i` indicate the thresholds of
-  variable `i`. If `no_categories` is a vector, only the first
-  `no_categories[i]` elements are used in row `i`. If the Blume-Capel
+  variable `i`. If `num_categories` is a vector, only the first
+  `num_categories[i]` elements are used in row `i`. If the Blume-Capel
   model is used for the category thresholds for variable `i`, then row
   `i` requires two values (details below); the first is \\\alpha\\, the
   linear contribution of the Blume-Capel model and the second is
@@ -62,10 +62,10 @@ simulate_mrf(
 
 - baseline_category:
 
-  An integer vector of length `no_variables` specifying the
+  An integer vector of length `num_variables` specifying the
   baseline_category category that is used for the Blume-Capel model
   (details below). Can be any integer value between `0` and
-  `no_categories` (or `no_categories[i]`).
+  `num_categories` (or `num_categories[i]`).
 
 - iter:
 
@@ -82,7 +82,7 @@ simulate_mrf(
 
 ## Value
 
-A `no_states` by `no_variables` matrix of simulated states of the
+A `num_states` by `num_variables` matrix of simulated states of the
 ordinal MRF.
 
 ## Details
@@ -121,54 +121,47 @@ for simulating from a fitted model.
 
 ``` r
 # Generate responses from a network of five binary and ordinal variables.
-no_variables = 5
-no_categories = sample(1:5, size = no_variables, replace = TRUE)
+num_variables = 5
+num_categories = sample(1:5, size = num_variables, replace = TRUE)
 
-Interactions = matrix(0, nrow = no_variables, ncol = no_variables)
+Interactions = matrix(0, nrow = num_variables, ncol = num_variables)
 Interactions[2, 1] = Interactions[4, 1] = Interactions[3, 2] =
   Interactions[5, 2] = Interactions[5, 4] = .25
 Interactions = Interactions + t(Interactions)
-Thresholds = matrix(0, nrow = no_variables, ncol = max(no_categories))
+Main = matrix(0, nrow = num_variables, ncol = max(num_categories))
 
 x = simulate_mrf(
-  no_states = 1e3,
-  no_variables = no_variables,
-  no_categories = no_categories,
-  interactions = Interactions,
-  thresholds = Thresholds
+  num_states = 1e3,
+  num_variables = num_variables,
+  num_categories = num_categories,
+  pairwise = Pairwise,
+  main = Main
 )
-#> Warning: The matrix ``thresholds'' contains numeric values for variable 1 for category 
-#> (categories, i.e., columns) exceding the maximum of 1. These values will 
-#> be ignored.
-#> Warning: The matrix ``thresholds'' contains numeric values for variable 2 for category 
-#> (categories, i.e., columns) exceding the maximum of 2. These values will 
-#> be ignored.
-#> Warning: The matrix ``thresholds'' contains numeric values for variable 5 for category 
-#> (categories, i.e., columns) exceding the maximum of 1. These values will 
-#> be ignored.
+#> Error: object 'Pairwise' not found
 
 # Generate responses from a network of 2 ordinal and 3 Blume-Capel variables.
-no_variables = 5
-no_categories = 4
+num_variables = 5
+num_categories = 4
 
-Interactions = matrix(0, nrow = no_variables, ncol = no_variables)
+Interactions = matrix(0, nrow = num_variables, ncol = num_variables)
 Interactions[2, 1] = Interactions[4, 1] = Interactions[3, 2] =
   Interactions[5, 2] = Interactions[5, 4] = .25
 Interactions = Interactions + t(Interactions)
 
-Thresholds = matrix(NA, no_variables, no_categories)
-Thresholds[, 1] = -1
-Thresholds[, 2] = -1
-Thresholds[3, ] = sort(-abs(rnorm(4)), decreasing = TRUE)
-Thresholds[5, ] = sort(-abs(rnorm(4)), decreasing = TRUE)
+Main = matrix(NA, num_variables, num_categories)
+Main[, 1] = -1
+Main[, 2] = -1
+Main[3, ] = sort(-abs(rnorm(4)), decreasing = TRUE)
+Main[5, ] = sort(-abs(rnorm(4)), decreasing = TRUE)
 
 x = simulate_mrf(
-  no_states = 1e3,
-  no_variables = no_variables,
-  no_categories = no_categories,
-  interactions = Interactions,
-  thresholds = Thresholds,
+  num_states = 1e3,
+  num_variables = num_variables,
+  num_categories = num_categories,
+  pairwise = Pairwise,
+  main = Main,
   variable_type = c("b", "b", "o", "b", "o"),
   baseline_category = 2
 )
+#> Error: object 'Pairwise' not found
 ```
