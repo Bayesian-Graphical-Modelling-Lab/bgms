@@ -33,11 +33,11 @@ test_that("simulate_mrf returns matrix of correct dimensions", {
   thresholds <- matrix(0, n_vars, n_cats)
 
   result <- simulate_mrf(
-    no_states = n_states,
-    no_variables = n_vars,
-    no_categories = n_cats,
-    interactions = interactions,
-    thresholds = thresholds,
+    num_states = n_states,
+    num_variables = n_vars,
+    num_categories = n_cats,
+    pairwise = interactions,
+    main = thresholds,
     seed = 123
   )
 
@@ -54,11 +54,11 @@ test_that("simulate_mrf produces values in valid range", {
   thresholds <- matrix(0, n_vars, n_cats)
 
   result <- simulate_mrf(
-    no_states = 100,
-    no_variables = n_vars,
-    no_categories = n_cats,
-    interactions = interactions,
-    thresholds = thresholds,
+    num_states = 100,
+    num_variables = n_vars,
+    num_categories = n_cats,
+    pairwise = interactions,
+    main = thresholds,
     seed = 42
   )
 
@@ -79,20 +79,20 @@ test_that("simulate_mrf is reproducible with seed", {
   thresholds <- matrix(0.5, n_vars, n_cats)
 
   result1 <- simulate_mrf(
-    no_states = 50,
-    no_variables = n_vars,
-    no_categories = n_cats,
-    interactions = interactions,
-    thresholds = thresholds,
+    num_states = 50,
+    num_variables = n_vars,
+    num_categories = n_cats,
+    pairwise = interactions,
+    main = thresholds,
     seed = 999
   )
 
   result2 <- simulate_mrf(
-    no_states = 50,
-    no_variables = n_vars,
-    no_categories = n_cats,
-    interactions = interactions,
-    thresholds = thresholds,
+    num_states = 50,
+    num_variables = n_vars,
+    num_categories = n_cats,
+    pairwise = interactions,
+    main = thresholds,
     seed = 999
   )
 
@@ -113,11 +113,11 @@ test_that("simulate_mrf handles different categories per variable", {
 
   # Warnings expected: variables with fewer categories have extra threshold columns
   result <- suppressWarnings(simulate_mrf(
-    no_states = 100,
-    no_variables = n_vars,
-    no_categories = n_cats,
-    interactions = interactions,
-    thresholds = thresholds,
+    num_states = 100,
+    num_variables = n_vars,
+    num_categories = n_cats,
+    pairwise = interactions,
+    main = thresholds,
     seed = 123
   ))
 
@@ -139,11 +139,11 @@ test_that("simulate_mrf handles binary variables correctly", {
   thresholds <- matrix(0, n_vars, n_cats)
 
   result <- simulate_mrf(
-    no_states = 100,
-    no_variables = n_vars,
-    no_categories = n_cats,
-    interactions = interactions,
-    thresholds = thresholds,
+    num_states = 100,
+    num_variables = n_vars,
+    num_categories = n_cats,
+    pairwise = interactions,
+    main = thresholds,
     seed = 42
   )
 
@@ -167,11 +167,11 @@ test_that("simulate_mrf works with blume-capel variables", {
   thresholds[, 2] <- -0.5 # beta
 
   result <- simulate_mrf(
-    no_states = 100,
-    no_variables = n_vars,
-    no_categories = n_cats,
-    interactions = interactions,
-    thresholds = thresholds,
+    num_states = 100,
+    num_variables = n_vars,
+    num_categories = n_cats,
+    pairwise = interactions,
+    main = thresholds,
     variable_type = "blume-capel",
     baseline_category = 2,
     seed = 123
@@ -195,11 +195,11 @@ test_that("simulate_mrf works with mixed ordinal and blume-capel", {
 
   # Warnings expected: Blume-Capel variables only use 2 threshold columns
   result <- suppressWarnings(simulate_mrf(
-    no_states = 80,
-    no_variables = n_vars,
-    no_categories = n_cats,
-    interactions = interactions,
-    thresholds = thresholds,
+    num_states = 80,
+    num_variables = n_vars,
+    num_categories = n_cats,
+    pairwise = interactions,
+    main = thresholds,
     variable_type = c("ordinal", "ordinal", "blume-capel", "blume-capel"),
     baseline_category = c(0, 0, 2, 2), # baseline only matters for BC vars
     seed = 42
@@ -227,11 +227,11 @@ test_that("simulate_mrf: positive interaction tends to align responses", {
   thresholds <- matrix(c(0, 0.5, 0, 0.5), n_vars, n_cats, byrow = TRUE)
 
   result <- simulate_mrf(
-    no_states = 1000,
-    no_variables = n_vars,
-    no_categories = n_cats,
-    interactions = pos_int,
-    thresholds = thresholds,
+    num_states = 1000,
+    num_variables = n_vars,
+    num_categories = n_cats,
+    pairwise = pos_int,
+    main = thresholds,
     iter = 2000,
     seed = 456
   )
@@ -268,21 +268,21 @@ test_that("simulate_mrf: threshold affects marginal distribution", {
   neg_thresh <- matrix(-3, 1, 1)
 
   result_pos <- simulate_mrf(
-    no_states = 500,
-    no_variables = n_vars,
-    no_categories = n_cats,
-    interactions = interactions,
-    thresholds = pos_thresh,
+    num_states = 500,
+    num_variables = n_vars,
+    num_categories = n_cats,
+    pairwise = interactions,
+    main = pos_thresh,
     iter = 1000,
     seed = 42
   )
 
   result_neg <- simulate_mrf(
-    no_states = 500,
-    no_variables = n_vars,
-    no_categories = n_cats,
-    interactions = interactions,
-    thresholds = neg_thresh,
+    num_states = 500,
+    num_variables = n_vars,
+    num_categories = n_cats,
+    pairwise = interactions,
+    main = neg_thresh,
     iter = 1000,
     seed = 42
   )
@@ -311,11 +311,11 @@ test_that("mrfSampler works with deprecation warning", {
 
   expect_warning(
     result <- mrfSampler(
-      no_states = 20,
-      no_variables = n_vars,
-      no_categories = n_cats,
-      interactions = interactions,
-      thresholds = thresholds
+      num_states = 20,
+      num_variables = n_vars,
+      num_categories = n_cats,
+      pairwise = interactions,
+      main = thresholds
     ),
     regexp = "deprecated"
   )
@@ -325,11 +325,11 @@ test_that("mrfSampler works with deprecation warning", {
 
 test_that("mrfSampler produces identical results to simulate_mrf", {
   args <- list(
-    no_states = 50,
-    no_variables = 4,
-    no_categories = 3,
-    interactions = matrix(0.1, 4, 4) - diag(0.1, 4),
-    thresholds = matrix(0, 4, 3),
+    num_states = 50,
+    num_variables = 4,
+    num_categories = 3,
+    pairwise = matrix(0.1, 4, 4) - diag(0.1, 4),
+    main = matrix(0, 4, 3),
     iter = 100,
     seed = 999
   )

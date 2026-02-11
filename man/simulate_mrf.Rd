@@ -5,11 +5,11 @@
 \title{Simulate Observations from an Ordinal MRF}
 \usage{
 simulate_mrf(
-  no_states,
-  no_variables,
-  no_categories,
-  interactions,
-  thresholds,
+  num_states,
+  num_variables,
+  num_categories,
+  pairwise,
+  main,
   variable_type = "ordinal",
   baseline_category,
   iter = 1000,
@@ -17,21 +17,21 @@ simulate_mrf(
 )
 }
 \arguments{
-\item{no_states}{The number of states of the ordinal MRF to be generated.}
+\item{num_states}{The number of states of the ordinal MRF to be generated.}
 
-\item{no_variables}{The number of variables in the ordinal MRF.}
+\item{num_variables}{The number of variables in the ordinal MRF.}
 
-\item{no_categories}{Either a positive integer or a vector of positive
-integers of length \code{no_variables}. The number of response categories on top
-of the base category: \code{no_categories = 1} generates binary states.}
+\item{num_categories}{Either a positive integer or a vector of positive
+integers of length \code{num_variables}. The number of response categories on top
+of the base category: \code{num_categories = 1} generates binary states.}
 
-\item{interactions}{A symmetric \code{no_variables} by \code{no_variables} matrix of
+\item{pairwise}{A symmetric \code{num_variables} by \code{num_variables} matrix of
 pairwise interactions. Only its off-diagonal elements are used.}
 
-\item{thresholds}{A \code{no_variables} by \code{max(no_categories)} matrix of
+\item{main}{A \code{num_variables} by \code{max(num_categories)} matrix of
 category thresholds. The elements in row \code{i} indicate the thresholds of
-variable \code{i}. If \code{no_categories} is a vector, only the first
-\code{no_categories[i]} elements are used in row \code{i}. If the Blume-Capel
+variable \code{i}. If \code{num_categories} is a vector, only the first
+\code{num_categories[i]} elements are used in row \code{i}. If the Blume-Capel
 model is used for the category thresholds for variable \code{i}, then row
 \code{i} requires two values (details below); the first is
 \eqn{\alpha}{\alpha}, the linear contribution of the Blume-Capel model and
@@ -44,10 +44,10 @@ for each variable separately. Currently, bgm supports ``ordinal'' and
 ``blume-capel''. Binary variables are automatically treated as ``ordinal''.
 Defaults to \code{variable_type = "ordinal"}.}
 
-\item{baseline_category}{An integer vector of length \code{no_variables} specifying the
+\item{baseline_category}{An integer vector of length \code{num_variables} specifying the
 baseline_category category that is used for the Blume-Capel model (details below).
-Can be any integer value between \code{0} and \code{no_categories} (or
-\code{no_categories[i]}).}
+Can be any integer value between \code{0} and \code{num_categories} (or
+\code{num_categories[i]}).}
 
 \item{iter}{The number of iterations used by the Gibbs sampler.
 The function provides the last state of the Gibbs sampler as output. By
@@ -58,7 +58,7 @@ a seed is generated from R's random number generator (so \code{set.seed()}
 can be used before calling this function).}
 }
 \value{
-A \code{no_states} by \code{no_variables} matrix of simulated states of
+A \code{num_states} by \code{num_variables} matrix of simulated states of
 the ordinal MRF.
 }
 \description{
@@ -93,44 +93,44 @@ preference for responding in the baseline_category category.
 }
 \examples{
 # Generate responses from a network of five binary and ordinal variables.
-no_variables = 5
-no_categories = sample(1:5, size = no_variables, replace = TRUE)
+num_variables = 5
+num_categories = sample(1:5, size = num_variables, replace = TRUE)
 
-Interactions = matrix(0, nrow = no_variables, ncol = no_variables)
+Interactions = matrix(0, nrow = num_variables, ncol = num_variables)
 Interactions[2, 1] = Interactions[4, 1] = Interactions[3, 2] =
   Interactions[5, 2] = Interactions[5, 4] = .25
 Interactions = Interactions + t(Interactions)
-Thresholds = matrix(0, nrow = no_variables, ncol = max(no_categories))
+Main = matrix(0, nrow = num_variables, ncol = max(num_categories))
 
 x = simulate_mrf(
-  no_states = 1e3,
-  no_variables = no_variables,
-  no_categories = no_categories,
-  interactions = Interactions,
-  thresholds = Thresholds
+  num_states = 1e3,
+  num_variables = num_variables,
+  num_categories = num_categories,
+  pairwise = Pairwise,
+  main = Main
 )
 
 # Generate responses from a network of 2 ordinal and 3 Blume-Capel variables.
-no_variables = 5
-no_categories = 4
+num_variables = 5
+num_categories = 4
 
-Interactions = matrix(0, nrow = no_variables, ncol = no_variables)
+Interactions = matrix(0, nrow = num_variables, ncol = num_variables)
 Interactions[2, 1] = Interactions[4, 1] = Interactions[3, 2] =
   Interactions[5, 2] = Interactions[5, 4] = .25
 Interactions = Interactions + t(Interactions)
 
-Thresholds = matrix(NA, no_variables, no_categories)
-Thresholds[, 1] = -1
-Thresholds[, 2] = -1
-Thresholds[3, ] = sort(-abs(rnorm(4)), decreasing = TRUE)
-Thresholds[5, ] = sort(-abs(rnorm(4)), decreasing = TRUE)
+Main = matrix(NA, num_variables, num_categories)
+Main[, 1] = -1
+Main[, 2] = -1
+Main[3, ] = sort(-abs(rnorm(4)), decreasing = TRUE)
+Main[5, ] = sort(-abs(rnorm(4)), decreasing = TRUE)
 
 x = simulate_mrf(
-  no_states = 1e3,
-  no_variables = no_variables,
-  no_categories = no_categories,
-  interactions = Interactions,
-  thresholds = Thresholds,
+  num_states = 1e3,
+  num_variables = num_variables,
+  num_categories = num_categories,
+  pairwise = Pairwise,
+  main = Main,
   variable_type = c("b", "b", "o", "b", "o"),
   baseline_category = 2
 )

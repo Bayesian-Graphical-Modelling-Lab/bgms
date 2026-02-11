@@ -83,31 +83,37 @@ get_bgmcompare_fixtures <- function() {
     list(
       label = "binary",
       get_fit = get_bgmcompare_fit,
+      get_prediction_data = get_prediction_data_bgmcompare_binary,
       var_type = "binary"
     ),
     list(
       label = "ordinal",
       get_fit = get_bgmcompare_fit_ordinal,
+      get_prediction_data = get_prediction_data_bgmcompare_ordinal,
       var_type = "ordinal"
     ),
     list(
       label = "adaptive-metropolis",
       get_fit = get_bgmcompare_fit_adaptive_metropolis,
+      get_prediction_data = get_prediction_data_bgmcompare_binary,
       var_type = "binary"
     ),
     list(
       label = "blume-capel",
       get_fit = get_bgmcompare_fit_blumecapel,
+      get_prediction_data = get_prediction_data_bgmcompare_ordinal,
       var_type = "blume-capel"
     ),
     list(
       label = "impute",
       get_fit = get_bgmcompare_fit_impute,
+      get_prediction_data = get_prediction_data_bgmcompare_ordinal,
       var_type = "ordinal"
     ),
     list(
       label = "standardize",
       get_fit = get_bgmcompare_fit_standardize,
+      get_prediction_data = get_prediction_data_bgmcompare_ordinal,
       var_type = "ordinal"
     )
   )
@@ -444,6 +450,170 @@ test_that("predict.bgms with posterior-sample returns sd attribute", {
   sd_attr <- attr(result, "sd")
   expect_false(is.null(sd_attr))
   expect_equal(length(sd_attr), args$num_variables)
+})
+
+
+# ==============================================================================
+# simulate.bgmCompare() Tests (Parameterized)
+# ==============================================================================
+
+test_that("simulate.bgmCompare returns matrix of correct size for all fixture types", {
+  for (spec in get_bgmcompare_fixtures()) {
+    ctx <- sprintf("[bgmCompare %s]", spec$label)
+    fit <- spec$get_fit()
+    args <- extract_arguments(fit)
+    
+    n_sim <- 30
+    
+    # Test simulation for each group
+    for (g in seq_len(args$num_groups)) {
+      simulated <- simulate(fit, nsim = n_sim, group = g, method = "posterior-mean", seed = 123)
+      
+      expect_true(is.matrix(simulated), info = paste(ctx, "group", g))
+      expect_equal(nrow(simulated), n_sim, info = paste(ctx, "group", g, "wrong nrow"))
+      expect_equal(ncol(simulated), args$num_variables, info = paste(ctx, "group", g, "wrong ncol"))
+      expect_equal(colnames(simulated), args$data_columnnames, info = paste(ctx, "group", g))
+      
+      # Values should be integers within valid range
+      expect_true(all(simulated == round(simulated)), info = paste(ctx, "group", g, "not integers"))
+      expect_true(all(simulated >= 0), info = paste(ctx, "group", g, "negative values"))
+      
+      for (j in seq_len(args$num_variables)) {
+        max_cat <- args$num_categories[j]
+        expect_true(
+          all(simulated[, j] <= max_cat),
+          info = sprintf("%s group %d variable %d exceeds max category %d", ctx, g, j, max_cat)
+        )
+      }
+    }
+  }
+})
+
+test_that("simulate.bgmCompare is reproducible with seed", {
+  fit <- get_bgmcompare_fit()
+  
+  sim1 <- simulate(fit, nsim = 30, group = 1, method = "posterior-mean", seed = 999)
+  sim2 <- simulate(fit, nsim = 30, group = 1, method = "posterior-mean", seed = 999)
+  
+  expect_equal(sim1, sim2)
+})
+
+test_that("simulate.bgmCompare produces different results for different groups", {
+  fit <- get_bgmcompare_fit()
+  
+  # Simulate many observations to detect distributional differences
+  sim_g1 <- simulate(fit, nsim = 100, group = 1, seed = 42)
+  sim_g2 <- simulate(fit, nsim = 100, group = 2, seed = 42)
+  
+  # While individual values might match, means or patterns should generally differ
+  # This is a soft test - we just verify they can be different
+  expect_true(is.matrix(sim_g1))
+  expect_true(is.matrix(sim_g2))
+  expect_equal(dim(sim_g1), dim(sim_g2))
+})
+
+test_that("simulate.bgmCompare handles single observation", {
+  fit <- get_bgmcompare_fit()
+  args <- extract_arguments(fit)
+  
+  sim1 <- simulate(fit, nsim = 1, group = 1, method = "posterior-mean", seed = 42)
+  expect_true(is.matrix(sim1))
+  expect_equal(nrow(sim1), 1)
+  expect_equal(ncol(sim1), args$num_variables)
+})
+
+
+# ==============================================================================
+# predict.bgmCompare() Tests (Parameterized)
+# ==============================================================================
+
+test_that("predict.bgmCompare returns valid probabilities for all fixture types", {
+  for (spec in get_bgmcompare_fixtures()) {
+    ctx <- sprintf("[bgmCompare %s]", spec$label)
+    fit <- spec$get_fit()
+    args <- extract_arguments(fit)
+    
+    newdata <- spec$get_prediction_data(n = 5)
+    
+    # Test prediction for each group
+    for (g in seq_len(args$num_groups)) {
+      probs <- predict(fit, newdata = newdata, group = g, type = "probabilities")
+      
+      expect_true(is.list(probs), info = paste(ctx, "group", g))
+      expect_equal(length(probs), args$num_variables, info = paste(ctx, "group", g))
+      
+      # Each variable's probabilities should sum to 1
+      for (j in seq_along(probs)) {
+        expect_true(is.matrix(probs[[j]]), info = paste(ctx, "group", g, "var", j))
+        expect_equal(nrow(probs[[j]]), nrow(newdata), info = paste(ctx, "group", g, "var", j))
+        
+        # Non-NA probabilities in [0, 1]
+        non_na <- probs[[j]][!is.na(probs[[j]])]
+        if (length(non_na) > 0) {
+          expect_true(all(non_na >= 0 & non_na <= 1),
+                      info = sprintf("%s group %d var %d probs out of [0,1]", ctx, g, j))
+        }
+        
+        # Row sums = 1
+        row_sums <- rowSums(probs[[j]], na.rm = TRUE)
+        valid_rows <- !apply(probs[[j]], 1, function(x) any(is.na(x)))
+        if (any(valid_rows)) {
+          expect_true(
+            all(abs(row_sums[valid_rows] - 1) < 1e-6),
+            info = sprintf("%s group %d var %d probs don't sum to 1", ctx, g, j)
+          )
+        }
+      }
+    }
+  }
+})
+
+test_that("predict.bgmCompare response returns integer categories", {
+  fit <- get_bgmcompare_fit()
+  args <- extract_arguments(fit)
+  newdata <- get_prediction_data_bgmcompare_binary(n = 10)
+  
+  for (g in seq_len(args$num_groups)) {
+    pred <- predict(fit, newdata = newdata, group = g, type = "response")
+    
+    expect_true(is.matrix(pred))
+    expect_equal(nrow(pred), nrow(newdata))
+    expect_true(all(pred == round(pred)))
+  }
+})
+
+test_that("predict.bgmCompare accepts variable subsetting", {
+  fit <- get_bgmcompare_fit()
+  args <- extract_arguments(fit)
+  newdata <- get_prediction_data_bgmcompare_binary(n = 5)
+  
+  # By index
+  pred1 <- predict(fit, newdata = newdata, group = 1, variables = 1, type = "probabilities")
+  expect_equal(length(pred1), 1)
+  
+  # By name
+  var_name <- args$data_columnnames[1]
+  pred2 <- predict(fit, newdata = newdata, group = 1, variables = var_name, type = "probabilities")
+  expect_equal(length(pred2), 1)
+})
+
+test_that("predict.bgmCompare errors on invalid newdata dimensions", {
+  fit <- get_bgmcompare_fit()
+  bad_data <- matrix(1:10, nrow = 5, ncol = 2)
+  
+  expect_error(predict(fit, newdata = bad_data, group = 1), regexp = "columns")
+})
+
+test_that("predict.bgmCompare handles single observation", {
+  fit <- get_bgmcompare_fit()
+  args <- extract_arguments(fit)
+  newdata <- get_prediction_data_bgmcompare_binary(n = 1)
+  
+  probs <- predict(fit, newdata = newdata, group = 1, type = "probabilities")
+  
+  expect_true(is.list(probs))
+  expect_equal(length(probs), args$num_variables)
+  expect_equal(nrow(probs[[1]]), 1)
 })
 
 

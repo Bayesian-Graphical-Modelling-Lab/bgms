@@ -132,11 +132,11 @@ run_simrec_test_compare <- function(fit, n_per_group = 250, mcmc_args = NULL,
   simulated_datasets <- list()
   for (g in seq_len(n_groups)) {
     simulated_datasets[[g]] <- simulate_mrf(
-      no_states = n_per_group,
-      no_variables = args$num_variables,
-      no_categories = args$num_categories,
-      interactions = interactions,
-      thresholds = thresholds,
+      num_states = n_per_group,
+      num_variables = args$num_variables,
+      num_categories = args$num_categories,
+      pairwise = interactions,
+      main = thresholds,
       seed = seed + g
     )
     colnames(simulated_datasets[[g]]) <- args$data_columnnames

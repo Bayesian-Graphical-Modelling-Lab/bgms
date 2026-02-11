@@ -383,6 +383,18 @@ get_prediction_data_ordinal <- function(n = 10) {
   Wenchuan[51:(50 + n), 1:4]  # Use different rows than training, 4 variables
 }
 
+#' Get prediction data matching the binary bgmCompare fixture
+get_prediction_data_bgmcompare_binary <- function(n = 10) {
+  data("ADHD", package = "bgms")
+  ADHD[sample(nrow(ADHD), n), 2:5]  # Random sample, 4 variables
+}
+
+#' Get prediction data matching the ordinal bgmCompare fixture
+get_prediction_data_bgmcompare_ordinal <- function(n = 10) {
+  data("Wenchuan", package = "bgms")
+  Wenchuan[sample(nrow(Wenchuan), n), 1:4]  # Random sample, 4 variables
+}
+
 # ------------------------------------------------------------------------------
 # 3. Test Data Generators
 # ------------------------------------------------------------------------------

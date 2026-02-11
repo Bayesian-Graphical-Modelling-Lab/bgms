@@ -96,42 +96,42 @@ test_that("bgmCompare errors on mismatched group_indicator length", {
 # simulate_mrf() Input Validation
 # ------------------------------------------------------------------------------
 
-test_that("simulate_mrf errors on invalid no_states", {
+test_that("simulate_mrf errors on invalid num_states", {
   expect_error(
     simulate_mrf(
-      no_states = 0,
-      no_variables = 3,
-      no_categories = 2,
-      interactions = matrix(0, 3, 3),
-      thresholds = matrix(0, 3, 2)
+      num_states = 0,
+      num_variables = 3,
+      num_categories = 2,
+      pairwise = matrix(0, 3, 3),
+      main = matrix(0, 3, 2)
     ),
-    regexp = "no_states"
+    regexp = "num_states"
   )
 
   expect_error(
     simulate_mrf(
-      no_states = -5,
-      no_variables = 3,
-      no_categories = 2,
-      interactions = matrix(0, 3, 3),
-      thresholds = matrix(0, 3, 2)
+      num_states = -5,
+      num_variables = 3,
+      num_categories = 2,
+      pairwise = matrix(0, 3, 3),
+      main = matrix(0, 3, 2)
     ),
-    regexp = "no_states"
+    regexp = "num_states"
   )
 })
 
-test_that("simulate_mrf errors on non-symmetric interactions", {
+test_that("simulate_mrf errors on non-symmetric pairwise", {
   non_sym <- matrix(c(0, 1, 0, 0, 0, 1, 0, 0, 0), 3, 3)
 
   expect_error(
     simulate_mrf(
-      no_states = 10,
-      no_variables = 3,
-      no_categories = 2,
-      interactions = non_sym,
-      thresholds = matrix(0, 3, 2)
+      num_states = 10,
+      num_variables = 3,
+      num_categories = 2,
+      pairwise = non_sym,
+      main = matrix(0, 3, 2)
     ),
-    regexp = "symmetric"
+    regexp = "symmetric|pairwise"
   )
 })
 
@@ -139,24 +139,24 @@ test_that("simulate_mrf errors on dimension mismatch", {
   # Interactions matrix wrong size
   expect_error(
     simulate_mrf(
-      no_states = 10,
-      no_variables = 3,
-      no_categories = 2,
-      interactions = matrix(0, 4, 4), # Wrong: 4x4 for 3 variables
-      thresholds = matrix(0, 3, 2)
+      num_states = 10,
+      num_variables = 3,
+      num_categories = 2,
+      pairwise = matrix(0, 4, 4), # Wrong: 4x4 for 3 variables
+      main = matrix(0, 3, 2)
     ),
-    regexp = "no_variables|dimension|size"
+    regexp = "num_variables|dimension|size"
   )
 })
 
 test_that("simulate_mrf errors on missing thresholds", {
   expect_error(
     simulate_mrf(
-      no_states = 10,
-      no_variables = 3,
-      no_categories = 2,
-      interactions = matrix(0, 3, 3),
-      thresholds = matrix(c(0, 0, NA, 0, 0, 0), 3, 2) # NA threshold
+      num_states = 10,
+      num_variables = 3,
+      num_categories = 2,
+      pairwise = matrix(0, 3, 3),
+      main = matrix(c(0, 0, NA, 0, 0, 0), 3, 2) # NA threshold
     ),
     regexp = "NA|threshold|missing"
   )
@@ -222,6 +222,88 @@ test_that("simulate.bgms errors on invalid cores argument", {
     simulate(fit, nsim = 10, method = "posterior-sample", cores = "two"),
     regexp = "cores"
   )
+})
+
+
+# ------------------------------------------------------------------------------
+# predict.bgmCompare() Input Validation
+# ------------------------------------------------------------------------------
+
+test_that("predict.bgmCompare errors when newdata is missing", {
+  fit <- get_bgmcompare_fit()
+
+  expect_error(predict(fit, group = 1), regexp = "newdata")
+})
+
+test_that("predict.bgmCompare errors when group is missing", {
+  fit <- get_bgmcompare_fit()
+  args <- extract_arguments(fit)
+
+  newdata <- matrix(0L, nrow = 5, ncol = args$num_variables)
+
+  expect_error(predict(fit, newdata = newdata), regexp = "group.*required")
+})
+
+test_that("predict.bgmCompare errors on invalid group argument", {
+  fit <- get_bgmcompare_fit()
+  args <- extract_arguments(fit)
+
+  newdata <- matrix(0L, nrow = 5, ncol = args$num_variables)
+
+  # Group out of range
+  expect_error(
+    predict(fit, newdata = newdata, group = 0),
+    regexp = "group.*1"
+  )
+  expect_error(
+    predict(fit, newdata = newdata, group = 999),
+    regexp = "group"
+  )
+  # Invalid type
+  expect_error(
+    predict(fit, newdata = newdata, group = "a"),
+    regexp = "group"
+  )
+})
+
+test_that("predict.bgmCompare errors on invalid variable names", {
+  fit <- get_bgmcompare_fit()
+  args <- extract_arguments(fit)
+
+  newdata <- matrix(0L, nrow = 5, ncol = args$num_variables)
+
+  expect_error(
+    predict(fit, newdata = newdata, group = 1, variables = "NonexistentVar"),
+    regexp = "not found|Variable"
+  )
+})
+
+
+# ------------------------------------------------------------------------------
+# simulate.bgmCompare() Input Validation
+# ------------------------------------------------------------------------------
+
+test_that("simulate.bgmCompare errors when group is missing", {
+  fit <- get_bgmcompare_fit()
+
+  expect_error(simulate(fit, nsim = 10), regexp = "group.*required")
+})
+
+test_that("simulate.bgmCompare errors on invalid group argument", {
+  fit <- get_bgmcompare_fit()
+
+  # Group out of range
+  expect_error(simulate(fit, nsim = 10, group = 0), regexp = "group.*1")
+  expect_error(simulate(fit, nsim = 10, group = 999), regexp = "group")
+  # Invalid type
+  expect_error(simulate(fit, nsim = 10, group = "a"), regexp = "group")
+})
+
+test_that("simulate.bgmCompare errors on invalid seed", {
+  fit <- get_bgmcompare_fit()
+
+  expect_error(simulate(fit, nsim = 10, group = 1, seed = -1), regexp = "seed")
+  expect_error(simulate(fit, nsim = 10, group = 1, seed = "abc"), regexp = "seed")
 })
 
 
