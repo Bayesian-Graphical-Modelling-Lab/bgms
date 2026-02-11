@@ -93,7 +93,7 @@ public:
 };
 
 
-// === Stan-style Dynamic Warmup Schedule with Adaptive Windows ===
+// === Dynamic Warmup Schedule with Adaptive Windows ===
 //
 // For edge_selection = FALSE:
 //   Stage 1 (init), Stage 2 (doubling windows), Stage 3a (terminal)
@@ -298,7 +298,7 @@ public:
       mass_accumulator.update(theta);
       int w = schedule.current_window(iteration);
       if (iteration + 1 == schedule.window_ends[w]) {
-        // STAN convention: inv_mass = variance (not 1/variance!)
+        // inv_mass = variance (not 1/variance!)
         // Higher variance → higher inverse mass → parameter moves more freely
         inv_mass_ = mass_accumulator.variance();
         mass_accumulator.reset();
@@ -332,7 +332,6 @@ public:
    * This should be called after running heuristic_initial_step_size() with
    * the new mass matrix to find an appropriate starting step size.
    *
-   * Following STAN's approach:
    * - Set the new step size
    * - Set mu = log(10 * new_step_size) as the adaptation target
    * - Restart the dual averaging counters
@@ -340,7 +339,7 @@ public:
   void reinit_stepsize(double new_step_size) {
     step_size_ = new_step_size;
     step_adapter.restart(new_step_size);
-    // Set mu to log(10 * epsilon) as per STAN's approach
+    // Set mu to log(10 * epsilon) for dual averaging
     step_adapter.mu = MY_LOG(10.0 * new_step_size);
     mass_matrix_updated_ = false;
   }
