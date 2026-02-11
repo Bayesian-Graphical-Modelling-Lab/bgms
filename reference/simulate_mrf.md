@@ -124,10 +124,10 @@ for simulating from a fitted model.
 num_variables = 5
 num_categories = sample(1:5, size = num_variables, replace = TRUE)
 
-Interactions = matrix(0, nrow = num_variables, ncol = num_variables)
-Interactions[2, 1] = Interactions[4, 1] = Interactions[3, 2] =
-  Interactions[5, 2] = Interactions[5, 4] = .25
-Interactions = Interactions + t(Interactions)
+Pairwise = matrix(0, nrow = num_variables, ncol = num_variables)
+Pairwise[2, 1] = Pairwise[4, 1] = Pairwise[3, 2] =
+  Pairwise[5, 2] = Pairwise[5, 4] = .25
+Pairwise = Pairwise + t(Pairwise)
 Main = matrix(0, nrow = num_variables, ncol = max(num_categories))
 
 x = simulate_mrf(
@@ -137,16 +137,27 @@ x = simulate_mrf(
   pairwise = Pairwise,
   main = Main
 )
-#> Error: object 'Pairwise' not found
+#> Warning: The matrix ``main'' contains numeric values for variable 1 for category 
+#> (categories, i.e., columns) exceding the maximum of 1. These values will 
+#> be ignored.
+#> Warning: The matrix ``main'' contains numeric values for variable 3 for category 
+#> (categories, i.e., columns) exceding the maximum of 2. These values will 
+#> be ignored.
+#> Warning: The matrix ``main'' contains numeric values for variable 4 for category 
+#> (categories, i.e., columns) exceding the maximum of 2. These values will 
+#> be ignored.
+#> Warning: The matrix ``main'' contains numeric values for variable 5 for category 
+#> (categories, i.e., columns) exceding the maximum of 3. These values will 
+#> be ignored.
 
 # Generate responses from a network of 2 ordinal and 3 Blume-Capel variables.
 num_variables = 5
 num_categories = 4
 
-Interactions = matrix(0, nrow = num_variables, ncol = num_variables)
-Interactions[2, 1] = Interactions[4, 1] = Interactions[3, 2] =
-  Interactions[5, 2] = Interactions[5, 4] = .25
-Interactions = Interactions + t(Interactions)
+Pairwise = matrix(0, nrow = num_variables, ncol = num_variables)
+Pairwise[2, 1] = Pairwise[4, 1] = Pairwise[3, 2] =
+  Pairwise[5, 2] = Pairwise[5, 4] = .25
+Pairwise = Pairwise + t(Pairwise)
 
 Main = matrix(NA, num_variables, num_categories)
 Main[, 1] = -1
@@ -163,5 +174,4 @@ x = simulate_mrf(
   variable_type = c("b", "b", "o", "b", "o"),
   baseline_category = 2
 )
-#> Error: object 'Pairwise' not found
 ```
