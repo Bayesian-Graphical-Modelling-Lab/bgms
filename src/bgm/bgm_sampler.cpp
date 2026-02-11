@@ -588,8 +588,7 @@ void update_hmc_bgm(
   adapt.update(current_state, result.accept_prob, iteration);
 
   // If mass matrix was just updated, re-run the heuristic to find a good
-  // step size for the new mass matrix (following STAN's approach).
-  // STAN uses the current step size as the starting point for the heuristic.
+  // step size for the new mass matrix. Use current step size as starting point.
   if (adapt.mass_matrix_just_updated()) {
     arma::vec new_inv_mass = inv_mass_active(
       adapt.inv_mass_diag(), inclusion_indicator, num_categories,
@@ -734,8 +733,7 @@ SamplerResult update_nuts_bgm(
   adapt.update(current_state, result.accept_prob, iteration);
 
   // If mass matrix was just updated, re-run the heuristic to find a good
-  // step size for the new mass matrix (following STAN's approach).
-  // STAN uses the current step size as the starting point for the heuristic.
+  // step size for the new mass matrix. Use current step size as starting point.
   if (adapt.mass_matrix_just_updated()) {
     arma::vec new_inv_mass = inv_mass_active(
       adapt.inv_mass_diag(), inclusion_indicator, num_categories,
