@@ -30,7 +30,6 @@ extract_arguments = function(bgms_object) {
 #' @rdname extractor_functions
 #' @export
 extract_arguments.bgms = function(bgms_object) {
-  if(!inherits(bgms_object, "bgms")) stop("Object must be of class 'bgms'.")
   if(is.null(bgms_object$arguments)) {
     stop("Fit object predates bgms version 0.1.3. Upgrade the model output.")
   }
@@ -41,13 +40,9 @@ extract_arguments.bgms = function(bgms_object) {
 #' @export
 extract_arguments.bgmCompare = function(bgms_object) {
   if(is.null(bgms_object$arguments)) {
-    stop(paste0(
-      "Extractor functions have been defined for bgms versions 0.1.3 and up but not \n",
-      "for older versions. The current fit object predates version 0.1.3."
-    ))
-  } else {
-    return(bgms_object$arguments)
+    stop("Fit object predates bgms version 0.1.3. Upgrade the model output.")
   }
+  return(bgms_object$arguments)
 }
 
 #' @rdname extractor_functions
@@ -85,24 +80,14 @@ extract_indicators.bgms = function(bgms_object) {
       "0.1.6.0",
       I("The '$indicator' field is deprecated; please refit with bgms >= 0.1.6.0")
     )
-    # In 0.1.4.x, $indicator is a matrix (iter x edges), not a list
-    if(is.matrix(bgms_object$indicator)) {
-      return(bgms_object$indicator)
-    }
-    # Fallback for list format (if any intermediate versions used this)
-    indicator_samples = do.call(rbind, bgms_object$indicator)
-    return(indicator_samples)
+    return(bgms_object$indicator)
   }
 
   # Defunct format (pre-0.1.4): $gamma field
-  if(!is.null(bgms_object$gamma)) {
-    lifecycle::deprecate_stop(
-      "0.1.4",
-      I("The '$gamma' field is defunct; please refit with bgms >= 0.1.6.0")
-    )
-  }
-
-  stop("No indicator samples found in this object.")
+  lifecycle::deprecate_stop(
+    "0.1.4",
+    I("The '$gamma' field is defunct; please refit with bgms >= 0.1.6.0")
+  )
 }
 
 #' @rdname extractor_functions
@@ -114,12 +99,7 @@ extract_indicators.bgmCompare = function(bgms_object) {
     stop("To access difference indicators, the model must be run with difference_selection = TRUE.")
   }
 
-  indicators_list = bgms_object$raw_samples$indicator
-  if(is.null(indicators_list)) {
-    stop("No indicator samples found in this object.")
-  }
-
-  indicator_samples = do.call(rbind, indicators_list)
+  indicator_samples = do.call(rbind, bgms_object$raw_samples$indicator)
   param_names = bgms_object$raw_samples$parameter_names$indicators
   if(!is.null(param_names)) {
     colnames(indicator_samples) = param_names
@@ -162,20 +142,13 @@ extract_posterior_inclusion_probabilities.bgms = function(bgms_object) {
       "0.1.6.0",
       I("The '$indicator' field is deprecated; please refit with bgms >= 0.1.6.0")
     )
-    # Check data structure: matrix (raw samples) vs vector (pre-computed means)
-    if(is.matrix(bgms_object$indicator) && nrow(bgms_object$indicator) > 1) {
-      edge_means = colMeans(bgms_object$indicator)
-    } else {
-      edge_means = as.vector(bgms_object$indicator)
-    }
-  } else if(!is.null(bgms_object$gamma)) {
+    edge_means = colMeans(bgms_object$indicator)
+  } else {
     # Defunct format (pre-0.1.4)
     lifecycle::deprecate_stop(
       "0.1.4.2",
       I("The '$gamma' field is defunct; please refit with bgms >= 0.1.6.0")
     )
-  } else {
-    stop("No indicator data found to compute posterior inclusion probabilities.")
   }
 
   pip_matrix = matrix(0, num_vars, num_vars)
@@ -198,20 +171,6 @@ extract_sbm = function(bgms_object) {
 #' @rdname extractor_functions
 #' @export
 extract_sbm.bgms = function(bgms_object) {
-  if(!inherits(bgms_object, "bgms")) stop("Object must be of class 'bgms'.")
-
-  # Checks
-  ver = try(utils::packageVersion("bgms"), silent = TRUE)
-  if(inherits(ver, "try-error") || is.na(ver)) {
-    stop("Could not determine 'bgms' package version.")
-  }
-  if(utils::compareVersion(as.character(ver), "0.1.6.0") < 0) {
-    stop(paste0(
-      "Extractor functions for the SBM prior are defined for bgms version 0.1.6.0. ",
-      "The current installed version is ", as.character(ver), "."
-    ))
-  }
-
   arguments = extract_arguments(bgms_object)
 
   if(!isTRUE(arguments$edge_selection)) {
@@ -224,33 +183,11 @@ extract_sbm.bgms = function(bgms_object) {
     ))
   }
 
-  posterior_num_blocks = try(bgms_object$posterior_num_blocks, silent = TRUE)
-  posterior_mean_allocations = try(bgms_object$posterior_mean_allocations, silent = TRUE)
-  posterior_mode_allocations = try(bgms_object$posterior_mode_allocations, silent = TRUE)
-  posterior_mean_coclustering_matrix = try(bgms_object$posterior_mean_coclustering_matrix, silent = TRUE)
-
-  if(inherits(posterior_num_blocks, "try-error")) posterior_num_blocks = NULL
-  if(inherits(posterior_mean_allocations, "try-error")) posterior_mean_allocations = NULL
-  if(inherits(posterior_mode_allocations, "try-error")) posterior_mode_allocations = NULL
-  if(inherits(posterior_mean_coclustering_matrix, "try-error")) posterior_mean_coclustering_matrix = NULL
-
-  if(is.null(posterior_num_blocks) ||
-    is.null(posterior_mean_allocations) ||
-    is.null(posterior_mode_allocations) ||
-    is.null(posterior_mean_coclustering_matrix)) {
-    stop(paste0(
-      "SBM summaries not found in this object. Missing one or more of: ",
-      "posterior_num_blocks, posterior_mean_allocations, ",
-      "posterior_mode_allocations, posterior_mean_coclustering_matrix."
-    ))
-  }
-
-
   return(list(
-    posterior_num_blocks               = posterior_num_blocks,
-    posterior_mean_allocations         = posterior_mean_allocations,
-    posterior_mode_allocations         = posterior_mode_allocations,
-    posterior_mean_coclustering_matrix = posterior_mean_coclustering_matrix
+    posterior_num_blocks               = bgms_object$posterior_num_blocks,
+    posterior_mean_allocations         = bgms_object$posterior_mean_allocations,
+    posterior_mode_allocations         = bgms_object$posterior_mode_allocations,
+    posterior_mean_coclustering_matrix = bgms_object$posterior_mean_coclustering_matrix
   ))
 }
 
@@ -271,17 +208,10 @@ extract_posterior_inclusion_probabilities.bgmCompare = function(bgms_object) {
   num_variables = as.integer(arguments$num_variables)
   projection = arguments$projection # [num_groups x (num_groups-1)]
 
-  # ---- helper: combine chains into [iter, chain, param], robust to vectors/1-col
+  # ---- helper: combine chains into [iter, chain, param]
   to_array3d = function(xlist) {
-    if(is.null(xlist)) {
-      return(NULL)
-    }
     stopifnot(length(xlist) >= 1)
-    mats = lapply(xlist, function(x) {
-      m = as.matrix(x)
-      if(is.null(dim(m))) m = matrix(m, ncol = 1L)
-      m
-    })
+    mats = lapply(xlist, as.matrix)
     niter = nrow(mats[[1]])
     nparam = ncol(mats[[1]])
     arr = array(NA_real_, dim = c(niter, length(mats), nparam))
@@ -290,8 +220,7 @@ extract_posterior_inclusion_probabilities.bgmCompare = function(bgms_object) {
   }
 
   array3d_ind = to_array3d(bgms_object$raw_samples$indicator)
-  if(!is.null(array3d_ind)) {
-    mean_ind = apply(array3d_ind, 3, mean)
+  mean_ind = apply(array3d_ind, 3, mean)
 
     # reconstruct VxV matrix using the sampler’s interleaved order:
     # (1,1),(1,2),...,(1,V),(2,2),...,(2,V),...,(V,V)
@@ -316,14 +245,10 @@ extract_posterior_inclusion_probabilities.bgmCompare = function(bgms_object) {
         }
       }
     }
-    indicators = ind_mat
-    rownames(indicators) = arguments$data_columnnames
-    colnames(indicators) = arguments$data_columnnames
-  } else {
-    indicators = NULL
-  }
 
-  return(indicators)
+  rownames(ind_mat) = arguments$data_columnnames
+  colnames(ind_mat) = arguments$data_columnnames
+  return(ind_mat)
 }
 
 #' @rdname extractor_functions
@@ -399,53 +324,25 @@ extract_pairwise_interactions.bgms = function(bgms_object) {
     return(mat)
   }
 
-  # Current format fallback (0.1.6.0+): summary only
-  if(!is.null(bgms_object$posterior_summary_pairwise)) {
-    vec = bgms_object$posterior_summary_pairwise[, "mean"]
-    mat = matrix(0, nrow = num_vars, ncol = num_vars)
-    mat[lower.tri(mat)] = vec
-    mat = mat + t(mat)
-    dimnames(mat) = list(var_names, var_names)
-    return(mat)
-  }
-
-  # Deprecated format (0.1.4–0.1.5): $interactions or $posterior_mean_pairwise
+  # Deprecated format (0.1.4–0.1.5): $interactions
   if(!is.null(bgms_object$interactions)) {
     lifecycle::deprecate_warn(
       "0.1.6.0",
       I("The '$interactions' field is deprecated; please refit with bgms >= 0.1.6.0")
     )
-    # In 0.1.4.x, $interactions is a matrix (iter x edges) of raw samples
-    if(is.matrix(bgms_object$interactions) && nrow(bgms_object$interactions) > 1) {
-      edge_means = colMeans(bgms_object$interactions)
-    } else {
-      edge_means = as.vector(bgms_object$interactions)
-    }
+    edge_means = colMeans(bgms_object$interactions)
     mat = matrix(0, nrow = num_vars, ncol = num_vars)
     mat[lower.tri(mat)] = edge_means
     mat = mat + t(mat)
     dimnames(mat) = list(var_names, var_names)
     return(mat)
   }
-  if(!is.null(bgms_object$posterior_mean_pairwise)) {
-    lifecycle::deprecate_warn(
-      "0.1.6.0",
-      I("The '$posterior_mean_pairwise' field is deprecated; please refit with bgms >= 0.1.6.0")
-    )
-    mat = bgms_object$posterior_mean_pairwise
-    dimnames(mat) = list(var_names, var_names)
-    return(mat)
-  }
 
   # Defunct format (pre-0.1.4)
-  if(!is.null(bgms_object$pairwise_effects)) {
-    lifecycle::deprecate_stop(
-      "0.1.4.2",
-      I("The '$pairwise_effects' field is defunct; please refit with bgms >= 0.1.6.0")
-    )
-  }
-
-  stop("No pairwise interaction effects found in the object.")
+  lifecycle::deprecate_stop(
+    "0.1.4.2",
+    I("The '$pairwise_effects' field is defunct; please refit with bgms >= 0.1.6.0")
+  )
 }
 
 
@@ -454,12 +351,7 @@ extract_pairwise_interactions.bgms = function(bgms_object) {
 extract_pairwise_interactions.bgmCompare = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
 
-  if(is.null(bgms_object$raw_samples$pairwise)) {
-    stop("No raw samples found for the pairwise effects in the object.")
-  }
-
-  pairwise_list = bgms_object$raw_samples$pairwise
-  pairwise_samples = do.call(rbind, pairwise_list)
+  pairwise_samples = do.call(rbind, bgms_object$raw_samples$pairwise)
 
   num_vars = bgms_object$arguments$num_variables
   num_pairs = num_vars * (num_vars - 1) / 2
@@ -513,42 +405,24 @@ extract_category_thresholds.bgms = function(bgms_object) {
     return(mat)
   }
 
-  # Deprecated format (0.1.4–0.1.5): $thresholds or $posterior_mean_main
+  # Deprecated format (0.1.4–0.1.5): $thresholds
   if(!is.null(bgms_object$thresholds)) {
     lifecycle::deprecate_warn(
       "0.1.6.0",
       I("The '$thresholds' field is deprecated; please refit with bgms >= 0.1.6.0")
     )
-    # In 0.1.4.x, $thresholds is a matrix (iter x vars) of raw samples
-    if(is.matrix(bgms_object$thresholds) && nrow(bgms_object$thresholds) > 1) {
-      means = colMeans(bgms_object$thresholds)
-    } else {
-      means = as.vector(bgms_object$thresholds)
-    }
+    means = colMeans(bgms_object$thresholds)
     # For binary variables in 0.1.4.x, there's 1 threshold per variable
     mat = matrix(means, nrow = length(means), ncol = 1)
     rownames(mat) = var_names
     return(mat)
   }
-  if(!is.null(bgms_object$posterior_mean_main)) {
-    lifecycle::deprecate_warn(
-      "0.1.6.0",
-      I("The '$posterior_mean_main' field is deprecated; please refit with bgms >= 0.1.6.0")
-    )
-    mat = bgms_object$posterior_mean_main
-    rownames(mat) = var_names
-    return(mat)
-  }
 
   # Defunct format (pre-0.1.4)
-  if(!is.null(bgms_object$main_effects)) {
-    lifecycle::deprecate_stop(
-      "0.1.4.2",
-      I("The '$main_effects' field is defunct; please refit with bgms >= 0.1.6.0")
-    )
-  }
-
-  stop("No threshold or main effects found in the object.")
+  lifecycle::deprecate_stop(
+    "0.1.4.2",
+    I("The '$main_effects' field is defunct; please refit with bgms >= 0.1.6.0")
+  )
 }
 
 #' @rdname extractor_functions
@@ -556,12 +430,7 @@ extract_category_thresholds.bgms = function(bgms_object) {
 extract_category_thresholds.bgmCompare = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
 
-  if(is.null(bgms_object$raw_samples$main)) {
-    stop("No raw samples found for the main effects in the object.")
-  }
-
-  main_list = bgms_object$raw_samples$main
-  main_samples = do.call(rbind, main_list)
+  main_samples = do.call(rbind, bgms_object$raw_samples$main)
 
   num_vars = bgms_object$arguments$num_variables
   num_main = length(bgms_object$raw_samples$parameter_names$main_baseline)
@@ -590,17 +459,10 @@ extract_group_params.bgmCompare = function(bgms_object) {
   num_variables = as.integer(arguments$num_variables)
   projection = arguments$projection # [num_groups x (num_groups-1)]
 
-  # ---- helper: combine chains into [iter, chain, param], robust to vectors/1-col
+  # ---- helper: combine chains into [iter, chain, param]
   to_array3d = function(xlist) {
-    if(is.null(xlist)) {
-      return(NULL)
-    }
     stopifnot(length(xlist) >= 1)
-    mats = lapply(xlist, function(x) {
-      m = as.matrix(x)
-      if(is.null(dim(m))) m = matrix(m, ncol = 1L)
-      m
-    })
+    mats = lapply(xlist, as.matrix)
     niter = nrow(mats[[1]])
     nparam = ncol(mats[[1]])
     arr = array(NA_real_, dim = c(niter, length(mats), nparam))
@@ -611,7 +473,6 @@ extract_group_params.bgmCompare = function(bgms_object) {
   # ============================================================
   # ---- main effects ----
   array3d_main = to_array3d(bgms_object$raw_samples$main)
-  stopifnot(!is.null(array3d_main))
   mean_main = apply(array3d_main, 3, mean)
 
   stopifnot(length(mean_main) %% num_groups == 0L)
@@ -645,7 +506,6 @@ extract_group_params.bgmCompare = function(bgms_object) {
   # ============================================================
   # ---- pairwise effects ----
   array3d_pair = to_array3d(bgms_object$raw_samples$pairwise)
-  stopifnot(!is.null(array3d_pair))
   mean_pair = apply(array3d_pair, 3, mean)
 
   stopifnot(length(mean_pair) %% num_groups == 0L)
@@ -710,8 +570,6 @@ extract_rhat = function(bgms_object) {
 #' @rdname extractor_functions
 #' @export
 extract_rhat.bgms = function(bgms_object) {
-  if(!inherits(bgms_object, "bgms")) stop("Object must be of class 'bgms'.")
-
   result = list()
 
   # Main effect Rhat
@@ -742,8 +600,6 @@ extract_rhat.bgms = function(bgms_object) {
 #' @rdname extractor_functions
 #' @export
 extract_rhat.bgmCompare = function(bgms_object) {
-  if(!inherits(bgms_object, "bgmCompare")) stop("Object must be of class 'bgmCompare'.")
-
   result = list()
 
   # Main baseline Rhat
@@ -797,8 +653,6 @@ extract_ess = function(bgms_object) {
 #' @rdname extractor_functions
 #' @export
 extract_ess.bgms = function(bgms_object) {
-  if(!inherits(bgms_object, "bgms")) stop("Object must be of class 'bgms'.")
-
   result = list()
 
   # Main effect ESS
@@ -829,8 +683,6 @@ extract_ess.bgms = function(bgms_object) {
 #' @rdname extractor_functions
 #' @export
 extract_ess.bgmCompare = function(bgms_object) {
-  if(!inherits(bgms_object, "bgmCompare")) stop("Object must be of class 'bgmCompare'.")
-
   result = list()
 
   # Main baseline ESS
