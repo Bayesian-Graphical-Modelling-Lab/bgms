@@ -79,7 +79,7 @@ double heuristic_initial_step_size(
   while (direction * (H1 - H0) > -direction * MY_LOG(2.0) && attempts < max_attempts) {
     eps = (direction == 1) ? 2.0 * eps : 0.5 * eps;
 
-    // Resample momentum for step size search
+    // Resample momentum on each iteration for step size search
     r = arma_rnorm_vec(rng, theta.n_elem);
     kin0 = kinetic_energy(r, inv_mass_diag);
     H0 = logp0 - kin0;
@@ -151,7 +151,7 @@ double heuristic_initial_step_size(
   while (direction * (H1 - H0) > -direction * MY_LOG(2.0) && attempts < max_attempts) {
     eps = (direction == 1) ? 2.0 * eps : 0.5 * eps;
 
-    // Resample momentum for step size search
+    // Resample momentum on each iteration for step size search
     r = arma::sqrt(1.0 / inv_mass_diag) % arma_rnorm_vec(rng, theta.n_elem);
     kin0 = kinetic_energy(r, inv_mass_diag);
     H0 = logp0 - kin0;
