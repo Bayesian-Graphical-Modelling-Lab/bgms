@@ -12,7 +12,7 @@
 class ChainResultNew {
 
 public:
-    ChainResultNew() {}
+    ChainResultNew() = default;
 
     // Error handling
     bool        error = false;

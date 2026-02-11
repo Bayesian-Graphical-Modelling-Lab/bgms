@@ -104,20 +104,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// chol_update_arma
-arma::mat chol_update_arma(arma::mat& R, arma::vec& u, bool downdate, double eps);
-RcppExport SEXP _bgms_chol_update_arma(SEXP RSEXP, SEXP uSEXP, SEXP downdateSEXP, SEXP epsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::mat& >::type R(RSEXP);
-    Rcpp::traits::input_parameter< arma::vec& >::type u(uSEXP);
-    Rcpp::traits::input_parameter< bool >::type downdate(downdateSEXP);
-    Rcpp::traits::input_parameter< double >::type eps(epsSEXP);
-    rcpp_result_gen = Rcpp::wrap(chol_update_arma(R, u, downdate, eps));
-    return rcpp_result_gen;
-END_RCPP
-}
 // compute_conditional_probs
 Rcpp::List compute_conditional_probs(arma::imat observations, arma::ivec predict_vars, arma::mat interactions, arma::mat thresholds, arma::ivec no_categories, Rcpp::StringVector variable_type, arma::ivec baseline_category);
 RcppExport SEXP _bgms_compute_conditional_probs(SEXP observationsSEXP, SEXP predict_varsSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP no_categoriesSEXP, SEXP variable_typeSEXP, SEXP baseline_categorySEXP) {
@@ -272,7 +258,6 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_bgms_run_bgmCompare_parallel", (DL_FUNC) &_bgms_run_bgmCompare_parallel, 38},
     {"_bgms_run_bgm_parallel", (DL_FUNC) &_bgms_run_bgm_parallel, 35},
-    {"_bgms_chol_update_arma", (DL_FUNC) &_bgms_chol_update_arma, 4},
     {"_bgms_compute_conditional_probs", (DL_FUNC) &_bgms_compute_conditional_probs, 7},
     {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 7},
     {"_bgms_sample_bcomrf_gibbs", (DL_FUNC) &_bgms_sample_bcomrf_gibbs, 9},

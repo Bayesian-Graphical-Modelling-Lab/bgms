@@ -4,11 +4,11 @@
 #include <RcppParallel.h>
 #include <tbb/global_control.h>
 
-#include "ggm_model.h"
+#include "models/ggm/ggm_model.h"
 #include "utils/progress_manager.h"
 #include "utils/common_helpers.h"
 #include "priors/edge_prior.h"
-#include "chainResultNew.h"
+#include "mcmc/chain_result.h"
 #include "mcmc/mcmc_runner.h"
 #include "mcmc/sampler_config.h"
 
@@ -34,7 +34,7 @@ Rcpp::List sample_ggm(
 ) {
 
     // Create model from R input
-    GaussianVariables model = createGaussianVariablesFromR(
+    GGMModel model = createGGMModelFromR(
         inputFromR, prior_inclusion_prob, initial_edge_indicators, edge_selection);
 
     // Configure sampler - GGM only supports MH

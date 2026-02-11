@@ -1,6 +1,6 @@
 #include <RcppArmadillo.h>
-#include "omrf_model.h"
-#include "adaptiveMetropolis.h"
+#include "models/omrf/omrf_model.h"
+#include "models/adaptive_metropolis.h"
 #include "rng/rng_utils.h"
 #include "mcmc/mcmc_hmc.h"
 #include "mcmc/mcmc_nuts.h"
@@ -317,6 +317,38 @@ void OMRFModel::unvectorize_parameters(const arma::vec& param_vec) {
 }
 
 
+void OMRFModel::unvectorize_to_temps(
+    const arma::vec& parameters,
+    arma::mat& temp_main,
+    arma::mat& temp_pairwise,
+    arma::mat& temp_residual
+) const {
+    int offset = 0;
+    for (size_t v = 0; v < p_; ++v) {
+        if (is_ordinal_variable_(v)) {
+            int num_cats = num_categories_(v);
+            for (int c = 0; c < num_cats; ++c) {
+                temp_main(v, c) = parameters(offset++);
+            }
+        } else {
+            temp_main(v, 0) = parameters(offset++);
+            temp_main(v, 1) = parameters(offset++);
+        }
+    }
+
+    for (size_t v1 = 0; v1 < p_ - 1; ++v1) {
+        for (size_t v2 = v1 + 1; v2 < p_; ++v2) {
+            if (edge_indicators_(v1, v2) == 1) {
+                temp_pairwise(v1, v2) = parameters(offset++);
+                temp_pairwise(v2, v1) = temp_pairwise(v1, v2);
+            }
+        }
+    }
+
+    temp_residual = observations_double_ * temp_pairwise;
+}
+
+
 arma::vec OMRFModel::get_vectorized_parameters() const {
     return vectorize_parameters();
 }
@@ -493,37 +525,10 @@ void OMRFModel::get_active_inv_mass_into(arma::vec& active_inv_mass) const {
 // =============================================================================
 
 double OMRFModel::logp(const arma::vec& parameters) {
-    // Unvectorize into temporary matrices (safe approach)
     arma::mat temp_main = main_effects_;
     arma::mat temp_pairwise = pairwise_effects_;
-
-    // Unvectorize parameters into temporaries
-    int offset = 0;
-    for (size_t v = 0; v < p_; ++v) {
-        if (is_ordinal_variable_(v)) {
-            int num_cats = num_categories_(v);
-            for (int c = 0; c < num_cats; ++c) {
-                temp_main(v, c) = parameters(offset++);
-            }
-        } else {
-            temp_main(v, 0) = parameters(offset++);
-            temp_main(v, 1) = parameters(offset++);
-        }
-    }
-
-    for (size_t v1 = 0; v1 < p_ - 1; ++v1) {
-        for (size_t v2 = v1 + 1; v2 < p_; ++v2) {
-            if (edge_indicators_(v1, v2) == 1) {
-                temp_pairwise(v1, v2) = parameters(offset++);
-                temp_pairwise(v2, v1) = temp_pairwise(v1, v2);
-            }
-        }
-    }
-
-    // Compute residual matrix from temp_pairwise
-    arma::mat temp_residual = arma::conv_to<arma::mat>::from(observations_) * temp_pairwise;
-
-    // Compute log-posterior with temporaries
+    arma::mat temp_residual;
+    unvectorize_to_temps(parameters, temp_main, temp_pairwise, temp_residual);
     return log_pseudoposterior_with_state(temp_main, temp_pairwise, temp_residual);
 }
 
@@ -785,36 +790,10 @@ void OMRFModel::ensure_gradient_cache() {
 
 
 arma::vec OMRFModel::gradient(const arma::vec& parameters) {
-    // Unvectorize into temporary matrices (safe approach)
     arma::mat temp_main = main_effects_;
     arma::mat temp_pairwise = pairwise_effects_;
-
-    // Unvectorize parameters into temporaries
-    int offset = 0;
-    for (size_t v = 0; v < p_; ++v) {
-        if (is_ordinal_variable_(v)) {
-            int num_cats = num_categories_(v);
-            for (int c = 0; c < num_cats; ++c) {
-                temp_main(v, c) = parameters(offset++);
-            }
-        } else {
-            temp_main(v, 0) = parameters(offset++);
-            temp_main(v, 1) = parameters(offset++);
-        }
-    }
-
-    for (size_t v1 = 0; v1 < p_ - 1; ++v1) {
-        for (size_t v2 = v1 + 1; v2 < p_; ++v2) {
-            if (edge_indicators_(v1, v2) == 1) {
-                temp_pairwise(v1, v2) = parameters(offset++);
-                temp_pairwise(v2, v1) = temp_pairwise(v1, v2);
-            }
-        }
-    }
-
-    // Compute residual matrix from temp_pairwise
-    arma::mat temp_residual = arma::conv_to<arma::mat>::from(observations_) * temp_pairwise;
-
+    arma::mat temp_residual;
+    unvectorize_to_temps(parameters, temp_main, temp_pairwise, temp_residual);
     return gradient_with_state(temp_main, temp_pairwise, temp_residual);
 }
 
@@ -930,31 +909,8 @@ std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& param
 
     arma::mat temp_main(main_effects_.n_rows, main_effects_.n_cols, arma::fill::none);
     arma::mat temp_pairwise(p_, p_, arma::fill::zeros);
-
-    // Unvectorize parameters into temporaries
-    int offset = 0;
-    for (size_t v = 0; v < p_; ++v) {
-        if (is_ordinal_variable_(v)) {
-            int num_cats = num_categories_(v);
-            for (int c = 0; c < num_cats; ++c) {
-                temp_main(v, c) = parameters(offset++);
-            }
-        } else {
-            temp_main(v, 0) = parameters(offset++);
-            temp_main(v, 1) = parameters(offset++);
-        }
-    }
-
-    for (size_t v1 = 0; v1 < p_ - 1; ++v1) {
-        for (size_t v2 = v1 + 1; v2 < p_; ++v2) {
-            if (edge_indicators_(v1, v2) == 1) {
-                temp_pairwise(v1, v2) = parameters(offset++);
-                temp_pairwise(v2, v1) = temp_pairwise(v1, v2);
-            }
-        }
-    }
-
-    arma::mat temp_residual = observations_double_ * temp_pairwise;
+    arma::mat temp_residual;
+    unvectorize_to_temps(parameters, temp_main, temp_pairwise, temp_residual);
 
     // Initialize gradient from cached observed statistics
     arma::vec gradient = grad_obs_cache_;
@@ -962,7 +918,7 @@ std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& param
 
     // Merged per-variable loop: compute probability table ONCE per variable
     // and derive both logp and gradient contributions from it.
-    offset = 0;
+    int offset = 0;
     for (size_t v = 0; v < p_; ++v) {
         int num_cats = num_categories_(v);
         arma::vec residual_score = temp_residual.col(v);

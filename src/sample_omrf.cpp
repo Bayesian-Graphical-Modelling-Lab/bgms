@@ -8,11 +8,11 @@
 #include <memory>
 #include <RcppArmadillo.h>
 
-#include "omrf_model.h"
+#include "models/omrf/omrf_model.h"
 #include "utils/progress_manager.h"
 #include "utils/common_helpers.h"
 #include "priors/edge_prior.h"
-#include "chainResultNew.h"
+#include "mcmc/chain_result.h"
 #include "mcmc/mcmc_runner.h"
 #include "mcmc/sampler_config.h"
 

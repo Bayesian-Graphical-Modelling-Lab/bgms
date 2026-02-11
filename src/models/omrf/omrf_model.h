@@ -2,8 +2,8 @@
 
 #include <memory>
 #include <functional>
-#include "base_model.h"
-#include "adaptiveMetropolis.h"
+#include "models/base_model.h"
+#include "models/adaptive_metropolis.h"
 #include "rng/rng_utils.h"
 #include "mcmc/mcmc_utils.h"
 #include "utils/common_helpers.h"
@@ -387,6 +387,17 @@ private:
      * Unflatten vector to parameter matrices
      */
     void unvectorize_parameters(const arma::vec& param_vec);
+
+    /**
+     * Unvectorize a parameter vector into temporary main/pairwise matrices,
+     * then compute the corresponding residual matrix.
+     */
+    void unvectorize_to_temps(
+        const arma::vec& parameters,
+        arma::mat& temp_main,
+        arma::mat& temp_pairwise,
+        arma::mat& temp_residual
+    ) const;
 
     /**
      * Extract active inverse mass (only for included edges)

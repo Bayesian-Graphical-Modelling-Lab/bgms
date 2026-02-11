@@ -9,10 +9,6 @@ run_bgm_parallel <- function(observations, num_categories, pairwise_scale, edge_
     .Call(`_bgms_run_bgm_parallel`, observations, num_categories, pairwise_scale, edge_prior, inclusion_probability, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, interaction_index_matrix, iter, warmup, counts_per_category, blume_capel_stats, main_alpha, main_beta, na_impute, missing_index, is_ordinal_variable, baseline_category, edge_selection, update_method, pairwise_effect_indices, target_accept, pairwise_stats, hmc_num_leapfrogs, nuts_max_depth, learn_mass_matrix, num_chains, nThreads, seed, progress_type, pairwise_scaling_factors)
 }
 
-chol_update_arma <- function(R, u, downdate = FALSE, eps = 1e-12) {
-    .Call(`_bgms_chol_update_arma`, R, u, downdate, eps)
-}
-
 compute_conditional_probs <- function(observations, predict_vars, interactions, thresholds, no_categories, variable_type, baseline_category) {
     .Call(`_bgms_compute_conditional_probs`, observations, predict_vars, interactions, thresholds, no_categories, variable_type, baseline_category)
 }

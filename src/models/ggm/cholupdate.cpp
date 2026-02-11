@@ -1,4 +1,4 @@
-#include "cholupdate.h"
+#include "models/ggm/cholupdate.h"
 
 extern "C" {
 
@@ -121,9 +121,5 @@ arma::mat chol_update_arma(arma::mat& R, arma::vec& u, bool downdate = false, do
     else
         cholesky_update(R, u, eps);
 
-    return R;
-    int n = R.n_cols;
-    int up = downdate ? 0 : 1;
-    chol_up(R.memptr(), u.memptr(), &n, &up, &eps);
     return R;
 }

@@ -1,9 +1,9 @@
 #pragma once
 
 #include <RcppArmadillo.h>
-#include "mcmc_utils.h"
-#include "sampler_config.h"
-#include "../base_model.h"
+#include "mcmc/mcmc_utils.h"
+#include "mcmc/sampler_config.h"
+#include "models/base_model.h"
 
 /**
  * BaseSampler - Abstract base class for MCMC samplers

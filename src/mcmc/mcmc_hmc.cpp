@@ -24,22 +24,13 @@ SamplerResult hmc_sampler(
     theta, r, step_size, grad, num_leapfrogs, inv_mass_diag
   );
 
-  // If leapfrog produced NaN/Inf, reject immediately
-  if (theta.has_nan() || theta.has_inf() || r.has_nan() || r.has_inf()) {
-    return {init_theta, 0.0};
-  }
-
   // Hamiltonians
   double current_H = -log_post(init_theta) + kinetic_energy(init_r, inv_mass_diag);
   double proposed_H = -log_post(theta) + kinetic_energy(r, inv_mass_diag);
   double log_accept_prob = current_H - proposed_H;
 
-  // NaN guard: treat non-finite Hamiltonian as rejection
-  if (!std::isfinite(log_accept_prob)) {
-    return {init_theta, 0.0};
-  }
-
   arma::vec state = (MY_LOG(runif(rng)) < log_accept_prob) ? theta : init_theta;
+
   double accept_prob = std::min(1.0, MY_EXP(log_accept_prob));
 
   return {state, accept_prob};

@@ -17,8 +17,8 @@
 
 // #include <memory>
 
-// #include "base_model.h"
-// #include "adaptiveMetropolis.h"
+// #include "models/base_model.h"
+// #include "models/adaptive_metropolis.h"
 // #include "rng/rng_utils.h"
 
 

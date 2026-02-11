@@ -93,7 +93,7 @@ public:
 };
 
 
-// === Dynamic Warmup Schedule with Adaptive Windows ===
+// === Stan-style Dynamic Warmup Schedule with Adaptive Windows ===
 //
 // For edge_selection = FALSE:
 //   Stage 1 (init), Stage 2 (doubling windows), Stage 3a (terminal)
@@ -332,6 +332,7 @@ public:
    * This should be called after running heuristic_initial_step_size() with
    * the new mass matrix to find an appropriate starting step size.
    *
+   * Following STAN's approach:
    * - Set the new step size
    * - Set mu = log(10 * new_step_size) as the adaptation target
    * - Restart the dual averaging counters

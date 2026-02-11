@@ -1,15 +1,14 @@
-#include "ggm_model.h"
-#include "adaptiveMetropolis.h"
+#include "models/ggm/ggm_model.h"
+#include "models/adaptive_metropolis.h"
 #include "rng/rng_utils.h"
-#include "cholupdate.h"
+#include "models/ggm/cholupdate.h"
 
-double GaussianVariables::compute_inv_submatrix_i(const arma::mat& A, const size_t i, const size_t ii, const size_t jj) const {
+double GGMModel::compute_inv_submatrix_i(const arma::mat& A, const size_t i, const size_t ii, const size_t jj) const {
     return(A(ii, jj) - A(ii, i) * A(jj, i) / A(i, i));
 }
 
-void GaussianVariables::get_constants(size_t i, size_t j) {
+void GGMModel::get_constants(size_t i, size_t j) {
 
-    // TODO: helper function?
     double logdet_omega = get_log_det(cholesky_of_precision_);
 
     double log_adj_omega_ii = logdet_omega + std::log(std::abs(covariance_matrix_(i, i)));
@@ -23,33 +22,29 @@ void GaussianVariables::get_constants(size_t i, size_t j) {
     );
     double Phi_q1q1 = std::exp((log_adj_omega_jj - log_abs_inv_omega_sub_jj) / 2);
 
-    constants_[1] = Phi_q1q;
-    constants_[2] = Phi_q1q1;
-    constants_[3] = precision_matrix_(i, j) - Phi_q1q * Phi_q1q1;
-    constants_[4] = Phi_q1q1;
-    constants_[5] = precision_matrix_(j, j) - Phi_q1q * Phi_q1q;
-    constants_[6] = constants_[5] + constants_[3] * constants_[3] / (constants_[4] * constants_[4]);
+    constants_[0] = Phi_q1q;
+    constants_[1] = Phi_q1q1;
+    constants_[2] = precision_matrix_(i, j) - Phi_q1q * Phi_q1q1;
+    constants_[3] = Phi_q1q1;
+    constants_[4] = precision_matrix_(j, j) - Phi_q1q * Phi_q1q;
+    constants_[5] = constants_[4] + constants_[2] * constants_[2] / (constants_[3] * constants_[3]);
 
 }
 
-double GaussianVariables::R(const double x) const {
-      if (x == 0) {
-        return constants_[6];
+double GGMModel::constrained_diagonal(const double x) const {
+    if (x == 0) {
+        return constants_[5];
     } else {
-        return constants_[5] + std::pow((x - constants_[3]) / constants_[4], 2);
+        return constants_[4] + std::pow((x - constants_[2]) / constants_[3], 2);
     }
 }
 
-double GaussianVariables::get_log_det(arma::mat triangular_A) const {
-    // assume A is an (upper) triangular cholesky factor
-    // returns the log determinant of A'A
-
-    // TODO: should we just do
-    // log_det(val, sign, trimatu(A))?
+double GGMModel::get_log_det(arma::mat triangular_A) const {
+    // log-determinant of A'A where A is upper-triangular Cholesky factor
     return 2 * arma::accu(arma::log(triangular_A.diag()));
 }
 
-double GaussianVariables::log_density_impl(const arma::mat& omega, const arma::mat& phi) const {
+double GGMModel::log_density_impl(const arma::mat& omega, const arma::mat& phi) const {
 
     double logdet_omega = get_log_det(phi);
     // TODO: why not just dot(omega, suf_stat_)?
@@ -60,9 +55,9 @@ double GaussianVariables::log_density_impl(const arma::mat& omega, const arma::m
     return log_likelihood;
 }
 
-double GaussianVariables::log_density_impl_edge(size_t i, size_t j) const {
+double GGMModel::log_density_impl_edge(size_t i, size_t j) const {
 
-    // this is the log likelihood ratio, not the full log likelihood like GaussianVariables::log_density_impl
+    // Log-likelihood ratio (not the full log-likelihood)
 
     double Ui2 = precision_matrix_(i, j) - precision_proposal_(i, j);
     double Uj2 = (precision_matrix_(j, j) - precision_proposal_(j, j)) / 2;
@@ -81,7 +76,7 @@ double GaussianVariables::log_density_impl_edge(size_t i, size_t j) const {
 
 }
 
-double GaussianVariables::log_density_impl_diag(size_t j) const {
+double GGMModel::log_density_impl_diag(size_t j) const {
     // same as above but for i == j, so Ui2 = 0
     double Uj2 = (precision_matrix_(j, j) - precision_proposal_(j, j)) / 2;
 
@@ -97,34 +92,33 @@ double GaussianVariables::log_density_impl_diag(size_t j) const {
 
 }
 
-void GaussianVariables::update_edge_parameter(size_t i, size_t j) {
+void GGMModel::update_edge_parameter(size_t i, size_t j) {
 
     if (edge_indicators_(i, j) == 0) {
         return; // Edge is not included; skip update
     }
 
     get_constants(i, j);
-    double Phi_q1q  = constants_[1];
-    double Phi_q1q1 = constants_[2];
+    double Phi_q1q  = constants_[0];
+    double Phi_q1q1 = constants_[1];
 
     size_t e = j * (j + 1) / 2 + i; // parameter index in vectorized form (column-major upper triangle)
     double proposal_sd = proposal_.get_proposal_sd(e);
 
     double phi_prop       = rnorm(rng_, Phi_q1q, proposal_sd);
-    double omega_prop_q1q = constants_[3] + constants_[4] * phi_prop;
-    double omega_prop_qq  = R(omega_prop_q1q);
+    double omega_prop_q1q = constants_[2] + constants_[3] * phi_prop;
+    double omega_prop_qq  = constrained_diagonal(omega_prop_q1q);
 
     // form full proposal matrix for Omega
-    precision_proposal_ = precision_matrix_; // TODO: needs to be a copy!
+    precision_proposal_ = precision_matrix_;
     precision_proposal_(i, j) = omega_prop_q1q;
     precision_proposal_(j, i) = omega_prop_q1q;
     precision_proposal_(j, j) = omega_prop_qq;
 
-    // double ln_alpha = log_likelihood(precision_proposal_) - log_likelihood();
     double ln_alpha = log_density_impl_edge(i, j);
 
-    ln_alpha += R::dcauchy(precision_proposal_(i, j), 0.0, 2.5, true);
-    ln_alpha -= R::dcauchy(precision_matrix_(i, j), 0.0, 2.5, true);
+    ln_alpha += R::dcauchy(precision_proposal_(i, j), 0.0, pairwise_scale_, true);
+    ln_alpha -= R::dcauchy(precision_matrix_(i, j), 0.0, pairwise_scale_, true);
 
     if (std::log(runif(rng_)) < ln_alpha) {
         // accept proposal
@@ -145,7 +139,7 @@ void GaussianVariables::update_edge_parameter(size_t i, size_t j) {
     proposal_.update_proposal_sd(e);
 }
 
-void GaussianVariables::cholesky_update_after_edge(double omega_ij_old, double omega_jj_old, size_t i, size_t j)
+void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_old, size_t i, size_t j)
 {
 
     v2_[0] = omega_ij_old - precision_proposal_(i, j);
@@ -178,7 +172,7 @@ void GaussianVariables::cholesky_update_after_edge(double omega_ij_old, double o
 
 }
 
-void GaussianVariables::update_diagonal_parameter(size_t i) {
+void GGMModel::update_diagonal_parameter(size_t i) {
     // Implementation of diagonal parameter update
     // 1-3) from before
     double logdet_omega = get_log_det(cholesky_of_precision_);
@@ -214,7 +208,7 @@ void GaussianVariables::update_diagonal_parameter(size_t i) {
     proposal_.update_proposal_sd(e);
 }
 
-void GaussianVariables::cholesky_update_after_diag(double omega_ii_old, size_t i)
+void GGMModel::cholesky_update_after_diag(double omega_ii_old, size_t i)
 {
 
     double delta = omega_ii_old - precision_proposal_(i, i);
@@ -236,7 +230,7 @@ void GaussianVariables::cholesky_update_after_diag(double omega_ii_old, size_t i
 }
 
 
-void GaussianVariables::update_edge_indicator_parameter_pair(size_t i, size_t j) {
+void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 
     size_t e = j * (j + 1) / 2 + i; // parameter index in vectorized form (column-major upper triangle)
     double proposal_sd = proposal_.get_proposal_sd(e);
@@ -247,9 +241,9 @@ void GaussianVariables::update_edge_indicator_parameter_pair(size_t i, size_t j)
         precision_proposal_(i, j) = 0.0;
         precision_proposal_(j, i) = 0.0;
 
-        // Update diagonal using R function with omega_ij = 0
+        // Update diagonal to preserve positive-definiteness
         get_constants(i, j);
-        precision_proposal_(j, j) = R(0.0);
+        precision_proposal_(j, j) = constrained_diagonal(0.0);
 
         // double ln_alpha = log_likelihood(precision_proposal_) - log_likelihood();
         double ln_alpha = log_density_impl_edge(i, j);
@@ -266,8 +260,8 @@ void GaussianVariables::update_edge_indicator_parameter_pair(size_t i, size_t j)
 
         ln_alpha += std::log(1.0 - inclusion_probability_(i, j)) - std::log(inclusion_probability_(i, j));
 
-        ln_alpha += R::dnorm(precision_matrix_(i, j) / constants_[4], 0.0, proposal_sd, true) - std::log(constants_[4]);
-        ln_alpha -= R::dcauchy(precision_matrix_(i, j), 0.0, 2.5, true);
+        ln_alpha += R::dnorm(precision_matrix_(i, j) / constants_[3], 0.0, proposal_sd, true) - std::log(constants_[3]);
+        ln_alpha -= R::dcauchy(precision_matrix_(i, j), 0.0, pairwise_scale_, true);
 
         if (std::log(runif(rng_)) < ln_alpha) {
 
@@ -294,8 +288,8 @@ void GaussianVariables::update_edge_indicator_parameter_pair(size_t i, size_t j)
 
         // Get constants for current state (with edge OFF)
         get_constants(i, j);
-        double omega_prop_ij = constants_[4] * epsilon;
-        double omega_prop_jj = R(omega_prop_ij);
+        double omega_prop_ij = constants_[3] * epsilon;
+        double omega_prop_jj = constrained_diagonal(omega_prop_ij);
 
         precision_proposal_ = precision_matrix_;
         precision_proposal_(i, j) = omega_prop_ij;
@@ -316,12 +310,11 @@ void GaussianVariables::update_edge_indicator_parameter_pair(size_t i, size_t j)
         ln_alpha += std::log(inclusion_probability_(i, j)) - std::log(1.0 - inclusion_probability_(i, j));
 
         // Prior change: add slab (Cauchy prior)
-        ln_alpha += R::dcauchy(omega_prop_ij, 0.0, 2.5, true);
+        ln_alpha += R::dcauchy(omega_prop_ij, 0.0, pairwise_scale_, true);
 
         // Proposal term: proposed edge value given it was generated from truncated normal
-        ln_alpha -= R::dnorm(omega_prop_ij / constants_[4], 0.0, proposal_sd, true) - std::log(constants_[4]);
+        ln_alpha -= R::dnorm(omega_prop_ij / constants_[3], 0.0, proposal_sd, true) - std::log(constants_[3]);
 
-        // TODO: this can be factored out?
         if (std::log(runif(rng_)) < ln_alpha) {
             // Accept: turn ON the edge
             proposal_.increment_accepts(e);
@@ -345,7 +338,7 @@ void GaussianVariables::update_edge_indicator_parameter_pair(size_t i, size_t j)
     }
 }
 
-void GaussianVariables::do_one_mh_step() {
+void GGMModel::do_one_mh_step() {
 
     // Update off-diagonals (upper triangle)
     for (size_t i = 0; i < p_ - 1; ++i) {
@@ -371,7 +364,7 @@ void GaussianVariables::do_one_mh_step() {
     proposal_.increment_iteration();
 }
 
-void GaussianVariables::initialize_graph() {
+void GGMModel::initialize_graph() {
     for (size_t i = 0; i < p_ - 1; ++i) {
         for (size_t j = i + 1; j < p_; ++j) {
             double p = inclusion_probability_(i, j);
@@ -383,7 +376,7 @@ void GaussianVariables::initialize_graph() {
                 precision_proposal_(i, j) = 0.0;
                 precision_proposal_(j, i) = 0.0;
                 get_constants(i, j);
-                precision_proposal_(j, j) = R(0.0);
+                precision_proposal_(j, j) = constrained_diagonal(0.0);
 
                 double omega_ij_old = precision_matrix_(i, j);
                 double omega_jj_old = precision_matrix_(j, j);
@@ -397,30 +390,33 @@ void GaussianVariables::initialize_graph() {
 }
 
 
-GaussianVariables createGaussianVariablesFromR(
+GGMModel createGGMModelFromR(
     const Rcpp::List& inputFromR,
     const arma::mat& prior_inclusion_prob,
     const arma::imat& initial_edge_indicators,
-    const bool edge_selection
+    const bool edge_selection,
+    const double pairwise_scale
 ) {
 
     if (inputFromR.containsElementNamed("n") && inputFromR.containsElementNamed("suf_stat")) {
         int n = Rcpp::as<int>(inputFromR["n"]);
         arma::mat suf_stat = Rcpp::as<arma::mat>(inputFromR["suf_stat"]);
-        return GaussianVariables(
+        return GGMModel(
             n,
             suf_stat,
             prior_inclusion_prob,
             initial_edge_indicators,
-            edge_selection
+            edge_selection,
+            pairwise_scale
         );
     } else if (inputFromR.containsElementNamed("X")) {
         arma::mat X = Rcpp::as<arma::mat>(inputFromR["X"]);
-        return GaussianVariables(
+        return GGMModel(
             X,
             prior_inclusion_prob,
             initial_edge_indicators,
-            edge_selection
+            edge_selection,
+            pairwise_scale
         );
     } else {
         throw std::invalid_argument("Input list must contain either 'X' or both 'n' and 'suf_stat'.");

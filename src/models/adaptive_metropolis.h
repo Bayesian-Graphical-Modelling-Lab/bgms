@@ -7,10 +7,10 @@ class AdaptiveProposal {
 
 public:
 
-    AdaptiveProposal(size_t num_params, size_t adaption_window = 50, double target_accept = 0.44) {
+    AdaptiveProposal(size_t num_params, size_t adaptation_window = 50, double target_accept = 0.44) {
         proposal_sds_ = arma::vec(num_params, arma::fill::ones) * 0.25; // Initial SD, need to tweak this somehow?
         acceptance_counts_ = arma::ivec(num_params, arma::fill::zeros);
-        adaptation_window_ = adaption_window;
+        adaptation_window_ = adaptation_window;
         target_accept_ = target_accept;
     }
 
