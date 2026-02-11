@@ -19,10 +19,6 @@ data = Wenchuan[, 1:5]
 fit = bgm(data, seed = 1234)
 ```
 
-Note: During fitting, progress bars are shown in interactive sessions.
-In this vignette, they are suppressed for clarity. Sampling can take a
-while; the progress bars usually help track progress.
-
 ## Convergence diagnostics
 
 The quality of the Markov chain can be assessed with common MCMC
@@ -30,28 +26,28 @@ diagnostics:
 
 ``` r
 summary(fit)$pairwise
-#>                          mean          sd        mcse     n_eff
-#> intrusion-dreams  0.631924323 0.001551325 0.064266150 1716.1643
-#> intrusion-flash   0.338297975 0.001448421 0.061854243 1823.6826
-#> intrusion-upset   0.190695963 0.076279341 0.005921381  165.9464
-#> intrusion-physior 0.198176315 0.065555747 0.003647515  323.0185
-#> dreams-flash      0.498040695 0.001270565 0.060466106 2264.8025
-#> dreams-upset      0.230776860 0.056205053 0.002092867  721.2197
-#> dreams-physior    0.005254907 0.021861327 0.000843593  671.5636
-#> flash-upset       0.006462176 0.024675968 0.001036232  567.0671
-#> flash-physior     0.307138582 0.001205035 0.053371694 1961.6559
-#> upset-physior     0.707867139 0.001478310 0.059720575 1631.9869
-#>                        Rhat
-#> intrusion-dreams  0.9998582
-#> intrusion-flash   0.9999985
-#> intrusion-upset   1.0325834
-#> intrusion-physior 1.0053426
-#> dreams-flash      0.9999931
-#> dreams-upset      1.0076821
-#> dreams-physior    1.0051407
-#> flash-upset       1.0115874
-#> flash-physior     1.0013808
-#> upset-physior     0.9999992
+#>                          mean          sd         mcse     n_eff
+#> intrusion-dreams  0.632293951 0.001661179 0.0657939558 1568.6981
+#> intrusion-flash   0.335941200 0.001418260 0.0598391890 1780.1616
+#> intrusion-upset   0.189497746 0.075619906 0.0054547304  192.1877
+#> intrusion-physior 0.194802150 0.071131862 0.0049449384  206.9220
+#> dreams-flash      0.502768076 0.001633580 0.0620233738 1441.5502
+#> dreams-upset      0.228964481 0.060644348 0.0030175433  403.8998
+#> dreams-physior    0.003975021 0.017652134 0.0006208483  808.3946
+#> flash-upset       0.009480741 0.031081369 0.0013771486  509.3762
+#> flash-physior     0.307821055 0.001453666 0.0560608285 1487.2689
+#> upset-physior     0.710876259 0.001532448 0.0597194081 1518.6560
+#>                       Rhat
+#> intrusion-dreams  1.003909
+#> intrusion-flash   1.000981
+#> intrusion-upset   1.005080
+#> intrusion-physior 1.016768
+#> dreams-flash      1.000174
+#> dreams-upset      1.007224
+#> dreams-physior    1.000268
+#> flash-upset       1.009813
+#> flash-physior     1.005348
+#> upset-physior     1.000656
 ```
 
 - R-hat values close to 1 (typically below 1.01) suggest convergence
@@ -92,11 +88,11 @@ edges:
 ``` r
 coef(fit)$indicator
 #>           intrusion  dreams   flash   upset physior
-#> intrusion   0.00000 1.00000 1.00000 0.96575  0.0560
-#> dreams      1.00000 0.00000 0.92525 1.00000  0.0655
-#> flash       1.00000 0.92525 0.00000 0.99600  1.0000
-#> upset       0.96575 1.00000 0.99600 0.00000  1.0000
-#> physior     0.05600 0.06550 1.00000 1.00000  0.0000
+#> intrusion   0.00000 1.00000 1.00000 0.92700 0.94875
+#> dreams      1.00000 0.00000 1.00000 0.98475 0.04975
+#> flash       1.00000 1.00000 0.00000 0.08775 1.00000
+#> upset       0.92700 0.98475 0.08775 0.00000 1.00000
+#> physior     0.94875 0.04975 1.00000 1.00000 0.00000
 ```
 
 - Values near 1.0: strong evidence the edge is present.
@@ -116,7 +112,7 @@ vs absence:
 p = coef(fit)$indicator[1, 5]
 BF_10 = p / (1 - p)
 BF_10
-#> [1] 0.05932203
+#> [1] 18.5122
 ```
 
 Here the Bayes factor in favor of inclusion (H1) is small, meaning that
@@ -126,17 +122,11 @@ transitive, we can use it to express the evidence in favor of exclusion
 
 ``` r
 1 / BF_10
-#> [1] 16.85714
+#> [1] 0.05401845
 ```
 
 This Bayes factor shows that there is strong evidence for the absence of
 a network relation between the variables `intrusion` and `physior`.
-
-## Notes on runtime
-
-- Sampling with spike-and-slab priors can take longer.
-- In interactive sessions, progress bars are displayed. In this
-  vignette, they are suppressed for readability.
 
 ## Next steps
 

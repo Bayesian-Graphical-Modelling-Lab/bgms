@@ -81,27 +81,24 @@ group difference exists in a given parameter. These can be converted to
 Bayes factors for hypothesis testing.</p>
 </div>
 <div class="section level2">
-<h2 id="boredom-dataset">Boredom dataset<a class="anchor" aria-label="anchor" href="#boredom-dataset"></a>
+<h2 id="adhd-dataset">ADHD dataset<a class="anchor" aria-label="anchor" href="#adhd-dataset"></a>
 </h2>
-<p>We illustrate with a subset from the <code>Boredom</code> dataset
+<p>We illustrate with a subset from the <code>ADHD</code> dataset
 included in <strong>bgms</strong>.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://Bayesian-Graphical-Modelling-Lab.github.io/bgms/" class="external-link">bgms</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="op">?</span><span class="va">Boredom</span></span>
-<span><span class="va">data_french</span> <span class="op">=</span> <span class="va">Boredom</span><span class="op">[</span><span class="va">Boredom</span><span class="op">$</span><span class="va">language</span> <span class="op">==</span> <span class="st">"fr"</span>, <span class="op">-</span><span class="fl">1</span><span class="op">]</span></span>
-<span><span class="va">data_french</span> <span class="op">=</span> <span class="va">data_french</span><span class="op">[</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">]</span></span>
-<span><span class="va">data_english</span> <span class="op">=</span> <span class="va">Boredom</span><span class="op">[</span><span class="va">Boredom</span><span class="op">$</span><span class="va">language</span> <span class="op">!=</span> <span class="st">"fr"</span>, <span class="op">-</span><span class="fl">1</span><span class="op">]</span></span>
-<span><span class="va">data_english</span> <span class="op">=</span> <span class="va">data_english</span><span class="op">[</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">]</span></span></code></pre></div>
+<span><span class="op">?</span><span class="va">ADHD</span></span>
+<span><span class="va">data_adhd</span> <span class="op">=</span> <span class="va">ADHD</span><span class="op">[</span><span class="va">ADHD</span><span class="op">$</span><span class="va">group</span> <span class="op">==</span> <span class="fl">1</span>, <span class="op">-</span><span class="fl">1</span><span class="op">]</span></span>
+<span><span class="va">data_adhd</span> <span class="op">=</span> <span class="va">data_adhd</span><span class="op">[</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">]</span></span>
+<span><span class="va">data_no_adhd</span> <span class="op">=</span> <span class="va">ADHD</span><span class="op">[</span><span class="va">ADHD</span><span class="op">$</span><span class="va">group</span> <span class="op">==</span> <span class="fl">0</span>, <span class="op">-</span><span class="fl">1</span><span class="op">]</span></span>
+<span><span class="va">data_no_adhd</span> <span class="op">=</span> <span class="va">data_no_adhd</span><span class="op">[</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">]</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="fitting-a-model">Fitting a model<a class="anchor" aria-label="anchor" href="#fitting-a-model"></a>
 </h2>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">=</span> <span class="fu"><a href="../reference/bgmCompare.html">bgmCompare</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">data_french</span>, y <span class="op">=</span> <span class="va">data_english</span>, seed <span class="op">=</span> <span class="fl">1234</span><span class="op">)</span></span></code></pre></div>
-<p>Note: During fitting, progress bars are shown in interactive
-sessions. In this vignette, they are suppressed for clarity. Sampling
-can take a while; the progress bars usually help track progress.</p>
+<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">=</span> <span class="fu"><a href="../reference/bgmCompare.html">bgmCompare</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">data_adhd</span>, y <span class="op">=</span> <span class="va">data_no_adhd</span>, seed <span class="op">=</span> <span class="fl">1234</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="posterior-summaries">Posterior summaries<a class="anchor" aria-label="anchor" href="#posterior-summaries"></a>
@@ -112,66 +109,62 @@ can take a while; the progress bars usually help track progress.</p>
 <span><span class="co">#&gt; Posterior summaries from Bayesian grouped MRF estimation (bgmCompare):</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Category thresholds:</span></span>
-<span><span class="co">#&gt;        parameter    mean  mcse    sd    n_eff  Rhat</span></span>
-<span><span class="co">#&gt; 1 loose_ends (1)  -0.938 0.002 0.096 3415.827 1.001</span></span>
-<span><span class="co">#&gt; 2 loose_ends (2)  -2.518 0.003 0.139 2069.362 1.004</span></span>
-<span><span class="co">#&gt; 3 loose_ends (3)  -3.796 0.005 0.183 1543.211 1.005</span></span>
-<span><span class="co">#&gt; 4 loose_ends (4)  -5.082 0.007 0.243 1236.538 1.006</span></span>
-<span><span class="co">#&gt; 5 loose_ends (5)  -7.609 0.010 0.335 1164.760 1.007</span></span>
-<span><span class="co">#&gt; 6 loose_ends (6) -10.106 0.014 0.452 1092.310 1.006</span></span>
-<span><span class="co">#&gt; ... (use `summary(fit)$main` to see full output)</span></span>
+<span><span class="co">#&gt;      parameter   mean  mcse    sd    n_eff  Rhat</span></span>
+<span><span class="co">#&gt; 1    avoid (1) -2.652 0.007 0.393 2838.525 1.001</span></span>
+<span><span class="co">#&gt; 2 closeatt (1) -2.258 0.007 0.376 3139.100 1.000</span></span>
+<span><span class="co">#&gt; 3 distract (1) -0.496 0.007 0.316 2117.341 1.002</span></span>
+<span><span class="co">#&gt; 4   forget (1) -1.589 0.006 0.326 2621.001 1.001</span></span>
+<span><span class="co">#&gt; 5 instruct (1) -2.432 0.008 0.374 2215.373 1.002</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Pairwise interactions:</span></span>
-<span><span class="co">#&gt;                parameter  mean mcse    sd    n_eff  Rhat</span></span>
-<span><span class="co">#&gt; 1   loose_ends-entertain 0.170    0 0.013 2245.500 1.002</span></span>
-<span><span class="co">#&gt; 2  loose_ends-repetitive 0.058    0 0.012 2059.968 1.007</span></span>
-<span><span class="co">#&gt; 3 loose_ends-stimulation 0.126    0 0.012 2648.651 1.002</span></span>
-<span><span class="co">#&gt; 4   loose_ends-motivated 0.141    0 0.013 2490.105 1.002</span></span>
-<span><span class="co">#&gt; 5   entertain-repetitive 0.067    0 0.012 2712.597 1.000</span></span>
-<span><span class="co">#&gt; 6  entertain-stimulation 0.109    0 0.012 2591.243 1.001</span></span>
+<span><span class="co">#&gt;           parameter   mean  mcse    sd    n_eff  Rhat</span></span>
+<span><span class="co">#&gt; 1    avoid-closeatt  0.965 0.012 0.456 1438.106 1.005</span></span>
+<span><span class="co">#&gt; 2    avoid-distract  1.693 0.007 0.353 2930.081 1.001</span></span>
+<span><span class="co">#&gt; 3      avoid-forget  0.495 0.009 0.384 1797.217 1.003</span></span>
+<span><span class="co">#&gt; 4    avoid-instruct  0.397 0.010 0.455 2226.350 1.004</span></span>
+<span><span class="co">#&gt; 5 closeatt-distract -0.252 0.007 0.397 2822.267 1.000</span></span>
+<span><span class="co">#&gt; 6   closeatt-forget  0.143 0.006 0.310 3090.678 1.002</span></span>
 <span><span class="co">#&gt; ... (use `summary(fit)$pairwise` to see full output)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Inclusion probabilities:</span></span>
-<span><span class="co">#&gt;                          parameter  mean    sd  mcse n0-&gt;0 n0-&gt;1 n1-&gt;0</span></span>
-<span><span class="co">#&gt;                  loose_ends (main) 0.009 0.094 0.003  3947    16    16</span></span>
-<span><span class="co">#&gt;    loose_ends-entertain (pairwise) 0.020 0.139 0.002  3845    75    75</span></span>
-<span><span class="co">#&gt;   loose_ends-repetitive (pairwise) 0.507 0.500 0.018  1640   331   330</span></span>
-<span><span class="co">#&gt;  loose_ends-stimulation (pairwise) 0.042 0.200 0.003  3680   152   152</span></span>
-<span><span class="co">#&gt;    loose_ends-motivated (pairwise) 0.018 0.132 0.002  3860    68    68</span></span>
-<span><span class="co">#&gt;                   entertain (main) 0.001 0.039 0.001  3988     5     5</span></span>
-<span><span class="co">#&gt;  n1-&gt;1    n_eff  Rhat</span></span>
-<span><span class="co">#&gt;     20 1156.240 1.027</span></span>
-<span><span class="co">#&gt;      4 3755.694 1.001</span></span>
-<span><span class="co">#&gt;   1698  792.304 1.002</span></span>
-<span><span class="co">#&gt;     15 3617.928 1.012</span></span>
-<span><span class="co">#&gt;      3 3805.320 1.004</span></span>
-<span><span class="co">#&gt;      1 2864.511 1.081</span></span>
+<span><span class="co">#&gt;                  parameter  mean    sd  mcse n0-&gt;0 n0-&gt;1 n1-&gt;0 n1-&gt;1</span></span>
+<span><span class="co">#&gt;               avoid (main) 1.000 0.000           0     0     0  3999</span></span>
+<span><span class="co">#&gt;  avoid-closeatt (pairwise) 0.794 0.404 0.012   535   289   288  2887</span></span>
+<span><span class="co">#&gt;  avoid-distract (pairwise) 0.406 0.491 0.008  1486   888   889   736</span></span>
+<span><span class="co">#&gt;    avoid-forget (pairwise) 0.841 0.365 0.011   402   233   232  3132</span></span>
+<span><span class="co">#&gt;  avoid-instruct (pairwise) 0.988 0.109 0.004    31    17    17  3934</span></span>
+<span><span class="co">#&gt;            closeatt (main) 1.000 0.000           0     0     0  3999</span></span>
+<span><span class="co">#&gt;     n_eff  Rhat</span></span>
+<span><span class="co">#&gt;                </span></span>
+<span><span class="co">#&gt;  1132.933 1.014</span></span>
+<span><span class="co">#&gt;   3415.16     1</span></span>
+<span><span class="co">#&gt;  1114.745 1.005</span></span>
+<span><span class="co">#&gt;     873.5 1.069</span></span>
+<span><span class="co">#&gt;                </span></span>
 <span><span class="co">#&gt; ... (use `summary(fit)$indicator` to see full output)</span></span>
 <span><span class="co">#&gt; Note: NA values are suppressed in the print table. They occur when an indicator</span></span>
 <span><span class="co">#&gt; was constant (all 0 or all 1) across all iterations, so sd/mcse/n_eff/Rhat</span></span>
 <span><span class="co">#&gt; are undefined; `summary(fit)$indicator` still contains the NA values.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Group differences (main effects):</span></span>
-<span><span class="co">#&gt;              parameter   mean    sd  mcse    n_eff  Rhat</span></span>
-<span><span class="co">#&gt;  loose_ends (diff1; 1)  0.000 0.002 0.000   47.557 1.000</span></span>
-<span><span class="co">#&gt;  loose_ends (diff1; 2)  0.004 0.044 0.001 1082.785 1.001</span></span>
-<span><span class="co">#&gt;  loose_ends (diff1; 3)  0.004 0.043 0.001  902.638 1.001</span></span>
-<span><span class="co">#&gt;  loose_ends (diff1; 4)  0.004 0.042 0.001  923.443 1.001</span></span>
-<span><span class="co">#&gt;  loose_ends (diff1; 5)  0.001 0.010 0.001  113.681 1.000</span></span>
-<span><span class="co">#&gt;  loose_ends (diff1; 6) -0.003 0.031 0.001  630.010 1.000</span></span>
-<span><span class="co">#&gt; ... (use `summary(fit)$main_diff` to see full output)</span></span>
+<span><span class="co">#&gt;            parameter   mean    sd mcse n_eff  Rhat</span></span>
+<span><span class="co">#&gt;     avoid (diff1; 1) -2.552 0.746            1.000</span></span>
+<span><span class="co">#&gt;  closeatt (diff1; 1) -2.980 0.733            1.002</span></span>
+<span><span class="co">#&gt;  distract (diff1; 1) -2.525 0.642            1.001</span></span>
+<span><span class="co">#&gt;    forget (diff1; 1) -2.826 0.664            1.000</span></span>
+<span><span class="co">#&gt;  instruct (diff1; 1) -2.325 0.861            1.001</span></span>
 <span><span class="co">#&gt; Note: NA values are suppressed in the print table. They occur here when an</span></span>
 <span><span class="co">#&gt; indicator was zero across all iterations, so mcse/n_eff/Rhat are undefined;</span></span>
 <span><span class="co">#&gt; `summary(fit)$main_diff` still contains the NA values.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Group differences (pairwise effects):</span></span>
-<span><span class="co">#&gt;                       parameter  mean    sd  mcse    n_eff  Rhat</span></span>
-<span><span class="co">#&gt;    loose_ends-entertain (diff1) 0.000 0.000 0.000   92.057 1.001</span></span>
-<span><span class="co">#&gt;   loose_ends-repetitive (diff1) 0.021 0.022 0.001  837.278 1.001</span></span>
-<span><span class="co">#&gt;  loose_ends-stimulation (diff1) 0.001 0.005 0.000 2789.970 1.001</span></span>
-<span><span class="co">#&gt;    loose_ends-motivated (diff1) 0.000 0.002 0.000 1517.163 1.000</span></span>
-<span><span class="co">#&gt;    entertain-repetitive (diff1) 0.004 0.011 0.000 1174.633 1.001</span></span>
-<span><span class="co">#&gt;   entertain-stimulation (diff1) 0.002 0.007 0.000 2567.839 1.001</span></span>
+<span><span class="co">#&gt;                  parameter   mean    sd  mcse    n_eff  Rhat</span></span>
+<span><span class="co">#&gt;     avoid-closeatt (diff1)  1.242 0.907 0.023 1497.972 1.007</span></span>
+<span><span class="co">#&gt;     avoid-distract (diff1)  0.225 0.367 0.008 2038.950 1.001</span></span>
+<span><span class="co">#&gt;       avoid-forget (diff1)  1.269 0.817 0.020 1594.521 1.004</span></span>
+<span><span class="co">#&gt;     avoid-instruct (diff1) -2.743 0.992 0.024 1716.671 1.003</span></span>
+<span><span class="co">#&gt;  closeatt-distract (diff1) -0.184 0.353 0.008 1833.834 1.000</span></span>
+<span><span class="co">#&gt;    closeatt-forget (diff1)  0.160 0.320 0.009 1265.097 1.002</span></span>
 <span><span class="co">#&gt; ... (use `summary(fit)$pairwise_diff` to see full output)</span></span>
 <span><span class="co">#&gt; Note: NA values are suppressed in the print table. They occur here when an</span></span>
 <span><span class="co">#&gt; indicator was zero across all iterations, so mcse/n_eff/Rhat are undefined;</span></span>
@@ -183,125 +176,75 @@ can take a while; the progress bars usually help track progress.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; $main_effects_raw</span></span>
-<span><span class="co">#&gt;                    baseline         diff1</span></span>
-<span><span class="co">#&gt; loose_ends(c1)   -0.9376669 -8.550637e-05</span></span>
-<span><span class="co">#&gt; loose_ends(c2)   -2.5179548  4.207447e-03</span></span>
-<span><span class="co">#&gt; loose_ends(c3)   -3.7960694  4.109076e-03</span></span>
-<span><span class="co">#&gt; loose_ends(c4)   -5.0822845  4.002782e-03</span></span>
-<span><span class="co">#&gt; loose_ends(c5)   -7.6089748  9.141143e-04</span></span>
-<span><span class="co">#&gt; loose_ends(c6)  -10.1063777 -2.905428e-03</span></span>
-<span><span class="co">#&gt; entertain(c1)    -0.8692630 -4.662515e-04</span></span>
-<span><span class="co">#&gt; entertain(c2)    -2.2458877 -1.496695e-04</span></span>
-<span><span class="co">#&gt; entertain(c3)    -3.8177841  2.483365e-04</span></span>
-<span><span class="co">#&gt; entertain(c4)    -5.1697251 -3.493918e-04</span></span>
-<span><span class="co">#&gt; entertain(c5)    -7.0455504 -2.961615e-05</span></span>
-<span><span class="co">#&gt; entertain(c6)    -9.5780234  8.034366e-04</span></span>
-<span><span class="co">#&gt; repetitive(c1)   -0.1379151 -8.806321e-03</span></span>
-<span><span class="co">#&gt; repetitive(c2)   -0.6611929 -1.585117e-02</span></span>
-<span><span class="co">#&gt; repetitive(c3)   -1.0866300 -5.037304e-03</span></span>
-<span><span class="co">#&gt; repetitive(c4)   -1.8627494  6.470289e-03</span></span>
-<span><span class="co">#&gt; repetitive(c5)   -3.2512960  2.020118e-02</span></span>
-<span><span class="co">#&gt; repetitive(c6)   -5.0299108  2.038924e-02</span></span>
-<span><span class="co">#&gt; stimulation(c1)  -0.5457673 -3.167586e-03</span></span>
-<span><span class="co">#&gt; stimulation(c2)  -1.7894587 -1.004249e-03</span></span>
-<span><span class="co">#&gt; stimulation(c3)  -2.5304682 -1.332632e-03</span></span>
-<span><span class="co">#&gt; stimulation(c4)  -3.6190432 -2.226982e-03</span></span>
-<span><span class="co">#&gt; stimulation(c5)  -5.0975023 -1.200563e-03</span></span>
-<span><span class="co">#&gt; stimulation(c6)  -7.0661001 -3.494762e-03</span></span>
-<span><span class="co">#&gt; motivated(c1)    -0.5585283 -2.017340e-03</span></span>
-<span><span class="co">#&gt; motivated(c2)    -1.8120817 -1.070582e-03</span></span>
-<span><span class="co">#&gt; motivated(c3)    -3.2996542  1.534816e-03</span></span>
-<span><span class="co">#&gt; motivated(c4)    -4.7945890  2.748786e-03</span></span>
-<span><span class="co">#&gt; motivated(c5)    -6.7933940 -6.137974e-04</span></span>
-<span><span class="co">#&gt; motivated(c6)    -9.1663037  1.980850e-03</span></span>
+<span><span class="co">#&gt;                baseline     diff1</span></span>
+<span><span class="co">#&gt; avoid(c1)    -2.6519010 -2.552031</span></span>
+<span><span class="co">#&gt; closeatt(c1) -2.2580927 -2.980312</span></span>
+<span><span class="co">#&gt; distract(c1) -0.4957581 -2.524521</span></span>
+<span><span class="co">#&gt; forget(c1)   -1.5890157 -2.826021</span></span>
+<span><span class="co">#&gt; instruct(c1) -2.4321107 -2.325337</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $pairwise_effects_raw</span></span>
-<span><span class="co">#&gt;                          baseline         diff1</span></span>
-<span><span class="co">#&gt; loose_ends-entertain   0.16991838  2.642296e-05</span></span>
-<span><span class="co">#&gt; loose_ends-repetitive  0.05811138  2.137907e-02</span></span>
-<span><span class="co">#&gt; loose_ends-stimulation 0.12622492  9.635558e-04</span></span>
-<span><span class="co">#&gt; loose_ends-motivated   0.14097684 -2.398129e-04</span></span>
-<span><span class="co">#&gt; entertain-repetitive   0.06659031  4.431347e-03</span></span>
-<span><span class="co">#&gt; entertain-stimulation  0.10937128  1.801550e-03</span></span>
-<span><span class="co">#&gt; entertain-motivated    0.08666756  3.824078e-03</span></span>
-<span><span class="co">#&gt; repetitive-stimulation 0.05631314  6.388122e-04</span></span>
-<span><span class="co">#&gt; repetitive-motivated   0.13750770  1.397853e-02</span></span>
-<span><span class="co">#&gt; stimulation-motivated  0.10798919  1.154900e-04</span></span>
+<span><span class="co">#&gt;                     baseline      diff1</span></span>
+<span><span class="co">#&gt; avoid-closeatt     0.9652965  1.2424158</span></span>
+<span><span class="co">#&gt; avoid-distract     1.6926659  0.2247702</span></span>
+<span><span class="co">#&gt; avoid-forget       0.4952467  1.2689214</span></span>
+<span><span class="co">#&gt; avoid-instruct     0.3971079 -2.7426345</span></span>
+<span><span class="co">#&gt; closeatt-distract -0.2521829 -0.1835933</span></span>
+<span><span class="co">#&gt; closeatt-forget    0.1425580  0.1596400</span></span>
+<span><span class="co">#&gt; closeatt-instruct  1.5642360  0.5923538</span></span>
+<span><span class="co">#&gt; distract-forget    0.4036371  0.2192210</span></span>
+<span><span class="co">#&gt; distract-instruct  1.2730105  1.2178521</span></span>
+<span><span class="co">#&gt; forget-instruct    1.1264064  0.8077411</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $main_effects_groups</span></span>
-<span><span class="co">#&gt;                      group1      group2</span></span>
-<span><span class="co">#&gt; loose_ends(c1)   -0.9376242  -0.9377097</span></span>
-<span><span class="co">#&gt; loose_ends(c2)   -2.5200585  -2.5158511</span></span>
-<span><span class="co">#&gt; loose_ends(c3)   -3.7981240  -3.7940149</span></span>
-<span><span class="co">#&gt; loose_ends(c4)   -5.0842859  -5.0802831</span></span>
-<span><span class="co">#&gt; loose_ends(c5)   -7.6094318  -7.6085177</span></span>
-<span><span class="co">#&gt; loose_ends(c6)  -10.1049250 -10.1078305</span></span>
-<span><span class="co">#&gt; entertain(c1)    -0.8690299  -0.8694961</span></span>
-<span><span class="co">#&gt; entertain(c2)    -2.2458129  -2.2459625</span></span>
-<span><span class="co">#&gt; entertain(c3)    -3.8179083  -3.8176599</span></span>
-<span><span class="co">#&gt; entertain(c4)    -5.1695504  -5.1698998</span></span>
-<span><span class="co">#&gt; entertain(c5)    -7.0455356  -7.0455652</span></span>
-<span><span class="co">#&gt; entertain(c6)    -9.5784251  -9.5776217</span></span>
-<span><span class="co">#&gt; repetitive(c1)   -0.1335119  -0.1423182</span></span>
-<span><span class="co">#&gt; repetitive(c2)   -0.6532674  -0.6691185</span></span>
-<span><span class="co">#&gt; repetitive(c3)   -1.0841114  -1.0891487</span></span>
-<span><span class="co">#&gt; repetitive(c4)   -1.8659846  -1.8595143</span></span>
-<span><span class="co">#&gt; repetitive(c5)   -3.2613966  -3.2411954</span></span>
-<span><span class="co">#&gt; repetitive(c6)   -5.0401054  -5.0197162</span></span>
-<span><span class="co">#&gt; stimulation(c1)  -0.5441836  -0.5473511</span></span>
-<span><span class="co">#&gt; stimulation(c2)  -1.7889565  -1.7899608</span></span>
-<span><span class="co">#&gt; stimulation(c3)  -2.5298019  -2.5311345</span></span>
-<span><span class="co">#&gt; stimulation(c4)  -3.6179297  -3.6201567</span></span>
-<span><span class="co">#&gt; stimulation(c5)  -5.0969021  -5.0981026</span></span>
-<span><span class="co">#&gt; stimulation(c6)  -7.0643527  -7.0678475</span></span>
-<span><span class="co">#&gt; motivated(c1)    -0.5575196  -0.5595369</span></span>
-<span><span class="co">#&gt; motivated(c2)    -1.8115464  -1.8126170</span></span>
-<span><span class="co">#&gt; motivated(c3)    -3.3004216  -3.2988868</span></span>
-<span><span class="co">#&gt; motivated(c4)    -4.7959634  -4.7932146</span></span>
-<span><span class="co">#&gt; motivated(c5)    -6.7930871  -6.7937009</span></span>
-<span><span class="co">#&gt; motivated(c6)    -9.1672942  -9.1653133</span></span>
+<span><span class="co">#&gt;                  group1    group2</span></span>
+<span><span class="co">#&gt; avoid(c1)    -1.3758853 -3.927917</span></span>
+<span><span class="co">#&gt; closeatt(c1) -0.7679368 -3.748249</span></span>
+<span><span class="co">#&gt; distract(c1)  0.7665024 -1.758019</span></span>
+<span><span class="co">#&gt; forget(c1)   -0.1760053 -3.002026</span></span>
+<span><span class="co">#&gt; instruct(c1) -1.2694422 -3.594779</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $pairwise_effects_groups</span></span>
-<span><span class="co">#&gt;                            group1     group2</span></span>
-<span><span class="co">#&gt; loose_ends-entertain   0.16990517 0.16993159</span></span>
-<span><span class="co">#&gt; loose_ends-repetitive  0.04742184 0.06880091</span></span>
-<span><span class="co">#&gt; loose_ends-stimulation 0.12574314 0.12670670</span></span>
-<span><span class="co">#&gt; loose_ends-motivated   0.14109674 0.14085693</span></span>
-<span><span class="co">#&gt; entertain-repetitive   0.06437464 0.06880598</span></span>
-<span><span class="co">#&gt; entertain-stimulation  0.10847051 0.11027206</span></span>
-<span><span class="co">#&gt; entertain-motivated    0.08475552 0.08857960</span></span>
-<span><span class="co">#&gt; repetitive-stimulation 0.05599374 0.05663255</span></span>
-<span><span class="co">#&gt; repetitive-motivated   0.13051843 0.14449696</span></span>
-<span><span class="co">#&gt; stimulation-motivated  0.10793144 0.10804693</span></span>
+<span><span class="co">#&gt;                        group1     group2</span></span>
+<span><span class="co">#&gt; avoid-closeatt     0.34408863  1.5865044</span></span>
+<span><span class="co">#&gt; avoid-distract     1.58028076  1.8050510</span></span>
+<span><span class="co">#&gt; avoid-forget      -0.13921404  1.1297074</span></span>
+<span><span class="co">#&gt; avoid-instruct     1.76842516 -0.9742094</span></span>
+<span><span class="co">#&gt; closeatt-distract -0.16038624 -0.3439795</span></span>
+<span><span class="co">#&gt; closeatt-forget    0.06273804  0.2223781</span></span>
+<span><span class="co">#&gt; closeatt-instruct  1.26805907  1.8604129</span></span>
+<span><span class="co">#&gt; distract-forget    0.29402657  0.5132476</span></span>
+<span><span class="co">#&gt; distract-instruct  0.66408446  1.8819366</span></span>
+<span><span class="co">#&gt; forget-instruct    0.72253590  1.5302770</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $indicators</span></span>
-<span><span class="co">#&gt;             loose_ends entertain repetitive stimulation motivated</span></span>
-<span><span class="co">#&gt; loose_ends     0.00900   0.01975    0.50725     0.04175   0.01775</span></span>
-<span><span class="co">#&gt; entertain      0.01975   0.00150    0.13725     0.06650   0.11425</span></span>
-<span><span class="co">#&gt; repetitive     0.50725   0.13725    0.03675     0.03175   0.36100</span></span>
-<span><span class="co">#&gt; stimulation    0.04175   0.06650    0.03175     0.00575   0.01525</span></span>
-<span><span class="co">#&gt; motivated      0.01775   0.11425    0.36100     0.01525   0.00700</span></span></code></pre></div>
+<span><span class="co">#&gt;            avoid closeatt distract  forget instruct</span></span>
+<span><span class="co">#&gt; avoid    1.00000  0.79400  0.40625 0.84125  0.98800</span></span>
+<span><span class="co">#&gt; closeatt 0.79400  1.00000  0.38775 0.37100  0.58625</span></span>
+<span><span class="co">#&gt; distract 0.40625  0.38775  1.00000 0.39675  0.83975</span></span>
+<span><span class="co">#&gt; forget   0.84125  0.37100  0.39675 1.00000  0.72650</span></span>
+<span><span class="co">#&gt; instruct 0.98800  0.58625  0.83975 0.72650  1.00000</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="visualizing-group-networks">Visualizing group networks<a class="anchor" aria-label="anchor" href="#visualizing-group-networks"></a>
 </h2>
-<p>We can use the output to plot the network for the French sample:</p>
+<p>We can use the output to plot the network for the ADHD group:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">qgraph</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">french_network</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">5</span>, <span class="fl">5</span><span class="op">)</span></span>
-<span><span class="va">french_network</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/lower.tri.html" class="external-link">lower.tri</a></span><span class="op">(</span><span class="va">french_network</span><span class="op">)</span><span class="op">]</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">$</span><span class="va">pairwise_effects_groups</span><span class="op">[</span>, <span class="fl">1</span><span class="op">]</span></span>
-<span><span class="va">french_network</span> <span class="op">=</span> <span class="va">french_network</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">french_network</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">french_network</span><span class="op">)</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">data_french</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">french_network</span><span class="op">)</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">data_french</span><span class="op">)</span></span>
+<span><span class="va">adhd_network</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">5</span>, <span class="fl">5</span><span class="op">)</span></span>
+<span><span class="va">adhd_network</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/lower.tri.html" class="external-link">lower.tri</a></span><span class="op">(</span><span class="va">adhd_network</span><span class="op">)</span><span class="op">]</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">$</span><span class="va">pairwise_effects_groups</span><span class="op">[</span>, <span class="fl">1</span><span class="op">]</span></span>
+<span><span class="va">adhd_network</span> <span class="op">=</span> <span class="va">adhd_network</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">adhd_network</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">adhd_network</span><span class="op">)</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">data_adhd</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">adhd_network</span><span class="op">)</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">data_adhd</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/pkg/qgraph/man/qgraph.html" class="external-link">qgraph</a></span><span class="op">(</span><span class="va">french_network</span>,</span>
+<span><span class="fu"><a href="https://rdrr.io/pkg/qgraph/man/qgraph.html" class="external-link">qgraph</a></span><span class="op">(</span><span class="va">adhd_network</span>,</span>
 <span>  theme <span class="op">=</span> <span class="st">"TeamFortress"</span>,</span>
 <span>  maximum <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  fade <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  color <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"#f0ae0e"</span><span class="op">)</span>, vsize <span class="op">=</span> <span class="fl">10</span>, repulsion <span class="op">=</span> <span class="fl">.9</span>,</span>
 <span>  label.cex <span class="op">=</span> <span class="fl">1</span>, label.scale <span class="op">=</span> <span class="st">"FALSE"</span>,</span>
-<span>  labels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">data_french</span><span class="op">)</span></span>
+<span>  labels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">data_adhd</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p><img src="comparison_files/figure-html/unnamed-chunk-7-1.png" class="r-plt" alt="" width="672"></p>
 </div>
