@@ -58,9 +58,9 @@ extract_indicators = function(bgms_object) {
 
 #' @rdname extractor_functions
 #' @details
-#' Internally, indicator samples were stored in `$gamma` (pre-0.1.4) and
-#' `$indicator` (0.1.4–0.1.5). As of **bgms 0.1.6.0**, they are stored in
-#' `$raw_samples$indicators`. Access via older names is supported but deprecated.
+#' Internally, indicator samples were stored in `$gamma` (pre-0.1.4, now defunct)
+#' and `$indicator` (0.1.4–0.1.5, deprecated). As of **bgms 0.1.6.0**, they are
+#' stored in `$raw_samples$indicator`.
 #' @export
 extract_indicators.bgms = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
@@ -69,36 +69,40 @@ extract_indicators.bgms = function(bgms_object) {
     stop("To access edge indicators, the model must be run with edge_selection = TRUE.")
   }
 
-  # Resolve indicator samples
-  indicators_list = bgms_object$raw_samples$indicator
-  if(is.null(indicators_list)) {
-    if(!is.null(bgms_object$indicator)) {
-      lifecycle::deprecate_warn(
-        "0.1.6.0", "bgms_object$indicator",
-        "bgms_object$raw_samples$indicator"
-      )
-      indicators_list = bgms_object$indicator
-    } else if(!is.null(bgms_object$gamma)) {
-      lifecycle::deprecate_warn(
-        "0.1.4.2", "bgms_object$gamma",
-        "bgms_object$raw_samples$indicator"
-      )
-      indicators_list = bgms_object$gamma
-    } else {
-      stop("No indicator samples found in this object.")
-    }
-  }
-
-  # Combine all chains
-  indicator_samples = do.call(rbind, indicators_list)
-
-  # Assign column names if available
-  param_names = bgms_object$raw_samples$parameter_names$indicator
-  if(!is.null(param_names)) {
+  # Current format (0.1.6.0+)
+  if(!is.null(bgms_object$raw_samples$indicator)) {
+    indicators_list = bgms_object$raw_samples$indicator
+    indicator_samples = do.call(rbind, indicators_list)
+    param_names = bgms_object$raw_samples$parameter_names$indicator
+    stopifnot("parameter_names$indicator missing in fit object" = !is.null(param_names))
     colnames(indicator_samples) = param_names
+    return(indicator_samples)
   }
 
-  return(indicator_samples)
+  # Deprecated format (0.1.4–0.1.5): $indicator stored at top level
+  if(!is.null(bgms_object$indicator)) {
+    lifecycle::deprecate_warn(
+      "0.1.6.0",
+      I("The '$indicator' field is deprecated; please refit with bgms >= 0.1.6.0")
+    )
+    # In 0.1.4.x, $indicator is a matrix (iter x edges), not a list
+    if(is.matrix(bgms_object$indicator)) {
+      return(bgms_object$indicator)
+    }
+    # Fallback for list format (if any intermediate versions used this)
+    indicator_samples = do.call(rbind, bgms_object$indicator)
+    return(indicator_samples)
+  }
+
+  # Defunct format (pre-0.1.4): $gamma field
+  if(!is.null(bgms_object$gamma)) {
+    lifecycle::deprecate_stop(
+      "0.1.4",
+      I("The '$gamma' field is defunct; please refit with bgms >= 0.1.6.0")
+    )
+  }
+
+  stop("No indicator samples found in this object.")
 }
 
 #' @rdname extractor_functions
@@ -133,9 +137,9 @@ extract_posterior_inclusion_probabilities = function(bgms_object) {
 #' @details
 #' Posterior inclusion probabilities are computed from edge indicators.
 #'
-#' Internally, indicator samples were stored in `$gamma` (pre-0.1.4) and
-#' `$indicator` (0.1.4–0.1.5). As of **bgms 0.1.6.0**, they are stored in
-#' `$raw_samples$indicator`. Access via older names is supported but deprecated.
+#' Internally, indicator samples were stored in `$gamma` (pre-0.1.4, now defunct)
+#' and `$indicator` (0.1.4–0.1.5, deprecated). As of **bgms 0.1.6.0**, they are
+#' stored in `$raw_samples$indicator`.
 #' @export
 extract_posterior_inclusion_probabilities.bgms = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
@@ -144,36 +148,32 @@ extract_posterior_inclusion_probabilities.bgms = function(bgms_object) {
     stop("To estimate posterior inclusion probabilities, run bgm() with edge_selection = TRUE.")
   }
 
-  num_vars = arguments$num_variables
+  # Handle legacy field name (no_variables → num_variables in 0.1.6.0)
+  num_vars = arguments$num_variables %||% arguments$no_variables
   data_columnnames = arguments$data_columnnames
 
-  edge_means = NULL
-  # New format: use extract_indicators()
+  # Current format (0.1.6.0+)
   if(!is.null(bgms_object$raw_samples$indicator)) {
     indicator_samples = extract_indicators(bgms_object)
     edge_means = colMeans(indicator_samples)
   } else if(!is.null(bgms_object$indicator)) {
+    # Deprecated format (0.1.4–0.1.5): $indicator at top level
     lifecycle::deprecate_warn(
       "0.1.6.0",
-      "bgms_object$indicator",
-      "bgms_object$raw_samples$indicator"
+      I("The '$indicator' field is deprecated; please refit with bgms >= 0.1.6.0")
     )
-    if(!is.null(arguments$save) && isTRUE(arguments$save)) {
+    # Check data structure: matrix (raw samples) vs vector (pre-computed means)
+    if(is.matrix(bgms_object$indicator) && nrow(bgms_object$indicator) > 1) {
       edge_means = colMeans(bgms_object$indicator)
     } else {
-      edge_means = bgms_object$indicator
+      edge_means = as.vector(bgms_object$indicator)
     }
   } else if(!is.null(bgms_object$gamma)) {
-    lifecycle::deprecate_warn(
+    # Defunct format (pre-0.1.4)
+    lifecycle::deprecate_stop(
       "0.1.4.2",
-      "bgms_object$gamma",
-      "bgms_object$raw_samples$indicator"
+      I("The '$gamma' field is defunct; please refit with bgms >= 0.1.6.0")
     )
-    if(!is.null(arguments$save) && isTRUE(arguments$save)) {
-      edge_means = colMeans(bgms_object$gamma)
-    } else {
-      edge_means = bgms_object$gamma
-    }
   } else {
     stop("No indicator data found to compute posterior inclusion probabilities.")
   }
@@ -371,15 +371,20 @@ extract_pairwise_interactions = function(bgms_object) {
 }
 
 #' @rdname extractor_functions
+#' @details
+#' Pairwise interactions were previously stored in `$pairwise_effects` (pre-0.1.4, now
+#' defunct) and `$posterior_mean_pairwise` (0.1.4–0.1.5, deprecated). As of **bgms
+#' 0.1.6.0**, they are stored in `$raw_samples$pairwise` (raw samples) and
+#' `$posterior_summary_pairwise` (summaries).
 #' @export
 extract_pairwise_interactions.bgms = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
-  num_vars = arguments$num_variables
+  # Handle legacy field name (no_variables → num_variables in 0.1.6.0)
+  num_vars = arguments$num_variables %||% arguments$no_variables
   var_names = arguments$data_columnnames
 
+  # Current format (0.1.6.0+): raw samples
   if(!is.null(bgms_object$raw_samples)) {
-    nchains = length(bgms_object$raw_samples$pairwise)
-    mat = NULL
     mats = bgms_object$raw_samples$pairwise
     mat = do.call(rbind, mats)
 
@@ -391,23 +396,56 @@ extract_pairwise_interactions.bgms = function(bgms_object) {
     }
 
     dimnames(mat) = list(paste0("iter", 1:nrow(mat)), edge_names)
-  } else if(!is.null(bgms_object$posterior_summary_pairwise)) {
+    return(mat)
+  }
+
+  # Current format fallback (0.1.6.0+): summary only
+  if(!is.null(bgms_object$posterior_summary_pairwise)) {
     vec = bgms_object$posterior_summary_pairwise[, "mean"]
     mat = matrix(0, nrow = num_vars, ncol = num_vars)
     mat[lower.tri(mat)] = vec
     mat = mat + t(mat)
     dimnames(mat) = list(var_names, var_names)
-  } else if(!is.null(bgms_object$posterior_mean_pairwise)) {
-    mat = bgms_object$posterior_mean_pairwise
-    dimnames(mat) = list(var_names, var_names)
-  } else if(!is.null(bgms_object$pairwise_effects)) {
-    mat = bgms_object$pairwise_effects
-    dimnames(mat) = list(var_names, var_names)
-  } else {
-    stop("No pairwise interaction effects found in the object.")
+    return(mat)
   }
 
-  return(mat)
+  # Deprecated format (0.1.4–0.1.5): $interactions or $posterior_mean_pairwise
+  if(!is.null(bgms_object$interactions)) {
+    lifecycle::deprecate_warn(
+      "0.1.6.0",
+      I("The '$interactions' field is deprecated; please refit with bgms >= 0.1.6.0")
+    )
+    # In 0.1.4.x, $interactions is a matrix (iter x edges) of raw samples
+    if(is.matrix(bgms_object$interactions) && nrow(bgms_object$interactions) > 1) {
+      edge_means = colMeans(bgms_object$interactions)
+    } else {
+      edge_means = as.vector(bgms_object$interactions)
+    }
+    mat = matrix(0, nrow = num_vars, ncol = num_vars)
+    mat[lower.tri(mat)] = edge_means
+    mat = mat + t(mat)
+    dimnames(mat) = list(var_names, var_names)
+    return(mat)
+  }
+  if(!is.null(bgms_object$posterior_mean_pairwise)) {
+    lifecycle::deprecate_warn(
+      "0.1.6.0",
+      I("The '$posterior_mean_pairwise' field is deprecated; please refit with bgms >= 0.1.6.0")
+    )
+    mat = bgms_object$posterior_mean_pairwise
+    dimnames(mat) = list(var_names, var_names)
+    return(mat)
+  }
+
+  # Defunct format (pre-0.1.4)
+  if(!is.null(bgms_object$pairwise_effects)) {
+    lifecycle::deprecate_stop(
+      "0.1.4.2",
+      I("The '$pairwise_effects' field is defunct; please refit with bgms >= 0.1.6.0")
+    )
+  }
+
+  stop("No pairwise interaction effects found in the object.")
 }
 
 
@@ -440,17 +478,19 @@ extract_category_thresholds = function(bgms_object) {
 
 #' @rdname extractor_functions
 #' @details
-#' Category thresholds were previously stored in `$main_effects` (pre-0.1.4) and
-#' `$posterior_mean_main` (0.1.4–0.1.5). As of **bgms 0.1.6.0**, they are stored
-#' in `$posterior_summary_main`. Access via older names is supported but deprecated.
+#' Category thresholds were previously stored in `$main_effects` (pre-0.1.4, now defunct)
+#' and `$posterior_mean_main` (0.1.4–0.1.5, deprecated). As of **bgms 0.1.6.0**, they
+#' are stored in `$posterior_summary_main`.
 #' @export
 extract_category_thresholds.bgms = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
   var_names = arguments$data_columnnames
 
+  # Current format (0.1.6.0+)
   if(!is.null(bgms_object$posterior_summary_main)) {
     vec = bgms_object$posterior_summary_main[, "mean"]
-    num_vars = arguments$num_variables
+    # Handle legacy field name (no_variables → num_variables in 0.1.6.0)
+    num_vars = arguments$num_variables %||% arguments$no_variables
     variable_type = arguments$variable_type
     if(length(variable_type) == 1) {
       variable_type = rep(variable_type, num_vars)
@@ -471,28 +511,44 @@ extract_category_thresholds.bgms = function(bgms_object) {
       }
     }
     return(mat)
-  } else if(!is.null(bgms_object$posterior_mean_main)) {
-    # Deprecated intermediate format
-    lifecycle::deprecate_warn(
-      "0.1.6.0",
-      "bgms_object$posterior_mean_main",
-      "bgms_object$posterior_summary_main"
-    )
-    mat = bgms_object$posterior_mean_main
-  } else if(!is.null(bgms_object$main_effects)) {
-    # Deprecated old format
-    lifecycle::deprecate_warn(
-      "0.1.4.2",
-      "bgms_object$main_effects",
-      "bgms_object$posterior_summary_main"
-    )
-    mat = bgms_object$main_effects
-  } else {
-    stop("No threshold or main effects found in the object.")
   }
 
-  rownames(mat) = var_names
-  return(mat)
+  # Deprecated format (0.1.4–0.1.5): $thresholds or $posterior_mean_main
+  if(!is.null(bgms_object$thresholds)) {
+    lifecycle::deprecate_warn(
+      "0.1.6.0",
+      I("The '$thresholds' field is deprecated; please refit with bgms >= 0.1.6.0")
+    )
+    # In 0.1.4.x, $thresholds is a matrix (iter x vars) of raw samples
+    if(is.matrix(bgms_object$thresholds) && nrow(bgms_object$thresholds) > 1) {
+      means = colMeans(bgms_object$thresholds)
+    } else {
+      means = as.vector(bgms_object$thresholds)
+    }
+    # For binary variables in 0.1.4.x, there's 1 threshold per variable
+    mat = matrix(means, nrow = length(means), ncol = 1)
+    rownames(mat) = var_names
+    return(mat)
+  }
+  if(!is.null(bgms_object$posterior_mean_main)) {
+    lifecycle::deprecate_warn(
+      "0.1.6.0",
+      I("The '$posterior_mean_main' field is deprecated; please refit with bgms >= 0.1.6.0")
+    )
+    mat = bgms_object$posterior_mean_main
+    rownames(mat) = var_names
+    return(mat)
+  }
+
+  # Defunct format (pre-0.1.4)
+  if(!is.null(bgms_object$main_effects)) {
+    lifecycle::deprecate_stop(
+      "0.1.4.2",
+      I("The '$main_effects' field is defunct; please refit with bgms >= 0.1.6.0")
+    )
+  }
+
+  stop("No threshold or main effects found in the object.")
 }
 
 #' @rdname extractor_functions

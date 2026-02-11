@@ -356,26 +356,6 @@ test_that("extract_group_params returns group-level parameters", {
 
 
 # ------------------------------------------------------------------------------
-# Deprecated Function Tests
-# ------------------------------------------------------------------------------
-
-test_that("deprecated extractors still work with warning", {
-  fit <- get_bgms_fit()
-  args <- extract_arguments(fit)
-  
-  if (!isTRUE(args$edge_selection)) {
-    skip("Fit object does not have edge_selection = TRUE")
-  }
-  
-  expect_warning(result <- extract_edge_indicators(fit), regexp = "deprecated")
-  expect_true(is.matrix(result))
-  
-  expect_warning(result <- extract_pairwise_thresholds(fit), regexp = "deprecated")
-  expect_true(is.matrix(result))
-})
-
-
-# ------------------------------------------------------------------------------
 # Cross-Function Consistency Tests
 # ------------------------------------------------------------------------------
 
@@ -714,4 +694,270 @@ test_that("extract_indicator_priors returns Stochastic-Block parameters", {
               info = "should have beta_bernoulli_beta")
   expect_true("dirichlet_alpha" %in% names(priors), 
               info = "should have dirichlet_alpha")
+})
+
+# ==============================================================================
+# Legacy Format Support Tests
+# ==============================================================================
+# These tests verify backward compatibility with fit objects from older bgms versions.
+# Legacy fixtures are stored in tests/testthat/fixtures/legacy/ (NOT shipped with package).
+#
+# To generate fixtures, run: Rscript dev/generate_legacy_fixtures.R
+#
+# Tests skip on CRAN since fixtures aren't available in installed package.
+# ==============================================================================
+
+# Helper to load legacy fixtures from tests/testthat/fixtures/legacy/
+get_legacy_fit <- function(name) {
+  skip_on_cran()  # Fixtures not shipped with package
+  
+  # Try relative path first (for devtools::test())
+  path <- file.path("fixtures", "legacy", paste0(name, ".rds"))
+  if (!file.exists(path)) {
+    # Try from package root (for testthat::test_file())
+    path <- file.path("tests", "testthat", "fixtures", "legacy", paste0(name, ".rds"))
+  }
+  if (!file.exists(path)) {
+    skip(paste("Legacy fixture not found:", name, "- run dev/generate_legacy_fixtures.R"))
+  }
+  readRDS(path)
+}
+
+# Get all available legacy fixture versions
+get_available_legacy_versions <- function() {
+  skip_on_cran()
+  
+  # Try relative path first
+  legacy_dir <- file.path("fixtures", "legacy")
+  if (!dir.exists(legacy_dir)) {
+    legacy_dir <- file.path("tests", "testthat", "fixtures", "legacy")
+  }
+  if (!dir.exists(legacy_dir)) {
+    return(character(0))
+  }
+  
+  files <- list.files(legacy_dir, pattern = "^fit_v.*\\.rds$")
+  # Extract version from filename: fit_v0.1.4.2.rds → 0.1.4.2
+  gsub("^fit_v(.*)\\.rds$", "\\1", files)
+}
+
+# Categorize versions by format era
+categorize_version <- function(version) {
+  v <- numeric_version(version)
+  if (v < "0.1.4") {
+    return("pre-0.1.4")      # Defunct: $gamma field → error
+  } else if (v < "0.1.6") {
+    return("0.1.4-0.1.5")    # Deprecated: $indicator at top level → warning
+  } else {
+    return("0.1.6+")         # Current: $raw_samples$indicator → no warning
+  }
+}
+
+# ------------------------------------------------------------------------------
+# Lifecycle Behavior Tests
+# ------------------------------------------------------------------------------
+# Verify correct lifecycle signals:
+#   - pre-0.1.4: $gamma is DEFUNCT (error), but $interactions/$thresholds work (deprecated)
+#   - 0.1.4-0.1.5: $indicator/$interactions/$thresholds are all deprecated (warning)
+#   - 0.1.6+: current format, no warnings
+
+test_that("pre-0.1.4 formats throw defunct errors for indicator extraction", {
+  versions <- get_available_legacy_versions()
+  pre_014_versions <- versions[vapply(versions, function(v) categorize_version(v) == "pre-0.1.4", logical(1))]
+  skip_if(length(pre_014_versions) == 0, "No pre-0.1.4 fixtures available")
+  
+  for (version in pre_014_versions) {
+    fit <- get_legacy_fit(paste0("fit_v", version))
+    
+    # extract_indicators uses $gamma → defunct
+    expect_error(
+      extract_indicators(fit),
+      "defunct",
+      info = paste("v", version, ": extract_indicators should error (defunct $gamma)")
+    )
+    
+    # extract_posterior_inclusion_probabilities uses $gamma → defunct
+    expect_error(
+      extract_posterior_inclusion_probabilities(fit),
+      "defunct",
+      info = paste("v", version, ": extract_pip should error (defunct $gamma)")
+    )
+  }
+})
+
+test_that("pre-0.1.4 formats emit deprecation warnings for pairwise/thresholds", {
+  versions <- get_available_legacy_versions()
+  pre_014_versions <- versions[vapply(versions, function(v) categorize_version(v) == "pre-0.1.4", logical(1))]
+  skip_if(length(pre_014_versions) == 0, "No pre-0.1.4 fixtures available")
+  
+  for (version in pre_014_versions) {
+    fit <- get_legacy_fit(paste0("fit_v", version))
+    
+    # extract_pairwise_interactions uses $interactions → deprecated (not defunct)
+    expect_warning(
+      extract_pairwise_interactions(fit),
+      "deprecated",
+      info = paste("v", version, ": extract_pairwise should warn (deprecated $interactions)")
+    )
+    
+    # extract_category_thresholds uses $thresholds → deprecated (not defunct)
+    expect_warning(
+      extract_category_thresholds(fit),
+      "deprecated",
+      info = paste("v", version, ": extract_thresholds should warn (deprecated $thresholds)")
+    )
+  }
+})
+
+test_that("0.1.4-0.1.5 formats emit deprecation warnings", {
+  versions <- get_available_legacy_versions()
+  deprecated_versions <- versions[vapply(versions, function(v) categorize_version(v) == "0.1.4-0.1.5", logical(1))]
+  skip_if(length(deprecated_versions) == 0, "No 0.1.4-0.1.5 fixtures available")
+  
+  for (version in deprecated_versions) {
+    fit <- get_legacy_fit(paste0("fit_v", version))
+    
+    # extract_indicators should warn about deprecated $indicator field
+    expect_warning(
+      extract_indicators(fit),
+      "deprecated",
+      info = paste("v", version, "should warn for extract_indicators")
+    )
+    
+    # extract_posterior_inclusion_probabilities should also warn
+    expect_warning(
+      extract_posterior_inclusion_probabilities(fit),
+      "deprecated",
+      info = paste("v", version, "should warn for extract_posterior_inclusion_probabilities")
+    )
+    
+    # extract_pairwise_interactions should warn about deprecated $interactions field
+    expect_warning(
+      extract_pairwise_interactions(fit),
+      "deprecated",
+      info = paste("v", version, "should warn for extract_pairwise_interactions")
+    )
+    
+    # extract_category_thresholds should warn about deprecated $thresholds field
+    expect_warning(
+      extract_category_thresholds(fit),
+      "deprecated",
+      info = paste("v", version, "should warn for extract_category_thresholds")
+    )
+  }
+})
+
+test_that("0.1.6+ formats work without deprecation warnings", {
+  versions <- get_available_legacy_versions()
+  current_versions <- versions[vapply(versions, function(v) categorize_version(v) == "0.1.6+", logical(1))]
+  skip_if(length(current_versions) == 0, "No 0.1.6+ fixtures available")
+  
+  for (version in current_versions) {
+    fit <- get_legacy_fit(paste0("fit_v", version))
+    
+    # Should not produce any deprecation warnings
+    expect_no_warning(extract_indicators(fit))
+    expect_no_warning(extract_posterior_inclusion_probabilities(fit))
+    expect_no_warning(extract_pairwise_interactions(fit))
+    expect_no_warning(extract_category_thresholds(fit))
+  }
+})
+
+# ------------------------------------------------------------------------------
+# Functional Tests for Deprecated (0.1.4-0.1.5) Formats
+# ------------------------------------------------------------------------------
+# These versions still work (with warnings), so we test correctness
+
+test_that("extract_indicators works with 0.1.4-0.1.5 formats", {
+  versions <- get_available_legacy_versions()
+  deprecated_versions <- versions[vapply(versions, function(v) categorize_version(v) == "0.1.4-0.1.5", logical(1))]
+  skip_if(length(deprecated_versions) == 0, "No 0.1.4-0.1.5 fixtures available")
+  
+  for (version in deprecated_versions) {
+    fit <- get_legacy_fit(paste0("fit_v", version))
+    result <- suppressWarnings(extract_indicators(fit))
+    
+    expect_true(is.matrix(result), 
+                info = paste("v", version, "should return matrix"))
+    expect_true(nrow(result) > 0, 
+                info = paste("v", version, "should have rows"))
+    expect_true(ncol(result) > 0, 
+                info = paste("v", version, "should have columns"))
+    expect_true(all(result %in% c(0, 1)), 
+                info = paste("v", version, "should have binary values"))
+  }
+})
+
+test_that("extract_posterior_inclusion_probabilities works with 0.1.4-0.1.5 formats", {
+  versions <- get_available_legacy_versions()
+  deprecated_versions <- versions[vapply(versions, function(v) categorize_version(v) == "0.1.4-0.1.5", logical(1))]
+  skip_if(length(deprecated_versions) == 0, "No 0.1.4-0.1.5 fixtures available")
+  
+  for (version in deprecated_versions) {
+    fit <- get_legacy_fit(paste0("fit_v", version))
+    result <- suppressWarnings(extract_posterior_inclusion_probabilities(fit))
+    
+    expect_true(is.matrix(result), 
+                info = paste("v", version, "should return matrix"))
+    expect_true(isSymmetric(result), 
+                info = paste("v", version, "should be symmetric"))
+    expect_true(all(result >= 0 & result <= 1), 
+                info = paste("v", version, "should be in [0,1]"))
+    expect_true(all(diag(result) == 0), 
+                info = paste("v", version, "should have zero diagonal"))
+  }
+})
+
+test_that("extract_pairwise_interactions works with pre-0.1.6 formats", {
+  versions <- get_available_legacy_versions()
+  # Both pre-0.1.4 and 0.1.4-0.1.5 have $interactions (deprecated but functional)
+  pre_016_versions <- versions[vapply(versions, function(v) categorize_version(v) != "0.1.6+", logical(1))]
+  skip_if(length(pre_016_versions) == 0, "No pre-0.1.6 fixtures available")
+  
+  for (version in pre_016_versions) {
+    fit <- get_legacy_fit(paste0("fit_v", version))
+    result <- suppressWarnings(extract_pairwise_interactions(fit))
+    
+    expect_true(is.matrix(result), 
+                info = paste("v", version, "should return matrix"))
+    expect_true(isSymmetric(result), 
+                info = paste("v", version, "should be symmetric"))
+    expect_true(all(diag(result) == 0), 
+                info = paste("v", version, "should have zero diagonal"))
+  }
+})
+
+test_that("extract_category_thresholds works with pre-0.1.6 formats", {
+  versions <- get_available_legacy_versions()
+  # Both pre-0.1.4 and 0.1.4-0.1.5 have $thresholds (deprecated but functional)
+  pre_016_versions <- versions[vapply(versions, function(v) categorize_version(v) != "0.1.6+", logical(1))]
+  skip_if(length(pre_016_versions) == 0, "No pre-0.1.6 fixtures available")
+  
+  for (version in pre_016_versions) {
+    fit <- get_legacy_fit(paste0("fit_v", version))
+    result <- suppressWarnings(extract_category_thresholds(fit))
+    
+    expect_true(is.matrix(result), 
+                info = paste("v", version, "should return matrix"))
+    expect_true(nrow(result) > 0, 
+                info = paste("v", version, "should have rows"))
+  }
+})
+
+test_that("extract_arguments works with all legacy versions", {
+  versions <- get_available_legacy_versions()
+  skip_if(length(versions) == 0, "No legacy fixtures available")
+  
+  for (version in versions) {
+    fit <- get_legacy_fit(paste0("fit_v", version))
+    args <- extract_arguments(fit)
+    
+    expect_type(args, "list")
+    expect_true(
+      "no_variables" %in% names(args) || "num_variables" %in% names(args),
+      info = paste("v", version, "should have variable count")
+    )
+    expect_true("data_columnnames" %in% names(args),
+                info = paste("v", version, "should have column names"))
+  }
 })

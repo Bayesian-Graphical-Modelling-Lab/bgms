@@ -24,6 +24,9 @@
 # Development helpers
 ^dev$
 
+# ---- Legacy test fixtures (GitHub CI only, not shipped to CRAN) ----
+^tests/testthat/fixtures$
+
 # ---- C/C++ build artifacts (REQUIRED) ----
 ^src/.*\.o$
 ^src/.*\.so$
