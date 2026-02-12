@@ -91,6 +91,11 @@ extract_indicators.bgms = function(bgms_object) {
 }
 
 #' @rdname extractor_functions
+#' @details
+#' For \code{bgmCompare} objects, indicator samples were stored in
+#' \code{$pairwise_difference_indicator} and \code{$main_difference_indicator}
+#' (0.1.4–0.1.5, deprecated). As of **bgms 0.1.6.0**, they are
+#' stored in \code{$raw_samples$indicator}.
 #' @export
 extract_indicators.bgmCompare = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
@@ -99,12 +104,26 @@ extract_indicators.bgmCompare = function(bgms_object) {
     stop("To access difference indicators, the model must be run with difference_selection = TRUE.")
   }
 
-  indicator_samples = do.call(rbind, bgms_object$raw_samples$indicator)
-  param_names = bgms_object$raw_samples$parameter_names$indicators
-  if(!is.null(param_names)) {
-    colnames(indicator_samples) = param_names
+  # Current format (0.1.6.0+)
+  if(!is.null(bgms_object$raw_samples$indicator)) {
+    indicator_samples = do.call(rbind, bgms_object$raw_samples$indicator)
+    param_names = bgms_object$raw_samples$parameter_names$indicators
+    if(!is.null(param_names)) {
+      colnames(indicator_samples) = param_names
+    }
+    return(indicator_samples)
   }
-  return(indicator_samples)
+
+  # Deprecated format (0.1.4–0.1.5): $pairwise_difference_indicator at top level
+  if(!is.null(bgms_object$pairwise_difference_indicator)) {
+    lifecycle::deprecate_warn(
+      "0.1.6.0",
+      I("The '$pairwise_difference_indicator' field is deprecated; please refit with bgms >= 0.1.6.0")
+    )
+    return(bgms_object$pairwise_difference_indicator)
+  }
+
+  stop("No indicator samples found in fit object.")
 }
 
 #' @rdname extractor_functions
@@ -202,11 +221,8 @@ extract_posterior_inclusion_probabilities.bgmCompare = function(bgms_object) {
   }
 
   var_names = arguments$data_columnnames
-  num_categories = as.integer(arguments$num_categories)
-  is_ordinal = as.logical(arguments$is_ordinal_variable)
-  num_groups = as.integer(arguments$num_groups)
-  num_variables = as.integer(arguments$num_variables)
-  projection = arguments$projection # [num_groups x (num_groups-1)]
+  # Handle legacy field name (no_variables → num_variables in 0.1.6.0)
+  num_variables = as.integer(arguments$num_variables %||% arguments$no_variables)
 
   # ---- helper: combine chains into [iter, chain, param]
   to_array3d = function(xlist) {
@@ -219,8 +235,10 @@ extract_posterior_inclusion_probabilities.bgmCompare = function(bgms_object) {
     arr
   }
 
-  array3d_ind = to_array3d(bgms_object$raw_samples$indicator)
-  mean_ind = apply(array3d_ind, 3, mean)
+  # Current format (0.1.6.0+)
+  if(!is.null(bgms_object$raw_samples$indicator)) {
+    array3d_ind = to_array3d(bgms_object$raw_samples$indicator)
+    mean_ind = apply(array3d_ind, 3, mean)
 
     # reconstruct VxV matrix using the sampler’s interleaved order:
     # (1,1),(1,2),...,(1,V),(2,2),...,(2,V),...,(V,V)
@@ -249,6 +267,24 @@ extract_posterior_inclusion_probabilities.bgmCompare = function(bgms_object) {
   rownames(ind_mat) = arguments$data_columnnames
   colnames(ind_mat) = arguments$data_columnnames
   return(ind_mat)
+  }
+
+  # Deprecated format (0.1.4–0.1.5): $pairwise_difference_indicator at top level
+  if(!is.null(bgms_object$pairwise_difference_indicator)) {
+    lifecycle::deprecate_warn(
+      "0.1.6.0",
+      I("The '$pairwise_difference_indicator' field is deprecated; please refit with bgms >= 0.1.6.0")
+    )
+    edge_means = colMeans(bgms_object$pairwise_difference_indicator)
+    V = num_variables
+    ind_mat = matrix(0, nrow = V, ncol = V)
+    ind_mat[lower.tri(ind_mat)] = edge_means
+    ind_mat = ind_mat + t(ind_mat)
+    dimnames(ind_mat) = list(var_names, var_names)
+    return(ind_mat)
+  }
+
+  stop("No indicator samples found in fit object.")
 }
 
 #' @rdname extractor_functions
@@ -347,19 +383,37 @@ extract_pairwise_interactions.bgms = function(bgms_object) {
 
 
 #' @rdname extractor_functions
+#' @details
+#' For \code{bgmCompare} objects, pairwise interactions were stored in
+#' \code{$interactions} (0.1.4–0.1.5, deprecated). As of **bgms 0.1.6.0**,
+#' they are stored in \code{$raw_samples$pairwise}.
 #' @export
 extract_pairwise_interactions.bgmCompare = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
 
-  pairwise_samples = do.call(rbind, bgms_object$raw_samples$pairwise)
+  # Current format (0.1.6.0+)
+  if(!is.null(bgms_object$raw_samples$pairwise)) {
+    pairwise_samples = do.call(rbind, bgms_object$raw_samples$pairwise)
 
-  num_vars = bgms_object$arguments$num_variables
-  num_pairs = num_vars * (num_vars - 1) / 2
+    num_vars = bgms_object$arguments$num_variables
+    num_pairs = num_vars * (num_vars - 1) / 2
 
-  pairwise_samples = pairwise_samples[, 1:num_pairs]
-  colnames(pairwise_samples) = bgms_object$raw_samples$parameter_names$pairwise_baseline
+    pairwise_samples = pairwise_samples[, 1:num_pairs]
+    colnames(pairwise_samples) = bgms_object$raw_samples$parameter_names$pairwise_baseline
 
-  return(pairwise_samples)
+    return(pairwise_samples)
+  }
+
+  # Deprecated format (0.1.4–0.1.5): $interactions at top level
+  if(!is.null(bgms_object$interactions)) {
+    lifecycle::deprecate_warn(
+      "0.1.6.0",
+      I("The '$interactions' field is deprecated; please refit with bgms >= 0.1.6.0")
+    )
+    return(bgms_object$interactions)
+  }
+
+  stop("No pairwise interaction samples found in fit object.")
 }
 
 #' @rdname extractor_functions
@@ -426,19 +480,47 @@ extract_category_thresholds.bgms = function(bgms_object) {
 }
 
 #' @rdname extractor_functions
+#' @details
+#' For \code{bgmCompare} objects, category thresholds were stored in
+#' \code{$thresholds} (0.1.4–0.1.5, deprecated). As of **bgms 0.1.6.0**,
+#' they are stored in \code{$raw_samples$main}.
 #' @export
 extract_category_thresholds.bgmCompare = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
 
-  main_samples = do.call(rbind, bgms_object$raw_samples$main)
+  # Current format (0.1.6.0+)
+  if(!is.null(bgms_object$raw_samples$main)) {
+    main_samples = do.call(rbind, bgms_object$raw_samples$main)
 
-  num_vars = bgms_object$arguments$num_variables
-  num_main = length(bgms_object$raw_samples$parameter_names$main_baseline)
+    num_vars = bgms_object$arguments$num_variables
+    num_main = length(bgms_object$raw_samples$parameter_names$main_baseline)
 
-  main_samples = main_samples[, 1:num_main]
-  colnames(main_samples) = bgms_object$raw_samples$parameter_names$main_baseline
+    main_samples = main_samples[, 1:num_main]
+    colnames(main_samples) = bgms_object$raw_samples$parameter_names$main_baseline
 
-  return(main_samples)
+    return(main_samples)
+  }
+
+  # Deprecated format (0.1.4–0.1.5): $thresholds or $thresholds_gr1/$thresholds_gr2 at top level
+  if(!is.null(bgms_object$thresholds)) {
+    lifecycle::deprecate_warn(
+      "0.1.6.0",
+      I("The '$thresholds' field is deprecated; please refit with bgms >= 0.1.6.0")
+    )
+    return(bgms_object$thresholds)
+  }
+
+  # Alternative deprecated format (0.1.4.1+): $thresholds_gr1, $thresholds_gr2
+  if(!is.null(bgms_object$thresholds_gr1)) {
+    lifecycle::deprecate_warn(
+      "0.1.6.0",
+      I("The '$thresholds_gr*' fields are deprecated; please refit with bgms >= 0.1.6.0")
+    )
+    # Combine the two groups' thresholds
+    return(cbind(bgms_object$thresholds_gr1, bgms_object$thresholds_gr2))
+  }
+
+  stop("No category threshold samples found in fit object.")
 }
 
 #' @rdname extractor_functions
@@ -452,6 +534,25 @@ extract_group_params = function(bgms_object) {
 extract_group_params.bgmCompare = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
 
+  # Current format (0.1.6.0+)
+  if(!is.null(bgms_object$raw_samples$main)) {
+    return(.extract_group_params_current(bgms_object, arguments))
+  }
+
+  # Deprecated format (0.1.4–0.1.5): separate fields for baseline and differences
+  if(!is.null(bgms_object$interactions) && !is.null(bgms_object$pairwise_difference)) {
+    lifecycle::deprecate_warn(
+      "0.1.6.0",
+      I("The legacy bgmCompare format is deprecated; please refit with bgms >= 0.1.6.0")
+    )
+    return(.extract_group_params_legacy(bgms_object, arguments))
+  }
+
+  stop("No group parameter samples found in fit object.")
+}
+
+# Helper for current format (0.1.6+)
+.extract_group_params_current = function(bgms_object, arguments) {
   var_names = arguments$data_columnnames
   num_categories = as.integer(arguments$num_categories)
   is_ordinal = as.logical(arguments$is_ordinal_variable)
@@ -534,6 +635,94 @@ extract_group_params.bgmCompare = function(bgms_object) {
   }
   rownames(pairwise_effects_groups) = rownames(pairwise_mat)
   colnames(pairwise_effects_groups) = paste0("group", seq_len(num_groups))
+
+  return(list(
+    main_effects_groups = main_effects_groups,
+    pairwise_effects_groups = pairwise_effects_groups
+  ))
+}
+
+# Helper for legacy format (0.1.4–0.1.5)
+# v0.1.4.x only supported 2 groups with parameterization:
+#   group1 = baseline + diff, group2 = baseline - diff
+.extract_group_params_legacy = function(bgms_object, arguments) {
+  var_names = arguments$data_columnnames
+  # Handle legacy field name (no_variables → num_variables in 0.1.6.0)
+  num_variables = as.integer(arguments$num_variables %||% arguments$no_variables)
+
+  # v0.1.4 format: baseline interactions and differences are separate
+  # $interactions: [iter x n_pairs] baseline pairwise effects
+  # $pairwise_difference: [iter x n_pairs] pairwise differences
+  # $thresholds or $thresholds_gr1/$thresholds_gr2: main effects
+  # $main_difference: [iter x n_vars] main differences
+
+  # Compute posterior means
+  mean_interactions = colMeans(bgms_object$interactions)
+  mean_pairwise_diff = colMeans(bgms_object$pairwise_difference)
+
+  # Get thresholds (handles both v0.1.4 and v0.1.4.1+ formats)
+  if(!is.null(bgms_object$thresholds)) {
+    mean_thresholds = colMeans(bgms_object$thresholds)
+  } else if(!is.null(bgms_object$thresholds_gr1)) {
+    # v0.1.4.1+ stored group-specific thresholds directly
+    mean_thresholds_gr1 = colMeans(bgms_object$thresholds_gr1)
+    mean_thresholds_gr2 = colMeans(bgms_object$thresholds_gr2)
+    # Return directly since we have group-specific values
+    main_effects_groups = cbind(mean_thresholds_gr1, mean_thresholds_gr2)
+    colnames(main_effects_groups) = c("group1", "group2")
+    rownames(main_effects_groups) = var_names
+
+    pairwise_effects_groups = cbind(
+      mean_interactions + mean_pairwise_diff,
+      mean_interactions - mean_pairwise_diff
+    )
+    colnames(pairwise_effects_groups) = c("group1", "group2")
+
+    # Row names for pairs
+    pair_names = character()
+    if(num_variables >= 2L) {
+      for(i in 1L:(num_variables - 1L)) {
+        for(j in (i + 1L):num_variables) {
+          pair_names = c(pair_names, paste0(var_names[i], "-", var_names[j]))
+        }
+      }
+    }
+    rownames(pairwise_effects_groups) = pair_names
+
+    return(list(
+      main_effects_groups = main_effects_groups,
+      pairwise_effects_groups = pairwise_effects_groups
+    ))
+  } else {
+    stop("No threshold samples found in legacy fit object.")
+  }
+
+  mean_main_diff = colMeans(bgms_object$main_difference)
+
+  # v0.1.4 parameterization: group1 = baseline + diff, group2 = baseline - diff
+  main_effects_groups = cbind(
+    mean_thresholds + mean_main_diff,
+    mean_thresholds - mean_main_diff
+  )
+  colnames(main_effects_groups) = c("group1", "group2")
+  rownames(main_effects_groups) = var_names
+
+  pairwise_effects_groups = cbind(
+    mean_interactions + mean_pairwise_diff,
+    mean_interactions - mean_pairwise_diff
+  )
+  colnames(pairwise_effects_groups) = c("group1", "group2")
+
+  # Row names for pairs
+  pair_names = character()
+  if(num_variables >= 2L) {
+    for(i in 1L:(num_variables - 1L)) {
+      for(j in (i + 1L):num_variables) {
+        pair_names = c(pair_names, paste0(var_names[i], "-", var_names[j]))
+      }
+    }
+  }
+  rownames(pairwise_effects_groups) = pair_names
 
   return(list(
     main_effects_groups = main_effects_groups,

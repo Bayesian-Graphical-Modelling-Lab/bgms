@@ -196,21 +196,87 @@ get_bgmcompare_fit_adaptive_metropolis <- function() {
   .test_cache$bgmcompare_fit_am
 }
 
-#' @description Get cached bgmCompare fit with main_difference_selection = TRUE (2 chains)
-get_bgmcompare_fit_main_selection <- function() {
-  if (is.null(.test_cache$bgmcompare_fit_main_sel)) {
+#' @description Get cached bgmCompare fit using HMC sampler (1 chain)
+get_bgmcompare_fit_hmc <- function() {
+  if (is.null(.test_cache$bgmcompare_fit_hmc)) {
     data("ADHD", package = "bgms")
-    .test_cache$bgmcompare_fit_main_sel <- bgmCompare(
+    .test_cache$bgmcompare_fit_hmc <- bgmCompare(
       x = ADHD[, 2:5],
       group_indicator = ADHD[, "group"],
+      update_method = "hamiltonian-mc",
+      iter = 25, warmup = 50, chains = 1,
+      seed = 88889,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgmcompare_fit_hmc
+}
+
+#' @description Get cached bgmCompare fit with HMC + Blume-Capel (1 chain)
+get_bgmcompare_fit_hmc_blumecapel <- function() {
+  if (is.null(.test_cache$bgmcompare_fit_hmc_bc)) {
+    data("Boredom", package = "bgms")
+    # Select 25 rows from each language group
+    rows <- c(1:25, 491:515)
+    # Convert language to integer: 1 for first level, 2 for second
+    lang <- as.integer(as.factor(Boredom[rows, "language"]))
+    .test_cache$bgmcompare_fit_hmc_bc <- bgmCompare(
+      x = Boredom[rows, 2:5],  # 4 ordinal variables (7 categories)
+      group_indicator = lang,
+      update_method = "hamiltonian-mc",
+      variable_type = "blume-capel",
+      baseline_category = 3,
+      iter = 25, warmup = 50, chains = 1,
+      seed = 88890,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgmcompare_fit_hmc_bc
+}
+
+#' @description Get cached bgmCompare fit with main_difference_selection = TRUE + Blume-Capel (1 chain)
+#' Crosses Blume-Capel with difference_selection (Bernoulli prior)
+get_bgmcompare_fit_main_selection <- function() {
+  if (is.null(.test_cache$bgmcompare_fit_main_sel)) {
+    data("Boredom", package = "bgms")
+    # Select 25 rows from each language group
+    rows <- c(1:25, 491:515)
+    lang <- as.integer(as.factor(Boredom[rows, "language"]))
+    .test_cache$bgmcompare_fit_main_sel <- bgmCompare(
+      x = Boredom[rows, 2:5],  # 4 ordinal variables (7 categories)
+      group_indicator = lang,
       difference_selection = TRUE,
       main_difference_selection = TRUE,
-      iter = 50, warmup = 100, chains = 2,
+      variable_type = "blume-capel",
+      baseline_category = 3,
+      iter = 25, warmup = 50, chains = 1,
       seed = 44444,
       display_progress = "none"
     )
   }
   .test_cache$bgmcompare_fit_main_sel
+}
+
+#' @description Get cached bgmCompare fit with Beta-Bernoulli difference prior + ordinal (1 chain)
+#' Crosses Beta-Bernoulli prior with ordinal variables
+get_bgmcompare_fit_beta_bernoulli <- function() {
+  if (is.null(.test_cache$bgmcompare_fit_bb)) {
+    data("Wenchuan", package = "bgms")
+    x <- Wenchuan[1:25, 1:4]
+    y <- Wenchuan[26:50, 1:4]
+    .test_cache$bgmcompare_fit_bb <- bgmCompare(
+      x = x, y = y,
+      difference_selection = TRUE,
+      main_difference_selection = TRUE,
+      difference_prior = "Beta-Bernoulli",
+      beta_bernoulli_alpha = 1,
+      beta_bernoulli_beta = 4,
+      iter = 25, warmup = 50, chains = 1,
+      seed = 55555,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgmcompare_fit_bb
 }
 
 #' @description Get cached bgms fit with Beta-Bernoulli edge prior (2 chains)
@@ -316,19 +382,44 @@ get_bgms_fit_standardize <- function() {
 #' @description Get cached bgmCompare fit with Blume-Capel variables (1 chain)
 get_bgmcompare_fit_blumecapel <- function() {
   if (is.null(.test_cache$bgmcompare_fit_bc)) {
-    data("Wenchuan", package = "bgms")
-    x <- Wenchuan[1:25, 1:4]
-    y <- Wenchuan[26:50, 1:4]
+    data("Boredom", package = "bgms")
+    # Select 25 rows from each language group
+    rows <- c(1:25, 491:515)
+    # Convert language to integer: 1 for first level, 2 for second
+    lang <- as.integer(as.factor(Boredom[rows, "language"]))
     .test_cache$bgmcompare_fit_bc <- bgmCompare(
-      x = x, y = y,
+      x = Boredom[rows, 2:5],  # 4 ordinal variables (7 categories)
+      group_indicator = lang,
       variable_type = "blume-capel",
-      baseline_category = 1,
+      baseline_category = 3,
       iter = 25, warmup = 50, chains = 1,
       seed = 99991,
       display_progress = "none"
     )
   }
   .test_cache$bgmcompare_fit_bc
+}
+
+#' @description Get cached bgmCompare fit with adaptive-metropolis + Blume-Capel (1 chain)
+get_bgmcompare_fit_am_blumecapel <- function() {
+  if (is.null(.test_cache$bgmcompare_fit_am_bc)) {
+    data("Boredom", package = "bgms")
+    # Select 25 rows from each language group
+    rows <- c(1:25, 491:515)
+    # Convert language to integer: 1 for first level, 2 for second
+    lang <- as.integer(as.factor(Boredom[rows, "language"]))
+    .test_cache$bgmcompare_fit_am_bc <- bgmCompare(
+      x = Boredom[rows, 2:5],  # 4 ordinal variables (7 categories)
+      group_indicator = lang,
+      update_method = "adaptive-metropolis",
+      variable_type = "blume-capel",
+      baseline_category = 3,
+      iter = 25, warmup = 50, chains = 1,
+      seed = 99992,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgmcompare_fit_am_bc
 }
 
 #' @description Get cached bgmCompare fit with missing data imputation (1 chain)
@@ -348,6 +439,31 @@ get_bgmcompare_fit_impute <- function() {
     )
   }
   .test_cache$bgmcompare_fit_impute
+}
+
+#' @description Get cached bgmCompare fit with Blume-Capel + missing data imputation (1 chain)
+get_bgmcompare_fit_blumecapel_impute <- function() {
+  if (is.null(.test_cache$bgmcompare_fit_bc_impute)) {
+    data("Boredom", package = "bgms")
+    # Select 25 rows from each language group
+    rows <- c(1:25, 491:515)
+    x <- Boredom[rows, 2:5]  # 4 ordinal variables (7 categories)
+    x[5, 2] <- NA
+    x[30, 3] <- NA  # Row in second group
+    # Convert language to integer: 1 for first level, 2 for second
+    lang <- as.integer(as.factor(Boredom[rows, "language"]))
+    .test_cache$bgmcompare_fit_bc_impute <- bgmCompare(
+      x = x,
+      group_indicator = lang,
+      variable_type = "blume-capel",
+      baseline_category = 3,
+      na_action = "impute",
+      iter = 25, warmup = 50, chains = 1,
+      seed = 11113,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgmcompare_fit_bc_impute
 }
 
 #' @description Get cached bgmCompare fit with prior standardization (1 chain)
@@ -393,6 +509,12 @@ get_prediction_data_bgmcompare_binary <- function(n = 10) {
 get_prediction_data_bgmcompare_ordinal <- function(n = 10) {
   data("Wenchuan", package = "bgms")
   Wenchuan[sample(nrow(Wenchuan), n), 1:4]  # Random sample, 4 variables
+}
+
+#' Get prediction data matching the Blume-Capel bgmCompare fixture (Boredom)
+get_prediction_data_bgmcompare_blumecapel <- function(n = 10) {
+  data("Boredom", package = "bgms")
+  Boredom[26:35, 2:5]  # Use different rows than training, 4 ordinal variables
 }
 
 # ------------------------------------------------------------------------------

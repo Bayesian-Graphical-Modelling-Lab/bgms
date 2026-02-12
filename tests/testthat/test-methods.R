@@ -99,14 +99,44 @@ get_bgmcompare_fixtures <- function() {
       var_type = "binary"
     ),
     list(
+      label = "hmc",
+      get_fit = get_bgmcompare_fit_hmc,
+      get_prediction_data = get_prediction_data_bgmcompare_binary,
+      var_type = "binary"
+    ),
+    list(
+      label = "hmc-blume-capel",
+      get_fit = get_bgmcompare_fit_hmc_blumecapel,
+      get_prediction_data = get_prediction_data_bgmcompare_blumecapel,
+      var_type = "blume-capel"
+    ),
+    list(
       label = "blume-capel",
       get_fit = get_bgmcompare_fit_blumecapel,
-      get_prediction_data = get_prediction_data_bgmcompare_ordinal,
+      get_prediction_data = get_prediction_data_bgmcompare_blumecapel,
+      var_type = "blume-capel"
+    ),
+    list(
+      label = "am-blume-capel",
+      get_fit = get_bgmcompare_fit_am_blumecapel,
+      get_prediction_data = get_prediction_data_bgmcompare_blumecapel,
       var_type = "blume-capel"
     ),
     list(
       label = "impute",
       get_fit = get_bgmcompare_fit_impute,
+      get_prediction_data = get_prediction_data_bgmcompare_ordinal,
+      var_type = "ordinal"
+    ),
+    list(
+      label = "blume-capel-impute",
+      get_fit = get_bgmcompare_fit_blumecapel_impute,
+      get_prediction_data = get_prediction_data_bgmcompare_blumecapel,
+      var_type = "blume-capel"
+    ),
+    list(
+      label = "beta-bernoulli",
+      get_fit = get_bgmcompare_fit_beta_bernoulli,
       get_prediction_data = get_prediction_data_bgmcompare_ordinal,
       var_type = "ordinal"
     ),
