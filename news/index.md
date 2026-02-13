@@ -39,6 +39,10 @@
 
 ### Other changes
 
+- NUTS: implemented generalized U-turn criterion following
+  Betancourt (2017) and STAN
+- bgmCompare: BLAS-vectorized gradient computation for improved
+  performance
 - expanded test suite: input validation, extractor functions, S3
   methods, simulation, and numerical sanity tests
 - improved warmup schedule: fixed buffers (75/25/50) with proportional

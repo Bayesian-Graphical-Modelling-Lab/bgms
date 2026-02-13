@@ -95,28 +95,28 @@ probabilities and Bayes factors.</p>
 diagnostics:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">$</span><span class="va">pairwise</span></span>
-<span><span class="co">#&gt;                          mean          sd         mcse     n_eff</span></span>
-<span><span class="co">#&gt; intrusion-dreams  0.632293951 0.001661179 0.0657939558 1568.6981</span></span>
-<span><span class="co">#&gt; intrusion-flash   0.335941200 0.001418260 0.0598391890 1780.1616</span></span>
-<span><span class="co">#&gt; intrusion-upset   0.189497746 0.075619906 0.0054547304  192.1877</span></span>
-<span><span class="co">#&gt; intrusion-physior 0.194802150 0.071131862 0.0049449384  206.9220</span></span>
-<span><span class="co">#&gt; dreams-flash      0.502768076 0.001633580 0.0620233738 1441.5502</span></span>
-<span><span class="co">#&gt; dreams-upset      0.228964481 0.060644348 0.0030175433  403.8998</span></span>
-<span><span class="co">#&gt; dreams-physior    0.003975021 0.017652134 0.0006208483  808.3946</span></span>
-<span><span class="co">#&gt; flash-upset       0.009480741 0.031081369 0.0013771486  509.3762</span></span>
-<span><span class="co">#&gt; flash-physior     0.307821055 0.001453666 0.0560608285 1487.2689</span></span>
-<span><span class="co">#&gt; upset-physior     0.710876259 0.001532448 0.0597194081 1518.6560</span></span>
+<span><span class="co">#&gt;                          mean           sd        mcse     n_eff</span></span>
+<span><span class="co">#&gt; intrusion-dreams  0.628937007 0.0677606037 0.001202182 3176.9793</span></span>
+<span><span class="co">#&gt; intrusion-flash   0.337201523 0.0012005272 0.062234287 2687.2957</span></span>
+<span><span class="co">#&gt; intrusion-upset   0.191010300 0.0756189657 0.006122237  152.5602</span></span>
+<span><span class="co">#&gt; intrusion-physior 0.198537214 0.0646420624 0.002985072  468.9438</span></span>
+<span><span class="co">#&gt; dreams-flash      0.499527156 0.0009101115 0.059448942 4266.7685</span></span>
+<span><span class="co">#&gt; dreams-upset      0.226692666 0.0617080816 0.004555319  183.5044</span></span>
+<span><span class="co">#&gt; dreams-physior    0.007061984 0.0267717133 0.001145061  546.6324</span></span>
+<span><span class="co">#&gt; flash-upset       0.008840418 0.0300929122 0.001329300  512.4868</span></span>
+<span><span class="co">#&gt; flash-physior     0.305169126 0.0010420608 0.053375462 2623.5973</span></span>
+<span><span class="co">#&gt; upset-physior     0.711333857 0.0011488391 0.059649835 2695.8770</span></span>
 <span><span class="co">#&gt;                       Rhat</span></span>
-<span><span class="co">#&gt; intrusion-dreams  1.003909</span></span>
-<span><span class="co">#&gt; intrusion-flash   1.000981</span></span>
-<span><span class="co">#&gt; intrusion-upset   1.005080</span></span>
-<span><span class="co">#&gt; intrusion-physior 1.016768</span></span>
-<span><span class="co">#&gt; dreams-flash      1.000174</span></span>
-<span><span class="co">#&gt; dreams-upset      1.007224</span></span>
-<span><span class="co">#&gt; dreams-physior    1.000268</span></span>
-<span><span class="co">#&gt; flash-upset       1.009813</span></span>
-<span><span class="co">#&gt; flash-physior     1.005348</span></span>
-<span><span class="co">#&gt; upset-physior     1.000656</span></span></code></pre></div>
+<span><span class="co">#&gt; intrusion-dreams  1.001266</span></span>
+<span><span class="co">#&gt; intrusion-flash   1.003259</span></span>
+<span><span class="co">#&gt; intrusion-upset   1.003553</span></span>
+<span><span class="co">#&gt; intrusion-physior 1.001431</span></span>
+<span><span class="co">#&gt; dreams-flash      1.000553</span></span>
+<span><span class="co">#&gt; dreams-upset      1.004452</span></span>
+<span><span class="co">#&gt; dreams-physior    1.012091</span></span>
+<span><span class="co">#&gt; flash-upset       1.017274</span></span>
+<span><span class="co">#&gt; flash-physior     1.003092</span></span>
+<span><span class="co">#&gt; upset-physior     1.000396</span></span></code></pre></div>
 <ul>
 <li>R-hat values close to 1 (typically below 1.01) suggest convergence
 <span class="citation">(<a href="#ref-VehtariEtAl_2021">Vehtari et al.,
@@ -155,11 +155,11 @@ edges:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">$</span><span class="va">indicator</span></span>
 <span><span class="co">#&gt;           intrusion  dreams   flash   upset physior</span></span>
-<span><span class="co">#&gt; intrusion   0.00000 1.00000 1.00000 0.92700 0.94875</span></span>
-<span><span class="co">#&gt; dreams      1.00000 0.00000 1.00000 0.98475 0.04975</span></span>
-<span><span class="co">#&gt; flash       1.00000 1.00000 0.00000 0.08775 1.00000</span></span>
-<span><span class="co">#&gt; upset       0.92700 0.98475 0.08775 0.00000 1.00000</span></span>
-<span><span class="co">#&gt; physior     0.94875 0.04975 1.00000 1.00000 0.00000</span></span></code></pre></div>
+<span><span class="co">#&gt; intrusion   0.00000 0.99925 1.00000 0.92975 0.97200</span></span>
+<span><span class="co">#&gt; dreams      0.99925 0.00000 1.00000 0.98075 0.06675</span></span>
+<span><span class="co">#&gt; flash       1.00000 1.00000 0.00000 0.08125 1.00000</span></span>
+<span><span class="co">#&gt; upset       0.92975 0.98075 0.08125 0.00000 1.00000</span></span>
+<span><span class="co">#&gt; physior     0.97200 0.06675 1.00000 1.00000 0.00000</span></span></code></pre></div>
 <ul>
 <li>Values near 1.0: strong evidence the edge is present.</li>
 <li>Values near 0.0: strong evidence the edge is absent.</li>
@@ -180,14 +180,14 @@ absence:</p>
 <span><span class="va">p</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">$</span><span class="va">indicator</span><span class="op">[</span><span class="fl">1</span>, <span class="fl">5</span><span class="op">]</span></span>
 <span><span class="va">BF_10</span> <span class="op">=</span> <span class="va">p</span> <span class="op">/</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">p</span><span class="op">)</span></span>
 <span><span class="va">BF_10</span></span>
-<span><span class="co">#&gt; [1] 18.5122</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 34.71429</span></span></code></pre></div>
 <p>Here the Bayes factor in favor of inclusion (H1) is small, meaning
 that there is little evidence for inclusion. Since the Bayes factor is
 transitive, we can use it to express the evidence in favor of exclusion
 (H0) as</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fl">1</span> <span class="op">/</span> <span class="va">BF_10</span></span>
-<span><span class="co">#&gt; [1] 0.05401845</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 0.02880658</span></span></code></pre></div>
 <p>This Bayes factor shows that there is strong evidence for the absence
 of a network relation between the variables <code>intrusion</code> and
 <code>physior</code>.</p>

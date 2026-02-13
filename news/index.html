@@ -71,7 +71,9 @@
 </ul></div>
 <div class="section level3">
 <h3 id="other-changes-0-1-6-3">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-0-1-6-3"></a></h3>
-<ul><li>expanded test suite: input validation, extractor functions, S3 methods, simulation, and numerical sanity tests</li>
+<ul><li>NUTS: implemented generalized U-turn criterion following Betancourt (2017) and STAN</li>
+<li>bgmCompare: BLAS-vectorized gradient computation for improved performance</li>
+<li>expanded test suite: input validation, extractor functions, S3 methods, simulation, and numerical sanity tests</li>
 <li>improved warmup schedule: fixed buffers (75/25/50) with proportional fallback for short warmup</li>
 <li>edge selection warmup now within user budget: 85%/10%/5% split for stages 1-3a/3b/3c</li>
 <li>streamlined user messages: concise warnings, consolidated NUTS diagnostics</li>

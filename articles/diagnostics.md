@@ -26,28 +26,28 @@ diagnostics:
 
 ``` r
 summary(fit)$pairwise
-#>                          mean          sd         mcse     n_eff
-#> intrusion-dreams  0.632293951 0.001661179 0.0657939558 1568.6981
-#> intrusion-flash   0.335941200 0.001418260 0.0598391890 1780.1616
-#> intrusion-upset   0.189497746 0.075619906 0.0054547304  192.1877
-#> intrusion-physior 0.194802150 0.071131862 0.0049449384  206.9220
-#> dreams-flash      0.502768076 0.001633580 0.0620233738 1441.5502
-#> dreams-upset      0.228964481 0.060644348 0.0030175433  403.8998
-#> dreams-physior    0.003975021 0.017652134 0.0006208483  808.3946
-#> flash-upset       0.009480741 0.031081369 0.0013771486  509.3762
-#> flash-physior     0.307821055 0.001453666 0.0560608285 1487.2689
-#> upset-physior     0.710876259 0.001532448 0.0597194081 1518.6560
+#>                          mean           sd        mcse     n_eff
+#> intrusion-dreams  0.628937007 0.0677606037 0.001202182 3176.9793
+#> intrusion-flash   0.337201523 0.0012005272 0.062234287 2687.2957
+#> intrusion-upset   0.191010300 0.0756189657 0.006122237  152.5602
+#> intrusion-physior 0.198537214 0.0646420624 0.002985072  468.9438
+#> dreams-flash      0.499527156 0.0009101115 0.059448942 4266.7685
+#> dreams-upset      0.226692666 0.0617080816 0.004555319  183.5044
+#> dreams-physior    0.007061984 0.0267717133 0.001145061  546.6324
+#> flash-upset       0.008840418 0.0300929122 0.001329300  512.4868
+#> flash-physior     0.305169126 0.0010420608 0.053375462 2623.5973
+#> upset-physior     0.711333857 0.0011488391 0.059649835 2695.8770
 #>                       Rhat
-#> intrusion-dreams  1.003909
-#> intrusion-flash   1.000981
-#> intrusion-upset   1.005080
-#> intrusion-physior 1.016768
-#> dreams-flash      1.000174
-#> dreams-upset      1.007224
-#> dreams-physior    1.000268
-#> flash-upset       1.009813
-#> flash-physior     1.005348
-#> upset-physior     1.000656
+#> intrusion-dreams  1.001266
+#> intrusion-flash   1.003259
+#> intrusion-upset   1.003553
+#> intrusion-physior 1.001431
+#> dreams-flash      1.000553
+#> dreams-upset      1.004452
+#> dreams-physior    1.012091
+#> flash-upset       1.017274
+#> flash-physior     1.003092
+#> upset-physior     1.000396
 ```
 
 - R-hat values close to 1 (typically below 1.01) suggest convergence
@@ -88,11 +88,11 @@ edges:
 ``` r
 coef(fit)$indicator
 #>           intrusion  dreams   flash   upset physior
-#> intrusion   0.00000 1.00000 1.00000 0.92700 0.94875
-#> dreams      1.00000 0.00000 1.00000 0.98475 0.04975
-#> flash       1.00000 1.00000 0.00000 0.08775 1.00000
-#> upset       0.92700 0.98475 0.08775 0.00000 1.00000
-#> physior     0.94875 0.04975 1.00000 1.00000 0.00000
+#> intrusion   0.00000 0.99925 1.00000 0.92975 0.97200
+#> dreams      0.99925 0.00000 1.00000 0.98075 0.06675
+#> flash       1.00000 1.00000 0.00000 0.08125 1.00000
+#> upset       0.92975 0.98075 0.08125 0.00000 1.00000
+#> physior     0.97200 0.06675 1.00000 1.00000 0.00000
 ```
 
 - Values near 1.0: strong evidence the edge is present.
@@ -112,7 +112,7 @@ vs absence:
 p = coef(fit)$indicator[1, 5]
 BF_10 = p / (1 - p)
 BF_10
-#> [1] 18.5122
+#> [1] 34.71429
 ```
 
 Here the Bayes factor in favor of inclusion (H1) is small, meaning that
@@ -122,7 +122,7 @@ transitive, we can use it to express the evidence in favor of exclusion
 
 ``` r
 1 / BF_10
-#> [1] 0.05401845
+#> [1] 0.02880658
 ```
 
 This Bayes factor shows that there is strong evidence for the absence of
