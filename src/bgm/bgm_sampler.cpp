@@ -431,27 +431,26 @@ void update_pairwise_effects_metropolis_bgm (
   for (int variable1 = 0; variable1 < num_variables - 1; variable1++) {
     for (int variable2 = variable1 + 1; variable2 < num_variables; variable2++) {
       if (inclusion_indicator(variable1, variable2) == 1) {
-        double& value = pairwise_effects(variable1, variable2);
+        double current = pairwise_effects(variable1, variable2);
         double proposal_sd = proposal_sd_pairwise_effects(variable1, variable2);
-        double current = value;
 
+        // Lambda computes log-posterior at theta using optimized residual-based version
         auto log_post = [&](double theta) {
-          pairwise_effects(variable1, variable2) = theta;
-          pairwise_effects(variable2, variable1) = theta;
-
+          double delta = theta - current;
           return log_pseudoposterior_interactions_component(
-            pairwise_effects, main_effects, observations, num_categories,
+            pairwise_effects, main_effects, residual_matrix, observations, num_categories,
             inclusion_indicator, is_ordinal_variable, baseline_category,
-            pairwise_scale, pairwise_scaling_factors, pairwise_stats, variable1, variable2
+            pairwise_scale, pairwise_scaling_factors, pairwise_stats, variable1, variable2, delta
           );
         };
 
         SamplerResult result = rwm_sampler(current, proposal_sd, log_post, rng);
 
-        value = result.state[0];
+        double value = result.state[0];
+        pairwise_effects(variable1, variable2) = value;
         pairwise_effects(variable2, variable1) = value;
 
-        if(current != value) {
+        if (current != value) {
           double delta = value - current;
           residual_matrix.col(variable1) += arma::conv_to<arma::vec>::from(observations.col(variable2)) * delta;
           residual_matrix.col(variable2) += arma::conv_to<arma::vec>::from(observations.col(variable1)) * delta;
@@ -833,27 +832,26 @@ void tune_proposal_sd_bgm(
 
   for (int variable1 = 0; variable1 < num_variables - 1; variable1++) {
     for (int variable2 = variable1 + 1; variable2 < num_variables; variable2++) {
-      double& value = pairwise_effects(variable1, variable2);
+      double current = pairwise_effects(variable1, variable2);
       double proposal_sd = proposal_sd_pairwise_effects(variable1, variable2);
-      double current = value;
 
+      // Lambda computes log-posterior at theta using optimized residual-based version
       auto log_post = [&](double theta) {
-        pairwise_effects(variable1, variable2) = theta;
-        pairwise_effects(variable2, variable1) = theta;
-
+        double delta = theta - current;
         return log_pseudoposterior_interactions_component(
-          pairwise_effects, main_effects, observations, num_categories,
+          pairwise_effects, main_effects, residual_matrix, observations, num_categories,
           inclusion_indicator, is_ordinal_variable, baseline_category,
-          pairwise_scale, pairwise_scaling_factors, pairwise_stats, variable1, variable2
+          pairwise_scale, pairwise_scaling_factors, pairwise_stats, variable1, variable2, delta
         );
       };
 
       SamplerResult result = rwm_sampler(current, proposal_sd, log_post, rng);
 
-      value = result.state[0];
+      double value = result.state[0];
+      pairwise_effects(variable1, variable2) = value;
       pairwise_effects(variable2, variable1) = value;
 
-      if(current != value) {
+      if (current != value) {
         double delta = value - current;
         residual_matrix.col(variable1) += arma::conv_to<arma::vec>::from(observations.col(variable2)) * delta;
         residual_matrix.col(variable2) += arma::conv_to<arma::vec>::from(observations.col(variable1)) * delta;

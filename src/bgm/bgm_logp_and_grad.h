@@ -34,6 +34,24 @@ double log_pseudoposterior_interactions_component (
     const int var2
 );
 
+// Log posterior for a single component of interactions (optimized with residual matrix)
+double log_pseudoposterior_interactions_component (
+    const arma::mat& pairwise_effects,
+    const arma::mat& main_effects,
+    const arma::mat& residual_matrix,
+    const arma::imat& observations,
+    const arma::ivec& num_categories,
+    const arma::imat& inclusion_indicator,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& baseline_category,
+    const double pairwise_scale,
+    const arma::mat& pairwise_scaling_factors,
+    const arma::imat& pairwise_stats,
+    const int var1,
+    const int var2,
+    const double delta
+);
+
 std::pair<arma::vec, arma::imat>  gradient_observed_active(
     const arma::imat& inclusion_indicator,
     const arma::imat& observations,

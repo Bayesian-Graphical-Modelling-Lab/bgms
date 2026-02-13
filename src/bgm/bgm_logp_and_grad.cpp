@@ -110,38 +110,20 @@ double log_pseudoposterior_main_effects_component (
 
 
 /**
- * Computes the log-pseudoposterior contribution for a single pairwise interaction (bgm model).
+ * Computes the log-pseudoposterior contribution for a single pairwise interaction (optimized).
  *
- * The contribution consists of:
- *  - Sufficient statistic term: interaction × pairwise count.
- *  - Likelihood term: summed over all observations, using either
- *    * ordinal thresholds, or
- *    * Blume–Capel quadratic/linear main effects.
- *  - Prior term: Cauchy prior on the interaction coefficient (if active).
+ * This overload uses pre-computed residual_matrix and a delta adjustment to avoid
+ * the expensive O(n*p) matrix-vector multiplication. Instead, it uses O(n) adjustments.
  *
- * Inputs:
- *  - pairwise_effects: Symmetric matrix of interaction parameters.
- *  - main_effects: Matrix of main-effect parameters (variables × categories).
- *  - observations: Matrix of categorical observations (persons × variables).
- *  - num_categories: Number of categories per variable.
- *  - inclusion_indicator: Symmetric binary matrix of active pairwise effects.
- *  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
- *  - baseline_category: Reference categories for Blume–Capel variables.
- *  - pairwise_scale: Scale parameter of the Cauchy prior on interactions.
- *  - pairwise_stats: Sufficient statistics for pairwise counts.
- *  - var1, var2: Indices of the variable pair being updated.
- *
- * Returns:
- *  - The log-pseudoposterior value for the specified interaction parameter.
- *
- * Notes:
- *  - Bounds are applied for numerical stability in exponential terms.
- *  - The function assumes that `pairwise_effects` is symmetric.
- *  - Used within Metropolis and gradient-based updates of pairwise effects.
+ * The delta parameter represents (proposed_value - current_value). The residual_matrix
+ * should contain residuals computed with the CURRENT pairwise effects. For delta=0,
+ * this gives the log-posterior at the current state. For delta != 0, it gives the
+ * log-posterior at the proposed state.
  */
 double log_pseudoposterior_interactions_component (
     const arma::mat& pairwise_effects,
     const arma::mat& main_effects,
+    const arma::mat& residual_matrix,
     const arma::imat& observations,
     const arma::ivec& num_categories,
     const arma::imat& inclusion_indicator,
@@ -151,46 +133,54 @@ double log_pseudoposterior_interactions_component (
     const arma::mat& pairwise_scaling_factors,
     const arma::imat& pairwise_stats,
     const int var1,
-    const int var2
+    const int var2,
+    const double delta
 ) {
-  const int num_observations = observations.n_rows;
+  const int num_observations = residual_matrix.n_rows;
+  
+  // Compute the proposed pairwise effect value
+  const double proposed_value = pairwise_effects(var1, var2) + delta;
 
-  double log_pseudo_posterior = 2.0 * pairwise_effects(var1, var2) * pairwise_stats(var1, var2);
+  double log_pseudo_posterior = 2.0 * proposed_value * pairwise_stats(var1, var2);
+
+  // Pre-convert observation columns to double (needed for delta adjustment)
+  arma::vec obs_var1 = arma::conv_to<arma::vec>::from(observations.col(var1));
+  arma::vec obs_var2 = arma::conv_to<arma::vec>::from(observations.col(var2));
 
   for (int var : {var1, var2}) {
-    int num_cats = num_categories (var);
+    int num_cats = num_categories(var);
+    const arma::vec& obs_other = (var == var1) ? obs_var2 : obs_var1;
 
-    // Compute rest score: contribution from other variables
-    arma::vec residual_score = observations * pairwise_effects.col (var);
-    arma::vec denominator = arma::zeros (num_observations);
-    arma::vec bound = num_cats * residual_score;                                // numerical bound vector
+    // Use residual_matrix with delta adjustment: O(n) instead of O(n*p)
+    arma::vec residual_score = residual_matrix.col(var) + obs_other * delta;
+    arma::vec denominator = arma::zeros(num_observations);
+    arma::vec bound = num_cats * residual_score;
 
-    if (is_ordinal_variable (var)) {
-      arma::vec main_effect_param = main_effects.row (var).cols (0, num_cats - 1).t ();   // main_effect parameters
+    if (is_ordinal_variable(var)) {
+      arma::vec main_effect_param = main_effects.row(var).cols(0, num_cats - 1).t();
 
       denominator += compute_denom_ordinal(
         residual_score, main_effect_param, bound
       );
 
     } else {
-      const int ref = baseline_category (var);
+      const int ref = baseline_category(var);
 
       denominator = compute_denom_blume_capel(
-        residual_score, main_effects (var, 0), main_effects (var, 1), ref,
+        residual_score, main_effects(var, 0), main_effects(var, 1), ref,
         num_cats, bound
       );
-
     }
 
     // Subtract log partition function and bounds adjustment
-    log_pseudo_posterior -= arma::accu (ARMA_MY_LOG (denominator));
-    log_pseudo_posterior -= arma::accu (bound);
+    log_pseudo_posterior -= arma::accu(ARMA_MY_LOG(denominator));
+    log_pseudo_posterior -= arma::accu(bound);
   }
 
   // Add Cauchy prior terms for included pairwise effects
-  if (inclusion_indicator (var1, var2) == 1) {
+  if (inclusion_indicator(var1, var2) == 1) {
     const double scaled_pairwise_scale = pairwise_scale * pairwise_scaling_factors(var1, var2);
-    log_pseudo_posterior += R::dcauchy(pairwise_effects(var1, var2), 0.0, scaled_pairwise_scale, true);
+    log_pseudo_posterior += R::dcauchy(proposed_value, 0.0, scaled_pairwise_scale, true);
   }
 
   return log_pseudo_posterior;
