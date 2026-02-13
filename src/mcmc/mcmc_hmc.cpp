@@ -10,26 +10,30 @@
 SamplerResult hmc_sampler(
     const arma::vec& init_theta,
     double step_size,
-    const std::function<double(const arma::vec&)>& log_post,
     const std::function<arma::vec(const arma::vec&)>& grad,
+    const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
     const int num_leapfrogs,
     const arma::vec& inv_mass_diag,
     SafeRNG& rng
 ) {
-  arma::vec theta = init_theta;
-  arma::vec init_r = arma::sqrt(1.0 / inv_mass_diag) % arma_rnorm_vec(rng, theta.n_elem);
-  arma::vec r = init_r;
+  // Sample initial momentum
+  arma::vec init_r = arma::sqrt(1.0 / inv_mass_diag) % arma_rnorm_vec(rng, init_theta.n_elem);
 
-  std::tie(theta, r) = leapfrog(
-    theta, r, step_size, grad, num_leapfrogs, inv_mass_diag
+  // Get log_post and gradient at initial position using joint
+  auto [log_post_0, grad_0] = joint(init_theta);
+
+  // Leapfrog with joint - passes initial grad, uses joint at final position
+  LeapfrogJointResult result = leapfrog(
+    init_theta, init_r, step_size, grad, joint, num_leapfrogs,
+    inv_mass_diag, &grad_0
   );
 
-  // Hamiltonians
-  double current_H = -log_post(init_theta) + kinetic_energy(init_r, inv_mass_diag);
-  double proposed_H = -log_post(theta) + kinetic_energy(r, inv_mass_diag);
+  // Hamiltonians using the values from joint calls
+  double current_H = -log_post_0 + kinetic_energy(init_r, inv_mass_diag);
+  double proposed_H = -result.log_post + kinetic_energy(result.r, inv_mass_diag);
   double log_accept_prob = current_H - proposed_H;
 
-  arma::vec state = (MY_LOG(runif(rng)) < log_accept_prob) ? theta : init_theta;
+  arma::vec state = (MY_LOG(runif(rng)) < log_accept_prob) ? result.theta : init_theta;
 
   double accept_prob = std::min(1.0, MY_EXP(log_accept_prob));
 

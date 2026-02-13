@@ -198,128 +198,6 @@ double log_pseudoposterior_interactions_component (
 
 
 
-/**
- * Computes the full log-pseudoposterior for the bgm model.
- *
- * The log-pseudoposterior combines:
- *  - Main-effect contributions:
- *    * Ordinal variables: one parameter per category with Beta prior.
- *    * Blume–Capel variables: linear and quadratic parameters with Beta priors.
- *  - Pairwise-effect contributions:
- *    * Included interactions (per inclusion_indicator) with Cauchy prior.
- *  - Likelihood contributions:
- *    * Vectorized over all persons, with numerically stabilized denominators.
- *
- * Inputs:
- *  - main_effects: Matrix of main-effect parameters (variables × categories).
- *  - pairwise_effects: Symmetric matrix of pairwise interaction strengths.
- *  - inclusion_indicator: Symmetric binary matrix of active pairwise effects.
- *  - observations: Matrix of categorical observations (persons × variables).
- *  - num_categories: Number of categories per variable.
- *  - counts_per_category: Category counts per variable (for ordinal variables).
- *  - blume_capel_stats: Sufficient statistics for Blume–Capel variables.
- *  - baseline_category: Reference categories for Blume–Capel variables.
- *  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
- *  - main_alpha, main_beta: Hyperparameters for the Beta priors.
- *  - pairwise_scale: Scale parameter of the Cauchy prior on interactions.
- *  - pairwise_stats: Pairwise sufficient statistics.
- *  - residual_matrix: Matrix of residual scores (persons × variables).
- *
- * Returns:
- *  - The scalar log-pseudoposterior value for the full model.
- *
- * Notes:
- *  - Exponential terms are bounded with nonnegative `bound` values for stability.
- *  - Pairwise effects are included only when marked in `inclusion_indicator`.
- *  - This is the top-level function combining both main and interaction components.
- */
-double log_pseudoposterior (
-    const arma::mat& main_effects,
-    const arma::mat& pairwise_effects,
-    const arma::imat& inclusion_indicator,
-    const arma::imat& observations,
-    const arma::ivec& num_categories,
-    const arma::imat& counts_per_category,
-    const arma::imat& blume_capel_stats,
-    const arma::ivec& baseline_category,
-    const arma::uvec& is_ordinal_variable,
-    const double main_alpha,
-    const double main_beta,
-    const double pairwise_scale,
-    const arma::mat& pairwise_scaling_factors,
-    const arma::imat& pairwise_stats,
-    const arma::mat& residual_matrix
-) {
-
-  const int num_variables = observations.n_cols;
-  const int num_persons = observations.n_rows;
-
-  double log_pseudoposterior = 0.0;
-
-  // Calculate the contribution from the data and the prior
-  auto log_beta_prior = [&](double main_effect_param) {
-    return main_effect_param * main_alpha - std::log1p (MY_EXP (main_effect_param)) * (main_alpha + main_beta);
-  };
-
-  for (int variable = 0; variable < num_variables; variable++) {
-    if (is_ordinal_variable(variable)) {
-      const int num_cats = num_categories(variable);
-      for (int cat = 0; cat < num_cats; cat++) {
-        double value = main_effects(variable, cat);
-        log_pseudoposterior += counts_per_category(cat + 1, variable) * value;
-        log_pseudoposterior += log_beta_prior(value);
-      }
-    } else {
-      double value = main_effects(variable, 0);
-      log_pseudoposterior += log_beta_prior(value);
-      log_pseudoposterior += blume_capel_stats(0, variable) * value;
-
-      value = main_effects(variable, 1);
-      log_pseudoposterior += log_beta_prior(value);
-      log_pseudoposterior += blume_capel_stats(1, variable) * value;
-    }
-  }
-  for (int var1 = 0; var1 < num_variables - 1; var1++) {
-    for (int var2 = var1 + 1; var2 < num_variables; var2++) {
-      if (inclusion_indicator(var1, var2) == 0) continue;
-
-      double value = pairwise_effects(var1, var2);
-      log_pseudoposterior += 2.0 * pairwise_stats(var1, var2) * value;
-      const double scaled_pairwise_scale = pairwise_scale * pairwise_scaling_factors(var1, var2);
-      log_pseudoposterior += R::dcauchy(value, 0.0, scaled_pairwise_scale, true); // Cauchy prior
-    }
-  }
-
-  // Calculate the log denominators
-  for (int variable = 0; variable < num_variables; variable++) {
-    const int num_cats = num_categories(variable);
-    arma::vec residual_score = residual_matrix.col (variable);                  // rest scores for all persons
-    arma::vec bound = num_cats * residual_score;                              // numerical bound vector
-
-    arma::vec denom(num_persons, arma::fill::zeros);
-    if (is_ordinal_variable(variable)) {
-      arma::vec main_effect_param = main_effects.row (variable).cols (0, num_cats - 1).t ();   // main_effect parameters for variable
-      denom += compute_denom_ordinal(
-        residual_score, main_effect_param, bound
-      );
-    } else {
-      const int ref = baseline_category(variable);
-      const double lin_effect = main_effects(variable, 0);
-      const double quad_effect = main_effects(variable, 1);
-
-      //This updates bound
-      denom = compute_denom_blume_capel(
-        residual_score, lin_effect, quad_effect, ref, num_cats, bound
-      );
-    }
-    log_pseudoposterior -= arma::accu (bound + ARMA_MY_LOG (denom));            // total contribution
-  }
-
-  return log_pseudoposterior;
-}
-
-
-
 std::pair<arma::vec, arma::imat> gradient_observed_active(
     const arma::imat& inclusion_indicator,
     const arma::imat& observations,
@@ -526,8 +404,181 @@ arma::vec gradient_log_pseudoposterior(
 
 
 
-/**
- * Computes the log-likelihood ratio for updating a single variable’s parameter (bgm model).
+/** * Computes both the log-pseudoposterior and its gradient in a single pass.
+ *
+ * This function fuses the computation of log_pseudoposterior() and gradient_log_pseudoposterior()
+ * to avoid redundant calculation of probability matrices. Both functions need to compute
+ * probabilities over categories for each variable and person, so computing them jointly
+ * saves significant time in NUTS/HMC which repeatedly calls both.
+ *
+ * Returns:
+ *  - A pair containing:
+ *    1. The scalar log-pseudoposterior value
+ *    2. The gradient vector (same as gradient_log_pseudoposterior)
+ */
+std::pair<double, arma::vec> logp_and_gradient(
+    const arma::mat& main_effects,
+    const arma::mat& pairwise_effects,
+    const arma::imat& inclusion_indicator,
+    const arma::imat& observations,
+    const arma::ivec& num_categories,
+    const arma::imat& counts_per_category,
+    const arma::imat& blume_capel_stats,
+    const arma::ivec& baseline_category,
+    const arma::uvec& is_ordinal_variable,
+    const double main_alpha,
+    const double main_beta,
+    const double pairwise_scale,
+    const arma::mat& pairwise_scaling_factors,
+    const arma::imat& pairwise_stats,
+    const arma::mat& residual_matrix,
+    const arma::imat index_matrix,
+    const arma::vec grad_obs
+) {
+  const int num_variables = observations.n_cols;
+
+  double log_pp = 0.0;
+  arma::vec gradient = grad_obs;
+
+  // Pre-convert observations to double once
+  const arma::mat obs_double_t = arma::conv_to<arma::mat>::from(observations).t();
+
+  auto log_beta_prior = [&](double main_effect_param) {
+    return main_effect_param * main_alpha - std::log1p(MY_EXP(main_effect_param)) * (main_alpha + main_beta);
+  };
+
+  // ---- Main effects: priors + sufficient statistics ----
+  for (int variable = 0; variable < num_variables; variable++) {
+    if (is_ordinal_variable(variable)) {
+      const int num_cats = num_categories(variable);
+      for (int cat = 0; cat < num_cats; cat++) {
+        double value = main_effects(variable, cat);
+        log_pp += counts_per_category(cat + 1, variable) * value;
+        log_pp += log_beta_prior(value);
+      }
+    } else {
+      double value = main_effects(variable, 0);
+      log_pp += log_beta_prior(value);
+      log_pp += blume_capel_stats(0, variable) * value;
+
+      value = main_effects(variable, 1);
+      log_pp += log_beta_prior(value);
+      log_pp += blume_capel_stats(1, variable) * value;
+    }
+  }
+
+  // ---- Pairwise effects: priors + sufficient statistics ----
+  for (int var1 = 0; var1 < num_variables - 1; var1++) {
+    for (int var2 = var1 + 1; var2 < num_variables; var2++) {
+      if (inclusion_indicator(var1, var2) == 0) continue;
+
+      double value = pairwise_effects(var1, var2);
+      log_pp += 2.0 * pairwise_stats(var1, var2) * value;
+      const double scaled_pairwise_scale = pairwise_scale * pairwise_scaling_factors(var1, var2);
+      log_pp += R::dcauchy(value, 0.0, scaled_pairwise_scale, true);
+    }
+  }
+
+  // ---- Per-variable: joint computation of log-normalizer and gradient ----
+  int offset = 0;
+  for (int variable = 0; variable < num_variables; variable++) {
+    const int num_cats = num_categories(variable);
+    arma::vec residual_score = residual_matrix.col(variable);
+    arma::vec bound = num_cats * residual_score;
+
+    if (is_ordinal_variable(variable)) {
+      arma::vec main_param = main_effects.row(variable).cols(0, num_cats - 1).t();
+
+      // Joint computation: get both log_Z and probs in one pass
+      LogZAndProbs result = compute_logZ_and_probs_ordinal(
+        main_param, residual_score, bound, num_cats
+      );
+
+      // Use log_Z for log-pseudoposterior
+      log_pp -= arma::accu(result.log_Z);
+
+      // Use probs for gradient
+      for (int cat = 0; cat < num_cats; cat++) {
+        gradient(offset + cat) -= arma::accu(result.probs.col(cat + 1));
+      }
+
+      // Pairwise gradient contributions (vectorized using BLAS)
+      arma::vec weights = arma::regspace<arma::vec>(1, num_cats);
+      arma::vec E = result.probs.cols(1, num_cats) * weights;
+      arma::vec pw_grad = obs_double_t * E;
+      for (int j = 0; j < num_variables; j++) {
+        if (inclusion_indicator(variable, j) == 0 || variable == j) continue;
+        int location = (variable < j) ? index_matrix(variable, j) : index_matrix(j, variable);
+        gradient(location) -= pw_grad(j);
+      }
+      offset += num_cats;
+    } else {
+      const int ref = baseline_category(variable);
+      const double lin_eff = main_effects(variable, 0);
+      const double quad_eff = main_effects(variable, 1);
+
+      // Joint computation: get both log_Z and probs in one pass
+      LogZAndProbs result = compute_logZ_and_probs_blume_capel(
+        residual_score, lin_eff, quad_eff, ref, num_cats, bound
+      );
+
+      // Use log_Z for log-pseudoposterior
+      log_pp -= arma::accu(result.log_Z);
+
+      // Use probs for gradient
+      arma::vec score = arma::regspace<arma::vec>(0, num_cats) - double(ref);
+      arma::vec sq_score = arma::square(score);
+
+      gradient(offset)     -= arma::accu(result.probs * score);
+      gradient(offset + 1) -= arma::accu(result.probs * sq_score);
+
+      // Pairwise gradient contributions (vectorized using BLAS)
+      arma::vec E = result.probs * score;
+      arma::vec pw_grad = obs_double_t * E;
+      for (int j = 0; j < num_variables; j++) {
+        if (inclusion_indicator(variable, j) == 0 || variable == j) continue;
+        int location = (variable < j) ? index_matrix(variable, j) : index_matrix(j, variable);
+        gradient(location) -= pw_grad(j);
+      }
+      offset += 2;
+    }
+  }
+
+  // ---- Priors: gradient contributions ----
+  offset = 0;
+  for (int variable = 0; variable < num_variables; variable++) {
+    if (is_ordinal_variable(variable)) {
+      const int num_cats = num_categories(variable);
+      for (int cat = 0; cat < num_cats; cat++) {
+        const double p = 1.0 / (1.0 + MY_EXP(-main_effects(variable, cat)));
+        gradient(offset + cat) += main_alpha - (main_alpha + main_beta) * p;
+      }
+      offset += num_cats;
+    } else {
+      for (int k = 0; k < 2; k++) {
+        const double param = main_effects(variable, k);
+        const double p = 1.0 / (1.0 + MY_EXP(-param));
+        gradient(offset + k) += main_alpha - (main_alpha + main_beta) * p;
+      }
+      offset += 2;
+    }
+  }
+  for (int i = 0; i < num_variables - 1; i++) {
+    for (int j = i + 1; j < num_variables; j++) {
+      if (inclusion_indicator(i, j) == 0) continue;
+      int location = index_matrix(i, j);
+      const double effect = pairwise_effects(i, j);
+      const double scaled_scale = pairwise_scale * pairwise_scaling_factors(i, j);
+      gradient(location) -= 2.0 * effect / (effect * effect + scaled_scale * scaled_scale);
+    }
+  }
+
+  return {log_pp, gradient};
+}
+
+
+
+/** * Computes the log-likelihood ratio for updating a single variable’s parameter (bgm model).
  *
  * The ratio compares the likelihood of the current parameter state versus a proposed state,
  * given the observed data, main effects, and residual contributions from other variables.

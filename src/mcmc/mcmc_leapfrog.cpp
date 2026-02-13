@@ -5,55 +5,6 @@
 
 
 
- /**
- * Function: leapfrog
- *
- * Performs a num_leapfrog leapfrog integration steps using the standard gradient function.
- * Used to simulate Hamiltonian dynamics in HMC/NUTS.
- *
- * Inputs:
- *  - theta: Current position (parameter vector).
- *  - r: Current momentum vector.
- *  - eps: Step size for integration.
- *  - grad: Gradient function of the log posterior.
- *  - num_leapfrogs: Number of leapfrog steps
- *
- * Returns:
- *  - A pair containing:
- *      - Updated position vector.
- *      - Updated momentum vector.
- */
-std::pair<arma::vec, arma::vec> leapfrog(
-    const arma::vec& theta_init,
-    const arma::vec& r_init,
-    double eps,
-    const std::function<arma::vec(const arma::vec&)>& grad,
-    const int num_leapfrogs,
-    const arma::vec& inv_mass_diag
-) {
-  arma::vec r = r_init;
-  arma::vec theta = theta_init;
-  arma::vec grad_theta = grad(theta_init);
-
-  for(int step = 0; step < num_leapfrogs; step++) {
-    // Half-step momentum
-    r += 0.5 * eps * grad_theta;
-
-    // Full step position
-    theta += eps * (inv_mass_diag % r);
-
-    // Update gradient
-    grad_theta = grad(theta);
-
-    // Final half-step momentum
-    r += 0.5 * eps * grad_theta;
-  }
-
-  return {theta, r};
-}
-
-
-
 /**
  * Function: leapfrog_memo
  *
@@ -88,4 +39,71 @@ std::pair<arma::vec, arma::vec> leapfrog_memo(
   r_half += 0.5 * eps * grad2;
 
   return {theta_new, r_half};
+}
+
+
+/**
+ * Function: leapfrog
+ *
+ * Performs leapfrog integration using a joint log_post+gradient function.
+ *
+ * Optimizes HMC by avoiding redundant probability computations:
+ *  - Uses pre-computed initial gradient if provided (avoids recomputing at θ₀)
+ *  - Uses grad-only function for intermediate positions
+ *  - Uses joint function at final position to get both log_post and gradient
+ *
+ * This is ideal for HMC where both values are needed at endpoints for
+ * Hamiltonian evaluation, but only gradient is needed at intermediates.
+ */
+LeapfrogJointResult leapfrog(
+    const arma::vec& theta_init,
+    const arma::vec& r_init,
+    double eps,
+    const std::function<arma::vec(const arma::vec&)>& grad,
+    const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
+    int num_leapfrogs,
+    const arma::vec& inv_mass_diag,
+    const arma::vec* init_grad
+) {
+  arma::vec r = r_init;
+  arma::vec theta = theta_init;
+
+  // Use provided initial gradient or compute it
+  arma::vec grad_theta = init_grad ? *init_grad : grad(theta_init);
+
+  // All steps except the last one
+  for (int step = 0; step < num_leapfrogs - 1; step++) {
+    // Half-step momentum
+    r += 0.5 * eps * grad_theta;
+
+    // Full step position
+    theta += eps * (inv_mass_diag % r);
+
+    // Update gradient (intermediate position - only need grad)
+    grad_theta = grad(theta);
+
+    // Final half-step momentum
+    r += 0.5 * eps * grad_theta;
+  }
+
+  // Final step: use joint to get both log_post and gradient
+  if (num_leapfrogs >= 1) {
+    // Half-step momentum
+    r += 0.5 * eps * grad_theta;
+
+    // Full step position
+    theta += eps * (inv_mass_diag % r);
+
+    // Use joint at final position
+    auto [log_post_final, grad_final] = joint(theta);
+
+    // Final half-step momentum
+    r += 0.5 * eps * grad_final;
+
+    return {theta, r, log_post_final, grad_final};
+  }
+
+  // Edge case: num_leapfrogs == 0 (shouldn't happen in practice)
+  auto [log_post, grad_vec] = joint(theta);
+  return {theta, r, log_post, grad_vec};
 }

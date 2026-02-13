@@ -56,14 +56,30 @@ struct BuildTreeResult {
 
 
 /**
- * Function: nuts_sampler
+ * Function: nuts_sampler_joint
  *
  * Executes the No-U-Turn Sampler algorithm (NUTS).
+ * Takes a joint log_post+gradient function for efficient memoization.
+ *
+ * The joint function computes both log-posterior and gradient together,
+ * which is more efficient when they share common computations (e.g.,
+ * normalization constants). The Memoizer caches both values together.
+ *
+ * Inputs:
+ *  - init_theta: Initial position (parameter vector).
+ *  - step_size: Step size for leapfrog integration.
+ *  - joint: Function returning (log_post, gradient) pair.
+ *  - inv_mass_diag: Diagonal inverse mass matrix.
+ *  - rng: Random number generator.
+ *  - max_depth: Maximum tree depth (default = 10).
+ *
+ * Returns:
+ *  - SamplerResult with final position, acceptance probability, and diagnostics.
  */
-SamplerResult nuts_sampler(const arma::vec& init_theta,
-                           double step_size,
-                           const std::function<double(const arma::vec&)>& log_post,
-                           const std::function<arma::vec(const arma::vec&)>& grad,
-                           const arma::vec& inv_mass_diag,
-                           SafeRNG& rng,
-                           int max_depth = 10);
+SamplerResult nuts_sampler_joint(
+    const arma::vec& init_theta,
+    double step_size,
+    const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
+    const arma::vec& inv_mass_diag,
+    SafeRNG& rng,
+    int max_depth = 10);

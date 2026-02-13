@@ -92,7 +92,7 @@ struct VecEqual {
  * at specific parameter values (theta) to avoid redundant and costly recomputation.
  *
  * Usage:
- *   - Constructed with a log-posterior function and its gradient.
+ *   - Constructed with a joint function that computes both log-posterior and gradient.
  *   - Uses hash-based caching (via unordered_map) keyed by arma::vec inputs.
  *     That means:
  *       - Each parameter vector (theta) is used as a key.
@@ -103,41 +103,48 @@ struct VecEqual {
  *
  * Methods:
  *  - cached_log_post(const arma::vec& theta):
- *        Returns the cached log-posterior if available, otherwise computes, stores, and returns it.
+ *        Returns the cached log-posterior if available, otherwise computes via joint(), caches, and returns it.
  *
  *  - cached_grad(const arma::vec& theta):
- *        Returns the cached gradient if available, otherwise computes, stores, and returns it.
+ *        Returns the cached gradient if available, otherwise computes via joint(), caches, and returns it.
  *
  * Internal Details:
  *  - Relies on VecHash and VecEqual to use arma::vec as map keys.
  *  - Assumes high-precision comparison for theta keys (absdiff tolerance 1e-12).
+ *  - Uses a joint function that computes both log_post and gradient together,
+ *    which is more efficient when they share common computations.
  */
 class Memoizer {
 public:
-  std::function<double(const arma::vec&)> log_post;
-  std::function<arma::vec(const arma::vec&)> grad;
+  std::function<std::pair<double, arma::vec>(const arma::vec&)> joint;
 
   std::unordered_map<arma::vec, double, VecHash, VecEqual> logp_cache;
   std::unordered_map<arma::vec, arma::vec, VecHash, VecEqual> grad_cache;
 
+  // Constructor with joint function
   Memoizer(
-    const std::function<double(const arma::vec&)>& lp,
-    const std::function<arma::vec(const arma::vec&)>& gr
-  ) : log_post(lp), grad(gr) {}
+    const std::function<std::pair<double, arma::vec>(const arma::vec&)>& jt
+  ) : joint(jt) {}
 
   double cached_log_post(const arma::vec& theta) {
     auto it = logp_cache.find(theta);
     if (it != logp_cache.end()) return it->second;
-    double val = log_post(theta);
-    logp_cache[theta] = val;
-    return val;
+
+    // Use joint function to compute and cache both values
+    auto [lp, gr] = joint(theta);
+    logp_cache[theta] = lp;
+    grad_cache[theta] = gr;
+    return lp;
   }
 
   arma::vec cached_grad(const arma::vec& theta) {
     auto it = grad_cache.find(theta);
     if (it != grad_cache.end()) return it->second;
-    arma::vec val = grad(theta);
-    grad_cache[theta] = val;
-    return val;
+
+    // Use joint function to compute and cache both values
+    auto [lp, gr] = joint(theta);
+    logp_cache[theta] = lp;
+    grad_cache[theta] = gr;
+    return gr;
   }
 };

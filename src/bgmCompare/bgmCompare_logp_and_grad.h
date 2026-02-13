@@ -32,7 +32,7 @@ arma::vec gradient_observed_active(
   const arma::imat pair_index
 );
 
-double log_pseudoposterior(
+arma::vec gradient(
     const arma::mat& main_effects,
     const arma::mat& pairwise_effects,
     const arma::imat& main_effect_indices,
@@ -52,10 +52,13 @@ double log_pseudoposterior(
     const double main_beta,
     const double interaction_scale,
     const arma::mat& pairwise_scaling_factors,
-    const double difference_scale
+    const double difference_scale,
+    const arma::imat& main_index,
+    const arma::imat& pair_index,
+    const arma::vec& grad_obs
 );
 
-arma::vec gradient(
+std::pair<double, arma::vec> logp_and_gradient(
     const arma::mat& main_effects,
     const arma::mat& pairwise_effects,
     const arma::imat& main_effect_indices,

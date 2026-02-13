@@ -559,24 +559,25 @@ double find_initial_stepsize_bgmcompare(
     );
   };
 
-  auto log_post = [&](const arma::vec& theta_vec) {
+  auto joint = [&](const arma::vec& theta_vec) {
     unvectorize_model_parameters_bgmcompare(
       theta_vec, current_main, current_pair, inclusion_indicator,
       main_effect_indices, pairwise_effect_indices, num_groups, num_categories,
       is_ordinal_variable
     );
 
-    return log_pseudoposterior(
+    return logp_and_gradient(
       current_main, current_pair, main_effect_indices, pairwise_effect_indices,
       projection, obs_double, group_indices, num_categories,
       counts_per_category, blume_capel_stats,
       pairwise_stats, num_groups, inclusion_indicator,
       is_ordinal_variable, baseline_category, main_alpha, main_beta,
-      pairwise_scale, pairwise_scaling_factors, difference_scale
+      pairwise_scale, pairwise_scaling_factors, difference_scale,
+      main_index, pair_index, grad_obs_act
     );
   };
 
-  return heuristic_initial_step_size(theta, log_post, grad, rng, target_acceptance);
+  return heuristic_initial_step_size(theta, grad, joint, rng, target_acceptance);
 }
 
 
@@ -702,20 +703,21 @@ void update_hmc_bgmcompare(
     );
   };
 
-  auto log_post = [&](const arma::vec& theta_vec) {
+  auto joint = [&](const arma::vec& theta_vec) {
     unvectorize_model_parameters_bgmcompare(
       theta_vec, current_main, current_pair, inclusion_indicator,
       main_effect_indices, pairwise_effect_indices, num_groups, num_categories,
       is_ordinal_variable
     );
 
-    return log_pseudoposterior(
+    return logp_and_gradient(
       current_main, current_pair, main_effect_indices, pairwise_effect_indices,
       projection, obs_double, group_indices, num_categories,
       counts_per_category, blume_capel_stats,
       pairwise_stats, num_groups, inclusion_indicator,
       is_ordinal_variable, baseline_category, main_alpha, main_beta,
-      pairwise_scale, pairwise_scaling_factors, difference_scale
+      pairwise_scale, pairwise_scaling_factors, difference_scale,
+      main_index, pair_index, grad_obs_act
     );
   };
 
@@ -727,7 +729,7 @@ void update_hmc_bgmcompare(
   );
 
   SamplerResult result = hmc_sampler(
-    current_state, hmc_adapt.current_step_size(), log_post, grad, num_leapfrogs,
+    current_state, hmc_adapt.current_step_size(), grad, joint, num_leapfrogs,
     active_inv_mass, rng
   );
 
@@ -750,7 +752,7 @@ void update_hmc_bgmcompare(
     );
     double current_eps = hmc_adapt.current_step_size();
     double new_eps = heuristic_initial_step_size(
-      current_state, log_post, grad, new_inv_mass, rng,
+      current_state, grad, joint, new_inv_mass, rng,
       0.625,        // target_acceptance
       current_eps   // init_step: use current step size as starting point
     );
@@ -880,20 +882,21 @@ SamplerResult update_nuts_bgmcompare(
     );
   };
 
-  auto log_post = [&](const arma::vec& theta_vec) {
+  auto joint = [&](const arma::vec& theta_vec) {
     unvectorize_model_parameters_bgmcompare(
       theta_vec, current_main, current_pair, inclusion_indicator,
       main_effect_indices, pairwise_effect_indices, num_groups, num_categories,
       is_ordinal_variable
     );
 
-    return log_pseudoposterior(
+    return logp_and_gradient(
       current_main, current_pair, main_effect_indices, pairwise_effect_indices,
       projection, obs_double, group_indices, num_categories,
       counts_per_category, blume_capel_stats,
       pairwise_stats, num_groups, inclusion_indicator,
       is_ordinal_variable, baseline_category, main_alpha, main_beta,
-      pairwise_scale, pairwise_scaling_factors, difference_scale
+      pairwise_scale, pairwise_scaling_factors, difference_scale,
+      main_index, pair_index, grad_obs_act
     );
   };
 
@@ -904,8 +907,8 @@ SamplerResult update_nuts_bgmcompare(
     pairwise_effect_indices, selection
   );
 
-  SamplerResult result = nuts_sampler(
-    current_state, hmc_adapt.current_step_size(), log_post, grad,
+  SamplerResult result = nuts_sampler_joint(
+    current_state, hmc_adapt.current_step_size(), joint,
     active_inv_mass, rng, nuts_max_depth
   );
 
@@ -928,7 +931,7 @@ SamplerResult update_nuts_bgmcompare(
     );
     double current_eps = hmc_adapt.current_step_size();
     double new_eps = heuristic_initial_step_size(
-      current_state, log_post, grad, new_inv_mass, rng,
+      current_state, grad, joint, new_inv_mass, rng,
       0.625,        // target_acceptance
       current_eps   // init_step: use current step size as starting point
     );

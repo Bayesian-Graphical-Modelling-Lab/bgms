@@ -277,41 +277,35 @@ BuildTreeResult build_tree(
 }
 
 
-
 /**
- * Function: nuts_sampler
+ * Function: nuts_sampler_joint
  *
- * Runs the No-U-Turn Sampler (NUTS) using Hamiltonian Monte Carlo with dynamic path length.
- * Utilizes the recursive build_tree function to explore posterior space efficiently.
- *
- * This implementation is based on Algorithm 6 in:
- *   Hoffman, M. D., & Gelman, A. (2014). The No-U-Turn sampler: adaptively setting path lengths
- *   in Hamiltonian Monte Carlo. Journal of Machine Learning Research, 15(1), 1593–1623.
+ * NUTS sampler using a joint log_post+gradient function.
+ * Creates a joint-only Memoizer internally, which computes both values
+ * together and caches them efficiently.
  *
  * Inputs:
  *  - init_theta: Initial position (parameter vector).
  *  - step_size: Step size for leapfrog integration.
- *  - log_post: Log posterior function.
- *  - grad: Gradient of log posterior function.
+ *  - joint: Function returning (log_post, gradient) pair.
+ *  - inv_mass_diag: Diagonal inverse mass matrix.
+ *  - rng: Random number generator.
  *  - max_depth: Maximum tree depth allowed for NUTS expansion (default = 10).
  *
  * Returns:
- *  - A SamplerResult struct containing:
- *      - Final sampled position.
- *      - Mean Metropolis acceptance probability.
- *      - Total number of proposals considered.
+ *  - A SamplerResult struct containing final sampled position,
+ *    mean acceptance probability, and diagnostics.
  */
-SamplerResult nuts_sampler(
+SamplerResult nuts_sampler_joint(
     const arma::vec& init_theta,
     double step_size,
-    const std::function<double(const arma::vec&)>& log_post,
-    const std::function<arma::vec(const arma::vec&)>& grad,
+    const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
     const arma::vec& inv_mass_diag,
     SafeRNG& rng,
     int max_depth
 ) {
-  // Here memo is created locally; terminates at end of nuts_sampler() call
-  Memoizer memo(log_post, grad);
+  // Create Memoizer with joint function
+  Memoizer memo(joint);
   bool any_divergence = false;
 
   arma::vec r0 = arma::sqrt(1.0 / inv_mass_diag) % arma_rnorm_vec(rng, init_theta.n_elem);
@@ -320,81 +314,53 @@ SamplerResult nuts_sampler(
   double joint0 = logp0 - kin0;
   double log_u = log(runif(rng)) + joint0;
 
-  // Position and momentum at backward end of trajectory
   arma::vec theta_min = init_theta, r_min = r0;
-  // Position and momentum at forward end of trajectory
   arma::vec theta_plus = init_theta, r_plus = r0;
-
-  // Current sample
   arma::vec theta = init_theta;
-  arma::vec r = r0;  // Track accepted momentum for energy diagnostics
+  arma::vec r = r0;
 
-  // Sharp momentum (velocity) at boundaries
   arma::vec p_sharp_bck_bck = inv_mass_diag % r0;
   arma::vec p_sharp_fwd_fwd = p_sharp_bck_bck;
-
-  // Momentum at boundaries for between-subtree checks
   arma::vec p_fwd_bck = r0;
   arma::vec p_sharp_fwd_bck = p_sharp_bck_bck;
   arma::vec p_bck_fwd = r0;
   arma::vec p_sharp_bck_fwd = p_sharp_bck_bck;
-
-  // Accumulated momentum along trajectory (for generalized U-turn)
   arma::vec rho = r0;
 
   int j = 0;
   int n = 1, s = 1;
-
   double alpha = 0.5;
   int n_alpha = 1;
 
   while (s == 1 && j < max_depth) {
     int v = runif(rng) < 0.5 ? -1 : 1;
-
-    // Track rho for each subtree separately
     arma::vec rho_fwd, rho_bck;
 
     BuildTreeResult result;
     if (v == -1) {
-      // Extend backwards
-      rho_fwd = rho;  // Current rho becomes the forward part
-      p_fwd_bck = r_min;
-      p_sharp_fwd_bck = inv_mass_diag % r_min;
-
+      rho_fwd = rho;
       result = build_tree(
-        theta_min, r_min, log_u, v, j, step_size, init_theta, r0, logp0, kin0,
-        memo, inv_mass_diag, rng
+        theta_min, r_min, log_u, v, j, step_size, init_theta, r0, logp0, kin0, memo,
+        inv_mass_diag, rng
       );
       theta_min = result.theta_min;
       r_min = result.r_min;
       rho_bck = result.rho;
-
-      // Update backward boundary sharp momentum
-      // result.p_sharp_beg = first visited (closest to old theta_min, junction)
-      // result.p_sharp_end = last visited (furthest backward, new boundary)
-      p_sharp_bck_bck = result.p_sharp_end;  // Furthest backward (absolute boundary)
-      p_bck_fwd = result.p_beg;              // Junction with existing trajectory
-      p_sharp_bck_fwd = result.p_sharp_beg;  // Junction with existing trajectory
+      p_sharp_bck_bck = result.p_sharp_beg;
+      p_bck_fwd = result.p_end;
+      p_sharp_bck_fwd = result.p_sharp_end;
     } else {
-      // Extend forwards
-      rho_bck = rho;  // Current rho becomes the backward part
-      p_bck_fwd = r_plus;
-      p_sharp_bck_fwd = inv_mass_diag % r_plus;
-
+      rho_bck = rho;
       result = build_tree(
-        theta_plus, r_plus, log_u, v, j, step_size, init_theta, r0, logp0, kin0,
-        memo, inv_mass_diag, rng
+        theta_plus, r_plus, log_u, v, j, step_size, init_theta, r0, logp0, kin0, memo,
+        inv_mass_diag, rng
       );
       theta_plus = result.theta_plus;
       r_plus = result.r_plus;
       rho_fwd = result.rho;
-
-      // Update forward boundary sharp momentum
-      // result.p_sharp_beg = first visited (closest to old theta_plus, junction)
-      // result.p_sharp_end = last visited (furthest forward, new boundary)
-      p_sharp_fwd_fwd = result.p_sharp_end;  // Furthest forward (absolute boundary)
-      p_fwd_bck = result.p_beg;              // Junction with existing trajectory
-      p_sharp_fwd_bck = result.p_sharp_beg;  // Junction with existing trajectory
+      p_sharp_fwd_fwd = result.p_sharp_end;
+      p_fwd_bck = result.p_beg;
+      p_sharp_fwd_bck = result.p_sharp_beg;
     }
 
     any_divergence = any_divergence || result.divergent;
@@ -409,22 +375,14 @@ SamplerResult nuts_sampler(
       }
     }
 
-    // Update rho with the new subtree's momentum sum
     rho = rho_bck + rho_fwd;
-
-    // Generalized U-turn criterion (three checks like STAN)
     bool persist_criterion = true;
 
     if (result.s_prime == 1) {
-      // 1. Check criterion around merged subtrees
       persist_criterion = compute_criterion(p_sharp_bck_bck, p_sharp_fwd_fwd, rho);
-
-      // 2. Check criterion between subtrees
       arma::vec rho_extended = rho_bck + p_fwd_bck;
       persist_criterion = persist_criterion &&
         compute_criterion(p_sharp_bck_bck, p_sharp_fwd_bck, rho_extended);
-
-      // 3. Check criterion between subtrees (other direction)
       rho_extended = rho_fwd + p_bck_fwd;
       persist_criterion = persist_criterion &&
         compute_criterion(p_sharp_bck_fwd, p_sharp_fwd_fwd, rho_extended);
@@ -436,8 +394,6 @@ SamplerResult nuts_sampler(
   }
 
   double accept_prob = alpha / static_cast<double>(n_alpha);
-
-  // Compute energy at accepted state using actual trajectory momentum
   auto logp_final = memo.cached_log_post(theta);
   double kin_final = kinetic_energy(r, inv_mass_diag);
   double energy = -logp_final + kin_final;
