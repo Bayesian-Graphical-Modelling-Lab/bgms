@@ -72,6 +72,7 @@
 <div class="section level3">
 <h3 id="other-changes-0-1-6-3">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-0-1-6-3"></a></h3>
 <ul><li>NUTS: implemented generalized U-turn criterion following Betancourt (2017) and STAN</li>
+<li>NUTS: fused log-posterior and gradient computation eliminates redundant probability evaluations</li>
 <li>bgmCompare: BLAS-vectorized gradient computation for improved performance</li>
 <li>expanded test suite: input validation, extractor functions, S3 methods, simulation, and numerical sanity tests</li>
 <li>improved warmup schedule: fixed buffers (75/25/50) with proportional fallback for short warmup</li>
