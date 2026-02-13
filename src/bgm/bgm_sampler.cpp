@@ -214,6 +214,9 @@ double find_initial_stepsize_bgm(
     num_categories, is_ordinal_variable
   );
 
+  // Pre-convert observations to double once (avoids repeated conversion in gradient evaluations)
+  const arma::mat obs_double = arma::conv_to<arma::mat>::from(observations);
+
   arma::vec grad_obs;
   arma::imat index_matrix;
 
@@ -228,7 +231,7 @@ double find_initial_stepsize_bgm(
   auto grad = [&](const arma::vec& theta_vec) {
     unvectorize_model_parameters_bgm(theta_vec, current_main, current_pair, inclusion_indicator,
                                      num_categories, is_ordinal_variable);
-    arma::mat rm = observations * current_pair;
+    arma::mat rm = obs_double * current_pair;
 
     return gradient_log_pseudoposterior (
         current_main, current_pair, inclusion_indicator, observations,
@@ -241,7 +244,7 @@ double find_initial_stepsize_bgm(
     unvectorize_model_parameters_bgm(theta_vec, current_main, current_pair,
                                      inclusion_indicator,
                                      num_categories, is_ordinal_variable);
-    arma::mat rm = observations * current_pair;
+    arma::mat rm = obs_double * current_pair;
     return log_pseudoposterior(
       current_main, current_pair, inclusion_indicator, observations,
       num_categories, counts_per_category, blume_capel_stats,
@@ -533,6 +536,9 @@ void update_hmc_bgm(
     num_categories, is_ordinal_variable
   );
 
+  // Pre-convert observations to double once (avoids repeated conversion in gradient evaluations)
+  const arma::mat obs_double = arma::conv_to<arma::mat>::from(observations);
+
   arma::vec grad_obs;
   arma::imat index_matrix;
 
@@ -547,7 +553,7 @@ void update_hmc_bgm(
   auto grad = [&](const arma::vec& theta_vec) {
     unvectorize_model_parameters_bgm(theta_vec, current_main, current_pair, inclusion_indicator,
                                  num_categories, is_ordinal_variable);
-    arma::mat rm = observations * current_pair;
+    arma::mat rm = obs_double * current_pair;
 
     return gradient_log_pseudoposterior (
       current_main, current_pair, inclusion_indicator, observations,
@@ -559,7 +565,7 @@ void update_hmc_bgm(
   auto log_post = [&](const arma::vec& theta_vec) {
     unvectorize_model_parameters_bgm(theta_vec, current_main, current_pair, inclusion_indicator,
                                  num_categories, is_ordinal_variable);
-    arma::mat rm = observations * current_pair;
+    arma::mat rm = obs_double * current_pair;
     return log_pseudoposterior (
       current_main, current_pair, inclusion_indicator, observations,
       num_categories, counts_per_category, blume_capel_stats,
@@ -583,7 +589,7 @@ void update_hmc_bgm(
     current_state, main_effects, pairwise_effects, inclusion_indicator,
     num_categories, is_ordinal_variable
   );
-  residual_matrix = observations * pairwise_effects;
+  residual_matrix = obs_double * pairwise_effects;
 
   adapt.update(current_state, result.accept_prob, iteration);
 
@@ -677,6 +683,9 @@ SamplerResult update_nuts_bgm(
     num_categories, is_ordinal_variable
   );
 
+  // Pre-convert observations to double once (avoids repeated conversion in gradient evaluations)
+  const arma::mat obs_double = arma::conv_to<arma::mat>::from(observations);
+
   arma::vec grad_obs;
   arma::imat index_matrix;
 
@@ -691,7 +700,7 @@ SamplerResult update_nuts_bgm(
   auto grad = [&](const arma::vec& theta_vec) {
     unvectorize_model_parameters_bgm(theta_vec, current_main, current_pair, inclusion_indicator,
                                      num_categories, is_ordinal_variable);
-    arma::mat rm = observations * current_pair;
+    arma::mat rm = obs_double * current_pair;
 
     return gradient_log_pseudoposterior (
         current_main, current_pair, inclusion_indicator, observations,
@@ -704,7 +713,7 @@ SamplerResult update_nuts_bgm(
     unvectorize_model_parameters_bgm(theta_vec, current_main, current_pair,
                                  inclusion_indicator, num_categories,
                                  is_ordinal_variable);
-    arma::mat rm = observations * current_pair;
+    arma::mat rm = obs_double * current_pair;
     return log_pseudoposterior(
       current_main, current_pair, inclusion_indicator, observations,
       num_categories, counts_per_category, blume_capel_stats,
@@ -728,7 +737,7 @@ SamplerResult update_nuts_bgm(
     current_state, main_effects, pairwise_effects, inclusion_indicator,
     num_categories, is_ordinal_variable
   );
-  residual_matrix = observations * pairwise_effects;
+  residual_matrix = obs_double * pairwise_effects;
 
   adapt.update(current_state, result.accept_prob, iteration);
 

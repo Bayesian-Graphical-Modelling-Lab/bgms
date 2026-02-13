@@ -147,10 +147,18 @@ void unvectorize_model_parameters_bgm(
   const int num_variables = num_categories.n_elem;
   const int max_num_categories = num_categories.max();
 
-  main_effects_out.set_size(num_variables, max_num_categories);
-  pairwise_effects_out.set_size(num_variables, num_variables);
-  main_effects_out.fill(0.0);
-  pairwise_effects_out.fill(0.0);
+  // Only resize if necessary (avoids reallocation when called repeatedly)
+  if (main_effects_out.n_rows != (arma::uword)num_variables ||
+      main_effects_out.n_cols != (arma::uword)max_num_categories) {
+    main_effects_out.zeros(num_variables, max_num_categories);
+  }
+  if (pairwise_effects_out.n_rows != (arma::uword)num_variables ||
+      pairwise_effects_out.n_cols != (arma::uword)num_variables) {
+    pairwise_effects_out.zeros(num_variables, num_variables);
+  } else {
+    // Must zero pairwise for inactive edges; main is fully overwritten
+    pairwise_effects_out.zeros();
+  }
 
   int offset = 0;
 

@@ -521,6 +521,9 @@ double find_initial_stepsize_bgmcompare(
   arma::mat current_main = main_effects;
   arma::mat current_pair = pairwise_effects;
 
+  // Pre-convert observations to double once (avoids repeated conversion in gradient evaluations)
+  const arma::mat obs_double = arma::conv_to<arma::mat>::from(observations);
+
   auto index_maps = build_index_maps(
     main_effects, pairwise_effects,
     inclusion_indicator,
@@ -547,7 +550,7 @@ double find_initial_stepsize_bgmcompare(
 
     return gradient(
       current_main, current_pair, main_effect_indices, pairwise_effect_indices,
-      projection, observations, group_indices, num_categories,
+      projection, obs_double, group_indices, num_categories,
       counts_per_category, blume_capel_stats,
       pairwise_stats, num_groups, inclusion_indicator,
       is_ordinal_variable, baseline_category, main_alpha, main_beta,
@@ -565,7 +568,7 @@ double find_initial_stepsize_bgmcompare(
 
     return log_pseudoposterior(
       current_main, current_pair, main_effect_indices, pairwise_effect_indices,
-      projection, observations, group_indices, num_categories,
+      projection, obs_double, group_indices, num_categories,
       counts_per_category, blume_capel_stats,
       pairwise_stats, num_groups, inclusion_indicator,
       is_ordinal_variable, baseline_category, main_alpha, main_beta,
@@ -661,6 +664,9 @@ void update_hmc_bgmcompare(
   arma::mat current_main = main_effects;
   arma::mat current_pair = pairwise_effects;
 
+  // Pre-convert observations to double once (avoids repeated conversion in gradient evaluations)
+  const arma::mat obs_double = arma::conv_to<arma::mat>::from(observations);
+
   auto index_maps = build_index_maps(
     main_effects, pairwise_effects,
     inclusion_indicator,
@@ -687,7 +693,7 @@ void update_hmc_bgmcompare(
 
     return gradient(
       current_main, current_pair, main_effect_indices, pairwise_effect_indices,
-      projection, observations, group_indices, num_categories,
+      projection, obs_double, group_indices, num_categories,
       counts_per_category, blume_capel_stats,
       pairwise_stats, num_groups, inclusion_indicator,
       is_ordinal_variable, baseline_category, main_alpha, main_beta,
@@ -705,7 +711,7 @@ void update_hmc_bgmcompare(
 
     return log_pseudoposterior(
       current_main, current_pair, main_effect_indices, pairwise_effect_indices,
-      projection, observations, group_indices, num_categories,
+      projection, obs_double, group_indices, num_categories,
       counts_per_category, blume_capel_stats,
       pairwise_stats, num_groups, inclusion_indicator,
       is_ordinal_variable, baseline_category, main_alpha, main_beta,
@@ -827,6 +833,9 @@ SamplerResult update_nuts_bgmcompare(
     const bool selection,
     SafeRNG& rng
 ) {
+  // Pre-convert observations to double once (avoids repeated conversion in gradient evaluations)
+  const arma::mat obs_double = arma::conv_to<arma::mat>::from(observations);
+
   arma::vec current_state = vectorize_model_parameters_bgmcompare(
     main_effects, pairwise_effects, inclusion_indicator,
     main_effect_indices, pairwise_effect_indices, num_categories,
@@ -862,7 +871,7 @@ SamplerResult update_nuts_bgmcompare(
 
     return gradient(
       current_main, current_pair, main_effect_indices, pairwise_effect_indices,
-      projection, observations, group_indices, num_categories,
+      projection, obs_double, group_indices, num_categories,
       counts_per_category, blume_capel_stats,
       pairwise_stats, num_groups, inclusion_indicator,
       is_ordinal_variable, baseline_category, main_alpha, main_beta,
@@ -880,7 +889,7 @@ SamplerResult update_nuts_bgmcompare(
 
     return log_pseudoposterior(
       current_main, current_pair, main_effect_indices, pairwise_effect_indices,
-      projection, observations, group_indices, num_categories,
+      projection, obs_double, group_indices, num_categories,
       counts_per_category, blume_capel_stats,
       pairwise_stats, num_groups, inclusion_indicator,
       is_ordinal_variable, baseline_category, main_alpha, main_beta,

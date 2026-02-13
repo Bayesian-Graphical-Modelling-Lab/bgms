@@ -430,7 +430,8 @@ Rcpp::List run_bgmCompare_parallel(
     if (results[i].error) {
       output[i] = Rcpp::List::create(
         Rcpp::Named("error") = results[i].error_msg,
-        Rcpp::Named("chain_id") = results[i].chain_id
+        Rcpp::Named("chain_id") = results[i].chain_id,
+        Rcpp::Named("userInterrupt") = false
       );
     } else {
       const auto& r = results[i].result;

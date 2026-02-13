@@ -34,7 +34,7 @@
  *  - main_effect_indices: Index ranges [row_start,row_end] for each variable in main_effects.
  *  - pairwise_effect_indices: Lookup table mapping (var1,var2) → row in pairwise_effects.
  *  - projection: Group projection matrix (num_groups × (num_groups − 1)).
- *  - observations: Observation matrix (persons × variables).
+ *  - observations_double: Observation matrix (persons × variables), pre-converted to double.
  *  - group_indices: Matrix of row ranges [start,end] for each group in observations.
  *  - num_categories: Number of categories per variable.
  *  - counts_per_category_group: Per-group category counts (for ordinal variables).
@@ -55,6 +55,8 @@
  *  - This function generalizes the bgm pseudoposterior to multiple groups.
  *  - Group differences are only included if marked in inclusion_indicator.
  *  - Residual scores are recomputed separately for each group.
+ *  - Observations should be pre-converted to double to avoid repeated conversion
+ *    inside the group loop.
  */
 double log_pseudoposterior(
     const arma::mat& main_effects,
@@ -62,7 +64,7 @@ double log_pseudoposterior(
     const arma::imat& main_effect_indices,
     const arma::imat& pairwise_effect_indices,
     const arma::mat& projection,
-    const arma::imat& observations,
+    const arma::mat& observations_double,
     const arma::imat& group_indices,
     const arma::ivec& num_categories,
     const std::vector<arma::imat>& counts_per_category_group,
@@ -78,7 +80,7 @@ double log_pseudoposterior(
     const arma::mat& pairwise_scaling_factors,
     const double difference_scale
 ) {
-  const int num_variables = observations.n_cols;
+  const int num_variables = observations_double.n_cols;
   const int max_num_categories = num_categories.max();
   double log_pp = 0.0;
 
@@ -90,19 +92,16 @@ double log_pseudoposterior(
     arma::mat main_group(num_variables, max_num_categories, arma::fill::zeros);
     arma::mat pairwise_group(num_variables, num_variables, arma::fill::zeros);
 
-    const arma::vec proj_g = projection.row(group).t(); // length = num_groups-1
+    const arma::vec proj_g = projection.row(group).t();
 
     // ---- build group-specific main & pairwise effects ----
     for (int v = 0; v < num_variables; v++) {
       arma::vec me = compute_group_main_effects(
         v, num_groups, main_effects, main_effect_indices, proj_g
       );
-
-      // store into row v (padded with zeros if variable has < max_num_categories params)
       main_group(v, arma::span(0, me.n_elem - 1)) = me.t();
 
-      // upper triangle incl. base value; mirror to keep symmetry
-      for (int u = v; u < num_variables; u++) { // Combines with loop over v
+      for (int u = v; u < num_variables; u++) {
         if(u == v) continue;
         double w = compute_group_pairwise_effects(
           v, u, num_groups, pairwise_effects, pairwise_effect_indices,
@@ -115,13 +114,11 @@ double log_pseudoposterior(
     // ---- data contribution pseudolikelihood (linear terms) ----
       const int num_cats = num_categories(v);
       if (is_ordinal_variable(v)) {
-        // use group-specific main_effects
         for (int c = 0; c < num_cats; c++) {
           const double val = main_group(v, c);
           log_pp += static_cast<double>(counts_per_category(c, v)) * val;
         }
       } else {
-        // two sufficient stats for binary-ish coding? keep original shape
         log_pp += static_cast<double>(blume_capel_stats(0, v)) * main_group(v, 0);
         log_pp += static_cast<double>(blume_capel_stats(1, v)) * main_group(v, 1);
       }
@@ -130,10 +127,11 @@ double log_pseudoposterior(
     // ---- data contribution pseudolikelihood (quadratic terms) ----
     const int r0 = group_indices(group, 0);
     const int r1 = group_indices(group, 1);
-    const arma::mat obs = arma::conv_to<arma::mat>::from(observations.rows(r0, r1));
+    // Key optimization: no conversion needed - observations_double is already arma::mat
+    const arma::mat obs = observations_double.rows(r0, r1);
     const arma::mat pairwise_stats = pairwise_stats_group[group];
 
-    log_pp += arma::accu(pairwise_group % pairwise_stats); // trace(X' * W * X) = sum(W %*% (X'X))
+    log_pp += arma::accu(pairwise_group % pairwise_stats);
 
     // ---- pseudolikelihood normalizing constants (per variable) ----
     const arma::mat residual_matrix = obs * pairwise_group;
@@ -141,7 +139,6 @@ double log_pseudoposterior(
       const int num_cats = num_categories(v);
       const arma::vec rest_score = residual_matrix.col(v);
 
-      // bound to stabilize exp; use group-specific params consistently
       arma::vec bound = num_cats * rest_score;
       arma::vec denom(rest_score.n_elem, arma::fill::zeros);
 
@@ -151,18 +148,16 @@ double log_pseudoposterior(
           rest_score, main_eff, bound
         );
       } else {
-        // linear/quadratic main effects from main_group
         const double lin_effect  = main_group(v, 0);
         const double quad_effect = main_group(v, 1);
         const int ref = baseline_category(v);
 
         denom = compute_denom_blume_capel(
           rest_score, lin_effect, quad_effect, ref, num_cats,
-          /*updated in place:*/bound
+          bound
         );
       }
 
-      // - sum_i [ bound_i + log denom_i ]
       log_pp -= arma::accu(bound + ARMA_MY_LOG(denom));
     }
   }
@@ -442,8 +437,8 @@ arma::vec gradient_observed_active(
  *  - main_effect_indices: Index ranges [row_start,row_end] for each variable in main_effects.
  *  - pairwise_effect_indices: Lookup table mapping (var1,var2) → row in pairwise_effects.
  *  - projection: Group projection matrix (num_groups × (num_groups − 1)).
- *  - observations: Observation matrix (N × V).
- *  - group_indices: Row ranges [start,end] for each group in `observations`.
+ *  - observations_double: Observation matrix (N × V), pre-converted to double.
+ *  - group_indices: Row ranges [start,end] for each group in `observations_double`.
  *  - num_categories: Number of categories per variable.
  *  - counts_per_category_group: Per-group category counts (ordinal variables).
  *  - blume_capel_stats_group: Per-group sufficient statistics (Blume–Capel variables).
@@ -479,7 +474,7 @@ arma::vec gradient(
     const arma::imat& main_effect_indices,
     const arma::imat& pairwise_effect_indices,
     const arma::mat& projection,
-    const arma::imat& observations,
+    const arma::mat& observations_double,
     const arma::imat& group_indices,
     const arma::ivec& num_categories,
     const std::vector<arma::imat>& counts_per_category_group,
@@ -498,32 +493,24 @@ arma::vec gradient(
     const arma::imat& pair_index,
     const arma::vec& grad_obs
 ) {
-  const int num_variables  = observations.n_cols;
+  const int num_variables  = observations_double.n_cols;
   const int max_num_categories = num_categories.max();
 
   arma::vec grad = grad_obs;
 
-
   int off;
 
-  // -------------------------------------------------
-  // Allocate temporaries ONCE (reused inside loops)
-  // -------------------------------------------------
   arma::mat main_group(num_variables, max_num_categories, arma::fill::none);
   arma::mat pairwise_group(num_variables, num_variables, arma::fill::none);
 
-  // --------------------------------
-  // Expected sufficient statistics
-  // --------------------------------
   for (int g = 0; g < num_groups; ++g) {
     const int r0 = group_indices(g, 0);
     const int r1 = group_indices(g, 1);
 
-    const arma::vec proj_g = projection.row(g).t(); // length = num_groups-1
+    const arma::vec proj_g = projection.row(g).t();
     main_group.zeros();
     pairwise_group.zeros();
 
-    // build group-specific params
     for (int v = 0; v < num_variables; ++v) {
       arma::vec me = compute_group_main_effects(
         v, num_groups, main_effects, main_effect_indices, proj_g
@@ -540,10 +527,10 @@ arma::vec gradient(
       }
     }
 
-    // group slice and rest matrix
-    const arma::mat obs = arma::conv_to<arma::mat>::from(observations.rows(r0, r1));
+    // Key optimization: no conversion needed - observations_double is already arma::mat
+    const arma::mat obs = observations_double.rows(r0, r1);
+    const arma::mat obs_t = obs.t();  // Pre-transpose for BLAS vectorization
     const arma::mat residual_matrix = obs * pairwise_group;
-    const int num_group_obs = obs.n_rows;
 
     for (int v = 0; v < num_variables; ++v) {
       const int K = num_categories(v);
@@ -583,7 +570,7 @@ arma::vec gradient(
           }
         }
       } else {
-        arma::vec lin_score  = arma::regspace<arma::vec>(0 - ref, K - ref);          // length K+1
+        arma::vec lin_score  = arma::regspace<arma::vec>(0 - ref, K - ref);
         arma::vec quad_score = arma::square(lin_score);
 
         double sum_lin  = arma::accu(probs * lin_score);
@@ -603,22 +590,24 @@ arma::vec gradient(
         }
       }
 
-      // ---- PAIRWISE expected ----
+      // ---- PAIRWISE expected (BLAS vectorized) ----
+      // Compute expected score E[i] = sum_{s} s * P(X=s|rest) for each observation i
+      arma::vec E;
+      if (is_ordinal_variable(v)) {
+        arma::vec weights = arma::regspace<arma::vec>(1, K);
+        E = probs.cols(1, K) * weights;
+      } else {
+        arma::vec score = arma::regspace<arma::vec>(0 - ref, K - ref);
+        E = probs * score;
+      }
+
+      // Compute all pairwise contributions with BLAS matrix-vector multiplication
+      arma::vec pw_grad = obs_t * E;
+
       for (int v2 = 0; v2 < num_variables; v2++) {
         if (v == v2) continue;
 
-        arma::vec expected_value(num_group_obs, arma::fill::zeros);
-        if (is_ordinal_variable(v)) {
-          for (int s = 1; s <= K; ++s) {
-            expected_value += s * probs.col(s) % obs.col(v2);
-          }
-        } else {
-          for (int s = 0; s <= K; s++) {
-            int score = s - ref;
-            expected_value += score * probs.col(s) % obs.col(v2);
-          }
-        }
-        double sum_expectation = arma::accu(expected_value);
+        double sum_expectation = pw_grad(v2);
 
         const int row = (v < v2) ? pairwise_effect_indices(v, v2)
           : pairwise_effect_indices(v2, v);
@@ -691,7 +680,6 @@ arma::vec gradient(
       const double scaled_interaction_scale = interaction_scale * pairwise_scaling_factors(v1, v2);
       const double scaled_difference_scale = difference_scale * pairwise_scaling_factors(v1, v2);
 
-      // overall uses scaled interaction_scale
       off = pair_index(row, 0);
       double value = pairwise_effects(row, 0);
       grad(off) -= 2.0 * value / (value * value + scaled_interaction_scale * scaled_interaction_scale);

@@ -23,6 +23,11 @@ struct SafeRNG;
  *  - r_plus: Corresponding momentum at theta_plus.
  *  - theta_prime: The current proposed sample (to possibly accept).
  *  - r_prime: Momentum corresponding to theta_prime (for energy diagnostics).
+ *  - rho: Sum of momenta along the subtree trajectory (for generalized U-turn).
+ *  - p_sharp_beg: Sharp momentum (M^{-1} * p) at beginning of subtree.
+ *  - p_sharp_end: Sharp momentum (M^{-1} * p) at end of subtree.
+ *  - p_beg: Momentum at beginning of subtree.
+ *  - p_end: Momentum at end of subtree.
  *  - n_prime: Number of valid proposals from this subtree.
  *  - s_prime: Stop flag (1 = continue, 0 = stop expansion).
  *  - alpha: Sum of acceptance probabilities in the subtree.
@@ -36,6 +41,11 @@ struct BuildTreeResult {
   arma::vec r_plus;
   arma::vec theta_prime;
   arma::vec r_prime;
+  arma::vec rho;
+  arma::vec p_sharp_beg;
+  arma::vec p_sharp_end;
+  arma::vec p_beg;
+  arma::vec p_end;
   int n_prime;
   int s_prime;
   double alpha;

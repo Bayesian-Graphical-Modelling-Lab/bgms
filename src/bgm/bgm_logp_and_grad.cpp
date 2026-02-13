@@ -190,7 +190,7 @@ double log_pseudoposterior_interactions_component (
   // Add Cauchy prior terms for included pairwise effects
   if (inclusion_indicator (var1, var2) == 1) {
     const double scaled_pairwise_scale = pairwise_scale * pairwise_scaling_factors(var1, var2);
-    log_pseudo_posterior += R::dcauchy (pairwise_effects (var1, var2), 0.0, scaled_pairwise_scale, true);
+    log_pseudo_posterior += R::dcauchy(pairwise_effects(var1, var2), 0.0, scaled_pairwise_scale, true);
   }
 
   return log_pseudo_posterior;
@@ -423,10 +423,12 @@ arma::vec gradient_log_pseudoposterior(
     const arma::vec grad_obs
 ) {
   const int num_variables = observations.n_cols;
-  const int num_persons = observations.n_rows;
 
   // Allocate gradient vector (main + active pairwise only)
   arma::vec gradient = grad_obs;
+
+  // Pre-convert observations to double once (avoids repeated conversion in loop)
+  const arma::mat obs_double_t = arma::conv_to<arma::mat>::from(observations).t();
 
   // ---- STEP 2: Expected statistics ----
   int offset = 0;
@@ -446,15 +448,16 @@ arma::vec gradient_log_pseudoposterior(
         gradient(offset + cat) -= arma::accu(probs.col(cat + 1));
       }
 
-      // pairwise effects
+      // pairwise effects (vectorized using BLAS)
+      // Compute expected category score E_i = sum_{cat=1}^{K} cat * P(X=cat|rest)
+      arma::vec weights = arma::regspace<arma::vec>(1, num_cats);
+      arma::vec E = probs.cols(1, num_cats) * weights;
+      // Compute all pairwise contributions: obs^T * E
+      arma::vec pw_grad = obs_double_t * E;
       for (int j = 0; j < num_variables; j++) {
         if (inclusion_indicator(variable, j) == 0 || variable == j) continue;
-        arma::vec expected_value = arma::zeros(num_persons);
-        for (int cat = 1; cat <= num_cats; cat++) {
-          expected_value += cat * probs.col(cat) % observations.col(j);
-        }
         int location = (variable < j) ? index_matrix(variable, j) : index_matrix(j, variable);
-        gradient(location) -= arma::accu(expected_value);
+        gradient(location) -= pw_grad(j);
       }
       offset += num_cats;
     } else {
@@ -473,20 +476,17 @@ arma::vec gradient_log_pseudoposterior(
       gradient(offset) -= arma::accu(probs * score);
       gradient(offset + 1) -= arma::accu(probs * sq_score);
 
-      // pairwise effects
+      // pairwise effects (vectorized using BLAS)
+      // Compute expected score E_i = sum_{cat=0}^{K} score[cat] * P(X=cat|rest)
+      arma::vec E = probs * score;
+      // Compute all pairwise contributions: obs^T * E
+      arma::vec pw_grad = obs_double_t * E;
       for (int j = 0; j < num_variables; j++) {
         if (inclusion_indicator(variable, j) == 0 || variable == j) continue;
-        arma::vec expected_value = arma::zeros(num_persons);
-        for (int cat = 0; cat <= num_cats; cat++) {
-          int s = score(cat);
-          expected_value += s * probs.col(cat) % observations.col(j);
-        }
-
         int location = (variable < j)
           ? index_matrix(variable, j)
           : index_matrix(j, variable);
-
-        gradient(location) -= arma::accu(expected_value);
+        gradient(location) -= pw_grad(j);
       }
       offset += 2;
     }
