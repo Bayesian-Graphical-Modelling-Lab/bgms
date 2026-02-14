@@ -243,7 +243,7 @@ simulate_mrf = function(num_states,
         ))
       }
     } else {
-      stop("``Thresholds'' needs to be a matrix.")
+      stop("``main'' needs to be a matrix.")
     }
   }
 

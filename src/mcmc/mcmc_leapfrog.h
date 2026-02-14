@@ -40,13 +40,9 @@ struct LeapfrogJointResult {
  *
  * Performs leapfrog integration using a joint log_post+gradient function.
  *
- * Key optimizations:
- *  - Accepts optional initial gradient to avoid recomputing grad(θ₀)
- *  - Uses joint function at the FINAL position to get both log_post and grad
- *  - Returns (theta_L, r_L, log_post_L, grad_L)
- *
- * This avoids redundant probability computations at endpoints when both
- * log_post and grad are needed (e.g., for Hamiltonian evaluation in HMC).
+ * Uses joint function at final position for both log_post and gradient,
+ * grad-only at intermediate steps. Accepts optional pre-computed initial
+ * gradient to avoid recomputation.
  *
  * Inputs:
  *  - theta: Initial position

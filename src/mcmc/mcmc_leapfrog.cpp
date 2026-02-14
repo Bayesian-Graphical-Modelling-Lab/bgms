@@ -8,8 +8,8 @@
 /**
  * Function: leapfrog_memo
  *
- * Performs a single leapfrog step using memoization for the gradient evaluations.
- * This improves computational efficiency when the same positions are revisited.
+ * Performs a single leapfrog step using memoization for gradient evaluations.
+ * Reuses cached gradients when revisiting the same positions.
  *
  * Inputs:
  *  - theta: Current position (parameter vector).

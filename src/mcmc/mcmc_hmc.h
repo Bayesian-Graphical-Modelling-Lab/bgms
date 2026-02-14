@@ -7,14 +7,12 @@ struct SafeRNG;
 
 
 /**
- * HMC sampler using joint log_post+gradient function.
+ * Function: hmc_sampler
  *
- * Eliminates redundant probability computations by:
- *  - Using joint at θ₀ to get (log_post_0, grad_0)
- *  - Using grad-only for intermediate positions
- *  - Using joint at θ_L to get (log_post_L, grad_L)
+ * Performs one iteration of Hamiltonian Monte Carlo sampling.
  *
- * This avoids computing probabilities twice at endpoints.
+ * Uses joint function at endpoints for log_post+gradient, grad-only for
+ * intermediate steps, avoiding redundant probability computations.
  */
 SamplerResult hmc_sampler(
     const arma::vec& init_theta,

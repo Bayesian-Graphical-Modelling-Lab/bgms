@@ -16,109 +16,32 @@ using namespace RcppParallel;
 // ============================================================================
 
 /**
- * Simulate observations from an ordinal MRF using Gibbs sampling
+ * Function: simulate_mrf
  *
- * Thread-safe implementation that can be used both for the standalone
- * mrfSampler() function and for parallel simulation from posterior draws.
+ * Simulates observations from a Markov Random Field using Gibbs sampling.
+ * Supports both ordinal and Blume-Capel variable types.
  *
- * @param num_states Number of observations to simulate
- * @param num_variables Number of variables
- * @param num_categories Number of categories per variable
- * @param pairwise Symmetric pairwise effect matrix
- * @param main Main effect parameters (variables x max_categories)
- * @param iter Number of Gibbs iterations
- * @param rng Thread-safe RNG instance
- * @return Integer matrix of simulated observations
+ * Inputs:
+ *  - num_states: Number of observations to simulate.
+ *  - num_variables: Number of variables in the MRF.
+ *  - num_categories: Number of categories per variable (on top of baseline 0).
+ *  - pairwise: Symmetric pairwise interaction matrix (diagonal ignored).
+ *  - main: Main effect parameters (variables x max_categories).
+ *          For ordinal: threshold parameters for categories 1..K.
+ *          For Blume-Capel: column 0 = linear (alpha), column 1 = quadratic (beta).
+ *  - variable_type: Type of each variable ("ordinal" or "blume-capel").
+ *  - baseline_category: Baseline category for Blume-Capel variables (0 for ordinal).
+ *  - iter: Number of Gibbs sampling iterations.
+ *  - rng: Thread-safe random number generator.
+ *
+ * Returns:
+ *  - Integer matrix of simulated observations (num_states x num_variables).
+ *
+ * Notes:
+ *  - Diagonal of pairwise matrix is explicitly ignored (set to zero internally).
+ *  - For ordinal variables, baseline_category should be 0.
  */
-arma::imat simulate_mrf_ordinal(
-    int num_states,
-    int num_variables,
-    const arma::ivec& num_categories,
-    const arma::mat& pairwise,
-    const arma::mat& main,
-    int iter,
-    SafeRNG& rng) {
-
-  arma::imat observations(num_states, num_variables);
-  int max_num_categories = arma::max(num_categories);
-  arma::vec probabilities(max_num_categories + 1);
-  double exponent = 0.0;
-  double rest_score = 0.0;
-  double cumsum = 0.0;
-  double u = 0.0;
-  int score = 0;
-
-  // Random (uniform) starting values
-  for(int variable = 0; variable < num_variables; variable++) {
-    for(int person = 0; person < num_states; person++) {
-      cumsum = 1.0;
-      probabilities[0] = 1.0;
-      for(int category = 0; category < num_categories[variable]; category++) {
-        cumsum += 1;
-        probabilities[category + 1] = cumsum;
-      }
-
-      u = cumsum * runif(rng);
-
-      score = 0;
-      while (u > probabilities[score]) {
-        score++;
-      }
-      observations(person, variable) = score;
-    }
-  }
-
-  // Gibbs sampling iterations
-  for(int iteration = 0; iteration < iter; iteration++) {
-    for(int variable = 0; variable < num_variables; variable++) {
-      for(int person = 0; person < num_states; person++) {
-        rest_score = 0.0;
-        for(int vertex = 0; vertex < num_variables; vertex++) {
-          rest_score += observations(person, vertex) *
-            pairwise(vertex, variable);
-        }
-
-        cumsum = 1.0;
-        probabilities[0] = 1.0;
-        for(int category = 0; category < num_categories[variable]; category++) {
-          exponent = main(variable, category);
-          exponent += (category + 1) * rest_score;
-          cumsum += MY_EXP(exponent);
-          probabilities[category + 1] = cumsum;
-        }
-
-        u = cumsum * runif(rng);
-
-        score = 0;
-        while (u > probabilities[score]) {
-          score++;
-        }
-        observations(person, variable) = score;
-      }
-    }
-  }
-
-  return observations;
-}
-
-/**
- * Simulate observations from an MRF with Blume-Capel/ordinal mixed variables
- *
- * Thread-safe implementation that can be used both for the standalone
- * mrfSampler() function and for parallel simulation from posterior draws.
- *
- * @param num_states Number of observations to simulate
- * @param num_variables Number of variables
- * @param num_categories Number of categories per variable
- * @param pairwise Symmetric pairwise effect matrix
- * @param main Main effect parameters (variables x max_categories)
- * @param variable_type Type of each variable ("ordinal" or "blume-capel")
- * @param baseline_category Baseline category for Blume-Capel variables
- * @param iter Number of Gibbs iterations
- * @param rng Thread-safe RNG instance
- * @return Integer matrix of simulated observations
- */
-arma::imat simulate_mrf_blumecapel(
+arma::imat simulate_mrf(
     int num_states,
     int num_variables,
     const arma::ivec& num_categories,
@@ -138,6 +61,10 @@ arma::imat simulate_mrf_blumecapel(
   double u = 0.0;
   int score = 0;
 
+  // Copy pairwise and zero diagonal to prevent accidental self-interactions
+  arma::mat pairwise_safe = pairwise;
+  pairwise_safe.diag().zeros();
+
   // Random (uniform) starting values
   for(int variable = 0; variable < num_variables; variable++) {
     for(int person = 0; person < num_states; person++) {
@@ -151,7 +78,7 @@ arma::imat simulate_mrf_blumecapel(
       u = cumsum * runif(rng);
 
       score = 0;
-      while (u > probabilities[score]) {
+      while (score < num_categories[variable] && u > probabilities[score]) {
         score++;
       }
       observations(person, variable) = score;
@@ -162,32 +89,31 @@ arma::imat simulate_mrf_blumecapel(
   for(int iteration = 0; iteration < iter; iteration++) {
     for(int variable = 0; variable < num_variables; variable++) {
       for(int person = 0; person < num_states; person++) {
+        // Compute rest score using centered parameterization
+        // For ordinal variables with baseline_category=0, this is equivalent to obs * pairwise
         rest_score = 0.0;
         for(int vertex = 0; vertex < num_variables; vertex++) {
-          if(variable_type[vertex] != "blume-capel") {
-            rest_score += observations(person, vertex) * pairwise(vertex, variable);
-          } else {
-            int ref = baseline_category[vertex];
-            int obs = observations(person, vertex);
-            rest_score += (obs - ref) * pairwise(vertex, variable);
-          }
+          int obs = observations(person, vertex);
+          int ref = baseline_category[vertex];
+          rest_score += (obs - ref) * pairwise_safe(vertex, variable);
         }
 
         if(variable_type[variable] == "blume-capel") {
           cumsum = 0.0;
           int ref = baseline_category[variable];
-          for(int category = 0; category < num_categories[variable] + 1; category++) {
+          for(int category = 0; category <= num_categories[variable]; category++) {
             const int s = category - ref;
-            // The linear term of the Blume-Capel variable
+            // Linear term
             exponent = main(variable, 0) * s;
-            // The quadratic term of the Blume-Capel variable
+            // Quadratic term
             exponent += main(variable, 1) * s * s;
-            // The pairwise effects
+            // Pairwise effects
             exponent += rest_score * s;
             cumsum += MY_EXP(exponent);
             probabilities[category] = cumsum;
           }
         } else {
+          // Ordinal: baseline category 0 has probability 1 (unnormalized)
           cumsum = 1.0;
           probabilities[0] = cumsum;
           for(int category = 0; category < num_categories[variable]; category++) {
@@ -200,8 +126,10 @@ arma::imat simulate_mrf_blumecapel(
 
         u = cumsum * runif(rng);
 
+        // Sample category with bounds protection
         score = 0;
-        while (u > probabilities[score]) {
+        int max_score = num_categories[variable];
+        while (score < max_score && u > probabilities[score]) {
           score++;
         }
         observations(person, variable) = score;
@@ -233,13 +161,19 @@ IntegerMatrix sample_omrf_gibbs(int num_states,
   arma::mat pairwise_arma = Rcpp::as<arma::mat>(pairwise);
   arma::mat main_arma = Rcpp::as<arma::mat>(main);
 
-  // Call the shared implementation
-  arma::imat result = simulate_mrf_ordinal(
+  // Create ordinal defaults: all variables are "ordinal" with baseline_category = 0
+  std::vector<std::string> variable_type(num_variables, "ordinal");
+  arma::ivec baseline_category_arma(num_variables, arma::fill::zeros);
+
+  // Simulate observations
+  arma::imat result = simulate_mrf(
     num_states,
     num_variables,
     num_categories_arma,
     pairwise_arma,
     main_arma,
+    variable_type,
+    baseline_category_arma,
     iter,
     rng
   );
@@ -272,10 +206,14 @@ IntegerMatrix sample_bcomrf_gibbs(int num_states,
   std::vector<std::string> variable_type(num_variables);
   for (int i = 0; i < num_variables; i++) {
     variable_type[i] = Rcpp::as<std::string>(variable_type_r[i]);
+    // Ordinal variables must use baseline_category = 0 (category 0 is the reference)
+    if (variable_type[i] != "blume-capel") {
+      baseline_category_arma[i] = 0;
+    }
   }
 
-  // Call the shared implementation
-  arma::imat result = simulate_mrf_blumecapel(
+  // Simulate observations
+  arma::imat result = simulate_mrf(
     num_states,
     num_variables,
     num_categories_arma,
@@ -322,7 +260,6 @@ public:
   const std::vector<std::string>& variable_type;
   const arma::ivec& baseline_category;
   const int iter;
-  const bool has_blume_capel;
   const arma::ivec& main_param_counts;
 
   // RNGs
@@ -344,7 +281,6 @@ public:
     const std::vector<std::string>& variable_type,
     const arma::ivec& baseline_category,
     int iter,
-    bool has_blume_capel,
     const arma::ivec& main_param_counts,
     const std::vector<SafeRNG>& draw_rngs,
     ProgressManager& pm,
@@ -359,7 +295,6 @@ public:
     variable_type(variable_type),
     baseline_category(baseline_category),
     iter(iter),
-    has_blume_capel(has_blume_capel),
     main_param_counts(main_param_counts),
     draw_rngs(draw_rngs),
     pm(pm),
@@ -398,30 +333,18 @@ public:
           }
         }
 
-        // Run MRF simulation
-        if (has_blume_capel) {
-          result.observations = simulate_mrf_blumecapel(
-            num_states,
-            num_variables,
-            num_categories,
-            pairwise,
-            main,
-            variable_type,
-            baseline_category,
-            iter,
-            rng
-          );
-        } else {
-          result.observations = simulate_mrf_ordinal(
-            num_states,
-            num_variables,
-            num_categories,
-            pairwise,
-            main,
-            iter,
-            rng
-          );
-        }
+        // Simulate observations via Gibbs sampling
+        result.observations = simulate_mrf(
+          num_states,
+          num_variables,
+          num_categories,
+          pairwise,
+          main,
+          variable_type,
+          baseline_category,
+          iter,
+          rng
+        );
 
       } catch (const std::exception& e) {
         result.error = true;
@@ -476,12 +399,14 @@ Rcpp::List run_simulation_parallel(
   int ndraws = draw_indices.n_elem;
 
   // Convert variable_type to std::vector<std::string>
+  // and enforce baseline_category = 0 for ordinal variables
   std::vector<std::string> variable_type(num_variables);
-  bool has_blume_capel = false;
+  arma::ivec baseline_category_safe = baseline_category;
   for (int i = 0; i < num_variables; i++) {
     variable_type[i] = Rcpp::as<std::string>(variable_type_r[i]);
-    if (variable_type[i] == "blume-capel") {
-      has_blume_capel = true;
+    // Ordinal variables must use baseline_category = 0 (category 0 is the reference)
+    if (variable_type[i] != "blume-capel") {
+      baseline_category_safe[i] = 0;
     }
   }
 
@@ -491,7 +416,7 @@ Rcpp::List run_simulation_parallel(
     if (variable_type[v] == "blume-capel") {
       main_param_counts[v] = 2;  // linear and quadratic
     } else {
-      main_param_counts[v] = num_categories[v];  // K-1 main for K categories
+      main_param_counts[v] = num_categories[v];  // K thresholds for K+1 response options
     }
   }
 
@@ -516,9 +441,8 @@ Rcpp::List run_simulation_parallel(
     num_variables,
     num_categories,
     variable_type,
-    baseline_category,
+    baseline_category_safe,
     iter,
-    has_blume_capel,
     main_param_counts,
     draw_rngs,
     pm,
