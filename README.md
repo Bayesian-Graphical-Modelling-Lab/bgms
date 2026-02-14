@@ -24,7 +24,7 @@ Version](https://www.r-pkg.org/badges/version/bgms)](https://cran.r-project.org/
 [![Total](https://cranlogs.r-pkg.org/badges/grand-total/bgms)](https://cran.r-project.org/package=bgms)
 [![Lifecycle:
 stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
-[![Codecov](https://codecov.io/gh/Bayesian-Graphical-Modelling-Lab/bgms/branch/main/graph/badge.svg)](https://codecov.io/gh/Bayesian-Graphical-Modelling-Lab/bgms)
+[![Codecov](https://codecov.io/gh/Bayesian-Graphical-Modelling-Lab/bgms/branch/main/graph/badge.svg)](https://app.codecov.io/gh/Bayesian-Graphical-Modelling-Lab/bgms)
 <!-- badges: end -->
 
 **Bayesian analysis of graphical models with binary and ordinal
