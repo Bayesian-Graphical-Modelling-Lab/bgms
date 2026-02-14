@@ -100,6 +100,11 @@ Internally, indicator samples were stored in \`\$gamma\` (pre-0.1.4, now
 defunct) and \`\$indicator\` (0.1.4–0.1.5, deprecated). As of \*\*bgms
 0.1.6.0\*\*, they are stored in \`\$raw_samples\$indicator\`.
 
+For `bgmCompare` objects, indicator samples were stored in
+`$pairwise_difference_indicator` and `$main_difference_indicator`
+(0.1.4–0.1.5, deprecated). As of \*\*bgms 0.1.6.0\*\*, they are stored
+in `$raw_samples$indicator`.
+
 Posterior inclusion probabilities are computed from edge indicators.
 
 Internally, indicator samples were stored in \`\$gamma\` (pre-0.1.4, now
@@ -112,10 +117,18 @@ deprecated). As of \*\*bgms 0.1.6.0\*\*, they are stored in
 \`\$raw_samples\$pairwise\` (raw samples) and
 \`\$posterior_summary_pairwise\` (summaries).
 
+For `bgmCompare` objects, pairwise interactions were stored in
+`$interactions` (0.1.4–0.1.5, deprecated). As of \*\*bgms 0.1.6.0\*\*,
+they are stored in `$raw_samples$pairwise`.
+
 Category thresholds were previously stored in \`\$main_effects\`
 (pre-0.1.4, now defunct) and \`\$posterior_mean_main\` (0.1.4–0.1.5,
 deprecated). As of \*\*bgms 0.1.6.0\*\*, they are stored in
 \`\$posterior_summary_main\`.
+
+For `bgmCompare` objects, category thresholds were stored in
+`$thresholds` (0.1.4–0.1.5, deprecated). As of \*\*bgms 0.1.6.0\*\*,
+they are stored in `$raw_samples$main`.
 
 ## Functions
 
