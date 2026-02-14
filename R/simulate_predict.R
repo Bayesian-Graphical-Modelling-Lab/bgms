@@ -468,7 +468,7 @@ mrfSampler = function(num_states,
 #' @examples
 #' \donttest{
 #' # Fit a model
-#' fit <- bgm(x = Wenchuan[, 1:5])
+#' fit <- bgm(x = Wenchuan[, 1:5], chains = 2)
 #'
 #' # Simulate 100 new observations using posterior means
 #' new_data <- simulate(fit, nsim = 100)
@@ -478,7 +478,7 @@ mrfSampler = function(num_states,
 #'
 #' # Use parallel processing for faster simulation
 #' new_data_list <- simulate(fit, nsim = 100, method = "posterior-sample",
-#'                           ndraws = 100, cores = 4)
+#'                           ndraws = 100, cores = 2)
 #' }
 #'
 #' @importFrom stats simulate
@@ -631,7 +631,7 @@ simulate.bgms <- function(object,
 #' # Fit a comparison model
 #' x <- Boredom[Boredom$language == "fr", 2:6]
 #' y <- Boredom[Boredom$language != "fr", 2:6]
-#' fit <- bgmCompare(x, y)
+#' fit <- bgmCompare(x, y, chains = 2)
 #'
 #' # Simulate 100 observations from group 1
 #' new_data_g1 <- simulate(fit, nsim = 100, group = 1)
@@ -795,7 +795,7 @@ simulate.bgmCompare <- function(object,
 #' @examples
 #' \donttest{
 #' # Fit a model
-#' fit <- bgm(x = Wenchuan[, 1:5])
+#' fit <- bgm(x = Wenchuan[, 1:5], chains = 2)
 #'
 #' # Compute conditional probabilities for all variables
 #' probs <- predict(fit, newdata = Wenchuan[1:10, 1:5])
@@ -1052,7 +1052,7 @@ predict.bgms <- function(object,
 #' # Fit a comparison model
 #' x <- Boredom[Boredom$language == "fr", 2:6]
 #' y <- Boredom[Boredom$language != "fr", 2:6]
-#' fit <- bgmCompare(x, y)
+#' fit <- bgmCompare(x, y, chains = 2)
 #'
 #' # Predict conditional probabilities using group 1 parameters
 #' probs_g1 <- predict(fit, newdata = x[1:10, ], group = 1)

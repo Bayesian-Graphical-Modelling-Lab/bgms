@@ -180,7 +180,7 @@
 #' x = Boredom[Boredom$language == "fr", 2:6]
 #' y = Boredom[Boredom$language != "fr", 2:6]
 #'
-#' fit <- bgmCompare(x, y)
+#' fit <- bgmCompare(x, y, chains = 2)
 #'
 #' # Posterior inclusion probabilities
 #' summary(fit)$indicator

@@ -370,7 +370,7 @@
 #' @examples
 #' \donttest{
 #' # Run bgm on subset of the Wenchuan dataset
-#' fit = bgm(x = Wenchuan[, 1:5])
+#' fit = bgm(x = Wenchuan[, 1:5], chains = 2)
 #'
 #' # Posterior inclusion probabilities
 #' summary(fit)$indicator

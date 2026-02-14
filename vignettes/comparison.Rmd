@@ -47,7 +47,7 @@ fit = bgmCompare(x = data_adhd, y = data_no_adhd, seed = 1234)
 ```
 
 ```{r, include=FALSE}
-fit = bgmCompare(x = data_adhd, y = data_no_adhd, seed = 1234, 
+fit = bgmCompare(x = data_adhd, y = data_no_adhd, seed = 1234, chains = 2,
                  display_progress = "none", verbose = FALSE)
 ```
 

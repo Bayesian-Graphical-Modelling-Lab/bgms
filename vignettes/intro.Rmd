@@ -57,7 +57,7 @@ fit = bgm(data, seed = 1234)
 ```
 
 ```{r, include=FALSE}
-fit = bgm(data, seed = 1234, display_progress = "none", verbose = FALSE)
+fit = bgm(data, seed = 1234, chains = 2, display_progress = "none", verbose = FALSE)
 ```
 
 # Posterior summaries
