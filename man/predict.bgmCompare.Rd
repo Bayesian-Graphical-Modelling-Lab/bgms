@@ -71,7 +71,7 @@ given the observed values of all other variables.
 # Fit a comparison model
 x <- Boredom[Boredom$language == "fr", 2:6]
 y <- Boredom[Boredom$language != "fr", 2:6]
-fit <- bgmCompare(x, y)
+fit <- bgmCompare(x, y, chains = 2)
 
 # Predict conditional probabilities using group 1 parameters
 probs_g1 <- predict(fit, newdata = x[1:10, ], group = 1)
