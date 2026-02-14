@@ -26,10 +26,24 @@ double kinetic_energy(const arma::vec& r, const arma::vec& inv_mass_diag) {
 
 
 /**
- * Step size heuristic using joint log_post+gradient function (identity mass).
+ * Function: heuristic_initial_step_size
  *
- * Since we perform 1 leapfrog step per iteration, and need both log_post
- * and grad at both endpoints, joint is optimal at both positions.
+ * Finds a reasonable initial step size for HMC by iteratively doubling or
+ * halving until the acceptance probability is near the target. Uses identity
+ * mass matrix. This overload delegates to the full version with inv_mass_diag
+ * set to ones.
+ *
+ * Inputs:
+ *  - theta: Initial parameter vector.
+ *  - grad: Function returning gradient of log-posterior.
+ *  - joint: Function returning both log-posterior and gradient.
+ *  - rng: Thread-safe random number generator.
+ *  - target_acceptance: Target acceptance probability (default 0.65).
+ *  - init_step: Starting step size to search from.
+ *  - max_attempts: Maximum doubling/halving iterations.
+ *
+ * Returns:
+ *  - A step size yielding acceptance probability near target_acceptance.
  */
 double heuristic_initial_step_size(
     const arma::vec& theta,
@@ -48,7 +62,25 @@ double heuristic_initial_step_size(
 
 
 /**
- * Step size heuristic using joint log_post+gradient function (with mass matrix).
+ * Function: heuristic_initial_step_size
+ *
+ * Finds a reasonable initial step size for HMC by iteratively doubling or
+ * halving until the acceptance probability is near the target. Performs single
+ * leapfrog steps from the initial position, adjusting step size based on
+ * whether the Hamiltonian change exceeds log(0.5) or log(2).
+ *
+ * Inputs:
+ *  - theta: Initial parameter vector.
+ *  - grad: Function returning gradient of log-posterior.
+ *  - joint: Function returning both log-posterior and gradient.
+ *  - inv_mass_diag: Diagonal inverse mass matrix.
+ *  - rng: Thread-safe random number generator.
+ *  - target_acceptance: Target acceptance probability (default 0.65).
+ *  - init_step: Starting step size to search from.
+ *  - max_attempts: Maximum doubling/halving iterations.
+ *
+ * Returns:
+ *  - A step size yielding acceptance probability near target_acceptance.
  */
 double heuristic_initial_step_size(
     const arma::vec& theta,

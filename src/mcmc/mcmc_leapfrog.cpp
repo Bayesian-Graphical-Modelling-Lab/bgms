@@ -45,15 +45,30 @@ std::pair<arma::vec, arma::vec> leapfrog_memo(
 /**
  * Function: leapfrog
  *
- * Performs leapfrog integration using a joint log_post+gradient function.
+ * Performs leapfrog integration for Hamiltonian Monte Carlo. Simulates
+ * Hamiltonian dynamics by alternating half-step momentum updates with
+ * full-step position updates over the specified number of steps.
  *
- * Optimizes HMC by avoiding redundant probability computations:
- *  - Uses pre-computed initial gradient if provided (avoids recomputing at θ₀)
- *  - Uses grad-only function for intermediate positions
- *  - Uses joint function at final position to get both log_post and gradient
+ * Inputs:
+ *  - theta_init: Initial parameter vector (position).
+ *  - r_init: Initial momentum vector.
+ *  - eps: Step size for integration.
+ *  - grad: Function returning gradient of log-posterior at a position.
+ *  - joint: Function returning both log-posterior and gradient at a position.
+ *  - num_leapfrogs: Number of leapfrog steps to perform.
+ *  - inv_mass_diag: Diagonal inverse mass matrix.
+ *  - init_grad: Optional pre-computed gradient at theta_init (avoids recomputation).
  *
- * This is ideal for HMC where both values are needed at endpoints for
- * Hamiltonian evaluation, but only gradient is needed at intermediates.
+ * Returns:
+ *  - LeapfrogJointResult containing:
+ *      - theta: Final position vector.
+ *      - r: Final momentum vector.
+ *      - log_post: Log-posterior at final position.
+ *      - grad: Gradient at final position.
+ *
+ * Notes:
+ *  - Uses grad-only function for intermediate positions (efficiency).
+ *  - Uses joint function at final position to obtain both log_post and gradient.
  */
 LeapfrogJointResult leapfrog(
     const arma::vec& theta_init,

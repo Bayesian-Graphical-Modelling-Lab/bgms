@@ -59,9 +59,24 @@ arma::mat add_row_col_block_prob_matrix(arma::mat X,
 
 
 
-// ----------------------------------------------------------------------------|
-// Compute log-likelihood for the MFM - SBM
-// ----------------------------------------------------------------------------|
+/**
+ * Function: log_likelihood_mfm_sbm
+ *
+ * Computes the log-likelihood contribution for a single node under the
+ * Mixture of Finite Mixtures Stochastic Block Model (MFM-SBM). Evaluates
+ * the probability of observed edges between the node and all other nodes
+ * given their cluster assignments and cluster connection probabilities.
+ *
+ * Inputs:
+ *  - cluster_assign: Vector of cluster assignments for all nodes.
+ *  - cluster_probs: Matrix of edge probabilities between clusters.
+ *  - indicator: Upper-triangular matrix of edge indicators (1 = edge present).
+ *  - node: Index of the node whose contribution is computed.
+ *  - no_variables: Total number of nodes in the network.
+ *
+ * Returns:
+ *  - Log-likelihood contribution for the specified node.
+ */
 double log_likelihood_mfm_sbm(arma::uvec cluster_assign,
                               arma::mat cluster_probs,
                               arma::umat indicator,
@@ -88,10 +103,27 @@ double log_likelihood_mfm_sbm(arma::uvec cluster_assign,
   return output;
 }
 
-// ----------------------------------------------------------------------------|
-// Compute log-marginal for the MFM - SBM
-// Modified to support separate within/between cluster hyperparameters
-// ----------------------------------------------------------------------------|
+/**
+ * Function: log_marginal_mfm_sbm
+ *
+ * Computes the log-marginal likelihood contribution for a single node under
+ * the MFM-SBM after integrating out cluster connection probabilities. Uses
+ * Beta-Bernoulli conjugacy with separate hyperparameters for within-cluster
+ * and between-cluster edges.
+ *
+ * Inputs:
+ *  - cluster_assign: Vector of cluster assignments for all nodes.
+ *  - indicator: Upper-triangular matrix of edge indicators (1 = edge present).
+ *  - node: Index of the node whose contribution is computed.
+ *  - no_variables: Total number of nodes in the network.
+ *  - beta_bernoulli_alpha: Alpha hyperparameter for within-cluster edges.
+ *  - beta_bernoulli_beta: Beta hyperparameter for within-cluster edges.
+ *  - beta_bernoulli_alpha_between: Alpha hyperparameter for between-cluster edges.
+ *  - beta_bernoulli_beta_between: Beta hyperparameter for between-cluster edges.
+ *
+ * Returns:
+ *  - Log-marginal likelihood contribution for the specified node.
+ */
 double log_marginal_mfm_sbm(arma::uvec cluster_assign,
                             arma::umat indicator,
                             arma::uword node,

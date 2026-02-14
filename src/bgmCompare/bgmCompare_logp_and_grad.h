@@ -117,7 +117,8 @@ double log_pseudoposterior_pair_component(
     const arma::imat& observations,
     const arma::imat& group_indices,
     const arma::ivec& num_categories,
-    const std::vector<arma::mat>&  pairwise_stats_group,
+    const std::vector<arma::mat>& pairwise_stats_group,
+    const std::vector<arma::mat>& residual_matrices,  // pre-computed per group
     const int num_groups,
     const arma::imat& inclusion_indicator,
     const arma::uvec& is_ordinal_variable,
@@ -127,7 +128,8 @@ double log_pseudoposterior_pair_component(
     const double difference_scale,
     int variable1,
     int variable2,
-    int h // Overall = 0, differences are 1, ....
+    int h, // Overall = 0, differences are 1, ....
+    double delta // proposed change to pairwise_effects(idx, h)
 );
 
 

@@ -399,31 +399,78 @@ void update_pairwise_effects_metropolis_bgmcompare (
 ) {
   int num_variables = observations.n_cols;
   int num_pairs = num_variables * (num_variables - 1) / 2;
-  arma::mat accept_prob_pair = arma::zeros<arma::mat>(num_pairs,
-                                                      num_groups);
-  arma::umat index_mask_pair = arma::zeros<arma::umat>(num_pairs,
-                                                       num_groups);
+  arma::mat accept_prob_pair = arma::zeros<arma::mat>(num_pairs, num_groups);
+  arma::umat index_mask_pair = arma::zeros<arma::umat>(num_pairs, num_groups);
 
-  // --- helper for one update ---
+  // --- Build group-specific pairwise matrices and residual matrices ---
+  std::vector<arma::mat> pairwise_groups(num_groups);
+  std::vector<arma::mat> residual_matrices(num_groups);
+  std::vector<arma::mat> obs_double_groups(num_groups);
+
+  for (int g = 0; g < num_groups; ++g) {
+    const int r0 = group_indices(g, 0);
+    const int r1 = group_indices(g, 1);
+    const arma::vec proj_g = projection.row(g).t();
+
+    // Build group-specific pairwise effects matrix
+    arma::mat pairwise_group(num_variables, num_variables, arma::fill::zeros);
+    for (int v = 0; v < num_variables - 1; ++v) {
+      for (int u = v + 1; u < num_variables; ++u) {
+        double w = compute_group_pairwise_effects(
+          v, u, num_groups, pairwise_effects, pairwise_effect_indices,
+          inclusion_indicator, proj_g
+        );
+        pairwise_group(v, u) = w;
+        pairwise_group(u, v) = w;
+      }
+    }
+    pairwise_groups[g] = pairwise_group;
+
+    // Convert observations to double and compute residual matrix
+    obs_double_groups[g] = arma::conv_to<arma::mat>::from(observations.rows(r0, r1));
+    residual_matrices[g] = obs_double_groups[g] * pairwise_group;
+  }
+
+  // --- helper for one update using optimized residual-based function ---
   auto do_update = [&](int var1, int var2, int h) {
     int idx = pairwise_effect_indices(var1, var2);
     index_mask_pair(idx, h) = 1;
-    double& current = pairwise_effects(idx, h);
+    double current = pairwise_effects(idx, h);
     double proposal_sd = proposal_sd_pair(idx, h);
 
     auto log_post = [&](double theta) {
-      pairwise_effects(idx, h) = theta;
+      double delta = theta - current;
       return log_pseudoposterior_pair_component(
         main_effects, pairwise_effects, main_effect_indices,
         pairwise_effect_indices, projection, observations, group_indices,
-        num_categories, pairwise_stats, num_groups,
+        num_categories, pairwise_stats, residual_matrices, num_groups,
         inclusion_indicator, is_ordinal_variable, baseline_category,
-        pairwise_scale, pairwise_scaling_factors, difference_scale, var1, var2, h
+        pairwise_scale, pairwise_scaling_factors, difference_scale, var1, var2, h, delta
       );
     };
 
     SamplerResult result = rwm_sampler(current, proposal_sd, log_post, rng);
-    current = result.state[0];
+    double value = result.state[0];
+
+    // Update residual matrices if move was accepted
+    if (current != value) {
+      double delta = value - current;
+      pairwise_effects(idx, h) = value;
+
+      for (int g = 0; g < num_groups; ++g) {
+        const arma::vec proj_g = projection.row(g).t();
+        double delta_g = (h == 0) ? delta : delta * proj_g(h - 1);
+
+        // Update pairwise_group for this group
+        pairwise_groups[g](var1, var2) += delta_g;
+        pairwise_groups[g](var2, var1) += delta_g;
+
+        // Update residual matrix columns
+        residual_matrices[g].col(var1) += obs_double_groups[g].col(var2) * delta_g;
+        residual_matrices[g].col(var2) += obs_double_groups[g].col(var1) * delta_g;
+      }
+    }
+
     accept_prob_pair(idx, h) = result.accept_prob;
   };
 
@@ -1096,6 +1143,32 @@ void tune_proposal_sd_bgmcompare(
   }
 
   // --- PAIRWISE EFFECTS ---
+  // Build group-specific pairwise matrices and residual matrices
+  std::vector<arma::mat> pairwise_groups(num_groups);
+  std::vector<arma::mat> residual_matrices(num_groups);
+  std::vector<arma::mat> obs_double_groups(num_groups);
+
+  for (int g = 0; g < num_groups; ++g) {
+    const int r0 = group_indices(g, 0);
+    const int r1 = group_indices(g, 1);
+    const arma::vec proj_g = projection.row(g).t();
+
+    arma::mat pairwise_group(V, V, arma::fill::zeros);
+    for (int v = 0; v < V - 1; ++v) {
+      for (int u = v + 1; u < V; ++u) {
+        double w = compute_group_pairwise_effects(
+          v, u, num_groups, pairwise_effects, pairwise_effect_indices,
+          inclusion_indicator, proj_g
+        );
+        pairwise_group(v, u) = w;
+        pairwise_group(u, v) = w;
+      }
+    }
+    pairwise_groups[g] = pairwise_group;
+    obs_double_groups[g] = arma::conv_to<arma::mat>::from(observations.rows(r0, r1));
+    residual_matrices[g] = obs_double_groups[g] * pairwise_group;
+  }
+
   for (int v1 = 0; v1 < V - 1; ++v1) {
     for (int v2 = v1 + 1; v2 < V; ++v2) {
       int idx = pairwise_effect_indices(v1, v2);
@@ -1107,19 +1180,36 @@ void tune_proposal_sd_bgmcompare(
         double& prop_sd = proposal_sd_pairwise_effects(idx, h);
 
         auto log_post = [&](double theta) {
-          pairwise_effects(idx, h) = theta;
+          double delta = theta - current;
           return log_pseudoposterior_pair_component(
             main_effects, pairwise_effects,
             main_effect_indices, pairwise_effect_indices,
             projection, observations, group_indices,
-            num_categories, pairwise_stats, num_groups,
+            num_categories, pairwise_stats, residual_matrices, num_groups,
             inclusion_indicator, is_ordinal_variable, baseline_category,
-            pairwise_scale, pairwise_scaling_factors, difference_scale, v1, v2, h
+            pairwise_scale, pairwise_scaling_factors, difference_scale, v1, v2, h, delta
           );
         };
 
         SamplerResult result = rwm_sampler(current, prop_sd, log_post, rng);
-        current = result.state[0];
+        double value = result.state[0];
+
+        if (current != value) {
+          double delta = value - current;
+          current = value;
+
+          for (int g = 0; g < num_groups; ++g) {
+            const arma::vec proj_g = projection.row(g).t();
+            double delta_g = (h == 0) ? delta : delta * proj_g(h - 1);
+
+            pairwise_groups[g](v1, v2) += delta_g;
+            pairwise_groups[g](v2, v1) += delta_g;
+
+            residual_matrices[g].col(v1) += obs_double_groups[g].col(v2) * delta_g;
+            residual_matrices[g].col(v2) += obs_double_groups[g].col(v1) * delta_g;
+          }
+        }
+
         prop_sd = update_proposal_sd_with_robbins_monro(
           prop_sd, MY_LOG(result.accept_prob), rm_weight, target_accept
         );

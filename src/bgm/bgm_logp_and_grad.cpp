@@ -110,15 +110,38 @@ double log_pseudoposterior_main_effects_component (
 
 
 /**
- * Computes the log-pseudoposterior contribution for a single pairwise interaction (optimized).
+ * Computes the log-pseudoposterior contribution for a single pairwise interaction (bgm model).
  *
- * This overload uses pre-computed residual_matrix and a delta adjustment to avoid
- * the expensive O(n*p) matrix-vector multiplication. Instead, it uses O(n) adjustments.
+ * For the specified variable pair (var1, var2), this function evaluates the
+ * log-pseudoposterior of the pairwise interaction parameter at a proposed state.
  *
- * The delta parameter represents (proposed_value - current_value). The residual_matrix
- * should contain residuals computed with the CURRENT pairwise effects. For delta=0,
- * this gives the log-posterior at the current state. For delta != 0, it gives the
- * log-posterior at the proposed state.
+ * The log-pseudoposterior combines:
+ *  - Sufficient statistic contribution: 2 * proposed_value * pairwise_stats(var1, var2).
+ *  - Likelihood contribution: log partition functions for both variables.
+ *  - Prior contribution: Cauchy prior on included interactions.
+ *
+ * Inputs:
+ *  - pairwise_effects: Symmetric matrix of pairwise interaction parameters.
+ *  - main_effects: Matrix of main-effect parameters (variables × categories).
+ *  - residual_matrix: Matrix of residual scores (persons × variables).
+ *  - observations: Matrix of categorical observations (persons × variables).
+ *  - num_categories: Number of categories per variable.
+ *  - inclusion_indicator: Symmetric binary matrix of active pairwise effects.
+ *  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
+ *  - baseline_category: Reference categories for Blume–Capel variables.
+ *  - pairwise_scale: Scale parameter for the Cauchy prior.
+ *  - pairwise_scaling_factors: Per-pair scaling factors for the prior.
+ *  - pairwise_stats: Sufficient statistics for pairwise effects.
+ *  - var1, var2: Indices of the variable pair.
+ *  - delta: Parameter change (proposed - current).
+ *
+ * Returns:
+ *  - The log-pseudoposterior value at the proposed state.
+ *
+ * Notes:
+ *  - The proposed value is computed as pairwise_effects(var1, var2) + delta.
+ *  - Residual scores are adjusted by delta without modifying residual_matrix.
+ *  - Uses numerically stable denominator with exponential bounding.
  */
 double log_pseudoposterior_interactions_component (
     const arma::mat& pairwise_effects,
@@ -394,7 +417,8 @@ arma::vec gradient_log_pseudoposterior(
 
 
 
-/** * Computes both the log-pseudoposterior and its gradient in a single pass.
+/**
+ * Computes both the log-pseudoposterior and its gradient in a single pass.
  *
  * This function fuses the computation of log_pseudoposterior() and gradient_log_pseudoposterior()
  * to avoid redundant calculation of probability matrices. Both functions need to compute
@@ -568,7 +592,8 @@ std::pair<double, arma::vec> logp_and_gradient(
 
 
 
-/** * Computes the log-likelihood ratio for updating a single variable’s parameter (bgm model).
+/**
+ * Computes the log-likelihood ratio for updating a single variable's parameter (bgm model).
  *
  * The ratio compares the likelihood of the current parameter state versus a proposed state,
  * given the observed data, main effects, and residual contributions from other variables.

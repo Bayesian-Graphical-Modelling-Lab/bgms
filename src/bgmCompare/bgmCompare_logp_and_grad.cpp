@@ -334,7 +334,7 @@ arma::vec gradient(
       }
     }
 
-    // Key optimization: no conversion needed - observations_double is already arma::mat
+    // observations_double is already arma::mat, no conversion needed
     const arma::mat obs = observations_double.rows(r0, r1);
     const arma::mat obs_t = obs.t();  // Pre-transpose for BLAS vectorization
     const arma::mat residual_matrix = obs * pairwise_group;
@@ -506,15 +506,11 @@ arma::vec gradient(
 
 
 /**
- * Computes both log pseudoposterior and gradient in a single pass (for NUTS efficiency).
+ * Computes both log pseudoposterior and gradient in a single pass.
  *
- * This function fuses the computations of `log_pseudoposterior()` and `gradient()`,
- * sharing the intermediate results (group-specific effects, residual matrices,
+ * Fuses the computations of `log_pseudoposterior()` and `gradient()`,
+ * sharing intermediate results (group-specific effects, residual matrices,
  * and probability computations) to avoid redundant work during NUTS sampling.
- *
- * The key optimization is using `compute_logZ_and_probs_ordinal()` and
- * `compute_logZ_and_probs_blume_capel()` to obtain both the log-normalizer
- * (needed for log_pp) and probabilities (needed for gradient) in one pass.
  *
  * Returns:
  *  - std::pair containing:
@@ -963,22 +959,19 @@ double log_pseudoposterior_main_component(
 }
 
 
-
 /**
  * Computes the log pseudoposterior contribution of a single pairwise-effect parameter (bgmCompare model).
  *
- * This function isolates the contribution of one pairwise-effect parameter
- * between two variables, either the baseline effect (h == 0) or a group-specific
- * difference (h > 0).
+ * Isolates the contribution of one pairwise-effect parameter between two variables,
+ * either the baseline effect (h == 0) or a group-specific difference (h > 0).
  *
  * Procedure:
  *  - For each group:
  *    * Construct group-specific main effects for the two variables.
- *    * Construct group-specific pairwise effects for all pairs.
  *    * Add linear contributions from the pairwise sufficient statistic.
- *      - Baseline (h == 0): contribution = 2 * suff_pair * effect.
+ *      - Baseline (h == 0): contribution = 2 * suff_pair * proposed_value.
  *      - Difference (h > 0): scaled by projection value proj_g(h-1).
- *    * Subtract log normalizing constants from both variables’ likelihoods.
+ *    * Subtract log normalizing constants from both variables' likelihoods.
  *  - Add prior contribution:
  *    * Cauchy prior for baseline (scale = interaction_scale).
  *    * Cauchy prior for group differences (scale = difference_scale).
@@ -986,30 +979,32 @@ double log_pseudoposterior_main_component(
  * Inputs:
  *  - main_effects: Matrix of main-effect parameters (rows = categories, cols = groups).
  *  - pairwise_effects: Matrix of pairwise-effect parameters (rows = pairs, cols = groups).
- *  - main_effect_indices: Index ranges [row_start,row_end] for each variable.
- *  - pairwise_effect_indices: Lookup table mapping (var1,var2) → row in pairwise_effects.
+ *  - main_effect_indices: Index ranges [row_start, row_end] for each variable.
+ *  - pairwise_effect_indices: Lookup table mapping (var1, var2) to row in pairwise_effects.
  *  - projection: Group projection matrix (num_groups × (num_groups − 1)).
  *  - observations: Observation matrix (persons × variables).
- *  - group_indices: Row ranges [start,end] for each group in observations.
+ *  - group_indices: Row ranges [start, end] for each group in observations.
  *  - num_categories: Number of categories per variable.
  *  - pairwise_stats_group: Per-group pairwise sufficient statistics.
+ *  - residual_matrices: Per-group residual matrices (persons × variables).
  *  - num_groups: Number of groups.
  *  - inclusion_indicator: Symmetric binary matrix of active variables (diag) and pairs (off-diag).
  *  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
  *  - baseline_category: Reference categories for Blume–Capel variables.
  *  - interaction_scale: Scale parameter for Cauchy prior on baseline pairwise effects.
+ *  - pairwise_scaling_factors: Per-pair scaling factors for the prior.
  *  - difference_scale: Scale parameter for Cauchy prior on group differences.
  *  - variable1, variable2: Indices of the variable pair.
- *  - h: Column index (0 = baseline, >0 = group difference).
+ *  - h: Column index (0 = baseline, > 0 = group difference).
+ *  - delta: Parameter change (proposed - current).
  *
  * Returns:
- *  - The scalar log pseudoposterior contribution of the selected pairwise effect.
+ *  - The log pseudoposterior value at the proposed state.
  *
  * Notes:
- *  - If h > 0 but inclusion_indicator(variable1, variable2) == 0,
- *    the function returns 0.0 (no contribution).
- *  - Symmetry is enforced: pairwise effects are mirrored across (var1,var2).
- *  - This component is used in parameter-wise Metropolis updates for pairwise terms.
+ *  - If h > 0 but inclusion_indicator(variable1, variable2) == 0, returns 0.0.
+ *  - The proposed value is computed as pairwise_effects(idx, h) + delta.
+ *  - Residual scores are adjusted by delta without modifying residual_matrices.
  */
 double log_pseudoposterior_pair_component(
     const arma::mat& main_effects,
@@ -1020,7 +1015,8 @@ double log_pseudoposterior_pair_component(
     const arma::imat& observations,
     const arma::imat& group_indices,
     const arma::ivec& num_categories,
-    const std::vector<arma::mat>&  pairwise_stats_group,
+    const std::vector<arma::mat>& pairwise_stats_group,
+    const std::vector<arma::mat>& residual_matrices,
     const int num_groups,
     const arma::imat& inclusion_indicator,
     const arma::uvec& is_ordinal_variable,
@@ -1030,10 +1026,11 @@ double log_pseudoposterior_pair_component(
     const double difference_scale,
     int variable1,
     int variable2,
-    int h // Overall = 0, differences are 1, ....
+    int h,
+    double delta
 ) {
   if(h > 0 && inclusion_indicator(variable1, variable2) == 0) {
-    return 0.0; // No contribution if differences not included
+    return 0.0;
   }
 
   const int num_variables = observations.n_cols;
@@ -1041,74 +1038,64 @@ double log_pseudoposterior_pair_component(
   double log_pp = 0.0;
   int idx = pairwise_effect_indices(variable1, variable2);
 
+  // Compute the proposed value
+  const double proposed_value = pairwise_effects(idx, h) + delta;
+
   // --- per group ---
   for (int group = 0; group < num_groups; ++group) {
+    const arma::vec proj_g = projection.row(group).t();
+
+    // Compute group-specific delta: how much pairwise_group(var1,var2) changes for this group
+    double delta_g = (h == 0) ? delta : delta * proj_g(h - 1);
+
+    // ---- build group-specific main effects (only for the two variables) ----
     arma::mat main_group(num_variables, max_num_categories, arma::fill::zeros);
-    arma::mat pairwise_group(num_variables, num_variables, arma::fill::zeros);
-
-    const arma::vec proj_g = projection.row(group).t(); // length = num_groups-1
-
-    // ---- build group-specific main & pairwise effects ----
-    for (int v : {variable1, variable2}) { // Only populate two rows
+    for (int v : {variable1, variable2}) {
       arma::vec me = compute_group_main_effects(
         v, num_groups, main_effects, main_effect_indices, proj_g
       );
       main_group(v, arma::span(0, me.n_elem - 1)) = me.t();
     }
-    for (int v = 0; v < num_variables; v++) {
-      for (int u = v; u < num_variables; ++u) { // Combines with loop over v
-        if(u == v) continue;
-        double w = compute_group_pairwise_effects(
-          v, u, num_groups, pairwise_effects, pairwise_effect_indices,
-          inclusion_indicator, proj_g
-        );
-        pairwise_group(v, u) = w;
-        pairwise_group(u, v) = w;
-      }
-    }
 
     // ---- data contribution pseudolikelihood ----
-    const arma::mat pairwise_stats = pairwise_stats_group[group];
+    const arma::mat& pairwise_stats = pairwise_stats_group[group];
     const double suff_pair = pairwise_stats(variable1, variable2);
 
     if(h == 0) {
-      log_pp += 2.0 * suff_pair * pairwise_effects(idx, h);
+      log_pp += 2.0 * suff_pair * proposed_value;
     } else {
-      log_pp += 2.0 * suff_pair * proj_g(h-1) * pairwise_effects(idx, h);
+      log_pp += 2.0 * suff_pair * proj_g(h-1) * proposed_value;
     }
 
-    // ---- pseudolikelihood normalizing constants (per variable) ----
+    // ---- pseudolikelihood normalizing constants (using residual matrix + delta) ----
     const int r0 = group_indices(group, 0);
     const int r1 = group_indices(group, 1);
-    const arma::mat obs = arma::conv_to<arma::mat>::from(observations.rows(r0, r1));
-    const arma::mat residual_matrix = obs * pairwise_group;
+    
+    // Pre-convert observation columns for the two variables (needed for delta adjustment)
+    const arma::vec obs_var1 = arma::conv_to<arma::vec>::from(observations.col(variable1).rows(r0, r1));
+    const arma::vec obs_var2 = arma::conv_to<arma::vec>::from(observations.col(variable2).rows(r0, r1));
 
     for (int v : {variable1, variable2}) {
       const int num_cats = num_categories(v);
-      const arma::vec rest_score = residual_matrix.col(v);
+      const arma::vec& obs_other = (v == variable1) ? obs_var2 : obs_var1;
 
-      // bound to stabilize exp; use group-specific params consistently
+      // Use residual_matrix with delta adjustment: O(n) instead of O(n*p)
+      arma::vec rest_score = residual_matrices[group].col(v) + obs_other * delta_g;
+
+      // bound to stabilize exp
       arma::vec bound = num_cats * rest_score;
       arma::vec denom(rest_score.n_elem, arma::fill::zeros);
 
       if (is_ordinal_variable(v)) {
         arma::vec main_eff = main_group.row(v).cols(0, num_cats - 1).t();
-        denom = compute_denom_ordinal(
-          rest_score, main_eff, bound
-        );
+        denom = compute_denom_ordinal(rest_score, main_eff, bound);
       } else {
-        // linear/quadratic main effects from main_group
         const double lin_effect  = main_group(v, 0);
         const double quad_effect = main_group(v, 1);
         const int ref = baseline_category(v);
-
-        denom = compute_denom_blume_capel(
-          rest_score, lin_effect, quad_effect, ref, num_cats,
-          /*updated in place:*/bound
-        );
+        denom = compute_denom_blume_capel(rest_score, lin_effect, quad_effect, ref, num_cats, bound);
       }
 
-      // - sum_i [ bound_i + log denom_i ]
       log_pp -= arma::accu(bound + ARMA_MY_LOG(denom));
     }
   }
@@ -1117,9 +1104,9 @@ double log_pseudoposterior_pair_component(
   const double scaled_interaction_scale = interaction_scale * pairwise_scaling_factors(variable1, variable2);
   const double scaled_difference_scale = difference_scale * pairwise_scaling_factors(variable1, variable2);
   if (h == 0) {
-    log_pp += R::dcauchy(pairwise_effects(idx, 0), 0.0, scaled_interaction_scale, true);
+    log_pp += R::dcauchy(proposed_value, 0.0, scaled_interaction_scale, true);
   } else {
-    log_pp += R::dcauchy(pairwise_effects(idx, h), 0.0, scaled_difference_scale, true);
+    log_pp += R::dcauchy(proposed_value, 0.0, scaled_difference_scale, true);
   }
   return log_pp;
 }
