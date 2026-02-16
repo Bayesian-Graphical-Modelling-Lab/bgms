@@ -149,7 +149,7 @@ print.summary.bgms <- function(x, digits = 3, ...) {
   if(!is.null(x$num_blocks)) {
     cat("Number of blocks and their posterior probability :\n")
     print(round(head(x$num_blocks, 6), digits = digits))
-    if(nrow(x$num_blocks) > 6) cat("... (use `summary(fit)$posterior_num_blocks` to see full output)\n")
+    if(nrow(x$num_blocks) > 6) cat("... (use `summary(fit)$num_blocks` to see full output)\n")
     cat("\n")
   }
 

@@ -1,8 +1,8 @@
 Package: bgms
 Type: Package
 Title: Bayesian Analysis of Networks of Binary and/or Ordinal Variables
-Version: 0.1.6.3
-Date: 2026-02-14
+Version: 0.1.6.4
+Date: 2026-02-16
 Authors@R: c(
     person("Maarten", "Marsman", , "m.marsman@uva.nl", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-5309-7502")),
@@ -27,7 +27,8 @@ Imports:
     Rdpack, 
     methods, 
     coda,
-    lifecycle
+    lifecycle,
+    stats
 RdMacros: Rdpack
 LinkingTo: 
     Rcpp, 
