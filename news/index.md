@@ -2,6 +2,8 @@
 
 ## bgms 0.1.6.3
 
+CRAN release: 2026-02-14
+
 ### New features
 
 - [`extract_rhat()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extractor_functions.md):

@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">bgms</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.6.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.6.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -191,6 +191,137 @@ transitive, we can use it to express the evidence in favor of exclusion
 <p>This Bayes factor shows that there is strong evidence for the absence
 of a network relation between the variables <code>intrusion</code> and
 <code>physior</code>.</p>
+</div>
+<div class="section level2">
+<h2 id="nuts-diagnostics">NUTS diagnostics<a class="anchor" aria-label="anchor" href="#nuts-diagnostics"></a>
+</h2>
+<p>When using <code>update_method = "nuts"</code> (the default),
+additional diagnostics are available to assess the quality of the
+Hamiltonian Monte Carlo sampling. These can be accessed via
+<code>fit$nuts_diag</code>:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">nuts_diag</span><span class="op">$</span><span class="va">summary</span></span>
+<span><span class="co">#&gt; $total_divergences</span></span>
+<span><span class="co">#&gt; [1] 0</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $max_tree_depth_hits</span></span>
+<span><span class="co">#&gt; [1] 0</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $min_ebfmi</span></span>
+<span><span class="co">#&gt; [1] 0.9600455</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $warmup_incomplete</span></span>
+<span><span class="co">#&gt; [1] FALSE</span></span></code></pre></div>
+<div class="section level3">
+<h3 id="e-bfmi">E-BFMI<a class="anchor" aria-label="anchor" href="#e-bfmi"></a>
+</h3>
+<p>E-BFMI (Energy Bayesian Fraction of Missing Information) measures how
+efficiently the sampler explores the posterior. It compares the typical
+size of energy changes between successive samples to the overall spread
+of energies. Values close to 1 indicate that the sampler moves freely
+across the energy landscape; values below 0.3 suggest the sampler may be
+getting stuck or that the chain has not yet settled into its stationary
+distribution.</p>
+<p>A low E-BFMI does not necessarily mean your results are wrong, but it
+does warrant further investigation. In models with edge selection, the
+most common cause is that the warmup period was too short for the
+discrete graph structure to equilibrate. Increasing <code>warmup</code>
+often resolves this.</p>
+</div>
+<div class="section level3">
+<h3 id="divergent-transitions">Divergent transitions<a class="anchor" aria-label="anchor" href="#divergent-transitions"></a>
+</h3>
+<p>Divergent transitions occur when the numerical integrator encounters
+regions of the posterior where the curvature changes too rapidly for the
+current step size. A small number of divergences (say, fewer than 0.1%
+of samples) is generally acceptable. However, many divergences indicate
+that the sampler may be missing important parts of the posterior.</p>
+<p>If you see a large number of divergences, consider increasing
+<code>target_accept</code> (which makes the sampler use a smaller step
+size) and, if this does not fix it, switching to
+<code>update_method = "adaptive-metropolis"</code>.</p>
+</div>
+<div class="section level3">
+<h3 id="tree-depth">Tree depth<a class="anchor" aria-label="anchor" href="#tree-depth"></a>
+</h3>
+<p>NUTS builds trajectories by repeatedly doubling their length until a
+“U-turn” criterion is satisfied. If the trajectory frequently reaches
+the maximum allowed depth (<code>nuts_max_depth</code>, default 10), it
+suggests the sampler may benefit from longer trajectories to explore the
+posterior efficiently. Hitting the maximum depth occasionally is normal;
+hitting it on most iterations may indicate challenging posterior
+geometry. If this happens, consider increasing
+<code>nuts_max_depth</code>.</p>
+</div>
+<div class="section level3">
+<h3 id="warmup-and-equilibration">Warmup and equilibration<a class="anchor" aria-label="anchor" href="#warmup-and-equilibration"></a>
+</h3>
+<p>Standard HMC/NUTS warmup is designed to tune the step size and mass
+matrix for the continuous parameters. In models with edge selection, the
+discrete graph structure may take longer to reach its stationary
+distribution than the continuous parameters. As a result, even after
+warmup completes, the first portion of the sampling phase may still show
+transient behavior (i.e., non-stationarity).</p>
+<p>The <code>warmup_check</code> component provides simple diagnostics
+that compare the first and second halves of the post-warmup samples:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">nuts_diag</span><span class="op">$</span><span class="va">warmup_check</span></span>
+<span><span class="co">#&gt; $warmup_incomplete</span></span>
+<span><span class="co">#&gt; [1] FALSE FALSE</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $energy_slope</span></span>
+<span><span class="co">#&gt;     time_idx     time_idx </span></span>
+<span><span class="co">#&gt; -0.001538370  0.001249026 </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $slope_significant</span></span>
+<span><span class="co">#&gt; time_idx time_idx </span></span>
+<span><span class="co">#&gt;    FALSE    FALSE </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $ebfmi_first_half</span></span>
+<span><span class="co">#&gt; [1] 1.007220 1.085859</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $ebfmi_second_half</span></span>
+<span><span class="co">#&gt; [1] 0.9180415 0.9804561</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $var_ratio</span></span>
+<span><span class="co">#&gt; [1] 1.0982277 0.8839425</span></span></code></pre></div>
+<p>The returned list contains the following fields (one value per
+chain):</p>
+<ul>
+<li>
+<strong>warmup_incomplete</strong>: A logical flag that is
+<code>TRUE</code> when any of the indicators below suggest the chain may
+not have reached stationarity.</li>
+<li>
+<strong>energy_slope</strong>: The slope of a linear regression of
+energy against iteration number. A slope near zero indicates stable
+energy; a significant negative slope suggests the chain is still
+drifting toward higher-probability regions.</li>
+<li>
+<strong>slope_significant</strong>: <code>TRUE</code> if the energy
+slope is statistically significant (p &lt; 0.01).</li>
+<li>
+<strong>ebfmi_first_half</strong> and
+<strong>ebfmi_second_half</strong>: E-BFMI computed separately for the
+first and second halves of the post-warmup samples. If the first-half
+value is much lower (for example, below 0.3) while the second-half value
+is healthy, the early samples were likely still settling.</li>
+<li>
+<strong>var_ratio</strong>: The ratio of energy variance in the
+first half to that in the second half. A ratio much greater than 1 (for
+example, above 2) indicates higher variability early on, consistent with
+transient behavior.</li>
+</ul>
+<p>If these diagnostics suggest the chain was still settling, increase
+<code>warmup</code> and re-run the model. If diagnostics remain
+problematic after a substantial increase (for example, doubling or
+tripling <code>warmup</code>), consider re-fitting with
+<code>update_method = "adaptive-metropolis"</code> and comparing the
+posterior summaries. If the two samplers produce similar results, the
+estimates are likely trustworthy despite the warnings; if they differ
+substantially, that warrants further investigation of the model or
+data.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="next-steps">Next steps<a class="anchor" aria-label="anchor" href="#next-steps"></a>

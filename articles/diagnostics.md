@@ -128,6 +128,130 @@ transitive, we can use it to express the evidence in favor of exclusion
 This Bayes factor shows that there is strong evidence for the absence of
 a network relation between the variables `intrusion` and `physior`.
 
+## NUTS diagnostics
+
+When using `update_method = "nuts"` (the default), additional
+diagnostics are available to assess the quality of the Hamiltonian Monte
+Carlo sampling. These can be accessed via `fit$nuts_diag`:
+
+``` r
+fit$nuts_diag$summary
+#> $total_divergences
+#> [1] 0
+#> 
+#> $max_tree_depth_hits
+#> [1] 0
+#> 
+#> $min_ebfmi
+#> [1] 0.9600455
+#> 
+#> $warmup_incomplete
+#> [1] FALSE
+```
+
+### E-BFMI
+
+E-BFMI (Energy Bayesian Fraction of Missing Information) measures how
+efficiently the sampler explores the posterior. It compares the typical
+size of energy changes between successive samples to the overall spread
+of energies. Values close to 1 indicate that the sampler moves freely
+across the energy landscape; values below 0.3 suggest the sampler may be
+getting stuck or that the chain has not yet settled into its stationary
+distribution.
+
+A low E-BFMI does not necessarily mean your results are wrong, but it
+does warrant further investigation. In models with edge selection, the
+most common cause is that the warmup period was too short for the
+discrete graph structure to equilibrate. Increasing `warmup` often
+resolves this.
+
+### Divergent transitions
+
+Divergent transitions occur when the numerical integrator encounters
+regions of the posterior where the curvature changes too rapidly for the
+current step size. A small number of divergences (say, fewer than 0.1%
+of samples) is generally acceptable. However, many divergences indicate
+that the sampler may be missing important parts of the posterior.
+
+If you see a large number of divergences, consider increasing
+`target_accept` (which makes the sampler use a smaller step size) and,
+if this does not fix it, switching to
+`update_method = "adaptive-metropolis"`.
+
+### Tree depth
+
+NUTS builds trajectories by repeatedly doubling their length until a
+“U-turn” criterion is satisfied. If the trajectory frequently reaches
+the maximum allowed depth (`nuts_max_depth`, default 10), it suggests
+the sampler may benefit from longer trajectories to explore the
+posterior efficiently. Hitting the maximum depth occasionally is normal;
+hitting it on most iterations may indicate challenging posterior
+geometry. If this happens, consider increasing `nuts_max_depth`.
+
+### Warmup and equilibration
+
+Standard HMC/NUTS warmup is designed to tune the step size and mass
+matrix for the continuous parameters. In models with edge selection, the
+discrete graph structure may take longer to reach its stationary
+distribution than the continuous parameters. As a result, even after
+warmup completes, the first portion of the sampling phase may still show
+transient behavior (i.e., non-stationarity).
+
+The `warmup_check` component provides simple diagnostics that compare
+the first and second halves of the post-warmup samples:
+
+``` r
+fit$nuts_diag$warmup_check
+#> $warmup_incomplete
+#> [1] FALSE FALSE
+#> 
+#> $energy_slope
+#>     time_idx     time_idx 
+#> -0.001538370  0.001249026 
+#> 
+#> $slope_significant
+#> time_idx time_idx 
+#>    FALSE    FALSE 
+#> 
+#> $ebfmi_first_half
+#> [1] 1.007220 1.085859
+#> 
+#> $ebfmi_second_half
+#> [1] 0.9180415 0.9804561
+#> 
+#> $var_ratio
+#> [1] 1.0982277 0.8839425
+```
+
+The returned list contains the following fields (one value per chain):
+
+- **warmup_incomplete**: A logical flag that is `TRUE` when any of the
+  indicators below suggest the chain may not have reached stationarity.
+- **energy_slope**: The slope of a linear regression of energy against
+  iteration number. A slope near zero indicates stable energy; a
+  significant negative slope suggests the chain is still drifting toward
+  higher-probability regions.
+- **slope_significant**: `TRUE` if the energy slope is statistically
+  significant (p \< 0.01).
+- **ebfmi_first_half** and **ebfmi_second_half**: E-BFMI computed
+  separately for the first and second halves of the post-warmup samples.
+  If the first-half value is much lower (for example, below 0.3) while
+  the second-half value is healthy, the early samples were likely still
+  settling.
+- **var_ratio**: The ratio of energy variance in the first half to that
+  in the second half. A ratio much greater than 1 (for example, above 2)
+  indicates higher variability early on, consistent with transient
+  behavior.
+
+If these diagnostics suggest the chain was still settling, increase
+`warmup` and re-run the model. If diagnostics remain problematic after a
+substantial increase (for example, doubling or tripling `warmup`),
+consider re-fitting with `update_method = "adaptive-metropolis"` and
+comparing the posterior summaries. If the two samplers produce similar
+results, the estimates are likely trustworthy despite the warnings; if
+they differ substantially, that warrants further investigation of the
+model or data.
+
 ## Next steps
 
 - See *Getting Started* for a simple one-sample workflow.
