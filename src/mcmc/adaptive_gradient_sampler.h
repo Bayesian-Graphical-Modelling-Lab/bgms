@@ -53,16 +53,16 @@ public:
 
                 arma::vec theta = model.get_vectorized_parameters();
                 SafeRNG& rng = model.get_rng();
-                auto log_post = [&model](const arma::vec& params) -> double {
-                    return model.logp_and_gradient(params).first;
-                };
                 auto grad_fn = [&model](const arma::vec& params) -> arma::vec {
                     return model.logp_and_gradient(params).second;
+                };
+                auto joint_fn = [&model](const arma::vec& params) -> std::pair<double, arma::vec> {
+                    return model.logp_and_gradient(params);
                 };
                 arma::vec active_inv_mass = model.get_active_inv_mass();
 
                 double new_eps = heuristic_initial_step_size(
-                    theta, log_post, grad_fn, active_inv_mass, rng,
+                    theta, grad_fn, joint_fn, active_inv_mass, rng,
                     0.625, step_size_);
                 step_size_ = new_eps;
                 step_adapter_.restart(new_eps);
@@ -129,15 +129,15 @@ private:
         mass_accumulator_ = std::make_unique<DiagMassMatrixAccumulator>(
             static_cast<int>(model.full_parameter_dimension()));
 
-        auto log_post = [&model](const arma::vec& params) -> double {
-            return model.logp_and_gradient(params).first;
-        };
         auto grad_fn = [&model](const arma::vec& params) -> arma::vec {
             return model.logp_and_gradient(params).second;
         };
+        auto joint_fn = [&model](const arma::vec& params) -> std::pair<double, arma::vec> {
+            return model.logp_and_gradient(params);
+        };
 
         step_size_ = heuristic_initial_step_size(
-            theta, log_post, grad_fn, rng, target_acceptance_);
+            theta, grad_fn, joint_fn, rng, target_acceptance_);
 
         step_adapter_.restart(step_size_);
     }

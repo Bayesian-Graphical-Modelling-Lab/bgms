@@ -12,7 +12,6 @@
  *  - Blume–Capel variables contribute two parameters (linear and quadratic).
  *
  * The parameters are written into the output vector in variable order.
- * This function is the inverse of `unvectorize_main_effects_bgm()`.
  *
  * Inputs:
  *  - main_effects: Matrix of main-effect parameters (variables × categories).
@@ -39,48 +38,6 @@ arma::vec vectorize_main_effects_bgm (
   }
 
   return main_effect_vector;
-}
-
-
-
-/**
- * Reconstructs a main-effect parameter matrix from a flat vector (bgm model).
- *
- * For each variable:
- *  - Ordinal variables read one parameter per category.
- *  - Blume–Capel variables read two parameters (linear and quadratic).
- *
- * The parameters are written into the output matrix in variable order.
- * This function is the inverse of `vectorize_main_effects_bgm()`.
- *
- * Inputs:
- *  - main_effect_vector: Flat vector of main-effect parameters.
- *  - num_categories: Number of categories per variable.
- *  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
- *
- * Returns:
- *  - A matrix of main-effect parameters (variables × max_categories).
- *    Unused entries are filled with zeros.
- */
-arma::mat unvectorize_main_effects_bgm (
-    const arma::vec& main_effect_vector,
-    const arma::ivec& num_categories,
-    const arma::uvec& is_ordinal_variable
-) {
-  const int num_variables = num_categories.n_elem;
-  const int max_categories = num_categories.max ();
-
-  arma::mat matrix (num_variables, max_categories, arma::fill::zeros);
-
-  int offset = 0;
-  for (int variable = 0; variable < num_variables; variable++) {
-    const int num_pars = is_ordinal_variable[variable] ? num_categories[variable] : 2;
-    matrix.row (variable).cols (0, num_pars - 1) =
-      main_effect_vector.subvec (offset, offset + num_pars - 1).t ();
-    offset += num_pars;
-  }
-
-  return matrix;
 }
 
 
@@ -190,10 +147,18 @@ void unvectorize_model_parameters_bgm(
   const int num_variables = num_categories.n_elem;
   const int max_num_categories = num_categories.max();
 
-  main_effects_out.set_size(num_variables, max_num_categories);
-  pairwise_effects_out.set_size(num_variables, num_variables);
-  main_effects_out.fill(0.0);
-  pairwise_effects_out.fill(0.0);
+  // Only resize if necessary (avoids reallocation when called repeatedly)
+  if (main_effects_out.n_rows != (arma::uword)num_variables ||
+      main_effects_out.n_cols != (arma::uword)max_num_categories) {
+    main_effects_out.zeros(num_variables, max_num_categories);
+  }
+  if (pairwise_effects_out.n_rows != (arma::uword)num_variables ||
+      pairwise_effects_out.n_cols != (arma::uword)num_variables) {
+    pairwise_effects_out.zeros(num_variables, num_variables);
+  } else {
+    // Must zero pairwise for inactive edges; main is fully overwritten
+    pairwise_effects_out.zeros();
+  }
 
   int offset = 0;
 

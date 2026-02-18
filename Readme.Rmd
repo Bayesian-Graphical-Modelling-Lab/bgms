@@ -4,6 +4,8 @@ bibliography: inst/REFERENCES.bib
 csl: inst/apa.csl
 ---
 
+<!-- README.md is generated from Readme.Rmd. Please edit that file -->
+
 ```{r, echo = FALSE, message=F}
 knitr::opts_chunk$set(
   collapse = TRUE,
@@ -28,6 +30,8 @@ library(bgms)
 [![CRAN Version](https://www.r-pkg.org/badges/version/bgms)](https://cran.r-project.org/package=bgms)
 [![Downloads](https://cranlogs.r-pkg.org/badges/bgms)](https://cran.r-project.org/package=bgms)
 [![Total](https://cranlogs.r-pkg.org/badges/grand-total/bgms)](https://cran.r-project.org/package=bgms)
+[![Lifecycle: stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
+[![Codecov](https://codecov.io/gh/Bayesian-Graphical-Modelling-Lab/bgms/branch/main/graph/badge.svg)](https://app.codecov.io/gh/Bayesian-Graphical-Modelling-Lab/bgms)
 <!-- badges: end -->
 
 

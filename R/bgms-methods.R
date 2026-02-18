@@ -6,6 +6,8 @@
 #' @param x An object of class `bgms`.
 #' @param ... Ignored.
 #'
+#' @return Invisibly returns `x`.
+#'
 #' @export
 print.bgms <- function(x, ...) {
   arguments <- extract_arguments(x)
@@ -45,6 +47,7 @@ print.bgms <- function(x, ...) {
 
   cat("Use the `summary()` function for posterior summaries and chain diagnostics.\n")
   cat("See the `easybgm` package for summary and plotting tools.\n")
+  invisible(x)
 }
 
 
@@ -146,7 +149,7 @@ print.summary.bgms <- function(x, digits = 3, ...) {
   if(!is.null(x$num_blocks)) {
     cat("Number of blocks and their posterior probability :\n")
     print(round(head(x$num_blocks, 6), digits = digits))
-    if(nrow(x$num_blocks) > 6) cat("... (use `summary(fit)$posterior_num_blocks` to see full output)\n")
+    if(nrow(x$num_blocks) > 6) cat("... (use `summary(fit)$num_blocks` to see full output)\n")
     cat("\n")
   }
 

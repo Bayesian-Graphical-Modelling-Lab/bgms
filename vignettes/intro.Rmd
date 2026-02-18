@@ -52,17 +52,13 @@ head(data)
 The main entry point is `bgm()` for single-group models and 
 `bgmCompare()` for multiple-group comparisons.
 
-
-```{r, include=FALSE}
-fit <- readRDS(system.file("extdata", "fit_5items.rds", package = "bgms"))
-```
-
 ```{r, eval=FALSE}
 fit = bgm(data, seed = 1234)
 ```
-Note: During fitting, progress bars are shown in interactive sessions.
-In this vignette, they are suppressed for clarity. Sampling can take a while; 
-the progress bars usually help track progress.
+
+```{r, include=FALSE}
+fit = bgm(data, seed = 1234, chains = 2, display_progress = "none", verbose = FALSE)
+```
 
 # Posterior summaries
 

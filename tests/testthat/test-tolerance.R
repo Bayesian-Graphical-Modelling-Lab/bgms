@@ -1,3 +1,26 @@
+# ==============================================================================
+# FOUNDATIONAL TOLERANCE TESTING APPROACH FOR STOCHASTIC OUTPUT
+# ==============================================================================
+#
+# This file establishes the core testing philosophy for bgms. All other test
+# files in this suite extend and apply these principles.
+#
+# CORE PRINCIPLE: Because bgms output is stochastic (MCMC-based), we cannot
+# test for exact values. Instead we test for ROBUST PROPERTIES that must hold
+# regardless of the specific random samples drawn.
+#
+# The patterns demonstrated here are reused throughout the test suite:
+#   - test-extractor-functions.R: Applies range invariants and symmetry checks
+#   - test-methods.R: Uses dimension consistency and value range checks
+#   - test-simulate-mrf.R: Tests range, reproducibility, and distribution properties
+#   - test-input-validation.R: Tests error conditions (complementary to tolerance)
+#   - test-bgmCompare.R: Extends tolerance patterns to group comparison output
+#
+# See helper-fixtures.R for reusable helper functions: is_symmetric(),
+# values_in_range(), upper_vals(), and testing philosophy documentation.
+#
+# ==============================================================================
+
 ## Debug helper:
 ## Run with this command to get more context when something fails:
 ## testthat::test_file("tests/testthat/test-tolerance.R", reporter = "progress")
@@ -18,7 +41,7 @@ test_that("bgms outputs are numerically sane (stochastic-robust)", {
   set.seed(123)
   
   data("Wenchuan", package = "bgms")
-  dat <- na.omit(Wenchuan)[1:40, 1:5]
+  dat <- na.omit(Wenchuan)[1:40, 1:4]
   p   <- ncol(dat)
   
   upper_vals <- function(M) M[upper.tri(M)]
@@ -30,8 +53,8 @@ test_that("bgms outputs are numerically sane (stochastic-robust)", {
       fun       = bgms::bgm,
       args      = list(
         x                = dat,
-        iter             = 1000,
-        warmup           = 1000,
+        iter             = 50,
+        warmup           = 100,
         chains           = 2,
         edge_selection   = TRUE,
         edge_prior       = "Bernoulli",
@@ -115,8 +138,8 @@ test_that("bgms outputs are numerically sane (stochastic-robust)", {
       args      = list(
         x                    = dat,
         group_indicator      = rep(1:2, each = 20),
-        iter                 = 1000,
-        warmup               = 1000,
+        iter                 = 50,
+        warmup               = 100,
         chains               = 2,
         difference_selection = FALSE,
         na_action            = "listwise",

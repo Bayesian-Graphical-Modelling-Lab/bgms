@@ -5,6 +5,7 @@
 #' @description Minimal console output for `bgmCompare` fit objects.
 #' @param x An object of class `bgmCompare`.
 #' @param ... Ignored.
+#' @return Invisibly returns `x`.
 #' @export
 print.bgmCompare = function(x, ...) {
   arguments = extract_arguments(x)
@@ -49,6 +50,7 @@ print.bgmCompare = function(x, ...) {
 
   cat("Use the `summary()` function for posterior summaries and diagnostics.\n")
   cat("See the `easybgm` package for additional summaries and plotting.\n")
+  invisible(x)
 }
 
 

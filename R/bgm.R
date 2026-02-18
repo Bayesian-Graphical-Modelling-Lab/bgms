@@ -249,8 +249,15 @@
 #'   \code{"listwise"} (drop rows with missing values) or \code{"impute"}
 #'   (perform single imputation during sampling). Default: \code{"listwise"}.
 #'
-#' @param display_progress Logical. Whether to show a progress bar during
-#'   sampling. Default: \code{TRUE}.
+#' @param display_progress Character. Controls progress reporting during
+#'   sampling. Options: \code{"per-chain"} (separate bar per chain),
+#'   \code{"total"} (single combined bar), or \code{"none"} (no progress).
+#'   Default: \code{"per-chain"}.
+#'
+#' @param verbose Logical. If \code{TRUE}, prints informational messages
+#'   during data processing (e.g., missing data handling, variable recoding).
+#'   Defaults to \code{getOption("bgms.verbose", TRUE)}. Set
+#'   \code{options(bgms.verbose = FALSE)} to suppress messages globally.
 #'
 #' @param update_method Character. Specifies how the MCMC sampler updates
 #'   the model parameters:
@@ -363,7 +370,7 @@
 #' @examples
 #' \donttest{
 #' # Run bgm on subset of the Wenchuan dataset
-#' fit = bgm(x = Wenchuan[, 1:5])
+#' fit = bgm(x = Wenchuan[, 1:5], chains = 2)
 #'
 #' # Posterior inclusion probabilities
 #' summary(fit)$indicator
@@ -403,12 +410,19 @@ bgm = function(
   backend = c("legacy", "new"),
   seed = NULL,
   standardize = FALSE,
+  verbose = getOption("bgms.verbose", TRUE),
   interaction_scale,
   burnin,
   save,
   threshold_alpha,
   threshold_beta
 ) {
+  # Set verbose option for internal functions, restore on exit
+
+  old_verbose <- getOption("bgms.verbose")
+  options(bgms.verbose = verbose)
+  on.exit(options(bgms.verbose = old_verbose), add = TRUE)
+
   if(hasArg(interaction_scale)) {
     lifecycle::deprecate_warn("0.1.6.0", "bgm(interaction_scale =)", "bgm(pairwise_scale =)")
     if(!hasArg(pairwise_scale)) {
@@ -532,7 +546,7 @@ bgm = function(
   check_non_negative_integer(warmup, "warmup")
 
   # Warmup warnings for HMC/NUTS (tiered based on edge_selection)
-  if (update_method %in% c("hmc", "nuts")) {
+  if (verbose && update_method %in% c("hmc", "nuts")) {
     if (edge_selection) {
       # For edge_selection models: warmup is split 85%/10%/5% for stages 1-3a/3b/3c
       if (warmup < 50) {

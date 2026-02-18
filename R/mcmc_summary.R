@@ -580,6 +580,15 @@ summarize_indicator_compare = function(fit, component = "indicator_samples", par
 
 # Summarize one effect with spike-and-slab draws
 summarize_mixture_effect = function(draws_pw, draws_id, name) {
+  # Handle case where single-chain extraction returns a vector
+  # (dimension gets dropped when extracting [, , idx] from array with nchains=1)
+  if(is.null(dim(draws_pw))) {
+    draws_pw <- matrix(draws_pw, ncol = 1L)
+  }
+  if(is.null(dim(draws_id))) {
+    draws_id <- matrix(draws_id, ncol = 1L)
+  }
+
   nchains <- ncol(draws_pw)
   niter <- nrow(draws_pw)
 

@@ -9,20 +9,20 @@ run_bgm_parallel <- function(observations, num_categories, pairwise_scale, edge_
     .Call(`_bgms_run_bgm_parallel`, observations, num_categories, pairwise_scale, edge_prior, inclusion_probability, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, interaction_index_matrix, iter, warmup, counts_per_category, blume_capel_stats, main_alpha, main_beta, na_impute, missing_index, is_ordinal_variable, baseline_category, edge_selection, update_method, pairwise_effect_indices, target_accept, pairwise_stats, hmc_num_leapfrogs, nuts_max_depth, learn_mass_matrix, num_chains, nThreads, seed, progress_type, pairwise_scaling_factors)
 }
 
-compute_conditional_probs <- function(observations, predict_vars, interactions, thresholds, no_categories, variable_type, baseline_category) {
-    .Call(`_bgms_compute_conditional_probs`, observations, predict_vars, interactions, thresholds, no_categories, variable_type, baseline_category)
+compute_conditional_probs <- function(observations, predict_vars, pairwise, main, num_categories, variable_type, baseline_category) {
+    .Call(`_bgms_compute_conditional_probs`, observations, predict_vars, pairwise, main, num_categories, variable_type, baseline_category)
 }
 
-sample_omrf_gibbs <- function(no_states, no_variables, no_categories, interactions, thresholds, iter, seed) {
-    .Call(`_bgms_sample_omrf_gibbs`, no_states, no_variables, no_categories, interactions, thresholds, iter, seed)
+sample_omrf_gibbs <- function(num_states, num_variables, num_categories, pairwise, main, iter, seed) {
+    .Call(`_bgms_sample_omrf_gibbs`, num_states, num_variables, num_categories, pairwise, main, iter, seed)
 }
 
-sample_bcomrf_gibbs <- function(no_states, no_variables, no_categories, interactions, thresholds, variable_type_r, baseline_category, iter, seed) {
-    .Call(`_bgms_sample_bcomrf_gibbs`, no_states, no_variables, no_categories, interactions, thresholds, variable_type_r, baseline_category, iter, seed)
+sample_bcomrf_gibbs <- function(num_states, num_variables, num_categories, pairwise, main, variable_type_r, baseline_category, iter, seed) {
+    .Call(`_bgms_sample_bcomrf_gibbs`, num_states, num_variables, num_categories, pairwise, main, variable_type_r, baseline_category, iter, seed)
 }
 
-run_simulation_parallel <- function(pairwise_samples, main_samples, draw_indices, no_states, no_variables, no_categories, variable_type_r, baseline_category, iter, nThreads, seed, progress_type) {
-    .Call(`_bgms_run_simulation_parallel`, pairwise_samples, main_samples, draw_indices, no_states, no_variables, no_categories, variable_type_r, baseline_category, iter, nThreads, seed, progress_type)
+run_simulation_parallel <- function(pairwise_samples, main_samples, draw_indices, num_states, num_variables, num_categories, variable_type_r, baseline_category, iter, nThreads, seed, progress_type) {
+    .Call(`_bgms_run_simulation_parallel`, pairwise_samples, main_samples, draw_indices, num_states, num_variables, num_categories, variable_type_r, baseline_category, iter, nThreads, seed, progress_type)
 }
 
 sample_ggm <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0) {
@@ -33,7 +33,7 @@ sample_omrf <- function(inputFromR, prior_inclusion_prob, initial_edge_indicator
     .Call(`_bgms_sample_omrf`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, edge_prior, na_impute, missing_index_nullable, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, target_acceptance, max_tree_depth, num_leapfrogs, edge_selection_start)
 }
 
-compute_Vn_mfm_sbm <- function(no_variables, dirichlet_alpha, t_max, lambda) {
-    .Call(`_bgms_compute_Vn_mfm_sbm`, no_variables, dirichlet_alpha, t_max, lambda)
+compute_Vn_mfm_sbm <- function(num_variables, dirichlet_alpha, t_max, lambda) {
+    .Call(`_bgms_compute_Vn_mfm_sbm`, num_variables, dirichlet_alpha, t_max, lambda)
 }
 

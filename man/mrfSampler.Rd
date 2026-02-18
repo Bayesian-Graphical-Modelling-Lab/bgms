@@ -5,11 +5,11 @@
 \title{Sample observations from the ordinal MRF}
 \usage{
 mrfSampler(
-  no_states,
-  no_variables,
-  no_categories,
-  interactions,
-  thresholds,
+  num_states,
+  num_variables,
+  num_categories,
+  pairwise,
+  main,
   variable_type = "ordinal",
   baseline_category,
   iter = 1000,
@@ -17,21 +17,21 @@ mrfSampler(
 )
 }
 \arguments{
-\item{no_states}{The number of states of the ordinal MRF to be generated.}
+\item{num_states}{The number of states of the ordinal MRF to be generated.}
 
-\item{no_variables}{The number of variables in the ordinal MRF.}
+\item{num_variables}{The number of variables in the ordinal MRF.}
 
-\item{no_categories}{Either a positive integer or a vector of positive
-integers of length \code{no_variables}. The number of response categories on top
-of the base category: \code{no_categories = 1} generates binary states.}
+\item{num_categories}{Either a positive integer or a vector of positive
+integers of length \code{num_variables}. The number of response categories on top
+of the base category: \code{num_categories = 1} generates binary states.}
 
-\item{interactions}{A symmetric \code{no_variables} by \code{no_variables} matrix of
+\item{pairwise}{A symmetric \code{num_variables} by \code{num_variables} matrix of
 pairwise interactions. Only its off-diagonal elements are used.}
 
-\item{thresholds}{A \code{no_variables} by \code{max(no_categories)} matrix of
+\item{main}{A \code{num_variables} by \code{max(num_categories)} matrix of
 category thresholds. The elements in row \code{i} indicate the thresholds of
-variable \code{i}. If \code{no_categories} is a vector, only the first
-\code{no_categories[i]} elements are used in row \code{i}. If the Blume-Capel
+variable \code{i}. If \code{num_categories} is a vector, only the first
+\code{num_categories[i]} elements are used in row \code{i}. If the Blume-Capel
 model is used for the category thresholds for variable \code{i}, then row
 \code{i} requires two values (details below); the first is
 \eqn{\alpha}{\alpha}, the linear contribution of the Blume-Capel model and
@@ -44,10 +44,10 @@ for each variable separately. Currently, bgm supports ``ordinal'' and
 ``blume-capel''. Binary variables are automatically treated as ``ordinal''.
 Defaults to \code{variable_type = "ordinal"}.}
 
-\item{baseline_category}{An integer vector of length \code{no_variables} specifying the
+\item{baseline_category}{An integer vector of length \code{num_variables} specifying the
 baseline_category category that is used for the Blume-Capel model (details below).
-Can be any integer value between \code{0} and \code{no_categories} (or
-\code{no_categories[i]}).}
+Can be any integer value between \code{0} and \code{num_categories} (or
+\code{num_categories[i]}).}
 
 \item{iter}{The number of iterations used by the Gibbs sampler.
 The function provides the last state of the Gibbs sampler as output. By

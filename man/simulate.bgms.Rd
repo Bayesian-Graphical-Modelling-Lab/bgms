@@ -69,7 +69,7 @@ posterior draws. Parallel processing is available for this method via the
 \examples{
 \donttest{
 # Fit a model
-fit <- bgm(x = Wenchuan[, 1:5])
+fit <- bgm(x = Wenchuan[, 1:5], chains = 2)
 
 # Simulate 100 new observations using posterior means
 new_data <- simulate(fit, nsim = 100)
@@ -79,7 +79,7 @@ new_data_list <- simulate(fit, nsim = 100, method = "posterior-sample", ndraws =
 
 # Use parallel processing for faster simulation
 new_data_list <- simulate(fit, nsim = 100, method = "posterior-sample",
-                          ndraws = 100, cores = 4)
+                          ndraws = 100, cores = 2)
 }
 
 }

@@ -92,83 +92,6 @@ struct SamplerResult {
 
 
 /**
- * Adapts the log step size using dual averaging during MCMC burn-in.
- *
- * Implements the dual averaging algorithm to adaptively update the MALA step size
- * toward a target acceptance rate. Only used during burn-in.
- *
- * Inputs:
- *  - acceptance_probability: Observed acceptance rate at the current iteration.
- *  - iteration: Current iteration number (starting from 1).
- *  - state: Vector of length 3, modified in-place:
- *      * state[0] = current log step size
- *      * state[1] = running average of log step size
- *      * state[2] = running average of acceptance error
- *
- * Modifies:
- *  - `state` vector in-place to update the log step size parameters.
- */
-inline void update_step_size_with_dual_averaging (
-    const double initial_step_size,
-    const double acceptance_probability,
-    const int iteration,
-    arma::vec& state,
-    const double target_acceptance
-) {
-  const double target_log_step_size = MY_LOG (10.0 * initial_step_size);
-  constexpr int stabilization_offset = 10;
-
-  double& log_step_size = state[0];
-  double& log_step_size_avg = state[1];
-  double& acceptance_error_avg = state[2];
-
-  const double adjusted_iter = iteration + stabilization_offset;
-  const double error = target_acceptance - acceptance_probability;
-
-  acceptance_error_avg = (1.0 - 1.0 / adjusted_iter) * acceptance_error_avg +
-    (1.0 / adjusted_iter) * error;
-
-  log_step_size = target_log_step_size - std::sqrt (static_cast<double> (iteration)) / 0.05 * acceptance_error_avg;
-
-  const double weight = std::pow (static_cast<double> (iteration), -0.75);
-  log_step_size_avg = weight * log_step_size + (1.0 - weight) * log_step_size_avg;
-}
-
-
-
-/**
- * Function: update_step_size_with_robbins_monro
- *
- * Performs Robbins-Monro adaptation of the step size on the log scale.
- * Applies exponential decay to gradually reduce adaptation influence over time.
- *
- * Inputs:
- *  - acceptance_probability: Observed acceptance rate at the current iteration.
- *  - iteration: Current iteration number (starting from 1).
- *  - step_size_mala: Step size to update (in-place).
- *
- * Notes:
- *  - Decay rate is 0.75 for stable adaptation.
- */
-inline void update_step_size_with_robbins_monro (
-    const double acceptance_probability,
-    const int iteration,
-    double& step_size,
-    const double target_acceptance
-) {
-  constexpr double decay_rate = 0.75;
-
-  const double error = acceptance_probability - target_acceptance;
-  const double decay = std::pow (static_cast<double> (iteration), -decay_rate);
-
-  double log_step_size = MY_LOG (step_size);
-  log_step_size += error * decay;
-  step_size = MY_EXP (log_step_size);
-}
-
-
-
-/**
  * Function: update_proposal_sd_with_robbins_monro
  * Purpose: Performs Robbins-Monro updates for proposal standard deviations.
  *
@@ -213,24 +136,30 @@ double kinetic_energy(const arma::vec& r, const arma::vec& inv_mass_diag);
 
 
 
+/**
+ * Step size heuristic using joint log_post+gradient function.
+ *
+ * Eliminates redundant probability computations by using joint at both
+ * the initial and proposed positions (1 leapfrog step each iteration).
+ */
 double heuristic_initial_step_size(
     const arma::vec& theta,
-    const std::function<double(const arma::vec&)>& log_post,
     const std::function<arma::vec(const arma::vec&)>& grad,
+    const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
     SafeRNG& rng,
     double target_acceptance = 0.625,
     double init_step = 1.0,
     int max_attempts = 20
 );
 
+
 /**
- * Overload that accepts a custom inverse mass matrix.
- * Used when re-initializing step size after mass matrix adaptation.
+ * Step size heuristic with mass matrix, using joint function.
  */
 double heuristic_initial_step_size(
     const arma::vec& theta,
-    const std::function<double(const arma::vec&)>& log_post,
     const std::function<arma::vec(const arma::vec&)>& grad,
+    const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
     const arma::vec& inv_mass_diag,
     SafeRNG& rng,
     double target_acceptance = 0.625,

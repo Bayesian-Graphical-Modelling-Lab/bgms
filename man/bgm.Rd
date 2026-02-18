@@ -33,6 +33,7 @@ bgm(
   display_progress = c("per-chain", "total", "none"),
   seed = NULL,
   standardize = FALSE,
+  verbose = getOption("bgms.verbose", TRUE),
   interaction_scale,
   burnin,
   save,
@@ -136,8 +137,10 @@ matrix. Default: \code{TRUE}.}
 \item{cores}{Integer. Number of CPU cores for parallel execution.
 Default: \code{parallel::detectCores()}.}
 
-\item{display_progress}{Logical. Whether to show a progress bar during
-sampling. Default: \code{TRUE}.}
+\item{display_progress}{Character. Controls progress reporting during
+sampling. Options: \code{"per-chain"} (separate bar per chain),
+\code{"total"} (single combined bar), or \code{"none"} (no progress).
+Default: \code{"per-chain"}.}
 
 \item{seed}{Optional integer. Random seed for reproducibility. Must be a
 single non-negative integer.}
@@ -162,6 +165,11 @@ product of the score endpoints. For mixed pairs, ordinal variables use
 raw score endpoints \eqn{(0, m)} and Blume-Capel variables use centered
 score endpoints \eqn{(-b, m-b)}.
 Default: \code{FALSE}.}
+
+\item{verbose}{Logical. If \code{TRUE}, prints informational messages
+during data processing (e.g., missing data handling, variable recoding).
+Defaults to \code{getOption("bgms.verbose", TRUE)}. Set
+\code{options(bgms.verbose = FALSE)} to suppress messages globally.}
 
 \item{interaction_scale, burnin, save, threshold_alpha, threshold_beta}{`r lifecycle::badge("deprecated")`
 Deprecated arguments as of **bgms 0.1.6.0**.
@@ -410,7 +418,7 @@ sampling.
 \examples{
 \donttest{
 # Run bgm on subset of the Wenchuan dataset
-fit = bgm(x = Wenchuan[, 1:5])
+fit = bgm(x = Wenchuan[, 1:5], chains = 2)
 
 # Posterior inclusion probabilities
 summary(fit)$indicator

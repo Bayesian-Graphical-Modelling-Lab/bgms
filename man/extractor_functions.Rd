@@ -26,6 +26,12 @@
 \alias{extract_group_params.bgmCompare}
 \alias{extract_edge_indicators}
 \alias{extract_pairwise_thresholds}
+\alias{extract_rhat}
+\alias{extract_rhat.bgms}
+\alias{extract_rhat.bgmCompare}
+\alias{extract_ess}
+\alias{extract_ess.bgms}
+\alias{extract_ess.bgmCompare}
 \title{Extractor Functions for bgms Objects}
 \usage{
 extract_arguments(bgms_object)
@@ -75,6 +81,21 @@ extract_group_params(bgms_object)
 extract_edge_indicators(bgms_object)
 
 extract_pairwise_thresholds(bgms_object)
+
+extract_rhat(bgms_object)
+
+\method{extract_rhat}{bgms}(bgms_object)
+
+\method{extract_rhat}{bgmCompare}(bgms_object)
+
+extract_ess(bgms_object)
+
+\method{extract_ess}{bgms}(bgms_object)
+
+\method{extract_ess}{bgmCompare}(bgms_object)
+}
+\arguments{
+\item{bgms_object}{An object of class `bgms` or `bgmCompare`.}
 }
 \description{
 Extractor Functions for bgms Objects
@@ -83,19 +104,37 @@ Extractor Functions for bgms Objects
 These functions extract various components from objects returned by the `bgm()` function,
 such as edge indicators, posterior inclusion probabilities, and parameter summaries.
 
-Internally, indicator samples were stored in `$gamma` (pre-0.1.4) and
-`$indicator` (0.1.4–0.1.5). As of **bgms 0.1.6.0**, they are stored in
-`$raw_samples$indicators`. Access via older names is supported but deprecated.
+Internally, indicator samples were stored in `$gamma` (pre-0.1.4, now defunct)
+and `$indicator` (0.1.4–0.1.5, deprecated). As of **bgms 0.1.6.0**, they are
+stored in `$raw_samples$indicator`.
+
+For \code{bgmCompare} objects, indicator samples were stored in
+\code{$pairwise_difference_indicator} and \code{$main_difference_indicator}
+(0.1.4–0.1.5, deprecated). As of **bgms 0.1.6.0**, they are
+stored in \code{$raw_samples$indicator}.
 
 Posterior inclusion probabilities are computed from edge indicators.
 
-Internally, indicator samples were stored in `$gamma` (pre-0.1.4) and
-`$indicator` (0.1.4–0.1.5). As of **bgms 0.1.6.0**, they are stored in
-`$raw_samples$indicator`. Access via older names is supported but deprecated.
+Internally, indicator samples were stored in `$gamma` (pre-0.1.4, now defunct)
+and `$indicator` (0.1.4–0.1.5, deprecated). As of **bgms 0.1.6.0**, they are
+stored in `$raw_samples$indicator`.
 
-Category thresholds were previously stored in `$main_effects` (pre-0.1.4) and
-`$posterior_mean_main` (0.1.4–0.1.5). As of **bgms 0.1.6.0**, they are stored
-in `$posterior_summary_main`. Access via older names is supported but deprecated.
+Pairwise interactions were previously stored in `$pairwise_effects` (pre-0.1.4, now
+defunct) and `$posterior_mean_pairwise` (0.1.4–0.1.5, deprecated). As of **bgms
+0.1.6.0**, they are stored in `$raw_samples$pairwise` (raw samples) and
+`$posterior_summary_pairwise` (summaries).
+
+For \code{bgmCompare} objects, pairwise interactions were stored in
+\code{$interactions} (0.1.4–0.1.5, deprecated). As of **bgms 0.1.6.0**,
+they are stored in \code{$raw_samples$pairwise}.
+
+Category thresholds were previously stored in `$main_effects` (pre-0.1.4, now defunct)
+and `$posterior_mean_main` (0.1.4–0.1.5, deprecated). As of **bgms 0.1.6.0**, they
+are stored in `$posterior_summary_main`.
+
+For \code{bgmCompare} objects, category thresholds were stored in
+\code{$thresholds} (0.1.4–0.1.5, deprecated). As of **bgms 0.1.6.0**,
+they are stored in \code{$raw_samples$main}.
 }
 \section{Functions}{
 
@@ -105,7 +144,9 @@ in `$posterior_summary_main`. Access via older names is supported but deprecated
 - `extract_pairwise_interactions()` – Posterior mean of pairwise interactions
 - `extract_category_thresholds()` – Posterior mean of category thresholds
 - `extract_indicator_priors()` – Prior structure used for edge indicators
-- `extract_sbm`  – Extract stochastic block model parameters (if applicable)
+- `extract_sbm()` – Extract stochastic block model parameters (if applicable)
+- `extract_rhat()` – Extract R-hat convergence diagnostics
+- `extract_ess()` – Extract effective sample size estimates
 }
 
 \keyword{internal}

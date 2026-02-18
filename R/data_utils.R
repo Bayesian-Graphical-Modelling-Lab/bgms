@@ -15,7 +15,7 @@ reformat_data = function(x,
     }
     n_missing <- sum(missing_values)
     n_remaining <- nrow(x) - n_missing
-    if(n_missing > 0) {
+    if(n_missing > 0 && isTRUE(getOption("bgms.verbose", TRUE))) {
       message(
         n_missing, " row", if(n_missing > 1) "s" else "",
         " with missing values excluded (n = ", n_remaining, " remaining).\n",
@@ -172,7 +172,7 @@ reformat_data = function(x,
     }
   }
 
-  if(check_fail_zero == TRUE) {
+  if(check_fail_zero == TRUE && isTRUE(getOption("bgms.verbose", TRUE))) {
     nodes_str <- paste(failed_zeroes, collapse = ", ")
     message(
       "Variable", if(length(failed_zeroes) > 1) "s" else "", " ", nodes_str,
@@ -278,7 +278,7 @@ compare_reformat_data = function(
     }
     n_missing <- sum(missing_values)
     n_remaining <- nrow(x) - n_missing
-    if(n_missing > 0) {
+    if(n_missing > 0 && isTRUE(getOption("bgms.verbose", TRUE))) {
       message(
         n_missing, " row", if(n_missing > 1) "s" else "",
         " with missing values excluded (n = ", n_remaining, " remaining).\n",
@@ -474,7 +474,7 @@ compare_reformat_data = function(
   }
 
 
-  if(check_fail_zero == TRUE) {
+  if(check_fail_zero == TRUE && isTRUE(getOption("bgms.verbose", TRUE))) {
     nodes_str <- paste(failed_zeroes, collapse = ", ")
     message(
       "Variable", if(length(failed_zeroes) > 1) "s" else "", " ", nodes_str,

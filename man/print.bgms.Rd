@@ -11,6 +11,9 @@
 
 \item{...}{Ignored.}
 }
+\value{
+Invisibly returns `x`.
+}
 \description{
 Minimal console output for `bgms` fit objects.
 }

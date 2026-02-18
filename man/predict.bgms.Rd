@@ -77,7 +77,7 @@ sampler.
 \examples{
 \donttest{
 # Fit a model
-fit <- bgm(x = Wenchuan[, 1:5])
+fit <- bgm(x = Wenchuan[, 1:5], chains = 2)
 
 # Compute conditional probabilities for all variables
 probs <- predict(fit, newdata = Wenchuan[1:10, 1:5])

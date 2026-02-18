@@ -1,27 +1,42 @@
+
+<!-- README.md is generated from Readme.Rmd. Please edit that file -->
+
+<!-- # bgms <a href="https://bayesiangraphicalmodeling.com"><img src="man/figures/bgms_sticker.svg" height="200" align="right" alt="bgms website" /></a> -->
+
+<div style="display:flex; align-items:center; justify-content:space-between;">
+
+<h1>
+
+bgms
+</h1>
+
+<a href="https://bayesiangraphicalmodeling.com">
+<img src="man/figures/bgms_sticker.svg" height="200" alt="bgms website" />
+</a>
+
+</div>
+
 <!-- badges: start -->
 
 [![CRAN
 Version](https://www.r-pkg.org/badges/version/bgms)](https://cran.r-project.org/package=bgms)
 [![Downloads](https://cranlogs.r-pkg.org/badges/bgms)](https://cran.r-project.org/package=bgms)
 [![Total](https://cranlogs.r-pkg.org/badges/grand-total/bgms)](https://cran.r-project.org/package=bgms)
+[![Lifecycle:
+stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
+[![Codecov](https://codecov.io/gh/Bayesian-Graphical-Modelling-Lab/bgms/branch/main/graph/badge.svg)](https://app.codecov.io/gh/Bayesian-Graphical-Modelling-Lab/bgms)
 <!-- badges: end -->
-
-<div style="display:flex; align-items:center; justify-content:space-between;">
-  <h1>bgms</h1>
-  <a href="https://bayesiangraphicalmodeling.com">
-    <img src="man/figures/bgms_sticker.svg" height="200" alt="bgms website" />
-  </a>
-</div>
 
 **Bayesian analysis of graphical models with binary and ordinal
 variables**
 
 The **bgms** package implements Bayesian estimation and model comparison
 for **ordinal Markov random fields (MRFs)**, graphical models that
-represent networks of binary and/or ordinal variables (Marsman et al.,
-2025). The likelihood is approximated with a pseudolikelihood, and
-Markov chain Monte Carlo (MCMC) methods are used to sample from the
-corresponding pseudoposterior distribution of the model parameters.
+represent networks of binary and/or ordinal variables (Marsman, van den
+Bergh, et al., 2025). The likelihood is approximated with a
+pseudolikelihood, and Markov chain Monte Carlo (MCMC) methods are used
+to sample from the corresponding pseudoposterior distribution of the
+model parameters.
 
 ## Main functions
 
@@ -35,25 +50,22 @@ The package has two main entry points:
 
 Both functions support **effect selection** with spike-and-slab priors:
 
-- **Edges in one-sample designs**:
-  `bgm()` models the presence or absence of edges between variables.
-  Posterior inclusion probabilities indicate the plausibility of each
-  edge and can be converted into Bayes factors for conditional
-  independence tests (see Marsman et al., 2025; Sekulovski et al.,
-  2024).
+- **Edges in one-sample designs**: `bgm()` models the presence or
+  absence of edges between variables. Posterior inclusion probabilities
+  indicate the plausibility of each edge and can be converted into Bayes
+  factors for conditional independence tests (see Marsman, van den
+  Bergh, et al., 2025; Sekulovski et al., 2024).
 
-- **Communities/clusters in one-sample designs**:
-  `bgm()` can also model community structure. Posterior probabilities
-  for the number of clusters quantify the plausibility of clustering
-  solutions and can be converted into Bayes factors (see Sekulovski et
-  al., 2025).
+- **Communities/clusters in one-sample designs**: `bgm()` can also model
+  community structure. Posterior probabilities for the number of
+  clusters quantify the plausibility of clustering solutions and can be
+  converted into Bayes factors (see Sekulovski et al., 2025).
 
-- **Group differences in independent-sample designs**:
-  `bgmCompare()` models differences in edge weights and category
-  thresholds between groups. Posterior inclusion probabilities indicate
-  the plausibility of parameter differences and can be converted into
-  Bayes factors for tests of parameter equivalence (see Marsman et al.,
-  2024).
+- **Group differences in independent-sample designs**: `bgmCompare()`
+  models differences in edge weights and category thresholds between
+  groups. Posterior inclusion probabilities indicate the plausibility of
+  parameter differences and can be converted into Bayes factors for
+  tests of parameter equivalence (see Marsman, Waldorp, et al., 2025).
 
 ## Learn more
 
@@ -89,9 +101,9 @@ association between the unconnected pair.
 
 When analyzing an MRF, we often want to compare competing hypotheses:
 
-- **Edge presence vs. edge absence** (conditional dependence
-  vs. independence) in one-sample designs.
-- **Parameter difference vs. parameter equivalence** in
+- **Edge presence vs. edge absence** (conditional dependence
+  vs. independence) in one-sample designs.
+- **Parameter difference vs. parameter equivalence** in
   independent-sample designs.
 
 Frequentist approaches are limited in such comparisons: they can reject
@@ -103,8 +115,8 @@ Bayesian inference avoids this problem. Using **inclusion Bayes
 factors** (Huth et al., 2023; Sekulovski et al., 2024), we can quantify
 evidence in both directions:
 
-- **Evidence of edge presence** vs. **evidence of edge absence**, or
-- **Evidence of parameter difference** vs. **evidence of parameter
+- **Evidence of edge presence** vs. **evidence of edge absence**, or
+- **Evidence of parameter difference** vs. **evidence of parameter
   equivalence**.
 
 This makes it possible not only to detect structure and group
@@ -116,15 +128,11 @@ evidence*.
 The current developmental version can be installed with
 
 ``` r
-if (!requireNamespace("remotes")) {
+if(!requireNamespace("remotes")) {
   install.packages("remotes")
 }
 remotes::install_github("Bayesian-Graphical-Modelling-Lab/bgms")
 ```
-
-## Contributors
-
-**bgms** is developed by the Bayesian Graphical Modelling Lab in collaboration with contributors from across the R community. See [CONTRIBUTORS.md](inst/CONTRIBUTORS.md) for acknowledgments and detailed information on contributions.
 
 ## References
 
@@ -172,11 +180,11 @@ innovations inspired by empirical problems. *Psychometrika*, *87*, 1–11.
 
 </div>
 
-<div id="ref-MarsmanVandenBerghHaslbeck_2024" class="csl-entry">
+<div id="ref-MarsmanVandenBerghHaslbeck_2025" class="csl-entry">
 
 Marsman, M., van den Bergh, D., & Haslbeck, J. M. B. (2025). Bayesian
 analysis of the ordinal Markov random field. *Psychometrika*, *90*(1),
-146--182. <https://doi.org/10.1017/psy.2024.4>
+146–182. <https://doi.org/10.1017/psy.2024.4>
 
 </div>
 
@@ -184,7 +192,7 @@ analysis of the ordinal Markov random field. *Psychometrika*, *90*(1),
 
 Marsman, M., Waldorp, L. J., Sekulovski, N., & Haslbeck, J. M. B.
 (2025). Bayes factor tests for group differences in ordinal and binary
-graphical models. *Psychometrika*, *90*(5), 1809--1842.
+graphical models. *Psychometrika*, *90*(5), 1809–1842.
 <https://doi.org/10.1017/psy.2025.10060>
 
 </div>
@@ -202,7 +210,9 @@ Medicine*, *50*, 353–366. <https://doi.org/10.1017/S0033291719003404>
 
 Sekulovski, N., Arena, G., Haslbeck, J. M. B., Huth, K. B. S., Friel,
 N., & Marsman, M. (2025). A stochastic block prior for clustering in
-graphical models. https://osf.io/preprints/psyarxiv/29p3m_v1
+graphical models. *Retrieved from
+<a href="https://osf.io/preprints/psyarxiv/29p3m_v1"
+class="uri">Https://Osf.io/Preprints/Psyarxiv/29p3m_v1</a>*.
 
 </div>
 

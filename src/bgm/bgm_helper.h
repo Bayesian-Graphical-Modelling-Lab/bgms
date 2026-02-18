@@ -10,13 +10,6 @@ arma::vec vectorize_main_effects_bgm(
     const arma::uvec& is_ordinal_variable
 );
 
-// Unvectorize main_effects into matrix
-arma::mat unvectorize_main_effects_bgm(
-    const arma::vec& main_effect_vector,
-    const arma::ivec& num_categories,
-    const arma::uvec& is_ordinal_variable
-);
-
 // Vectorize model parameters (main + interaction effects)
 arma::vec vectorize_model_parameters_bgm(
     const arma::mat& main_effects,

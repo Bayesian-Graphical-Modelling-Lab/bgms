@@ -18,10 +18,11 @@ double log_pseudoposterior_main_effects_component (
     const int parameter
 );
 
-// Log posterior for a single component of interactions
+// Log posterior for a single component of interactions (uses pre-computed residual matrix)
 double log_pseudoposterior_interactions_component (
     const arma::mat& pairwise_effects,
     const arma::mat& main_effects,
+    const arma::mat& residual_matrix,
     const arma::imat& observations,
     const arma::ivec& num_categories,
     const arma::imat& inclusion_indicator,
@@ -31,26 +32,8 @@ double log_pseudoposterior_interactions_component (
     const arma::mat& pairwise_scaling_factors,
     const arma::imat& pairwise_stats,
     const int var1,
-    const int var2
-);
-
-// Full log posterior
-double log_pseudoposterior (
-    const arma::mat& main_effects,
-    const arma::mat& pairwise_effects,
-    const arma::imat& inclusion_indicator,
-    const arma::imat& observations,
-    const arma::ivec& num_categories,
-    const arma::imat& counts_per_category,
-    const arma::imat& blume_capel_stats,
-    const arma::ivec& baseline_category,
-    const arma::uvec& is_ordinal_variable,
-    const double main_alpha,
-    const double main_beta,
-    const double pairwise_scale,
-    const arma::mat& pairwise_scaling_factors,
-    const arma::imat& pairwise_stats,
-    const arma::mat& residual_matrix
+    const int var2,
+    const double delta
 );
 
 std::pair<arma::vec, arma::imat>  gradient_observed_active(
@@ -76,6 +59,27 @@ arma::vec gradient_log_pseudoposterior(
     const double main_beta,
     const double pairwise_scale,
     const arma::mat& pairwise_scaling_factors,
+    const arma::mat& residual_matrix,
+    const arma::imat index_matrix,
+    const arma::vec grad_obs
+);
+
+// Joint log-pseudoposterior and gradient (for efficient NUTS/HMC)
+std::pair<double, arma::vec> logp_and_gradient(
+    const arma::mat& main_effects,
+    const arma::mat& pairwise_effects,
+    const arma::imat& inclusion_indicator,
+    const arma::imat& observations,
+    const arma::ivec& num_categories,
+    const arma::imat& counts_per_category,
+    const arma::imat& blume_capel_stats,
+    const arma::ivec& baseline_category,
+    const arma::uvec& is_ordinal_variable,
+    const double main_alpha,
+    const double main_beta,
+    const double pairwise_scale,
+    const arma::mat& pairwise_scaling_factors,
+    const arma::imat& pairwise_stats,
     const arma::mat& residual_matrix,
     const arma::imat index_matrix,
     const arma::vec grad_obs

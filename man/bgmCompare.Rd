@@ -33,6 +33,7 @@ bgmCompare(
   display_progress = c("per-chain", "total", "none"),
   seed = NULL,
   standardize = FALSE,
+  verbose = getOption("bgms.verbose", TRUE),
   main_difference_model,
   reference_category,
   main_difference_scale,
@@ -142,6 +143,11 @@ smaller interaction effects make a fixed prior relatively wide.
 Standardization equalizes relative shrinkage across all pairs, with
 \code{pairwise_scale} itself applying to the unit interval (binary) case.
 See \code{\link{bgm}} for details on the adjustment. Default: \code{FALSE}.}
+
+\item{verbose}{Logical. If \code{TRUE}, prints informational messages
+during data processing (e.g., missing data handling, variable recoding).
+Defaults to \code{getOption("bgms.verbose", TRUE)}. Set
+\code{options(bgms.verbose = FALSE)} to suppress messages globally.}
 
 \item{main_difference_model, reference_category, pairwise_difference_scale, main_difference_scale, pairwise_difference_prior, main_difference_prior, pairwise_difference_probability, main_difference_probability, pairwise_beta_bernoulli_alpha, pairwise_beta_bernoulli_beta, main_beta_bernoulli_alpha, main_beta_bernoulli_beta, interaction_scale, threshold_alpha, threshold_beta, burnin, save}{`r lifecycle::badge("deprecated")`
 Deprecated arguments as of **bgms 0.1.6.0**.
@@ -258,7 +264,7 @@ at their learned values, and proposal SDs remain constant.
 x = Boredom[Boredom$language == "fr", 2:6]
 y = Boredom[Boredom$language != "fr", 2:6]
 
-fit <- bgmCompare(x, y)
+fit <- bgmCompare(x, y, chains = 2)
 
 # Posterior inclusion probabilities
 summary(fit)$indicator

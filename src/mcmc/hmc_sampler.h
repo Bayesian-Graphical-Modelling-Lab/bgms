@@ -22,15 +22,15 @@ protected:
         arma::vec inv_mass = model.get_active_inv_mass();
         SafeRNG& rng = model.get_rng();
 
-        auto log_post = [&model](const arma::vec& params) -> double {
-            return model.logp_and_gradient(params).first;
-        };
         auto grad_fn = [&model](const arma::vec& params) -> arma::vec {
             return model.logp_and_gradient(params).second;
         };
+        auto joint_fn = [&model](const arma::vec& params) -> std::pair<double, arma::vec> {
+            return model.logp_and_gradient(params);
+        };
 
         SamplerResult result = hmc_sampler(
-            theta, step_size_, log_post, grad_fn,
+            theta, step_size_, grad_fn, joint_fn,
             num_leapfrogs_, inv_mass, rng);
 
         model.set_vectorized_parameters(result.state);

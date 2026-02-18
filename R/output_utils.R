@@ -128,9 +128,8 @@ prepare_output_bgm = function(
   if(edge_selection) {
     indicator_means = indicator_summary$mean
     results$posterior_mean_indicator = matrix(0, nrow = num_variables, ncol = num_variables)
-    results$posterior_mean_indicator[upper.tri(results$posterior_mean_indicator)] = indicator_means
-    results$posterior_mean_indicator[lower.tri(results$posterior_mean_indicator)] =
-      t(results$posterior_mean_indicator)[lower.tri(results$posterior_mean_indicator)]
+    results$posterior_mean_indicator[lower.tri(results$posterior_mean_indicator)] = indicator_means
+    results$posterior_mean_indicator = results$posterior_mean_indicator + t(results$posterior_mean_indicator)
     rownames(results$posterior_mean_indicator) = data_columnnames
     colnames(results$posterior_mean_indicator) = data_columnnames
 
@@ -502,7 +501,7 @@ prepare_output_bgmCompare = function(
   out, observations, num_categories, is_ordinal_variable,
   num_groups, group, iter, warmup,
   main_effect_indices, pairwise_effect_indices,
-  data_columnnames, difference_selection,
+  data_columnnames, difference_selection, main_difference_selection,
   difference_prior, difference_selection_alpha, difference_selection_beta,
   inclusion_probability,
   pairwise_scale, difference_scale, standardize, pairwise_scaling_factors,
@@ -520,6 +519,7 @@ prepare_output_bgmCompare = function(
     difference_scale = difference_scale,
     standardize = standardize,
     difference_selection = difference_selection,
+    main_difference_selection = main_difference_selection,
     difference_prior = difference_prior,
     difference_selection_alpha = difference_selection_alpha,
     difference_selection_beta = difference_selection_beta,

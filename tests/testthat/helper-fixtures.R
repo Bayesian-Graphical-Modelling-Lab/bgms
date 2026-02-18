@@ -1,0 +1,671 @@
+# ==============================================================================
+# Test Fixtures and Utilities for bgms Test Suite
+#
+# This file is automatically loaded before tests by testthat (files matching
+# helper-*.R are sourced alphabetically before test files).
+#
+# Contents:
+#   1. Pre-fitted model fixtures (loaded from inst/extdata)
+#   2. Test data generators
+#   3. Matrix validation helpers
+#   4. Contract testing utilities
+#   5. MCMC test helpers
+#
+# ==============================================================================
+# TESTING PHILOSOPHY (see test-tolerance.R for the foundational approach)
+# ==============================================================================
+#
+# All tests in this suite build on the "stochastic-robust" testing approach
+# established in test-tolerance.R. Because bgms outputs are stochastic (MCMC),
+# we avoid exact-value assertions and instead test:
+#
+#   1. RANGE INVARIANTS - Values within valid bounds
+#      - Probabilities in [0, 1]
+#      - Indicators are binary (0 or 1)
+#      - Category predictions within valid range
+#
+#   2. SYMMETRY - Pairwise matrices should be symmetric
+#      - Posterior mean pairwise effects
+#      - Posterior inclusion probabilities
+#
+#   3. DIMENSION CONSISTENCY - Correct matrix sizes
+#      - p x p for pairwise matrices
+#      - p*(p-1)/2 edges for vectorized parameters
+#      - n x p for simulated/predicted data
+#
+#   4. STRUCTURAL CONTRACTS - API stability for downstream packages
+#      - Required fields in output objects
+#      - Return types and structures
+#
+#   5. COARSE AGGREGATES (used sparingly) - Wide bounds on summary statistics
+#      - Mean absolute interaction within [0, 0.8]
+#      - Finite values where expected
+#
+# Helper functions below (is_symmetric, values_in_range, etc.) implement
+# these testing patterns for reuse across all test files.
+#
+# ==============================================================================
+
+# Ensure bgms package is loaded
+library(bgms)
+
+# Suppress informational messages during tests
+options(bgms.verbose = FALSE)
+
+# ------------------------------------------------------------------------------
+# 1. Session-Cached Model Fixtures
+# ------------------------------------------------------------------------------
+# These fixtures are computed once per test session using current code.
+# This avoids stale RDS files while minimizing overhead.
+
+.test_cache <- new.env(parent = emptyenv())
+
+#' @description Get cached bgms fit (4 binary variables, edge selection, 2 chains)
+get_bgms_fit <- function() {
+  if (is.null(.test_cache$bgms_fit)) {
+    data("ADHD", package = "bgms")
+    .test_cache$bgms_fit <- bgm(
+      ADHD[1:50, 2:5],  # 4 binary symptom variables
+      iter = 50, warmup = 100, chains = 2,
+      seed = 12345,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit
+}
+
+#' @description Get cached bgms fit (4 ordinal variables, edge selection, 2 chains)
+get_bgms_fit_ordinal <- function() {
+  if (is.null(.test_cache$bgms_fit_ordinal)) {
+    data("Wenchuan", package = "bgms")
+    .test_cache$bgms_fit_ordinal <- bgm(
+      Wenchuan[1:50, 1:4],  # 4 ordinal variables (0-4 scale)
+      iter = 50, warmup = 100, chains = 2,
+      seed = 12345,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit_ordinal
+}
+
+#' @description Get cached bgmCompare fit (4 binary variables, 2 groups, 2 chains)
+get_bgmcompare_fit <- function() {
+  if (is.null(.test_cache$bgmcompare_fit)) {
+    data("ADHD", package = "bgms")
+    .test_cache$bgmcompare_fit <- bgmCompare(
+      x = ADHD[, 2:5],  # 4 binary symptom variables, full dataset
+      group_indicator = ADHD[, "group"],  # ADHD diagnosis group
+      iter = 50, warmup = 100, chains = 2,
+      seed = 54321,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgmcompare_fit
+}
+
+#' @description Get cached bgmCompare fit using x,y interface (4 ordinal variables, 2 chains)
+get_bgmcompare_fit_xy <- function() {
+  if (is.null(.test_cache$bgmcompare_fit_xy)) {
+    data("Wenchuan", package = "bgms")
+    x <- Wenchuan[1:25, 1:4]
+    y <- Wenchuan[26:50, 1:4]
+    .test_cache$bgmcompare_fit_xy <- bgmCompare(
+      x = x, y = y,
+      iter = 50, warmup = 100, chains = 2,
+      seed = 1234,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgmcompare_fit_xy
+}
+
+#' @description Get cached bgmCompare fit (4 ordinal variables, 2 groups, 2 chains)
+get_bgmcompare_fit_ordinal <- function() {
+  if (is.null(.test_cache$bgmcompare_fit_ordinal)) {
+    data("Wenchuan", package = "bgms")
+    x <- Wenchuan[1:50, 1:4]  # 4 ordinal variables
+    group_ind <- rep(1:2, each = 25)
+    .test_cache$bgmcompare_fit_ordinal <- bgmCompare(
+      x = x, group_indicator = group_ind,
+      iter = 50, warmup = 100, chains = 2,
+      seed = 54321,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgmcompare_fit_ordinal
+}
+
+#' @description Get cached bgms fit with Blume-Capel variables (2 chains)
+get_bgms_fit_blumecapel <- function() {
+  if (is.null(.test_cache$bgms_fit_blumecapel)) {
+    data("Wenchuan", package = "bgms")
+    .test_cache$bgms_fit_blumecapel <- bgm(
+      Wenchuan[1:50, 1:4],  # 4 ordinal variables treated as Blume-Capel
+      variable_type = "blume-capel",
+      baseline_category = 2,  # Middle category as baseline
+      iter = 50, warmup = 100, chains = 2,
+      seed = 11111,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit_blumecapel
+}
+
+#' @description Get cached bgms fit with single chain (for R-hat edge case testing)
+get_bgms_fit_single_chain <- function() {
+  if (is.null(.test_cache$bgms_fit_single)) {
+    data("ADHD", package = "bgms")
+    .test_cache$bgms_fit_single <- bgm(
+      ADHD[1:50, 2:5],
+      iter = 50, warmup = 100, chains = 1,
+      seed = 99999,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit_single
+}
+
+#' @description Get cached bgms fit using adaptive-metropolis sampler
+get_bgms_fit_adaptive_metropolis <- function() {
+  if (is.null(.test_cache$bgms_fit_am)) {
+    data("ADHD", package = "bgms")
+    .test_cache$bgms_fit_am <- bgm(
+      ADHD[1:50, 2:5],
+      update_method = "adaptive-metropolis",
+      iter = 50, warmup = 100, chains = 2,
+      seed = 77777,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit_am
+}
+
+#' @description Get cached bgmCompare fit using adaptive-metropolis sampler
+get_bgmcompare_fit_adaptive_metropolis <- function() {
+  if (is.null(.test_cache$bgmcompare_fit_am)) {
+    data("ADHD", package = "bgms")
+    .test_cache$bgmcompare_fit_am <- bgmCompare(
+      x = ADHD[, 2:5],
+      group_indicator = ADHD[, "group"],
+      update_method = "adaptive-metropolis",
+      iter = 50, warmup = 100, chains = 2,
+      seed = 88888,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgmcompare_fit_am
+}
+
+#' @description Get cached bgmCompare fit using HMC sampler (1 chain)
+get_bgmcompare_fit_hmc <- function() {
+  if (is.null(.test_cache$bgmcompare_fit_hmc)) {
+    data("ADHD", package = "bgms")
+    .test_cache$bgmcompare_fit_hmc <- bgmCompare(
+      x = ADHD[, 2:5],
+      group_indicator = ADHD[, "group"],
+      update_method = "hamiltonian-mc",
+      iter = 25, warmup = 50, chains = 1,
+      seed = 88889,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgmcompare_fit_hmc
+}
+
+#' @description Get cached bgmCompare fit with HMC + Blume-Capel (1 chain)
+get_bgmcompare_fit_hmc_blumecapel <- function() {
+  if (is.null(.test_cache$bgmcompare_fit_hmc_bc)) {
+    data("Boredom", package = "bgms")
+    # Select 25 rows from each language group
+    rows <- c(1:25, 491:515)
+    # Convert language to integer: 1 for first level, 2 for second
+    lang <- as.integer(as.factor(Boredom[rows, "language"]))
+    .test_cache$bgmcompare_fit_hmc_bc <- bgmCompare(
+      x = Boredom[rows, 2:5],  # 4 ordinal variables (7 categories)
+      group_indicator = lang,
+      update_method = "hamiltonian-mc",
+      variable_type = "blume-capel",
+      baseline_category = 3,
+      iter = 25, warmup = 50, chains = 1,
+      seed = 88890,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgmcompare_fit_hmc_bc
+}
+
+#' @description Get cached bgmCompare fit with main_difference_selection = TRUE + Blume-Capel (1 chain)
+#' Crosses Blume-Capel with difference_selection (Bernoulli prior)
+get_bgmcompare_fit_main_selection <- function() {
+  if (is.null(.test_cache$bgmcompare_fit_main_sel)) {
+    data("Boredom", package = "bgms")
+    # Select 25 rows from each language group
+    rows <- c(1:25, 491:515)
+    lang <- as.integer(as.factor(Boredom[rows, "language"]))
+    .test_cache$bgmcompare_fit_main_sel <- bgmCompare(
+      x = Boredom[rows, 2:5],  # 4 ordinal variables (7 categories)
+      group_indicator = lang,
+      difference_selection = TRUE,
+      main_difference_selection = TRUE,
+      variable_type = "blume-capel",
+      baseline_category = 3,
+      iter = 25, warmup = 50, chains = 1,
+      seed = 44444,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgmcompare_fit_main_sel
+}
+
+#' @description Get cached bgmCompare fit with Beta-Bernoulli difference prior + ordinal (1 chain)
+#' Crosses Beta-Bernoulli prior with ordinal variables
+get_bgmcompare_fit_beta_bernoulli <- function() {
+  if (is.null(.test_cache$bgmcompare_fit_bb)) {
+    data("Wenchuan", package = "bgms")
+    x <- Wenchuan[1:25, 1:4]
+    y <- Wenchuan[26:50, 1:4]
+    .test_cache$bgmcompare_fit_bb <- bgmCompare(
+      x = x, y = y,
+      difference_selection = TRUE,
+      main_difference_selection = TRUE,
+      difference_prior = "Beta-Bernoulli",
+      beta_bernoulli_alpha = 1,
+      beta_bernoulli_beta = 4,
+      iter = 25, warmup = 50, chains = 1,
+      seed = 55555,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgmcompare_fit_bb
+}
+
+#' @description Get cached bgms fit with Beta-Bernoulli edge prior (2 chains)
+get_bgms_fit_beta_bernoulli <- function() {
+  if (is.null(.test_cache$bgms_fit_bb)) {
+    data("ADHD", package = "bgms")
+    .test_cache$bgms_fit_bb <- bgm(
+      ADHD[1:50, 2:5],  # 4 binary symptom variables
+      edge_prior = "Beta-Bernoulli",
+      beta_bernoulli_alpha = 1,
+      beta_bernoulli_beta = 4,
+      iter = 50, warmup = 100, chains = 2,
+      seed = 22222,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit_bb
+}
+
+#' @description Get cached bgms fit with Stochastic-Block Model edge prior (2 chains)
+get_bgms_fit_sbm <- function() {
+  if (is.null(.test_cache$bgms_fit_sbm)) {
+    data("ADHD", package = "bgms")
+    .test_cache$bgms_fit_sbm <- bgm(
+      ADHD[1:50, 2:5],  # 4 binary symptom variables
+      edge_prior = "Stochastic-Block",
+      beta_bernoulli_alpha = 1,
+      beta_bernoulli_beta = 1,
+      dirichlet_alpha = 1,
+      iter = 50, warmup = 100, chains = 2,
+      seed = 33333,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit_sbm
+}
+
+#' @description Get cached bgms fit with HMC sampler (1 chain)
+get_bgms_fit_hmc <- function() {
+  if (is.null(.test_cache$bgms_fit_hmc)) {
+    data("Wenchuan", package = "bgms")
+    .test_cache$bgms_fit_hmc <- bgm(
+      Wenchuan[1:50, 1:4],
+      update_method = "hamiltonian-mc",
+      iter = 25, warmup = 50, chains = 1,
+      seed = 55555,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit_hmc
+}
+
+#' @description Get cached bgms fit with adaptive-metropolis + Blume-Capel (1 chain)
+get_bgms_fit_am_blumecapel <- function() {
+  if (is.null(.test_cache$bgms_fit_am_bc)) {
+    data("Wenchuan", package = "bgms")
+    .test_cache$bgms_fit_am_bc <- bgm(
+      Wenchuan[1:50, 1:4],
+      update_method = "adaptive-metropolis",
+      variable_type = "blume-capel",
+      baseline_category = 1,
+      iter = 25, warmup = 50, chains = 1,
+      seed = 66666,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit_am_bc
+}
+
+#' @description Get cached bgms fit with missing data imputation (1 chain)
+get_bgms_fit_impute <- function() {
+  if (is.null(.test_cache$bgms_fit_impute)) {
+    data("Wenchuan", package = "bgms")
+    x <- Wenchuan[1:50, 1:4]
+    x[5, 2] <- NA
+    x[10, 3] <- NA
+    .test_cache$bgms_fit_impute <- bgm(
+      x,
+      na_action = "impute",
+      iter = 25, warmup = 50, chains = 1,
+      seed = 77771,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit_impute
+}
+
+#' @description Get cached bgms fit with prior standardization (1 chain)
+get_bgms_fit_standardize <- function() {
+  if (is.null(.test_cache$bgms_fit_std)) {
+    data("Wenchuan", package = "bgms")
+    .test_cache$bgms_fit_std <- bgm(
+      Wenchuan[1:50, 1:4],
+      standardize = TRUE,
+      iter = 25, warmup = 50, chains = 1,
+      seed = 88881,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit_std
+}
+
+#' @description Get cached bgmCompare fit with Blume-Capel variables (1 chain)
+get_bgmcompare_fit_blumecapel <- function() {
+  if (is.null(.test_cache$bgmcompare_fit_bc)) {
+    data("Boredom", package = "bgms")
+    # Select 25 rows from each language group
+    rows <- c(1:25, 491:515)
+    # Convert language to integer: 1 for first level, 2 for second
+    lang <- as.integer(as.factor(Boredom[rows, "language"]))
+    .test_cache$bgmcompare_fit_bc <- bgmCompare(
+      x = Boredom[rows, 2:5],  # 4 ordinal variables (7 categories)
+      group_indicator = lang,
+      variable_type = "blume-capel",
+      baseline_category = 3,
+      iter = 25, warmup = 50, chains = 1,
+      seed = 99991,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgmcompare_fit_bc
+}
+
+#' @description Get cached bgmCompare fit with adaptive-metropolis + Blume-Capel (1 chain)
+get_bgmcompare_fit_am_blumecapel <- function() {
+  if (is.null(.test_cache$bgmcompare_fit_am_bc)) {
+    data("Boredom", package = "bgms")
+    # Select 25 rows from each language group
+    rows <- c(1:25, 491:515)
+    # Convert language to integer: 1 for first level, 2 for second
+    lang <- as.integer(as.factor(Boredom[rows, "language"]))
+    .test_cache$bgmcompare_fit_am_bc <- bgmCompare(
+      x = Boredom[rows, 2:5],  # 4 ordinal variables (7 categories)
+      group_indicator = lang,
+      update_method = "adaptive-metropolis",
+      variable_type = "blume-capel",
+      baseline_category = 3,
+      iter = 25, warmup = 50, chains = 1,
+      seed = 99992,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgmcompare_fit_am_bc
+}
+
+#' @description Get cached bgmCompare fit with missing data imputation (1 chain)
+get_bgmcompare_fit_impute <- function() {
+  if (is.null(.test_cache$bgmcompare_fit_impute)) {
+    data("Wenchuan", package = "bgms")
+    x <- Wenchuan[1:25, 1:4]
+    y <- Wenchuan[26:50, 1:4]
+    x[5, 2] <- NA
+    y[10, 3] <- NA
+    .test_cache$bgmcompare_fit_impute <- bgmCompare(
+      x = x, y = y,
+      na_action = "impute",
+      iter = 25, warmup = 50, chains = 1,
+      seed = 11112,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgmcompare_fit_impute
+}
+
+#' @description Get cached bgmCompare fit with Blume-Capel + missing data imputation (1 chain)
+get_bgmcompare_fit_blumecapel_impute <- function() {
+  if (is.null(.test_cache$bgmcompare_fit_bc_impute)) {
+    data("Boredom", package = "bgms")
+    # Select 25 rows from each language group
+    rows <- c(1:25, 491:515)
+    x <- Boredom[rows, 2:5]  # 4 ordinal variables (7 categories)
+    x[5, 2] <- NA
+    x[30, 3] <- NA  # Row in second group
+    # Convert language to integer: 1 for first level, 2 for second
+    lang <- as.integer(as.factor(Boredom[rows, "language"]))
+    .test_cache$bgmcompare_fit_bc_impute <- bgmCompare(
+      x = x,
+      group_indicator = lang,
+      variable_type = "blume-capel",
+      baseline_category = 3,
+      na_action = "impute",
+      iter = 25, warmup = 50, chains = 1,
+      seed = 11113,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgmcompare_fit_bc_impute
+}
+
+#' @description Get cached bgmCompare fit with prior standardization (1 chain)
+get_bgmcompare_fit_standardize <- function() {
+  if (is.null(.test_cache$bgmcompare_fit_std)) {
+    data("Wenchuan", package = "bgms")
+    x <- Wenchuan[1:25, 1:4]
+    y <- Wenchuan[26:50, 1:4]
+    .test_cache$bgmcompare_fit_std <- bgmCompare(
+      x = x, y = y,
+      standardize = TRUE,
+      iter = 25, warmup = 50, chains = 1,
+      seed = 22221,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgmcompare_fit_std
+}
+
+# ------------------------------------------------------------------------------
+# 2. Prediction Data Helpers
+# ------------------------------------------------------------------------------
+
+#' Get prediction data matching the binary bgms fixture
+get_prediction_data_binary <- function(n = 10) {
+  data("ADHD", package = "bgms")
+  ADHD[51:(50 + n), 2:5]  # Use different rows than training, 4 variables
+}
+
+#' Get prediction data matching the ordinal bgms fixture
+get_prediction_data_ordinal <- function(n = 10) {
+  data("Wenchuan", package = "bgms")
+  Wenchuan[51:(50 + n), 1:4]  # Use different rows than training, 4 variables
+}
+
+#' Get prediction data matching the binary bgmCompare fixture
+get_prediction_data_bgmcompare_binary <- function(n = 10) {
+  data("ADHD", package = "bgms")
+  ADHD[sample(nrow(ADHD), n), 2:5]  # Random sample, 4 variables
+}
+
+#' Get prediction data matching the ordinal bgmCompare fixture
+get_prediction_data_bgmcompare_ordinal <- function(n = 10) {
+  data("Wenchuan", package = "bgms")
+  Wenchuan[sample(nrow(Wenchuan), n), 1:4]  # Random sample, 4 variables
+}
+
+#' Get prediction data matching the Blume-Capel bgmCompare fixture (Boredom)
+get_prediction_data_bgmcompare_blumecapel <- function(n = 10) {
+  data("Boredom", package = "bgms")
+  Boredom[26:35, 2:5]  # Use different rows than training, 4 ordinal variables
+}
+
+# ------------------------------------------------------------------------------
+# 3. Test Data Generators
+# ------------------------------------------------------------------------------
+
+#' Generate small test dataset for quick MCMC runs
+#' @param n Number of observations
+#' @param p Number of variables
+#' @param seed Random seed
+generate_test_data <- function(n = 30, p = 4, seed = 42) {
+  set.seed(seed)
+  # Binary/ordinal data with values 0, 1, 2
+  data <- matrix(sample(0:2, n * p, replace = TRUE), nrow = n, ncol = p)
+  colnames(data) <- paste0("V", seq_len(p))
+  as.data.frame(data)
+}
+
+#' Generate grouped test data for bgmCompare
+#' @param n_per_group Observations per group
+#' @param p Number of variables
+#' @param n_groups Number of groups
+#' @param seed Random seed
+generate_grouped_test_data <- function(n_per_group = 20, p = 4, n_groups = 2,
+                                       seed = 42) {
+  set.seed(seed)
+  total_n <- n_per_group * n_groups
+  data <- matrix(sample(0:2, total_n * p, replace = TRUE),
+    nrow = total_n, ncol = p
+  )
+  colnames(data) <- paste0("V", seq_len(p))
+  list(
+    x = as.data.frame(data),
+    group_indicator = rep(seq_len(n_groups), each = n_per_group)
+  )
+}
+
+
+# ------------------------------------------------------------------------------
+# 3. Matrix Validation Helpers
+# ------------------------------------------------------------------------------
+
+#' Check if matrix is symmetric within tolerance
+is_symmetric <- function(M, tol = 1e-10) {
+  if (!is.matrix(M)) {
+    return(FALSE)
+  }
+  if (nrow(M) != ncol(M)) {
+    return(FALSE)
+  }
+  max(abs(M - t(M)), na.rm = TRUE) <= tol
+}
+
+#' Check if all values in matrix are within bounds
+values_in_range <- function(M, lower = -Inf, upper = Inf) {
+  vals <- as.vector(M)
+  vals <- vals[!is.na(vals)]
+  all(vals >= lower & vals <= upper)
+}
+
+#' Get upper triangle values (for pairwise parameters)
+upper_vals <- function(M) {
+  M[upper.tri(M)]
+}
+
+
+# ------------------------------------------------------------------------------
+# 4. Contract Testing Utilities
+# ------------------------------------------------------------------------------
+# These helpers verify that extractor functions return objects with expected
+# structure, enabling contract testing for downstream packages like easybgm.
+
+#' Verify extractor output structure
+#' @param obj Output from an extractor function
+#' @param type Expected type: "matrix", "data.frame", "list", "numeric", etc.
+#' @param expected_dim Expected dimensions (for matrix/data.frame)
+#' @param expected_names Expected column/row names or list names
+expect_extractor_structure <- function(obj, type, expected_dim = NULL,
+                                       expected_names = NULL) {
+  # Type check
+  expect_true(
+    inherits(obj, type),
+    info = sprintf("Expected class %s, got %s", type, paste(class(obj), collapse = ", "))
+  )
+
+  # Dimension check
+  if (!is.null(expected_dim)) {
+    if (is.matrix(obj) || is.data.frame(obj)) {
+      expect_equal(dim(obj), expected_dim,
+        info = sprintf(
+          "Expected dim %s, got %s",
+          paste(expected_dim, collapse = "x"),
+          paste(dim(obj), collapse = "x")
+        )
+      )
+    }
+  }
+
+  # Names check
+  if (!is.null(expected_names)) {
+    if (is.matrix(obj)) {
+      expect_true(
+        all(expected_names %in% colnames(obj)) ||
+          all(expected_names %in% rownames(obj)),
+        info = "Expected names not found in matrix row/colnames"
+      )
+    } else if (is.list(obj)) {
+      expect_true(
+        all(expected_names %in% names(obj)),
+        info = sprintf(
+          "Expected list names %s, got %s",
+          paste(expected_names, collapse = ", "),
+          paste(names(obj), collapse = ", ")
+        )
+      )
+    }
+  }
+}
+
+#' Check that function errors with expected message pattern
+expect_error_pattern <- function(expr, pattern) {
+  expect_error(expr, regexp = pattern)
+}
+
+
+# ------------------------------------------------------------------------------
+# 5. MCMC Test Helpers
+# ------------------------------------------------------------------------------
+
+#' Get appropriate number of cores for testing
+test_cores <- function() {
+  on_ci <- isTRUE(as.logical(Sys.getenv("CI", "false")))
+  if (on_ci) 2L else min(2L, parallel::detectCores())
+}
+
+#' Quick MCMC settings for testing (minimal iterations)
+quick_mcmc_args <- function() {
+  list(
+    iter = 100,
+    warmup = 100,
+    chains = 1,
+    display_progress = "none"
+  )
+}
+
+#' Moderate MCMC settings for more thorough testing
+moderate_mcmc_args <- function() {
+  list(
+    iter = 500,
+    warmup = 500,
+    chains = 2,
+    display_progress = "none"
+  )
+}

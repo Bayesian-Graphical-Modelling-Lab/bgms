@@ -37,7 +37,7 @@
 #' The package also provides:
 #' \enumerate{
 #'   \item Simulation of response data from MRFs with a Gibbs sampler
-#'         (\code{\link{mrfSampler}}).
+#'         (\code{\link{simulate_mrf}}).
 #'   \item Posterior estimation and edge selection in one-sample designs
 #'         (\code{\link{bgm}}).
 #'   \item Posterior estimation and group-difference selection in

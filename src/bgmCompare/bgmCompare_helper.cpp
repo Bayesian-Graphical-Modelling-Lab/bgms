@@ -266,8 +266,15 @@ void unvectorize_model_parameters_bgmcompare(
   );
   const int num_pair = num_variables * (num_variables - 1) / 2;
 
-  main_effects_out.set_size(num_main, num_groups);
-  pairwise_effects_out.set_size(num_pair, num_groups);
+  // Only reallocate if sizes differ (optimization to avoid repeated allocation)
+  if (main_effects_out.n_rows != static_cast<arma::uword>(num_main) ||
+      main_effects_out.n_cols != static_cast<arma::uword>(num_groups)) {
+    main_effects_out.set_size(num_main, num_groups);
+  }
+  if (pairwise_effects_out.n_rows != static_cast<arma::uword>(num_pair) ||
+      pairwise_effects_out.n_cols != static_cast<arma::uword>(num_groups)) {
+    pairwise_effects_out.set_size(num_pair, num_groups);
+  }
   main_effects_out.zeros();
   pairwise_effects_out.zeros();
 
