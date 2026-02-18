@@ -71,6 +71,7 @@ struct GibbsChainRunner : public Worker {
   double beta_bernoulli_alpha_between;
   double beta_bernoulli_beta_between;
   double dirichlet_alpha;
+  bool sbm_singleton_boost;
   double lambda;
   const arma::imat& interaction_index_matrix;
   int iter;
@@ -111,6 +112,7 @@ struct GibbsChainRunner : public Worker {
     double beta_bernoulli_alpha_between,
     double beta_bernoulli_beta_between,
     double dirichlet_alpha,
+    bool sbm_singleton_boost,
     double lambda,
     const arma::imat& interaction_index_matrix,
     int iter,
@@ -146,6 +148,7 @@ struct GibbsChainRunner : public Worker {
     beta_bernoulli_alpha_between(beta_bernoulli_alpha_between),
     beta_bernoulli_beta_between(beta_bernoulli_beta_between),
     dirichlet_alpha(dirichlet_alpha),
+    sbm_singleton_boost(sbm_singleton_boost),
     lambda(lambda),
     interaction_index_matrix(interaction_index_matrix),
     iter(iter),
@@ -194,6 +197,7 @@ struct GibbsChainRunner : public Worker {
           beta_bernoulli_alpha_between,
           beta_bernoulli_beta_between,
           dirichlet_alpha,
+          sbm_singleton_boost,
           lambda,
           interaction_index_matrix,
           iter,
@@ -294,6 +298,7 @@ Rcpp::List run_bgm_parallel(
     double beta_bernoulli_alpha_between,
     double beta_bernoulli_beta_between,
     double dirichlet_alpha,
+    bool sbm_singleton_boost,
     double lambda,
     const arma::imat& interaction_index_matrix,
     int iter,
@@ -339,7 +344,7 @@ Rcpp::List run_bgm_parallel(
       observations, num_categories,  pairwise_scale, edge_prior_enum,
       inclusion_probability, beta_bernoulli_alpha, beta_bernoulli_beta,
       beta_bernoulli_alpha_between, beta_bernoulli_beta_between,
-      dirichlet_alpha, lambda, interaction_index_matrix, iter, warmup,
+      dirichlet_alpha, sbm_singleton_boost, lambda, interaction_index_matrix, iter, warmup,
       counts_per_category, blume_capel_stats, main_alpha, main_beta,
       na_impute, missing_index, is_ordinal_variable, baseline_category,
       edge_selection, update_method_enum, pairwise_effect_indices, target_accept,

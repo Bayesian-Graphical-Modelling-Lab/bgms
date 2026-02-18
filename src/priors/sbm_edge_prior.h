@@ -18,6 +18,7 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
                                                 double beta_bernoulli_beta,
                                                 double beta_bernoulli_alpha_between,
                                                 double beta_bernoulli_beta_between,
+                                                bool sbm_singleton_boost,
                                                 SafeRNG& rng);
 
 // ----------------------------------------------------------------------------|

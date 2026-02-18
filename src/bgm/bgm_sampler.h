@@ -19,6 +19,7 @@ bgmOutput run_gibbs_sampler_bgm(
     const double beta_bernoulli_alpha_between,
     const double beta_bernoulli_beta_between,
     const double dirichlet_alpha,
+    const bool sbm_singleton_boost,
     const double lambda,
     const arma::imat& interaction_index_matrix,
     const int iter,

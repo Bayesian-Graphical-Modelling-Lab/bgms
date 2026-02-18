@@ -47,7 +47,8 @@ check_model = function(x,
                        beta_bernoulli_alpha_between = 1,
                        beta_bernoulli_beta_between = 1,
                        dirichlet_alpha = dirichlet_alpha,
-                       lambda = lambda) {
+                       lambda = lambda,
+                       sbm_singleton_boost = FALSE) {
   # Check variable type input ---------------------------------------------------
   if(length(variable_type) == 1) {
     variable_input = variable_type

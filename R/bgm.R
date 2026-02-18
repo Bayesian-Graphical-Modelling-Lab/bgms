@@ -245,6 +245,12 @@
 #' @param lambda Double. Rate of the zero-truncated Poisson prior on the
 #'   number of clusters in the Stochastic Block Model. Default: \code{1}.
 #'
+#' @param sbm_singleton_boost Logical. Developer option for toggling the
+#'   singleton boost behavior in the Stochastic Block Model. When \code{TRUE},
+#'   adds a balancing term when evaluating new singleton clusters to better
+#'   reflect the within-cluster prior. Only affects cases where within/between
+#'   priors differ. Default: \code{FALSE}.
+#'
 #' @param na_action Character. Specifies missing data handling. Either
 #'   \code{"listwise"} (drop rows with missing values) or \code{"impute"}
 #'   (perform single imputation during sampling). Default: \code{"listwise"}.
@@ -398,6 +404,7 @@ bgm = function(
   beta_bernoulli_beta_between = 1,
   dirichlet_alpha = 1,
   lambda = 1,
+  sbm_singleton_boost = FALSE,
   na_action = c("listwise", "impute"),
   update_method = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
   target_accept,
@@ -498,7 +505,8 @@ bgm = function(
     beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
     beta_bernoulli_beta_between = beta_bernoulli_beta_between,
     dirichlet_alpha = dirichlet_alpha,
-    lambda = lambda
+    lambda = lambda,
+    sbm_singleton_boost = sbm_singleton_boost
   )
 
   # check hyperparameters input
@@ -713,7 +721,7 @@ bgm = function(
     beta_bernoulli_beta = beta_bernoulli_beta,
     beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
     beta_bernoulli_beta_between = beta_bernoulli_beta_between,
-    dirichlet_alpha = dirichlet_alpha, lambda = lambda,
+    dirichlet_alpha = dirichlet_alpha, sbm_singleton_boost = sbm_singleton_boost, lambda = lambda,
     interaction_index_matrix = interaction_index_matrix, iter = iter,
     warmup = warmup, counts_per_category = counts_per_category,
     blume_capel_stats = blume_capel_stats,

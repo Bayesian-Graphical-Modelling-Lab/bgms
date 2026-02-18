@@ -1,0 +1,499 @@
+---
+title: "SBM Prior Analysis: Within/Between Split Creates Asymmetric Cluster Creation Penalty"
+author: "bgms development"
+date: "2026-02-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+```
+
+## Summary
+
+Investigation of SBM prior behavior where stronger within/between cluster 
+separation priors led to *fewer* detected clusters in Big Five data. 
+
+**Root cause:** The within/between prior split creates an asymmetry where:
+- New singleton clusters are evaluated using ONLY the between-cluster prior
+- The within-cluster prior has NO effect on new cluster creation
+
+This is a **design issue** in the within/between extension (not present in the 
+original Geng et al. algorithm which uses a single prior for all edges).
+
+---
+
+## Methodological Background
+
+### The Stochastic Block Model Prior
+
+The Stochastic Block Model (SBM) prior on edge inclusion uses a mixture of 
+finite mixtures (MFM) framework following Geng, Hoff, and Fosdick (2019). 
+This approach partitions the $p$ variables into $K$ latent clusters and 
+models edge inclusion probabilities based on cluster membership.
+
+#### Model Specification
+
+Let $\gamma_{ij} \in \{0, 1\}$ denote the edge inclusion indicator for variables 
+$i$ and $j$. The SBM specifies:
+
+$$
+\gamma_{ij} \mid \boldsymbol{z}, \boldsymbol{\pi} \sim \text{Bernoulli}(\pi_{z_i z_j})
+$$
+
+where:
+- $\boldsymbol{z} = (z_1, \ldots, z_p)$ is the vector of cluster assignments
+- $z_i \in \{1, \ldots, K\}$ denotes the cluster assignment of variable $i$
+- $\pi_{kl}$ is the edge inclusion probability between clusters $k$ and $l$
+- $\boldsymbol{\pi}$ is a $K \times K$ symmetric matrix of block probabilities
+
+#### Prior on Block Probabilities
+
+Each block probability receives a conjugate Beta prior. In the **original** 
+Geng et al. formulation, a single prior is used:
+
+$$
+\pi_{kl} \sim \text{Beta}(\alpha, \beta) \quad \text{for all } k, l
+$$
+
+Our **extension** allows different priors for within-cluster vs. between-cluster edges:
+
+$$
+\pi_{kk} \sim \text{Beta}(\alpha_W, \beta_W) \quad \text{(within-cluster)}
+$$
+$$
+\pi_{kl} \sim \text{Beta}(\alpha_B, \beta_B) \quad \text{for } k \neq l \text{ (between-cluster)}
+$$
+
+This extension is motivated by the expectation that variables within the same 
+cluster (e.g., measuring the same latent construct) should have higher edge 
+inclusion probability than variables in different clusters.
+
+#### Prior on Cluster Assignments
+
+The cluster assignments follow a Mixture of Finite Mixtures (MFM) prior:
+
+$$
+K \sim p(K) \propto V_p(K) \cdot \frac{\Gamma(\gamma K)}{\Gamma(\gamma K + p)}
+$$
+
+where:
+- $p(K)$ is a zero-truncated Poisson$(\lambda)$ prior on the number of clusters
+- $V_p(K)$ is the coefficient from the MFM framework
+- $\gamma$ is the Dirichlet concentration parameter
+
+Given $K$, the cluster assignments follow:
+
+$$
+\boldsymbol{z} \mid K \sim \text{CRP}(\gamma, K)
+$$
+
+where CRP denotes the Chinese Restaurant Process with concentration $\gamma$.
+
+### Gibbs Sampling for Cluster Assignments
+
+The Gibbs sampler iteratively updates each node's cluster assignment by 
+computing the conditional posterior probability for each possible cluster.
+
+#### Algorithm: `block_allocations_mfm_sbm()`
+
+For each variable $i = 1, \ldots, p$:
+
+1. Remove variable $i$ from its current cluster
+2. If the current cluster becomes empty, remove it and relabel
+3. For each possible cluster $c \in \{1, \ldots, K, K+1\}$ (including a new cluster):
+   - Temporarily assign $z_i = c$
+   - Compute the unnormalized probability:
+   
+$$
+P(z_i = c \mid \boldsymbol{z}_{-i}, \boldsymbol{\gamma}, \cdot) \propto 
+\begin{cases}
+(n_c + \gamma) \cdot \exp(\ell_c) & \text{if } c \leq K \text{ (existing cluster)} \\
+\gamma \cdot \exp(\ell_{K+1}) \cdot \frac{V_p(K+1)}{V_p(K)} & \text{if } c = K+1 \text{ (new cluster)}
+\end{cases}
+$$
+
+where:
+- $n_c$ is the number of variables currently in cluster $c$ (excluding $i$)
+- $\ell_c$ is the log-marginal likelihood of the edge indicators given assignment $z_i = c$
+
+4. Sample $z_i$ from the normalized probabilities
+5. If $z_i = K+1$, increment $K$
+
+#### Log-Marginal Likelihood: `log_marginal_mfm_sbm()`
+
+The log-marginal likelihood $\ell_c$ integrates out the block probabilities $\boldsymbol{\pi}$:
+
+$$
+\ell_c = \sum_{k=1}^{K^*} \log \frac{B(\alpha_{ik} + e_{ik}, \beta_{ik} + n_{ik} - e_{ik})}{B(\alpha_{ik}, \beta_{ik})}
+$$
+
+where:
+- $K^*$ is the number of clusters after assigning $z_i = c$
+- $e_{ik}$ is the number of edges between variable $i$ and cluster $k$
+- $n_{ik}$ is the total number of variable pairs between $i$ and cluster $k$
+- $(\alpha_{ik}, \beta_{ik})$ are the Beta prior parameters:
+  - $(\alpha_W, \beta_W)$ if $k = c$ (within-cluster)
+  - $(\alpha_B, \beta_B)$ if $k \neq c$ (between-cluster)
+- $B(\cdot, \cdot)$ is the Beta function
+
+Using the log-Beta function identity:
+
+$$
+\log B(\alpha + e, \beta + n - e) - \log B(\alpha, \beta) = 
+\log \Gamma(\alpha + e) + \log \Gamma(\beta + n - e) - \log \Gamma(\alpha + \beta + n) + \text{const}
+$$
+
+---
+
+## The Observed Behavior
+
+```{r symptom-demonstration}
+library(bgms)
+library(psych)
+data(bfi)
+
+# Weaker priors: more clusters detected (mode at 2-3)
+r_weak = bgm(bfi[, 1:25], 
+             warmup = 3000, iter = 3000,
+             edge_prior = "Stochastic-Block",
+             beta_bernoulli_alpha = 5, beta_bernoulli_beta = 1,
+             beta_bernoulli_alpha_between = 1, beta_bernoulli_beta_between = 5,
+             lambda = 5, seed = 1982)
+
+# Stronger priors: FEWER clusters (>60% probability on 1 cluster)
+r_strong = bgm(bfi[, 1:25], 
+               warmup = 3000, iter = 10000,
+               edge_prior = "Stochastic-Block",
+               beta_bernoulli_alpha = 25, beta_bernoulli_beta = 1,
+               beta_bernoulli_alpha_between = 1, beta_bernoulli_beta_between = 25,
+               lambda = 5, seed = 1982)
+```
+
+Increasing `α_within` from 5→25 had **no effect**, while increasing `β_between` 
+from 5→25 **worsened** cluster detection.
+
+## Root Cause: Asymmetric Prior Usage
+
+### The Problem in `log_marginal_mfm_sbm()`
+
+When evaluating a new singleton cluster (node going to cluster K when 
+K clusters exist):
+
+```cpp
+// cluster_assign_tmp(node) = no_clusters (= K, the new cluster)
+arma::uword node_cluster = cluster_assign(node);  // = K
+
+// table_cluster contains counts for clusters 0, 1, ..., K-1 (existing only)
+for(arma::uword i = 0; i < table_cluster.n_elem; i++){  // i = 0, 1, ..., K-1
+    
+    // This comparison is ALWAYS FALSE because i < K and node_cluster = K
+    bool is_within_cluster = (i == node_cluster);
+    
+    // Therefore, ALWAYS uses between-cluster prior
+    double alpha = is_within_cluster ? beta_bernoulli_alpha : beta_bernoulli_alpha_between;
+    double beta = is_within_cluster ? beta_bernoulli_beta : beta_bernoulli_beta_between;
+}
+```
+
+**Result:** 
+- `α_within`, `β_within` are **NEVER USED** when evaluating new clusters
+- ALL edges are evaluated with `(α_between, β_between)`
+
+### Why This Is Mathematically Correct But Practically Problematic
+
+A singleton cluster has **zero** within-cluster edges (no other nodes in cluster).
+So evaluating all edges as between-cluster is technically correct.
+
+However, this creates a **severe asymmetry**:
+
+| Operation | Prior Used | Effect of Strong Prior |
+|-----------|------------|------------------------|
+| Stay in existing cluster | `block_probs` (learned) | Adapted to data |
+| Join different cluster | `block_probs` (learned) | Adapted to data |
+| **Create new cluster** | **`(α_between, β_between)` only** | **Penalizes edges** |
+
+### The One-Way Ratchet
+
+With $\alpha_B=1, \beta_B=25$ (prior mean $\approx 0.04$, expecting ~4% between-cluster edges):
+
+1. Any node with moderate connectivity (say 10 edges out of 24) gets 
+   heavily penalized for creating a new cluster
+2. The log-marginal for 10 edges under Beta(1,25) is very negative
+3. Creating clusters becomes nearly impossible
+4. Model collapses to fewer clusters
+5. Strong $\alpha_W$ doesn't help because it's never used for new clusters
+
+#### Mathematical Demonstration
+
+Consider a node $i$ with $e = 10$ edges to the remaining $n = 24$ variables.
+The log-marginal contribution under different priors:
+
+**With Beta(1, 25) (strong between-cluster prior):**
+$$
+\log B(1 + 10, 25 + 14) - \log B(1, 25) = \log B(11, 39) - \log B(1, 25) \approx -15.2
+$$
+
+**With Beta(25, 1) (strong within-cluster prior):**
+$$
+\log B(25 + 10, 1 + 14) - \log B(25, 1) = \log B(35, 15) - \log B(25, 1) \approx -3.1
+$$
+
+The difference of ~12 log-units means the within-cluster prior would favor 
+this edge pattern by a factor of $\exp(12) \approx 160,000$.
+
+But for a new singleton cluster, **only the between-cluster calculation is used**,
+severely penalizing cluster creation.
+
+### Original Algorithm Didn't Have This Issue
+
+The Geng et al. (2019) algorithm uses a **single** `(α, β)` for all edges.
+When evaluating new clusters, the same prior applies to all connections.
+This creates symmetric treatment.
+
+The within/between split is our extension that introduces the asymmetry.
+
+## Potential Fixes
+
+### Option 1: Use Same Prior for Within and Between (Workaround)
+
+Set `α_within = α_between` and `β_within = β_between`:
+
+```{r workaround}
+r_symmetric = bgm(bfi[, 1:25], 
+                  edge_prior = "Stochastic-Block",
+                  beta_bernoulli_alpha = 1, beta_bernoulli_beta = 1,
+                  beta_bernoulli_alpha_between = 1, beta_bernoulli_beta_between = 1,
+                  lambda = 5)
+```
+
+This falls back to the original algorithm behavior.
+
+### Option 2: Add Future Within-Cluster Expectation (Code Change)
+
+When evaluating a new cluster, add a term representing expected future 
+within-cluster edges if other nodes join:
+
+```cpp
+// Proposed modification to log_marginal_mfm_sbm for new clusters:
+if (is_new_singleton_cluster) {
+    // Add expected contribution from future within-cluster edges
+    // based on prior expectation and typical cluster size
+    output += expected_future_within_contribution;
+}
+```
+
+### Option 3: Adjust Vn Ratio (Partial Fix)
+
+Increase `lambda` to favor more clusters a priori, partially compensating 
+for the between-cluster penalty. However, this doesn't fully address the 
+asymmetry.
+
+### Option 4: Document and Warn Users
+
+At minimum, clearly document that:
+- Within/between split affects cluster creation probability
+- Stronger between-cluster priors make cluster detection harder
+- Use weaker priors (closer to 1,1 / 1,1) for exploratory analysis
+
+## Recommended Immediate Actions
+
+1. **Update documentation** to warn about this behavior
+2. **Consider default adjustment** - perhaps defaults should be symmetric (1,1,1,1)
+3. **Add diagnostic output** showing observed vs expected edge rates
+4. **Long-term**: Consider Option 2 fix to balance new cluster evaluation
+
+## Code Locations
+
+| Function | File | Issue |
+|----------|------|-------|
+| `log_marginal_mfm_sbm()` | sbm_edge_prior.cpp | Only uses between prior for new clusters |
+| `block_allocations_mfm_sbm()` | sbm_edge_prior.cpp | Calls log_marginal for new cluster option |
+
+## Implementation: Singleton Boost (Option 2)
+
+### Overview
+
+We implemented a "singleton boost" fix controlled by a dev parameter `sbm_singleton_boost`.
+When enabled, this adds a balancing term when evaluating new singleton clusters to 
+reflect what the within-cluster prior would have contributed.
+
+### Mathematical Formulation
+
+The issue arises because for a new singleton cluster $c = K+1$, all edges from 
+node $i$ to other nodes are between-cluster edges. Let:
+
+- $\mu_W = \frac{\alpha_W}{\alpha_W + \beta_W}$ be the within-cluster prior mean
+- $\mu_B = \frac{\alpha_B}{\alpha_B + \beta_B}$ be the between-cluster prior mean
+- $e_i$ be the number of edges incident to node $i$
+- $n_i = p - 1$ be the total number of potential edges from node $i$
+
+The observed edge rate for node $i$ is $\hat{\pi}_i = e_i / n_i$.
+
+#### The Boost Term
+
+If node $i$ were to form a larger cluster in the future, its within-cluster 
+edges would be evaluated under the within-cluster prior. The expected 
+log-likelihood ratio comparing the within-cluster vs. between-cluster 
+evaluation is:
+
+$$
+\Delta \ell = n_i \left[ \hat{\pi}_i \log\frac{\mu_W}{\mu_B} + (1 - \hat{\pi}_i) \log\frac{1 - \mu_W}{1 - \mu_B} \right]
+$$
+
+This is the Kullback-Leibler divergence (scaled by $n_i$) between a Bernoulli
+distribution with the observed rate $\hat{\pi}_i$ evaluated under the two priors.
+
+#### Conservative Application
+
+To avoid over-correction, we apply only half of the positive boost:
+
+$$
+\text{boost} = \frac{1}{2} \max(0, \Delta \ell)
+$$
+
+The $\max(0, \cdot)$ ensures we only boost when the within-cluster prior 
+favors high edge rates (which is the expected use case). The factor of 
+$\frac{1}{2}$ is conservative because:
+
+1. Not all of node $i$'s future edges will be within-cluster
+2. The prior means are point estimates; the actual posterior may differ
+3. We want to encourage exploration without over-steering
+
+#### Modified Log-Marginal
+
+The modified log-marginal for a new singleton cluster becomes:
+
+$$
+\ell_{K+1}^* = \ell_{K+1} + \text{boost}
+$$
+
+where $\ell_{K+1}$ is the original log-marginal computed using only the 
+between-cluster prior.
+
+### The Fix Logic
+
+When a node considers creating a new singleton cluster, all its edges are evaluated
+using the between-cluster prior (since there are no other nodes in the new cluster).
+The fix adds a bonus term based on the difference between within and between prior means:
+
+```cpp
+if (sbm_singleton_boost && is_new_singleton) {
+    double within_prior_mean = beta_bernoulli_alpha / 
+                               (beta_bernoulli_alpha + beta_bernoulli_beta);
+    double between_prior_mean = beta_bernoulli_alpha_between / 
+                                (beta_bernoulli_alpha_between + beta_bernoulli_beta_between);
+    
+    // Don't apply boost if priors are symmetric
+    if (std::abs(within_prior_mean - between_prior_mean) > 1e-8) {
+        int total_pairs = arma::accu(table_cluster);
+        double edge_rate = static_cast<double>(edges_with_node) /
+                          static_cast<double>(total_pairs);
+        
+        // Log-likelihood ratio: within vs between for observed edge pattern
+        double log_ratio_edges = total_pairs * (
+            edge_rate * std::log(within_prior_mean / between_prior_mean) +
+            (1.0 - edge_rate) * std::log((1.0 - within_prior_mean) / 
+                                          (1.0 - between_prior_mean))
+        );
+        
+        // Add half of the positive log-ratio as a boost
+        // (half because we're being conservative)
+        output += 0.5 * std::max(0.0, log_ratio_edges);
+    }
+}
+```
+
+### Fallback for Symmetric Priors
+
+When $\mu_W = \mu_B$ (symmetric priors), we have:
+
+$$
+\Delta \ell = n_i \left[ \hat{\pi}_i \cdot 0 + (1 - \hat{\pi}_i) \cdot 0 \right] = 0
+$$
+
+Thus the boost is automatically zero, and the algorithm behaves identically 
+to the original implementation. This provides a seamless fallback.
+
+### Usage
+
+```{r singleton-boost-usage}
+# Enable singleton boost (dev feature)
+r_boosted = bgm(bfi[, 1:25], 
+                warmup = 3000, iter = 10000,
+                edge_prior = "Stochastic-Block",
+                beta_bernoulli_alpha = 25, beta_bernoulli_beta = 1,
+                beta_bernoulli_alpha_between = 1, beta_bernoulli_beta_between = 25,
+                lambda = 5, 
+                sbm_singleton_boost = TRUE,  # Enable dev fix
+                seed = 1982)
+```
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/priors/sbm_edge_prior.cpp` | Added boost logic to `log_marginal_mfm_sbm()`, added parameter to `block_allocations_mfm_sbm()` |
+| `src/priors/sbm_edge_prior.h` | Updated function signatures |
+| `src/bgm/bgm_sampler.h` | Added `sbm_singleton_boost` parameter |
+| `src/bgm/bgm_sampler.cpp` | Pass parameter through call chain |
+| `src/bgm_interface.cpp` | Added to GibbsChainRunner struct and `run_bgm_parallel()` |
+| `R/bgm.R` | Added R parameter with default `FALSE` |
+
+### Testing Plan
+
+1. Compare posterior cluster distributions with/without boost on Big Five data
+2. Verify that symmetric priors produce identical results with boost enabled
+3. Check that strong within-prior now appropriately favors cluster creation
+
+---
+
+## Appendix: Block Probability Sampling
+
+### Algorithm: `block_probs_mfm_sbm()`
+
+After updating cluster assignments, the block probabilities $\boldsymbol{\pi}$ 
+are sampled from their conjugate posterior.
+
+For each pair of clusters $(k, l)$ where $k \leq l$:
+
+$$
+\pi_{kl} \mid \boldsymbol{\gamma}, \boldsymbol{z} \sim \text{Beta}(\alpha_{kl} + e_{kl}, \beta_{kl} + n_{kl} - e_{kl})
+$$
+
+where:
+- $e_{kl} = \sum_{i: z_i = k} \sum_{j: z_j = l, j > i} \gamma_{ij}$ is the number of edges between clusters $k$ and $l$
+- $n_{kl} = |C_k| \cdot |C_l|$ if $k \neq l$, or $\binom{|C_k|}{2}$ if $k = l$
+- $|C_k|$ is the size of cluster $k$
+- $(\alpha_{kl}, \beta_{kl})$ are the prior parameters:
+  - $(\alpha_W, \beta_W)$ if $k = l$
+  - $(\alpha_B, \beta_B)$ if $k \neq l$
+
+The sampled probabilities form a symmetric matrix used as the inclusion 
+probability for the next iteration of edge sampling.
+
+### Indicator Matrix Storage
+
+The edge indicator matrix $\boldsymbol{\gamma}$ is stored as a **symmetric** 
+$p \times p$ matrix (not upper-triangular), where $\gamma_{ij} = \gamma_{ji}$.
+This simplifies indexing when computing cluster-level edge counts.
+
+---
+
+## References
+
+Geng, J., Hoff, P. D., & Fosdick, B. K. (2019). Probabilistic community 
+detection with unknown number of communities. *Journal of the American 
+Statistical Association*, 114(526), 893-905.
+
+Miller, J. W., & Harrison, M. T. (2018). Mixture models with a prior on the 
+number of components. *Journal of the American Statistical Association*, 
+113(521), 340-356.
+
+---
+
+## Session Info
+
+```{r session-info}
+sessionInfo()
+```

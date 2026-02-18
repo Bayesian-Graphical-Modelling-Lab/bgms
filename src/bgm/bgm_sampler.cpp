@@ -1248,6 +1248,7 @@ bgmOutput run_gibbs_sampler_bgm(
     const double beta_bernoulli_alpha_between,
     const double beta_bernoulli_beta_between,
     const double dirichlet_alpha,
+    const bool sbm_singleton_boost,
     const double lambda,
     const arma::imat& interaction_index_matrix,
     const int iter,
@@ -1433,7 +1434,7 @@ bgmOutput run_gibbs_sampler_bgm(
           cluster_allocations, num_variables, log_Vn, cluster_prob,
           arma::conv_to<arma::umat>::from(inclusion_indicator), dirichlet_alpha,
           beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between,
-          beta_bernoulli_beta_between, rng
+          beta_bernoulli_beta_between, sbm_singleton_boost, rng
         );
 
         cluster_prob = block_probs_mfm_sbm(

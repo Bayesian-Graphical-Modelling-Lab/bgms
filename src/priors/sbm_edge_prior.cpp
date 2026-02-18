@@ -70,7 +70,7 @@ arma::mat add_row_col_block_prob_matrix(arma::mat X,
  * Inputs:
  *  - cluster_assign: Vector of cluster assignments for all nodes.
  *  - cluster_probs: Matrix of edge probabilities between clusters.
- *  - indicator: Upper-triangular matrix of edge indicators (1 = edge present).
+ *  - indicator: Symmetric binary matrix of edge indicators (1 = edge present).
  *  - node: Index of the node whose contribution is computed.
  *  - no_variables: Total number of nodes in the network.
  *
@@ -113,13 +113,15 @@ double log_likelihood_mfm_sbm(arma::uvec cluster_assign,
  *
  * Inputs:
  *  - cluster_assign: Vector of cluster assignments for all nodes.
- *  - indicator: Upper-triangular matrix of edge indicators (1 = edge present).
+ *  - indicator: Symmetric binary matrix of edge indicators (1 = edge present).
  *  - node: Index of the node whose contribution is computed.
  *  - no_variables: Total number of nodes in the network.
  *  - beta_bernoulli_alpha: Alpha hyperparameter for within-cluster edges.
  *  - beta_bernoulli_beta: Beta hyperparameter for within-cluster edges.
  *  - beta_bernoulli_alpha_between: Alpha hyperparameter for between-cluster edges.
  *  - beta_bernoulli_beta_between: Beta hyperparameter for between-cluster edges.
+ *  - sbm_singleton_boost: If true, add a balancing term for new singleton clusters
+ *                         to compensate for the asymmetry in within/between priors.
  *
  * Returns:
  *  - Log-marginal likelihood contribution for the specified node.
@@ -131,7 +133,8 @@ double log_marginal_mfm_sbm(arma::uvec cluster_assign,
                             double beta_bernoulli_alpha,
                             double beta_bernoulli_beta,
                             double beta_bernoulli_alpha_between,
-                            double beta_bernoulli_beta_between) {
+                            double beta_bernoulli_beta_between,
+                            bool sbm_singleton_boost) {
 
   arma::uvec indices = arma::regspace<arma::uvec>(0, no_variables-1); // vector of variables indices [0, 1, ..., no_variables-1]
   arma::uvec select_variables = indices(arma::find(indices != node)); // vector of variables indices excluding 'node'
@@ -142,8 +145,45 @@ double log_marginal_mfm_sbm(arma::uvec cluster_assign,
 
   // Get the cluster assignment of the current node
   arma::uword node_cluster = cluster_assign(node);
+  
+  // Check if node is in a NEW singleton cluster (not present in other nodes' assignments)
+  bool is_new_singleton = (node_cluster >= table_cluster.n_elem);
 
   double output = 0;
+  
+  // If sbm_singleton_boost is enabled and this is a new singleton cluster,
+  // add a balancing term to compensate for the asymmetry where only between-cluster
+  // priors are used. This makes the within-cluster prior influence cluster creation.
+  if (sbm_singleton_boost && is_new_singleton) {
+    double within_prior_mean = beta_bernoulli_alpha / (beta_bernoulli_alpha + beta_bernoulli_beta);
+    double between_prior_mean = beta_bernoulli_alpha_between / (beta_bernoulli_alpha_between + beta_bernoulli_beta_between);
+    
+    // Only add boost if within-prior favors more connectivity than between-prior
+    if (within_prior_mean > between_prior_mean) {
+      // Count total edges from this node
+      double total_edges = arma::accu(gamma_node);
+      double total_pairs = static_cast<double>(no_variables - 1);
+      double edge_rate = total_edges / total_pairs;
+      
+      // Compute the log-likelihood ratio of observing these edges under
+      // within-cluster prior vs between-cluster prior.
+      // This represents how much more favorable the within-cluster prior
+      // would be for this node's connectivity pattern.
+      double log_ratio_edges = 0.0;
+      if (edge_rate > 0 && edge_rate < 1) {
+        log_ratio_edges = total_pairs * (
+          edge_rate * std::log(within_prior_mean / between_prior_mean) +
+          (1.0 - edge_rate) * std::log((1.0 - within_prior_mean) / (1.0 - between_prior_mean))
+        );
+      }
+      
+      // Scale down to avoid overcompensating - this is a heuristic adjustment
+      // to partially offset the between-cluster penalty without fully replacing it.
+      // The 0.5 factor represents uncertainty about future cluster growth.
+      output += 0.5 * std::max(0.0, log_ratio_edges);
+    }
+  }
+  
   for(arma::uword i = 0; i < table_cluster.n_elem; i++){
     if(table_cluster(i) > 0){ // if the cluster is empty -- table_cluster(i) = 0 == then it is the previous cluster of 'node' where 'node' was the only member - a singleton, thus skip)
       arma::uvec which_variables_cluster_i = arma::find(cluster_assign_wo_node == i); // which variables belong to cluster i
@@ -212,6 +252,7 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
                                      double beta_bernoulli_beta,
                                      double beta_bernoulli_alpha_between,
                                      double beta_bernoulli_beta_between,
+                                     bool sbm_singleton_boost,
                                      SafeRNG& rng) {
 
   arma::uword old;
@@ -266,7 +307,8 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
                                          beta_bernoulli_alpha,
                                          beta_bernoulli_beta,
                                          beta_bernoulli_alpha_between,
-                                         beta_bernoulli_beta_between);
+                                         beta_bernoulli_beta_between,
+                                         sbm_singleton_boost);
 
           prob = static_cast<double>(dirichlet_alpha) *
             MY_EXP(logmarg) *
@@ -320,7 +362,8 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
                                          beta_bernoulli_alpha,
                                          beta_bernoulli_beta,
                                          beta_bernoulli_alpha_between,
-                                         beta_bernoulli_beta_between);
+                                         beta_bernoulli_beta_between,
+                                         sbm_singleton_boost);
 
           prob = static_cast<double>(dirichlet_alpha) *
             MY_EXP(logmarg) *
