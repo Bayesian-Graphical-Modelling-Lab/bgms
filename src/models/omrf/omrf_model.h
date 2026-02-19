@@ -176,10 +176,10 @@ public:
     size_t get_n() const { return n_; }
 
     // Adaptation control
-    void set_step_size(double step_size) { step_size_ = step_size; }
-    double get_step_size() const { return step_size_; }
-    void set_inv_mass(const arma::vec& inv_mass) { inv_mass_ = inv_mass; }
-    const arma::vec& get_inv_mass() const { return inv_mass_; }
+    void set_step_size(double step_size) override { step_size_ = step_size; }
+    double get_step_size() const override { return step_size_; }
+    void set_inv_mass(const arma::vec& inv_mass) override { inv_mass_ = inv_mass; }
+    const arma::vec& get_inv_mass() const override { return inv_mass_; }
 
     /**
      * Get full dimension (main + ALL pairwise, regardless of edge indicators)
@@ -402,7 +402,7 @@ private:
     /**
      * Extract active inverse mass (only for included edges)
      */
-    arma::vec get_active_inv_mass() const;
+    arma::vec get_active_inv_mass() const override;
 
     /**
      * Extract active inverse mass into pre-allocated vector (avoids allocation)
