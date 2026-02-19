@@ -254,6 +254,8 @@
 #'   \code{"total"} (single combined bar), or \code{"none"} (no progress).
 #'   Default: \code{"per-chain"}.
 #'
+#' @param backend Character. Temporary here to switch between the computational backend for MCMC sampling.
+#'
 #' @param verbose Logical. If \code{TRUE}, prints informational messages
 #'   during data processing (e.g., missing data handling, variable recoding).
 #'   Defaults to \code{getOption("bgms.verbose", TRUE)}. Set
@@ -848,7 +850,7 @@ bgm = function(
       seed = seed,
       edge_prior = edge_prior,
       na_impute = na_impute,
-      missing_index = missing_index,
+      missing_index_nullable = missing_index,
       beta_bernoulli_alpha = beta_bernoulli_alpha,
       beta_bernoulli_beta = beta_bernoulli_beta,
       beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
