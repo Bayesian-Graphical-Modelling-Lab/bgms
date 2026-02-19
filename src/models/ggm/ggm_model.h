@@ -35,7 +35,6 @@ public:
         inclusion_probability_(inclusion_probability),
         edge_selection_(edge_selection),
         pairwise_scale_(pairwise_scale),
-        proposal_(AdaptiveProposal(dim_, 500)),
         precision_matrix_(arma::eye<arma::mat>(p_, p_)),
         cholesky_of_precision_(arma::eye<arma::mat>(p_, p_)),
         inv_cholesky_of_precision_(arma::eye<arma::mat>(p_, p_)),
@@ -43,6 +42,7 @@ public:
         edge_indicators_(initial_edge_indicators),
         vectorized_parameters_(dim_),
         vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
+        proposal_(AdaptiveProposal(dim_, 500)),
         precision_proposal_(arma::mat(p_, p_, arma::fill::none))
     {}
 
@@ -61,7 +61,6 @@ public:
         inclusion_probability_(inclusion_probability),
         edge_selection_(edge_selection),
         pairwise_scale_(pairwise_scale),
-        proposal_(AdaptiveProposal(dim_, 500)),
         precision_matrix_(arma::eye<arma::mat>(p_, p_)),
         cholesky_of_precision_(arma::eye<arma::mat>(p_, p_)),
         inv_cholesky_of_precision_(arma::eye<arma::mat>(p_, p_)),
@@ -69,15 +68,16 @@ public:
         edge_indicators_(initial_edge_indicators),
         vectorized_parameters_(dim_),
         vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
+        proposal_(AdaptiveProposal(dim_, 500)),
         precision_proposal_(arma::mat(p_, p_, arma::fill::none))
     {}
 
     GGMModel(const GGMModel& other)
         : BaseModel(other),
-          dim_(other.dim_),
-          suf_stat_(other.suf_stat_),
           n_(other.n_),
           p_(other.p_),
+          dim_(other.dim_),
+          suf_stat_(other.suf_stat_),
           inclusion_probability_(other.inclusion_probability_),
           edge_selection_(other.edge_selection_),
           pairwise_scale_(other.pairwise_scale_),

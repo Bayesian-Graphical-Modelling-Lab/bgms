@@ -23,9 +23,10 @@ public:
      * @param config  Sampler configuration
      */
     explicit MHSampler(const SamplerConfig& config)
-        : no_warmup_(config.no_warmup),
-          warmup_iteration_(0)
-    {}
+        : warmup_iteration_(0)
+    {
+        (void)config; // unused
+    }
 
     /**
      * Perform one MH step during warmup
@@ -62,6 +63,5 @@ public:
     }
 
 private:
-    int no_warmup_;
     int warmup_iteration_;
 };

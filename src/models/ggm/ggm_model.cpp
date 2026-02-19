@@ -100,7 +100,7 @@ void GGMModel::update_edge_parameter(size_t i, size_t j) {
 
     get_constants(i, j);
     double Phi_q1q  = constants_[0];
-    double Phi_q1q1 = constants_[1];
+    (void)constants_[1]; // Phi_q1q1 computed in get_constants but unused here
 
     size_t e = j * (j + 1) / 2 + i; // parameter index in vectorized form (column-major upper triangle)
     double proposal_sd = proposal_.get_proposal_sd(e);

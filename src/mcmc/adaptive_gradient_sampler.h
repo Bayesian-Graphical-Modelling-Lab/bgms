@@ -23,7 +23,6 @@ public:
     AdaptiveGradientSampler(double step_size, double target_acceptance, int n_warmup)
         : step_size_(step_size),
           target_acceptance_(target_acceptance),
-          n_warmup_(n_warmup),
           warmup_iteration_(0),
           initialized_(false),
           step_adapter_(step_size)
@@ -142,7 +141,6 @@ private:
         step_adapter_.restart(step_size_);
     }
 
-    int n_warmup_;
     int warmup_iteration_;
     bool initialized_;
 
