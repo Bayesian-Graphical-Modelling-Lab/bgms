@@ -5,13 +5,13 @@
 #include "mcmc/mh_sampler.h"
 
 
-std::unique_ptr<BaseSampler> create_sampler(const SamplerConfig& config) {
+std::unique_ptr<BaseSampler> create_sampler(const SamplerConfig& config, WarmupSchedule& schedule) {
     if (config.sampler_type == "nuts") {
-        return std::make_unique<NUTSSampler>(config, config.no_warmup);
+        return std::make_unique<NUTSSampler>(config, schedule);
     } else if (config.sampler_type == "hmc" || config.sampler_type == "hamiltonian-mc") {
-        return std::make_unique<HMCSampler>(config);
+        return std::make_unique<HMCSampler>(config, schedule);
     } else if (config.sampler_type == "mh" || config.sampler_type == "adaptive-metropolis") {
-        return std::make_unique<MHSampler>(config);
+        return std::make_unique<MHSampler>(config, schedule);
     } else {
         Rcpp::stop("Unknown sampler_type: '%s'", config.sampler_type.c_str());
     }
@@ -28,86 +28,76 @@ void run_mcmc_chain(
 ) {
     chain_result.chain_id = chain_id + 1;
 
-    const int edge_start = config.get_edge_selection_start();
+    // Construct warmup schedule (shared by runner and sampler)
+    const bool learn_sd = (config.sampler_type == "nuts" ||
+                           config.sampler_type == "hmc" ||
+                           config.sampler_type == "hamiltonian-mc");
+    WarmupSchedule schedule(config.no_warmup, config.edge_selection, learn_sd);
 
-    auto sampler = create_sampler(config);
+    auto sampler = create_sampler(config, schedule);
 
-    // Warmup phase
-    for (int iter = 0; iter < config.no_warmup; ++iter) {
+    // Initialize sampler (step-size heuristic) before the main loop
+    sampler->initialize(model);
 
+    const int total_iter = config.no_warmup + config.no_iter;
+
+    // ---- Main MCMC loop (warmup + sampling) ----
+    for (int iter = 0; iter < total_iter; ++iter) {
+
+        // Per-iteration preparation (e.g., shuffle edge order)
+        model.prepare_iteration();
+
+        // Optional missing-data imputation
         if (config.na_impute && model.has_missing_data()) {
             model.impute_missing();
         }
 
-        if (config.edge_selection && iter >= edge_start && model.has_edge_selection()) {
-            model.update_edge_indicators();
-        }
-
-        sampler->warmup_step(model);
-
-        if (config.edge_selection && iter >= edge_start && model.has_edge_selection()) {
-            edge_prior.update(
-                model.get_edge_indicators(),
-                model.get_inclusion_probability(),
-                model.get_num_variables(),
-                model.get_num_pairwise(),
-                model.get_rng()
-            );
-        }
-
-        pm.update(chain_id);
-        if (pm.shouldExit()) {
-            chain_result.userInterrupt = true;
-            return;
-        }
-    }
-
-    sampler->finalize_warmup();
-
-    // Activate edge selection mode
-    if (config.edge_selection && model.has_edge_selection()) {
-        model.set_edge_selection_active(true);
-        model.initialize_graph();
-    }
-
-    // Sampling phase
-    for (int iter = 0; iter < config.no_iter; ++iter) {
-
-        if (config.na_impute && model.has_missing_data()) {
-            model.impute_missing();
-        }
-
-        if (config.edge_selection && model.has_edge_selection()) {
-            model.update_edge_indicators();
-        }
-
-        SamplerResult result = sampler->sample_step(model);
-
-        if (config.edge_selection && model.has_edge_selection()) {
-            edge_prior.update(
-                model.get_edge_indicators(),
-                model.get_inclusion_probability(),
-                model.get_num_variables(),
-                model.get_num_pairwise(),
-                model.get_rng()
-            );
-        }
-
-        if (chain_result.has_nuts_diagnostics && sampler->has_nuts_diagnostics()) {
-            auto* diag = dynamic_cast<NUTSDiagnostics*>(result.diagnostics.get());
-            if (diag) {
-                chain_result.store_nuts_diagnostics(iter, diag->tree_depth, diag->divergent, diag->energy);
+        // Edge selection
+        if (schedule.selection_enabled(iter) && model.has_edge_selection()) {
+            if (iter == schedule.stage3c_start) {
+                model.set_edge_selection_active(true);
+                model.initialize_graph();
             }
+            model.update_edge_indicators();
         }
 
-        chain_result.store_sample(iter, model.get_full_vectorized_parameters());
+        // Main parameter update — adaptation is internal to sampler
+        SamplerResult result = sampler->step(model, iter);
 
-        if (chain_result.has_indicators) {
-            chain_result.store_indicators(iter, model.get_vectorized_indicator_parameters());
+        // Stage 3b: proposal-SD tuning
+        model.tune_proposal_sd(iter, schedule);
+
+        // Edge prior update
+        if (schedule.selection_enabled(iter) && model.has_edge_selection()) {
+            edge_prior.update(
+                model.get_edge_indicators(),
+                model.get_inclusion_probability(),
+                model.get_num_variables(),
+                model.get_num_pairwise(),
+                model.get_rng()
+            );
         }
 
-        if (chain_result.has_allocations && edge_prior.has_allocations()) {
-            chain_result.store_allocations(iter, edge_prior.get_allocations());
+        // Store samples (only during sampling phase)
+        if (schedule.sampling(iter)) {
+            int sample_index = iter - config.no_warmup;
+
+            if (chain_result.has_nuts_diagnostics && sampler->has_nuts_diagnostics()) {
+                auto* diag = dynamic_cast<NUTSDiagnostics*>(result.diagnostics.get());
+                if (diag) {
+                    chain_result.store_nuts_diagnostics(sample_index, diag->tree_depth, diag->divergent, diag->energy);
+                }
+            }
+
+            chain_result.store_sample(sample_index, model.get_full_vectorized_parameters());
+
+            if (chain_result.has_indicators) {
+                chain_result.store_indicators(sample_index, model.get_vectorized_indicator_parameters());
+            }
+
+            if (chain_result.has_allocations && edge_prior.has_allocations()) {
+                chain_result.store_allocations(sample_index, edge_prior.get_allocations());
+            }
         }
 
         pm.update(chain_id);

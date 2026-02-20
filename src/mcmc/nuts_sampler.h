@@ -11,8 +11,8 @@
  */
 class NUTSSampler : public AdaptiveGradientSampler {
 public:
-    explicit NUTSSampler(const SamplerConfig& config, int n_warmup = 1000)
-        : AdaptiveGradientSampler(config.initial_step_size, config.target_acceptance, n_warmup),
+    explicit NUTSSampler(const SamplerConfig& config, WarmupSchedule& schedule)
+        : AdaptiveGradientSampler(config.initial_step_size, config.target_acceptance, schedule),
           max_tree_depth_(config.max_tree_depth)
     {}
 
@@ -30,7 +30,7 @@ protected:
 
         arma::vec active_inv_mass = model.get_active_inv_mass();
 
-        SamplerResult result = nuts_sampler_joint(
+        SamplerResult result = nuts_sampler(
             theta, step_size_, joint_fn,
             active_inv_mass, rng, max_tree_depth_
         );

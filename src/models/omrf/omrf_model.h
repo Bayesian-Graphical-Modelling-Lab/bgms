@@ -3,7 +3,7 @@
 #include <memory>
 #include <functional>
 #include "models/base_model.h"
-#include "models/adaptive_metropolis.h"
+#include "mcmc/mcmc_adaptation.h"
 #include "rng/rng_utils.h"
 #include "mcmc/mcmc_utils.h"
 #include "utils/common_helpers.h"
@@ -83,8 +83,21 @@ public:
 
     /**
      * Perform one adaptive MH step (updates all parameters)
+     * @param iteration  Current iteration (for Robbins-Monro adaptation)
      */
-    void do_one_mh_step() override;
+    void do_one_mh_step(int iteration = -1) override;
+
+    /**
+     * Initialize RWM adaptation controllers for proposal-SD tuning
+     * Must be called before warmup begins (e.g., by MHSampler on first step)
+     */
+    void init_mh_adaptation(const WarmupSchedule& schedule) override;
+
+    /**
+     * Stage 3b: tune pairwise proposal SDs via Robbins-Monro
+     * Called every iteration from the runner; checks schedule internally
+     */
+    void tune_proposal_sd(int iteration, const WarmupSchedule& schedule) override;
 
     /**
      * Return dimensionality of active parameter space
@@ -125,10 +138,15 @@ public:
     // OMRF-specific methods
     // =========================================================================
 
+
+
     /**
-     * Set the adaptive proposal mechanism
+     * Shuffle edge update order at the start of each iteration.
+     * The shuffled order is stored in shuffled_edge_order_ for use by
+     * update_edge_indicators(). Called unconditionally to advance the
+     * RNG state consistently.
      */
-    void set_adaptive_proposal(AdaptiveProposal proposal);
+    void prepare_iteration() override;
 
     /**
      * Update edge indicators via Metropolis-Hastings
@@ -197,6 +215,9 @@ public:
     arma::mat& get_proposal_sd_main() { return proposal_sd_main_; }
     arma::mat& get_proposal_sd_pairwise() { return proposal_sd_pairwise_; }
 
+    // Pairwise scaling factors
+    void set_pairwise_scaling_factors(const arma::mat& sf) { pairwise_scaling_factors_ = sf; }
+
     // Control edge selection phase
     void set_edge_selection_active(bool active) override { edge_selection_active_ = active; }
     bool is_edge_selection_active() const { return edge_selection_active_; }
@@ -211,6 +232,7 @@ private:
     size_t p_;                          // Number of variables
     arma::imat observations_;           // Categorical observations (n × p)
     arma::mat observations_double_;     // Observations as double (for efficient matrix ops)
+    arma::mat observations_double_t_;   // Transposed observations (for BLAS pairwise gradient)
     arma::ivec num_categories_;         // Categories per variable
     arma::uvec is_ordinal_variable_;    // 1 = ordinal, 0 = Blume-Capel
     arma::ivec baseline_category_;      // Reference category for Blume-Capel
@@ -231,6 +253,7 @@ private:
     double main_alpha_;                 // Beta prior α
     double main_beta_;                  // Beta prior β
     double pairwise_scale_;             // Cauchy scale for pairwise effects
+    arma::mat pairwise_scaling_factors_; // Per-pair scaling factors for Cauchy prior
 
     // Model configuration
     bool edge_selection_;               // Enable edge selection
@@ -240,10 +263,13 @@ private:
     size_t num_main_;                   // Total number of main effect parameters
     size_t num_pairwise_;               // Number of possible pairwise effects
 
-    // Adaptive proposals
-    AdaptiveProposal proposal_;
+    // Proposal SDs (adapted by RWMAdaptationController during warmup)
     arma::mat proposal_sd_main_;
     arma::mat proposal_sd_pairwise_;
+
+    // RWM adaptation controllers (created by init_mh_adaptation)
+    std::unique_ptr<RWMAdaptationController> rwm_main_adapter_;
+    std::unique_ptr<RWMAdaptationController> rwm_pairwise_adapter_;
 
     // RNG
     SafeRNG rng_;
@@ -263,6 +289,7 @@ private:
 
     // Interaction indexing (for edge updates)
     arma::imat interaction_index_;
+    arma::uvec shuffled_edge_order_;  // Pre-shuffled order (set in prepare_iteration)
 
     // =========================================================================
     // Private helper methods
@@ -336,7 +363,7 @@ private:
      */
     double compute_log_likelihood_ratio_for_variable(
         int variable,
-        const arma::vec& interacting_score,
+        const arma::ivec& interacting_score,
         double proposed_state,
         double current_state
     ) const;
@@ -351,23 +378,11 @@ private:
         double current_state
     ) const;
 
-    // -------------------------------------------------------------------------
-    // Gradient components
-    // -------------------------------------------------------------------------
-
     /**
-     * Compute gradient with current state
+     * Log-pseudoposterior of a pairwise interaction at proposed = current + delta.
+     * Used by tune_proposal_sd() for Robbins-Monro adaptation.
      */
-    arma::vec gradient_internal() const;
-
-    /**
-     * Compute gradient with external state (avoids modifying model)
-     */
-    arma::vec gradient_with_state(
-        const arma::mat& main_eff,
-        const arma::mat& pairwise_eff,
-        const arma::mat& residual_mat
-    ) const;
+    double log_pseudoposterior_pairwise_at_delta(int var1, int var2, double delta) const;
 
     // -------------------------------------------------------------------------
     // Parameter vectorization
@@ -415,13 +430,15 @@ private:
 
     /**
      * Update single main effect parameter via RWM
+     * @return acceptance probability (for RWM adaptation)
      */
-    void update_main_effect_parameter(int variable, int category, int parameter);
+    double update_main_effect_parameter(int variable, int category, int parameter);
 
     /**
      * Update single pairwise effect via RWM
+     * @return acceptance probability (for RWM adaptation)
      */
-    void update_pairwise_effect(int var1, int var2);
+    double update_pairwise_effect(int var1, int var2);
 
     /**
      * Update single edge indicator (spike-and-slab)

@@ -338,7 +338,8 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
     }
 }
 
-void GGMModel::do_one_mh_step() {
+void GGMModel::do_one_mh_step(int iteration) {
+    (void)iteration;
 
     // Update off-diagonals (upper triangle)
     for (size_t i = 0; i < p_ - 1; ++i) {

@@ -42,7 +42,6 @@
  * @param target_acceptance   Target acceptance rate for NUTS/HMC (default: 0.8)
  * @param max_tree_depth      Maximum tree depth for NUTS (default: 10)
  * @param num_leapfrogs       Number of leapfrog steps for HMC (default: 10)
- * @param edge_selection_start Iteration to start edge selection (-1 = no_warmup/2)
  *
  * @return List with per-chain results including samples and diagnostics
  */
@@ -71,11 +70,18 @@ Rcpp::List sample_omrf(
     const double target_acceptance = 0.8,
     const int max_tree_depth = 10,
     const int num_leapfrogs = 10,
-    const int edge_selection_start = -1
+    const Rcpp::Nullable<Rcpp::NumericMatrix> pairwise_scaling_factors_nullable = R_NilValue
 ) {
     // Create model from R input
     OMRFModel model = createOMRFModelFromR(
         inputFromR, prior_inclusion_prob, initial_edge_indicators, edge_selection);
+
+    // Set pairwise scaling factors (if provided)
+    if (pairwise_scaling_factors_nullable.isNotNull()) {
+        arma::mat sf = Rcpp::as<arma::mat>(
+            Rcpp::NumericMatrix(pairwise_scaling_factors_nullable.get()));
+        model.set_pairwise_scaling_factors(sf);
+    }
 
     // Set up missing data imputation
     if (na_impute && missing_index_nullable.isNotNull()) {
@@ -99,7 +105,6 @@ Rcpp::List sample_omrf(
     config.no_iter = no_iter;
     config.no_warmup = no_warmup;
     config.edge_selection = edge_selection;
-    config.edge_selection_start = edge_selection_start;
     config.seed = seed;
     config.target_acceptance = target_acceptance;
     config.max_tree_depth = max_tree_depth;

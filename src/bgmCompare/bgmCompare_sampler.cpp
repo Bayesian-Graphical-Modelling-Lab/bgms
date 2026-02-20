@@ -954,7 +954,7 @@ SamplerResult update_nuts_bgmcompare(
     pairwise_effect_indices, selection
   );
 
-  SamplerResult result = nuts_sampler_joint(
+  SamplerResult result = nuts_sampler(
     current_state, hmc_adapt.current_step_size(), joint,
     active_inv_mass, rng, nuts_max_depth
   );

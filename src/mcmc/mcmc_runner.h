@@ -13,10 +13,11 @@
 #include "mcmc/sampler_config.h"
 #include "mcmc/base_sampler.h"
 #include "mcmc/mcmc_utils.h"
+#include "mcmc/mcmc_adaptation.h"
 
 
 /// Create a sampler matching config.sampler_type.
-std::unique_ptr<BaseSampler> create_sampler(const SamplerConfig& config);
+std::unique_ptr<BaseSampler> create_sampler(const SamplerConfig& config, WarmupSchedule& schedule);
 
 /// Run a single MCMC chain (warmup + sampling) writing into chain_result.
 void run_mcmc_chain(

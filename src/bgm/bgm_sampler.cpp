@@ -619,7 +619,7 @@ void update_hmc_bgm(
  * Procedure:
  *  - Flatten parameters into a vector with `vectorize_model_parameters_bgm()`.
  *  - Define a joint function using `logp_and_gradient()` for efficient fused computation.
- *  - Run the NUTS sampler via `nuts_sampler_joint()`, building a trajectory
+ *  - Run the NUTS sampler via `nuts_sampler()`, building a trajectory
  *    up to the maximum tree depth.
  *  - Unpack the accepted state back into `main_effects` and `pairwise_effects`.
  *  - Recompute the residual matrix and update the adaptation controller.
@@ -728,7 +728,7 @@ SamplerResult update_nuts_bgm(
     is_ordinal_variable, selection
   );
 
-  SamplerResult result = nuts_sampler_joint(
+  SamplerResult result = nuts_sampler(
     current_state, adapt.current_step_size(), joint,
     active_inv_mass, rng, nuts_max_depth
   );

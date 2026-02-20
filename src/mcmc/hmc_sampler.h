@@ -11,8 +11,8 @@
  */
 class HMCSampler : public AdaptiveGradientSampler {
 public:
-    explicit HMCSampler(const SamplerConfig& config)
-        : AdaptiveGradientSampler(config.initial_step_size, config.target_acceptance, config.no_warmup),
+    explicit HMCSampler(const SamplerConfig& config, WarmupSchedule& schedule)
+        : AdaptiveGradientSampler(config.initial_step_size, config.target_acceptance, schedule),
           num_leapfrogs_(config.num_leapfrogs)
     {}
 

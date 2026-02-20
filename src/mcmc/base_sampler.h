@@ -13,46 +13,30 @@
  * - Hamiltonian Monte Carlo (HMC)
  * - No-U-Turn Sampler (NUTS)
  *
- * All samplers follow the same workflow:
- *   1. warmup_step() during warmup (may adapt parameters)
- *   2. finalize_warmup() after warmup completes
- *   3. sample_step() during sampling (fixed parameters)
- *
- * The sampler asks the model for logp/gradient evaluations but owns
- * the sampling algorithm logic.
+ * The sampler internally decides whether to adapt based on the iteration
+ * number and its warmup schedule reference.
  */
 class BaseSampler {
 public:
     virtual ~BaseSampler() = default;
 
     /**
-     * Perform one step during warmup phase
+     * Perform one MCMC step
      *
-     * During warmup, samplers may adapt their parameters (step size,
-     * proposal covariance, mass matrix, etc.)
+     * The sampler internally decides whether to adapt based on the
+     * iteration number and its warmup schedule reference.
      *
-     * @param model  The model to sample from
+     * @param model      The model to sample from
+     * @param iteration  Current iteration (0-based, spans warmup + sampling)
      * @return SamplerResult with new state and diagnostics
      */
-    virtual SamplerResult warmup_step(BaseModel& model) = 0;
+    virtual SamplerResult step(BaseModel& model, int iteration) = 0;
 
     /**
-     * Finalize warmup phase
-     *
-     * Called after all warmup iterations complete. Samplers should
-     * fix their adapted parameters for the sampling phase.
+     * Initialize the sampler before the MCMC loop.
+     * For gradient-based samplers, runs the step-size heuristic. Default no-op.
      */
-    virtual void finalize_warmup() {}
-
-    /**
-     * Perform one step during sampling phase
-     *
-     * Sampling steps use fixed parameters (no adaptation).
-     *
-     * @param model  The model to sample from
-     * @return SamplerResult with new state and diagnostics
-     */
-    virtual SamplerResult sample_step(BaseModel& model) = 0;
+    virtual void initialize(BaseModel& /*model*/) {}
 
     /**
      * Check if this sampler produces NUTS-style diagnostics

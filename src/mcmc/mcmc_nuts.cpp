@@ -278,7 +278,7 @@ BuildTreeResult build_tree(
 
 
 /**
- * Function: nuts_sampler_joint
+ * Function: nuts_sampler
  *
  * NUTS sampler using a joint log_post+gradient function.
  * Creates a joint-only Memoizer internally, which computes both values
@@ -296,7 +296,7 @@ BuildTreeResult build_tree(
  *  - A SamplerResult struct containing final sampled position,
  *    mean acceptance probability, and diagnostics.
  */
-SamplerResult nuts_sampler_joint(
+SamplerResult nuts_sampler(
     const arma::vec& init_theta,
     double step_size,
     const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,

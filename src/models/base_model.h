@@ -7,6 +7,7 @@
 // Forward declarations
 struct SamplerResult;
 struct SafeRNG;
+struct WarmupSchedule;
 
 class BaseModel {
 public:
@@ -37,9 +38,20 @@ public:
     }
 
     // For Metropolis-Hastings (model handles parameter groups internally)
-    virtual void do_one_mh_step() {
+    virtual void do_one_mh_step(int iteration = -1) {
+        (void)iteration;
         throw std::runtime_error("do_one_mh_step method must be implemented in derived class");
     }
+
+    // Initialize RWM adaptation controllers (called once before MCMC loop)
+    virtual void init_mh_adaptation(const WarmupSchedule& /*schedule*/) {}
+
+    // Stage 3b proposal-SD tuning (called every iteration, checks schedule internally)
+    virtual void tune_proposal_sd(int /*iteration*/, const WarmupSchedule& /*schedule*/) {}
+
+    // Called at the start of every iteration (before edge selection and sampling).
+    // Subclasses may shuffle edge order or advance the RNG here.
+    virtual void prepare_iteration() {}
 
     // Edge selection (for models with spike-and-slab priors)
     virtual void update_edge_indicators() {

@@ -383,41 +383,41 @@
 #'
 #' @export
 bgm = function(
-  x,
-  variable_type = "ordinal",
-  baseline_category,
-  iter = 1e3,
-  warmup = 1e3,
-  pairwise_scale = 2.5,
-  main_alpha = 0.5,
-  main_beta = 0.5,
-  edge_selection = TRUE,
-  edge_prior = c("Bernoulli", "Beta-Bernoulli", "Stochastic-Block"),
-  inclusion_probability = 0.5,
-  beta_bernoulli_alpha = 1,
-  beta_bernoulli_beta = 1,
-  beta_bernoulli_alpha_between = 1,
-  beta_bernoulli_beta_between = 1,
-  dirichlet_alpha = 1,
-  lambda = 1,
-  na_action = c("listwise", "impute"),
-  update_method = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
-  target_accept,
-  hmc_num_leapfrogs = 100,
-  nuts_max_depth = 10,
-  learn_mass_matrix = TRUE,
-  chains = 4,
-  cores = parallel::detectCores(),
-  display_progress = c("per-chain", "total", "none"),
-  backend = c("legacy", "new"),
-  seed = NULL,
-  standardize = FALSE,
-  verbose = getOption("bgms.verbose", TRUE),
-  interaction_scale,
-  burnin,
-  save,
-  threshold_alpha,
-  threshold_beta
+    x,
+    variable_type = "ordinal",
+    baseline_category,
+    iter = 1e3,
+    warmup = 1e3,
+    pairwise_scale = 2.5,
+    main_alpha = 0.5,
+    main_beta = 0.5,
+    edge_selection = TRUE,
+    edge_prior = c("Bernoulli", "Beta-Bernoulli", "Stochastic-Block"),
+    inclusion_probability = 0.5,
+    beta_bernoulli_alpha = 1,
+    beta_bernoulli_beta = 1,
+    beta_bernoulli_alpha_between = 1,
+    beta_bernoulli_beta_between = 1,
+    dirichlet_alpha = 1,
+    lambda = 1,
+    na_action = c("listwise", "impute"),
+    update_method = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
+    target_accept,
+    hmc_num_leapfrogs = 100,
+    nuts_max_depth = 10,
+    learn_mass_matrix = TRUE,
+    chains = 4,
+    cores = parallel::detectCores(),
+    display_progress = c("per-chain", "total", "none"),
+    backend = c("legacy", "new"),
+    seed = NULL,
+    standardize = FALSE,
+    verbose = getOption("bgms.verbose", TRUE),
+    interaction_scale,
+    burnin,
+    save,
+    threshold_alpha,
+    threshold_beta
 ) {
   # Set verbose option for internal functions, restore on exit
 
@@ -591,7 +591,7 @@ bgm = function(
   # Check display_progress ------------------------------------------------------
   progress_type = progress_type_from_display_progress(display_progress)
 
-# Setting the seed
+  # Setting the seed
   if(missing(seed) || is.null(seed)) {
     seed = sample.int(.Machine$integer.max, 1)
   }
@@ -633,7 +633,7 @@ bgm = function(
     out_raw = sample_ggm(
       inputFromR = list(X = x),
       prior_inclusion_prob = matrix(inclusion_probability,
-        nrow = num_variables, ncol = num_variables),
+                                    nrow = num_variables, ncol = num_variables),
       initial_edge_indicators = indicator,
       no_iter = iter,
       no_warmup = warmup,
@@ -699,12 +699,12 @@ bgm = function(
 
   num_variables = ncol(x)
   num_interactions = num_variables * (num_variables - 1) / 2
-  num_thresholds = sum(num_categories)
+  num_thresholds = sum(ifelse(variable_bool, num_categories, 2L))
 
   # Starting value of model matrix ---------------------------------------------
   indicator = matrix(1,
-    nrow = num_variables,
-    ncol = num_variables
+                     nrow = num_variables,
+                     ncol = num_variables
   )
 
   # Starting values of interactions and thresholds (posterior mode) -------------
@@ -713,8 +713,8 @@ bgm = function(
 
   # Precompute the number of observations per category for each variable --------
   counts_per_category = matrix(0,
-    nrow = max(num_categories) + 1,
-    ncol = num_variables
+                               nrow = max(num_categories) + 1,
+                               ncol = num_variables
   )
   for(variable in 1:num_variables) {
     for(category in 0:num_categories[variable]) {
@@ -740,8 +740,8 @@ bgm = function(
 
   # Index matrix used in the c++ functions  ------------------------------------
   interaction_index_matrix = matrix(0,
-    nrow = num_variables * (num_variables - 1) / 2,
-    ncol = 3
+                                    nrow = num_variables * (num_variables - 1) / 2,
+                                    ncol = 3
   )
   cntr = 0
   for(variable1 in 1:(num_variables - 1)) {
@@ -838,7 +838,7 @@ bgm = function(
     out_raw = sample_omrf(
       inputFromR = input_list,
       prior_inclusion_prob = matrix(inclusion_probability,
-        nrow = num_variables, ncol = num_variables),
+                                    nrow = num_variables, ncol = num_variables),
       initial_edge_indicators = indicator,
       no_iter = iter,
       no_warmup = warmup,
@@ -859,36 +859,37 @@ bgm = function(
       lambda = lambda,
       target_acceptance = target_accept,
       max_tree_depth = nuts_max_depth,
-      num_leapfrogs = hmc_num_leapfrogs
+      num_leapfrogs = hmc_num_leapfrogs,
+      pairwise_scaling_factors_nullable = pairwise_scaling_factors
     )
 
     out = transform_new_backend_output(out_raw, num_thresholds)
   } else {
 
-  out = run_bgm_parallel(
-    observations = x, num_categories = num_categories,
-    pairwise_scale = pairwise_scale, edge_prior = edge_prior,
-    inclusion_probability = inclusion_probability,
-    beta_bernoulli_alpha = beta_bernoulli_alpha,
-    beta_bernoulli_beta = beta_bernoulli_beta,
-    beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
-    beta_bernoulli_beta_between = beta_bernoulli_beta_between,
-    dirichlet_alpha = dirichlet_alpha, lambda = lambda,
-    interaction_index_matrix = interaction_index_matrix, iter = iter,
-    warmup = warmup, counts_per_category = counts_per_category,
-    blume_capel_stats = blume_capel_stats,
-    main_alpha = main_alpha, main_beta = main_beta,
-    na_impute = na_impute, missing_index = missing_index,
-    is_ordinal_variable = variable_bool,
-    baseline_category = baseline_category, edge_selection = edge_selection,
-    update_method = update_method,
-    pairwise_effect_indices = pairwise_effect_indices,
-    target_accept = target_accept, pairwise_stats = pairwise_stats,
-    hmc_num_leapfrogs = hmc_num_leapfrogs, nuts_max_depth = nuts_max_depth,
-    learn_mass_matrix = learn_mass_matrix, num_chains = chains,
-    nThreads = cores, seed = seed, progress_type = progress_type,
-    pairwise_scaling_factors = pairwise_scaling_factors
-  )
+    out = run_bgm_parallel(
+      observations = x, num_categories = num_categories,
+      pairwise_scale = pairwise_scale, edge_prior = edge_prior,
+      inclusion_probability = inclusion_probability,
+      beta_bernoulli_alpha = beta_bernoulli_alpha,
+      beta_bernoulli_beta = beta_bernoulli_beta,
+      beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+      beta_bernoulli_beta_between = beta_bernoulli_beta_between,
+      dirichlet_alpha = dirichlet_alpha, lambda = lambda,
+      interaction_index_matrix = interaction_index_matrix, iter = iter,
+      warmup = warmup, counts_per_category = counts_per_category,
+      blume_capel_stats = blume_capel_stats,
+      main_alpha = main_alpha, main_beta = main_beta,
+      na_impute = na_impute, missing_index = missing_index,
+      is_ordinal_variable = variable_bool,
+      baseline_category = baseline_category, edge_selection = edge_selection,
+      update_method = update_method,
+      pairwise_effect_indices = pairwise_effect_indices,
+      target_accept = target_accept, pairwise_stats = pairwise_stats,
+      hmc_num_leapfrogs = hmc_num_leapfrogs, nuts_max_depth = nuts_max_depth,
+      learn_mass_matrix = learn_mass_matrix, num_chains = chains,
+      nThreads = cores, seed = seed, progress_type = progress_type,
+      pairwise_scaling_factors = pairwise_scaling_factors
+    )
 
   } # end backend branch
 

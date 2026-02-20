@@ -117,7 +117,7 @@ public:
     double log_likelihood(const arma::mat& omega) const { return log_density_impl(omega,  arma::chol(omega)); };
     double log_likelihood()                       const { return log_density_impl(precision_matrix_, cholesky_of_precision_); }
 
-    void do_one_mh_step() override;
+    void do_one_mh_step(int iteration = -1) override;
 
     size_t parameter_dimension() const override { return dim_; }
     size_t full_parameter_dimension() const override { return dim_; }

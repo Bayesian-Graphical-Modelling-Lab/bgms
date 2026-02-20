@@ -27,7 +27,6 @@ struct SamplerConfig {
 
     // Edge selection settings
     bool edge_selection = false;
-    int edge_selection_start = -1;  // -1 = no_warmup (default, start at sampling)
 
     // Missing data imputation
     bool na_impute = false;
@@ -37,12 +36,4 @@ struct SamplerConfig {
 
     // Constructor with defaults
     SamplerConfig() = default;
-
-    // Get actual edge selection start iteration
-    int get_edge_selection_start() const {
-        if (edge_selection_start < 0) {
-            return no_warmup;  // Default: start at beginning of sampling
-        }
-        return edge_selection_start;
-    }
 };

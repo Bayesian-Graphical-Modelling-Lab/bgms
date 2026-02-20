@@ -13,76 +13,67 @@
 /**
  * AdaptiveGradientSampler - Base for gradient-based MCMC with warmup adaptation
  *
- * Shared warmup logic for NUTS and HMC:
- *  Stage 1: step-size adaptation only
- *  Stage 2: mass matrix estimation in doubling windows + step-size re-tuning
- *  Stage 3: final step-size averaging
+ * Uses HMCAdaptationController (from mcmc_adaptation.h) with the shared
+ * WarmupSchedule constructed by the runner.
+ *
+ * The adaptation controller handles:
+ *  - Step-size dual averaging (Stages 1, 2, 3a, 3c)
+ *  - Mass matrix estimation in doubling windows (Stage 2)
+ *  - Step-size freezing at Stage 3b boundary
  */
 class AdaptiveGradientSampler : public BaseSampler {
 public:
-    AdaptiveGradientSampler(double step_size, double target_acceptance, int n_warmup)
+    AdaptiveGradientSampler(double step_size, double target_acceptance,
+                            WarmupSchedule& schedule)
         : step_size_(step_size),
           target_acceptance_(target_acceptance),
-          warmup_iteration_(0),
-          initialized_(false),
-          step_adapter_(step_size)
-    {
-        build_warmup_schedule(n_warmup);
-    }
+          schedule_(schedule),
+          initialized_(false)
+    {}
 
-    SamplerResult warmup_step(BaseModel& model) override {
-        if (!initialized_) {
-            initialize(model);
-            initialized_ = true;
-        }
+    SamplerResult step(BaseModel& model, int iteration) override {
+        // Use adaptation controller's current step size for this iteration
+        step_size_ = adapt_->current_step_size();
 
         SamplerResult result = do_gradient_step(model);
 
-        step_adapter_.update(result.accept_prob, target_acceptance_);
-        step_size_ = step_adapter_.current();
+        // Let the adaptation controller handle step-size and mass-matrix logic
+        arma::vec full_params = model.get_full_vectorized_parameters();
+        adapt_->update(full_params, result.accept_prob, iteration);
 
-        if (in_stage2()) {
-            arma::vec full_params = model.get_full_vectorized_parameters();
-            mass_accumulator_->update(full_params);
+        // If mass matrix was just updated, apply it and re-run the step-size heuristic
+        if (adapt_->mass_matrix_just_updated()) {
+            arma::vec new_inv_mass = adapt_->inv_mass_diag();
+            model.set_inv_mass(new_inv_mass);
 
-            if (at_window_end()) {
-                inv_mass_ = mass_accumulator_->variance();
-                mass_accumulator_->reset();
-                model.set_inv_mass(inv_mass_);
+            arma::vec theta = model.get_vectorized_parameters();
+            SafeRNG& rng = model.get_rng();
+            auto grad_fn = [&model](const arma::vec& params) -> arma::vec {
+                return model.logp_and_gradient(params).second;
+            };
+            auto joint_fn = [&model](const arma::vec& params)
+                -> std::pair<double, arma::vec> {
+                return model.logp_and_gradient(params);
+            };
+            arma::vec active_inv_mass = model.get_active_inv_mass();
 
-                arma::vec theta = model.get_vectorized_parameters();
-                SafeRNG& rng = model.get_rng();
-                auto grad_fn = [&model](const arma::vec& params) -> arma::vec {
-                    return model.logp_and_gradient(params).second;
-                };
-                auto joint_fn = [&model](const arma::vec& params) -> std::pair<double, arma::vec> {
-                    return model.logp_and_gradient(params);
-                };
-                arma::vec active_inv_mass = model.get_active_inv_mass();
-
-                double new_eps = heuristic_initial_step_size(
-                    theta, grad_fn, joint_fn, active_inv_mass, rng,
-                    0.625, step_size_);
-                step_size_ = new_eps;
-                step_adapter_.restart(new_eps);
-            }
+            double new_eps = heuristic_initial_step_size(
+                theta, grad_fn, joint_fn, active_inv_mass, rng,
+                0.625, adapt_->current_step_size());
+            adapt_->reinit_stepsize(new_eps);
         }
 
-        warmup_iteration_++;
+        // Update step_size_ from controller (may have changed due to mass update)
+        step_size_ = adapt_->current_step_size();
+
         return result;
     }
 
-    void finalize_warmup() override {
-        step_size_ = step_adapter_.averaged();
-    }
-
-    SamplerResult sample_step(BaseModel& model) override {
-        return do_gradient_step(model);
-    }
-
     double get_step_size() const { return step_size_; }
-    double get_averaged_step_size() const { return step_adapter_.averaged(); }
-    const arma::vec& get_inv_mass() const { return inv_mass_; }
+    double get_averaged_step_size() const {
+        return adapt_ ? adapt_->final_step_size() : step_size_;
+    }
+    const arma::vec& get_inv_mass() const { return adapt_->inv_mass_diag(); }
 
 protected:
     virtual SamplerResult do_gradient_step(BaseModel& model) = 0;
@@ -90,65 +81,45 @@ protected:
     double step_size_;
     double target_acceptance_;
 
+public:
+    /**
+     * Initialize the adaptation controller and run the step-size heuristic.
+     * Called by the runner before the MCMC loop.
+     */
+    void initialize(BaseModel& model) override {
+        if (initialized_) return;
+        do_initialize(model);
+        initialized_ = true;
+    }
+
 private:
-    void build_warmup_schedule(int n_warmup) {
-        stage1_end_ = static_cast<int>(0.075 * n_warmup);
-        stage3_start_ = n_warmup - static_cast<int>(0.10 * n_warmup);
-
-        window_ends_.clear();
-        int cur = stage1_end_;
-        int wsize = 25;
-
-        while (cur < stage3_start_) {
-            int win = std::min(wsize, stage3_start_ - cur);
-            window_ends_.push_back(cur + win);
-            cur += win;
-            wsize = std::min(wsize * 2, stage3_start_ - cur);
-        }
-    }
-
-    bool in_stage2() const {
-        return warmup_iteration_ >= stage1_end_ && warmup_iteration_ < stage3_start_;
-    }
-
-    bool at_window_end() const {
-        for (int end : window_ends_) {
-            if (warmup_iteration_ + 1 == end) return true;
-        }
-        return false;
-    }
-
-    void initialize(BaseModel& model) {
+    void do_initialize(BaseModel& model) {
+        int dim = static_cast<int>(model.full_parameter_dimension());
         arma::vec theta = model.get_vectorized_parameters();
         SafeRNG& rng = model.get_rng();
 
-        inv_mass_ = arma::ones<arma::vec>(model.full_parameter_dimension());
-        model.set_inv_mass(inv_mass_);
-
-        mass_accumulator_ = std::make_unique<DiagMassMatrixAccumulator>(
-            static_cast<int>(model.full_parameter_dimension()));
+        // Initialize inverse mass to ones
+        arma::vec init_inv_mass = arma::ones<arma::vec>(dim);
+        model.set_inv_mass(init_inv_mass);
 
         auto grad_fn = [&model](const arma::vec& params) -> arma::vec {
             return model.logp_and_gradient(params).second;
         };
-        auto joint_fn = [&model](const arma::vec& params) -> std::pair<double, arma::vec> {
+        auto joint_fn = [&model](const arma::vec& params)
+            -> std::pair<double, arma::vec> {
             return model.logp_and_gradient(params);
         };
 
-        step_size_ = heuristic_initial_step_size(
+        double init_eps = heuristic_initial_step_size(
             theta, grad_fn, joint_fn, rng, target_acceptance_);
+        step_size_ = init_eps;
 
-        step_adapter_.restart(step_size_);
+        // Construct the adaptation controller with the shared schedule
+        adapt_ = std::make_unique<HMCAdaptationController>(
+            dim, init_eps, target_acceptance_, schedule_);
     }
 
-    int warmup_iteration_;
+    WarmupSchedule& schedule_;
     bool initialized_;
-
-    DualAveraging step_adapter_;
-    arma::vec inv_mass_;
-    std::unique_ptr<DiagMassMatrixAccumulator> mass_accumulator_;
-
-    int stage1_end_;
-    int stage3_start_;
-    std::vector<int> window_ends_;
+    std::unique_ptr<HMCAdaptationController> adapt_;
 };
