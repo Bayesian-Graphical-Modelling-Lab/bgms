@@ -253,37 +253,34 @@ void OMRFModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) 
     double t = iteration - schedule.stage3b_start + 1;
     double rm_weight = std::pow(t, -rm_decay);
 
-    for (size_t v1 = 0; v1 < p_ - 1; ++v1) {
-        for (size_t v2 = v1 + 1; v2 < p_; ++v2) {
-            double current = pairwise_effects_(v1, v2);
-            double proposal_sd = proposal_sd_pairwise_(v1, v2);
+    const int num_variables = static_cast<int>(p_);
 
-            // Log-pseudoposterior as function of theta for rwm_sampler
+    for (int variable1 = 0; variable1 < num_variables - 1; variable1++) {
+        for (int variable2 = variable1 + 1; variable2 < num_variables; variable2++) {
+            double current = pairwise_effects_(variable1, variable2);
+            double proposal_sd = proposal_sd_pairwise_(variable1, variable2);
+
             auto log_post = [&](double theta) {
                 double delta = theta - current;
-                return log_pseudoposterior_pairwise_at_delta(
-                    static_cast<int>(v1), static_cast<int>(v2), delta
-                );
+                return log_pseudoposterior_pairwise_at_delta(variable1, variable2, delta);
             };
 
             SamplerResult result = rwm_sampler(current, proposal_sd, log_post, rng_);
 
             double value = result.state[0];
-            pairwise_effects_(v1, v2) = value;
-            pairwise_effects_(v2, v1) = value;
+            pairwise_effects_(variable1, variable2) = value;
+            pairwise_effects_(variable2, variable1) = value;
 
             if (current != value) {
                 double delta = value - current;
-                // Convert observations to double for the RWM proposal
-                residual_matrix_.col(v1) += arma::conv_to<arma::vec>::from(observations_.col(v2)) * delta;
-                residual_matrix_.col(v2) += arma::conv_to<arma::vec>::from(observations_.col(v1)) * delta;
+                residual_matrix_.col(variable1) += arma::conv_to<arma::vec>::from(observations_.col(variable2)) * delta;
+                residual_matrix_.col(variable2) += arma::conv_to<arma::vec>::from(observations_.col(variable1)) * delta;
             }
 
-            // Immediate per-pair Robbins-Monro update
             proposal_sd = update_proposal_sd_with_robbins_monro(
                 proposal_sd, MY_LOG(result.accept_prob), rm_weight, target_accept);
-            proposal_sd_pairwise_(v1, v2) = proposal_sd;
-            proposal_sd_pairwise_(v2, v1) = proposal_sd;
+            proposal_sd_pairwise_(variable1, variable2) = proposal_sd;
+            proposal_sd_pairwise_(variable2, variable1) = proposal_sd;
         }
     }
 
@@ -653,39 +650,45 @@ double OMRFModel::log_pseudoposterior_internal() const {
 
 
 double OMRFModel::log_pseudoposterior_main_component(int variable, int category, int parameter) const {
-    double log_post = 0.0;
+    double log_posterior = 0.0;
 
-    auto log_beta_prior = [this](double x) {
-        return x * main_alpha_ - std::log1p(std::exp(x)) * (main_alpha_ + main_beta_);
+    auto log_beta_prior = [&](double main_effect_param) {
+        return main_effect_param * main_alpha_ - std::log1p(MY_EXP(main_effect_param)) * (main_alpha_ + main_beta_);
     };
 
-    int num_cats = num_categories_(variable);
+    const int num_cats = num_categories_(variable);
+    arma::vec bound = num_cats * residual_matrix_.col(variable);
 
     if (is_ordinal_variable_(variable)) {
-        log_post += log_beta_prior(main_effects_(variable, category));
-        log_post += main_effects_(variable, category) * counts_per_category_(category + 1, variable);
+        const double value = main_effects_(variable, category);
+        log_posterior += value * counts_per_category_(category + 1, variable);
+        log_posterior += log_beta_prior(value);
 
         arma::vec residual_score = residual_matrix_.col(variable);
-        arma::vec main_param = main_effects_.row(variable).cols(0, num_cats - 1).t();
-        arma::vec bound = num_cats * residual_score;
+        arma::vec main_effect_param = main_effects_.row(variable).cols(0, num_cats - 1).t();
 
-        arma::vec denom = compute_denom_ordinal(residual_score, main_param, bound);
-        log_post -= arma::accu(bound + ARMA_MY_LOG(denom));
+        arma::vec denom = compute_denom_ordinal(residual_score, main_effect_param, bound);
+        log_posterior -= arma::accu(bound + ARMA_MY_LOG(denom));
     } else {
-        log_post += log_beta_prior(main_effects_(variable, parameter));
-        log_post += main_effects_(variable, parameter) * blume_capel_stats_(parameter, variable);
+        const double value = main_effects_(variable, parameter);
+        const double linear_main_effect = main_effects_(variable, 0);
+        const double quadratic_main_effect = main_effects_(variable, 1);
+        const int ref = baseline_category_(variable);
+
+        log_posterior += value * blume_capel_stats_(parameter, variable);
+        log_posterior += log_beta_prior(value);
 
         arma::vec residual_score = residual_matrix_.col(variable);
-        arma::vec bound(n_);
+        arma::vec denom(n_, arma::fill::zeros);
 
-        arma::vec denom = compute_denom_blume_capel(
-            residual_score, main_effects_(variable, 0), main_effects_(variable, 1),
-            baseline_category_(variable), num_cats, bound
+        denom = compute_denom_blume_capel(
+            residual_score, linear_main_effect, quadratic_main_effect, ref, num_cats, bound
         );
-        log_post -= arma::accu(bound + ARMA_MY_LOG(denom));
+
+        log_posterior -= arma::accu(bound + ARMA_MY_LOG(denom));
     }
 
-    return log_post;
+    return log_posterior;
 }
 
 
@@ -780,19 +783,15 @@ double OMRFModel::log_pseudolikelihood_ratio_interaction(
     double log_ratio = 0.0;
     const double delta = proposed_state - current_state;
 
-    // Extract score vectors for both variables across all persons
     arma::ivec score1 = observations_.col(variable1);
     arma::ivec score2 = observations_.col(variable2);
 
-    // (1) Direct interaction contribution to the linear predictor
     log_ratio += 2.0 * pairwise_stats_(variable1, variable2) * delta;
 
-    // (2) Change in pseudo-likelihood for variable1
     log_ratio += compute_log_likelihood_ratio_for_variable(
         variable1, score2, proposed_state, current_state
     );
 
-    // (3) Symmetric change for variable2
     log_ratio += compute_log_likelihood_ratio_for_variable(
         variable2, score1, proposed_state, current_state
     );
@@ -803,13 +802,10 @@ double OMRFModel::log_pseudolikelihood_ratio_interaction(
 
 double OMRFModel::log_pseudoposterior_pairwise_at_delta(int var1, int var2, double delta) const {
     const int num_observations = static_cast<int>(n_);
-
-    // Compute the proposed pairwise effect value
     const double proposed_value = pairwise_effects_(var1, var2) + delta;
 
     double log_pseudo_posterior = 2.0 * proposed_value * pairwise_stats_(var1, var2);
 
-    // Pre-convert observation columns to double (needed for delta adjustment)
     arma::vec obs_var1 = arma::conv_to<arma::vec>::from(observations_.col(var1));
     arma::vec obs_var2 = arma::conv_to<arma::vec>::from(observations_.col(var2));
 
@@ -817,32 +813,24 @@ double OMRFModel::log_pseudoposterior_pairwise_at_delta(int var1, int var2, doub
         int num_cats = num_categories_(var);
         const arma::vec& obs_other = (var == var1) ? obs_var2 : obs_var1;
 
-        // Use residual_matrix with delta adjustment: O(n) instead of O(n*p)
         arma::vec residual_score = residual_matrix_.col(var) + obs_other * delta;
         arma::vec denominator = arma::zeros(num_observations);
         arma::vec bound = num_cats * residual_score;
 
         if (is_ordinal_variable_(var)) {
             arma::vec main_effect_param = main_effects_.row(var).cols(0, num_cats - 1).t();
-
-            denominator += compute_denom_ordinal(
-                residual_score, main_effect_param, bound
-            );
+            denominator += compute_denom_ordinal(residual_score, main_effect_param, bound);
         } else {
             const int ref = baseline_category_(var);
-
             denominator = compute_denom_blume_capel(
-                residual_score, main_effects_(var, 0), main_effects_(var, 1), ref,
-                num_cats, bound
+                residual_score, main_effects_(var, 0), main_effects_(var, 1), ref, num_cats, bound
             );
         }
 
-        // Subtract log partition function and bounds adjustment
         log_pseudo_posterior -= arma::accu(ARMA_MY_LOG(denominator));
         log_pseudo_posterior -= arma::accu(bound);
     }
 
-    // Add Cauchy prior terms for included pairwise effects
     if (edge_indicators_(var1, var2) == 1) {
         const double scaled_pairwise_scale = pairwise_scale_ * pairwise_scaling_factors_(var1, var2);
         log_pseudo_posterior += R::dcauchy(proposed_value, 0.0, scaled_pairwise_scale, true);
@@ -1172,26 +1160,14 @@ double OMRFModel::update_main_effect_parameter(int variable, int category, int p
         ? proposal_sd_main_(variable, category)
         : proposal_sd_main_(variable, parameter);
 
-    int cat_for_log = is_ordinal_variable_(variable) ? category : -1;
-    int par_for_log = is_ordinal_variable_(variable) ? -1 : parameter;
+    auto log_post = [&](double theta) {
+        current = theta;
+        return log_pseudoposterior_main_component(variable, category, parameter);
+    };
 
-    double current_value = current;
-    double proposed_value = rnorm(rng_, current_value, proposal_sd);
-
-    // Evaluate log-posterior at proposed
-    current = proposed_value;
-    double lp_proposed = log_pseudoposterior_main_component(variable, cat_for_log, par_for_log);
-
-    // Evaluate log-posterior at current
-    current = current_value;
-    double lp_current = log_pseudoposterior_main_component(variable, cat_for_log, par_for_log);
-
-    double log_accept = lp_proposed - lp_current;
-    double accept_prob = std::min(1.0, MY_EXP(log_accept));
-    if (runif(rng_) < accept_prob) {
-        current = proposed_value;
-    }
-    return accept_prob;
+    SamplerResult result = rwm_sampler(current, proposal_sd, log_post, rng_);
+    current = result.state[0];
+    return result.accept_prob;
 }
 
 
@@ -1200,61 +1176,65 @@ double OMRFModel::update_pairwise_effect(int var1, int var2) {
 
     double current_value = pairwise_effects_(var1, var2);
     double proposal_sd = proposal_sd_pairwise_(var1, var2);
-    double proposed_value = rnorm(rng_, current_value, proposal_sd);
 
-    double log_accept = log_pseudolikelihood_ratio_interaction(
-        var1, var2, proposed_value, current_value);
+    auto log_post = [&](double theta) {
+        double delta = theta - current_value;
+        return log_pseudoposterior_pairwise_at_delta(var1, var2, delta);
+    };
 
-    // Cauchy prior ratio
-    double scaled_scale = pairwise_scale_ * pairwise_scaling_factors_(var1, var2);
-    log_accept += R::dcauchy(proposed_value, 0.0, scaled_scale, true)
-                - R::dcauchy(current_value, 0.0, scaled_scale, true);
+    SamplerResult result = rwm_sampler(current_value, proposal_sd, log_post, rng_);
 
-    double accept_prob = std::min(1.0, MY_EXP(log_accept));
+    double value = result.state[0];
+    pairwise_effects_(var1, var2) = value;
+    pairwise_effects_(var2, var1) = value;
 
-    if (runif(rng_) < accept_prob) {
-        double delta = proposed_value - current_value;
-        pairwise_effects_(var1, var2) = proposed_value;
-        pairwise_effects_(var2, var1) = proposed_value;
-        update_residual_columns(var1, var2, delta);
+    if (current_value != value) {
+        double delta = value - current_value;
+        residual_matrix_.col(var1) += arma::conv_to<arma::vec>::from(observations_.col(var2)) * delta;
+        residual_matrix_.col(var2) += arma::conv_to<arma::vec>::from(observations_.col(var1)) * delta;
     }
 
-    return accept_prob;
+    return result.accept_prob;
 }
 
 
 void OMRFModel::update_edge_indicator(int var1, int var2) {
-    double current_state = pairwise_effects_(var1, var2);
-    double proposal_sd = proposal_sd_pairwise_(var1, var2);
+    const double current_state = pairwise_effects_(var1, var2);
 
-    bool proposing_addition = (edge_indicators_(var1, var2) == 0);
-    double proposed_state = proposing_addition ? rnorm(rng_, current_state, proposal_sd) : 0.0;
+    const bool proposing_addition = (edge_indicators_(var1, var2) == 0);
+    const double proposed_state = proposing_addition
+        ? rnorm(rng_, current_state, proposal_sd_pairwise_(var1, var2))
+        : 0.0;
 
-    double log_accept = log_pseudolikelihood_ratio_interaction(var1, var2, proposed_state, current_state);
+    double log_accept = log_pseudolikelihood_ratio_interaction(
+        var1, var2, proposed_state, current_state
+    );
 
-    double incl_prob = inclusion_probability_(var1, var2);
-    double scaled_scale = pairwise_scale_ * pairwise_scaling_factors_(var1, var2);
+    const double inclusion_probability_ij = inclusion_probability_(var1, var2);
+    const double sd = proposal_sd_pairwise_(var1, var2);
+    const double scaled_pairwise_scale = pairwise_scale_ * pairwise_scaling_factors_(var1, var2);
 
     if (proposing_addition) {
-        log_accept += R::dcauchy(proposed_state, 0.0, scaled_scale, true);
-        log_accept -= R::dnorm(proposed_state, current_state, proposal_sd, true);
-        log_accept += MY_LOG(incl_prob) - MY_LOG(1.0 - incl_prob);
+        log_accept += R::dcauchy(proposed_state, 0.0, scaled_pairwise_scale, true);
+        log_accept -= R::dnorm(proposed_state, current_state, sd, true);
+        log_accept += MY_LOG(inclusion_probability_ij) - MY_LOG(1.0 - inclusion_probability_ij);
     } else {
-        log_accept -= R::dcauchy(current_state, 0.0, scaled_scale, true);
-        log_accept += R::dnorm(current_state, proposed_state, proposal_sd, true);
-        log_accept -= MY_LOG(incl_prob) - MY_LOG(1.0 - incl_prob);
+        log_accept -= R::dcauchy(current_state, 0.0, scaled_pairwise_scale, true);
+        log_accept += R::dnorm(current_state, proposed_state, sd, true);
+        log_accept -= MY_LOG(inclusion_probability_ij) - MY_LOG(1.0 - inclusion_probability_ij);
     }
 
     if (MY_LOG(runif(rng_)) < log_accept) {
-        int updated = 1 - edge_indicators_(var1, var2);
-        edge_indicators_(var1, var2) = updated;
-        edge_indicators_(var2, var1) = updated;
+        const int updated_indicator = 1 - edge_indicators_(var1, var2);
+        edge_indicators_(var1, var2) = updated_indicator;
+        edge_indicators_(var2, var1) = updated_indicator;
 
-        double delta = proposed_state - current_state;
         pairwise_effects_(var1, var2) = proposed_state;
         pairwise_effects_(var2, var1) = proposed_state;
 
-        update_residual_columns(var1, var2, delta);
+        const double delta = proposed_state - current_state;
+        residual_matrix_.col(var1) += arma::conv_to<arma::vec>::from(observations_.col(var2)) * delta;
+        residual_matrix_.col(var2) += arma::conv_to<arma::vec>::from(observations_.col(var1)) * delta;
     }
 }
 
@@ -1264,8 +1244,25 @@ void OMRFModel::update_edge_indicator(int var1, int var2) {
 // =============================================================================
 
 void OMRFModel::do_one_mh_step(int iteration) {
+    // --- Pairwise effects sweep ---
+    arma::mat accept_prob_pairwise = arma::zeros<arma::mat>(p_, p_);
+    arma::umat index_mask_pairwise = arma::zeros<arma::umat>(p_, p_);
+
+    for (size_t v1 = 0; v1 < p_ - 1; ++v1) {
+        for (size_t v2 = v1 + 1; v2 < p_; ++v2) {
+            double ap = update_pairwise_effect(v1, v2);
+            if (edge_indicators_(v1, v2) == 1) {
+                accept_prob_pairwise(v1, v2) = ap;
+                index_mask_pairwise(v1, v2) = 1;
+            }
+        }
+    }
+
+    if (rwm_pairwise_adapter_) {
+        rwm_pairwise_adapter_->update(index_mask_pairwise, accept_prob_pairwise, iteration);
+    }
+
     // --- Main effects sweep ---
-    // Collect acceptance probabilities for RWM adaptation
     arma::umat index_mask_main = arma::ones<arma::umat>(
         proposal_sd_main_.n_rows, proposal_sd_main_.n_cols);
     arma::mat accept_prob_main = arma::ones<arma::mat>(
@@ -1286,24 +1283,6 @@ void OMRFModel::do_one_mh_step(int iteration) {
 
     if (rwm_main_adapter_) {
         rwm_main_adapter_->update(index_mask_main, accept_prob_main, iteration);
-    }
-
-    // --- Pairwise effects sweep ---
-    arma::mat accept_prob_pairwise = arma::zeros<arma::mat>(p_, p_);
-    arma::umat index_mask_pairwise = arma::zeros<arma::umat>(p_, p_);
-
-    for (size_t v1 = 0; v1 < p_ - 1; ++v1) {
-        for (size_t v2 = v1 + 1; v2 < p_; ++v2) {
-            double ap = update_pairwise_effect(v1, v2);
-            if (edge_indicators_(v1, v2) == 1) {
-                accept_prob_pairwise(v1, v2) = ap;
-                index_mask_pairwise(v1, v2) = 1;
-            }
-        }
-    }
-
-    if (rwm_pairwise_adapter_) {
-        rwm_pairwise_adapter_->update(index_mask_pairwise, accept_prob_pairwise, iteration);
     }
 
     invalidate_gradient_cache();
