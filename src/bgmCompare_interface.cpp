@@ -8,7 +8,7 @@
 #include <string>
 #include "utils/progress_manager.h"
 #include "bgmCompare/bgmCompare_output.h"
-#include "mcmc/mcmc_adaptation.h"
+#include "mcmc/adaptation.h"
 #include "utils/common_helpers.h"
 
 using namespace RcppParallel;

@@ -4,15 +4,15 @@
 #include <RcppArmadillo.h>
 
 /**
- * ChainResultNew - Storage for a single MCMC chain's output
+ * ChainResult - Storage for a single MCMC chain's output
  *
  * Holds samples, diagnostics, and error state for one chain.
  * Designed for use with both MH and NUTS/HMC samplers.
  */
-class ChainResultNew {
+class ChainResult {
 
 public:
-    ChainResultNew() = default;
+    ChainResult() = default;
 
     // Error handling
     bool        error = false;

@@ -2,9 +2,9 @@
 
 #include <RcppArmadillo.h>
 #include "mcmc/base_sampler.h"
-#include "mcmc/mcmc_utils.h"
+#include "mcmc/sampler_result.h"
 #include "mcmc/sampler_config.h"
-#include "mcmc/mcmc_adaptation.h"
+#include "mcmc/warmup_schedule.h"
 #include "models/base_model.h"
 
 /**

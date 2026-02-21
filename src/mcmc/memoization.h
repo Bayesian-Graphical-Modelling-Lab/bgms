@@ -5,9 +5,7 @@
 
 
 /**
- * Class: Memoizer
- *
- * Single-entry cache for joint log-posterior and gradient evaluations.
+ * Memoizer - Single-entry cache for joint log-posterior and gradient evaluations.
  *
  * In NUTS, the typical access pattern within a leapfrog step is:
  *   1. cached_grad(theta) — compute gradient (and cache logp as side-effect)

@@ -13,7 +13,7 @@
 #include "utils/common_helpers.h"
 #include "priors/edge_prior.h"
 #include "mcmc/chain_result.h"
-#include "mcmc/mcmc_runner.h"
+#include "mcmc/runner.h"
 #include "mcmc/sampler_config.h"
 
 /**
@@ -115,7 +115,7 @@ Rcpp::List sample_omrf(
     ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type);
 
     // Run MCMC using unified infrastructure
-    std::vector<ChainResultNew> results = run_mcmc_sampler(
+    std::vector<ChainResult> results = run_mcmc_sampler(
         model, *edge_prior_obj, config, no_chains, no_threads, pm);
 
     // Convert to R list format

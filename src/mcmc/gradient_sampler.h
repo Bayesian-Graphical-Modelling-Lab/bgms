@@ -2,18 +2,17 @@
 
 #include <RcppArmadillo.h>
 #include <functional>
-#include <vector>
 #include <memory>
 #include "mcmc/base_sampler.h"
-#include "mcmc/mcmc_utils.h"
-#include "mcmc/mcmc_adaptation.h"
+#include "mcmc/hamiltonian.h"
+#include "mcmc/adaptation.h"
 #include "mcmc/sampler_config.h"
 #include "models/base_model.h"
 
 /**
  * AdaptiveGradientSampler - Base for gradient-based MCMC with warmup adaptation
  *
- * Uses HMCAdaptationController (from mcmc_adaptation.h) with the shared
+ * Uses HMCAdaptationController (from adaptation.h) with the shared
  * WarmupSchedule constructed by the runner.
  *
  * The adaptation controller handles:

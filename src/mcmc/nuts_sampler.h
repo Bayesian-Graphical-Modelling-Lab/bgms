@@ -1,7 +1,7 @@
 #pragma once
 
-#include "mcmc/adaptive_gradient_sampler.h"
-#include "mcmc/mcmc_nuts.h"
+#include "mcmc/gradient_sampler.h"
+#include "mcmc/nuts.h"
 
 /**
  * NUTSSampler - No-U-Turn Sampler

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "mcmc/adaptive_gradient_sampler.h"
-#include "mcmc/mcmc_hmc.h"
+#include "mcmc/gradient_sampler.h"
+#include "mcmc/hmc.h"
 
 /**
  * HMCSampler - Hamiltonian Monte Carlo

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <RcppArmadillo.h>
-#include "mcmc/mcmc_utils.h"
+#include "mcmc/sampler_result.h"
 #include "mcmc/sampler_config.h"
 #include "models/base_model.h"
 

@@ -1,33 +1,11 @@
 #include <RcppArmadillo.h>
 #include <functional>
-#include "mcmc/mcmc_hmc.h"
-#include "mcmc/mcmc_leapfrog.h"
-#include "mcmc/mcmc_utils.h"
+#include "mcmc/hmc.h"
+#include "mcmc/leapfrog.h"
+#include "mcmc/hamiltonian.h"
 #include "rng/rng_utils.h"
 
 
-
-/**
- * Function: hmc_sampler
- *
- * Performs one iteration of Hamiltonian Monte Carlo sampling. Proposes a new
- * state by simulating Hamiltonian dynamics through leapfrog integration, then
- * accepts or rejects the proposal based on the Metropolis criterion.
- *
- * Inputs:
- *  - init_theta: Initial parameter vector (position).
- *  - step_size: Leapfrog integration step size (epsilon).
- *  - grad: Function returning the gradient of the log-posterior at a position.
- *  - joint: Function returning both log-posterior and gradient at a position.
- *  - num_leapfrogs: Number of leapfrog steps per proposal.
- *  - inv_mass_diag: Diagonal inverse mass matrix for kinetic energy computation.
- *  - rng: Thread-safe random number generator.
- *
- * Returns:
- *  - SamplerResult containing:
- *      - state: The accepted parameter vector (either proposal or init_theta).
- *      - accept_prob: The Metropolis acceptance probability (capped at 1.0).
- */
 SamplerResult hmc_sampler(
     const arma::vec& init_theta,
     double step_size,

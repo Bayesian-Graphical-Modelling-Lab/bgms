@@ -4,7 +4,6 @@
 #include <memory>
 #include <RcppArmadillo.h>
 #include <RcppParallel.h>
-#include <tbb/global_control.h>
 
 #include "models/base_model.h"
 #include "mcmc/chain_result.h"
@@ -12,8 +11,7 @@
 #include "utils/progress_manager.h"
 #include "mcmc/sampler_config.h"
 #include "mcmc/base_sampler.h"
-#include "mcmc/mcmc_utils.h"
-#include "mcmc/mcmc_adaptation.h"
+#include "mcmc/warmup_schedule.h"
 
 
 /// Create a sampler matching config.sampler_type.
@@ -21,7 +19,7 @@ std::unique_ptr<BaseSampler> create_sampler(const SamplerConfig& config, WarmupS
 
 /// Run a single MCMC chain (warmup + sampling) writing into chain_result.
 void run_mcmc_chain(
-    ChainResultNew& chain_result,
+    ChainResult& chain_result,
     BaseModel& model,
     BaseEdgePrior& edge_prior,
     const SamplerConfig& config,
@@ -32,14 +30,14 @@ void run_mcmc_chain(
 
 /// Worker struct for TBB parallel chain execution.
 struct MCMCChainRunner : public RcppParallel::Worker {
-    std::vector<ChainResultNew>& results_;
+    std::vector<ChainResult>& results_;
     std::vector<std::unique_ptr<BaseModel>>& models_;
     std::vector<std::unique_ptr<BaseEdgePrior>>& edge_priors_;
     const SamplerConfig& config_;
     ProgressManager& pm_;
 
     MCMCChainRunner(
-        std::vector<ChainResultNew>& results,
+        std::vector<ChainResult>& results,
         std::vector<std::unique_ptr<BaseModel>>& models,
         std::vector<std::unique_ptr<BaseEdgePrior>>& edge_priors,
         const SamplerConfig& config,
@@ -57,7 +55,7 @@ struct MCMCChainRunner : public RcppParallel::Worker {
 
 
 /// Run multi-chain MCMC (parallel or sequential based on no_threads).
-std::vector<ChainResultNew> run_mcmc_sampler(
+std::vector<ChainResult> run_mcmc_sampler(
     BaseModel& model,
     BaseEdgePrior& edge_prior,
     const SamplerConfig& config,
@@ -67,4 +65,4 @@ std::vector<ChainResultNew> run_mcmc_sampler(
 );
 
 /// Convert chain results to Rcpp::List for return to R.
-Rcpp::List convert_results_to_list(const std::vector<ChainResultNew>& results);
+Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results);

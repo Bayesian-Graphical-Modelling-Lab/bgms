@@ -3,9 +3,9 @@
 #include <memory>
 #include <functional>
 #include "models/base_model.h"
-#include "mcmc/mcmc_adaptation.h"
+#include "mcmc/adaptation.h"
 #include "rng/rng_utils.h"
-#include "mcmc/mcmc_utils.h"
+#include "mcmc/sampler_result.h"
 #include "utils/common_helpers.h"
 
 /**

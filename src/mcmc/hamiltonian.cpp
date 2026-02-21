@@ -1,8 +1,8 @@
 #include <RcppArmadillo.h>
-#include <cmath>
 #include <functional>
-#include "mcmc/mcmc_leapfrog.h"
-#include "mcmc/mcmc_utils.h"
+#include "mcmc/leapfrog.h"
+#include "mcmc/hamiltonian.h"
+#include "math/explog_switch.h"
 #include "rng/rng_utils.h"
 
 

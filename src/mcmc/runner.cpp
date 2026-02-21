@@ -1,5 +1,6 @@
-#include "mcmc/mcmc_runner.h"
+#include "mcmc/runner.h"
 
+#include <tbb/global_control.h>
 #include "mcmc/nuts_sampler.h"
 #include "mcmc/hmc_sampler.h"
 #include "mcmc/mh_sampler.h"
@@ -19,7 +20,7 @@ std::unique_ptr<BaseSampler> create_sampler(const SamplerConfig& config, WarmupS
 
 
 void run_mcmc_chain(
-    ChainResultNew& chain_result,
+    ChainResult& chain_result,
     BaseModel& model,
     BaseEdgePrior& edge_prior,
     const SamplerConfig& config,
@@ -111,7 +112,7 @@ void run_mcmc_chain(
 
 void MCMCChainRunner::operator()(std::size_t begin, std::size_t end) {
     for (std::size_t i = begin; i < end; ++i) {
-        ChainResultNew& chain_result = results_[i];
+        ChainResult& chain_result = results_[i];
         BaseModel& model = *models_[i];
         BaseEdgePrior& edge_prior = *edge_priors_[i];
         model.set_seed(config_.seed + static_cast<int>(i));
@@ -129,7 +130,7 @@ void MCMCChainRunner::operator()(std::size_t begin, std::size_t end) {
 }
 
 
-std::vector<ChainResultNew> run_mcmc_sampler(
+std::vector<ChainResult> run_mcmc_sampler(
     BaseModel& model,
     BaseEdgePrior& edge_prior,
     const SamplerConfig& config,
@@ -141,7 +142,7 @@ std::vector<ChainResultNew> run_mcmc_sampler(
     const bool has_sbm_alloc = edge_prior.has_allocations() ||
         (config.edge_selection && dynamic_cast<StochasticBlockEdgePrior*>(&edge_prior) != nullptr);
 
-    std::vector<ChainResultNew> results(no_chains);
+    std::vector<ChainResult> results(no_chains);
     for (int c = 0; c < no_chains; ++c) {
         results[c].reserve(model.full_parameter_dimension(), config.no_iter);
 
@@ -188,11 +189,11 @@ std::vector<ChainResultNew> run_mcmc_sampler(
 }
 
 
-Rcpp::List convert_results_to_list(const std::vector<ChainResultNew>& results) {
+Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
     Rcpp::List output(results.size());
 
     for (size_t i = 0; i < results.size(); ++i) {
-        const ChainResultNew& chain = results[i];
+        const ChainResult& chain = results[i];
         Rcpp::List chain_list;
 
         chain_list["chain_id"] = chain.chain_id;
