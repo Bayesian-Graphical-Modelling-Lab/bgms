@@ -7,7 +7,7 @@
 #include <tbb/global_control.h>
 #include <vector>
 #include <string>
-#include "mcmc/mcmc_adaptation.h"
+#include "mcmc/adaptation.h"
 #include "utils/progress_manager.h"
 #include "utils/common_helpers.h"
 

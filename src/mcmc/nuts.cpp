@@ -1,9 +1,9 @@
 #include <RcppArmadillo.h>
 #include <functional>
-#include "mcmc/mcmc_leapfrog.h"
-#include "mcmc/mcmc_memoization.h"
-#include "mcmc/mcmc_nuts.h"
-#include "mcmc/mcmc_utils.h"
+#include "mcmc/leapfrog.h"
+#include "mcmc/memoization.h"
+#include "mcmc/nuts.h"
+#include "mcmc/hamiltonian.h"
 #include "rng/rng_utils.h"
 
 
@@ -20,17 +20,12 @@
 
 
 /**
- * Function: compute_criterion
+ * Computes the generalized U-turn criterion for the NUTS algorithm
  *
- * Computes the generalized U-turn criterion for the NUTS algorithm.
- *
- * Inputs:
- *  - p_sharp_minus: Sharp momentum (M^{-1} * p) at backward end.
- *  - p_sharp_plus: Sharp momentum (M^{-1} * p) at forward end.
- *  - rho: Sum of momenta along the trajectory.
- *
- * Returns:
- *  - true if criterion is satisfied (continue); false if U-turn detected (stop).
+ * @param p_sharp_minus  Sharp momentum (M^{-1} p) at backward end
+ * @param p_sharp_plus   Sharp momentum (M^{-1} p) at forward end
+ * @param rho            Sum of momenta along the trajectory
+ * @return true if criterion satisfied (continue), false if U-turn detected (stop)
  */
 bool compute_criterion(const arma::vec& p_sharp_minus,
                        const arma::vec& p_sharp_plus,
@@ -41,31 +36,23 @@ bool compute_criterion(const arma::vec& p_sharp_minus,
 
 
 /**
- * Function: build_tree
+ * Recursively builds a binary tree of leapfrog steps in the NUTS algorithm
  *
- * Recursively builds a binary tree of leapfrog steps in the NUTS algorithm.
- * This method explores forward or backward in time, evaluating trajectory termination criteria.
+ * Explores forward or backward in time, evaluating trajectory termination
+ * criteria. Based on Algorithm 6 in Hoffman & Gelman (2014).
  *
- * This recursive tree-building procedure is based on Algorithm 6 in:
- *   Hoffman, M. D., & Gelman, A. (2014). The No-U-Turn sampler: adaptively setting path lengths
- *   in Hamiltonian Monte Carlo. Journal of Machine Learning Research, 15(1), 1593–1623.
- *
- * Inputs:
- *  - theta: Current position at the base of the tree.
- *  - r: Current momentum at the base of the tree.
- *  - log_u: Log slice variable for accept/reject decision.
- *  - v: Direction of expansion (-1 for backward, +1 for forward).
- *  - j: Current tree depth.
- *  - step_size: Step size used in leapfrog integration.
- *  - theta_0: Initial position at the start of sampling.
- *  - r0: Initial momentum at the start of sampling.
- *  - logp0: Log posterior at initial position.
- *  - kin0: Kinetic energy at initial momentum.
- *  - memo: Memoizer object used for caching evaluations.
- *
- * Returns:
- *  - A BuildTreeResult struct containing updated position/momentum endpoints, candidate sample,
- *    subtree size and U-turn status, and average acceptance probability.
+ * @param theta      Current position at the base of the tree
+ * @param r          Current momentum at the base of the tree
+ * @param log_u      Log slice variable for accept/reject decision
+ * @param v          Direction of expansion (-1 backward, +1 forward)
+ * @param j          Current tree depth
+ * @param step_size  Step size used in leapfrog integration
+ * @param theta_0    Initial position at the start of sampling
+ * @param r0         Initial momentum at the start of sampling
+ * @param logp0      Log posterior at initial position
+ * @param kin0       Kinetic energy at initial momentum
+ * @param memo       Memoizer object for caching evaluations
+ * @return BuildTreeResult with updated endpoints, candidate sample, and diagnostics
  */
 BuildTreeResult build_tree(
     const arma::vec& theta,
@@ -277,26 +264,7 @@ BuildTreeResult build_tree(
 }
 
 
-/**
- * Function: nuts_sampler_joint
- *
- * NUTS sampler using a joint log_post+gradient function.
- * Creates a joint-only Memoizer internally, which computes both values
- * together and caches them efficiently.
- *
- * Inputs:
- *  - init_theta: Initial position (parameter vector).
- *  - step_size: Step size for leapfrog integration.
- *  - joint: Function returning (log_post, gradient) pair.
- *  - inv_mass_diag: Diagonal inverse mass matrix.
- *  - rng: Random number generator.
- *  - max_depth: Maximum tree depth allowed for NUTS expansion (default = 10).
- *
- * Returns:
- *  - A SamplerResult struct containing final sampled position,
- *    mean acceptance probability, and diagnostics.
- */
-SamplerResult nuts_sampler_joint(
+SamplerResult nuts_sampler(
     const arma::vec& init_theta,
     double step_size,
     const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,

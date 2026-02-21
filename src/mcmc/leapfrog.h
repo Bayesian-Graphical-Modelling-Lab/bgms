@@ -1,16 +1,20 @@
-// mcmc_leapfrog.h
 #pragma once
 
 #include <RcppArmadillo.h>
 #include <functional>
-#include "mcmc/mcmc_memoization.h"
+#include "mcmc/memoization.h"
 
 
 
 /**
- * Function: leapfrog_memo
+ * Performs a single leapfrog step with memoized gradient evaluation
  *
- * Performs a leapfrog step using a memoization wrapper to avoid redundant gradient evaluations.
+ * @param theta          Current position (parameter vector)
+ * @param r              Current momentum vector
+ * @param eps            Step size for integration
+ * @param memo           Memoizer caching gradient evaluations
+ * @param inv_mass_diag  Diagonal of the inverse mass matrix
+ * @return Pair of (updated position, updated momentum)
  */
 std::pair<arma::vec, arma::vec> leapfrog_memo(
     const arma::vec& theta,
@@ -22,16 +26,15 @@ std::pair<arma::vec, arma::vec> leapfrog_memo(
 
 
 /**
- * Struct: LeapfrogJointResult
+ * LeapfrogJointResult - Return type for leapfrog integration
  *
- * Return type for leapfrog, containing the final position, momentum,
- * log-posterior, and gradient at the final position.
+ * Contains the final position, momentum, log-posterior, and gradient.
  */
 struct LeapfrogJointResult {
-  arma::vec theta;      // Final position
-  arma::vec r;          // Final momentum
-  double log_post;      // Log-posterior at final position
-  arma::vec grad;       // Gradient at final position
+  arma::vec theta;      ///< Final position
+  arma::vec r;          ///< Final momentum
+  double log_post;      ///< Log-posterior at final position
+  arma::vec grad;       ///< Gradient at final position
 };
 
 

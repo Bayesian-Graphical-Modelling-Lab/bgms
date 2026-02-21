@@ -254,6 +254,8 @@
 #'   \code{"total"} (single combined bar), or \code{"none"} (no progress).
 #'   Default: \code{"per-chain"}.
 #'
+#' @param backend Character. Temporary here to switch between the computational backend for MCMC sampling.
+#'
 #' @param verbose Logical. If \code{TRUE}, prints informational messages
 #'   during data processing (e.g., missing data handling, variable recoding).
 #'   Defaults to \code{getOption("bgms.verbose", TRUE)}. Set
@@ -381,40 +383,41 @@
 #'
 #' @export
 bgm = function(
-  x,
-  variable_type = "ordinal",
-  baseline_category,
-  iter = 1e3,
-  warmup = 1e3,
-  pairwise_scale = 2.5,
-  main_alpha = 0.5,
-  main_beta = 0.5,
-  edge_selection = TRUE,
-  edge_prior = c("Bernoulli", "Beta-Bernoulli", "Stochastic-Block"),
-  inclusion_probability = 0.5,
-  beta_bernoulli_alpha = 1,
-  beta_bernoulli_beta = 1,
-  beta_bernoulli_alpha_between = 1,
-  beta_bernoulli_beta_between = 1,
-  dirichlet_alpha = 1,
-  lambda = 1,
-  na_action = c("listwise", "impute"),
-  update_method = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
-  target_accept,
-  hmc_num_leapfrogs = 100,
-  nuts_max_depth = 10,
-  learn_mass_matrix = TRUE,
-  chains = 4,
-  cores = parallel::detectCores(),
-  display_progress = c("per-chain", "total", "none"),
-  seed = NULL,
-  standardize = FALSE,
-  verbose = getOption("bgms.verbose", TRUE),
-  interaction_scale,
-  burnin,
-  save,
-  threshold_alpha,
-  threshold_beta
+    x,
+    variable_type = "ordinal",
+    baseline_category,
+    iter = 1e3,
+    warmup = 1e3,
+    pairwise_scale = 2.5,
+    main_alpha = 0.5,
+    main_beta = 0.5,
+    edge_selection = TRUE,
+    edge_prior = c("Bernoulli", "Beta-Bernoulli", "Stochastic-Block"),
+    inclusion_probability = 0.5,
+    beta_bernoulli_alpha = 1,
+    beta_bernoulli_beta = 1,
+    beta_bernoulli_alpha_between = 1,
+    beta_bernoulli_beta_between = 1,
+    dirichlet_alpha = 1,
+    lambda = 1,
+    na_action = c("listwise", "impute"),
+    update_method = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
+    target_accept,
+    hmc_num_leapfrogs = 100,
+    nuts_max_depth = 10,
+    learn_mass_matrix = TRUE,
+    chains = 4,
+    cores = parallel::detectCores(),
+    display_progress = c("per-chain", "total", "none"),
+    backend = c("legacy", "new"),
+    seed = NULL,
+    standardize = FALSE,
+    verbose = getOption("bgms.verbose", TRUE),
+    interaction_scale,
+    burnin,
+    save,
+    threshold_alpha,
+    threshold_beta
 ) {
   # Set verbose option for internal functions, restore on exit
 
@@ -522,6 +525,23 @@ bgm = function(
   edge_selection = model$edge_selection
   edge_prior = model$edge_prior
   inclusion_probability = model$inclusion_probability
+  is_continuous = model$is_continuous
+
+  # Block NUTS/HMC for the Gaussian model --------------------------------------
+  if(is_continuous) {
+    user_chose_method = length(update_method_input) == 1
+    if(user_chose_method && update_method %in% c("nuts", "hamiltonian-mc")) {
+      stop(paste0(
+        "The Gaussian model (variable_type = 'continuous') only supports ",
+        "update_method = 'adaptive-metropolis'. ",
+        "Got '", update_method, "'."
+      ))
+    }
+    update_method = "adaptive-metropolis"
+    if(!hasArg(target_accept)) {
+      target_accept = 0.44
+    }
+  }
 
   # Check Gibbs input -----------------------------------------------------------
   check_positive_integer(iter, "iter")
@@ -565,8 +585,104 @@ bgm = function(
     ))
   }
 
+  # Check backend ---------------------------------------------------------------
+  backend = match.arg(backend)
+
   # Check display_progress ------------------------------------------------------
   progress_type = progress_type_from_display_progress(display_progress)
+
+  # Setting the seed
+  if(missing(seed) || is.null(seed)) {
+    seed = sample.int(.Machine$integer.max, 1)
+  }
+
+  if(!is.numeric(seed) || length(seed) != 1 || is.na(seed) || seed < 0) {
+    stop("Argument 'seed' must be a single non-negative integer.")
+  }
+
+  seed <- as.integer(seed)
+
+  data_columnnames = if(is.null(colnames(x))) paste0("Variable ", seq_len(ncol(x))) else colnames(x)
+
+  # ==========================================================================
+  # Gaussian (continuous) path
+  # ==========================================================================
+  if (is_continuous) {
+    num_variables = ncol(x)
+
+    # Handle missing data for continuous variables
+    if (na_action == "listwise") {
+      missing_rows = apply(x, 1, anyNA)
+      if (all(missing_rows)) {
+        stop("All rows in x contain at least one missing response.\n",
+             "You could try option na_action = 'impute'.")
+      }
+      if (sum(missing_rows) > 0) {
+        warning(sum(missing_rows), " row(s) with missing observations removed (na_action = 'listwise').",
+                call. = FALSE)
+      }
+      x = x[!missing_rows, , drop = FALSE]
+      na_impute = FALSE
+    } else {
+      stop("Imputation is not yet supported for the Gaussian model. ",
+           "Use na_action = 'listwise'.")
+    }
+
+    indicator = matrix(1L, nrow = num_variables, ncol = num_variables)
+
+    out_raw = sample_ggm(
+      inputFromR = list(X = x),
+      prior_inclusion_prob = matrix(inclusion_probability,
+                                    nrow = num_variables, ncol = num_variables),
+      initial_edge_indicators = indicator,
+      no_iter = iter,
+      no_warmup = warmup,
+      no_chains = chains,
+      edge_selection = edge_selection,
+      seed = seed,
+      no_threads = cores,
+      progress_type = progress_type,
+      edge_prior = edge_prior,
+      beta_bernoulli_alpha = beta_bernoulli_alpha,
+      beta_bernoulli_beta = beta_bernoulli_beta,
+      beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+      beta_bernoulli_beta_between = beta_bernoulli_beta_between,
+      dirichlet_alpha = dirichlet_alpha,
+      lambda = lambda
+    )
+
+    out = transform_ggm_backend_output(out_raw, num_variables)
+
+    userInterrupt = any(vapply(out, FUN = `[[`, FUN.VALUE = logical(1L), "userInterrupt"))
+    if (userInterrupt) {
+      warning("Stopped sampling after user interrupt, results are likely uninterpretable.")
+    }
+
+    output = prepare_output_ggm(
+      out = out, x = x, iter = iter,
+      data_columnnames = data_columnnames,
+      warmup = warmup,
+      edge_selection = edge_selection, edge_prior = edge_prior,
+      inclusion_probability = inclusion_probability,
+      beta_bernoulli_alpha = beta_bernoulli_alpha,
+      beta_bernoulli_beta = beta_bernoulli_beta,
+      beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+      beta_bernoulli_beta_between = beta_bernoulli_beta_between,
+      dirichlet_alpha = dirichlet_alpha,
+      lambda = lambda,
+      na_action = na_action, na_impute = na_impute,
+      variable_type = variable_type,
+      update_method = update_method,
+      target_accept = target_accept,
+      num_chains = chains
+    )
+
+    return(output)
+  }
+
+  # ==========================================================================
+  # Ordinal / Blume-Capel path
+  # ==========================================================================
 
   # Format the data input -------------------------------------------------------
   data = reformat_data(
@@ -583,12 +699,12 @@ bgm = function(
 
   num_variables = ncol(x)
   num_interactions = num_variables * (num_variables - 1) / 2
-  num_thresholds = sum(num_categories)
+  num_thresholds = sum(ifelse(variable_bool, num_categories, 2L))
 
   # Starting value of model matrix ---------------------------------------------
   indicator = matrix(1,
-    nrow = num_variables,
-    ncol = num_variables
+                     nrow = num_variables,
+                     ncol = num_variables
   )
 
   # Starting values of interactions and thresholds (posterior mode) -------------
@@ -597,14 +713,17 @@ bgm = function(
 
   # Precompute the number of observations per category for each variable --------
   counts_per_category = matrix(0,
-    nrow = max(num_categories) + 1,
-    ncol = num_variables
+                               nrow = max(num_categories) + 1,
+                               ncol = num_variables
   )
   for(variable in 1:num_variables) {
     for(category in 0:num_categories[variable]) {
       counts_per_category[category + 1, variable] = sum(x[, variable] == category)
     }
   }
+
+  # Save data before Blume-Capel centering (needed by the new backend)
+  x_raw = x
 
   # Precompute the sufficient statistics for the two Blume-Capel parameters -----
   blume_capel_stats = matrix(0, nrow = 2, ncol = num_variables)
@@ -621,8 +740,8 @@ bgm = function(
 
   # Index matrix used in the c++ functions  ------------------------------------
   interaction_index_matrix = matrix(0,
-    nrow = num_variables * (num_variables - 1) / 2,
-    ncol = 3
+                                    nrow = num_variables * (num_variables - 1) / 2,
+                                    ncol = 3
   )
   cntr = 0
   for(variable1 in 1:(num_variables - 1)) {
@@ -705,30 +824,74 @@ bgm = function(
 
   seed <- as.integer(seed)
 
-  out = run_bgm_parallel(
-    observations = x, num_categories = num_categories,
-    pairwise_scale = pairwise_scale, edge_prior = edge_prior,
-    inclusion_probability = inclusion_probability,
-    beta_bernoulli_alpha = beta_bernoulli_alpha,
-    beta_bernoulli_beta = beta_bernoulli_beta,
-    beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
-    beta_bernoulli_beta_between = beta_bernoulli_beta_between,
-    dirichlet_alpha = dirichlet_alpha, lambda = lambda,
-    interaction_index_matrix = interaction_index_matrix, iter = iter,
-    warmup = warmup, counts_per_category = counts_per_category,
-    blume_capel_stats = blume_capel_stats,
-    main_alpha = main_alpha, main_beta = main_beta,
-    na_impute = na_impute, missing_index = missing_index,
-    is_ordinal_variable = variable_bool,
-    baseline_category = baseline_category, edge_selection = edge_selection,
-    update_method = update_method,
-    pairwise_effect_indices = pairwise_effect_indices,
-    target_accept = target_accept, pairwise_stats = pairwise_stats,
-    hmc_num_leapfrogs = hmc_num_leapfrogs, nuts_max_depth = nuts_max_depth,
-    learn_mass_matrix = learn_mass_matrix, num_chains = chains,
-    nThreads = cores, seed = seed, progress_type = progress_type,
-    pairwise_scaling_factors = pairwise_scaling_factors
-  )
+  if (backend == "new") {
+    input_list = list(
+      observations = x_raw,
+      num_categories = num_categories,
+      is_ordinal_variable = variable_bool,
+      baseline_category = baseline_category,
+      main_alpha = main_alpha,
+      main_beta = main_beta,
+      pairwise_scale = pairwise_scale
+    )
+
+    out_raw = sample_omrf(
+      inputFromR = input_list,
+      prior_inclusion_prob = matrix(inclusion_probability,
+                                    nrow = num_variables, ncol = num_variables),
+      initial_edge_indicators = indicator,
+      no_iter = iter,
+      no_warmup = warmup,
+      no_chains = chains,
+      no_threads = cores,
+      progress_type = progress_type,
+      edge_selection = edge_selection,
+      sampler_type = update_method,
+      seed = seed,
+      edge_prior = edge_prior,
+      na_impute = na_impute,
+      missing_index_nullable = missing_index,
+      beta_bernoulli_alpha = beta_bernoulli_alpha,
+      beta_bernoulli_beta = beta_bernoulli_beta,
+      beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+      beta_bernoulli_beta_between = beta_bernoulli_beta_between,
+      dirichlet_alpha = dirichlet_alpha,
+      lambda = lambda,
+      target_acceptance = target_accept,
+      max_tree_depth = nuts_max_depth,
+      num_leapfrogs = hmc_num_leapfrogs,
+      pairwise_scaling_factors_nullable = pairwise_scaling_factors
+    )
+
+    out = transform_new_backend_output(out_raw, num_thresholds)
+  } else {
+
+    out = run_bgm_parallel(
+      observations = x, num_categories = num_categories,
+      pairwise_scale = pairwise_scale, edge_prior = edge_prior,
+      inclusion_probability = inclusion_probability,
+      beta_bernoulli_alpha = beta_bernoulli_alpha,
+      beta_bernoulli_beta = beta_bernoulli_beta,
+      beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+      beta_bernoulli_beta_between = beta_bernoulli_beta_between,
+      dirichlet_alpha = dirichlet_alpha, lambda = lambda,
+      interaction_index_matrix = interaction_index_matrix, iter = iter,
+      warmup = warmup, counts_per_category = counts_per_category,
+      blume_capel_stats = blume_capel_stats,
+      main_alpha = main_alpha, main_beta = main_beta,
+      na_impute = na_impute, missing_index = missing_index,
+      is_ordinal_variable = variable_bool,
+      baseline_category = baseline_category, edge_selection = edge_selection,
+      update_method = update_method,
+      pairwise_effect_indices = pairwise_effect_indices,
+      target_accept = target_accept, pairwise_stats = pairwise_stats,
+      hmc_num_leapfrogs = hmc_num_leapfrogs, nuts_max_depth = nuts_max_depth,
+      learn_mass_matrix = learn_mass_matrix, num_chains = chains,
+      nThreads = cores, seed = seed, progress_type = progress_type,
+      pairwise_scaling_factors = pairwise_scaling_factors
+    )
+
+  } # end backend branch
 
   userInterrupt = any(vapply(out, FUN = `[[`, FUN.VALUE = logical(1L), "userInterrupt"))
   if(userInterrupt) {
@@ -737,7 +900,7 @@ bgm = function(
     output <- tryCatch(
       prepare_output_bgm(
         out = out, x = x, num_categories = num_categories, iter = iter,
-        data_columnnames = if(is.null(colnames(x))) paste0("Variable ", seq_len(ncol(x))) else colnames(x),
+        data_columnnames = data_columnnames,
         is_ordinal_variable = variable_bool,
         warmup = warmup, pairwise_scale = pairwise_scale, standardize = standardize,
         pairwise_scaling_factors = pairwise_scaling_factors,
@@ -770,7 +933,7 @@ bgm = function(
   # Main output handler in the wrapper function
   output = prepare_output_bgm(
     out = out, x = x, num_categories = num_categories, iter = iter,
-    data_columnnames = if(is.null(colnames(x))) paste0("Variable ", seq_len(ncol(x))) else colnames(x),
+    data_columnnames = data_columnnames,
     is_ordinal_variable = variable_bool,
     warmup = warmup, pairwise_scale = pairwise_scale, standardize = standardize,
     pairwise_scaling_factors = pairwise_scaling_factors,

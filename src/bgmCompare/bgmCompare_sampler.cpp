@@ -3,12 +3,12 @@
 #include "bgmCompare/bgmCompare_logp_and_grad.h"
 #include "bgmCompare/bgmCompare_sampler.h"
 #include "bgmCompare/bgmCompare_output.h"
-#include "mcmc/mcmc_adaptation.h"
-#include "mcmc/mcmc_hmc.h"
-#include "mcmc/mcmc_leapfrog.h"
-#include "mcmc/mcmc_nuts.h"
-#include "mcmc/mcmc_rwm.h"
-#include "mcmc/mcmc_utils.h"
+#include "mcmc/adaptation.h"
+#include "mcmc/hmc.h"
+#include "mcmc/leapfrog.h"
+#include "mcmc/nuts.h"
+#include "mcmc/rwm.h"
+#include "mcmc/hamiltonian.h"
 #include "rng/rng_utils.h"
 #include "math/explog_switch.h"
 #include <string>
@@ -954,7 +954,7 @@ SamplerResult update_nuts_bgmcompare(
     pairwise_effect_indices, selection
   );
 
-  SamplerResult result = nuts_sampler_joint(
+  SamplerResult result = nuts_sampler(
     current_state, hmc_adapt.current_step_size(), joint,
     active_inv_mass, rng, nuts_max_depth
   );
