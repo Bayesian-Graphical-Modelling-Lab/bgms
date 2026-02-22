@@ -3,12 +3,12 @@
 #include "bgmCompare/bgmCompare_logp_and_grad.h"
 #include "bgmCompare/bgmCompare_sampler.h"
 #include "bgmCompare/bgmCompare_output.h"
-#include "mcmc/adaptation.h"
-#include "mcmc/hmc.h"
-#include "mcmc/leapfrog.h"
-#include "mcmc/nuts.h"
-#include "mcmc/rwm.h"
-#include "mcmc/hamiltonian.h"
+#include "mcmc/samplers/metropolis_adaptation.h"
+#include "mcmc/samplers/hmc_adaptation.h"
+#include "mcmc/algorithms/hmc.h"
+#include "mcmc/algorithms/leapfrog.h"
+#include "mcmc/algorithms/nuts.h"
+#include "mcmc/algorithms/metropolis.h"
 #include "rng/rng_utils.h"
 #include "math/explog_switch.h"
 #include <string>
@@ -201,7 +201,7 @@ void impute_missing_bgmcompare(
  * Each proposed parameter is evaluated via
  * `log_pseudoposterior_main_component()`, and accepted/rejected using
  * the Metropolis–Hastings rule. Proposal standard deviations are adapted
- * online with `RWMAdaptationController`.
+ * online with `MetropolisAdaptationController`.
  *
  * Workflow:
  *  1. Iterate over all variables.
@@ -234,7 +234,7 @@ void impute_missing_bgmcompare(
  *                      updated in place.
  *
  * Notes:
- *  - Acceptance probabilities are stored per parameter and fed to `rwm_adapt.update()`.
+ *  - Acceptance probabilities are stored per parameter and fed to `metropolis_adapt.update()`.
  *  - This function does not alter pairwise effects, but passes them into
  *    the posterior for likelihood consistency.
  *  - The helper lambda `do_update` encapsulates the proposal/accept/revert loop
@@ -259,7 +259,7 @@ void update_main_effects_metropolis_bgmcompare (
     const double main_alpha,
     const double main_beta,
     const int iteration,
-    RWMAdaptationController& rwm_adapt,
+    MetropolisAdaptationController& metropolis_adapt,
     SafeRNG& rng,
     arma::mat& proposal_sd_main
 ) {
@@ -288,7 +288,7 @@ void update_main_effects_metropolis_bgmcompare (
       );
     };
 
-    SamplerResult result = rwm_sampler(current, proposal_sd, log_post, rng);
+    StepResult result = metropolis_step(current, proposal_sd, log_post, rng);
     current = result.state[0];
     accept_prob_main(row, h) = result.accept_prob;
   };
@@ -318,7 +318,7 @@ void update_main_effects_metropolis_bgmcompare (
     }
   }
 
-  rwm_adapt.update(index_mask_main, accept_prob_main, iteration);
+  metropolis_adapt.update(index_mask_main, accept_prob_main, iteration);
 }
 
 
@@ -337,7 +337,7 @@ void update_main_effects_metropolis_bgmcompare (
  * Each proposed parameter is evaluated via
  * `log_pseudoposterior_pair_component()`, and accepted/rejected using the
  * Metropolis–Hastings rule. Proposal standard deviations are adapted online
- * through `RWMAdaptationController`.
+ * through `MetropolisAdaptationController`.
  *
  * Workflow:
  *  1. Iterate over all unique pairs of variables.
@@ -371,7 +371,7 @@ void update_main_effects_metropolis_bgmcompare (
  *
  * Notes:
  *  - Acceptance probabilities are tracked per parameter and fed to
- *    `rwm_adapt.update()`.
+ *    `metropolis_adapt.update()`.
  *  - The helper lambda `do_update` encapsulates the proposal/accept/reject
  *    logic for a single parameter.
  */
@@ -393,7 +393,7 @@ void update_pairwise_effects_metropolis_bgmcompare (
     const arma::mat& pairwise_scaling_factors,
     const double difference_scale,
     const int iteration,
-    RWMAdaptationController& rwm_adapt,
+    MetropolisAdaptationController& metropolis_adapt,
     SafeRNG& rng,
     arma::mat& proposal_sd_pair
 ) {
@@ -449,7 +449,7 @@ void update_pairwise_effects_metropolis_bgmcompare (
       );
     };
 
-    SamplerResult result = rwm_sampler(current, proposal_sd, log_post, rng);
+    StepResult result = metropolis_step(current, proposal_sd, log_post, rng);
     double value = result.state[0];
 
     // Update residual matrices if move was accepted
@@ -484,7 +484,7 @@ void update_pairwise_effects_metropolis_bgmcompare (
     }
   }
 
-  rwm_adapt.update(index_mask_pair, accept_prob_pair, iteration);
+  metropolis_adapt.update(index_mask_pair, accept_prob_pair, iteration);
 }
 
 
@@ -775,7 +775,7 @@ void update_hmc_bgmcompare(
     pairwise_effect_indices, selection
   );
 
-  SamplerResult result = hmc_sampler(
+  StepResult result = hmc_step(
     current_state, hmc_adapt.current_step_size(), grad, joint, num_leapfrogs,
     active_inv_mass, rng
   );
@@ -843,7 +843,7 @@ void update_hmc_bgmcompare(
  *  - rng: Random number generator.
  *
  * Returns:
- *  - A `SamplerResult` containing the accepted state and diagnostics
+ *  - A `StepResult` containing the accepted state and diagnostics
  *    (e.g. tree depth, divergences, energy).
  *
  * Notes:
@@ -851,10 +851,10 @@ void update_hmc_bgmcompare(
  *    row-wise structures with group-difference columns.
  *  - Consistency between vectorization, unvectorization, and gradient
  *    indexing is enforced via `build_index_maps`.
- *  - Diagnostics from the returned `SamplerResult` can be used to monitor
+ *  - Diagnostics from the returned `StepResult` can be used to monitor
  *    sampler stability (e.g. divergences, tree depth).
  */
-SamplerResult update_nuts_bgmcompare(
+StepResult update_nuts_bgmcompare(
     arma::mat& main_effects,
     arma::mat& pairwise_effects,
     const arma::imat& main_effect_indices,
@@ -954,7 +954,7 @@ SamplerResult update_nuts_bgmcompare(
     pairwise_effect_indices, selection
   );
 
-  SamplerResult result = nuts_sampler(
+  StepResult result = nuts_step(
     current_state, hmc_adapt.current_step_size(), joint,
     active_inv_mass, rng, nuts_max_depth
   );
@@ -1104,7 +1104,7 @@ void tune_proposal_sd_bgmcompare(
             );
           };
 
-          SamplerResult result = rwm_sampler(current, prop_sd, log_post, rng);
+          StepResult result = metropolis_step(current, prop_sd, log_post, rng);
           current = result.state[0];
           prop_sd = update_proposal_sd_with_robbins_monro(
             prop_sd, MY_LOG(result.accept_prob), rm_weight, target_accept
@@ -1132,7 +1132,7 @@ void tune_proposal_sd_bgmcompare(
             );
           };
 
-          SamplerResult result = rwm_sampler(current, prop_sd, log_post, rng);
+          StepResult result = metropolis_step(current, prop_sd, log_post, rng);
           current = result.state[0];
           prop_sd = update_proposal_sd_with_robbins_monro(
             prop_sd, MY_LOG(result.accept_prob), rm_weight, target_accept
@@ -1191,7 +1191,7 @@ void tune_proposal_sd_bgmcompare(
           );
         };
 
-        SamplerResult result = rwm_sampler(current, prop_sd, log_post, rng);
+        StepResult result = metropolis_step(current, prop_sd, log_post, rng);
         double value = result.state[0];
 
         if (current != value) {
@@ -1500,7 +1500,7 @@ void update_indicator_differences_metropolis_bgmcompare (
  *  - pairwise_stats: Per-group pairwise sufficient statistics.
  *  - nuts_max_depth: Maximum tree depth for NUTS.
  *  - hmc_adapt: Adaptation controller for HMC/NUTS.
- *  - rwm_adapt_main, rwm_adapt_pair: Adaptation controllers for RWM updates.
+ *  - metropolis_adapt_main, metropolis_adapt_pair: Adaptation controllers for RWM updates.
  *  - learn_mass_matrix: Whether to adapt the mass matrix in HMC/NUTS.
  *  - schedule: Warmup schedule, controls adaptation and selection phases.
  *  - treedepth_samples, divergent_samples, energy_samples: Buffers for NUTS diagnostics.
@@ -1542,8 +1542,8 @@ void gibbs_update_step_bgmcompare (
     const std::vector<arma::mat>& pairwise_stats,
     const int nuts_max_depth,
     HMCAdaptationController& hmc_adapt,
-    RWMAdaptationController& rwm_adapt_main,
-    RWMAdaptationController& rwm_adapt_pair,
+    MetropolisAdaptationController& metropolis_adapt_main,
+    MetropolisAdaptationController& metropolis_adapt_pair,
     const bool learn_mass_matrix,
     WarmupSchedule const& schedule,
     arma::ivec& treedepth_samples,
@@ -1592,7 +1592,7 @@ void gibbs_update_step_bgmcompare (
         num_categories, observations, num_groups, group_indices,
         counts_per_category, blume_capel_stats, is_ordinal_variable,
         baseline_category, difference_scale, main_alpha, main_beta, iteration,
-        rwm_adapt_main, rng, proposal_sd_main
+        metropolis_adapt_main, rng, proposal_sd_main
     );
 
     update_pairwise_effects_metropolis_bgmcompare (
@@ -1600,7 +1600,7 @@ void gibbs_update_step_bgmcompare (
         pairwise_effect_indices, inclusion_indicator, projection,
         num_categories, observations, num_groups, group_indices,
         pairwise_stats, is_ordinal_variable, baseline_category,
-        pairwise_scale, pairwise_scaling_factors, difference_scale, iteration, rwm_adapt_pair, rng,
+        pairwise_scale, pairwise_scaling_factors, difference_scale, iteration, metropolis_adapt_pair, rng,
         proposal_sd_pair
     );
   } else if (update_method == hamiltonian_mc) {
@@ -1614,7 +1614,7 @@ void gibbs_update_step_bgmcompare (
       schedule.selection_enabled(iteration), rng
     );
   } else if (update_method == nuts) {
-    SamplerResult result = update_nuts_bgmcompare(
+    StepResult result = update_nuts_bgmcompare(
       main_effects, pairwise_effects, main_effect_indices,
       pairwise_effect_indices, inclusion_indicator, projection, num_categories,
       observations, num_groups, group_indices, counts_per_category,
@@ -1808,10 +1808,10 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
       warmup_schedule, learn_mass_matrix
   );
 
-  RWMAdaptationController rwm_adapt_main(
+  MetropolisAdaptationController metropolis_adapt_main(
       proposal_sd_main, warmup_schedule, target_accept
   );
-  RWMAdaptationController rwm_adapt_pair(
+  MetropolisAdaptationController metropolis_adapt_pair(
       proposal_sd_pair, warmup_schedule, target_accept
   );
 
@@ -1851,7 +1851,7 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
         blume_capel_stats, main_alpha, main_beta, inclusion_indicator,
         pairwise_effects, main_effects, is_ordinal_variable, baseline_category,
         iteration, pairwise_effect_indices, pairwise_stats, nuts_max_depth,
-        hmc_adapt, rwm_adapt_main, rwm_adapt_pair, learn_mass_matrix,
+        hmc_adapt, metropolis_adapt_main, metropolis_adapt_pair, learn_mass_matrix,
         warmup_schedule, treedepth_samples, divergent_samples, energy_samples,
         main_effect_indices, projection, num_groups, group_indices,
         difference_scale, rng, inclusion_probability, hmc_num_leapfrogs,

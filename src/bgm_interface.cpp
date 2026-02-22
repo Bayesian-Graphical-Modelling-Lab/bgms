@@ -7,7 +7,7 @@
 #include <tbb/global_control.h>
 #include <vector>
 #include <string>
-#include "mcmc/adaptation.h"
+#include "mcmc/samplers/metropolis_adaptation.h"
 #include "utils/progress_manager.h"
 #include "utils/common_helpers.h"
 

@@ -338,7 +338,7 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
     }
 }
 
-void GGMModel::do_one_mh_step(int iteration) {
+void GGMModel::do_one_metropolis_step(int iteration) {
     (void)iteration;
 
     // Update off-diagonals (upper triangle)

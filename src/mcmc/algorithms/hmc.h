@@ -2,6 +2,8 @@
 
 #include <RcppArmadillo.h>
 #include <functional>
+#include <utility>
+#include "mcmc/execution/step_result.h"
 struct SafeRNG;
 
 
@@ -15,7 +17,6 @@ struct SafeRNG;
  * @return Scalar kinetic energy
  */
 double kinetic_energy(const arma::vec& r, const arma::vec& inv_mass_diag);
-
 
 
 /**
@@ -45,7 +46,6 @@ double heuristic_initial_step_size(
 );
 
 
-
 /**
  * Heuristic initial step size for HMC/NUTS (with mass matrix)
  *
@@ -71,4 +71,32 @@ double heuristic_initial_step_size(
     double target_acceptance = 0.625,
     double init_step = 1.0,
     int max_attempts = 20
+);
+
+
+/**
+ * Performs one iteration of Hamiltonian Monte Carlo sampling
+ *
+ * Proposes a new state by simulating Hamiltonian dynamics through leapfrog
+ * integration, then accepts or rejects via the Metropolis criterion.
+ * Uses joint function at endpoints for log_post+gradient, grad-only for
+ * intermediate steps, avoiding redundant probability computations.
+ *
+ * @param init_theta     Initial parameter vector (position)
+ * @param step_size      Leapfrog integration step size (epsilon)
+ * @param grad           Gradient function
+ * @param joint          Joint log-posterior + gradient function
+ * @param num_leapfrogs  Number of leapfrog steps per proposal
+ * @param inv_mass_diag  Diagonal of the inverse mass matrix
+ * @param rng            Thread-safe random number generator
+ * @return StepResult with accepted state and acceptance probability
+ */
+StepResult hmc_step(
+    const arma::vec& init_theta,
+    double step_size,
+    const std::function<arma::vec(const arma::vec&)>& grad,
+    const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
+    const int num_leapfrogs,
+    const arma::vec& inv_mass_diag,
+    SafeRNG& rng
 );

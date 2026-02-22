@@ -1,25 +1,26 @@
 #pragma once
 
-#include "mcmc/gradient_sampler.h"
-#include "mcmc/nuts.h"
+#include <utility>
+#include "mcmc/samplers/sampler_base.h"
+#include "mcmc/algorithms/nuts.h"
 
 /**
  * NUTSSampler - No-U-Turn Sampler
  *
  * Adaptive tree-depth leapfrog integration. Inherits warmup adaptation
- * (step size + diagonal mass matrix) from AdaptiveGradientSampler.
+ * (step size + diagonal mass matrix) from GradientSamplerBase.
  */
-class NUTSSampler : public AdaptiveGradientSampler {
+class NUTSSampler : public GradientSamplerBase {
 public:
     explicit NUTSSampler(const SamplerConfig& config, WarmupSchedule& schedule)
-        : AdaptiveGradientSampler(config.initial_step_size, config.target_acceptance, schedule),
+        : GradientSamplerBase(config.initial_step_size, config.target_acceptance, schedule),
           max_tree_depth_(config.max_tree_depth)
     {}
 
     bool has_nuts_diagnostics() const override { return true; }
 
 protected:
-    SamplerResult do_gradient_step(BaseModel& model) override {
+    StepResult do_gradient_step(BaseModel& model) override {
         arma::vec theta = model.get_vectorized_parameters();
         SafeRNG& rng = model.get_rng();
 
@@ -30,7 +31,7 @@ protected:
 
         arma::vec active_inv_mass = model.get_active_inv_mass();
 
-        SamplerResult result = nuts_sampler(
+        StepResult result = nuts_step(
             theta, step_size_, joint_fn,
             active_inv_mass, rng, max_tree_depth_
         );

@@ -1,9 +1,10 @@
 #include <RcppArmadillo.h>
+#include <algorithm>
 #include <functional>
-#include "mcmc/leapfrog.h"
-#include "mcmc/memoization.h"
-#include "mcmc/nuts.h"
-#include "mcmc/hamiltonian.h"
+#include <memory>
+#include "mcmc/algorithms/leapfrog.h"
+#include "mcmc/algorithms/nuts.h"
+#include "mcmc/algorithms/hmc.h"
 #include "rng/rng_utils.h"
 
 
@@ -264,7 +265,7 @@ BuildTreeResult build_tree(
 }
 
 
-SamplerResult nuts_sampler(
+StepResult nuts_step(
     const arma::vec& init_theta,
     double step_size,
     const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,

@@ -1,0 +1,53 @@
+#pragma once
+
+#include <RcppArmadillo.h>
+#include <cmath>
+#include "mcmc/execution/step_result.h"
+#include "mcmc/execution/warmup_schedule.h"
+#include "math/explog_switch.h"
+
+
+/**
+ * MetropolisAdaptationController - Robbins-Monro adaptation for Metropolis proposals
+ *
+ * Adjusts proposal standard deviations during warmup using acceptance
+ * probabilities. Applied element-wise to a matrix of proposal SDs.
+ */
+class MetropolisAdaptationController {
+public:
+  arma::mat& proposal_sd;
+  const int total_warmup;
+  const double target_accept;
+
+  MetropolisAdaptationController(arma::mat& proposal_sd_matrix,
+                          const WarmupSchedule& warmup,
+                          double target_accept_rate = 0.44)
+    : proposal_sd(proposal_sd_matrix),
+      total_warmup(warmup.total_warmup),
+      target_accept(target_accept_rate) {}
+
+  void update(const arma::umat& index_mask,
+              const arma::mat& accept_prob_matrix,
+              int iteration) {
+
+    if (iteration >= total_warmup || iteration < 1)
+      return;
+
+    const double rm_decay_rate = 0.75;
+    const double rm_weight = std::pow(iteration, -rm_decay_rate);
+
+    for (arma::uword i = 0; i < proposal_sd.n_rows; ++i) {
+      for (arma::uword j = 0; j < proposal_sd.n_cols; ++j) {
+        if (index_mask(i, j) == 1) {
+          const double accept_log = MY_LOG(accept_prob_matrix(i, j));
+          proposal_sd(i, j) = update_proposal_sd_with_robbins_monro(
+            proposal_sd(i, j),
+            accept_log,
+            rm_weight,
+            target_accept
+          );
+        }
+      }
+    }
+  }
+};

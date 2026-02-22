@@ -1,12 +1,12 @@
 #include <RcppArmadillo.h>
-#include <cmath>
+#include <algorithm>
 #include <functional>
-#include "mcmc/sampler_result.h"
-#include "mcmc/rwm.h"
+#include "mcmc/execution/step_result.h"
+#include "mcmc/algorithms/metropolis.h"
 #include "rng/rng_utils.h"
 
 
-SamplerResult rwm_sampler(
+StepResult metropolis_step(
     double current_state,
     double step_size,
     const std::function<double(double)>& log_post,
@@ -23,4 +23,3 @@ SamplerResult rwm_sampler(
 
   return {State, accept_prob};
 }
-

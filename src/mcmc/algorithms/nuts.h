@@ -3,7 +3,7 @@
 #include <RcppArmadillo.h>
 #include <functional>
 #include <utility>
-#include "mcmc/sampler_result.h"
+#include "mcmc/execution/step_result.h"
 struct SafeRNG;
 
 
@@ -47,12 +47,13 @@ struct BuildTreeResult {
  * @param inv_mass_diag  Diagonal of the inverse mass matrix
  * @param rng            Thread-safe random number generator
  * @param max_depth      Maximum tree depth (default = 10)
- * @return SamplerResult with position, acceptance probability, and NUTS diagnostics
+ * @return StepResult with position, acceptance probability, and NUTS diagnostics
  */
-SamplerResult nuts_sampler(
+StepResult nuts_step(
     const arma::vec& init_theta,
     double step_size,
     const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
     const arma::vec& inv_mass_diag,
     SafeRNG& rng,
-    int max_depth = 10);
+    int max_depth = 10
+);

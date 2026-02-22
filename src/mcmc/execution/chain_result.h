@@ -7,7 +7,7 @@
  * ChainResult - Storage for a single MCMC chain's output
  *
  * Holds samples, diagnostics, and error state for one chain.
- * Designed for use with both MH and NUTS/HMC samplers.
+ * Designed for use with both Metropolis and NUTS/HMC samplers.
  */
 class ChainResult {
 
@@ -119,4 +119,3 @@ public:
         energy_samples(iter) = energy;
     }
 };
-

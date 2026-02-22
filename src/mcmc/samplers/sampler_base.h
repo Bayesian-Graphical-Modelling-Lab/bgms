@@ -3,16 +3,64 @@
 #include <RcppArmadillo.h>
 #include <functional>
 #include <memory>
-#include "mcmc/base_sampler.h"
-#include "mcmc/hamiltonian.h"
-#include "mcmc/adaptation.h"
-#include "mcmc/sampler_config.h"
+#include <utility>
+#include "mcmc/execution/step_result.h"
+#include "mcmc/algorithms/hmc.h"
+#include "mcmc/samplers/hmc_adaptation.h"
 #include "models/base_model.h"
 
+// ---------------------------------------------------------------------------
+// SamplerBase — abstract interface for all MCMC samplers
+// ---------------------------------------------------------------------------
+
 /**
- * AdaptiveGradientSampler - Base for gradient-based MCMC with warmup adaptation
+ * SamplerBase - Abstract base class for MCMC samplers
  *
- * Uses HMCAdaptationController (from adaptation.h) with the shared
+ * Provides a unified interface for all MCMC sampling algorithms:
+ * - MetropolisSampler (component-wise random-walk Metropolis)
+ * - HMCSampler (Hamiltonian Monte Carlo)
+ * - NUTSSampler (No-U-Turn Sampler)
+ *
+ * The sampler internally decides whether to adapt based on the iteration
+ * number and its warmup schedule reference.
+ */
+class SamplerBase {
+public:
+    virtual ~SamplerBase() = default;
+
+    /**
+     * Perform one MCMC step
+     *
+     * The sampler internally decides whether to adapt based on the
+     * iteration number and its warmup schedule reference.
+     *
+     * @param model      The model to sample from
+     * @param iteration  Current iteration (0-based, spans warmup + sampling)
+     * @return StepResult with new state and diagnostics
+     */
+    virtual StepResult step(BaseModel& model, int iteration) = 0;
+
+    /**
+     * Initialize the sampler before the MCMC loop.
+     * For gradient-based samplers, runs the step-size heuristic. Default no-op.
+     */
+    virtual void initialize(BaseModel& /*model*/) {}
+
+    /**
+     * Check if this sampler produces NUTS-style diagnostics
+     * (tree depth, divergences, energy)
+     */
+    virtual bool has_nuts_diagnostics() const { return false; }
+};
+
+// ---------------------------------------------------------------------------
+// GradientSamplerBase — shared base for gradient-based MCMC (HMC, NUTS)
+// ---------------------------------------------------------------------------
+
+/**
+ * GradientSamplerBase - Base for gradient-based MCMC with warmup adaptation
+ *
+ * Uses HMCAdaptationController (from hmc_adaptation.h) with the shared
  * WarmupSchedule constructed by the runner.
  *
  * The adaptation controller handles:
@@ -20,21 +68,21 @@
  *  - Mass matrix estimation in doubling windows (Stage 2)
  *  - Step-size freezing at Stage 3b boundary
  */
-class AdaptiveGradientSampler : public BaseSampler {
+class GradientSamplerBase : public SamplerBase {
 public:
-    AdaptiveGradientSampler(double step_size, double target_acceptance,
-                            WarmupSchedule& schedule)
+    GradientSamplerBase(double step_size, double target_acceptance,
+                        WarmupSchedule& schedule)
         : step_size_(step_size),
           target_acceptance_(target_acceptance),
           schedule_(schedule),
           initialized_(false)
     {}
 
-    SamplerResult step(BaseModel& model, int iteration) override {
+    StepResult step(BaseModel& model, int iteration) override {
         // Use adaptation controller's current step size for this iteration
         step_size_ = adapt_->current_step_size();
 
-        SamplerResult result = do_gradient_step(model);
+        StepResult result = do_gradient_step(model);
 
         // Let the adaptation controller handle step-size and mass-matrix logic
         arma::vec full_params = model.get_full_vectorized_parameters();
@@ -75,7 +123,7 @@ public:
     const arma::vec& get_inv_mass() const { return adapt_->inv_mass_diag(); }
 
 protected:
-    virtual SamplerResult do_gradient_step(BaseModel& model) = 0;
+    virtual StepResult do_gradient_step(BaseModel& model) = 0;
 
     double step_size_;
     double target_acceptance_;

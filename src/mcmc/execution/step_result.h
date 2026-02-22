@@ -8,12 +8,12 @@
 
 
 /**
- * DiagnosticsBase - Polymorphic base for per-iteration sampler diagnostics
+ * DiagnosticsBase - Polymorphic base for per-step diagnostics
  *
- * SamplerResult holds a shared_ptr<DiagnosticsBase> so the same return type
+ * StepResult holds a shared_ptr<DiagnosticsBase> so the same return type
  * works for every sampler. Samplers that collect diagnostics (currently only
  * NUTS) define a derived struct; consumers downcast with dynamic_pointer_cast.
- * Samplers without diagnostics (MH, HMC) leave the pointer null.
+ * Samplers without diagnostics (Metropolis, HMC) leave the pointer null.
  */
 struct DiagnosticsBase {
   virtual ~DiagnosticsBase() = default;
@@ -33,12 +33,12 @@ struct NUTSDiagnostics : public DiagnosticsBase {
 
 
 /**
- * SamplerResult - Outcome of one MCMC iteration
+ * StepResult - Outcome of one MCMC step
  *
- * Returned by BaseSampler::step(). The diagnostics pointer is non-null only
- * for NUTS (holds NUTSDiagnostics); MH and HMC leave it null.
+ * Returned by SamplerBase::step(). The diagnostics pointer is non-null only
+ * for NUTS (holds NUTSDiagnostics); Metropolis and HMC leave it null.
  */
-struct SamplerResult {
+struct StepResult {
   arma::vec state;                              ///< Accepted parameter vector
   double accept_prob;                           ///< Acceptance probability
   std::shared_ptr<DiagnosticsBase> diagnostics; ///< NUTS diagnostics, or null
@@ -47,14 +47,14 @@ struct SamplerResult {
 
 
 /**
- * Robbins-Monro update for MH proposal standard deviations
+ * Robbins-Monro update for Metropolis proposal standard deviations
  *
  * Adjusts the proposal SD toward a target acceptance rate:
  *   sd += (observed_acceptance - target) * weight
  * The result is clamped to [0.001, 2.0]. NaN values are reset to 1.0.
  *
  * @param current_sd                          Current proposal standard deviation
- * @param observed_log_acceptance_probability Log acceptance probability from MH step
+ * @param observed_log_acceptance_probability Log acceptance probability from Metropolis step
  * @param rm_weight                           Robbins-Monro weight (e.g. iteration^{-0.75})
  * @param target_acceptance                   Target acceptance rate
  * @return Updated proposal SD, clamped to [0.001, 2.0]

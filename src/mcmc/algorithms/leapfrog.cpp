@@ -1,6 +1,7 @@
 #include <RcppArmadillo.h>
 #include <functional>
-#include "mcmc/leapfrog.h"
+#include <utility>
+#include "mcmc/algorithms/leapfrog.h"
 
 
 std::pair<arma::vec, arma::vec> leapfrog_memo(

@@ -13,7 +13,7 @@
  *
  * For edge_selection = TRUE:
  *   User warmup is split: 85% for Stage 1-3a, 10% for Stage 3b, 5% for Stage 3c.
- *   - Stage 3b: proposal SD tuning for edge selection MH moves
+ *   - Stage 3b: proposal SD tuning for edge-selection Metropolis moves
  *   - Stage 3c: step size re-adaptation with edge selection active
  *   If Stage 3b would get < 20 iterations, it's skipped (uses default proposal SD).
  *

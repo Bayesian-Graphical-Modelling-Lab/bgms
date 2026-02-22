@@ -1,12 +1,12 @@
 #include <RcppArmadillo.h>
 #include "models/omrf/omrf_model.h"
 #include "rng/rng_utils.h"
-#include "mcmc/hmc.h"
-#include "mcmc/nuts.h"
-#include "mcmc/rwm.h"
-#include "mcmc/sampler_result.h"
-#include "mcmc/adaptation.h"
-#include "mcmc/runner.h"
+#include "mcmc/algorithms/hmc.h"
+#include "mcmc/algorithms/nuts.h"
+#include "mcmc/algorithms/metropolis.h"
+#include "mcmc/execution/step_result.h"
+#include "mcmc/samplers/metropolis_adaptation.h"
+#include "mcmc/execution/chain_runner.h"
 #include "math/explog_switch.h"
 #include "utils/common_helpers.h"
 #include "utils/variable_helpers.h"
@@ -237,10 +237,10 @@ std::unique_ptr<BaseModel> OMRFModel::clone() const {
 }
 
 
-void OMRFModel::init_mh_adaptation(const WarmupSchedule& schedule) {
-    rwm_main_adapter_ = std::make_unique<RWMAdaptationController>(
+void OMRFModel::init_metropolis_adaptation(const WarmupSchedule& schedule) {
+    metropolis_main_adapter_ = std::make_unique<MetropolisAdaptationController>(
         proposal_sd_main_, schedule);
-    rwm_pairwise_adapter_ = std::make_unique<RWMAdaptationController>(
+    metropolis_pairwise_adapter_ = std::make_unique<MetropolisAdaptationController>(
         proposal_sd_pairwise_, schedule);
 }
 
@@ -265,7 +265,7 @@ void OMRFModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) 
                 return log_pseudoposterior_pairwise_at_delta(variable1, variable2, delta);
             };
 
-            SamplerResult result = rwm_sampler(current, proposal_sd, log_post, rng_);
+            StepResult result = metropolis_step(current, proposal_sd, log_post, rng_);
 
             double value = result.state[0];
             pairwise_effects_(variable1, variable2) = value;
@@ -1165,7 +1165,7 @@ double OMRFModel::update_main_effect_parameter(int variable, int category, int p
         return log_pseudoposterior_main_component(variable, category, parameter);
     };
 
-    SamplerResult result = rwm_sampler(current, proposal_sd, log_post, rng_);
+    StepResult result = metropolis_step(current, proposal_sd, log_post, rng_);
     current = result.state[0];
     return result.accept_prob;
 }
@@ -1182,7 +1182,7 @@ double OMRFModel::update_pairwise_effect(int var1, int var2) {
         return log_pseudoposterior_pairwise_at_delta(var1, var2, delta);
     };
 
-    SamplerResult result = rwm_sampler(current_value, proposal_sd, log_post, rng_);
+    StepResult result = metropolis_step(current_value, proposal_sd, log_post, rng_);
 
     double value = result.state[0];
     pairwise_effects_(var1, var2) = value;
@@ -1243,7 +1243,7 @@ void OMRFModel::update_edge_indicator(int var1, int var2) {
 // Main update methods
 // =============================================================================
 
-void OMRFModel::do_one_mh_step(int iteration) {
+void OMRFModel::do_one_metropolis_step(int iteration) {
     // --- Pairwise effects sweep ---
     arma::mat accept_prob_pairwise = arma::zeros<arma::mat>(p_, p_);
     arma::umat index_mask_pairwise = arma::zeros<arma::umat>(p_, p_);
@@ -1258,8 +1258,8 @@ void OMRFModel::do_one_mh_step(int iteration) {
         }
     }
 
-    if (rwm_pairwise_adapter_) {
-        rwm_pairwise_adapter_->update(index_mask_pairwise, accept_prob_pairwise, iteration);
+    if (metropolis_pairwise_adapter_) {
+        metropolis_pairwise_adapter_->update(index_mask_pairwise, accept_prob_pairwise, iteration);
     }
 
     // --- Main effects sweep ---
@@ -1281,8 +1281,8 @@ void OMRFModel::do_one_mh_step(int iteration) {
         }
     }
 
-    if (rwm_main_adapter_) {
-        rwm_main_adapter_->update(index_mask_main, accept_prob_main, iteration);
+    if (metropolis_main_adapter_) {
+        metropolis_main_adapter_->update(index_mask_main, accept_prob_main, iteration);
     }
 
     invalidate_gradient_cache();

@@ -99,7 +99,7 @@ public:
     }
 
     bool has_gradient()        const override { return false; }
-    bool has_adaptive_mh()     const override { return true; }
+    bool has_adaptive_metropolis()     const override { return true; }
     bool has_edge_selection()  const override { return edge_selection_; }
 
     void set_edge_selection_active(bool active) override {
@@ -108,16 +108,16 @@ public:
 
     void initialize_graph() override;
 
-    // GGM handles edge indicator updates inside do_one_mh_step()
+    // GGM handles edge indicator updates inside do_one_metropolis_step()
     void update_edge_indicators() override {}
 
-    // GGM uses component-wise MH; logp is unused.
+    // GGM uses component-wise Metropolis; logp is unused.
     double logp(const arma::vec& parameters) override { return 0.0; }
 
     double log_likelihood(const arma::mat& omega) const { return log_density_impl(omega,  arma::chol(omega)); };
     double log_likelihood()                       const { return log_density_impl(precision_matrix_, cholesky_of_precision_); }
 
-    void do_one_mh_step(int iteration = -1) override;
+    void do_one_metropolis_step(int iteration = -1) override;
 
     size_t parameter_dimension() const override { return dim_; }
     size_t full_parameter_dimension() const override { return dim_; }
@@ -218,7 +218,7 @@ private:
     arma::vec u1_ = arma::zeros<arma::vec>(p_);
     arma::vec u2_ = arma::zeros<arma::vec>(p_);
 
-    // MH updates
+    // Metropolis updates
     void update_edge_parameter(size_t i, size_t j);
     void update_diagonal_parameter(size_t i);
     void update_edge_indicator_parameter_pair(size_t i, size_t j);

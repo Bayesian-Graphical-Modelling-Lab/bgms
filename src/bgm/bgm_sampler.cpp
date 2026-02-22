@@ -3,12 +3,12 @@
 #include "bgm/bgm_logp_and_grad.h"
 #include "bgm/bgm_sampler.h"
 #include "bgm/bgm_output.h"
-#include "mcmc/adaptation.h"
-#include "mcmc/hmc.h"
-#include "mcmc/leapfrog.h"
-#include "mcmc/nuts.h"
-#include "mcmc/rwm.h"
-#include "mcmc/hamiltonian.h"
+#include "mcmc/samplers/metropolis_adaptation.h"
+#include "mcmc/samplers/hmc_adaptation.h"
+#include "mcmc/algorithms/hmc.h"
+#include "mcmc/algorithms/leapfrog.h"
+#include "mcmc/algorithms/nuts.h"
+#include "mcmc/algorithms/metropolis.h"
 #include "priors/sbm_edge_prior.h"
 #include "sbm_edge_prior_interface.h"
 #include "rng/rng_utils.h"
@@ -311,7 +311,7 @@ void update_main_effects_metropolis_bgm (
     const double main_beta,
     const arma::mat& residual_matrix,
     arma::mat& proposal_sd_main,
-    RWMAdaptationController& adapter,
+    MetropolisAdaptationController& adapter,
     const int iteration,
     SafeRNG& rng
 ) {
@@ -335,7 +335,7 @@ void update_main_effects_metropolis_bgm (
           );
         };
 
-        SamplerResult result = rwm_sampler(current, proposal_sd, log_post, rng);
+        StepResult result = metropolis_step(current, proposal_sd, log_post, rng);
 
         current = result.state[0];
         accept_prob_main(variable, category) = result.accept_prob;
@@ -355,7 +355,7 @@ void update_main_effects_metropolis_bgm (
           );
         };
 
-        SamplerResult result = rwm_sampler(current, proposal_sd, log_post, rng);
+        StepResult result = metropolis_step(current, proposal_sd, log_post, rng);
         current = result.state[0];
         accept_prob_main(variable, parameter) = result.accept_prob;
       }
@@ -414,7 +414,7 @@ void update_pairwise_effects_metropolis_bgm (
     const arma::imat& observations,
     const arma::ivec& num_categories,
     arma::mat& proposal_sd_pairwise_effects,
-    RWMAdaptationController& adapter,
+    MetropolisAdaptationController& adapter,
     const double pairwise_scale,
     const arma::mat& pairwise_scaling_factors,
     const int num_variables,
@@ -444,7 +444,7 @@ void update_pairwise_effects_metropolis_bgm (
           );
         };
 
-        SamplerResult result = rwm_sampler(current, proposal_sd, log_post, rng);
+        StepResult result = metropolis_step(current, proposal_sd, log_post, rng);
 
         double value = result.state[0];
         pairwise_effects(variable1, variable2) = value;
@@ -473,7 +473,7 @@ void update_pairwise_effects_metropolis_bgm (
  * Procedure:
  *  - Flatten parameters into a vector with `vectorize_model_parameters_bgm()`.
  *  - Define gradient and joint (log-posterior + gradient) functions.
- *  - Run the HMC leapfrog integrator via `hmc_sampler()`.
+ *  - Run the HMC leapfrog integrator via `hmc_step()`.
  *  - Unpack the accepted state back into `main_effects` and `pairwise_effects`.
  *  - Recompute the residual matrix and update the adaptation controller.
  *
@@ -580,7 +580,7 @@ void update_hmc_bgm(
     is_ordinal_variable, selection
   );
 
-  SamplerResult result = hmc_sampler(
+  StepResult result = hmc_step(
     current_state, adapt.current_step_size(), grad, joint, num_leapfrogs,
     active_inv_mass, rng
   );
@@ -619,7 +619,7 @@ void update_hmc_bgm(
  * Procedure:
  *  - Flatten parameters into a vector with `vectorize_model_parameters_bgm()`.
  *  - Define a joint function using `logp_and_gradient()` for efficient fused computation.
- *  - Run the NUTS sampler via `nuts_sampler()`, building a trajectory
+ *  - Run the NUTS sampler via `nuts_step()`, building a trajectory
  *    up to the maximum tree depth.
  *  - Unpack the accepted state back into `main_effects` and `pairwise_effects`.
  *  - Recompute the residual matrix and update the adaptation controller.
@@ -646,7 +646,7 @@ void update_hmc_bgm(
  *  - rng: Random number generator.
  *
  * Returns:
- *  - SamplerResult containing:
+ *  - StepResult containing:
  *      * state: Accepted parameter vector.
  *      * accept_prob: Acceptance probability for the proposal.
  *
@@ -655,7 +655,7 @@ void update_hmc_bgm(
  *  - The step size is managed by the adaptation controller (`adapt`).
  *  - This update is called within the Gibbs sampling loop when NUTS is selected.
  */
-SamplerResult update_nuts_bgm(
+StepResult update_nuts_bgm(
     arma::mat& main_effects,
     arma::mat& pairwise_effects,
     const arma::imat& inclusion_indicator,
@@ -728,7 +728,7 @@ SamplerResult update_nuts_bgm(
     is_ordinal_variable, selection
   );
 
-  SamplerResult result = nuts_sampler(
+  StepResult result = nuts_step(
     current_state, adapt.current_step_size(), joint,
     active_inv_mass, rng, nuts_max_depth
   );
@@ -845,7 +845,7 @@ void tune_proposal_sd_bgm(
         );
       };
 
-      SamplerResult result = rwm_sampler(current, proposal_sd, log_post, rng);
+      StepResult result = metropolis_step(current, proposal_sd, log_post, rng);
 
       double value = result.state[0];
       pairwise_effects(variable1, variable2) = value;
@@ -1091,8 +1091,8 @@ void gibbs_update_step_bgm (
     const int hmc_num_leapfrogs,
     const int nuts_max_depth,
     HMCAdaptationController& adapt,
-    RWMAdaptationController& adapt_main,
-    RWMAdaptationController& adapt_pairwise,
+    MetropolisAdaptationController& adapt_main,
+    MetropolisAdaptationController& adapt_pairwise,
     const bool learn_mass_matrix,
     WarmupSchedule const& schedule,
     arma::ivec& treedepth_samples,
@@ -1152,7 +1152,7 @@ void gibbs_update_step_bgm (
       rng
     );
   } else if (update_method == nuts) {
-    SamplerResult result = update_nuts_bgm(
+    StepResult result = update_nuts_bgm(
       main_effects, pairwise_effects, inclusion_indicator,
       observations, num_categories, counts_per_category, blume_capel_stats,
       baseline_category, is_ordinal_variable, main_alpha, main_beta,
@@ -1362,10 +1362,10 @@ bgmOutput run_gibbs_sampler_bgm(
       num_main + num_pairwise, initial_step_size_joint, target_accept,
       warmup_schedule, learn_mass_matrix
   );
-  RWMAdaptationController adapt_main(
+  MetropolisAdaptationController adapt_main(
       proposal_sd_main, warmup_schedule, target_accept
   );
-  RWMAdaptationController adapt_pairwise(
+  MetropolisAdaptationController adapt_pairwise(
       proposal_sd_pairwise, warmup_schedule, target_accept
   );
 

@@ -12,9 +12,9 @@
 #include "utils/progress_manager.h"
 #include "utils/common_helpers.h"
 #include "priors/edge_prior.h"
-#include "mcmc/chain_result.h"
-#include "mcmc/runner.h"
-#include "mcmc/sampler_config.h"
+#include "mcmc/execution/chain_result.h"
+#include "mcmc/execution/chain_runner.h"
+#include "mcmc/execution/sampler_config.h"
 
 /**
  * R-exported function to sample from an OMRF model

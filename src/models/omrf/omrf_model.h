@@ -3,9 +3,9 @@
 #include <memory>
 #include <functional>
 #include "models/base_model.h"
-#include "mcmc/adaptation.h"
+#include "mcmc/samplers/metropolis_adaptation.h"
 #include "rng/rng_utils.h"
-#include "mcmc/sampler_result.h"
+#include "mcmc/execution/step_result.h"
 #include "utils/common_helpers.h"
 
 /**
@@ -62,7 +62,7 @@ public:
     // =========================================================================
 
     bool has_gradient()    const override { return true; }
-    bool has_adaptive_mh() const override { return true; }
+    bool has_adaptive_metropolis() const override { return true; }
     bool has_edge_selection() const override { return edge_selection_; }
     bool has_missing_data() const override { return has_missing_; }
 
@@ -82,16 +82,16 @@ public:
     std::pair<double, arma::vec> logp_and_gradient(const arma::vec& parameters) override;
 
     /**
-     * Perform one adaptive MH step (updates all parameters)
+     * Perform one adaptive Metropolis step (updates all parameters)
      * @param iteration  Current iteration (for Robbins-Monro adaptation)
      */
-    void do_one_mh_step(int iteration = -1) override;
+    void do_one_metropolis_step(int iteration = -1) override;
 
     /**
-     * Initialize RWM adaptation controllers for proposal-SD tuning
-     * Must be called before warmup begins (e.g., by MHSampler on first step)
+     * Initialize Metropolis adaptation controllers for proposal-SD tuning
+     * Must be called before warmup begins (e.g., by MetropolisSampler on first step)
      */
-    void init_mh_adaptation(const WarmupSchedule& schedule) override;
+    void init_metropolis_adaptation(const WarmupSchedule& schedule) override;
 
     /**
      * Stage 3b: tune pairwise proposal SDs via Robbins-Monro
@@ -263,13 +263,13 @@ private:
     size_t num_main_;                   // Total number of main effect parameters
     size_t num_pairwise_;               // Number of possible pairwise effects
 
-    // Proposal SDs (adapted by RWMAdaptationController during warmup)
+    // Proposal SDs (adapted by MetropolisAdaptationController during warmup)
     arma::mat proposal_sd_main_;
     arma::mat proposal_sd_pairwise_;
 
-    // RWM adaptation controllers (created by init_mh_adaptation)
-    std::unique_ptr<RWMAdaptationController> rwm_main_adapter_;
-    std::unique_ptr<RWMAdaptationController> rwm_pairwise_adapter_;
+    // Metropolis adaptation controllers (created by init_metropolis_adaptation)
+    std::unique_ptr<MetropolisAdaptationController> metropolis_main_adapter_;
+    std::unique_ptr<MetropolisAdaptationController> metropolis_pairwise_adapter_;
 
     // RNG
     SafeRNG rng_;
@@ -429,14 +429,14 @@ private:
     // -------------------------------------------------------------------------
 
     /**
-     * Update single main effect parameter via RWM
-     * @return acceptance probability (for RWM adaptation)
+     * Update single main effect parameter via Metropolis
+     * @return acceptance probability (for Metropolis adaptation)
      */
     double update_main_effect_parameter(int variable, int category, int parameter);
 
     /**
-     * Update single pairwise effect via RWM
-     * @return acceptance probability (for RWM adaptation)
+     * Update single pairwise effect via Metropolis
+     * @return acceptance probability (for Metropolis adaptation)
      */
     double update_pairwise_effect(int var1, int var2);
 

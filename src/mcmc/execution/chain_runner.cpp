@@ -1,18 +1,19 @@
-#include "mcmc/runner.h"
+#include "mcmc/execution/chain_runner.h"
 
+#include <exception>
 #include <tbb/global_control.h>
-#include "mcmc/nuts_sampler.h"
-#include "mcmc/hmc_sampler.h"
-#include "mcmc/mh_sampler.h"
+#include "mcmc/samplers/nuts_sampler.h"
+#include "mcmc/samplers/hmc_sampler.h"
+#include "mcmc/samplers/metropolis_sampler.h"
 
 
-std::unique_ptr<BaseSampler> create_sampler(const SamplerConfig& config, WarmupSchedule& schedule) {
+std::unique_ptr<SamplerBase> create_sampler(const SamplerConfig& config, WarmupSchedule& schedule) {
     if (config.sampler_type == "nuts") {
         return std::make_unique<NUTSSampler>(config, schedule);
     } else if (config.sampler_type == "hmc" || config.sampler_type == "hamiltonian-mc") {
         return std::make_unique<HMCSampler>(config, schedule);
     } else if (config.sampler_type == "mh" || config.sampler_type == "adaptive-metropolis") {
-        return std::make_unique<MHSampler>(config, schedule);
+        return std::make_unique<MetropolisSampler>(config, schedule);
     } else {
         Rcpp::stop("Unknown sampler_type: '%s'", config.sampler_type.c_str());
     }
@@ -63,7 +64,7 @@ void run_mcmc_chain(
         }
 
         // Main parameter update — adaptation is internal to sampler
-        SamplerResult result = sampler->step(model, iter);
+        StepResult result = sampler->step(model, iter);
 
         // Stage 3b: proposal-SD tuning
         model.tune_proposal_sd(iter, schedule);

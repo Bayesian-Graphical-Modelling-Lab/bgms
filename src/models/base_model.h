@@ -5,7 +5,7 @@
 #include <memory>
 
 // Forward declarations
-struct SamplerResult;
+struct StepResult;
 struct SafeRNG;
 struct WarmupSchedule;
 
@@ -15,7 +15,7 @@ public:
 
     // Capability queries
     virtual bool has_gradient() const { return false; }
-    virtual bool has_adaptive_mh() const { return false; }
+    virtual bool has_adaptive_metropolis() const { return false; }
     virtual bool has_nuts() const { return has_gradient(); }
     virtual bool has_edge_selection() const { return false; }
 
@@ -38,13 +38,13 @@ public:
     }
 
     // For Metropolis-Hastings (model handles parameter groups internally)
-    virtual void do_one_mh_step(int iteration = -1) {
+    virtual void do_one_metropolis_step(int iteration = -1) {
         (void)iteration;
-        throw std::runtime_error("do_one_mh_step method must be implemented in derived class");
+        throw std::runtime_error("do_one_metropolis_step method must be implemented in derived class");
     }
 
-    // Initialize RWM adaptation controllers (called once before MCMC loop)
-    virtual void init_mh_adaptation(const WarmupSchedule& /*schedule*/) {}
+    // Initialize Metropolis adaptation controllers (called once before MCMC loop)
+    virtual void init_metropolis_adaptation(const WarmupSchedule& /*schedule*/) {}
 
     // Stage 3b proposal-SD tuning (called every iteration, checks schedule internally)
     virtual void tune_proposal_sd(int /*iteration*/, const WarmupSchedule& /*schedule*/) {}

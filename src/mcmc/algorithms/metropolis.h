@@ -2,7 +2,7 @@
 
 #include <RcppArmadillo.h>
 #include <functional>
-#include "mcmc/sampler_result.h"
+#include "mcmc/execution/step_result.h"
 struct SafeRNG;
 
 
@@ -16,9 +16,9 @@ struct SafeRNG;
  * @param step_size      Standard deviation of the Gaussian proposal
  * @param log_post       Log-posterior function (scalar to scalar)
  * @param rng            Thread-safe random number generator
- * @return SamplerResult with accepted state (1-element vector) and acceptance probability
+ * @return StepResult with accepted state (1-element vector) and acceptance probability
  */
-SamplerResult rwm_sampler(
+StepResult metropolis_step(
     double current_state,
     double step_size,
     const std::function<double(double)>& log_post,

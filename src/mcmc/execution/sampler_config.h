@@ -6,7 +6,7 @@
  * SamplerConfig - Configuration for MCMC sampling
  *
  * Holds all settings for the generic MCMC runner, including:
- * - Sampler type selection (MH, NUTS, HMC)
+ * - Sampler type selection (Metropolis, NUTS, HMC)
  * - Iteration counts
  * - NUTS/HMC specific parameters
  * - Edge selection settings
