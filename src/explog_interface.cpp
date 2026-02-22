@@ -1,6 +1,7 @@
-#include "math/explog_switch.h"
+#include "math/explog_macros.h"
 #include "Rcpp.h"
 
+// [[Rcpp::export]]
 Rcpp::String get_explog_switch() {
 #if USE_CUSTOM_LOG
       return "custom";
@@ -9,6 +10,7 @@ Rcpp::String get_explog_switch() {
   #endif
 }
 
+// [[Rcpp::export]]
 Rcpp::NumericVector rcpp_ieee754_exp(Rcpp::NumericVector x) {
   Rcpp::NumericVector y(x.size());
   for (int i = 0; i < x.size(); i++) {
@@ -17,6 +19,7 @@ Rcpp::NumericVector rcpp_ieee754_exp(Rcpp::NumericVector x) {
   return y;
 }
 
+// [[Rcpp::export]]
 Rcpp::NumericVector rcpp_ieee754_log(Rcpp::NumericVector x) {
   Rcpp::NumericVector y(x.size());
   for (int i = 0; i < x.size(); i++) {

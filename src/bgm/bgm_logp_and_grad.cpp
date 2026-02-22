@@ -2,7 +2,7 @@
 #include "bgm/bgm_helper.h"
 #include "bgm/bgm_logp_and_grad.h"
 #include "utils/common_helpers.h"
-#include "math/explog_switch.h"
+#include "math/explog_macros.h"
 #include "utils/variable_helpers.h"
 
 

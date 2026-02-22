@@ -1,6 +1,6 @@
 #include <RcppArmadillo.h>
 #include "rng/rng_utils.h"
-#include "math/explog_switch.h"
+#include "math/explog_macros.h"
 
 // ----------------------------------------------------------------------------|
 // The c++ code below is based on the R code accompanying the paper:

@@ -7,7 +7,7 @@
 #include "mcmc/execution/step_result.h"
 #include "mcmc/samplers/metropolis_adaptation.h"
 #include "mcmc/execution/chain_runner.h"
-#include "math/explog_switch.h"
+#include "math/explog_macros.h"
 #include "utils/common_helpers.h"
 #include "utils/variable_helpers.h"
 

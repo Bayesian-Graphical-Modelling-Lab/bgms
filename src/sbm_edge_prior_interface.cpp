@@ -1,5 +1,5 @@
 #include <RcppArmadillo.h>
-#include "math/explog_switch.h"
+#include "math/explog_macros.h"
 
 // ----------------------------------------------------------------------------|
 // The c++ code below is based on the R code accompanying the paper:

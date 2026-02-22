@@ -1,5 +1,5 @@
-#ifndef _EXPLOG_SWITCH_H_
-#define	_EXPLOG_SWITCH_H_
+#ifndef _EXPLOG_MACROS_H_
+#define	_EXPLOG_MACROS_H_
 
 /*
  *  To switch between these, try in R:
@@ -20,8 +20,8 @@
 
 #if USE_CUSTOM_LOG
 
-#include "math/e_exp.h"
-#include "math/e_arma_exp.h"
+#include "math/custom_explog.h"
+#include "math/custom_arma_explog.h"
 
 #define MY_EXP __ieee754_exp
 #define MY_LOG __ieee754_log

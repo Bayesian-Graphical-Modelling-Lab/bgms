@@ -4,7 +4,7 @@
 #include <cmath>
 #include "mcmc/execution/step_result.h"
 #include "mcmc/execution/warmup_schedule.h"
-#include "math/explog_switch.h"
+#include "math/explog_macros.h"
 
 
 /**

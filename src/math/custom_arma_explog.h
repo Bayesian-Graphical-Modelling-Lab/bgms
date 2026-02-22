@@ -1,5 +1,5 @@
-#ifndef BGMS_EXPLOG_SWITCH_H
-#define BGMS_EXPLOG_SWITCH_H
+#ifndef BGMS_CUSTOM_ARMA_EXPLOG_H
+#define BGMS_CUSTOM_ARMA_EXPLOG_H
 
 #include "RcppArmadillo.h"
 

@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
-#include "math/explog_switch.h"
+#include "math/explog_macros.h"
 
 
 /**

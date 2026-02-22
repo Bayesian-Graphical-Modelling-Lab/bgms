@@ -2,7 +2,7 @@
 #include "bgmCompare/bgmCompare_helper.h"
 #include "bgmCompare/bgmCompare_logp_and_grad.h"
 #include <cmath>
-#include "math/explog_switch.h"
+#include "math/explog_macros.h"
 #include "utils/common_helpers.h"
 #include "utils/variable_helpers.h"
 

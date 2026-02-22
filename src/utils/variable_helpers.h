@@ -2,7 +2,7 @@
 #define BGMS_VARIABLE_HELPERS_H
 
 #include <RcppArmadillo.h>
-#include "math/explog_switch.h"
+#include "math/explog_macros.h"
 
 
 // -----------------------------------------------------------------------------

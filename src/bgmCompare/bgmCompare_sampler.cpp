@@ -10,7 +10,7 @@
 #include "mcmc/algorithms/nuts.h"
 #include "mcmc/algorithms/metropolis.h"
 #include "rng/rng_utils.h"
-#include "math/explog_switch.h"
+#include "math/explog_macros.h"
 #include <string>
 #include "utils/progress_manager.h"
 #include "utils/common_helpers.h"
