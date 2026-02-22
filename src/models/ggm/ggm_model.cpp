@@ -1,7 +1,8 @@
 #include "models/ggm/ggm_model.h"
-#include "models/adaptive_metropolis.h"
 #include "rng/rng_utils.h"
 #include "models/ggm/cholupdate.h"
+#include "mcmc/execution/step_result.h"
+#include "mcmc/execution/warmup_schedule.h"
 
 double GGMModel::compute_inv_submatrix_i(const arma::mat& A, const size_t i, const size_t ii, const size_t jj) const {
     return(A(ii, jj) - A(ii, i) * A(jj, i) / A(i, i));
@@ -47,7 +48,6 @@ double GGMModel::get_log_det(arma::mat triangular_A) const {
 double GGMModel::log_density_impl(const arma::mat& omega, const arma::mat& phi) const {
 
     double logdet_omega = get_log_det(phi);
-    // TODO: why not just dot(omega, suf_stat_)?
     double trace_prod = arma::accu(omega % suf_stat_);
 
     double log_likelihood = n_ * (p_ * log(2 * arma::datum::pi) / 2 + logdet_omega / 2) - trace_prod / 2;
@@ -92,7 +92,7 @@ double GGMModel::log_density_impl_diag(size_t j) const {
 
 }
 
-void GGMModel::update_edge_parameter(size_t i, size_t j) {
+void GGMModel::update_edge_parameter(size_t i, size_t j, int iteration) {
 
     if (edge_indicators_(i, j) == 0) {
         return; // Edge is not included; skip update
@@ -103,7 +103,7 @@ void GGMModel::update_edge_parameter(size_t i, size_t j) {
     (void)constants_[1]; // Phi_q1q1 computed in get_constants but unused here
 
     size_t e = j * (j + 1) / 2 + i; // parameter index in vectorized form (column-major upper triangle)
-    double proposal_sd = proposal_.get_proposal_sd(e);
+    double proposal_sd = proposal_sds_(e);
 
     double phi_prop       = rnorm(rng_, Phi_q1q, proposal_sd);
     double omega_prop_q1q = constants_[2] + constants_[3] * phi_prop;
@@ -121,22 +121,22 @@ void GGMModel::update_edge_parameter(size_t i, size_t j) {
     ln_alpha -= R::dcauchy(precision_matrix_(i, j), 0.0, pairwise_scale_, true);
 
     if (std::log(runif(rng_)) < ln_alpha) {
-        // accept proposal
-        proposal_.increment_accepts(e);
-
         double omega_ij_old = precision_matrix_(i, j);
         double omega_jj_old = precision_matrix_(j, j);
-
 
         precision_matrix_(i, j) = omega_prop_q1q;
         precision_matrix_(j, i) = omega_prop_q1q;
         precision_matrix_(j, j) = omega_prop_qq;
 
         cholesky_update_after_edge(omega_ij_old, omega_jj_old, i, j);
-
     }
 
-    proposal_.update_proposal_sd(e);
+    // Robbins-Monro proposal-SD adaptation (warmup only)
+    if (iteration >= 1 && iteration < total_warmup_) {
+        double rm_weight = std::pow(iteration, -0.75);
+        proposal_sds_(e) = update_proposal_sd_with_robbins_monro(
+            proposal_sds_(e), ln_alpha, rm_weight, 0.44);
+    }
 }
 
 void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_old, size_t i, size_t j)
@@ -172,19 +172,16 @@ void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_o
 
 }
 
-void GGMModel::update_diagonal_parameter(size_t i) {
-    // Implementation of diagonal parameter update
-    // 1-3) from before
+void GGMModel::update_diagonal_parameter(size_t i, int iteration) {
     double logdet_omega = get_log_det(cholesky_of_precision_);
     double logdet_omega_sub_ii = logdet_omega + std::log(covariance_matrix_(i, i));
 
     size_t e = i * (i + 3) / 2; // parameter index in vectorized form (column-major upper triangle, i==j)
-    double proposal_sd = proposal_.get_proposal_sd(e);
+    double proposal_sd = proposal_sds_(e);
 
     double theta_curr = (logdet_omega - logdet_omega_sub_ii) / 2;
     double theta_prop = rnorm(rng_, theta_curr, proposal_sd);
 
-    //4) Replace and rebuild omega
     precision_proposal_ = precision_matrix_;
     precision_proposal_(i, i) = precision_matrix_(i, i) - std::exp(theta_curr) * std::exp(theta_curr) + std::exp(theta_prop) * std::exp(theta_prop);
 
@@ -192,20 +189,20 @@ void GGMModel::update_diagonal_parameter(size_t i) {
 
     ln_alpha += R::dgamma(exp(theta_prop), 1.0, 1.0, true);
     ln_alpha -= R::dgamma(exp(theta_curr), 1.0, 1.0, true);
-    ln_alpha += theta_prop - theta_curr; // Jacobian adjustment ?
+    ln_alpha += theta_prop - theta_curr; // Jacobian adjustment
 
     if (std::log(runif(rng_)) < ln_alpha) {
-
-        proposal_.increment_accepts(e);
-
         double omega_ii = precision_matrix_(i, i);
         precision_matrix_(i, i) = precision_proposal_(i, i);
-
         cholesky_update_after_diag(omega_ii, i);
-
     }
 
-    proposal_.update_proposal_sd(e);
+    // Robbins-Monro proposal-SD adaptation (warmup only)
+    if (iteration >= 1 && iteration < total_warmup_) {
+        double rm_weight = std::pow(iteration, -0.75);
+        proposal_sds_(e) = update_proposal_sd_with_robbins_monro(
+            proposal_sds_(e), ln_alpha, rm_weight, 0.44);
+    }
 }
 
 void GGMModel::cholesky_update_after_diag(double omega_ii_old, size_t i)
@@ -233,7 +230,7 @@ void GGMModel::cholesky_update_after_diag(double omega_ii_old, size_t i)
 void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 
     size_t e = j * (j + 1) / 2 + i; // parameter index in vectorized form (column-major upper triangle)
-    double proposal_sd = proposal_.get_proposal_sd(e);
+    double proposal_sd = proposal_sds_(e);
 
     if (edge_indicators_(i, j) == 1) {
         // Propose to turn OFF the edge
@@ -317,8 +314,6 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 
         if (std::log(runif(rng_)) < ln_alpha) {
             // Accept: turn ON the edge
-            proposal_.increment_accepts(e);
-
             // Store old values for Cholesky update
             double omega_ij_old = precision_matrix_(i, j);
             double omega_jj_old = precision_matrix_(j, j);
@@ -339,18 +334,17 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 }
 
 void GGMModel::do_one_metropolis_step(int iteration) {
-    (void)iteration;
 
     // Update off-diagonals (upper triangle)
     for (size_t i = 0; i < p_ - 1; ++i) {
         for (size_t j = i + 1; j < p_; ++j) {
-            update_edge_parameter(i, j);
+            update_edge_parameter(i, j, iteration);
         }
     }
 
     // Update diagonals
     for (size_t i = 0; i < p_; ++i) {
-        update_diagonal_parameter(i);
+        update_diagonal_parameter(i, iteration);
     }
 
     if (edge_selection_active_) {
@@ -360,9 +354,10 @@ void GGMModel::do_one_metropolis_step(int iteration) {
             }
         }
     }
+}
 
-    // could also be called in the main MCMC loop
-    proposal_.increment_iteration();
+void GGMModel::init_metropolis_adaptation(const WarmupSchedule& schedule) {
+    total_warmup_ = schedule.total_warmup;
 }
 
 void GGMModel::initialize_graph() {

@@ -67,11 +67,6 @@ public:
     bool has_missing_data() const override { return has_missing_; }
 
     /**
-     * Compute log-pseudoposterior for given parameter vector
-     */
-    double logp(const arma::vec& parameters) override;
-
-    /**
      * Compute gradient of log-pseudoposterior
      */
     arma::vec gradient(const arma::vec& parameters) override;

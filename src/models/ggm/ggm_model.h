@@ -3,7 +3,6 @@
 #include <array>
 #include <memory>
 #include "models/base_model.h"
-#include "models/adaptive_metropolis.h"
 #include "rng/rng_utils.h"
 
 
@@ -42,7 +41,7 @@ public:
         edge_indicators_(initial_edge_indicators),
         vectorized_parameters_(dim_),
         vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
-        proposal_(AdaptiveProposal(dim_, 500)),
+        proposal_sds_(arma::vec(dim_, arma::fill::ones) * 0.25),
         precision_proposal_(arma::mat(p_, p_, arma::fill::none))
     {}
 
@@ -68,7 +67,7 @@ public:
         edge_indicators_(initial_edge_indicators),
         vectorized_parameters_(dim_),
         vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
-        proposal_(AdaptiveProposal(dim_, 500)),
+        proposal_sds_(arma::vec(dim_, arma::fill::ones) * 0.25),
         precision_proposal_(arma::mat(p_, p_, arma::fill::none))
     {}
 
@@ -88,15 +87,11 @@ public:
           edge_indicators_(other.edge_indicators_),
           vectorized_parameters_(other.vectorized_parameters_),
           vectorized_indicator_parameters_(other.vectorized_indicator_parameters_),
-          proposal_(other.proposal_),
+          proposal_sds_(other.proposal_sds_),
+          total_warmup_(other.total_warmup_),
           rng_(other.rng_),
           precision_proposal_(other.precision_proposal_)
     {}
-
-
-    void set_adaptive_proposal(AdaptiveProposal proposal) {
-        proposal_ = proposal;
-    }
 
     bool has_gradient()        const override { return false; }
     bool has_adaptive_metropolis()     const override { return true; }
@@ -107,12 +102,10 @@ public:
     }
 
     void initialize_graph() override;
+    void init_metropolis_adaptation(const WarmupSchedule& schedule) override;
 
     // GGM handles edge indicator updates inside do_one_metropolis_step()
     void update_edge_indicators() override {}
-
-    // GGM uses component-wise Metropolis; logp is unused.
-    double logp(const arma::vec& parameters) override { return 0.0; }
 
     double log_likelihood(const arma::mat& omega) const { return log_density_impl(omega,  arma::chol(omega)); };
     double log_likelihood()                       const { return log_density_impl(precision_matrix_, cholesky_of_precision_); }
@@ -197,7 +190,8 @@ private:
     arma::vec vectorized_parameters_;
     arma::ivec vectorized_indicator_parameters_;
 
-    AdaptiveProposal proposal_;
+    arma::vec proposal_sds_;
+    int total_warmup_ = 0;
     SafeRNG rng_;
 
     // Scratch space
@@ -219,8 +213,8 @@ private:
     arma::vec u2_ = arma::zeros<arma::vec>(p_);
 
     // Metropolis updates
-    void update_edge_parameter(size_t i, size_t j);
-    void update_diagonal_parameter(size_t i);
+    void update_edge_parameter(size_t i, size_t j, int iteration);
+    void update_diagonal_parameter(size_t i, int iteration);
     void update_edge_indicator_parameter_pair(size_t i, size_t j);
 
     // Helpers

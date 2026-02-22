@@ -204,7 +204,7 @@ test_that("GGM posterior compare against simulated data", {
   expect_true(cor(fit_vs$posterior_summary_pairwise$mean, omega[upper.tri(omega)]) > 0.9)
   expect_true(cor(fit_vs$posterior_summary_indicator$mean, adj[upper.tri(adj)]) > 0.85)
 
-  # This test somehow fails? Can you fix this?
+  # SBM edge prior
   fit_vs_sbm <- bgm(
     x = x, variable_type = "continuous",
     edge_selection = TRUE,

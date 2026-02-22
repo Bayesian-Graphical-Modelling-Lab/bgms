@@ -571,15 +571,6 @@ void OMRFModel::get_active_inv_mass_into(arma::vec& active_inv_mass) const {
 // Log-pseudoposterior computation
 // =============================================================================
 
-double OMRFModel::logp(const arma::vec& parameters) {
-    arma::mat temp_main = main_effects_;
-    arma::mat temp_pairwise = pairwise_effects_;
-    arma::mat temp_residual;
-    unvectorize_to_temps(parameters, temp_main, temp_pairwise, temp_residual);
-    return log_pseudoposterior_with_state(temp_main, temp_pairwise, temp_residual);
-}
-
-
 double OMRFModel::log_pseudoposterior_with_state(
     const arma::mat& main_eff,
     const arma::mat& pairwise_eff,

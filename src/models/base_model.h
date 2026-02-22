@@ -20,21 +20,13 @@ public:
     virtual bool has_edge_selection() const { return false; }
 
     // Core methods (to be overridden by derived classes)
-    virtual double logp(const arma::vec& parameters) = 0;
-
     virtual arma::vec gradient(const arma::vec& parameters) {
-        if (!has_gradient()) {
-            throw std::runtime_error("Gradient not implemented for this model");
-        }
-        throw std::runtime_error("Gradient method must be implemented in derived class");
+        throw std::runtime_error("Gradient not implemented for this model");
     }
 
     virtual std::pair<double, arma::vec> logp_and_gradient(
         const arma::vec& parameters) {
-        if (!has_gradient()) {
-            throw std::runtime_error("Gradient not implemented for this model");
-        }
-        return {logp(parameters), gradient(parameters)};
+        throw std::runtime_error("logp_and_gradient not implemented for this model");
     }
 
     // For Metropolis-Hastings (model handles parameter groups internally)
