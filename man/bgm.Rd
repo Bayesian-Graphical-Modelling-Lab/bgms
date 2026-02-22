@@ -31,7 +31,7 @@ bgm(
   chains = 4,
   cores = parallel::detectCores(),
   display_progress = c("per-chain", "total", "none"),
-  backend = c("legacy", "new"),
+  backend = c("new", "legacy"),
   seed = NULL,
   standardize = FALSE,
   verbose = getOption("bgms.verbose", TRUE),
