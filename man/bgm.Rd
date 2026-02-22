@@ -31,7 +31,6 @@ bgm(
   chains = 4,
   cores = parallel::detectCores(),
   display_progress = c("per-chain", "total", "none"),
-  backend = c("new", "legacy"),
   seed = NULL,
   standardize = FALSE,
   verbose = getOption("bgms.verbose", TRUE),
@@ -142,8 +141,6 @@ Default: \code{parallel::detectCores()}.}
 sampling. Options: \code{"per-chain"} (separate bar per chain),
 \code{"total"} (single combined bar), or \code{"none"} (no progress).
 Default: \code{"per-chain"}.}
-
-\item{backend}{Character. Temporary here to switch between the computational backend for MCMC sampling.}
 
 \item{seed}{Optional integer. Random seed for reproducibility. Must be a
 single non-negative integer.}

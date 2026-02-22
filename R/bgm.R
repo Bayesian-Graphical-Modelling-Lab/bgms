@@ -254,8 +254,6 @@
 #'   \code{"total"} (single combined bar), or \code{"none"} (no progress).
 #'   Default: \code{"per-chain"}.
 #'
-#' @param backend Character. Temporary here to switch between the computational backend for MCMC sampling.
-#'
 #' @param verbose Logical. If \code{TRUE}, prints informational messages
 #'   during data processing (e.g., missing data handling, variable recoding).
 #'   Defaults to \code{getOption("bgms.verbose", TRUE)}. Set
@@ -409,7 +407,6 @@ bgm = function(
     chains = 4,
     cores = parallel::detectCores(),
     display_progress = c("per-chain", "total", "none"),
-    backend = c("new", "legacy"),
     seed = NULL,
     standardize = FALSE,
     verbose = getOption("bgms.verbose", TRUE),
@@ -585,9 +582,6 @@ bgm = function(
     ))
   }
 
-  # Check backend ---------------------------------------------------------------
-  backend = match.arg(backend)
-
   # Check display_progress ------------------------------------------------------
   progress_type = progress_type_from_display_progress(display_progress)
 
@@ -698,7 +692,6 @@ bgm = function(
   baseline_category = data$baseline_category
 
   num_variables = ncol(x)
-  num_interactions = num_variables * (num_variables - 1) / 2
   num_thresholds = sum(ifelse(variable_bool, num_categories, 2L))
 
   # Starting value of model matrix ---------------------------------------------
@@ -706,62 +699,6 @@ bgm = function(
                      nrow = num_variables,
                      ncol = num_variables
   )
-
-  # Starting values of interactions and thresholds (posterior mode) -------------
-  interactions = matrix(0, nrow = num_variables, ncol = num_variables)
-  thresholds = matrix(0, nrow = num_variables, ncol = max(num_categories))
-
-  # Precompute the number of observations per category for each variable --------
-  counts_per_category = matrix(0,
-                               nrow = max(num_categories) + 1,
-                               ncol = num_variables
-  )
-  for(variable in 1:num_variables) {
-    for(category in 0:num_categories[variable]) {
-      counts_per_category[category + 1, variable] = sum(x[, variable] == category)
-    }
-  }
-
-  # Save data before Blume-Capel centering (needed by the new backend)
-  x_raw = x
-
-  # Precompute the sufficient statistics for the two Blume-Capel parameters -----
-  blume_capel_stats = matrix(0, nrow = 2, ncol = num_variables)
-  if(any(!variable_bool)) {
-    # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
-    bc_vars = which(!variable_bool)
-    for(i in bc_vars) {
-      blume_capel_stats[1, i] = sum(x[, i] - baseline_category[i])
-      blume_capel_stats[2, i] = sum((x[, i] - baseline_category[i]) ^ 2)
-      x[, i] = x[, i] - baseline_category[i]
-    }
-  }
-  pairwise_stats = t(x) %*% x
-
-  # Index matrix used in the c++ functions  ------------------------------------
-  interaction_index_matrix = matrix(0,
-                                    nrow = num_variables * (num_variables - 1) / 2,
-                                    ncol = 3
-  )
-  cntr = 0
-  for(variable1 in 1:(num_variables - 1)) {
-    for(variable2 in (variable1 + 1):num_variables) {
-      cntr = cntr + 1
-      interaction_index_matrix[cntr, 1] = cntr - 1
-      interaction_index_matrix[cntr, 2] = variable1 - 1
-      interaction_index_matrix[cntr, 3] = variable2 - 1
-    }
-  }
-
-  pairwise_effect_indices = matrix(NA, nrow = num_variables, ncol = num_variables)
-  tel = 0
-  for(v1 in seq_len(num_variables - 1)) {
-    for(v2 in seq((v1 + 1), num_variables)) {
-      pairwise_effect_indices[v1, v2] = tel
-      pairwise_effect_indices[v2, v1] = tel
-      tel = tel + 1 # C++ starts at zero
-    }
-  }
 
   # Compute pairwise scaling factors for standardized priors --------------------
   pairwise_scaling_factors = matrix(1, nrow = num_variables, ncol = num_variables)
@@ -812,86 +749,45 @@ bgm = function(
   rownames(pairwise_scaling_factors) = varnames
   colnames(pairwise_scaling_factors) = varnames
 
-  # Setting the seed
-  if(missing(seed) || is.null(seed)) {
-    # Draw a random seed if none provided
-    seed = sample.int(.Machine$integer.max, 1)
-  }
+  input_list = list(
+    observations = x,
+    num_categories = num_categories,
+    is_ordinal_variable = variable_bool,
+    baseline_category = baseline_category,
+    main_alpha = main_alpha,
+    main_beta = main_beta,
+    pairwise_scale = pairwise_scale
+  )
 
-  if(!is.numeric(seed) || length(seed) != 1 || is.na(seed) || seed < 0) {
-    stop("Argument 'seed' must be a single non-negative integer.")
-  }
+  out_raw = sample_omrf(
+    inputFromR = input_list,
+    prior_inclusion_prob = matrix(inclusion_probability,
+                                  nrow = num_variables, ncol = num_variables),
+    initial_edge_indicators = indicator,
+    no_iter = iter,
+    no_warmup = warmup,
+    no_chains = chains,
+    no_threads = cores,
+    progress_type = progress_type,
+    edge_selection = edge_selection,
+    sampler_type = update_method,
+    seed = seed,
+    edge_prior = edge_prior,
+    na_impute = na_impute,
+    missing_index_nullable = missing_index,
+    beta_bernoulli_alpha = beta_bernoulli_alpha,
+    beta_bernoulli_beta = beta_bernoulli_beta,
+    beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+    beta_bernoulli_beta_between = beta_bernoulli_beta_between,
+    dirichlet_alpha = dirichlet_alpha,
+    lambda = lambda,
+    target_acceptance = target_accept,
+    max_tree_depth = nuts_max_depth,
+    num_leapfrogs = hmc_num_leapfrogs,
+    pairwise_scaling_factors_nullable = pairwise_scaling_factors
+  )
 
-  seed <- as.integer(seed)
-
-  if (backend == "new") {
-    input_list = list(
-      observations = x_raw,
-      num_categories = num_categories,
-      is_ordinal_variable = variable_bool,
-      baseline_category = baseline_category,
-      main_alpha = main_alpha,
-      main_beta = main_beta,
-      pairwise_scale = pairwise_scale
-    )
-
-    out_raw = sample_omrf(
-      inputFromR = input_list,
-      prior_inclusion_prob = matrix(inclusion_probability,
-                                    nrow = num_variables, ncol = num_variables),
-      initial_edge_indicators = indicator,
-      no_iter = iter,
-      no_warmup = warmup,
-      no_chains = chains,
-      no_threads = cores,
-      progress_type = progress_type,
-      edge_selection = edge_selection,
-      sampler_type = update_method,
-      seed = seed,
-      edge_prior = edge_prior,
-      na_impute = na_impute,
-      missing_index_nullable = missing_index,
-      beta_bernoulli_alpha = beta_bernoulli_alpha,
-      beta_bernoulli_beta = beta_bernoulli_beta,
-      beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
-      beta_bernoulli_beta_between = beta_bernoulli_beta_between,
-      dirichlet_alpha = dirichlet_alpha,
-      lambda = lambda,
-      target_acceptance = target_accept,
-      max_tree_depth = nuts_max_depth,
-      num_leapfrogs = hmc_num_leapfrogs,
-      pairwise_scaling_factors_nullable = pairwise_scaling_factors
-    )
-
-    out = transform_new_backend_output(out_raw, num_thresholds)
-  } else {
-
-    out = run_bgm_parallel(
-      observations = x, num_categories = num_categories,
-      pairwise_scale = pairwise_scale, edge_prior = edge_prior,
-      inclusion_probability = inclusion_probability,
-      beta_bernoulli_alpha = beta_bernoulli_alpha,
-      beta_bernoulli_beta = beta_bernoulli_beta,
-      beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
-      beta_bernoulli_beta_between = beta_bernoulli_beta_between,
-      dirichlet_alpha = dirichlet_alpha, lambda = lambda,
-      interaction_index_matrix = interaction_index_matrix, iter = iter,
-      warmup = warmup, counts_per_category = counts_per_category,
-      blume_capel_stats = blume_capel_stats,
-      main_alpha = main_alpha, main_beta = main_beta,
-      na_impute = na_impute, missing_index = missing_index,
-      is_ordinal_variable = variable_bool,
-      baseline_category = baseline_category, edge_selection = edge_selection,
-      update_method = update_method,
-      pairwise_effect_indices = pairwise_effect_indices,
-      target_accept = target_accept, pairwise_stats = pairwise_stats,
-      hmc_num_leapfrogs = hmc_num_leapfrogs, nuts_max_depth = nuts_max_depth,
-      learn_mass_matrix = learn_mass_matrix, num_chains = chains,
-      nThreads = cores, seed = seed, progress_type = progress_type,
-      pairwise_scaling_factors = pairwise_scaling_factors
-    )
-
-  } # end backend branch
+  out = transform_new_backend_output(out_raw, num_thresholds)
 
   userInterrupt = any(vapply(out, FUN = `[[`, FUN.VALUE = logical(1L), "userInterrupt"))
   if(userInterrupt) {
