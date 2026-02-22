@@ -387,6 +387,10 @@ transform_new_backend_output = function(out, num_thresholds) {
       res$indicator_samples = t(chain$indicator_samples)
     }
 
+    if (!is.null(chain$allocation_samples)) {
+      res$allocations = t(chain$allocation_samples)  # (variables x iters) -> (iters x variables)
+    }
+
     # Rename NUTS diagnostics to match old backend convention (trailing __)
     if (!is.null(chain$treedepth)) res[["treedepth__"]] = chain$treedepth
     if (!is.null(chain$divergent))  res[["divergent__"]]  = chain$divergent
