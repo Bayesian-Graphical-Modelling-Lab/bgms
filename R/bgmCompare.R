@@ -333,6 +333,49 @@ bgmCompare = function(
     lifecycle::deprecate_warn("0.1.6.0", "bgmCompare(save =)")
   }
 
+  # --- Phase B: parallel spec construction (temporary) -------------------------
+  .bgm_spec <- tryCatch(
+    bgm_spec(
+      x              = x,
+      model_type     = "compare",
+      variable_type  = variable_type,
+      baseline_category = if (hasArg(baseline_category)) baseline_category else 0L,
+      y              = if (hasArg(y)) y else NULL,
+      group_indicator = if (hasArg(group_indicator)) group_indicator else NULL,
+      na_action      = na_action,
+      pairwise_scale = pairwise_scale,
+      main_alpha     = main_alpha,
+      main_beta      = main_beta,
+      standardize    = standardize,
+      difference_selection      = difference_selection,
+      main_difference_selection = main_difference_selection,
+      difference_prior          = difference_prior,
+      difference_scale          = difference_scale,
+      difference_probability    = difference_probability,
+      beta_bernoulli_alpha      = beta_bernoulli_alpha,
+      beta_bernoulli_beta       = beta_bernoulli_beta,
+      update_method  = update_method,
+      target_accept  = if (hasArg(target_accept)) target_accept else NULL,
+      iter           = iter,
+      warmup         = warmup,
+      hmc_num_leapfrogs = hmc_num_leapfrogs,
+      nuts_max_depth = nuts_max_depth,
+      learn_mass_matrix = learn_mass_matrix,
+      chains         = chains,
+      cores          = cores,
+      seed           = seed,
+      display_progress = display_progress,
+      verbose        = verbose
+    ),
+    error = function(e) {
+      if (isTRUE(getOption("bgms.verbose"))) {
+        warning("[bgm_spec] parallel construction failed: ", conditionMessage(e))
+      }
+      NULL
+    }
+  )
+  # --- end Phase B spec construction ---
+
   # Validate sampler settings ---------------------------------------------------
   sampler <- validate_sampler(
     update_method     = update_method,
@@ -638,5 +681,6 @@ bgmCompare = function(
     output$nuts_diag = nuts_diag
   }
 
+  if (!is.null(.bgm_spec)) output$.bgm_spec <- .bgm_spec
   return(output)
 }

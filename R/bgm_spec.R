@@ -81,6 +81,8 @@ new_bgm_spec <- function(model_type, data, variables, missing, prior,
   if (model_type == "compare") {
     stopifnot(is.logical(prior$difference_selection),
               length(prior$difference_selection) == 1L)
+    stopifnot(is.logical(prior$main_difference_selection),
+              length(prior$main_difference_selection) == 1L)
     stopifnot(is.character(prior$difference_prior),
               length(prior$difference_prior) == 1L)
     stopifnot(is.numeric(prior$difference_scale),
@@ -215,6 +217,7 @@ bgm_spec <- function(x,
 
                      # Priors (compare-specific)
                      difference_selection = TRUE,
+                     main_difference_selection = FALSE,
                      difference_prior     = c("Bernoulli", "Beta-Bernoulli"),
                      difference_scale     = 2.5,
                      difference_probability = 0.5,
@@ -332,6 +335,7 @@ bgm_spec <- function(x,
       pairwise_scale = pairwise_scale, main_alpha = main_alpha,
       main_beta = main_beta, standardize = standardize,
       difference_selection = difference_selection,
+      main_difference_selection = main_difference_selection,
       difference_prior = difference_prior,
       difference_scale = difference_scale,
       difference_probability = difference_probability,
@@ -525,7 +529,8 @@ build_spec_compare <- function(x, y, group_indicator,
                                na_action, sampler,
                                pairwise_scale, main_alpha, main_beta,
                                standardize,
-                               difference_selection, difference_prior,
+                               difference_selection, main_difference_selection,
+                               difference_prior,
                                difference_scale, difference_probability,
                                beta_bernoulli_alpha, beta_bernoulli_beta) {
 
@@ -715,6 +720,7 @@ build_spec_compare <- function(x, y, group_indicator,
       standardize      = standardize,
       pairwise_scaling_factors = psf,
       difference_selection          = dp$difference_selection,
+      main_difference_selection     = main_difference_selection,
       difference_prior              = dp$difference_prior,
       difference_scale              = difference_scale,
       inclusion_probability_difference = dp$inclusion_probability_difference,
@@ -750,6 +756,133 @@ sampler_sublist <- function(s) {
     learn_mass_matrix = s$learn_mass_matrix,
     seed              = as.integer(s$seed),
     progress_type     = as.integer(s$progress_type)
+  )
+}
+
+
+# ==============================================================================
+# build_arguments()  — convert spec → legacy arguments list
+# ==============================================================================
+#
+# Produces the same `arguments` list that prepare_output_bgm(),
+# prepare_output_ggm(), and prepare_output_bgmCompare() build, so
+# downstream code (extractor functions, simulate, predict) can work
+# unchanged.
+# ==============================================================================
+build_arguments <- function(spec) {
+  stopifnot(inherits(spec, "bgm_spec"))
+  mt <- spec$model_type
+
+  if (mt == "ggm") {
+    build_arguments_ggm(spec)
+  } else if (mt == "omrf") {
+    build_arguments_omrf(spec)
+  } else {
+    build_arguments_compare(spec)
+  }
+}
+
+
+build_arguments_ggm <- function(spec) {
+  list(
+    num_variables                = spec$data$num_variables,
+    num_cases                    = spec$data$num_cases,
+    na_impute                    = spec$missing$na_impute,
+    variable_type                = spec$variables$variable_type,
+    iter                         = spec$sampler$iter,
+    warmup                       = spec$sampler$warmup,
+    edge_selection               = spec$prior$edge_selection,
+    edge_prior                   = spec$prior$edge_prior,
+    inclusion_probability        = spec$prior$inclusion_probability,
+    beta_bernoulli_alpha         = spec$prior$beta_bernoulli_alpha,
+    beta_bernoulli_beta          = spec$prior$beta_bernoulli_beta,
+    beta_bernoulli_alpha_between = spec$prior$beta_bernoulli_alpha_between,
+    beta_bernoulli_beta_between  = spec$prior$beta_bernoulli_beta_between,
+    dirichlet_alpha              = spec$prior$dirichlet_alpha,
+    lambda                       = spec$prior$lambda,
+    na_action                    = spec$missing$na_action,
+    version                      = packageVersion("bgms"),
+    update_method                = spec$sampler$update_method,
+    target_accept                = spec$sampler$target_accept,
+    num_chains                   = spec$sampler$chains,
+    data_columnnames             = spec$data$data_columnnames,
+    no_variables                 = spec$data$num_variables,
+    is_continuous                = TRUE
+  )
+}
+
+
+build_arguments_omrf <- function(spec) {
+  # Legacy stores user-facing scalar (e.g. "ordinal") when all the same.
+  vt <- spec$variables$variable_type
+  if (length(unique(vt)) == 1L) vt <- unique(vt)
+
+  list(
+    num_variables                = spec$data$num_variables,
+    num_cases                    = spec$data$num_cases,
+    na_impute                    = spec$missing$na_impute,
+    variable_type                = vt,
+    iter                         = spec$sampler$iter,
+    warmup                       = spec$sampler$warmup,
+    pairwise_scale               = spec$prior$pairwise_scale,
+    standardize                  = spec$prior$standardize,
+    main_alpha                   = spec$prior$main_alpha,
+    main_beta                    = spec$prior$main_beta,
+    edge_selection               = spec$prior$edge_selection,
+    edge_prior                   = spec$prior$edge_prior,
+    inclusion_probability        = spec$prior$inclusion_probability,
+    beta_bernoulli_alpha         = spec$prior$beta_bernoulli_alpha,
+    beta_bernoulli_beta          = spec$prior$beta_bernoulli_beta,
+    beta_bernoulli_alpha_between = spec$prior$beta_bernoulli_alpha_between,
+    beta_bernoulli_beta_between  = spec$prior$beta_bernoulli_beta_between,
+    dirichlet_alpha              = spec$prior$dirichlet_alpha,
+    lambda                       = spec$prior$lambda,
+    na_action                    = spec$missing$na_action,
+    version                      = packageVersion("bgms"),
+    update_method                = spec$sampler$update_method,
+    target_accept                = spec$sampler$target_accept,
+    hmc_num_leapfrogs            = spec$sampler$hmc_num_leapfrogs,
+    nuts_max_depth               = spec$sampler$nuts_max_depth,
+    learn_mass_matrix            = spec$sampler$learn_mass_matrix,
+    num_chains                   = spec$sampler$chains,
+    num_categories               = spec$data$num_categories,
+    data_columnnames             = spec$data$data_columnnames,
+    baseline_category            = spec$variables$baseline_category,
+    pairwise_scaling_factors     = spec$prior$pairwise_scaling_factors,
+    no_variables                 = spec$data$num_variables
+  )
+}
+
+
+build_arguments_compare <- function(spec) {
+  list(
+    num_variables                = spec$data$num_variables,
+    num_cases                    = spec$data$num_cases,
+    iter                         = spec$sampler$iter,
+    warmup                       = spec$sampler$warmup,
+    pairwise_scale               = spec$prior$pairwise_scale,
+    difference_scale             = spec$prior$difference_scale,
+    standardize                  = spec$prior$standardize,
+    difference_selection         = spec$prior$difference_selection,
+    main_difference_selection    = spec$prior$main_difference_selection,
+    difference_prior             = spec$prior$difference_prior,
+    difference_selection_alpha   = spec$prior$beta_bernoulli_alpha,
+    difference_selection_beta    = spec$prior$beta_bernoulli_beta,
+    inclusion_probability        = spec$prior$inclusion_probability_difference,
+    version                      = packageVersion("bgms"),
+    update_method                = spec$sampler$update_method,
+    target_accept                = spec$sampler$target_accept,
+    hmc_num_leapfrogs            = spec$sampler$hmc_num_leapfrogs,
+    nuts_max_depth               = spec$sampler$nuts_max_depth,
+    learn_mass_matrix            = spec$sampler$learn_mass_matrix,
+    num_chains                   = spec$sampler$chains,
+    num_groups                   = spec$data$num_groups,
+    data_columnnames             = spec$data$data_columnnames,
+    projection                   = spec$data$projection,
+    num_categories               = spec$data$num_categories,
+    is_ordinal_variable          = spec$variables$is_ordinal,
+    group                        = sort(spec$data$group),
+    pairwise_scaling_factors     = spec$prior$pairwise_scaling_factors
   )
 }
 

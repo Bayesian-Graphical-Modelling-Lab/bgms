@@ -450,6 +450,49 @@ bgm = function(
     if(!hasArg(main_beta)) main_beta = threshold_beta
   }
 
+  # --- Phase B: parallel spec construction (temporary) -------------------------
+  .bgm_spec <- tryCatch(
+    bgm_spec(
+      x              = x,
+      model_type     = "omrf",
+      variable_type  = variable_type,
+      baseline_category = if (hasArg(baseline_category)) baseline_category else 0L,
+      na_action      = na_action,
+      pairwise_scale = pairwise_scale,
+      main_alpha     = main_alpha,
+      main_beta      = main_beta,
+      standardize    = standardize,
+      edge_selection = edge_selection,
+      edge_prior     = edge_prior,
+      inclusion_probability      = inclusion_probability,
+      beta_bernoulli_alpha       = beta_bernoulli_alpha,
+      beta_bernoulli_beta        = beta_bernoulli_beta,
+      beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+      beta_bernoulli_beta_between  = beta_bernoulli_beta_between,
+      dirichlet_alpha            = dirichlet_alpha,
+      lambda                     = lambda,
+      update_method  = update_method,
+      target_accept  = if (hasArg(target_accept)) target_accept else NULL,
+      iter           = iter,
+      warmup         = warmup,
+      hmc_num_leapfrogs = hmc_num_leapfrogs,
+      nuts_max_depth = nuts_max_depth,
+      learn_mass_matrix = learn_mass_matrix,
+      chains         = chains,
+      cores          = cores,
+      seed           = seed,
+      display_progress = display_progress,
+      verbose        = verbose
+    ),
+    error = function(e) {
+      if (isTRUE(getOption("bgms.verbose"))) {
+        warning("[bgm_spec] parallel construction failed: ", conditionMessage(e))
+      }
+      NULL
+    }
+  )
+  # --- end Phase B spec construction ---
+
   # Check data input ------------------------------------------------------------
   if(!inherits(x, what = "matrix") && !inherits(x, what = "data.frame")) {
     stop("The input x needs to be a matrix or dataframe.")
@@ -612,6 +655,7 @@ bgm = function(
       num_chains = chains
     )
 
+    if (!is.null(.bgm_spec)) output$.bgm_spec <- .bgm_spec
     return(output)
   }
 
@@ -781,5 +825,6 @@ bgm = function(
     }
   }
 
+  if (!is.null(.bgm_spec)) output$.bgm_spec <- .bgm_spec
   return(output)
 }
