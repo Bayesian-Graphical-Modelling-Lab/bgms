@@ -302,3 +302,74 @@ reformat_ordinal_data <- function(x, is_ordinal, baseline_category) {
     baseline_category = baseline_category
   )
 }
+
+
+# ------------------------------------------------------------------------------
+# collapse_categories_across_groups
+# ------------------------------------------------------------------------------
+#
+# For bgmCompare: collapses ordinal categories that are not observed in
+# *all* groups, then renumbers the remaining categories contiguously
+# (0-based). Blume-Capel variables are left unchanged.
+#
+# Called immediately after reformat_ordinal_data() in the compare path.
+#
+# Extracted from the group-aware ordinal recoding loop in
+# compare_reformat_data() (data_utils.R) as part of Phase A.6b.
+#
+# @param x  Numeric matrix: data already recoded by reformat_ordinal_data().
+# @param group  Integer vector of length nrow(x): group membership (1:K).
+# @param is_ordinal  Logical vector of length ncol(x).
+# @param num_categories  Integer vector from reformat_ordinal_data().
+# @param baseline_category  Integer vector from reformat_ordinal_data().
+#
+# Returns:
+#   list(x, num_categories, baseline_category)
+# ------------------------------------------------------------------------------
+collapse_categories_across_groups <- function(x,
+                                              group,
+                                              is_ordinal,
+                                              num_categories,
+                                              baseline_category) {
+  num_variables <- ncol(x)
+  num_groups <- max(group)
+
+  for (node in seq_len(num_variables)) {
+    if (!is_ordinal[node]) next  # BC variables: no group collapsing
+
+    unq_vls <- sort(unique(x[, node]))
+    n_unique <- length(unq_vls)
+
+    # Build observed_scores matrix: which categories appear in which groups
+    observed_scores <- matrix(NA, nrow = n_unique, ncol = num_groups)
+    for (i in seq_along(unq_vls)) {
+      for (g in seq_len(num_groups)) {
+        observed_scores[i, g] <-
+          as.integer(any(x[group == g, node] == unq_vls[i]))
+      }
+    }
+
+    # Recode: keep only categories observed in ALL groups
+    original <- x[, node]
+    cntr <- -1L
+    for (i in seq_along(unq_vls)) {
+      if (sum(observed_scores[i, ]) == num_groups) {
+        cntr <- cntr + 1L
+      }
+      x[original == unq_vls[i], node] <- max(0L, cntr)
+    }
+
+    num_categories[node] <- max(x[, node])
+
+    # After collapsing, check that at least two categories remain
+    if (num_categories[node] == 0) {
+      stop(paste0("Only one value was observed for variable ", node, "."))
+    }
+  }
+
+  list(
+    x                 = x,
+    num_categories    = num_categories,
+    baseline_category = baseline_category
+  )
+}
