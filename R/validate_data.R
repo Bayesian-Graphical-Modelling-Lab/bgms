@@ -157,3 +157,148 @@ handle_impute <- function(x, group = NULL) {
 
   result
 }
+
+
+# ------------------------------------------------------------------------------
+# reformat_ordinal_data
+# ------------------------------------------------------------------------------
+#
+# Per-variable recoding of ordinal and Blume-Capel data to 0-based
+# contiguous categories. Single-group only (no group-conditional
+# collapsing — see collapse_categories_across_groups() for that).
+#
+# Extracted from the per-variable for-loop in reformat_data()
+# (data_utils.R) as part of Phase A.6.
+#
+# @param x  Numeric matrix: the data (after missing-data handling).
+# @param is_ordinal  Logical vector of length ncol(x): TRUE = regular
+#   ordinal variable, FALSE = Blume-Capel variable.
+# @param baseline_category  Integer vector of length ncol(x): baseline
+#   (reference) categories for Blume-Capel variables.
+#
+# Returns:
+#   list(x, num_categories, baseline_category)
+#   - x: matrix with recoded values
+#   - num_categories: integer vector (max observed value per variable)
+#   - baseline_category: possibly adjusted baseline categories
+# ------------------------------------------------------------------------------
+reformat_ordinal_data <- function(x, is_ordinal, baseline_category) {
+  check_fail_zero <- FALSE
+  num_variables <- ncol(x)
+  num_categories <- vector(length = num_variables)
+
+  for (node in 1:num_variables) {
+    unq_vls <- sort(unique(x[, node]))
+    mx_vl <- max(unq_vls)
+
+    # Check if observed responses are not all unique ---------------------------
+    if (mx_vl == nrow(x)) {
+      stop(paste0(
+        "Only unique responses observed for variable ",
+        node,
+        ". We expect >= 1 observations per category."
+      ))
+    }
+
+    # Recode data --------------------------------------------------------------
+    if (is_ordinal[node]) { # Regular ordinal variable
+      if (length(unq_vls) != mx_vl + 1 || any(unq_vls != 0:mx_vl)) {
+        y <- x[, node]
+        cntr <- 0
+        for (value in unq_vls) {
+          x[y == value, node] <- cntr
+          cntr <- cntr + 1
+        }
+      }
+    } else { # Blume-Capel ordinal variable
+      # Check if observations are integer or can be recoded --------------------
+      if (any(abs(unq_vls - round(unq_vls)) > .Machine$double.eps)) {
+        int_unq_vls <- unique(as.integer(unq_vls))
+        if (anyNA(int_unq_vls)) {
+          stop(paste0(
+            "The Blume-Capel model assumes that its observations are coded as integers, but \n",
+            "the category scores for node ", node, " were not integer. An attempt to recode \n",
+            "them to integer failed. Please inspect the documentation for the base R \n",
+            "function as.integer(), which bgm uses for recoding category scores."
+          ))
+        }
+
+        if (length(int_unq_vls) != length(unq_vls)) {
+          stop(paste0(
+            "The Blume-Capel model assumes that its observations are coded as integers. The \n",
+            "category scores of the observations for node ", node, " were not integers. An \n",
+            "attempt to recode these observations as integers failed because, after rounding, \n",
+            "a single integer value was used for several observed score categories."
+          ))
+        }
+        x[, node] <- as.integer(x[, node])
+
+        if (baseline_category[node] < 0 | baseline_category[node] > max(x[, node])) {
+          stop(paste0(
+            "The reference category for the Blume-Capel variable ", node, "is outside its \n",
+            "range of observations."
+          ))
+        }
+      }
+
+      # Check if observations start at zero and recode otherwise ---------------
+      if (min(x[, node]) != 0) {
+        baseline_category[node] <- baseline_category[node] - min(x[, node])
+        x[, node] <- x[, node] - min(x[, node])
+
+        if (check_fail_zero == FALSE) {
+          check_fail_zero <- TRUE
+          failed_zeroes <- c(node)
+        } else {
+          failed_zeroes <- c(failed_zeroes, node)
+        }
+      }
+
+      check_range <- length(unique(x[, node]))
+      if (check_range < 3) {
+        stop(paste0(
+          "The Blume-Capel is only available for variables with more than one category \n",
+          "observed. There two or less categories observed for variable ",
+          node,
+          "."
+        ))
+      }
+    }
+
+    # Warn that maximum category value is large --------------------------------
+    num_categories[node] <- max(x[, node])
+    if (!is_ordinal[node] & num_categories[node] > 10) {
+      warning(
+        "Blume-Capel variable ", node, " has ", num_categories[node], " categories. ",
+        "This may slow computation. Empty categories are not collapsed.",
+        call. = FALSE
+      )
+    }
+
+    # Check to see if not all responses are in one category --------------------
+    if (num_categories[node] == 0) {
+      stop(paste0(
+        "Only one value [",
+        unq_vls,
+        "] was observed for variable ",
+        node,
+        "."
+      ))
+    }
+  }
+
+  if (check_fail_zero == TRUE && isTRUE(getOption("bgms.verbose", TRUE))) {
+    nodes_str <- paste(failed_zeroes, collapse = ", ")
+    message(
+      "Variable", if (length(failed_zeroes) > 1) "s" else "", " ", nodes_str,
+      " recoded to start at 0 (baseline categor",
+      if (length(failed_zeroes) > 1) "ies" else "y", " adjusted)."
+    )
+  }
+
+  list(
+    x                 = x,
+    num_categories    = num_categories,
+    baseline_category = baseline_category
+  )
+}
