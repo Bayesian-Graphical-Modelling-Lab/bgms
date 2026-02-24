@@ -49,87 +49,14 @@ check_model = function(x,
                        dirichlet_alpha = dirichlet_alpha,
                        lambda = lambda) {
   # Check variable type input ---------------------------------------------------
-  is_continuous = FALSE
-  if(length(variable_type) == 1) {
-    variable_input = variable_type
-    variable_type = try(
-      match.arg(
-        arg = variable_type,
-        choices = c("ordinal", "blume-capel", "continuous")
-      ),
-      silent = TRUE
-    )
-    if(inherits(variable_type, what = "try-error")) {
-      stop(paste0(
-        "The bgm function supports variables of type ordinal, blume-capel, ",
-        "and continuous, but not of type ",
-        variable_input, "."
-      ))
-    }
-    if(variable_type == "continuous") {
-      is_continuous = TRUE
-      variable_bool = rep(TRUE, ncol(x))
-    } else {
-      variable_bool = (variable_type == "ordinal")
-      variable_bool = rep(variable_bool, ncol(x))
-    }
-  } else {
-    if(length(variable_type) != ncol(x)) {
-      stop(paste0(
-        "The variable type vector variable_type should be either a single character\n",
-        "string or a vector of character strings of length p."
-      ))
-    }
-
-    has_continuous = any(variable_type == "continuous")
-    if(has_continuous && !all(variable_type == "continuous")) {
-      stop(paste0(
-        "When using continuous variables, all variables must be of type ",
-        "'continuous'. Mixtures of continuous and ordinal/blume-capel ",
-        "variables are not supported."
-      ))
-    }
-    if(has_continuous) {
-      is_continuous = TRUE
-      variable_bool = rep(TRUE, ncol(x))
-    } else {
-      variable_input = unique(variable_type)
-      variable_type = try(match.arg(
-        arg = variable_type,
-        choices = c("ordinal", "blume-capel"),
-        several.ok = TRUE
-      ), silent = TRUE)
-
-      if(inherits(variable_type, what = "try-error")) {
-        stop(paste0(
-          "The bgm function supports variables of type ordinal, blume-capel, ",
-          "and continuous, but not of type ",
-          paste0(variable_input, collapse = ", "), "."
-        ))
-      }
-
-      num_types = sapply(variable_input, function(type) {
-        tmp = try(
-          match.arg(
-            arg = type,
-            choices = c("ordinal", "blume-capel")
-          ),
-          silent = TRUE
-        )
-        inherits(tmp, what = "try-error")
-      })
-
-      if(length(variable_type) != ncol(x)) {
-        stop(paste0(
-          "The bgm function supports variables of type ordinal, blume-capel, ",
-          "and continuous, but not of type ",
-          paste0(variable_input[num_types], collapse = ", "), "."
-        ))
-      }
-
-      variable_bool = (variable_type == "ordinal")
-    }
-  }
+  vt <- validate_variable_types(
+    variable_type    = variable_type,
+    num_variables    = ncol(x),
+    allow_continuous = TRUE,
+    caller           = "bgm"
+  )
+  variable_bool <- vt$variable_bool
+  is_continuous <- vt$is_continuous
 
   # Check Blume-Capel variable input --------------------------------------------
   if(any(!variable_bool)) {
@@ -403,68 +330,13 @@ check_compare_model = function(
   }
 
   # Check variable type input ---------------------------------------------------
-  if(length(variable_type) == 1) {
-    variable_input = variable_type
-    variable_type = try(
-      match.arg(
-        arg = variable_type,
-        choices = c("ordinal", "blume-capel")
-      ),
-      silent = TRUE
-    )
-    if(inherits(variable_type, what = "try-error")) {
-      stop(paste0(
-        "The bgmCompare function supports variables of type ordinal and blume-capel, \n",
-        "but not of type ",
-        variable_input, "."
-      ))
-    }
-    variable_bool = (variable_type == "ordinal")
-    variable_bool = rep(variable_bool, ncol(x))
-  } else {
-    if(length(variable_type) != ncol(x)) {
-      stop(paste0(
-        "The variable type vector variable_type should be either a single character\n",
-        "string or a vector of character strings of length p."
-      ))
-    }
-
-    variable_input = unique(variable_type)
-    variable_type = try(match.arg(
-      arg = variable_type,
-      choices = c("ordinal", "blume-capel"),
-      several.ok = TRUE
-    ), silent = TRUE)
-
-    if(inherits(variable_type, what = "try-error")) {
-      stop(paste0(
-        "The bgmCompare function supports variables of type ordinal and blume-capel, \n",
-        "but not of type ",
-        paste0(variable_input, collapse = ", "), "."
-      ))
-    }
-
-    num_types = sapply(variable_input, function(type) {
-      tmp = try(
-        match.arg(
-          arg = type,
-          choices = c("ordinal", "blume-capel")
-        ),
-        silent = TRUE
-      )
-      inherits(tmp, what = "try-error")
-    })
-
-    if(length(variable_type) != ncol(x)) {
-      stop(paste0(
-        "The bgmCompare function supports variables of type ordinal and blume-capel, \n",
-        "but not of type ",
-        paste0(variable_input[num_types], collapse = ", "), "."
-      ))
-    }
-
-    variable_bool = (variable_type == "ordinal")
-  }
+  vt <- validate_variable_types(
+    variable_type    = variable_type,
+    num_variables    = ncol(x),
+    allow_continuous = FALSE,
+    caller           = "bgmCompare"
+  )
+  variable_bool <- vt$variable_bool
 
   # Check Blume-Capel variable input --------------------------------------------
   if(any(!variable_bool)) {
