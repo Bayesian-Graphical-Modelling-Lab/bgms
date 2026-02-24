@@ -1,3 +1,8 @@
+# Null-coalescing operator for R < 4.4 compatibility
+if (!exists("%||%", baseenv())) {
+  `%||%` <- function(x, y) if (is.null(x)) y else x
+}
+
 ##' Extractor Functions for bgms Objects
 #'
 #' These functions extract various components from objects returned by the `bgm()` function,

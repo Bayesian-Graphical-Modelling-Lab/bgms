@@ -1,0 +1,789 @@
+# ==============================================================================
+# bgm_spec: validated intermediate specification object
+# ==============================================================================
+#
+# Phase B of the R scaffolding refactor.
+#
+# Three-layer construction pattern:
+#   bgm_spec()          — user-facing: calls Phase A validators, assembles
+#   new_bgm_spec()      — low-level: type/presence assertions per field
+#   validate_bgm_spec() — cross-field invariant checks
+#
+# The spec is an S3 list of class "bgm_spec".
+# ==============================================================================
+
+
+# ==============================================================================
+# new_bgm_spec()  — low-level constructor
+# ==============================================================================
+#
+# Asserts presence and type of every field. Does NOT validate values
+# (that's done upstream by Phase A validators) or cross-field invariants
+# (that's validate_bgm_spec).
+# ==============================================================================
+new_bgm_spec <- function(model_type, data, variables, missing, prior,
+                          sampler, precomputed = list()) {
+
+  # --- top-level structure ---
+  stopifnot(is.character(model_type), length(model_type) == 1L,
+            model_type %in% c("ggm", "omrf", "compare"))
+
+  # --- data sub-list ---
+  stopifnot(is.list(data))
+  stopifnot(is.matrix(data$x))
+  stopifnot(is.character(data$data_columnnames))
+  stopifnot(is.integer(data$num_variables), length(data$num_variables) == 1L)
+  stopifnot(is.integer(data$num_cases), length(data$num_cases) == 1L)
+
+  if (model_type != "ggm") {
+    stopifnot(is.integer(data$num_categories),
+              length(data$num_categories) == data$num_variables)
+  }
+
+  if (model_type == "compare") {
+    stopifnot(is.integer(data$group), length(data$group) == data$num_cases)
+    stopifnot(is.integer(data$num_groups), length(data$num_groups) == 1L)
+    stopifnot(is.matrix(data$group_indices))
+    stopifnot(is.matrix(data$projection))
+  }
+
+  # --- variables sub-list ---
+  stopifnot(is.list(variables))
+  stopifnot(is.character(variables$variable_type))
+  stopifnot(is.logical(variables$is_ordinal))
+  stopifnot(is.logical(variables$is_continuous), length(variables$is_continuous) == 1L)
+  stopifnot(is.integer(variables$baseline_category))
+
+  # --- missing sub-list ---
+  stopifnot(is.list(missing))
+  stopifnot(is.character(missing$na_action), length(missing$na_action) == 1L,
+            missing$na_action %in% c("listwise", "impute"))
+  stopifnot(is.logical(missing$na_impute), length(missing$na_impute) == 1L)
+  # missing_index can be NULL (no missing) or a matrix
+  if (!is.null(missing$missing_index)) {
+    stopifnot(is.matrix(missing$missing_index))
+  }
+
+  # --- prior sub-list ---
+  stopifnot(is.list(prior))
+  if (model_type != "ggm") {
+    stopifnot(is.numeric(prior$pairwise_scale), length(prior$pairwise_scale) == 1L)
+    stopifnot(is.numeric(prior$main_alpha), length(prior$main_alpha) == 1L)
+    stopifnot(is.numeric(prior$main_beta), length(prior$main_beta) == 1L)
+    stopifnot(is.logical(prior$standardize), length(prior$standardize) == 1L)
+    stopifnot(is.matrix(prior$pairwise_scaling_factors))
+  }
+  if (model_type %in% c("ggm", "omrf")) {
+    stopifnot(is.logical(prior$edge_selection), length(prior$edge_selection) == 1L)
+    stopifnot(is.character(prior$edge_prior), length(prior$edge_prior) == 1L)
+    stopifnot(is.matrix(prior$inclusion_probability))
+  }
+  if (model_type == "compare") {
+    stopifnot(is.logical(prior$difference_selection),
+              length(prior$difference_selection) == 1L)
+    stopifnot(is.character(prior$difference_prior),
+              length(prior$difference_prior) == 1L)
+    stopifnot(is.numeric(prior$difference_scale),
+              length(prior$difference_scale) == 1L)
+    stopifnot(is.matrix(prior$inclusion_probability_difference))
+  }
+
+  # --- sampler sub-list ---
+  stopifnot(is.list(sampler))
+  stopifnot(is.character(sampler$update_method), length(sampler$update_method) == 1L)
+  stopifnot(is.numeric(sampler$target_accept), length(sampler$target_accept) == 1L)
+  stopifnot(is.integer(sampler$iter), length(sampler$iter) == 1L)
+  stopifnot(is.integer(sampler$warmup), length(sampler$warmup) == 1L)
+  stopifnot(is.integer(sampler$chains), length(sampler$chains) == 1L)
+  stopifnot(is.integer(sampler$cores), length(sampler$cores) == 1L)
+  stopifnot(is.integer(sampler$hmc_num_leapfrogs), length(sampler$hmc_num_leapfrogs) == 1L)
+  stopifnot(is.integer(sampler$nuts_max_depth), length(sampler$nuts_max_depth) == 1L)
+  stopifnot(is.logical(sampler$learn_mass_matrix), length(sampler$learn_mass_matrix) == 1L)
+  stopifnot(is.integer(sampler$seed), length(sampler$seed) == 1L)
+  stopifnot(is.integer(sampler$progress_type), length(sampler$progress_type) == 1L)
+
+  # --- precomputed sub-list ---
+  stopifnot(is.list(precomputed))
+
+  structure(
+    list(
+      model_type  = model_type,
+      data        = data,
+      variables   = variables,
+      missing     = missing,
+      prior       = prior,
+      sampler     = sampler,
+      precomputed = precomputed
+    ),
+    class = "bgm_spec"
+  )
+}
+
+
+# ==============================================================================
+# validate_bgm_spec()  — cross-field invariant checks
+# ==============================================================================
+validate_bgm_spec <- function(spec) {
+  mt <- spec$model_type
+
+  # GGM invariants
+  if (mt == "ggm") {
+    if (!isTRUE(spec$variables$is_continuous)) {
+      stop("bgm_spec: model_type = 'ggm' requires is_continuous = TRUE.")
+    }
+    if (spec$sampler$update_method != "adaptive-metropolis") {
+      stop("bgm_spec: model_type = 'ggm' requires update_method = 'adaptive-metropolis'.")
+    }
+  }
+
+  # Compare invariants
+  if (mt == "compare") {
+    if (is.null(spec$data$group)) {
+      stop("bgm_spec: model_type = 'compare' requires data$group.")
+    }
+    if (spec$data$num_groups < 2L) {
+      stop("bgm_spec: model_type = 'compare' requires num_groups >= 2.")
+    }
+  }
+
+  # Edge selection consistency
+  if (mt %in% c("ggm", "omrf")) {
+    if (spec$prior$edge_selection && spec$prior$edge_prior == "Not Applicable") {
+      stop("bgm_spec: edge_selection = TRUE but edge_prior = 'Not Applicable'.")
+    }
+  }
+
+  # Scaling factors dimensions
+  if (mt != "ggm") {
+    nv <- spec$data$num_variables
+    sf <- spec$prior$pairwise_scaling_factors
+    if (nrow(sf) != nv || ncol(sf) != nv) {
+      stop("bgm_spec: pairwise_scaling_factors dimensions (",
+           nrow(sf), "x", ncol(sf), ") don't match num_variables (", nv, ").")
+    }
+  }
+
+  # num_categories length (OMRF / compare)
+  if (mt != "ggm") {
+    if (length(spec$data$num_categories) != spec$data$num_variables) {
+      stop("bgm_spec: num_categories length doesn't match num_variables.")
+    }
+  }
+
+  invisible(spec)
+}
+
+
+# ==============================================================================
+# bgm_spec()  — user-facing constructor
+# ==============================================================================
+#
+# Calls Phase A validators, assembles sub-lists, passes through
+# new_bgm_spec() and validate_bgm_spec().
+#
+# Parameters mirror the union of bgm() and bgmCompare() arguments.
+# ==============================================================================
+bgm_spec <- function(x,
+                     model_type = c("omrf", "ggm", "compare"),
+
+                     # Variable specification
+                     variable_type   = "ordinal",
+                     baseline_category = 0L,
+
+                     # Data (compare-specific)
+                     y               = NULL,
+                     group_indicator = NULL,
+
+                     # Missing data
+                     na_action       = c("listwise", "impute"),
+
+                     # Priors (bgm / shared)
+                     pairwise_scale  = 2.5,
+                     main_alpha      = 0.5,
+                     main_beta       = 0.5,
+                     standardize     = FALSE,
+                     edge_selection  = TRUE,
+                     edge_prior      = c("Bernoulli", "Beta-Bernoulli",
+                                         "Stochastic-Block"),
+                     inclusion_probability     = 0.5,
+                     beta_bernoulli_alpha      = 1,
+                     beta_bernoulli_beta       = 1,
+                     beta_bernoulli_alpha_between = 1,
+                     beta_bernoulli_beta_between  = 1,
+                     dirichlet_alpha           = 1,
+                     lambda                    = 1,
+
+                     # Priors (compare-specific)
+                     difference_selection = TRUE,
+                     difference_prior     = c("Bernoulli", "Beta-Bernoulli"),
+                     difference_scale     = 2.5,
+                     difference_probability = 0.5,
+
+                     # Sampler
+                     update_method   = c("nuts", "adaptive-metropolis",
+                                         "hamiltonian-mc"),
+                     target_accept   = NULL,
+                     iter            = 10000L,
+                     warmup          = 1000L,
+                     hmc_num_leapfrogs = 100L,
+                     nuts_max_depth  = 10L,
+                     learn_mass_matrix = TRUE,
+                     chains          = 4L,
+                     cores           = parallel::detectCores(),
+                     seed            = NULL,
+                     display_progress = c("per-chain", "total", "none"),
+                     verbose         = TRUE) {
+
+  model_type <- match.arg(model_type)
+  na_action  <- match.arg(na_action)
+
+  # --- Data validation --------------------------------------------------------
+  x <- data_check(x, "x")
+  data_columnnames <- if (is.null(colnames(x))) {
+    paste0("Variable ", seq_len(ncol(x)))
+  } else {
+    colnames(x)
+  }
+  num_variables <- ncol(x)
+
+  # --- Variable types ---------------------------------------------------------
+  allow_continuous <- (model_type != "compare")
+  vt <- validate_variable_types(
+    variable_type    = variable_type,
+    num_variables    = num_variables,
+    allow_continuous = allow_continuous,
+    caller           = if (model_type == "compare") "bgmCompare" else "bgm"
+  )
+  variable_type     <- vt$variable_type
+  is_ordinal        <- vt$variable_bool
+  is_continuous     <- vt$is_continuous
+
+  # Resolve model_type if "omrf" default was kept but data is continuous
+  if (model_type == "omrf" && is_continuous) {
+    model_type <- "ggm"
+  }
+
+  # --- Sampler (needs is_continuous and edge_selection early) ------------------
+  sampler <- validate_sampler(
+    update_method     = update_method,
+    target_accept     = target_accept,
+    iter              = iter,
+    warmup            = warmup,
+    hmc_num_leapfrogs = hmc_num_leapfrogs,
+    nuts_max_depth    = nuts_max_depth,
+    learn_mass_matrix = learn_mass_matrix,
+    chains            = chains,
+    cores             = cores,
+    seed              = seed,
+    display_progress  = display_progress,
+    is_continuous     = is_continuous,
+    edge_selection    = if (model_type == "compare") FALSE else edge_selection,
+    verbose           = verbose
+  )
+
+  # --- Build by model type ----------------------------------------------------
+  if (model_type == "ggm") {
+    spec <- build_spec_ggm(
+      x = x, data_columnnames = data_columnnames,
+      num_variables = num_variables,
+      variable_type = variable_type, is_ordinal = is_ordinal,
+      is_continuous = is_continuous,
+      baseline_category = as.integer(rep(0L, num_variables)),
+      na_action = na_action, sampler = sampler,
+      edge_selection = edge_selection,
+      edge_prior = edge_prior,
+      inclusion_probability = inclusion_probability,
+      beta_bernoulli_alpha = beta_bernoulli_alpha,
+      beta_bernoulli_beta = beta_bernoulli_beta,
+      beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+      beta_bernoulli_beta_between = beta_bernoulli_beta_between,
+      dirichlet_alpha = dirichlet_alpha,
+      lambda = lambda
+    )
+  } else if (model_type == "omrf") {
+    spec <- build_spec_omrf(
+      x = x, data_columnnames = data_columnnames,
+      num_variables = num_variables,
+      variable_type = variable_type, is_ordinal = is_ordinal,
+      is_continuous = is_continuous,
+      baseline_category = baseline_category,
+      na_action = na_action, sampler = sampler,
+      pairwise_scale = pairwise_scale, main_alpha = main_alpha,
+      main_beta = main_beta, standardize = standardize,
+      edge_selection = edge_selection,
+      edge_prior = edge_prior,
+      inclusion_probability = inclusion_probability,
+      beta_bernoulli_alpha = beta_bernoulli_alpha,
+      beta_bernoulli_beta = beta_bernoulli_beta,
+      beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+      beta_bernoulli_beta_between = beta_bernoulli_beta_between,
+      dirichlet_alpha = dirichlet_alpha,
+      lambda = lambda
+    )
+  } else {
+    spec <- build_spec_compare(
+      x = x, y = y, group_indicator = group_indicator,
+      data_columnnames = data_columnnames,
+      num_variables = num_variables,
+      variable_type = variable_type, is_ordinal = is_ordinal,
+      is_continuous = is_continuous,
+      baseline_category = baseline_category,
+      na_action = na_action, sampler = sampler,
+      pairwise_scale = pairwise_scale, main_alpha = main_alpha,
+      main_beta = main_beta, standardize = standardize,
+      difference_selection = difference_selection,
+      difference_prior = difference_prior,
+      difference_scale = difference_scale,
+      difference_probability = difference_probability,
+      beta_bernoulli_alpha = beta_bernoulli_alpha,
+      beta_bernoulli_beta = beta_bernoulli_beta
+    )
+  }
+
+  validate_bgm_spec(spec)
+}
+
+
+# ==============================================================================
+# Internal builders (one per model type)
+# ==============================================================================
+
+build_spec_ggm <- function(x, data_columnnames, num_variables,
+                           variable_type, is_ordinal, is_continuous,
+                           baseline_category,
+                           na_action, sampler,
+                           edge_selection, edge_prior,
+                           inclusion_probability,
+                           beta_bernoulli_alpha, beta_bernoulli_beta,
+                           beta_bernoulli_alpha_between,
+                           beta_bernoulli_beta_between,
+                           dirichlet_alpha, lambda) {
+
+  # Missing data
+  md <- validate_missing_data(x = x, na_action = na_action,
+                              is_continuous = TRUE)
+  x <- md$x
+
+  # Edge prior
+  ep <- validate_edge_prior(
+    edge_selection = edge_selection, edge_prior = edge_prior,
+    inclusion_probability = inclusion_probability,
+    num_variables = num_variables,
+    beta_bernoulli_alpha = beta_bernoulli_alpha,
+    beta_bernoulli_beta = beta_bernoulli_beta,
+    beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+    beta_bernoulli_beta_between = beta_bernoulli_beta_between,
+    dirichlet_alpha = dirichlet_alpha, lambda = lambda
+  )
+
+  new_bgm_spec(
+    model_type = "ggm",
+    data = list(
+      x                = x,
+      data_columnnames = data_columnnames,
+      num_variables    = as.integer(ncol(x)),
+      num_cases        = as.integer(nrow(x))
+    ),
+    variables = list(
+      variable_type     = variable_type,
+      is_ordinal        = is_ordinal,
+      is_continuous     = TRUE,
+      baseline_category = baseline_category
+    ),
+    missing = list(
+      na_action     = na_action,
+      na_impute     = md$na_impute,
+      missing_index = md$missing_index
+    ),
+    prior = list(
+      edge_selection        = ep$edge_selection,
+      edge_prior            = ep$edge_prior,
+      inclusion_probability = ep$inclusion_probability,
+      beta_bernoulli_alpha  = beta_bernoulli_alpha,
+      beta_bernoulli_beta   = beta_bernoulli_beta,
+      beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+      beta_bernoulli_beta_between  = beta_bernoulli_beta_between,
+      dirichlet_alpha       = dirichlet_alpha,
+      lambda                = lambda
+    ),
+    sampler = sampler_sublist(sampler),
+    precomputed = list()
+  )
+}
+
+
+build_spec_omrf <- function(x, data_columnnames, num_variables,
+                            variable_type, is_ordinal, is_continuous,
+                            baseline_category,
+                            na_action, sampler,
+                            pairwise_scale, main_alpha, main_beta,
+                            standardize,
+                            edge_selection, edge_prior,
+                            inclusion_probability,
+                            beta_bernoulli_alpha, beta_bernoulli_beta,
+                            beta_bernoulli_alpha_between,
+                            beta_bernoulli_beta_between,
+                            dirichlet_alpha, lambda) {
+
+  # Baseline category
+  bc <- validate_baseline_category(
+    baseline_category          = baseline_category,
+    baseline_category_provided = !identical(baseline_category, 0L),
+    x            = x,
+    variable_bool = is_ordinal
+  )
+
+  # Missing data + ordinal recoding
+  md <- validate_missing_data(x = x, na_action = na_action,
+                              is_continuous = FALSE)
+  x_clean <- md$x
+  ord <- reformat_ordinal_data(x = x_clean, is_ordinal = is_ordinal,
+                               baseline_category = bc)
+  x_recoded       <- ord$x
+  num_categories  <- ord$num_categories
+  bc_final        <- ord$baseline_category
+
+  missing_index <- md$missing_index
+
+  # Edge prior
+  ep <- validate_edge_prior(
+    edge_selection = edge_selection, edge_prior = edge_prior,
+    inclusion_probability = inclusion_probability,
+    num_variables = num_variables,
+    beta_bernoulli_alpha = beta_bernoulli_alpha,
+    beta_bernoulli_beta = beta_bernoulli_beta,
+    beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+    beta_bernoulli_beta_between = beta_bernoulli_beta_between,
+    dirichlet_alpha = dirichlet_alpha, lambda = lambda
+  )
+
+  # Scaling factors
+  varnames <- if (is.null(colnames(x))) {
+    paste0("Variable ", seq_len(num_variables))
+  } else {
+    colnames(x)
+  }
+  psf <- compute_scaling_factors(
+    num_variables     = num_variables,
+    is_ordinal        = is_ordinal,
+    num_categories    = num_categories,
+    baseline_category = bc_final,
+    standardize       = standardize,
+    varnames          = varnames
+  )
+
+  num_thresholds <- sum(ifelse(is_ordinal, num_categories, 2L))
+
+  new_bgm_spec(
+    model_type = "omrf",
+    data = list(
+      x                = x_recoded,
+      data_columnnames = data_columnnames,
+      num_variables    = as.integer(num_variables),
+      num_cases        = as.integer(nrow(x_recoded)),
+      num_categories   = as.integer(num_categories)
+    ),
+    variables = list(
+      variable_type     = variable_type,
+      is_ordinal        = is_ordinal,
+      is_continuous     = FALSE,
+      baseline_category = as.integer(bc_final)
+    ),
+    missing = list(
+      na_action     = na_action,
+      na_impute     = md$na_impute,
+      missing_index = missing_index
+    ),
+    prior = list(
+      pairwise_scale   = pairwise_scale,
+      main_alpha       = main_alpha,
+      main_beta        = main_beta,
+      standardize      = standardize,
+      pairwise_scaling_factors = psf,
+      edge_selection        = ep$edge_selection,
+      edge_prior            = ep$edge_prior,
+      inclusion_probability = ep$inclusion_probability,
+      beta_bernoulli_alpha  = beta_bernoulli_alpha,
+      beta_bernoulli_beta   = beta_bernoulli_beta,
+      beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+      beta_bernoulli_beta_between  = beta_bernoulli_beta_between,
+      dirichlet_alpha       = dirichlet_alpha,
+      lambda                = lambda
+    ),
+    sampler = sampler_sublist(sampler),
+    precomputed = list(
+      num_thresholds = as.integer(num_thresholds)
+    )
+  )
+}
+
+
+build_spec_compare <- function(x, y, group_indicator,
+                               data_columnnames, num_variables,
+                               variable_type, is_ordinal, is_continuous,
+                               baseline_category,
+                               na_action, sampler,
+                               pairwise_scale, main_alpha, main_beta,
+                               standardize,
+                               difference_selection, difference_prior,
+                               difference_scale, difference_probability,
+                               beta_bernoulli_alpha, beta_bernoulli_beta) {
+
+  # --- Combine x/y and create group vector ------------------------------------
+  if (!is.null(y)) {
+    y <- data_check(y, "y")
+    if (ncol(x) != ncol(y)) stop("x and y must have the same number of columns.")
+  }
+  if (is.null(y) && is.null(group_indicator)) {
+    stop(paste0(
+      "For multi-group designs, the bgmCompare function requires input for\n",
+      "either y (group 2 data) or group_indicator (group indicator)."
+    ))
+  }
+
+  if (!is.null(group_indicator)) {
+    group_indicator <- as.vector(group_indicator)
+    if (anyNA(group_indicator))
+      stop("group_indicator cannot contain missing values.")
+    if (length(group_indicator) != nrow(x))
+      stop("Length of group_indicator must match number of rows in x.")
+
+    unique_g <- unique(group_indicator)
+    if (length(unique_g) == 0L)
+      stop("The bgmCompare function expects at least two groups, but the input group_indicator contains no group value.")
+    if (length(unique_g) == 1L)
+      stop("The bgmCompare function expects at least two groups, but the input group_indicator contains only one group value.")
+    if (length(unique_g) == length(group_indicator))
+      stop("The input group_indicator contains only unique group values.")
+
+    group <- group_indicator
+    for (u in unique_g) {
+      group[group_indicator == u] <- which(unique_g == u)
+    }
+    tab <- tabulate(group)
+    if (any(tab < 2L))
+      stop("One or more groups only had one member in the input group_indicator.")
+  } else {
+    group <- c(rep.int(1L, nrow(x)), rep.int(2L, nrow(y)))
+    x <- rbind(x, y)
+  }
+
+  num_variables <- ncol(x)
+
+  # --- Baseline category (needs combined x) -----------------------------------
+  bc <- validate_baseline_category(
+    baseline_category          = baseline_category,
+    baseline_category_provided = !identical(baseline_category, 0L),
+    x            = x,
+    variable_bool = is_ordinal
+  )
+
+  # --- Difference prior -------------------------------------------------------
+  dp <- validate_difference_prior(
+    difference_selection  = difference_selection,
+    difference_prior      = difference_prior,
+    difference_probability = difference_probability,
+    num_variables         = num_variables,
+    beta_bernoulli_alpha  = beta_bernoulli_alpha,
+    beta_bernoulli_beta   = beta_bernoulli_beta
+  )
+
+  # --- Missing data + ordinal recoding ----------------------------------------
+  data <- compare_reformat_data(
+    x                 = x,
+    group             = group,
+    na_action         = na_action,
+    variable_bool     = is_ordinal,
+    baseline_category = bc
+  )
+
+  x_recoded       <- data$x
+  group           <- data$group
+  num_categories  <- data$num_categories
+  missing_index   <- data$missing_index
+  na_impute       <- data$na_impute
+  bc_final        <- data$baseline_category
+  ordinal_variable <- is_ordinal
+
+  num_variables   <- ncol(x_recoded)
+  num_groups      <- length(unique(group))
+
+  # Compute precomputed structures
+  counts_per_category <- compute_counts_per_category(
+    x_recoded, num_categories, group
+  )
+  blume_capel_stats <- compute_blume_capel_stats(
+    x_recoded, bc_final, ordinal_variable, group
+  )
+
+  # Center BC variables for pairwise stats
+  x_centered <- x_recoded
+  for (i in which(!ordinal_variable)) {
+    x_centered[, i] <- x_centered[, i] - bc_final[i]
+  }
+  pairwise_stats <- compute_pairwise_stats(x_centered, group)
+
+  # Index structures
+  num_interactions <- num_variables * (num_variables - 1) / 2
+
+  main_effect_indices <- matrix(NA_integer_, nrow = num_variables, ncol = 2)
+  for (variable in seq_len(num_variables)) {
+    if (variable > 1) {
+      main_effect_indices[variable, 1] <- 1L + main_effect_indices[variable - 1, 2]
+    } else {
+      main_effect_indices[variable, 1] <- 0L
+    }
+    if (ordinal_variable[variable]) {
+      main_effect_indices[variable, 2] <- main_effect_indices[variable, 1] +
+        num_categories[variable] - 1L
+    } else {
+      main_effect_indices[variable, 2] <- main_effect_indices[variable, 1] + 1L
+    }
+  }
+
+  pairwise_effect_indices <- matrix(NA_integer_,
+                                    nrow = num_variables, ncol = num_variables)
+  tel <- 0L
+  for (v1 in seq_len(num_variables - 1)) {
+    for (v2 in seq(v1 + 1, num_variables)) {
+      pairwise_effect_indices[v1, v2] <- tel
+      pairwise_effect_indices[v2, v1] <- tel
+      tel <- tel + 1L
+    }
+  }
+
+  # Scaling factors
+  varnames <- if (is.null(colnames(x_recoded))) {
+    paste0("Variable ", seq_len(num_variables))
+  } else {
+    colnames(x_recoded)
+  }
+  psf <- compute_scaling_factors(
+    num_variables     = num_variables,
+    is_ordinal        = ordinal_variable,
+    num_categories    = num_categories,
+    baseline_category = bc_final,
+    standardize       = standardize,
+    varnames          = varnames
+  )
+
+  # Group indices and projection
+  group_indices <- matrix(NA_integer_, nrow = num_groups, ncol = 2)
+  observations <- x_centered
+  sorted_group <- sort(group)
+  for (g in unique(group)) {
+    observations[which(sorted_group == g), ] <- x_centered[which(group == g), ]
+    group_indices[g, 1] <- as.integer(min(which(sorted_group == g)) - 1)
+    group_indices[g, 2] <- as.integer(max(which(sorted_group == g)) - 1)
+  }
+
+  one <- matrix(1, nrow = num_groups, ncol = num_groups)
+  V <- diag(num_groups) - one / num_groups
+  projection <- eigen(V)$vectors[, -num_groups, drop = FALSE]
+  if (num_groups == 2) {
+    projection <- projection / sqrt(2)
+  }
+
+  new_bgm_spec(
+    model_type = "compare",
+    data = list(
+      x                = observations,
+      data_columnnames = data_columnnames,
+      num_variables    = as.integer(num_variables),
+      num_cases        = as.integer(nrow(observations)),
+      num_categories   = as.integer(num_categories),
+      group            = as.integer(group),
+      num_groups       = as.integer(num_groups),
+      group_indices    = group_indices,
+      projection       = projection
+    ),
+    variables = list(
+      variable_type     = variable_type,
+      is_ordinal        = ordinal_variable,
+      is_continuous     = FALSE,
+      baseline_category = as.integer(bc_final)
+    ),
+    missing = list(
+      na_action     = na_action,
+      na_impute     = na_impute,
+      missing_index = missing_index
+    ),
+    prior = list(
+      pairwise_scale   = pairwise_scale,
+      main_alpha       = main_alpha,
+      main_beta        = main_beta,
+      standardize      = standardize,
+      pairwise_scaling_factors = psf,
+      difference_selection          = dp$difference_selection,
+      difference_prior              = dp$difference_prior,
+      difference_scale              = difference_scale,
+      inclusion_probability_difference = dp$inclusion_probability_difference,
+      beta_bernoulli_alpha          = beta_bernoulli_alpha,
+      beta_bernoulli_beta           = beta_bernoulli_beta
+    ),
+    sampler = sampler_sublist(sampler),
+    precomputed = list(
+      counts_per_category      = counts_per_category,
+      blume_capel_stats        = blume_capel_stats,
+      pairwise_stats           = pairwise_stats,
+      main_effect_indices      = main_effect_indices,
+      pairwise_effect_indices  = pairwise_effect_indices,
+      interaction_index_matrix = matrix(NA)  # placeholder
+    )
+  )
+}
+
+
+# ==============================================================================
+# sampler_sublist()  — extract validated sampler list for new_bgm_spec()
+# ==============================================================================
+sampler_sublist <- function(s) {
+  list(
+    update_method     = s$update_method,
+    target_accept     = s$target_accept,
+    iter              = as.integer(s$iter),
+    warmup            = as.integer(s$warmup),
+    chains            = as.integer(s$chains),
+    cores             = as.integer(s$cores),
+    hmc_num_leapfrogs = as.integer(s$hmc_num_leapfrogs),
+    nuts_max_depth    = as.integer(s$nuts_max_depth),
+    learn_mass_matrix = s$learn_mass_matrix,
+    seed              = as.integer(s$seed),
+    progress_type     = as.integer(s$progress_type)
+  )
+}
+
+
+# ==============================================================================
+# print.bgm_spec()  — debugging summary
+# ==============================================================================
+#' @export
+print.bgm_spec <- function(x, ...) {
+  s <- x
+  cat("bgm_spec object\n")
+  cat("  model_type:", s$model_type, "\n")
+  cat("  variables: ", s$data$num_variables, " (", s$data$num_cases, " cases)\n",
+      sep = "")
+  cat("  variable_type:",
+      if (s$variables$is_continuous) "continuous"
+      else paste0(sum(s$variables$is_ordinal), " ordinal, ",
+                  sum(!s$variables$is_ordinal), " blume-capel"),
+      "\n")
+  cat("  sampler:", s$sampler$update_method,
+      "(iter=", s$sampler$iter, ", warmup=", s$sampler$warmup,
+      ", chains=", s$sampler$chains, ")\n", sep = "")
+  if (s$model_type %in% c("ggm", "omrf")) {
+    cat("  edge_selection:", s$prior$edge_selection,
+        if (s$prior$edge_selection) paste0(" (", s$prior$edge_prior, ")"),
+        "\n")
+  }
+  if (s$model_type == "compare") {
+    cat("  groups:", s$data$num_groups, "\n")
+    cat("  difference_selection:", s$prior$difference_selection,
+        if (s$prior$difference_selection) paste0(" (", s$prior$difference_prior, ")"),
+        "\n")
+  }
+  cat("  na_action:", s$missing$na_action,
+      if (s$missing$na_impute) "(imputing)" else "(complete cases)", "\n")
+  invisible(s)
+}

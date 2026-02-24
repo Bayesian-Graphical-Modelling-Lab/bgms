@@ -1,3 +1,8 @@
+# Null-coalescing operator for R < 4.4 compatibility
+if (!exists("%||%", baseenv())) {
+  `%||%` <- function(x, y) if (is.null(x)) y else x
+}
+
 # ==============================================================================
 # Golden-Snapshot Fixture Verification Tests
 # ==============================================================================
