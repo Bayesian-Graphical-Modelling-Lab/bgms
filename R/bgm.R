@@ -450,24 +450,6 @@ bgm = function(
     if(!hasArg(main_beta)) main_beta = threshold_beta
   }
 
-  # Check update method
-  update_method_input = update_method
-  update_method = match.arg(update_method)
-
-  # Check target acceptance rate
-  if(hasArg(target_accept)) {
-    target_accept = min(target_accept, 1 - sqrt(.Machine$double.eps))
-    target_accept = max(target_accept, 0 + sqrt(.Machine$double.eps))
-  } else {
-    if(update_method == "adaptive-metropolis") {
-      target_accept = 0.44
-    } else if(update_method == "hamiltonian-mc") {
-      target_accept = 0.65
-    } else if(update_method == "nuts") {
-      target_accept = 0.60
-    }
-  }
-
   # Check data input ------------------------------------------------------------
   if(!inherits(x, what = "matrix") && !inherits(x, what = "data.frame")) {
     stop("The input x needs to be a matrix or dataframe.")
@@ -524,52 +506,34 @@ bgm = function(
   inclusion_probability = model$inclusion_probability
   is_continuous = model$is_continuous
 
-  # Block NUTS/HMC for the Gaussian model --------------------------------------
-  if(is_continuous) {
-    user_chose_method = length(update_method_input) == 1
-    if(user_chose_method && update_method %in% c("nuts", "hamiltonian-mc")) {
-      stop(paste0(
-        "The Gaussian model (variable_type = 'continuous') only supports ",
-        "update_method = 'adaptive-metropolis'. ",
-        "Got '", update_method, "'."
-      ))
-    }
-    update_method = "adaptive-metropolis"
-    if(!hasArg(target_accept)) {
-      target_accept = 0.44
-    }
-  }
-
-  # Check Gibbs input -----------------------------------------------------------
-  check_positive_integer(iter, "iter")
-  check_non_negative_integer(warmup, "warmup")
-
-  # Warmup warnings for HMC/NUTS (tiered based on edge_selection)
-  if (verbose && update_method %in% c("hmc", "nuts")) {
-    if (edge_selection) {
-      # For edge_selection models: warmup is split 85%/10%/5% for stages 1-3a/3b/3c
-      if (warmup < 50) {
-        warning("warmup = ", warmup, " is very short for edge selection. Consider >= 300.")
-      } else if (warmup < 200) {
-        warning("warmup = ", warmup, ": proposal SD tuning skipped (needs >= 200). Consider >= 300.")
-      } else if (warmup < 300) {
-        warning("warmup = ", warmup, ": limited proposal SD tuning. Consider >= 300.")
-      }
-    } else {
-      # For models without edge selection: standard warmup warnings
-      if (warmup < 20) {
-        warning("warmup = ", warmup, ": no mass matrix estimation (needs >= 20).")
-      } else if (warmup < 150) {
-        warning("warmup = ", warmup, ": using proportional allocation (needs >= 150 for fixed buffers).")
-      }
-    }
-  }
-
-  check_positive_integer(hmc_num_leapfrogs, "hmc_num_leapfrogs")
-  hmc_num_leapfrogs = max(hmc_num_leapfrogs, 1) # Set minimum hmc_num_leapfrogs to 1
-
-  check_positive_integer(nuts_max_depth, "nuts_max_depth")
-  nuts_max_depth = max(nuts_max_depth, 1) # Set minimum nuts_max_depth to 1
+  # Validate sampler settings ---------------------------------------------------
+  sampler <- validate_sampler(
+    update_method     = update_method,
+    target_accept     = if(hasArg(target_accept)) target_accept else NULL,
+    iter              = iter,
+    warmup            = warmup,
+    hmc_num_leapfrogs = hmc_num_leapfrogs,
+    nuts_max_depth    = nuts_max_depth,
+    learn_mass_matrix = learn_mass_matrix,
+    chains            = chains,
+    cores             = cores,
+    seed              = seed,
+    display_progress  = display_progress,
+    is_continuous     = is_continuous,
+    edge_selection    = edge_selection,
+    verbose           = verbose
+  )
+  update_method     <- sampler$update_method
+  target_accept     <- sampler$target_accept
+  iter              <- sampler$iter
+  warmup            <- sampler$warmup
+  hmc_num_leapfrogs <- sampler$hmc_num_leapfrogs
+  nuts_max_depth    <- sampler$nuts_max_depth
+  learn_mass_matrix <- sampler$learn_mass_matrix
+  chains            <- sampler$chains
+  cores             <- sampler$cores
+  seed              <- sampler$seed
+  progress_type     <- sampler$progress_type
 
   # Check na_action -------------------------------------------------------------
   na_action_input = na_action
@@ -581,20 +545,6 @@ bgm = function(
       "."
     ))
   }
-
-  # Check display_progress ------------------------------------------------------
-  progress_type = progress_type_from_display_progress(display_progress)
-
-  # Setting the seed
-  if(missing(seed) || is.null(seed)) {
-    seed = sample.int(.Machine$integer.max, 1)
-  }
-
-  if(!is.numeric(seed) || length(seed) != 1 || is.na(seed) || seed < 0) {
-    stop("Argument 'seed' must be a single non-negative integer.")
-  }
-
-  seed <- as.integer(seed)
 
   data_columnnames = if(is.null(colnames(x))) paste0("Variable ", seq_len(ncol(x))) else colnames(x)
 

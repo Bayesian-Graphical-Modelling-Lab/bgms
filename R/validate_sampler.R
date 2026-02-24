@@ -1,0 +1,148 @@
+# ==============================================================================
+# Sampler validation
+# ==============================================================================
+#
+# Extracted from inline validation in bgm.R and bgmCompare.R as part of
+# Phase A.7 of the R scaffolding refactor.
+#
+# Each validator is a pure function: input -> validated output (or error).
+# ==============================================================================
+
+
+# ------------------------------------------------------------------------------
+# validate_sampler
+# ------------------------------------------------------------------------------
+#
+# Validates and resolves all sampler-related arguments shared by bgm()
+# and bgmCompare().
+#
+# @param update_method  Character vector: user-supplied value (full default
+#   triple means "not explicitly chosen").
+# @param target_accept  Numeric or NULL. NULL = user didn't provide it;
+#   will be set to a method-specific default.
+# @param iter  Integer: post-warmup iterations.
+# @param warmup  Integer: warmup iterations.
+# @param hmc_num_leapfrogs  Integer: leapfrog steps for HMC.
+# @param nuts_max_depth  Integer: max tree depth for NUTS.
+# @param learn_mass_matrix  Logical: adapt diagonal mass matrix during warmup.
+# @param chains  Integer: number of parallel chains.
+# @param cores  Integer: number of CPU cores.
+# @param seed  Integer or NULL.
+# @param display_progress  Character or logical: progress display mode.
+# @param is_continuous  Logical: TRUE for GGM model. Forces adaptive-metropolis.
+# @param edge_selection  Logical: affects warmup warning tiers.
+# @param verbose  Logical: whether to emit warmup warnings.
+#
+# Returns:
+#   list(update_method, target_accept, iter, warmup, hmc_num_leapfrogs,
+#        nuts_max_depth, learn_mass_matrix, chains, cores, seed, progress_type)
+# ------------------------------------------------------------------------------
+validate_sampler <- function(update_method,
+                             target_accept = NULL,
+                             iter,
+                             warmup,
+                             hmc_num_leapfrogs = 100,
+                             nuts_max_depth = 10,
+                             learn_mass_matrix = TRUE,
+                             chains = 4,
+                             cores = parallel::detectCores(),
+                             seed = NULL,
+                             display_progress = c("per-chain", "total", "none"),
+                             is_continuous = FALSE,
+                             edge_selection = FALSE,
+                             verbose = TRUE) {
+
+  # --- update_method ----------------------------------------------------------
+  user_chose_method <- length(update_method) == 1
+  update_method <- match.arg(
+    update_method,
+    choices = c("nuts", "adaptive-metropolis", "hamiltonian-mc")
+  )
+
+  # --- GGM guard: force adaptive-metropolis -----------------------------------
+  if (is_continuous) {
+    if (user_chose_method && update_method %in% c("nuts", "hamiltonian-mc")) {
+      stop(paste0(
+        "The Gaussian model (variable_type = 'continuous') only supports ",
+        "update_method = 'adaptive-metropolis'. ",
+        "Got '", update_method, "'."
+      ))
+    }
+    update_method <- "adaptive-metropolis"
+  }
+
+  # --- target_accept ----------------------------------------------------------
+  if (!is.null(target_accept)) {
+    target_accept <- min(target_accept, 1 - sqrt(.Machine$double.eps))
+    target_accept <- max(target_accept, 0 + sqrt(.Machine$double.eps))
+  } else {
+    target_accept <- switch(
+      update_method,
+      "adaptive-metropolis" = 0.44,
+      "hamiltonian-mc"      = 0.65,
+      "nuts"                = 0.80
+    )
+  }
+
+  # --- iter / warmup ----------------------------------------------------------
+  check_positive_integer(iter, "iter")
+  check_non_negative_integer(warmup, "warmup")
+
+  # --- warmup warnings --------------------------------------------------------
+  if (verbose && update_method %in% c("hamiltonian-mc", "nuts")) {
+    if (edge_selection) {
+      if (warmup < 50) {
+        warning("warmup = ", warmup,
+                " is very short for edge selection. Consider >= 300.")
+      } else if (warmup < 200) {
+        warning("warmup = ", warmup,
+                ": proposal SD tuning skipped (needs >= 200). Consider >= 300.")
+      } else if (warmup < 300) {
+        warning("warmup = ", warmup,
+                ": limited proposal SD tuning. Consider >= 300.")
+      }
+    } else {
+      if (warmup < 20) {
+        warning("warmup = ", warmup,
+                ": no mass matrix estimation (needs >= 20).")
+      } else if (warmup < 150) {
+        warning("warmup = ", warmup,
+                ": using proportional allocation (needs >= 150 for fixed buffers).")
+      }
+    }
+  }
+
+  # --- hmc_num_leapfrogs / nuts_max_depth -------------------------------------
+  check_positive_integer(hmc_num_leapfrogs, "hmc_num_leapfrogs")
+  hmc_num_leapfrogs <- max(hmc_num_leapfrogs, 1L)
+
+  check_positive_integer(nuts_max_depth, "nuts_max_depth")
+  nuts_max_depth <- max(nuts_max_depth, 1L)
+
+  # --- learn_mass_matrix ------------------------------------------------------
+  learn_mass_matrix <- check_logical(learn_mass_matrix, "learn_mass_matrix")
+
+  # --- chains / cores ---------------------------------------------------------
+  check_positive_integer(chains, "chains")
+  check_positive_integer(cores, "cores")
+
+  # --- seed -------------------------------------------------------------------
+  seed <- check_seed(seed)
+
+  # --- display_progress -------------------------------------------------------
+  progress_type <- progress_type_from_display_progress(display_progress)
+
+  list(
+    update_method     = update_method,
+    target_accept     = target_accept,
+    iter              = iter,
+    warmup            = warmup,
+    hmc_num_leapfrogs = hmc_num_leapfrogs,
+    nuts_max_depth    = nuts_max_depth,
+    learn_mass_matrix = learn_mass_matrix,
+    chains            = chains,
+    cores             = cores,
+    seed              = seed,
+    progress_type     = progress_type
+  )
+}

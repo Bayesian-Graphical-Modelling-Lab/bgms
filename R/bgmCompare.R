@@ -333,23 +333,34 @@ bgmCompare = function(
     lifecycle::deprecate_warn("0.1.6.0", "bgmCompare(save =)")
   }
 
-  # Check update method
-  update_method_input = update_method
-  update_method = match.arg(update_method)
-
-  # Check target acceptance rate
-  if(hasArg(target_accept)) {
-    target_accept = min(target_accept, 1 - sqrt(.Machine$double.eps))
-    target_accept = max(target_accept, 0 + sqrt(.Machine$double.eps))
-  } else {
-    if(update_method == "adaptive-metropolis") {
-      target_accept = 0.44
-    } else if(update_method == "hamiltonian-mc") {
-      target_accept = 0.65
-    } else if(update_method == "nuts") {
-      target_accept = 0.65
-    }
-  }
+  # Validate sampler settings ---------------------------------------------------
+  sampler <- validate_sampler(
+    update_method     = update_method,
+    target_accept     = if(hasArg(target_accept)) target_accept else NULL,
+    iter              = iter,
+    warmup            = warmup,
+    hmc_num_leapfrogs = hmc_num_leapfrogs,
+    nuts_max_depth    = nuts_max_depth,
+    learn_mass_matrix = learn_mass_matrix,
+    chains            = chains,
+    cores             = cores,
+    seed              = seed,
+    display_progress  = display_progress,
+    is_continuous     = FALSE,
+    edge_selection    = FALSE,
+    verbose           = verbose
+  )
+  update_method     <- sampler$update_method
+  target_accept     <- sampler$target_accept
+  iter              <- sampler$iter
+  warmup            <- sampler$warmup
+  hmc_num_leapfrogs <- sampler$hmc_num_leapfrogs
+  nuts_max_depth    <- sampler$nuts_max_depth
+  learn_mass_matrix <- sampler$learn_mass_matrix
+  chains            <- sampler$chains
+  cores             <- sampler$cores
+  seed              <- sampler$seed
+  progress_type     <- sampler$progress_type
 
   # Check and preprocess data
   x = data_check(x, "x")
@@ -397,28 +408,12 @@ bgmCompare = function(
   baseline_category = model$baseline_category
   difference_prior = model$difference_prior
 
-  # Check Gibbs input
-  check_positive_integer(iter, "iter")
-  check_non_negative_integer(warmup, "warmup")
-
-  # Warmup warnings for HMC/NUTS
-  if (verbose && update_method %in% c("hmc", "nuts")) {
-    if (warmup < 20) {
-      warning("warmup = ", warmup, ": no mass matrix estimation (needs >= 20).")
-    } else if (warmup < 150) {
-      warning("warmup = ", warmup, ": using proportional allocation (needs >= 150 for fixed buffers).")
-    }
-  }
-
   # Check na_action
   na_action_input = na_action
   na_action = try(match.arg(na_action), silent = TRUE)
   if(inherits(na_action, "try-error")) {
     stop(sprintf("Invalid value for `na_action`. Expected 'listwise' or 'impute', got: %s", na_action_input))
   }
-
-  # Check display_progress
-  progress_type = progress_type_from_display_progress(display_progress)
 
 
   ## Format data
@@ -560,18 +555,6 @@ bgmCompare = function(
   if(num_groups == 2) {
     projection = matrix(projection, ncol = 1) / sqrt(2)
   }
-
-  # Setting the seed
-  if(missing(seed) || is.null(seed)) {
-    # Draw a random seed if none provided
-    seed = sample.int(.Machine$integer.max, 1)
-  }
-
-  if(!is.numeric(seed) || length(seed) != 1 || is.na(seed) || seed < 0) {
-    stop("Argument 'seed' must be a single non-negative integer.")
-  }
-
-  seed <- as.integer(seed)
 
   # Call the Rcpp function
   out = run_bgmCompare_parallel(
