@@ -605,22 +605,13 @@ bgm = function(
     num_variables = ncol(x)
 
     # Handle missing data for continuous variables
-    if (na_action == "listwise") {
-      missing_rows = apply(x, 1, anyNA)
-      if (all(missing_rows)) {
-        stop("All rows in x contain at least one missing response.\n",
-             "You could try option na_action = 'impute'.")
-      }
-      if (sum(missing_rows) > 0) {
-        warning(sum(missing_rows), " row(s) with missing observations removed (na_action = 'listwise').",
-                call. = FALSE)
-      }
-      x = x[!missing_rows, , drop = FALSE]
-      na_impute = FALSE
-    } else {
-      stop("Imputation is not yet supported for the Gaussian model. ",
-           "Use na_action = 'listwise'.")
-    }
+    md <- validate_missing_data(
+      x             = x,
+      na_action     = na_action,
+      is_continuous = TRUE
+    )
+    x         <- md$x
+    na_impute <- md$na_impute
 
     indicator = matrix(1L, nrow = num_variables, ncol = num_variables)
 

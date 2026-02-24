@@ -2,71 +2,15 @@ reformat_data = function(x,
                          na_action,
                          variable_bool,
                          baseline_category) {
-  if(na_action == "listwise") {
-    # Check for missing values ---------------------------------------------------
-    missing_values = sapply(1:nrow(x), function(row) {
-      anyNA(x[row, ])
-    })
-    if(sum(missing_values) == nrow(x)) {
-      stop(paste0(
-        "All rows in x contain at least one missing response.\n",
-        "You could try option na_action = impute."
-      ))
-    }
-    n_missing <- sum(missing_values)
-    n_remaining <- nrow(x) - n_missing
-    if(n_missing > 0 && isTRUE(getOption("bgms.verbose", TRUE))) {
-      message(
-        n_missing, " row", if(n_missing > 1) "s" else "",
-        " with missing values excluded (n = ", n_remaining, " remaining).\n",
-        "To impute missing values instead, use na_action = \"impute\"."
-      )
-    }
-    x = x[!missing_values, ]
-
-    if(ncol(x) < 2 || is.null(ncol(x))) {
-      stop(paste0(
-        "After removing missing observations from the input matrix x,\n",
-        "there were less than two columns left in x."
-      ))
-    }
-    if(nrow(x) < 2 || is.null(nrow(x))) {
-      stop(paste0(
-        "After removing missing observations from the input matrix x,\n",
-        "there were less than two rows left in x."
-      ))
-    }
-
-    missing_index = matrix(NA, nrow = 1, ncol = 1)
-    na_impute = FALSE
-  } else {
-    # Check for missing values -------------------------------------------------
-    num_missings = sum(is.na(x))
-    num_persons = nrow(x)
-    num_variables = ncol(x)
-    if(num_missings > 0) {
-      missing_index = matrix(0, nrow = num_missings, ncol = 2)
-      na_impute = TRUE
-      cntr = 0
-      for(node in 1:num_variables) {
-        mis = which(is.na(x[, node]))
-        if(length(mis) > 0) {
-          for(i in 1:length(mis)) {
-            cntr = cntr + 1
-            missing_index[cntr, 1] = mis[i] - 1 # c++ index starts at 0
-            missing_index[cntr, 2] = node - 1 # c++ index starts at 0
-            x[mis[i], node] = sample(x[-mis, node], # start value for imputation
-              size = 1
-            )
-            # This is non-zero if no zeroes are observed (we then collapse over zero below)
-          }
-        }
-      }
-    } else {
-      missing_index = matrix(NA, nrow = 1, ncol = 1)
-      na_impute = FALSE
-    }
-  }
+  # Handle missing data --------------------------------------------------------
+  md <- validate_missing_data(
+    x             = x,
+    na_action     = na_action,
+    is_continuous = FALSE
+  )
+  x             <- md$x
+  na_impute     <- md$na_impute
+  missing_index <- md$missing_index
 
   check_fail_zero = FALSE
   num_variables = ncol(x)
@@ -265,37 +209,20 @@ compare_reformat_data = function(
   variable_bool,
   baseline_category
 ) {
-  if(na_action == "listwise") {
-    # Check for missing values in x --------------------------------------------
-    missing_values = sapply(1:nrow(x), function(row) {
-      anyNA(x[row, ])
-    })
-    if(sum(missing_values) == nrow(x)) {
-      stop(paste0(
-        "All rows in x contain at least one missing response.\n",
-        "You could try option na_action = impute."
-      ))
-    }
-    n_missing <- sum(missing_values)
-    n_remaining <- nrow(x) - n_missing
-    if(n_missing > 0 && isTRUE(getOption("bgms.verbose", TRUE))) {
-      message(
-        n_missing, " row", if(n_missing > 1) "s" else "",
-        " with missing values excluded (n = ", n_remaining, " remaining).\n",
-        "To impute missing values instead, use na_action = \"impute\"."
-      )
-    }
+  # Handle missing data --------------------------------------------------------
+  md <- validate_missing_data(
+    x             = x,
+    na_action     = na_action,
+    is_continuous = FALSE,
+    group         = group
+  )
+  x             <- md$x
+  na_impute     <- md$na_impute
+  missing_index <- md$missing_index
+  group         <- md$group
 
-    x = x[!missing_values, ]
-    group = group[!missing_values]
-
-    if(nrow(x) < 2 || is.null(nrow(x))) {
-      stop(paste0(
-        "After removing missing observations from the input matrix x,\n",
-        "there were less than two rows left in x."
-      ))
-    }
-
+  # Post-listwise group validation (bgmCompare-specific) -----------------------
+  if(na_action == "listwise" && md$n_removed > 0) {
     unique_g = unique(group)
     if(length(unique_g) == length(group)) {
       stop(paste0(
@@ -320,34 +247,6 @@ compare_reformat_data = function(
         "After rows with missing observations were excluded, one or more groups, only \n",
         "had one member in the input g."
       ))
-    }
-
-    missing_index = matrix(NA, nrow = 1, ncol = 1)
-    na_impute = FALSE
-  } else {
-    # Check for missing values in x --------------------------------------------
-    num_missings = sum(is.na(x))
-    num_persons = nrow(x)
-    num_variables = ncol(x)
-    if(num_missings > 0) {
-      missing_index = matrix(0, nrow = num_missings, ncol = 2)
-      na_impute = TRUE
-      cntr = 0
-      for(node in 1:num_variables) {
-        mis = which(is.na(x[, node]))
-        if(length(mis) > 0) {
-          for(i in 1:length(mis)) {
-            cntr = cntr + 1
-            missing_index[cntr, 1] = mis[i] - 1 # c++ index starts at 0
-            missing_index[cntr, 2] = node - 1 # c++ index starts at 0
-            x[mis[i], node] = sample(x[-mis, node], size = 1) # start value for imputation
-            # This is non-zero if no zeroes are observed (we then collapse over zero below)
-          }
-        }
-      }
-    } else {
-      missing_index = matrix(NA, nrow = 1, ncol = 1)
-      na_impute = FALSE
     }
   }
 
