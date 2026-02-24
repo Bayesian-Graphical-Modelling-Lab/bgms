@@ -153,3 +153,113 @@ validate_variable_types <- function(variable_type,
     is_continuous  = is_continuous
   )
 }
+
+
+# ------------------------------------------------------------------------------
+# validate_baseline_category
+# ------------------------------------------------------------------------------
+#
+# Validates and normalizes the baseline_category argument for Blume-Capel
+# variables. Shared by both bgm() and bgmCompare().
+#
+# @param baseline_category  The user-supplied baseline_category value.
+# @param baseline_category_provided  Logical: whether the user actually
+#   supplied the argument (i.e., `hasArg("baseline_category")` from the
+#   calling scope). Needed because baseline_category has no default.
+# @param x  Numeric matrix: the (validated) data.
+# @param variable_bool  Logical vector: TRUE = ordinal, FALSE = blume-capel.
+#
+# Returns:
+#   Integer vector of length ncol(x). For ordinal-only models, all zeros.
+#
+# Replaces:
+#   - check_model()         lines 63-139  (function_input_utils.R)
+#   - check_compare_model() lines 340-418 (function_input_utils.R)
+# ------------------------------------------------------------------------------
+validate_baseline_category <- function(baseline_category,
+                                       baseline_category_provided,
+                                       x,
+                                       variable_bool) {
+  num_variables <- ncol(x)
+
+  # If all ordinal (no Blume-Capel), return zeros
+  if (!any(!variable_bool)) {
+    return(rep.int(0, times = num_variables))
+  }
+
+  # --- Blume-Capel variables present ---
+
+  if (!baseline_category_provided) {
+    stop("The argument baseline_category is required for Blume-Capel variables.")
+  }
+
+  if (length(baseline_category) != num_variables && length(baseline_category) != 1) {
+    stop(paste0(
+      "The argument baseline_category for the Blume-Capel model needs to be a \n",
+      "single integer or a vector of integers of length p."
+    ))
+  }
+
+  # Scalar: validate then replicate
+  if (length(baseline_category) == 1) {
+    integer_check <- try(as.integer(baseline_category), silent = TRUE)
+    if (is.na(integer_check)) {
+      stop(paste0(
+        "The baseline_category argument for the Blume-Capel model contains either \n",
+        "a missing value or a value that could not be forced into an integer value."
+      ))
+    }
+    integer_check <- abs(baseline_category - round(baseline_category))
+    if (integer_check > .Machine$double.eps) {
+      stop("Reference category needs to an integer value or a vector of integers of length p.")
+    }
+    baseline_category <- rep.int(baseline_category, times = num_variables)
+  }
+
+  # Validate integer-ness for Blume-Capel variables
+  blume_capel_variables <- which(!variable_bool)
+
+  integer_check <- try(as.integer(baseline_category[blume_capel_variables]),
+    silent = TRUE
+  )
+  if (anyNA(integer_check)) {
+    stop(paste0(
+      "The baseline_category argument for the Blume-Capel model contains either \n",
+      "missing values or values that could not be forced into an integer value."
+    ))
+  }
+
+  integer_check <- abs(baseline_category[blume_capel_variables] -
+    round(baseline_category[blume_capel_variables]))
+
+  if (any(integer_check > .Machine$double.eps)) {
+    non_integers <- blume_capel_variables[integer_check > .Machine$double.eps]
+    if (length(non_integers) > 1) {
+      stop(paste0(
+        "The entries in baseline_category for variables ",
+        paste0(non_integers, collapse = ", "), " need to be integer."
+      ))
+    } else {
+      stop(paste0(
+        "The entry in baseline_category for variable ",
+        non_integers, " needs to be an integer."
+      ))
+    }
+  }
+
+  # Validate within observed data range
+  variable_lower <- apply(x, 2, min, na.rm = TRUE)
+  variable_upper <- apply(x, 2, max, na.rm = TRUE)
+
+  if (any(baseline_category < variable_lower) | any(baseline_category > variable_upper)) {
+    out_of_range <- which(baseline_category < variable_lower | baseline_category > variable_upper)
+    stop(paste0(
+      "The Blume-Capel model assumes that the reference category is within the range \n",
+      "of the observed category scores. This was not the case for variable(s) \n",
+      paste0(out_of_range, collapse = ", "),
+      "."
+    ))
+  }
+
+  baseline_category
+}

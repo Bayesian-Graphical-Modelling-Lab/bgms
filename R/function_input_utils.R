@@ -59,83 +59,12 @@ check_model = function(x,
   is_continuous <- vt$is_continuous
 
   # Check Blume-Capel variable input --------------------------------------------
-  if(any(!variable_bool)) {
-    # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
-
-    if(!hasArg("baseline_category")) {
-      stop("The argument baseline_category is required for Blume-Capel variables.")
-    }
-
-    if(length(baseline_category) != ncol(x) && length(baseline_category) != 1) {
-      stop(paste0(
-        "The argument baseline_category for the Blume-Capel model needs to be a \n",
-        "single integer or a vector of integers of length p."
-      ))
-    }
-
-    if(length(baseline_category) == 1) {
-      # Check if the input is integer -------------------------------------------
-      integer_check = try(as.integer(baseline_category), silent = TRUE)
-      if(is.na(integer_check)) {
-        stop(paste0(
-          "The baseline_category argument for the Blume-Capel model contains either \n",
-          "a missing value or a value that could not be forced into an integer value."
-        ))
-      }
-      integer_check = baseline_category - round(baseline_category)
-      if(integer_check > .Machine$double.eps) {
-        stop("Reference category needs to an integer value or a vector of integers of length p.")
-      }
-      baseline_category = rep.int(baseline_category, times = ncol(x))
-    }
-
-    # Check if the input is integer -------------------------------------------
-    blume_capel_variables = which(!variable_bool)
-    # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
-
-    integer_check = try(as.integer(baseline_category[blume_capel_variables]),
-      silent = TRUE
-    )
-    if(anyNA(integer_check)) {
-      stop(paste0(
-        "The baseline_category argument for the Blume-Capel model contains either \n",
-        "missing values or values that could not be forced into an integer value."
-      ))
-    }
-
-    integer_check = baseline_category[blume_capel_variables] -
-      round(baseline_category[blume_capel_variables])
-
-    if(any(integer_check > .Machine$double.eps)) {
-      non_integers = blume_capel_variables[integer_check > .Machine$double.eps]
-      if(length(non_integers) > 1) {
-        stop(paste0(
-          "The entries in baseline_category for variables ",
-          paste0(non_integers, collapse = ", "), " need to be integer."
-        ))
-      } else {
-        stop(paste0(
-          "The entry in baseline_category for variable ",
-          non_integers, " needs to be an integer."
-        ))
-      }
-    }
-
-    variable_lower = apply(x, 2, min, na.rm = TRUE)
-    variable_upper = apply(x, 2, max, na.rm = TRUE)
-
-    if(any(baseline_category < variable_lower) | any(baseline_category > variable_upper)) {
-      out_of_range = which(baseline_category < variable_lower | baseline_category > variable_upper)
-      stop(paste0(
-        "The Blume-Capel model assumes that the reference category is within the range \n",
-        "of the observed category scores. This was not the case for variable(s) \n",
-        paste0(out_of_range, collapse = ", "),
-        "."
-      ))
-    }
-  } else {
-    baseline_category = rep.int(0, times = ncol(x))
-  }
+  baseline_category <- validate_baseline_category(
+    baseline_category          = baseline_category,
+    baseline_category_provided = hasArg("baseline_category"),
+    x                          = x,
+    variable_bool              = variable_bool
+  )
 
   # Check prior set-up for the interaction parameters ---------------------------
   if(pairwise_scale <= 0 || is.na(pairwise_scale) || is.infinite(pairwise_scale)) {
@@ -339,83 +268,12 @@ check_compare_model = function(
   variable_bool <- vt$variable_bool
 
   # Check Blume-Capel variable input --------------------------------------------
-  if(any(!variable_bool)) {
-    # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
-
-    if(!hasArg("baseline_category")) {
-      stop("The argument baseline_category is required for Blume-Capel variables.")
-    }
-
-    if(length(baseline_category) != ncol(x) && length(baseline_category) != 1) {
-      stop(paste0(
-        "The argument baseline_category for the Blume-Capel model needs to be a \n",
-        "single integer or a vector of integers of length p."
-      ))
-    }
-
-    if(length(baseline_category) == 1) {
-      # Check if the input is integer -------------------------------------------
-      integer_check = try(as.integer(baseline_category), silent = TRUE)
-      if(is.na(integer_check)) {
-        stop(paste0(
-          "The baseline_category argument for the Blume-Capel model contains either \n",
-          "a missing value or a value that could not be forced into an integer value."
-        ))
-      }
-      integer_check = baseline_category - round(baseline_category)
-      if(integer_check > .Machine$double.eps) {
-        stop("Reference category needs to an integer value or a vector of integers of length p.")
-      }
-      baseline_category = rep.int(baseline_category, times = ncol(x))
-    }
-
-    # Check if the input is integer -------------------------------------------
-    blume_capel_variables = which(!variable_bool)
-    # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
-
-    integer_check = try(as.integer(baseline_category[blume_capel_variables]),
-      silent = TRUE
-    )
-    if(anyNA(integer_check)) {
-      stop(paste0(
-        "The baseline_category argument for the Blume-Capel model contains either \n",
-        "missing values or values that could not be forced into an integer value."
-      ))
-    }
-
-    integer_check = baseline_category[blume_capel_variables] -
-      round(baseline_category[blume_capel_variables])
-
-    if(any(integer_check > .Machine$double.eps)) {
-      non_integers = blume_capel_variables[integer_check > .Machine$double.eps]
-      if(length(non_integers) > 1) {
-        stop(paste0(
-          "The entries in baseline_category for variables ",
-          paste0(non_integers, collapse = ", "), " need to be integer."
-        ))
-      } else {
-        stop(paste0(
-          "The entry in baseline_category for variable ",
-          non_integers, " needs to be an integer."
-        ))
-      }
-    }
-
-    variable_lower = apply(x, 2, min, na.rm = TRUE)
-    variable_upper = apply(x, 2, max, na.rm = TRUE)
-
-    if(any(baseline_category < variable_lower) | any(baseline_category > variable_upper)) {
-      out_of_range = which(baseline_category < variable_lower | baseline_category > variable_upper)
-      stop(paste0(
-        "The Blume-Capel model assumes that the reference category is within the range \n",
-        "of the observed category scores. This was not the case for variable(s) \n",
-        paste0(out_of_range, collapse = ", "),
-        "."
-      ))
-    }
-  } else {
-    baseline_category = rep.int(0, times = ncol(x))
-  }
+  baseline_category <- validate_baseline_category(
+    baseline_category          = baseline_category,
+    baseline_category_provided = hasArg("baseline_category"),
+    x                          = x,
+    variable_bool              = variable_bool
+  )
 
   # Check prior set-up for the interaction parameters ---------------------------
   if(pairwise_scale <= 0 || is.na(pairwise_scale) || is.infinite(pairwise_scale)) {
