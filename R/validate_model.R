@@ -263,3 +263,196 @@ validate_baseline_category <- function(baseline_category,
 
   baseline_category
 }
+
+
+# ------------------------------------------------------------------------------
+# validate_edge_prior
+# ------------------------------------------------------------------------------
+#
+# Validates and normalizes the edge selection prior setup for bgm().
+# Handles Bernoulli, Beta-Bernoulli, and Stochastic-Block priors.
+#
+# @param edge_selection  Logical: whether to perform Bayesian edge selection.
+# @param edge_prior  Character: one of "Bernoulli", "Beta-Bernoulli",
+#   "Stochastic-Block".
+# @param inclusion_probability  Scalar or matrix of inclusion probabilities.
+# @param num_variables  Integer: number of variables (ncol of data).
+# @param beta_bernoulli_alpha  Numeric: alpha shape parameter for Beta prior.
+# @param beta_bernoulli_beta  Numeric: beta shape parameter for Beta prior.
+# @param beta_bernoulli_alpha_between  Numeric: alpha for between-cluster
+#   (Stochastic-Block only).
+# @param beta_bernoulli_beta_between  Numeric: beta for between-cluster
+#   (Stochastic-Block only).
+# @param dirichlet_alpha  Numeric: concentration parameter for Dirichlet
+#   (Stochastic-Block only).
+# @param lambda  Numeric: rate parameter for Poisson
+#   (Stochastic-Block only).
+#
+# Returns:
+#   list(edge_selection, edge_prior, inclusion_probability)
+#   where inclusion_probability is a num_variables x num_variables matrix.
+#
+# Replaces:
+#   - check_model() lines 86-200 (function_input_utils.R)
+# ------------------------------------------------------------------------------
+validate_edge_prior <- function(edge_selection,
+                                edge_prior = c("Bernoulli", "Beta-Bernoulli",
+                                               "Stochastic-Block"),
+                                inclusion_probability = 0.5,
+                                num_variables,
+                                beta_bernoulli_alpha = 1,
+                                beta_bernoulli_beta = 1,
+                                beta_bernoulli_alpha_between = 1,
+                                beta_bernoulli_beta_between = 1,
+                                dirichlet_alpha = 1,
+                                lambda = 1) {
+  edge_selection <- as.logical(edge_selection)
+  if (is.na(edge_selection)) {
+    stop("The parameter edge_selection needs to be TRUE or FALSE.")
+  }
+
+  if (!edge_selection) {
+    return(list(
+      edge_selection       = FALSE,
+      edge_prior           = "Not Applicable",
+      inclusion_probability = matrix(0.5, nrow = 1, ncol = 1)
+    ))
+  }
+
+  # --- edge_selection == TRUE ---
+  edge_prior <- match.arg(edge_prior)
+
+  if (edge_prior == "Bernoulli") {
+    theta <- validate_bernoulli_prior(inclusion_probability, num_variables)
+  }
+
+  if (edge_prior == "Beta-Bernoulli") {
+    theta <- matrix(0.5, nrow = num_variables, ncol = num_variables)
+    if (is.null(beta_bernoulli_alpha) || is.null(beta_bernoulli_beta) ||
+      is.na(beta_bernoulli_alpha) || is.na(beta_bernoulli_beta)) {
+      stop("Values for both scale parameters of the beta distribution need to be specified.")
+    }
+    if (beta_bernoulli_alpha <= 0 || beta_bernoulli_beta <= 0) {
+      stop("The scale parameters of the beta distribution need to be positive.")
+    }
+    if (!is.finite(beta_bernoulli_alpha) || !is.finite(beta_bernoulli_beta)) {
+      stop("The scale parameters of the beta distribution need to be finite.")
+    }
+  }
+
+  if (edge_prior == "Stochastic-Block") {
+    theta <- matrix(0.5, nrow = num_variables, ncol = num_variables)
+
+    # Check that all beta parameters are provided
+    if (is.null(beta_bernoulli_alpha) || is.null(beta_bernoulli_beta) ||
+      is.null(beta_bernoulli_alpha_between) || is.null(beta_bernoulli_beta_between)) {
+      stop(
+        "The Stochastic-Block prior requires all four beta parameters: ",
+        "beta_bernoulli_alpha, beta_bernoulli_beta, ",
+        "beta_bernoulli_alpha_between, and beta_bernoulli_beta_between."
+      )
+    }
+
+    # Check for NAs first (NA in comparisons would crash if())
+    if (is.na(beta_bernoulli_alpha) || is.na(beta_bernoulli_beta) ||
+      is.na(beta_bernoulli_alpha_between) || is.na(beta_bernoulli_beta_between) ||
+      is.na(dirichlet_alpha) || is.na(lambda)) {
+      stop(
+        "Values for all shape parameters of the beta distribution, the concentration parameter of the Dirichlet distribution, ",
+        "and the rate parameter of the Poisson distribution cannot be NA."
+      )
+    }
+
+    # Check that all parameters are positive
+    if (beta_bernoulli_alpha <= 0 || beta_bernoulli_beta <= 0 ||
+      beta_bernoulli_alpha_between <= 0 || beta_bernoulli_beta_between <= 0 ||
+      dirichlet_alpha <= 0 || lambda <= 0) {
+      stop("The parameters of the beta and Dirichlet distributions need to be positive.")
+    }
+
+    # Check that all parameters are finite
+    if (!is.finite(beta_bernoulli_alpha) || !is.finite(beta_bernoulli_beta) ||
+      !is.finite(beta_bernoulli_alpha_between) || !is.finite(beta_bernoulli_beta_between) ||
+      !is.finite(dirichlet_alpha) || !is.finite(lambda)) {
+      stop(
+        "The shape parameters of the beta distribution, the concentration parameter of the Dirichlet distribution, ",
+        "and the rate parameter of the Poisson distribution need to be finite."
+      )
+    }
+  }
+
+  list(
+    edge_selection        = TRUE,
+    edge_prior            = edge_prior,
+    inclusion_probability = theta
+  )
+}
+
+
+# ------------------------------------------------------------------------------
+# validate_bernoulli_prior (internal helper)
+# ------------------------------------------------------------------------------
+#
+# Validates inclusion_probability for the Bernoulli edge prior.
+# Accepts either a scalar or a symmetric matrix / data.frame.
+#
+# @param inclusion_probability  Scalar, matrix, or data.frame.
+# @param num_variables  Integer: number of variables.
+#
+# Returns: num_variables x num_variables matrix of inclusion probabilities.
+# ------------------------------------------------------------------------------
+validate_bernoulli_prior <- function(inclusion_probability, num_variables) {
+  if (length(inclusion_probability) == 1) {
+    theta <- inclusion_probability[1]
+    if (is.na(theta) || is.null(theta)) {
+      stop("There is no value specified for the inclusion probability.")
+    }
+    if (theta <= 0) {
+      stop("The inclusion probability needs to be positive.")
+    }
+    if (theta > 1) {
+      stop("The inclusion probability cannot exceed the value one.")
+    }
+    if (theta == 1) {
+      stop("The inclusion probability cannot equal one.")
+    }
+    return(matrix(theta, nrow = num_variables, ncol = num_variables))
+  }
+
+  # --- Matrix / data.frame path ---
+  if (!inherits(inclusion_probability, what = "matrix") &&
+    !inherits(inclusion_probability, what = "data.frame")) {
+    stop("The input for the inclusion probability argument needs to be a single number, matrix, or dataframe.")
+  }
+
+  if (inherits(inclusion_probability, what = "data.frame")) {
+    theta <- data.matrix(inclusion_probability)
+  } else {
+    theta <- inclusion_probability
+  }
+  if (!isSymmetric(theta)) {
+    stop("The inclusion probability matrix needs to be symmetric.")
+  }
+  if (ncol(theta) != num_variables) {
+    stop("The inclusion probability matrix needs to have as many rows (columns) as there are variables in the data.")
+  }
+
+  if (anyNA(theta[lower.tri(theta)]) ||
+    any(is.null(theta[lower.tri(theta)]))) {
+    stop("One or more elements of the elements in inclusion probability matrix are not specified.")
+  }
+  if (any(theta[lower.tri(theta)] <= 0)) {
+    stop(paste0(
+      "The inclusion probability matrix contains negative or zero values;\n",
+      "inclusion probabilities need to be positive."
+    ))
+  }
+  if (any(theta[lower.tri(theta)] >= 1)) {
+    stop(paste0(
+      "The inclusion probability matrix contains values greater than or equal to one;\n",
+      "inclusion probabilities cannot exceed or equal the value one."
+    ))
+  }
+
+  theta
+}

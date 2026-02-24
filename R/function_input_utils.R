@@ -80,124 +80,21 @@ check_model = function(x,
   }
 
   # Check set-up for the Bayesian edge selection model --------------------------
-  edge_selection = as.logical(edge_selection)
-  if(is.na(edge_selection)) {
-    stop("The parameter edge_selection needs to be TRUE or FALSE.")
-  }
-  if(edge_selection == TRUE) {
-    # Check prior set-up for the edge indicators --------------------------------
-    edge_prior = match.arg(edge_prior)
-    if(edge_prior == "Bernoulli") {
-      if(length(inclusion_probability) == 1) {
-        theta = inclusion_probability[1]
-        if(is.na(theta) || is.null(theta)) {
-          stop("There is no value specified for the inclusion probability.")
-        }
-        if(theta <= 0) {
-          stop("The inclusion probability needs to be positive.")
-        }
-        if(theta > 1) {
-          stop("The inclusion probability cannot exceed the value one.")
-        }
-        if(theta == 1) {
-          stop("The inclusion probability cannot equal one.")
-        }
-
-        theta = matrix(theta, nrow = ncol(x), ncol = ncol(x))
-      } else {
-        if(!inherits(inclusion_probability, what = "matrix") &&
-          !inherits(inclusion_probability, what = "data.frame")) {
-          stop("The input for the inclusion probability argument needs to be a single number, matrix, or dataframe.")
-        }
-
-        if(inherits(inclusion_probability, what = "data.frame")) {
-          theta = data.matrix(inclusion_probability)
-        } else {
-          theta = inclusion_probability
-        }
-        if(!isSymmetric(theta)) {
-          stop("The inclusion probability matrix needs to be symmetric.")
-        }
-        if(ncol(theta) != ncol(x)) {
-          stop("The inclusion probability matrix needs to have as many rows (columns) as there are variables in the data.")
-        }
-
-        if(anyNA(theta[lower.tri(theta)]) ||
-          any(is.null(theta[lower.tri(theta)]))) {
-          stop("One or more elements of the elements in inclusion probability matrix are not specified.")
-        }
-        if(any(theta[lower.tri(theta)] <= 0)) {
-          stop(paste0(
-            "The inclusion probability matrix contains negative or zero values;\n",
-            "inclusion probabilities need to be positive."
-          ))
-        }
-        if(any(theta[lower.tri(theta)] >= 1)) {
-          stop(paste0(
-            "The inclusion probability matrix contains values greater than or equal to one;\n",
-            "inclusion probabilities cannot exceed or equal the value one."
-          ))
-        }
-      }
-    }
-    if(edge_prior == "Beta-Bernoulli") {
-      theta = matrix(0.5, nrow = ncol(x), ncol = ncol(x))
-      if(beta_bernoulli_alpha <= 0 || beta_bernoulli_beta <= 0) {
-        stop("The scale parameters of the beta distribution need to be positive.")
-      }
-      if(!is.finite(beta_bernoulli_alpha) || !is.finite(beta_bernoulli_beta)) {
-        stop("The scale parameters of the beta distribution need to be finite.")
-      }
-      if(is.na(beta_bernoulli_alpha) || is.na(beta_bernoulli_beta) ||
-        is.null(beta_bernoulli_alpha) || is.null(beta_bernoulli_beta)) {
-        stop("Values for both scale parameters of the beta distribution need to be specified.")
-      }
-    }
-
-    if(edge_prior == "Stochastic-Block") {
-      theta = matrix(0.5, nrow = ncol(x), ncol = ncol(x))
-
-      # Check that all beta parameters are provided
-      if(is.null(beta_bernoulli_alpha) || is.null(beta_bernoulli_beta) ||
-        is.null(beta_bernoulli_alpha_between) || is.null(beta_bernoulli_beta_between)) {
-        stop(
-          "The Stochastic-Block prior requires all four beta parameters: ",
-          "beta_bernoulli_alpha, beta_bernoulli_beta, ",
-          "beta_bernoulli_alpha_between, and beta_bernoulli_beta_between."
-        )
-      }
-
-      # Check that all beta parameters are positive
-      if(beta_bernoulli_alpha <= 0 || beta_bernoulli_beta <= 0 ||
-        beta_bernoulli_alpha_between <= 0 || beta_bernoulli_beta_between <= 0 ||
-        dirichlet_alpha <= 0 || lambda <= 0) {
-        stop("The parameters of the beta and Dirichlet distributions need to be positive.")
-      }
-
-      # Check that all beta parameters are finite
-      if(!is.finite(beta_bernoulli_alpha) || !is.finite(beta_bernoulli_beta) ||
-        !is.finite(beta_bernoulli_alpha_between) || !is.finite(beta_bernoulli_beta_between) ||
-        !is.finite(dirichlet_alpha) || !is.finite(lambda)) {
-        stop(
-          "The shape parameters of the beta distribution, the concentration parameter of the Dirichlet distribution, ",
-          "and the rate parameter of the Poisson distribution need to be finite."
-        )
-      }
-
-      # Check for NAs
-      if(is.na(beta_bernoulli_alpha) || is.na(beta_bernoulli_beta) ||
-        is.na(beta_bernoulli_alpha_between) || is.na(beta_bernoulli_beta_between) ||
-        is.na(dirichlet_alpha) || is.na(lambda)) {
-        stop(
-          "Values for all shape parameters of the beta distribution, the concentration parameter of the Dirichlet distribution, ",
-          "and the rate parameter of the Poisson distribution cannot be NA."
-        )
-      }
-    }
-  } else {
-    theta = matrix(0.5, nrow = 1, ncol = 1)
-    edge_prior = "Not Applicable"
-  }
+  ep <- validate_edge_prior(
+    edge_selection               = edge_selection,
+    edge_prior                   = edge_prior,
+    inclusion_probability        = inclusion_probability,
+    num_variables                = ncol(x),
+    beta_bernoulli_alpha         = beta_bernoulli_alpha,
+    beta_bernoulli_beta          = beta_bernoulli_beta,
+    beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+    beta_bernoulli_beta_between  = beta_bernoulli_beta_between,
+    dirichlet_alpha              = dirichlet_alpha,
+    lambda                       = lambda
+  )
+  edge_selection <- ep$edge_selection
+  edge_prior     <- ep$edge_prior
+  theta          <- ep$inclusion_probability
 
   return(list(
     variable_bool = variable_bool,
