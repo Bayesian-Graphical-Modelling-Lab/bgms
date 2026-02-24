@@ -25,55 +25,78 @@ get_bgms_fixtures <- function() {
       label = "binary",
       get_fit = get_bgms_fit,
       get_prediction_data = get_prediction_data_binary,
-      var_type = "binary"
+      var_type = "binary",
+      is_continuous = FALSE
     ),
     list(
       label = "ordinal",
       get_fit = get_bgms_fit_ordinal,
       get_prediction_data = get_prediction_data_ordinal,
-      var_type = "ordinal"
+      var_type = "ordinal",
+      is_continuous = FALSE
     ),
     list(
       label = "single-chain",
       get_fit = get_bgms_fit_single_chain,
       get_prediction_data = get_prediction_data_binary,
-      var_type = "binary"
+      var_type = "binary",
+      is_continuous = FALSE
     ),
     list(
       label = "blume-capel",
       get_fit = get_bgms_fit_blumecapel,
       get_prediction_data = get_prediction_data_ordinal,
-      var_type = "blume-capel"
+      var_type = "blume-capel",
+      is_continuous = FALSE
     ),
     list(
       label = "adaptive-metropolis",
       get_fit = get_bgms_fit_adaptive_metropolis,
       get_prediction_data = get_prediction_data_binary,
-      var_type = "binary"
+      var_type = "binary",
+      is_continuous = FALSE
     ),
     list(
       label = "hmc",
       get_fit = get_bgms_fit_hmc,
       get_prediction_data = get_prediction_data_ordinal,
-      var_type = "ordinal"
+      var_type = "ordinal",
+      is_continuous = FALSE
     ),
     list(
       label = "am-blumecapel",
       get_fit = get_bgms_fit_am_blumecapel,
       get_prediction_data = get_prediction_data_ordinal,
-      var_type = "blume-capel"
+      var_type = "blume-capel",
+      is_continuous = FALSE
     ),
     list(
       label = "impute",
       get_fit = get_bgms_fit_impute,
       get_prediction_data = get_prediction_data_ordinal,
-      var_type = "ordinal"
+      var_type = "ordinal",
+      is_continuous = FALSE
     ),
     list(
       label = "standardize",
       get_fit = get_bgms_fit_standardize,
       get_prediction_data = get_prediction_data_ordinal,
-      var_type = "ordinal"
+      var_type = "ordinal",
+      is_continuous = FALSE
+    ),
+    list(
+      label = "ggm",
+      get_fit = get_bgms_fit_ggm,
+      get_prediction_data = get_prediction_data_ggm,
+      var_type = "continuous",
+      is_continuous = TRUE
+    ),
+    list(
+      label = "ggm-no-es",
+      get_fit = get_bgms_fit_ggm_no_es,
+      get_prediction_data = get_prediction_data_ggm,
+      var_type = "continuous",
+      is_continuous = TRUE
     )
   )
 }
@@ -295,8 +318,10 @@ test_that("coef.bgmCompare returns group-specific effects for all fixture types"
 # simulate() Tests (Parameterized)
 # ==============================================================================
 
-test_that("simulate.bgms returns matrix of correct size for all fixture types", {
+test_that("simulate.bgms returns matrix of correct size for ordinal fixtures", {
   for (spec in get_bgms_fixtures()) {
+    if (isTRUE(spec$is_continuous)) next
+
     ctx <- sprintf("[bgms %s]", spec$label)
     fit <- spec$get_fit()
     args <- extract_arguments(fit)
@@ -320,6 +345,28 @@ test_that("simulate.bgms returns matrix of correct size for all fixture types", 
         info = sprintf("%s variable %d exceeds max category %d", ctx, j, max_cat)
       )
     }
+  }
+})
+
+test_that("simulate.bgms returns matrix of correct size for GGM fixtures", {
+  for (spec in get_bgms_fixtures()) {
+    if (!isTRUE(spec$is_continuous)) next
+
+    ctx <- sprintf("[bgms %s]", spec$label)
+    fit <- spec$get_fit()
+    args <- extract_arguments(fit)
+    
+    n_sim <- 30
+    simulated <- simulate(fit, nsim = n_sim, method = "posterior-mean", seed = 123)
+    
+    expect_true(is.matrix(simulated), info = ctx)
+    expect_equal(nrow(simulated), n_sim, info = paste(ctx, "wrong nrow"))
+    expect_equal(ncol(simulated), args$num_variables, info = paste(ctx, "wrong ncol"))
+    expect_equal(colnames(simulated), args$data_columnnames, info = ctx)
+    
+    # Values should be real-valued (not restricted to integers)
+    expect_true(is.numeric(simulated), info = paste(ctx, "not numeric"))
+    expect_true(all(is.finite(simulated)), info = paste(ctx, "non-finite values"))
   }
 })
 
@@ -373,13 +420,50 @@ test_that("simulate.bgms handles edge cases", {
   expect_equal(length(result), 1)
 })
 
+test_that("simulate.bgms GGM is reproducible with seed", {
+  fit <- get_bgms_fit_ggm()
+  
+  sim1 <- simulate(fit, nsim = 30, method = "posterior-mean", seed = 999)
+  sim2 <- simulate(fit, nsim = 30, method = "posterior-mean", seed = 999)
+  
+  expect_equal(sim1, sim2)
+})
+
+test_that("simulate.bgms GGM posterior-sample returns list of numeric matrices", {
+  fit <- get_bgms_fit_ggm()
+  args <- extract_arguments(fit)
+  
+  n_draws <- 3
+  n_sim <- 20
+  
+  result <- simulate(fit,
+    nsim = n_sim,
+    method = "posterior-sample",
+    ndraws = n_draws,
+    seed = 123,
+    display_progress = "none"
+  )
+  
+  expect_true(is.list(result))
+  expect_equal(length(result), n_draws)
+  
+  for (i in seq_along(result)) {
+    expect_true(is.matrix(result[[i]]))
+    expect_equal(nrow(result[[i]]), n_sim)
+    expect_equal(ncol(result[[i]]), args$num_variables)
+    expect_true(all(is.finite(result[[i]])))
+  }
+})
+
 
 # ==============================================================================
 # predict() Tests (Parameterized)
 # ==============================================================================
 
-test_that("predict.bgms returns valid probabilities for bgms fixtures", {
+test_that("predict.bgms returns valid probabilities for ordinal fixtures", {
   for (spec in get_bgms_fixtures()) {
+    if (isTRUE(spec$is_continuous)) next
+
     ctx <- sprintf("[bgms %s]", spec$label)
     fit <- spec$get_fit()
     args <- extract_arguments(fit)
@@ -415,6 +499,37 @@ test_that("predict.bgms returns valid probabilities for bgms fixtures", {
   }
 })
 
+test_that("predict.bgms returns valid conditional moments for GGM fixtures", {
+  for (spec in get_bgms_fixtures()) {
+    if (!isTRUE(spec$is_continuous)) next
+
+    ctx <- sprintf("[bgms %s]", spec$label)
+    fit <- spec$get_fit()
+    args <- extract_arguments(fit)
+
+    newdata <- spec$get_prediction_data(n = 5)
+    result <- predict(fit, newdata = newdata)
+
+    expect_type(result, "list")
+    expect_length(result, args$num_variables)
+    expect_equal(names(result), args$data_columnnames, info = ctx)
+
+    for (j in seq_along(result)) {
+      expect_equal(nrow(result[[j]]), nrow(newdata), info = paste(ctx, "var", j))
+      expect_equal(ncol(result[[j]]), 2, info = paste(ctx, "var", j))
+      expect_equal(colnames(result[[j]]), c("mean", "sd"), info = paste(ctx, "var", j))
+      expect_true(all(result[[j]][, "sd"] > 0),
+                  info = sprintf("%s var %d sd not positive", ctx, j))
+    }
+
+    # type = "response" returns conditional means matrix
+    pred_response <- predict(fit, newdata = newdata, type = "response")
+    expect_true(is.matrix(pred_response), info = ctx)
+    expect_equal(nrow(pred_response), nrow(newdata), info = ctx)
+    expect_equal(ncol(pred_response), args$num_variables, info = ctx)
+  }
+})
+
 test_that("predict.bgms response returns integer categories", {
   fit <- get_bgms_fit()
   args <- extract_arguments(fit)
@@ -440,6 +555,22 @@ test_that("predict.bgms accepts variable subsetting", {
   var_name <- args$data_columnnames[1]
   pred2 <- predict(fit, newdata = newdata, variables = var_name, type = "probabilities")
   expect_equal(length(pred2), 1)
+})
+
+test_that("predict.bgms accepts variable subsetting for GGM", {
+  fit <- get_bgms_fit_ggm_no_es()
+  args <- extract_arguments(fit)
+  newdata <- get_prediction_data_ggm(n = 5)
+
+  # By index
+  pred1 <- predict(fit, newdata = newdata, variables = c(1, 3))
+  expect_length(pred1, 2)
+  expect_equal(names(pred1), args$data_columnnames[c(1, 3)])
+
+  # By name
+  pred2 <- predict(fit, newdata = newdata, variables = c("V2", "V4"))
+  expect_length(pred2, 2)
+  expect_equal(names(pred2), c("V2", "V4"))
 })
 
 test_that("predict.bgms errors on invalid newdata dimensions", {
@@ -480,6 +611,58 @@ test_that("predict.bgms with posterior-sample returns sd attribute", {
   sd_attr <- attr(result, "sd")
   expect_false(is.null(sd_attr))
   expect_equal(length(sd_attr), args$num_variables)
+})
+
+test_that("predict.bgms GGM with posterior-sample returns sd attribute", {
+  fit <- get_bgms_fit_ggm_no_es()
+  args <- extract_arguments(fit)
+  newdata <- get_prediction_data_ggm(n = 5)
+
+  result <- predict(fit,
+    newdata = newdata,
+    method = "posterior-sample",
+    ndraws = 10,
+    seed = 123
+  )
+
+  expect_type(result, "list")
+  expect_length(result, args$num_variables)
+  for (v in seq_len(args$num_variables)) {
+    expect_equal(ncol(result[[v]]), 2)
+    expect_equal(colnames(result[[v]]), c("mean", "sd"))
+  }
+
+  sd_attr <- attr(result, "sd")
+  expect_false(is.null(sd_attr))
+  expect_length(sd_attr, args$num_variables)
+})
+
+test_that("predict.bgms GGM conditional mean matches analytic formula", {
+  # Verify C++ output matches the analytic conditional Gaussian formula.
+  # This only checks that predict() and the R formula agree on the *same*
+  # posterior mean Omega, so minimal MCMC iterations suffice.
+  fit <- get_bgms_fit_ggm_no_es()
+  args <- extract_arguments(fit)
+  newdata <- get_prediction_data_ggm(n = 10)
+
+  pred <- predict(fit, newdata = newdata)
+
+  # Reconstruct the posterior mean precision matrix
+  omega_hat <- fit$posterior_mean_pairwise
+  diag(omega_hat) <- as.numeric(fit$posterior_mean_main)
+  p <- args$num_variables
+
+  for (j in seq_len(p)) {
+    omega_jj <- omega_hat[j, j]
+    rest_cols <- setdiff(seq_len(p), j)
+    expected_means <- as.numeric(
+      -newdata[, rest_cols, drop = FALSE] %*% omega_hat[rest_cols, j] / omega_jj
+    )
+    expected_sd <- sqrt(1 / omega_jj)
+
+    expect_equal(pred[[j]][, "mean"], expected_means, tolerance = 1e-10)
+    expect_equal(unname(pred[[j]][1, "sd"]), expected_sd, tolerance = 1e-10)
+  }
 })
 
 

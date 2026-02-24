@@ -129,8 +129,8 @@ public:
 
     arma::ivec get_vectorized_indicator_parameters() override {
         size_t e = 0;
-        for (size_t j = 0; j < p_; ++j) {
-            for (size_t i = 0; i <= j; ++i) {
+        for (size_t i = 0; i < p_; ++i) {
+            for (size_t j = i; j < p_; ++j) {
                 vectorized_indicator_parameters_(e) = edge_indicators_(i, j);
                 ++e;
             }
@@ -165,8 +165,8 @@ private:
     arma::vec extract_upper_triangle() const {
         arma::vec result(dim_);
         size_t e = 0;
-        for (size_t j = 0; j < p_; ++j) {
-            for (size_t i = 0; i <= j; ++i) {
+        for (size_t i = 0; i < p_; ++i) {
+            for (size_t j = i; j < p_; ++j) {
                 result(e) = precision_matrix_(i, j);
                 ++e;
             }

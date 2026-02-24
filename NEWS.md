@@ -1,3 +1,10 @@
+# bgms 0.1.6.4
+
+## Bug fixes
+
+* fixed Blume-Capel centering: `observations_` was stored RAW (0-indexed) while `observations_double_` was CENTERED, causing six downstream sites to use wrong values when `baseline_category != 0`. Fixed by centering `observations_` in the constructor for Blume-Capel variables so both representations are in the same coordinate system.
+* fixed Blume-Capel imputation: zero-category probability had wrong sign and was double-counted. Replaced with unified loop over all categories, matching `simulate_mrf()`.
+
 # bgms 0.1.6.3
 
 ## New features

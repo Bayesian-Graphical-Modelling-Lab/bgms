@@ -9,16 +9,26 @@
 # ==============================================================================
 
 
-#' Simulate Observations from an Ordinal MRF
+#' Simulate Observations from a Markov Random Field
 #'
 #' @description
-#' `simulate_mrf()` generates observations from an ordinal Markov Random Field
-#' using Gibbs sampling with user-specified parameters.
+#' `simulate_mrf()` generates observations from a Markov Random Field using
+#' user-specified parameters. For ordinal and Blume-Capel variables, observations
+#' are generated via Gibbs sampling. For continuous variables (Gaussian graphical
+#' model), observations are drawn directly from the multivariate normal
+#' distribution implied by the precision matrix.
 #'
 #' @details
+#' \strong{Ordinal / Blume-Capel variables:}
 #' The Gibbs sampler is initiated with random values from the response options,
-#' after which it proceeds by simulating states for each variable from a logistic
-#' model using the other variable states as predictor variables.
+#' after which it proceeds by simulating states for each variable from its full
+#' conditional distribution given the other variable states.
+#'
+#' \strong{Continuous variables (GGM):}
+#' Observations are drawn from \eqn{N(\mu, \Omega^{-1})}{N(mu, Omega^{-1})}
+#' where \eqn{\Omega}{Omega} is the precision matrix specified via
+#' `pairwise` and \eqn{\mu}{mu} is the means vector specified via `main`.
+#' No Gibbs sampling is needed; `iter` is ignored.
 #'
 #' There are two modeling options for the category thresholds. The default
 #' option assumes that the category thresholds are free, except that the first
@@ -41,31 +51,44 @@
 #' baseline_category category r, while \eqn{\beta > 0}{\beta > 0} suggests a
 #' preference for responding in the baseline_category category.
 #'
-#' @param num_states The number of states of the ordinal MRF to be generated.
+#' @param num_states The number of observations to be generated.
 #'
-#' @param num_variables The number of variables in the ordinal MRF.
+#' @param num_variables The number of variables in the MRF.
 #'
 #' @param num_categories Either a positive integer or a vector of positive
 #' integers of length \code{num_variables}. The number of response categories on top
 #' of the base category: \code{num_categories = 1} generates binary states.
+#' Only used for ordinal and Blume-Capel variables; ignored when
+#' \code{variable_type = "continuous"}.
 #'
-#' @param pairwise A symmetric \code{num_variables} by \code{num_variables} matrix of
-#' pairwise interactions. Only its off-diagonal elements are used.
+#' @param pairwise A symmetric \code{num_variables} by \code{num_variables} matrix.
+#' For ordinal and Blume-Capel variables, this contains the pairwise interaction
+#' parameters; only the off-diagonal elements are used. For continuous variables,
+#' this is the precision matrix \eqn{\Omega}{Omega} (including diagonal) and
+#' must be positive definite.
 #'
-#' @param main A \code{num_variables} by \code{max(num_categories)} matrix of
-#' category thresholds. The elements in row \code{i} indicate the thresholds of
+#' @param main For ordinal and Blume-Capel variables: a
+#' \code{num_variables} by \code{max(num_categories)} matrix of category
+#' thresholds. The elements in row \code{i} indicate the thresholds of
 #' variable \code{i}. If \code{num_categories} is a vector, only the first
 #' \code{num_categories[i]} elements are used in row \code{i}. If the Blume-Capel
 #' model is used for the category thresholds for variable \code{i}, then row
 #' \code{i} requires two values (details below); the first is
 #' \eqn{\alpha}{\alpha}, the linear contribution of the Blume-Capel model and
 #' the second is \eqn{\beta}{\beta}, the quadratic contribution.
+#' For continuous variables: a numeric vector of length \code{num_variables}
+#' containing the means \eqn{\mu}{mu} for each variable. Defaults to zeros
+#' if not supplied or if all values are zero.
 #'
 #' @param variable_type What kind of variables are simulated? Can be a single
 #' character string specifying the variable type of all \code{p} variables at
 #' once or a vector of character strings of length \code{p} specifying the type
-#' for each variable separately. Currently, bgm supports ``ordinal'' and
-#' ``blume-capel''. Binary variables are automatically treated as ``ordinal''.
+#' for each variable separately. Currently, bgm supports ``ordinal'',
+#' ``blume-capel'', and ``continuous''. Binary variables are automatically
+#' treated as ``ordinal''. Ordinal and Blume-Capel variables can be mixed
+#' freely, but continuous variables cannot be mixed with ordinal or Blume-Capel
+#' variables. When \code{variable_type = "continuous"}, the function simulates
+#' from a Gaussian graphical model.
 #' Defaults to \code{variable_type = "ordinal"}.
 #'
 #' @param baseline_category An integer vector of length \code{num_variables} specifying the
@@ -73,16 +96,18 @@
 #' Can be any integer value between \code{0} and \code{num_categories} (or
 #' \code{num_categories[i]}).
 #'
-#' @param iter The number of iterations used by the Gibbs sampler.
-#' The function provides the last state of the Gibbs sampler as output. By
-#' default set to \code{1e3}.
+#' @param iter The number of iterations used by the Gibbs sampler
+#' (ordinal/Blume-Capel variables only). The function provides the last state
+#' of the Gibbs sampler as output. Ignored for continuous variables.
+#' By default set to \code{1e3}.
 #'
 #' @param seed Optional integer seed for reproducibility. If \code{NULL},
 #' a seed is generated from R's random number generator (so \code{set.seed()}
 #' can be used before calling this function).
 #'
-#' @return A \code{num_states} by \code{num_variables} matrix of simulated states of
-#' the ordinal MRF.
+#' @return A \code{num_states} by \code{num_variables} matrix of simulated
+#' observations. For ordinal/Blume-Capel variables, entries are non-negative
+#' integers. For continuous variables, entries are real-valued.
 #'
 #' @examples
 #' # Generate responses from a network of five binary and ordinal variables.
@@ -128,6 +153,22 @@
 #'   baseline_category = 2
 #' )
 #'
+#' # Generate responses from a Gaussian graphical model (GGM) with 4 variables.
+#' num_variables = 4
+#'
+#' # Precision matrix (symmetric, positive definite)
+#' Omega = diag(c(1, 1.2, 0.8, 1.5))
+#' Omega[2, 1] = Omega[1, 2] = 0.3
+#' Omega[3, 1] = Omega[1, 3] = 0.3
+#' Omega[4, 2] = Omega[2, 4] = -0.2
+#'
+#' x = simulate_mrf(
+#'   num_states = 500,
+#'   num_variables = num_variables,
+#'   pairwise = Omega,
+#'   variable_type = "continuous"
+#' )
+#'
 #' @seealso \code{\link{simulate.bgms}} for simulating from a fitted model.
 #'
 #' @export
@@ -140,33 +181,15 @@ simulate_mrf = function(num_states,
                       baseline_category,
                       iter = 1e3,
                       seed = NULL) {
-  # Check num_states, num_variables, iter ----------------------------------------
+  # Check num_states, num_variables ---------------------------------------------
   check_positive_integer(num_states, "num_states")
   check_positive_integer(num_variables, "num_variables")
-  check_positive_integer(iter, "iter")
-
-  # Check num_categories --------------------------------------------------------
-  if(length(num_categories) == 1) {
-    if(num_categories <= 0 ||
-      abs(num_categories - round(num_categories)) > .Machine$double.eps) {
-      stop("``num_categories'' needs be a (vector of) positive integer(s).")
-    }
-    num_categories = rep(num_categories, num_variables)
-  } else {
-    for(variable in 1:num_variables) {
-      if(num_categories[variable] <= 0 ||
-        abs(num_categories[variable] - round(num_categories[variable])) >
-          .Machine$double.eps) {
-        stop(paste("For variable", variable, "``num_categories'' was not a positive integer."))
-      }
-    }
-  }
 
   # Check variable specification -----------------------------------------------
   if(length(variable_type) == 1) {
     variable_type = match.arg(
       arg = variable_type,
-      choices = c("ordinal", "blume-capel")
+      choices = c("ordinal", "blume-capel", "continuous")
     )
 
     if(variable_type == "blume-capel" && any(num_categories < 2)) {
@@ -186,8 +209,11 @@ simulate_mrf = function(num_states,
       for(variable in 1:num_variables) {
         variable_type[variable] = match.arg(
           arg = variable_type[variable],
-          choices = c("ordinal", "blume-capel")
+          choices = c("ordinal", "blume-capel", "continuous")
         )
+      }
+      if(any(variable_type == "continuous") && !all(variable_type == "continuous")) {
+        stop("Mixed continuous and ordinal/blume-capel variable types are not yet supported.")
       }
       if(any(variable_type == "blume-capel" & num_categories < 2)) {
         stop(paste0(
@@ -196,6 +222,80 @@ simulate_mrf = function(num_states,
           which(variable_type == "blume-capel" & num_categories < 2),
           " are binary variables."
         ))
+      }
+    }
+  }
+
+  # ===========================================================================
+  #   Continuous (GGM) path — direct multivariate normal sampling
+  # ===========================================================================
+  if(all(variable_type == "continuous")) {
+    # Check pairwise (full precision matrix, including diagonal)
+    if(!inherits(pairwise, what = "matrix")) {
+      pairwise = as.matrix(pairwise)
+    }
+    # NAs indicate excluded edges (zero precision)
+    pairwise[is.na(pairwise)] = 0
+    if(!isSymmetric(pairwise)) {
+      stop("The matrix 'pairwise' needs to be symmetric.")
+    }
+    if(nrow(pairwise) != num_variables) {
+      stop("The matrix 'pairwise' needs to have 'num_variables' rows and columns.")
+    }
+    if(any(diag(pairwise) <= 0)) {
+      stop("The diagonal of the precision matrix 'pairwise' must be positive.")
+    }
+
+    precision = pairwise
+
+    # Handle means (from 'main', default to zero)
+    if(missing(main)) {
+      means = rep(0, num_variables)
+    } else {
+      means = as.numeric(main)
+      if(length(means) != num_variables) {
+        stop(paste0(
+          "'main' must have ", num_variables,
+          " elements (one mean per variable), but has ",
+          length(means), "."
+        ))
+      }
+      if(any(!is.finite(means))) {
+        stop("All elements of 'main' must be finite.")
+      }
+    }
+
+    # Handle seed
+    seed <- check_seed(seed)
+
+    x <- sample_ggm_direct(
+      num_states = num_states,
+      precision = precision,
+      means = means,
+      seed = seed
+    )
+
+    return(x)
+  }
+
+  # ===========================================================================
+  #   Ordinal / Blume-Capel path — Gibbs sampling
+  # ===========================================================================
+  check_positive_integer(iter, "iter")
+
+  # Check num_categories --------------------------------------------------------
+  if(length(num_categories) == 1) {
+    if(num_categories <= 0 ||
+      abs(num_categories - round(num_categories)) > .Machine$double.eps) {
+      stop("``num_categories'' needs be a (vector of) positive integer(s).")
+    }
+    num_categories = rep(num_categories, num_variables)
+  } else {
+    for(variable in 1:num_variables) {
+      if(num_categories[variable] <= 0 ||
+        abs(num_categories[variable] - round(num_categories[variable])) >
+          .Machine$double.eps) {
+        stop(paste("For variable", variable, "``num_categories'' was not a positive integer."))
       }
     }
   }
@@ -522,6 +622,26 @@ simulate.bgms <- function(object,
     baseline_category <- rep(0L, num_variables)
   }
 
+  # ============================================================================
+  #   GGM (continuous) path
+  # ============================================================================
+  if (isTRUE(arguments$is_continuous)) {
+    return(simulate_bgms_ggm(
+      object = object,
+      nsim = nsim,
+      seed = seed,
+      method = method,
+      ndraws = ndraws,
+      num_variables = num_variables,
+      data_columnnames = data_columnnames,
+      cores = cores,
+      progress_type = progress_type
+    ))
+  }
+
+  # ============================================================================
+  #   OMRF (ordinal / Blume-Capel) path
+  # ============================================================================
 
   if(method == "posterior-mean") {
     # Use posterior mean parameters
@@ -772,6 +892,8 @@ simulate.bgmCompare <- function(object,
 #' @param ... Additional arguments (currently ignored).
 #'
 #' @return
+#' \strong{Ordinal models:}
+#'
 #' For \code{type = "probabilities"}: A named list with one element per
 #' predicted variable. Each element is a matrix with \code{n} rows and
 #' \code{num_categories + 1} columns containing \eqn{P(X_j = c | X_{-j})}{P(X_j = c | X_-j)} for each
@@ -784,11 +906,31 @@ simulate.bgmCompare <- function(object,
 #' posterior draws, and an attribute \code{"sd"} is included containing the
 #' standard deviation across draws.
 #'
+#' \strong{GGM (continuous) models:}
+#'
+#' For \code{type = "probabilities"}: A named list with one element per
+#' predicted variable. Each element is a matrix with \code{n} rows and
+#' 2 columns (\code{"mean"} and \code{"sd"}) containing the conditional
+#' Gaussian parameters \eqn{E(X_j | X_{-j})}{E(X_j | X_{-j})} and
+#' \eqn{\text{SD}(X_j | X_{-j})}{SD(X_j | X_{-j})}.
+#'
+#' For \code{type = "response"}: A matrix with \code{n} rows and
+#' \code{length(variables)} columns containing conditional means.
+#'
+#' When \code{method = "posterior-sample"}, conditional parameters are
+#' averaged over posterior draws, and an attribute \code{"sd"} is included.
+#'
 #' @details
 #' For each observation, the function computes the conditional distribution
 #' of the target variable(s) given the observed values of all other variables.
 #' This is the same conditional distribution used internally by the Gibbs
 #' sampler.
+#'
+#' For GGM (continuous) models, the conditional distribution of
+#' \eqn{X_j | X_{-j}}{X_j | X_{-j}} is Gaussian with mean
+#' \eqn{-\omega_{jj}^{-1} \sum_{k \neq j} \omega_{jk} x_k}{-omega_jj^{-1} sum_{k != j} omega_jk x_k}
+#' and variance \eqn{\omega_{jj}^{-1}}{omega_jj^{-1}}, where \eqn{\Omega}{Omega}
+#' is the precision matrix.
 #'
 #' @seealso \code{\link{simulate.bgms}} for generating new data from the model.
 #'
@@ -883,6 +1025,26 @@ predict.bgms <- function(object,
       stop("Variable indices must be between 1 and ", num_variables)
     }
   }
+
+  # ============================================================================
+  #   GGM (continuous) path
+  # ============================================================================
+  if (isTRUE(arguments$is_continuous)) {
+    return(predict_bgms_ggm(
+      object = object,
+      newdata = newdata,
+      predict_vars = predict_vars,
+      data_columnnames = data_columnnames,
+      num_variables = num_variables,
+      type = type,
+      method = method,
+      ndraws = ndraws
+    ))
+  }
+
+  # ============================================================================
+  #   OMRF (ordinal) path
+  # ============================================================================
 
   # Recode data to 0-based integers (matching what bgm() does)
   newdata_recoded <- recode_data_for_prediction(newdata, num_categories, is_ordinal)
@@ -1251,4 +1413,225 @@ recode_data_for_prediction <- function(x, num_categories, is_ordinal) {
   }
 
   return(x)
+}
+
+
+# ==============================================================================
+#   GGM Prediction Helpers
+# ==============================================================================
+
+# Reconstruct the full precision matrix from posterior mean components.
+#
+# @param posterior_mean_pairwise p x p symmetric matrix with off-diagonal
+#   precision elements (diagonal is zero).
+# @param posterior_mean_main p x 1 matrix with diagonal precision elements
+#   (column named "precision_diag").
+#
+# @return p x p precision matrix (Omega).
+reconstruct_precision <- function(posterior_mean_pairwise, posterior_mean_main) {
+  omega <- posterior_mean_pairwise
+  # Excluded edges (NA) have zero precision
+  omega[is.na(omega)] <- 0
+  diag(omega) <- as.numeric(posterior_mean_main)
+  return(omega)
+}
+
+
+# Reconstruct precision matrix from a single posterior draw.
+#
+# @param pairwise_vec Vector of p*(p-1)/2 off-diagonal precision elements
+#   (lower-triangle order).
+# @param main_vec Vector of p diagonal precision elements.
+# @param p Number of variables.
+#
+# @return p x p precision matrix (Omega).
+reconstruct_precision_from_draw <- function(pairwise_vec, main_vec, p) {
+  omega <- matrix(0, nrow = p, ncol = p)
+  omega[lower.tri(omega)] <- pairwise_vec
+  omega <- omega + t(omega)
+  diag(omega) <- main_vec
+  return(omega)
+}
+
+
+# GGM prediction implementation (called from predict.bgms).
+#
+# @param object Fitted bgms object (GGM).
+# @param newdata n x p numeric matrix of observed continuous data.
+# @param predict_vars Integer vector of 1-based variable indices to predict.
+# @param data_columnnames Character vector of variable names.
+# @param num_variables Number of variables p.
+# @param type "probabilities" or "response".
+# @param method "posterior-mean" or "posterior-sample".
+# @param ndraws Number of posterior draws (NULL = all).
+#
+# @return See predict.bgms() documentation for GGM return format.
+predict_bgms_ggm <- function(object, newdata, predict_vars, data_columnnames,
+                             num_variables, type, method, ndraws) {
+
+  if (method == "posterior-mean") {
+    # Reconstruct precision matrix from posterior means
+    omega <- reconstruct_precision(
+      object$posterior_mean_pairwise,
+      object$posterior_mean_main
+    )
+
+    result <- compute_conditional_ggm(
+      observations = newdata,
+      predict_vars = predict_vars - 1L,
+      precision = omega
+    )
+
+    # Add names
+    names(result) <- data_columnnames[predict_vars]
+    for (v in seq_along(result)) {
+      colnames(result[[v]]) <- c("mean", "sd")
+    }
+
+  } else {
+    # Use posterior samples
+    pairwise_samples <- do.call(rbind, object$raw_samples$pairwise)
+    main_samples <- do.call(rbind, object$raw_samples$main)
+
+    total_draws <- nrow(pairwise_samples)
+    if (is.null(ndraws)) {
+      ndraws <- total_draws
+    }
+    ndraws <- min(ndraws, total_draws)
+
+    draw_indices <- sample.int(total_draws, ndraws)
+
+    # Collect predictions from each draw
+    all_preds <- vector("list", ndraws)
+
+    for (i in seq_len(ndraws)) {
+      idx <- draw_indices[i]
+
+      omega <- reconstruct_precision_from_draw(
+        pairwise_vec = pairwise_samples[idx, ],
+        main_vec = main_samples[idx, ],
+        p = num_variables
+      )
+
+      all_preds[[i]] <- compute_conditional_ggm(
+        observations = newdata,
+        predict_vars = predict_vars - 1L,
+        precision = omega
+      )
+    }
+
+    # Average over draws
+    result <- vector("list", length(predict_vars))
+    result_sd <- vector("list", length(predict_vars))
+    names(result) <- data_columnnames[predict_vars]
+    names(result_sd) <- data_columnnames[predict_vars]
+
+    for (v in seq_along(predict_vars)) {
+      # Stack predictions: n x 2 x ndraws
+      var_preds <- lapply(all_preds, `[[`, v)
+      pred_array <- array(unlist(var_preds),
+                          dim = c(nrow(newdata), 2, ndraws))
+
+      result[[v]] <- apply(pred_array, c(1, 2), mean)
+      result_sd[[v]] <- apply(pred_array, c(1, 2), sd)
+
+      colnames(result[[v]]) <- c("mean", "sd")
+      colnames(result_sd[[v]]) <- c("mean", "sd")
+    }
+
+    attr(result, "sd") <- result_sd
+  }
+
+  if (type == "response") {
+    # Return conditional means
+    pred_matrix <- sapply(result, function(m) m[, "mean"])
+    if (is.vector(pred_matrix)) {
+      pred_matrix <- matrix(pred_matrix, ncol = 1)
+    }
+    colnames(pred_matrix) <- data_columnnames[predict_vars]
+    return(pred_matrix)
+  }
+
+  return(result)
+}
+
+
+# ==============================================================================
+#   GGM Simulation Helpers
+# ==============================================================================
+
+# GGM simulation implementation (called from simulate.bgms).
+#
+# @param object Fitted bgms object (GGM).
+# @param nsim Number of observations to simulate.
+# @param seed Random seed.
+# @param method "posterior-mean" or "posterior-sample".
+# @param ndraws Number of posterior draws (NULL = all).
+# @param num_variables Number of variables p.
+# @param data_columnnames Character vector of variable names.
+# @param cores Number of parallel threads.
+# @param progress_type Integer progress type (0/1/2).
+#
+# @return See simulate.bgms() documentation.
+simulate_bgms_ggm <- function(object, nsim, seed, method, ndraws,
+                               num_variables, data_columnnames,
+                               cores, progress_type) {
+
+  if (method == "posterior-mean") {
+    # Reconstruct precision matrix: inject diagonal from posterior_mean_main
+    precision <- reconstruct_precision(
+      object$posterior_mean_pairwise,
+      object$posterior_mean_main
+    )
+
+    # Call simulate_mrf with variable_type = "continuous"
+    result <- simulate_mrf(
+      num_states = nsim,
+      num_variables = num_variables,
+      pairwise = precision,
+      variable_type = "continuous",
+      seed = seed
+    )
+
+    colnames(result) <- data_columnnames
+    return(result)
+
+  } else {
+    # Use posterior samples with parallel processing
+    pairwise_samples <- do.call(rbind, object$raw_samples$pairwise)
+    main_samples <- do.call(rbind, object$raw_samples$main)
+
+    total_draws <- nrow(pairwise_samples)
+    if (is.null(ndraws)) {
+      ndraws <- total_draws
+    }
+    ndraws <- min(ndraws, total_draws)
+
+    # Sample which draws to use
+    if (!is.null(seed)) set.seed(seed)
+    draw_indices <- sample.int(total_draws, ndraws)
+
+    # Means default to zero
+    means <- rep(0, num_variables)
+
+    # Call parallel C++ function for GGM
+    results <- run_ggm_simulation_parallel(
+      pairwise_samples = pairwise_samples,
+      main_samples = main_samples,
+      draw_indices = as.integer(draw_indices),
+      num_states = as.integer(nsim),
+      num_variables = as.integer(num_variables),
+      means = means,
+      nThreads = cores,
+      seed = seed,
+      progress_type = progress_type
+    )
+
+    # Add column names
+    for (i in seq_along(results)) {
+      colnames(results[[i]]) <- data_columnnames
+    }
+
+    return(results)
+  }
 }

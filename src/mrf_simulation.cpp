@@ -233,7 +233,95 @@ IntegerMatrix sample_bcomrf_gibbs(int num_states,
 
 
 // ============================================================================
-//   Parallel Simulation for simulate.bgms() with Posterior Draws
+//   GGM Simulation (Direct Multivariate Normal Sampling)
+// ============================================================================
+
+/**
+ * Simulate observations from a Gaussian Graphical Model.
+ *
+ * Given a precision matrix Omega, draws num_states observations from
+ * N(means, Omega^{-1}) using the Cholesky factorization of the covariance.
+ *
+ * Algorithm:
+ *   1. Compute Sigma = Omega^{-1} via arma::inv_sympd.
+ *   2. Cholesky decompose: L = chol(Sigma, "lower") so Sigma = L L'.
+ *   3. Draw Z ~ N(0, I) of size (num_states x p).
+ *   4. Return X = ones * means' + Z * L'.
+ *
+ * @param num_states   Number of observations to simulate.
+ * @param precision    p x p positive-definite precision matrix (Omega).
+ * @param means        p-vector of variable means (can be all zeros).
+ * @param rng          Thread-safe random number generator.
+ *
+ * @return num_states x p matrix of simulated continuous observations.
+ */
+arma::mat simulate_ggm(
+    int num_states,
+    const arma::mat& precision,
+    const arma::vec& means,
+    SafeRNG& rng) {
+
+  int p = precision.n_cols;
+
+  // Covariance = inverse of precision
+  arma::mat sigma = arma::inv_sympd(precision);
+
+  // Lower Cholesky: sigma = L * L'
+  arma::mat L = arma::chol(sigma, "lower");
+
+  // Draw standard normal matrix: num_states x p
+  arma::mat Z = arma_rnorm_mat(rng, num_states, p);
+
+  // Transform: X = Z * L' (each row is one observation)
+  arma::mat X = Z * L.t();
+
+  // Add means
+  X.each_row() += means.t();
+
+  return X;
+}
+
+
+// ============================================================================
+//   R Interface for GGM Simulation (standalone simulate_ggm)
+// ============================================================================
+
+/**
+ * R-callable wrapper for single GGM simulation.
+ *
+ * @param num_states  Number of observations to simulate.
+ * @param precision   p x p precision matrix (Omega).
+ * @param means       p-vector of means (default zeros).
+ * @param seed        Random seed for reproducibility.
+ *
+ * @return num_states x p numeric matrix.
+ */
+// [[Rcpp::export]]
+NumericMatrix sample_ggm_direct(int num_states,
+                                NumericMatrix precision,
+                                NumericVector means,
+                                int seed) {
+
+  SafeRNG rng(seed);
+
+  arma::mat precision_arma = Rcpp::as<arma::mat>(precision);
+  arma::vec means_arma = Rcpp::as<arma::vec>(means);
+
+  arma::mat result = simulate_ggm(
+    num_states,
+    precision_arma,
+    means_arma,
+    rng
+  );
+
+  Rcpp::checkUserInterrupt();
+
+  return Rcpp::wrap(result);
+}
+
+
+// ============================================================================
+//   Parallel Simulation for simulate.bgms() with Posterior Draws (Ordinal)
 // ============================================================================
 
 // Structure to hold individual simulation results
@@ -462,6 +550,172 @@ Rcpp::List run_simulation_parallel(
   for (int i = 0; i < ndraws; i++) {
     if (results[i].error) {
       Rcpp::stop("Error in simulation draw %d: %s",
+                 results[i].draw_index, results[i].error_msg.c_str());
+    }
+    output[i] = Rcpp::wrap(results[i].observations);
+  }
+
+  return output;
+}
+
+
+// ============================================================================
+//   Parallel GGM Simulation for simulate.bgms() with Posterior Draws
+// ============================================================================
+
+// Structure to hold GGM simulation results
+struct GGMSimulationResult {
+  arma::mat observations;
+  int draw_index;
+  bool error;
+  std::string error_msg;
+};
+
+
+/**
+ * Worker class for parallel GGM simulation across posterior draws
+ */
+class GGMSimulationWorker : public RcppParallel::Worker {
+public:
+  const arma::mat& pairwise_samples;  // ndraws x p*(p-1)/2
+  const arma::mat& main_samples;      // ndraws x p (diagonal precisions)
+  const arma::ivec& draw_indices;
+  const int num_states;
+  const int num_variables;
+  const arma::vec& means;
+  const std::vector<SafeRNG>& draw_rngs;
+  ProgressManager& pm;
+  std::vector<GGMSimulationResult>& results;
+
+  GGMSimulationWorker(
+    const arma::mat& pairwise_samples,
+    const arma::mat& main_samples,
+    const arma::ivec& draw_indices,
+    int num_states,
+    int num_variables,
+    const arma::vec& means,
+    const std::vector<SafeRNG>& draw_rngs,
+    ProgressManager& pm,
+    std::vector<GGMSimulationResult>& results
+  ) :
+    pairwise_samples(pairwise_samples),
+    main_samples(main_samples),
+    draw_indices(draw_indices),
+    num_states(num_states),
+    num_variables(num_variables),
+    means(means),
+    draw_rngs(draw_rngs),
+    pm(pm),
+    results(results)
+  {}
+
+  void operator()(std::size_t begin, std::size_t end) {
+    for (std::size_t i = begin; i < end; ++i) {
+      GGMSimulationResult result;
+      result.draw_index = draw_indices[i];
+      result.error = false;
+
+      try {
+        SafeRNG rng = draw_rngs[i];
+
+        // Reconstruct precision matrix from flat vectors
+        arma::mat precision(num_variables, num_variables, arma::fill::zeros);
+        int idx = 0;
+        for (int col = 0; col < num_variables; col++) {
+          for (int row = col + 1; row < num_variables; row++) {
+            precision(row, col) = pairwise_samples(draw_indices[i] - 1, idx);
+            precision(col, row) = pairwise_samples(draw_indices[i] - 1, idx);
+            idx++;
+          }
+        }
+        // Diagonal
+        for (int v = 0; v < num_variables; v++) {
+          precision(v, v) = main_samples(draw_indices[i] - 1, v);
+        }
+
+        result.observations = simulate_ggm(
+          num_states,
+          precision,
+          means,
+          rng
+        );
+
+      } catch (const std::exception& e) {
+        result.error = true;
+        result.error_msg = e.what();
+      } catch (...) {
+        result.error = true;
+        result.error_msg = "Unknown error";
+      }
+
+      results[i] = result;
+      pm.update(0);
+    }
+  }
+};
+
+
+/**
+ * Run parallel GGM simulations across posterior draws.
+ *
+ * @param pairwise_samples  Matrix of off-diagonal precision samples (ndraws x p*(p-1)/2)
+ * @param main_samples      Matrix of diagonal precision samples (ndraws x p)
+ * @param draw_indices      1-based indices of which draws to use
+ * @param num_states        Number of observations to simulate per draw
+ * @param num_variables     Number of variables
+ * @param means             p-vector of variable means
+ * @param nThreads          Number of parallel threads
+ * @param seed              Random seed
+ * @param progress_type     Progress bar type (0=none, 1=total, 2=per-chain)
+ *
+ * @return List of simulation results (each is a numeric matrix n x p)
+ */
+// [[Rcpp::export]]
+Rcpp::List run_ggm_simulation_parallel(
+    const arma::mat& pairwise_samples,
+    const arma::mat& main_samples,
+    const arma::ivec& draw_indices,
+    int num_states,
+    int num_variables,
+    const arma::vec& means,
+    int nThreads,
+    int seed,
+    int progress_type) {
+
+  int ndraws = draw_indices.n_elem;
+
+  // Prepare one independent RNG per draw
+  std::vector<SafeRNG> draw_rngs(ndraws);
+  for (int d = 0; d < ndraws; d++) {
+    draw_rngs[d] = SafeRNG(seed + d);
+  }
+
+  std::vector<GGMSimulationResult> results(ndraws);
+  ProgressManager pm(1, ndraws, 0, 50, progress_type);
+
+  GGMSimulationWorker worker(
+    pairwise_samples,
+    main_samples,
+    draw_indices,
+    num_states,
+    num_variables,
+    means,
+    draw_rngs,
+    pm,
+    results
+  );
+
+  {
+    tbb::global_control control(tbb::global_control::max_allowed_parallelism, nThreads);
+    parallelFor(0, ndraws, worker);
+  }
+
+  pm.finish();
+
+  Rcpp::List output(ndraws);
+  for (int i = 0; i < ndraws; i++) {
+    if (results[i].error) {
+      Rcpp::stop("Error in GGM simulation draw %d: %s",
                  results[i].draw_index, results[i].error_msg.c_str());
     }
     output[i] = Rcpp::wrap(results[i].observations);

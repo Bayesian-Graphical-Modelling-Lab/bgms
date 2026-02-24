@@ -141,7 +141,7 @@
 #' @param seed Optional integer. Random seed for reproducibility.
 #' @param main_difference_model,reference_category,pairwise_difference_scale,main_difference_scale,pairwise_difference_prior,main_difference_prior,pairwise_difference_probability,main_difference_probability,pairwise_beta_bernoulli_alpha,pairwise_beta_bernoulli_beta,main_beta_bernoulli_alpha,main_beta_bernoulli_beta,interaction_scale,threshold_alpha,threshold_beta,burnin,save
 #'   `r lifecycle::badge("deprecated")`
-#'   Deprecated arguments as of **bgms 0.1.6.0**.
+#'   Deprecated arguments as of \strong{bgms 0.1.6.0}.
 #'   Use `difference_scale`, `difference_prior`, `difference_probability`,
 #'   `beta_bernoulli_alpha`, `beta_bernoulli_beta`, `baseline_category`,
 #'   `pairwise_scale`, and `warmup` instead.

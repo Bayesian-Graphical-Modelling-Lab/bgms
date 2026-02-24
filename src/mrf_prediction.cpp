@@ -3,6 +3,73 @@
 #include "utils/variable_helpers.h"
 using namespace Rcpp;
 
+
+// ============================================================================
+//   GGM Conditional Prediction
+// ============================================================================
+
+/**
+ * Compute conditional Gaussian parameters for a GGM.
+ *
+ * For a GGM with precision matrix Omega, the conditional distribution of
+ * X_j given X_{-j} = x_{-j} is:
+ *
+ *   X_j | X_{-j} ~ N( -omega_{jj}^{-1} sum_{k != j} omega_{jk} x_k,
+ *                       omega_{jj}^{-1} )
+ *
+ * @param observations  n x p matrix of observed continuous data
+ * @param predict_vars  0-based indices of variables to predict
+ * @param precision     p x p precision matrix (Omega)
+ *
+ * @return List of n x 2 matrices (one per predicted variable), where
+ *         column 0 = conditional mean, column 1 = conditional SD.
+ */
+// [[Rcpp::export]]
+Rcpp::List compute_conditional_ggm(
+    const arma::mat& observations,
+    const arma::ivec& predict_vars,
+    const arma::mat& precision
+) {
+  int n = observations.n_rows;
+  int p = observations.n_cols;
+  int num_predict_vars = predict_vars.n_elem;
+
+  Rcpp::List result(num_predict_vars);
+
+  for (int pv = 0; pv < num_predict_vars; pv++) {
+    int j = predict_vars[pv];
+
+    double omega_jj = precision(j, j);
+    double cond_var = 1.0 / omega_jj;
+    double cond_sd  = std::sqrt(cond_var);
+
+    // Compute conditional means for all observations at once:
+    // cond_mean_i = -(1/omega_jj) * sum_{k != j} omega_{jk} * x_{ik}
+    //             = -(1/omega_jj) * (observations * omega_{.,j} - x_{ij} * omega_{jj})
+    arma::vec omega_col_j = precision.col(j);
+    arma::vec linear_pred = observations * omega_col_j;   // n x 1
+    // Subtract the self-contribution x_{ij} * omega_{jj}
+    linear_pred -= observations.col(j) * omega_jj;
+    arma::vec cond_means = -cond_var * linear_pred;
+
+    // Build n x 2 output matrix: [mean, sd]
+    Rcpp::NumericMatrix out(n, 2);
+    for (int i = 0; i < n; i++) {
+      out(i, 0) = cond_means[i];
+      out(i, 1) = cond_sd;
+    }
+
+    result[pv] = out;
+  }
+
+  return result;
+}
+
+
+// ============================================================================
+//   OMRF Conditional Prediction
+// ============================================================================
+
 // Compute conditional probabilities P(X_j = c | X_{-j}) for ordinal MRF
 // Uses numerically stable vectorized computation from variable_helpers.h
 

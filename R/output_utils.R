@@ -271,9 +271,8 @@ prepare_output_ggm = function(
     results$posterior_mean_indicator = matrix(0,
       nrow = num_variables, ncol = num_variables,
       dimnames = list(data_columnnames, data_columnnames))
-    results$posterior_mean_indicator[upper.tri(results$posterior_mean_indicator)] = indicator_means
-    results$posterior_mean_indicator[lower.tri(results$posterior_mean_indicator)] =
-      t(results$posterior_mean_indicator)[lower.tri(results$posterior_mean_indicator)]
+    results$posterior_mean_indicator[lower.tri(results$posterior_mean_indicator)] = indicator_means
+    results$posterior_mean_indicator = results$posterior_mean_indicator + t(results$posterior_mean_indicator)
 
     if (has_sbm) {
       sbm_convergence = summarize_alloc_pairs(
@@ -317,18 +316,18 @@ prepare_output_ggm = function(
 # Transform sample_ggm output to match the old backend format.
 #
 # The GGM backend returns a `samples` matrix (params x iters) where params
-# are the upper triangle of the precision matrix stored column-by-column:
-# (0,0), (0,1), (1,1), (0,2), (1,2), (2,2), ...
+# are the upper triangle of the precision matrix stored row-by-row:
+# (0,0), (0,1), (0,2), ..., (1,1), (1,2), ..., (p-1,p-1)
 # We split these into diagonal elements ("main") and off-diagonal ("pairwise").
 transform_ggm_backend_output = function(out, p) {
-  # Build index maps for upper triangle (column-major)
+  # Build index maps for upper triangle (row-major, matching C++ ordering)
   diag_idx = integer(p)
   offdiag_idx = integer(p * (p - 1) / 2)
   pos = 0L
   d = 0L
   od = 0L
-  for (j in seq_len(p)) {
-    for (i in seq_len(j)) {
+  for (i in seq_len(p)) {
+    for (j in i:p) {
       pos = pos + 1L
       if (i == j) {
         d = d + 1L

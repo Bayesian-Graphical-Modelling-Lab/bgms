@@ -339,3 +339,122 @@ test_that("mrfSampler produces identical results to simulate_mrf", {
 
   expect_identical(result_new, result_old)
 })
+
+
+# ==============================================================================
+# simulate_mrf with continuous (GGM) variables
+# ==============================================================================
+
+test_that("simulate_mrf works with variable_type = 'continuous'", {
+  p <- 4
+  n <- 100
+  
+  # Precision matrix (diagonal dominant for PD)
+  omega <- diag(p)
+  omega[1, 2] <- omega[2, 1] <- 0.3
+  omega[3, 4] <- omega[4, 3] <- -0.2
+  
+  result <- simulate_mrf(
+    num_states = n,
+    num_variables = p,
+    pairwise = omega,
+    variable_type = "continuous",
+    seed = 42
+  )
+  
+  expect_true(is.matrix(result))
+  expect_equal(nrow(result), n)
+  expect_equal(ncol(result), p)
+  expect_true(all(is.finite(result)))
+  expect_true(is.numeric(result))
+})
+
+test_that("simulate_mrf continuous is reproducible with seed", {
+  p <- 3
+  omega <- diag(p)
+  omega[1, 2] <- omega[2, 1] <- 0.5
+  
+  sim1 <- simulate_mrf(
+    num_states = 50,
+    num_variables = p,
+    pairwise = omega,
+    variable_type = "continuous",
+    seed = 123
+  )
+  sim2 <- simulate_mrf(
+    num_states = 50,
+    num_variables = p,
+    pairwise = omega,
+    variable_type = "continuous",
+    seed = 123
+  )
+  
+  expect_equal(sim1, sim2)
+})
+
+test_that("simulate_mrf continuous: sample covariance approaches true covariance", {
+  p <- 3
+  n <- 5000
+  
+  # Known precision matrix
+  omega <- matrix(c(
+    2.0,  0.5, 0.0,
+    0.5,  1.5, 0.3,
+    0.0,  0.3, 1.0
+  ), nrow = p, byrow = TRUE)
+  
+  result <- simulate_mrf(
+    num_states = n,
+    num_variables = p,
+    pairwise = omega,
+    variable_type = "continuous",
+    seed = 42
+  )
+  
+  # True covariance
+  sigma_true <- solve(omega)
+  
+  # Sample covariance should be close
+  sigma_hat <- cov(result)
+  
+  # Off-diagonal elements should correlate highly
+  expect_true(
+    cor(sigma_true[lower.tri(sigma_true)], sigma_hat[lower.tri(sigma_hat)]) > 0.95,
+    info = "Sample covariance should track true covariance"
+  )
+  
+  # Diagonal elements should be close
+  for (j in 1:p) {
+    expect_equal(sigma_hat[j, j], sigma_true[j, j], tolerance = 0.1,
+      info = sprintf("Variance of variable %d", j))
+  }
+})
+
+test_that("simulate_mrf continuous rejects non-positive diagonal", {
+  p <- 3
+  omega <- diag(c(1, -1, 1))  # negative diagonal element
+  
+  expect_error(
+    simulate_mrf(
+      num_states = 10,
+      num_variables = p,
+      pairwise = omega,
+      variable_type = "continuous"
+    ),
+    "positive"
+  )
+})
+
+test_that("simulate_mrf rejects mixed continuous and ordinal", {
+  expect_error(
+    simulate_mrf(
+      num_states = 10,
+      num_variables = 3,
+      num_categories = c(2, 2, 2),
+      pairwise = matrix(0, 3, 3),
+      main = matrix(0, 3, 2),
+      variable_type = c("continuous", "ordinal", "ordinal")
+    ),
+    "Mixed"
+  )
+})

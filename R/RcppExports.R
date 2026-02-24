@@ -17,6 +17,10 @@ rcpp_ieee754_log <- function(x) {
     .Call(`_bgms_rcpp_ieee754_log`, x)
 }
 
+compute_conditional_ggm <- function(observations, predict_vars, precision) {
+    .Call(`_bgms_compute_conditional_ggm`, observations, predict_vars, precision)
+}
+
 compute_conditional_probs <- function(observations, predict_vars, pairwise, main, num_categories, variable_type, baseline_category) {
     .Call(`_bgms_compute_conditional_probs`, observations, predict_vars, pairwise, main, num_categories, variable_type, baseline_category)
 }
@@ -29,8 +33,16 @@ sample_bcomrf_gibbs <- function(num_states, num_variables, num_categories, pairw
     .Call(`_bgms_sample_bcomrf_gibbs`, num_states, num_variables, num_categories, pairwise, main, variable_type_r, baseline_category, iter, seed)
 }
 
+sample_ggm_direct <- function(num_states, precision, means, seed) {
+    .Call(`_bgms_sample_ggm_direct`, num_states, precision, means, seed)
+}
+
 run_simulation_parallel <- function(pairwise_samples, main_samples, draw_indices, num_states, num_variables, num_categories, variable_type_r, baseline_category, iter, nThreads, seed, progress_type) {
     .Call(`_bgms_run_simulation_parallel`, pairwise_samples, main_samples, draw_indices, num_states, num_variables, num_categories, variable_type_r, baseline_category, iter, nThreads, seed, progress_type)
+}
+
+run_ggm_simulation_parallel <- function(pairwise_samples, main_samples, draw_indices, num_states, num_variables, means, nThreads, seed, progress_type) {
+    .Call(`_bgms_run_ggm_simulation_parallel`, pairwise_samples, main_samples, draw_indices, num_states, num_variables, means, nThreads, seed, progress_type)
 }
 
 sample_ggm <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0) {

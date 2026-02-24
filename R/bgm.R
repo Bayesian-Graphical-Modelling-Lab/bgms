@@ -296,7 +296,7 @@
 #'
 #' @param interaction_scale,burnin,save,threshold_alpha,threshold_beta
 #'   `r lifecycle::badge("deprecated")`
-#'   Deprecated arguments as of **bgms 0.1.6.0**.
+#'   Deprecated arguments as of \strong{bgms 0.1.6.0}.
 #'   Use `pairwise_scale`, `warmup`, `main_alpha`, and `main_beta` instead.
 #'
 #' @return

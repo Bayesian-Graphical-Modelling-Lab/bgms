@@ -52,6 +52,8 @@ the original data used to fit the model.}
 \item{...}{Additional arguments (currently ignored).}
 }
 \value{
+\strong{Ordinal models:}
+
 For \code{type = "probabilities"}: A named list with one element per
 predicted variable. Each element is a matrix with \code{n} rows and
 \code{num_categories + 1} columns containing \eqn{P(X_j = c | X_{-j})}{P(X_j = c | X_-j)} for each
@@ -63,6 +65,20 @@ For \code{type = "response"}: A matrix with \code{n} rows and
 When \code{method = "posterior-sample"}, probabilities are averaged over
 posterior draws, and an attribute \code{"sd"} is included containing the
 standard deviation across draws.
+
+\strong{GGM (continuous) models:}
+
+For \code{type = "probabilities"}: A named list with one element per
+predicted variable. Each element is a matrix with \code{n} rows and
+2 columns (\code{"mean"} and \code{"sd"}) containing the conditional
+Gaussian parameters \eqn{E(X_j | X_{-j})}{E(X_j | X_{-j})} and
+\eqn{\text{SD}(X_j | X_{-j})}{SD(X_j | X_{-j})}.
+
+For \code{type = "response"}: A matrix with \code{n} rows and
+\code{length(variables)} columns containing conditional means.
+
+When \code{method = "posterior-sample"}, conditional parameters are
+averaged over posterior draws, and an attribute \code{"sd"} is included.
 }
 \description{
 Computes conditional probability distributions for one or more variables
@@ -73,6 +89,12 @@ For each observation, the function computes the conditional distribution
 of the target variable(s) given the observed values of all other variables.
 This is the same conditional distribution used internally by the Gibbs
 sampler.
+
+For GGM (continuous) models, the conditional distribution of
+\eqn{X_j | X_{-j}}{X_j | X_{-j}} is Gaussian with mean
+\eqn{-\omega_{jj}^{-1} \sum_{k \neq j} \omega_{jk} x_k}{-omega_jj^{-1} sum_{k != j} omega_jk x_k}
+and variance \eqn{\omega_{jj}^{-1}}{omega_jj^{-1}}, where \eqn{\Omega}{Omega}
+is the precision matrix.
 }
 \examples{
 \donttest{

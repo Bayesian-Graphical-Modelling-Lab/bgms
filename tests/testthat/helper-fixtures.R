@@ -483,6 +483,42 @@ get_bgmcompare_fit_standardize <- function() {
   .test_cache$bgmcompare_fit_std
 }
 
+#' @description Get cached bgms fit for GGM with edge selection (4 continuous variables, 1 chain)
+get_bgms_fit_ggm <- function() {
+  if (is.null(.test_cache$bgms_fit_ggm)) {
+    set.seed(42)
+    x <- matrix(rnorm(200), nrow = 50, ncol = 4)
+    colnames(x) <- paste0("V", 1:4)
+    .test_cache$bgms_fit_ggm <- bgm(
+      x = x,
+      variable_type = "continuous",
+      edge_selection = TRUE,
+      iter = 50, warmup = 100, chains = 1,
+      seed = 44442,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit_ggm
+}
+
+#' @description Get cached bgms fit for GGM without edge selection (4 continuous variables, 1 chain)
+get_bgms_fit_ggm_no_es <- function() {
+  if (is.null(.test_cache$bgms_fit_ggm_no_es)) {
+    set.seed(42)
+    x <- matrix(rnorm(200), nrow = 50, ncol = 4)
+    colnames(x) <- paste0("V", 1:4)
+    .test_cache$bgms_fit_ggm_no_es <- bgm(
+      x = x,
+      variable_type = "continuous",
+      edge_selection = FALSE,
+      iter = 50, warmup = 100, chains = 1,
+      seed = 44443,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit_ggm_no_es
+}
+
 # ------------------------------------------------------------------------------
 # 2. Prediction Data Helpers
 # ------------------------------------------------------------------------------
@@ -515,6 +551,14 @@ get_prediction_data_bgmcompare_ordinal <- function(n = 10) {
 get_prediction_data_bgmcompare_blumecapel <- function(n = 10) {
   data("Boredom", package = "bgms")
   Boredom[26:35, 2:5]  # Use different rows than training, 4 ordinal variables
+}
+
+#' Get prediction data matching the GGM bgms fixture (continuous)
+get_prediction_data_ggm <- function(n = 10) {
+  set.seed(99)
+  x <- matrix(rnorm(n * 4), nrow = n, ncol = 4)
+  colnames(x) <- paste0("V", 1:4)
+  x
 }
 
 # ------------------------------------------------------------------------------
@@ -578,6 +622,33 @@ values_in_range <- function(M, lower = -Inf, upper = Inf) {
 #' Get upper triangle values (for pairwise parameters)
 upper_vals <- function(M) {
   M[upper.tri(M)]
+}
+
+#' Check that named summary entries match matrix positions (ordering consistency)
+#'
+#' For each row of summary_df (named "Vi-Vj"), verify that summary_df$mean[k]
+#' equals matrix_val[Vi, Vj]. Returns a logical vector (TRUE = match).
+#' Requires p >= 4 to detect row-major vs column-major ordering bugs.
+check_summary_matrix_consistency <- function(summary_df, matrix_val) {
+  matches <- logical(nrow(summary_df))
+  for (k in seq_len(nrow(summary_df))) {
+    parts <- strsplit(rownames(summary_df)[k], "-")[[1]]
+    matches[k] <- abs(summary_df$mean[k] - matrix_val[parts[1], parts[2]]) < 1e-10
+  }
+  matches
+}
+
+#' Check that extractor column means match matrix positions (ordering consistency)
+#'
+#' For each named element of extracted_means (named "Vi-Vj"), verify that
+#' the value matches matrix_val[Vi, Vj]. Returns a logical vector (TRUE = match).
+check_extractor_matrix_consistency <- function(extracted_means, matrix_val) {
+  matches <- logical(length(extracted_means))
+  for (k in seq_along(extracted_means)) {
+    parts <- strsplit(names(extracted_means)[k], "-")[[1]]
+    matches[k] <- abs(extracted_means[k] - matrix_val[parts[1], parts[2]]) < 1e-6
+  }
+  matches
 }
 
 

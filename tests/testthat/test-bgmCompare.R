@@ -217,3 +217,44 @@ test_that("bgmCompare handles more than 2 groups", {
   expect_equal(ncol(group_params$main_effects_groups), 3)
   expect_equal(ncol(group_params$pairwise_effects_groups), 3)
 })
+
+
+# ==============================================================================
+# Parameter Ordering Test (p >= 4 required to detect row/column-major bugs)
+# ==============================================================================
+#
+# See test-bgm.R header comment and helper-fixtures.R for background on
+# row-major vs column-major ordering bugs.
+# ==============================================================================
+
+test_that("bgmCompare output has correct parameter ordering", {
+  skip_on_cran()
+
+  data("Wenchuan", package = "bgms")
+  x <- na.omit(Wenchuan[, 1:5])  # p=5 to detect row/column-major bugs
+  group_ind <- rep(1:2, length.out = nrow(x))
+
+  fit <- bgmCompare(
+    x = x, group_indicator = group_ind,
+    difference_selection = TRUE,
+    iter = 1000, warmup = 500, chains = 1,
+    seed = 42,
+    display_progress = "none"
+  )
+
+  # Summary mean vector -> matrix lower triangle (same row-major order)
+  M <- fit$posterior_mean_pairwise_baseline
+  expect_true(
+    all(abs(fit$posterior_summary_pairwise_baseline$mean - M[lower.tri(M)]) < 1e-10),
+    info = "bgmCompare pairwise baseline summary means do not match matrix lower triangle"
+  )
+
+  # Extractor column means -> matrix positions (uses named "Vi-Vj" columns)
+  pw_means <- colMeans(extract_pairwise_interactions(fit))
+  expect_true(
+    all(check_extractor_matrix_consistency(
+      pw_means, fit$posterior_mean_pairwise_baseline
+    )),
+    info = "bgmCompare extract_pairwise_interactions() names do not match matrix positions"
+  )
+})

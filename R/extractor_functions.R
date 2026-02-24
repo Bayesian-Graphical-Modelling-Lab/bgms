@@ -54,7 +54,7 @@ extract_indicators = function(bgms_object) {
 #' @rdname extractor_functions
 #' @details
 #' Internally, indicator samples were stored in `$gamma` (pre-0.1.4, now defunct)
-#' and `$indicator` (0.1.4–0.1.5, deprecated). As of **bgms 0.1.6.0**, they are
+#' and `$indicator` (0.1.4–0.1.5, deprecated). As of \strong{bgms 0.1.6.0}, they are
 #' stored in `$raw_samples$indicator`.
 #' @export
 extract_indicators.bgms = function(bgms_object) {
@@ -94,7 +94,7 @@ extract_indicators.bgms = function(bgms_object) {
 #' @details
 #' For \code{bgmCompare} objects, indicator samples were stored in
 #' \code{$pairwise_difference_indicator} and \code{$main_difference_indicator}
-#' (0.1.4–0.1.5, deprecated). As of **bgms 0.1.6.0**, they are
+#' (0.1.4–0.1.5, deprecated). As of \strong{bgms 0.1.6.0}, they are
 #' stored in \code{$raw_samples$indicator}.
 #' @export
 extract_indicators.bgmCompare = function(bgms_object) {
@@ -137,7 +137,7 @@ extract_posterior_inclusion_probabilities = function(bgms_object) {
 #' Posterior inclusion probabilities are computed from edge indicators.
 #'
 #' Internally, indicator samples were stored in `$gamma` (pre-0.1.4, now defunct)
-#' and `$indicator` (0.1.4–0.1.5, deprecated). As of **bgms 0.1.6.0**, they are
+#' and `$indicator` (0.1.4–0.1.5, deprecated). As of \strong{bgms 0.1.6.0}, they are
 #' stored in `$raw_samples$indicator`.
 #' @export
 extract_posterior_inclusion_probabilities.bgms = function(bgms_object) {
@@ -334,8 +334,8 @@ extract_pairwise_interactions = function(bgms_object) {
 #' @rdname extractor_functions
 #' @details
 #' Pairwise interactions were previously stored in `$pairwise_effects` (pre-0.1.4, now
-#' defunct) and `$posterior_mean_pairwise` (0.1.4–0.1.5, deprecated). As of **bgms
-#' 0.1.6.0**, they are stored in `$raw_samples$pairwise` (raw samples) and
+#' defunct) and `$posterior_mean_pairwise` (0.1.4–0.1.5, deprecated). As of \strong{bgms
+#' 0.1.6.0}, they are stored in `$raw_samples$pairwise` (raw samples) and
 #' `$posterior_summary_pairwise` (summaries).
 #' @export
 extract_pairwise_interactions.bgms = function(bgms_object) {
@@ -385,7 +385,7 @@ extract_pairwise_interactions.bgms = function(bgms_object) {
 #' @rdname extractor_functions
 #' @details
 #' For \code{bgmCompare} objects, pairwise interactions were stored in
-#' \code{$interactions} (0.1.4–0.1.5, deprecated). As of **bgms 0.1.6.0**,
+#' \code{$interactions} (0.1.4–0.1.5, deprecated). As of \strong{bgms 0.1.6.0},
 #' they are stored in \code{$raw_samples$pairwise}.
 #' @export
 extract_pairwise_interactions.bgmCompare = function(bgms_object) {
@@ -425,7 +425,7 @@ extract_category_thresholds = function(bgms_object) {
 #' @rdname extractor_functions
 #' @details
 #' Category thresholds were previously stored in `$main_effects` (pre-0.1.4, now defunct)
-#' and `$posterior_mean_main` (0.1.4–0.1.5, deprecated). As of **bgms 0.1.6.0**, they
+#' and `$posterior_mean_main` (0.1.4–0.1.5, deprecated). As of \strong{bgms 0.1.6.0}, they
 #' are stored in `$posterior_summary_main`.
 #' @export
 extract_category_thresholds.bgms = function(bgms_object) {
@@ -482,7 +482,7 @@ extract_category_thresholds.bgms = function(bgms_object) {
 #' @rdname extractor_functions
 #' @details
 #' For \code{bgmCompare} objects, category thresholds were stored in
-#' \code{$thresholds} (0.1.4–0.1.5, deprecated). As of **bgms 0.1.6.0**,
+#' \code{$thresholds} (0.1.4–0.1.5, deprecated). As of \strong{bgms 0.1.6.0},
 #' they are stored in \code{$raw_samples$main}.
 #' @export
 extract_category_thresholds.bgmCompare = function(bgms_object) {

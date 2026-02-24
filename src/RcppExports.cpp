@@ -91,6 +91,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// compute_conditional_ggm
+Rcpp::List compute_conditional_ggm(const arma::mat& observations, const arma::ivec& predict_vars, const arma::mat& precision);
+RcppExport SEXP _bgms_compute_conditional_ggm(SEXP observationsSEXP, SEXP predict_varsSEXP, SEXP precisionSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type observations(observationsSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type predict_vars(predict_varsSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type precision(precisionSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_conditional_ggm(observations, predict_vars, precision));
+    return rcpp_result_gen;
+END_RCPP
+}
 // compute_conditional_probs
 Rcpp::List compute_conditional_probs(arma::imat observations, arma::ivec predict_vars, arma::mat pairwise, arma::mat main, arma::ivec num_categories, Rcpp::StringVector variable_type, arma::ivec baseline_category);
 RcppExport SEXP _bgms_compute_conditional_probs(SEXP observationsSEXP, SEXP predict_varsSEXP, SEXP pairwiseSEXP, SEXP mainSEXP, SEXP num_categoriesSEXP, SEXP variable_typeSEXP, SEXP baseline_categorySEXP) {
@@ -144,6 +157,20 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// sample_ggm_direct
+NumericMatrix sample_ggm_direct(int num_states, NumericMatrix precision, NumericVector means, int seed);
+RcppExport SEXP _bgms_sample_ggm_direct(SEXP num_statesSEXP, SEXP precisionSEXP, SEXP meansSEXP, SEXP seedSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type num_states(num_statesSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type precision(precisionSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type means(meansSEXP);
+    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
+    rcpp_result_gen = Rcpp::wrap(sample_ggm_direct(num_states, precision, means, seed));
+    return rcpp_result_gen;
+END_RCPP
+}
 // run_simulation_parallel
 Rcpp::List run_simulation_parallel(const arma::mat& pairwise_samples, const arma::mat& main_samples, const arma::ivec& draw_indices, int num_states, int num_variables, const arma::ivec& num_categories, const Rcpp::StringVector& variable_type_r, const arma::ivec& baseline_category, int iter, int nThreads, int seed, int progress_type);
 RcppExport SEXP _bgms_run_simulation_parallel(SEXP pairwise_samplesSEXP, SEXP main_samplesSEXP, SEXP draw_indicesSEXP, SEXP num_statesSEXP, SEXP num_variablesSEXP, SEXP num_categoriesSEXP, SEXP variable_type_rSEXP, SEXP baseline_categorySEXP, SEXP iterSEXP, SEXP nThreadsSEXP, SEXP seedSEXP, SEXP progress_typeSEXP) {
@@ -163,6 +190,25 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
     Rcpp::traits::input_parameter< int >::type progress_type(progress_typeSEXP);
     rcpp_result_gen = Rcpp::wrap(run_simulation_parallel(pairwise_samples, main_samples, draw_indices, num_states, num_variables, num_categories, variable_type_r, baseline_category, iter, nThreads, seed, progress_type));
+    return rcpp_result_gen;
+END_RCPP
+}
+// run_ggm_simulation_parallel
+Rcpp::List run_ggm_simulation_parallel(const arma::mat& pairwise_samples, const arma::mat& main_samples, const arma::ivec& draw_indices, int num_states, int num_variables, const arma::vec& means, int nThreads, int seed, int progress_type);
+RcppExport SEXP _bgms_run_ggm_simulation_parallel(SEXP pairwise_samplesSEXP, SEXP main_samplesSEXP, SEXP draw_indicesSEXP, SEXP num_statesSEXP, SEXP num_variablesSEXP, SEXP meansSEXP, SEXP nThreadsSEXP, SEXP seedSEXP, SEXP progress_typeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type pairwise_samples(pairwise_samplesSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type main_samples(main_samplesSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type draw_indices(draw_indicesSEXP);
+    Rcpp::traits::input_parameter< int >::type num_states(num_statesSEXP);
+    Rcpp::traits::input_parameter< int >::type num_variables(num_variablesSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type means(meansSEXP);
+    Rcpp::traits::input_parameter< int >::type nThreads(nThreadsSEXP);
+    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
+    Rcpp::traits::input_parameter< int >::type progress_type(progress_typeSEXP);
+    rcpp_result_gen = Rcpp::wrap(run_ggm_simulation_parallel(pairwise_samples, main_samples, draw_indices, num_states, num_variables, means, nThreads, seed, progress_type));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -247,10 +293,13 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_get_explog_switch", (DL_FUNC) &_bgms_get_explog_switch, 0},
     {"_bgms_rcpp_ieee754_exp", (DL_FUNC) &_bgms_rcpp_ieee754_exp, 1},
     {"_bgms_rcpp_ieee754_log", (DL_FUNC) &_bgms_rcpp_ieee754_log, 1},
+    {"_bgms_compute_conditional_ggm", (DL_FUNC) &_bgms_compute_conditional_ggm, 3},
     {"_bgms_compute_conditional_probs", (DL_FUNC) &_bgms_compute_conditional_probs, 7},
     {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 7},
     {"_bgms_sample_bcomrf_gibbs", (DL_FUNC) &_bgms_sample_bcomrf_gibbs, 9},
+    {"_bgms_sample_ggm_direct", (DL_FUNC) &_bgms_sample_ggm_direct, 4},
     {"_bgms_run_simulation_parallel", (DL_FUNC) &_bgms_run_simulation_parallel, 12},
+    {"_bgms_run_ggm_simulation_parallel", (DL_FUNC) &_bgms_run_ggm_simulation_parallel, 9},
     {"_bgms_sample_ggm", (DL_FUNC) &_bgms_sample_ggm, 17},
     {"_bgms_sample_omrf", (DL_FUNC) &_bgms_sample_omrf, 24},
     {"_bgms_compute_Vn_mfm_sbm", (DL_FUNC) &_bgms_compute_Vn_mfm_sbm, 4},

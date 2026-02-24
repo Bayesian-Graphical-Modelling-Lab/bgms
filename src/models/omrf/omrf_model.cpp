@@ -64,7 +64,15 @@ OMRFModel::OMRFModel(
     // Initialize mass matrix
     inv_mass_ = arma::ones<arma::vec>(num_main_ + num_pairwise_);
 
-    // Pre-compute observations as double (for efficient matrix operations)
+    // Center observations for Blume-Capel variables (x - baseline) so that
+    // ALL downstream code — sufficient statistics, residuals, gradients,
+    // log-pseudoposterior, imputation — operates in the same coordinate
+    // system. For ordinal variables baseline=0, so this is a no-op.
+    for (size_t v = 0; v < p_; ++v) {
+        if (!is_ordinal_variable_(v)) {
+            observations_.col(v) -= baseline_category_(v);
+        }
+    }
     observations_double_ = arma::conv_to<arma::mat>::from(observations_);
     observations_double_t_ = observations_double_.t();
 
@@ -149,11 +157,10 @@ void OMRFModel::compute_sufficient_statistics() {
     blume_capel_stats_ = arma::zeros<arma::imat>(2, p_);
     for (size_t v = 0; v < p_; ++v) {
         if (!is_ordinal_variable_(v)) {
-            int baseline = baseline_category_(v);
             for (size_t i = 0; i < n_; ++i) {
-                int s = observations_(i, v) - baseline;
-                blume_capel_stats_(0, v) += s;      // linear
-                blume_capel_stats_(1, v) += s * s;  // quadratic
+                int s = observations_(i, v);         // already centered
+                blume_capel_stats_(0, v) += s;       // linear
+                blume_capel_stats_(1, v) += s * s;   // quadratic
             }
         }
     }
@@ -273,8 +280,8 @@ void OMRFModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) 
 
             if (current != value) {
                 double delta = value - current;
-                residual_matrix_.col(variable1) += arma::conv_to<arma::vec>::from(observations_.col(variable2)) * delta;
-                residual_matrix_.col(variable2) += arma::conv_to<arma::vec>::from(observations_.col(variable1)) * delta;
+                residual_matrix_.col(variable1) += observations_double_.col(variable2) * delta;
+                residual_matrix_.col(variable2) += observations_double_.col(variable1) * delta;
             }
 
             proposal_sd = update_proposal_sd_with_robbins_monro(
@@ -797,8 +804,8 @@ double OMRFModel::log_pseudoposterior_pairwise_at_delta(int var1, int var2, doub
 
     double log_pseudo_posterior = 2.0 * proposed_value * pairwise_stats_(var1, var2);
 
-    arma::vec obs_var1 = arma::conv_to<arma::vec>::from(observations_.col(var1));
-    arma::vec obs_var2 = arma::conv_to<arma::vec>::from(observations_.col(var2));
+    const arma::vec& obs_var1 = observations_double_.col(var1);
+    const arma::vec& obs_var2 = observations_double_.col(var2);
 
     for (int var : {var1, var2}) {
         int num_cats = num_categories_(var);
@@ -1181,8 +1188,8 @@ double OMRFModel::update_pairwise_effect(int var1, int var2) {
 
     if (current_value != value) {
         double delta = value - current_value;
-        residual_matrix_.col(var1) += arma::conv_to<arma::vec>::from(observations_.col(var2)) * delta;
-        residual_matrix_.col(var2) += arma::conv_to<arma::vec>::from(observations_.col(var1)) * delta;
+        residual_matrix_.col(var1) += observations_double_.col(var2) * delta;
+        residual_matrix_.col(var2) += observations_double_.col(var1) * delta;
     }
 
     return result.accept_prob;
@@ -1224,8 +1231,8 @@ void OMRFModel::update_edge_indicator(int var1, int var2) {
         pairwise_effects_(var2, var1) = proposed_state;
 
         const double delta = proposed_state - current_state;
-        residual_matrix_.col(var1) += arma::conv_to<arma::vec>::from(observations_.col(var2)) * delta;
-        residual_matrix_.col(var2) += arma::conv_to<arma::vec>::from(observations_.col(var1)) * delta;
+        residual_matrix_.col(var1) += observations_double_.col(var2) * delta;
+        residual_matrix_.col(var2) += observations_double_.col(var1) * delta;
     }
 }
 
@@ -1345,11 +1352,7 @@ void OMRFModel::impute_missing() {
             }
         } else {
             const int ref = baseline_category_(variable);
-
-            cumsum = MY_EXP(
-                main_effects_(variable, 0) * ref + main_effects_(variable, 1) * ref * ref
-            );
-            category_probabilities[0] = cumsum;
+            cumsum = 0.0;
 
             for (int cat = 0; cat <= num_cats; cat++) {
                 const int score = cat - ref;
