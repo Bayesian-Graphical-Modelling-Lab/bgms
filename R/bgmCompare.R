@@ -490,50 +490,15 @@ bgmCompare = function(
   }
 
   # Compute pairwise scaling factors for standardized priors --------------------
-  pairwise_scaling_factors = matrix(1, nrow = num_variables, ncol = num_variables)
-  if(standardize) {
-    for(v1 in seq_len(num_variables - 1)) {
-      for(v2 in seq((v1 + 1), num_variables)) {
-        if(ordinal_variable[v1] && ordinal_variable[v2]) {
-          # Both ordinal: M_i * M_j
-          pairwise_scaling_factors[v1, v2] = num_categories[v1] * num_categories[v2]
-        } else if(!ordinal_variable[v1] && !ordinal_variable[v2]) {
-          # Both Blume-Capel: max of endpoint products
-          b1 = baseline_category[v1]
-          b2 = baseline_category[v2]
-          m1 = num_categories[v1]
-          m2 = num_categories[v2]
-          endpoints1 = c(-b1, m1 - b1)
-          endpoints2 = c(-b2, m2 - b2)
-          all_products = abs(outer(endpoints1, endpoints2))
-          pairwise_scaling_factors[v1, v2] = max(all_products)
-        } else {
-          # Mixed: one ordinal, one Blume-Capel
-          if(ordinal_variable[v1]) {
-            m1 = num_categories[v1]
-            b2 = baseline_category[v2]
-            m2 = num_categories[v2]
-            endpoints1 = c(0, m1)
-            endpoints2 = c(-b2, m2 - b2)
-          } else {
-            b1 = baseline_category[v1]
-            m1 = num_categories[v1]
-            m2 = num_categories[v2]
-            endpoints1 = c(-b1, m1 - b1)
-            endpoints2 = c(0, m2)
-          }
-          all_products = abs(outer(endpoints1, endpoints2))
-          pairwise_scaling_factors[v1, v2] = max(all_products)
-        }
-        pairwise_scaling_factors[v2, v1] = pairwise_scaling_factors[v1, v2]
-      }
-    }
-  }
-
-  # Add variable names to scaling factors matrix
-  varnames = if(is.null(colnames(x))) paste0("Variable ", seq_len(num_variables)) else colnames(x)
-  rownames(pairwise_scaling_factors) = varnames
-  colnames(pairwise_scaling_factors) = varnames
+  varnames <- if(is.null(colnames(x))) paste0("Variable ", seq_len(num_variables)) else colnames(x)
+  pairwise_scaling_factors <- compute_scaling_factors(
+    num_variables     = num_variables,
+    is_ordinal        = ordinal_variable,
+    num_categories    = num_categories,
+    baseline_category = baseline_category,
+    standardize       = standardize,
+    varnames          = varnames
+  )
 
   # Compute group-level data
   num_groups = length(unique(group))
