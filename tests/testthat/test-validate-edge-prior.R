@@ -77,7 +77,7 @@ test_that("Bernoulli scalar: > 1 errors", {
       edge_selection = TRUE, edge_prior = "Bernoulli",
       inclusion_probability = 1.5, num_variables = 3
     ),
-    "cannot exceed the value one"
+    "cannot equal or exceed the value one"
   )
 })
 
@@ -87,7 +87,7 @@ test_that("Bernoulli scalar: exactly 1 errors", {
       edge_selection = TRUE, edge_prior = "Bernoulli",
       inclusion_probability = 1, num_variables = 3
     ),
-    "cannot equal one"
+    "cannot equal or exceed the value one"
   )
 })
 

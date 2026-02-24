@@ -191,87 +191,14 @@ check_compare_model = function(
   }
 
   # Check set-up for the Bayesian difference selection model --------------------
-  difference_selection = as.logical(difference_selection)
-  if(is.na(difference_selection)) {
-    stop("The parameter difference_selection needs to be TRUE or FALSE.")
-  }
-  if(difference_selection == TRUE) {
-    inclusion_probability_difference = matrix(0,
-      nrow = ncol(x),
-      ncol = ncol(x)
-    )
-
-    difference_prior = match.arg(difference_prior)
-    if(difference_prior == "Bernoulli") {
-      if(length(difference_probability) == 1) {
-        difference_inclusion_probability = difference_probability[1]
-        if(is.na(difference_inclusion_probability) || is.null(difference_inclusion_probability)) {
-          stop("There is no value specified for the inclusion probability for the differences.")
-        }
-        if(difference_inclusion_probability <= 0) {
-          stop("The inclusion probability for differences needs to be positive.")
-        }
-        if(difference_inclusion_probability >= 1) {
-          stop("The inclusion probability for differences cannot equal or exceed the value one.")
-        }
-
-        inclusion_probability_difference = matrix(difference_probability,
-          nrow = ncol(x),
-          ncol = ncol(x)
-        )
-      } else {
-        if(!inherits(difference_probability, what = "matrix") &&
-          !inherits(difference_probability, what = "data.frame")) {
-          stop("The input for the inclusion probability argument for differences needs to be a single number, matrix, or dataframe.")
-        }
-
-        if(inherits(difference_probability, what = "data.frame")) {
-          inclusion_probability_difference = data.matrix(difference_probability)
-        } else {
-          inclusion_probability_difference = difference_probability
-        }
-
-        if(!isSymmetric(inclusion_probability_difference)) {
-          stop("The inclusion probability matrix needs to be symmetric.")
-        }
-        if(ncol(inclusion_probability_difference) != ncol(x)) {
-          stop(paste0(
-            "The inclusion probability matrix needs to have as many rows (columns) as there\n",
-            " are variables in the data."
-          ))
-        }
-
-        if(anyNA(inclusion_probability_difference[lower.tri(inclusion_probability_difference, diag = TRUE)]) ||
-          any(is.null(inclusion_probability_difference[lower.tri(inclusion_probability_difference, diag = TRUE)]))) {
-          stop("One or more inclusion probabilities for differences are not specified.")
-        }
-        if(any(inclusion_probability_difference[lower.tri(inclusion_probability_difference, diag = TRUE)] <= 0)) {
-          stop("One or more inclusion probabilities for differences are negative or zero.")
-        }
-        if(any(inclusion_probability_difference[lower.tri(inclusion_probability_difference, diag = TRUE)] >= 1)) {
-          stop("One or more inclusion probabilities for differences are one or larger.")
-        }
-      }
-    } else {
-      inclusion_probability_difference = matrix(0.5,
-        nrow = ncol(x),
-        ncol = ncol(x)
-      )
-      if(beta_bernoulli_alpha <= 0 || beta_bernoulli_beta <= 0) {
-        stop("The scale parameters of the beta distribution for the differences need to be positive.")
-      }
-      if(!is.finite(beta_bernoulli_alpha) || !is.finite(beta_bernoulli_beta)) {
-        stop("The scale parameters of the beta distribution for the differences need to be finite.")
-      }
-      if(is.na(beta_bernoulli_alpha) || is.na(beta_bernoulli_beta) ||
-        is.null(beta_bernoulli_alpha) || is.null(beta_bernoulli_beta)) {
-        stop("The scale parameters of the beta distribution for the differences need to be specified.")
-      }
-    }
-  } else {
-    difference_prior = "Not applicable"
-    inclusion_probability_difference = matrix(0.5, 1, 1)
-  }
+  dp <- validate_difference_prior(
+    difference_selection  = difference_selection,
+    difference_prior      = difference_prior,
+    difference_probability = difference_probability,
+    num_variables         = ncol(x),
+    beta_bernoulli_alpha  = beta_bernoulli_alpha,
+    beta_bernoulli_beta   = beta_bernoulli_beta
+  )
 
   return(
     list(
@@ -279,8 +206,8 @@ check_compare_model = function(
       group_indicator = group,
       variable_bool = variable_bool,
       baseline_category = baseline_category,
-      difference_prior = difference_prior,
-      inclusion_probability_difference = inclusion_probability_difference
+      difference_prior = dp$difference_prior,
+      inclusion_probability_difference = dp$inclusion_probability_difference
     )
   )
 }

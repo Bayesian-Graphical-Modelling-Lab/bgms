@@ -323,7 +323,12 @@ validate_edge_prior <- function(edge_selection,
   edge_prior <- match.arg(edge_prior)
 
   if (edge_prior == "Bernoulli") {
-    theta <- validate_bernoulli_prior(inclusion_probability, num_variables)
+    theta <- validate_bernoulli_inclusion(
+      probability      = inclusion_probability,
+      num_variables    = num_variables,
+      include_diagonal = FALSE,
+      context          = ""
+    )
   }
 
   if (edge_prior == "Beta-Bernoulli") {
@@ -390,69 +395,185 @@ validate_edge_prior <- function(edge_selection,
 
 
 # ------------------------------------------------------------------------------
-# validate_bernoulli_prior (internal helper)
+# validate_bernoulli_inclusion (internal helper)
 # ------------------------------------------------------------------------------
 #
-# Validates inclusion_probability for the Bernoulli edge prior.
-# Accepts either a scalar or a symmetric matrix / data.frame.
+# Shared validator for Bernoulli inclusion probabilities. Used by both
+# validate_edge_prior() (edges) and validate_difference_prior() (differences).
 #
-# @param inclusion_probability  Scalar, matrix, or data.frame.
+# @param probability  Scalar, matrix, or data.frame of inclusion probabilities.
 # @param num_variables  Integer: number of variables.
+# @param include_diagonal  Logical: whether to check the diagonal in matrix
+#   validation. TRUE for differences (main-effect differences), FALSE for
+#   edges (pairwise only).
+# @param context  Character: label for error messages, e.g. "" (edge) or
+#   " for differences" (difference).
 #
 # Returns: num_variables x num_variables matrix of inclusion probabilities.
 # ------------------------------------------------------------------------------
-validate_bernoulli_prior <- function(inclusion_probability, num_variables) {
-  if (length(inclusion_probability) == 1) {
-    theta <- inclusion_probability[1]
+validate_bernoulli_inclusion <- function(probability,
+                                         num_variables,
+                                         include_diagonal = FALSE,
+                                         context = "") {
+  if (length(probability) == 1) {
+    theta <- probability[1]
     if (is.na(theta) || is.null(theta)) {
-      stop("There is no value specified for the inclusion probability.")
+      stop(paste0(
+        "There is no value specified for the inclusion probability",
+        context, "."
+      ))
     }
     if (theta <= 0) {
-      stop("The inclusion probability needs to be positive.")
+      stop(paste0(
+        "The inclusion probability", context, " needs to be positive."
+      ))
     }
-    if (theta > 1) {
-      stop("The inclusion probability cannot exceed the value one.")
-    }
-    if (theta == 1) {
-      stop("The inclusion probability cannot equal one.")
+    if (theta >= 1) {
+      stop(paste0(
+        "The inclusion probability", context, " cannot equal or exceed the value one."
+      ))
     }
     return(matrix(theta, nrow = num_variables, ncol = num_variables))
   }
 
   # --- Matrix / data.frame path ---
-  if (!inherits(inclusion_probability, what = "matrix") &&
-    !inherits(inclusion_probability, what = "data.frame")) {
-    stop("The input for the inclusion probability argument needs to be a single number, matrix, or dataframe.")
+  if (!inherits(probability, what = "matrix") &&
+    !inherits(probability, what = "data.frame")) {
+    stop(paste0(
+      "The input for the inclusion probability argument", context,
+      " needs to be a single number, matrix, or dataframe."
+    ))
   }
 
-  if (inherits(inclusion_probability, what = "data.frame")) {
-    theta <- data.matrix(inclusion_probability)
+  if (inherits(probability, what = "data.frame")) {
+    theta <- data.matrix(probability)
   } else {
-    theta <- inclusion_probability
+    theta <- probability
   }
   if (!isSymmetric(theta)) {
     stop("The inclusion probability matrix needs to be symmetric.")
   }
   if (ncol(theta) != num_variables) {
-    stop("The inclusion probability matrix needs to have as many rows (columns) as there are variables in the data.")
+    stop(paste0(
+      "The inclusion probability matrix needs to have as many rows (columns) as there",
+      if (nzchar(context)) "\n " else " ",
+      "are variables in the data."
+    ))
   }
 
-  if (anyNA(theta[lower.tri(theta)]) ||
-    any(is.null(theta[lower.tri(theta)]))) {
-    stop("One or more elements of the elements in inclusion probability matrix are not specified.")
+  tri <- lower.tri(theta, diag = include_diagonal)
+  if (anyNA(theta[tri]) || any(is.null(theta[tri]))) {
+    if (nzchar(context)) {
+      stop(paste0(
+        "One or more inclusion probabilities", context, " are not specified."
+      ))
+    } else {
+      stop("One or more elements of the elements in inclusion probability matrix are not specified.")
+    }
   }
-  if (any(theta[lower.tri(theta)] <= 0)) {
-    stop(paste0(
-      "The inclusion probability matrix contains negative or zero values;\n",
-      "inclusion probabilities need to be positive."
-    ))
+  if (any(theta[tri] <= 0)) {
+    if (nzchar(context)) {
+      stop(paste0(
+        "One or more inclusion probabilities", context, " are negative or zero."
+      ))
+    } else {
+      stop(paste0(
+        "The inclusion probability matrix contains negative or zero values;\n",
+        "inclusion probabilities need to be positive."
+      ))
+    }
   }
-  if (any(theta[lower.tri(theta)] >= 1)) {
-    stop(paste0(
-      "The inclusion probability matrix contains values greater than or equal to one;\n",
-      "inclusion probabilities cannot exceed or equal the value one."
-    ))
+  if (any(theta[tri] >= 1)) {
+    if (nzchar(context)) {
+      stop(paste0(
+        "One or more inclusion probabilities", context, " are one or larger."
+      ))
+    } else {
+      stop(paste0(
+        "The inclusion probability matrix contains values greater than or equal to one;\n",
+        "inclusion probabilities cannot exceed or equal the value one."
+      ))
+    }
   }
 
   theta
+}
+
+
+# ------------------------------------------------------------------------------
+# validate_difference_prior
+# ------------------------------------------------------------------------------
+#
+# Validates and normalizes the difference selection prior setup for
+# bgmCompare(). Handles Bernoulli and Beta-Bernoulli priors.
+#
+# @param difference_selection  Logical: whether to perform Bayesian
+#   difference selection.
+# @param difference_prior  Character: one of "Bernoulli", "Beta-Bernoulli".
+# @param difference_probability  Scalar or matrix of inclusion probabilities
+#   for differences.
+# @param num_variables  Integer: number of variables (ncol of data).
+# @param beta_bernoulli_alpha  Numeric: alpha shape parameter for Beta prior.
+# @param beta_bernoulli_beta  Numeric: beta shape parameter for Beta prior.
+#
+# Returns:
+#   list(difference_selection, difference_prior,
+#        inclusion_probability_difference)
+#   where inclusion_probability_difference is a
+#   num_variables x num_variables matrix.
+#
+# Replaces:
+#   - check_compare_model() difference selection block
+#     (function_input_utils.R)
+# ------------------------------------------------------------------------------
+validate_difference_prior <- function(difference_selection,
+                                      difference_prior = c("Bernoulli",
+                                                           "Beta-Bernoulli"),
+                                      difference_probability = 0.5,
+                                      num_variables,
+                                      beta_bernoulli_alpha = 1,
+                                      beta_bernoulli_beta = 1) {
+  difference_selection <- as.logical(difference_selection)
+  if (is.na(difference_selection)) {
+    stop("The parameter difference_selection needs to be TRUE or FALSE.")
+  }
+
+  if (!difference_selection) {
+    return(list(
+      difference_selection          = FALSE,
+      difference_prior              = "Not applicable",
+      inclusion_probability_difference = matrix(0.5, 1, 1)
+    ))
+  }
+
+  # --- difference_selection == TRUE ---
+  difference_prior <- match.arg(difference_prior)
+
+  if (difference_prior == "Bernoulli") {
+    theta <- validate_bernoulli_inclusion(
+      probability      = difference_probability,
+      num_variables    = num_variables,
+      include_diagonal = TRUE,
+      context          = " for differences"
+    )
+  } else {
+    # Beta-Bernoulli
+    theta <- matrix(0.5, nrow = num_variables, ncol = num_variables)
+    if (is.na(beta_bernoulli_alpha) || is.na(beta_bernoulli_beta) ||
+      is.null(beta_bernoulli_alpha) || is.null(beta_bernoulli_beta)) {
+      stop("The scale parameters of the beta distribution for the differences need to be specified.")
+    }
+    if (beta_bernoulli_alpha <= 0 || beta_bernoulli_beta <= 0) {
+      stop("The scale parameters of the beta distribution for the differences need to be positive.")
+    }
+    if (!is.finite(beta_bernoulli_alpha) || !is.finite(beta_bernoulli_beta)) {
+      stop("The scale parameters of the beta distribution for the differences need to be finite.")
+    }
+  }
+
+  list(
+    difference_selection            = TRUE,
+    difference_prior                = difference_prior,
+    inclusion_probability_difference = theta
+  )
 }
