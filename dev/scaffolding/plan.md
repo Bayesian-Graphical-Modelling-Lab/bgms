@@ -1,6 +1,6 @@
 # R Scaffolding Refactor — bgm_spec Architecture
 
-**Date:** 2025-07-12 (updated 2026-02-24 after Review 1 & Review 2)  
+**Date:** 2025-07-12 (updated 2026-02-25 after Review 1 & Review 2)  
 **Branch:** `ggm_mixed` (PR #78)  
 **Context:** Phase 3‑H (R-side validation for GGM) expanded into a full
 R-layer restructuring to support the upcoming mixed MRF and future variable
@@ -691,34 +691,34 @@ Phase C can only begin when **all** of the following are satisfied:
 
 ### 6.2 Migration phases
 
-#### Phase A-0: Create golden-snapshot fixtures (prerequisite)
+#### Phase A-0: Create golden-snapshot fixtures (prerequisite) ✅ COMPLETE
 
-| Step | What |
-|------|------|
-| A.0.1 | Write `dev/generate_scaffolding_fixtures.R` that runs all 15+ fixture cases |
-| A.0.2 | Store `.rds` files in `dev/fixtures/scaffolding/` |
-| A.0.3 | Write `tests/testthat/test-scaffolding-fixtures.R` that loads fixtures and verifies they match current behavior |
+| Step | What | Status |
+|------|------|--------|
+| A.0.1 | Write `dev/generate_scaffolding_fixtures.R` that runs all 15+ fixture cases | ✅ `2ca15a4` |
+| A.0.2 | Store `.rds` files in `dev/fixtures/scaffolding/` | ✅ `2ca15a4` |
+| A.0.3 | Write `tests/testthat/test-scaffolding-fixtures.R` that loads fixtures and verifies they match current behavior | ✅ `2ca15a4` |
 
-**Checkpoint A-0**: Fixtures captured and verified. No code changes yet.
+**Checkpoint A-0**: ✅ Fixtures captured and verified. No code changes yet.
 
-#### Phase A: Extract validators (no behavior change)
+#### Phase A: Extract validators (no behavior change) ✅ COMPLETE
 
 Each step extracts one focused validator from the monolithic functions.
 The old function calls the new validator internally (behavioral equivalence).
 Each step is a **separate PR** (not just a commit), especially A.5/A.6
 which have the most subtle behavioral differences.
 
-| Step | Extract | From | New file | Test |
-|------|---------|------|----------|------|
-| A.1 | `validate_variable_types()` | `check_model` + `check_compare_model` | `validate_model.R` | Unit tests for all variable type combos |
-| A.2 | `validate_baseline_category()` | `check_model` + `check_compare_model` | `validate_model.R` | Unit tests for BC validation |
-| A.3 | `validate_edge_prior()` | `check_model` | `validate_model.R` | Unit tests for prior setup |
-| A.4 | `validate_difference_prior()` | `check_compare_model` | `validate_model.R` | Unit tests for diff prior |
-| A.5 | `validate_missing_data()` | `reformat_data` + inline GGM | `validate_data.R` | Unit tests for listwise/impute + GGM constraint |
-| A.6 | `reformat_ordinal_data()` | `reformat_data` | `validate_data.R` | Unit tests for recoding (single-group only) |
-| A.6b | `collapse_categories_across_groups()` | `compare_reformat_data` | `validate_data.R` | Unit tests: multi-group collapsing, missing categories, >2 groups |
-| A.7 | `validate_sampler()` | inline in `bgm.R` + `bgmCompare.R` | `validate_sampler.R` | Unit tests for sampler args + GGM constraints |
-| A.8 | `compute_scaling_factors()` | inline in `bgm.R` + `bgmCompare.R` | `compute_utils.R` | Unit tests for scaling |
+| Step | Extract | From | New file | Test | Status |
+|------|---------|------|----------|------|--------|
+| A.1 | `validate_variable_types()` | `check_model` + `check_compare_model` | `validate_model.R` | Unit tests for all variable type combos | ✅ `7108bf6` |
+| A.2 | `validate_baseline_category()` | `check_model` + `check_compare_model` | `validate_model.R` | Unit tests for BC validation | ✅ `985da03` |
+| A.3 | `validate_edge_prior()` | `check_model` | `validate_model.R` | Unit tests for prior setup | ✅ `fc8f0e3` |
+| A.4 | `validate_difference_prior()` | `check_compare_model` | `validate_model.R` | Unit tests for diff prior | ✅ `0ab58b8` |
+| A.5 | `validate_missing_data()` | `reformat_data` + inline GGM | `validate_data.R` | Unit tests for listwise/impute + GGM constraint | ✅ `d6df27b` |
+| A.6 | `reformat_ordinal_data()` | `reformat_data` | `validate_data.R` | Unit tests for recoding (single-group only) | ✅ `6d98878` |
+| A.6b | `collapse_categories_across_groups()` | `compare_reformat_data` | `validate_data.R` | Unit tests: multi-group collapsing, missing categories, >2 groups | ✅ `0252731` |
+| A.7 | `validate_sampler()` | inline in `bgm.R` + `bgmCompare.R` | `validate_sampler.R` | Unit tests for sampler args + GGM constraints | ✅ `e3c0c13` |
+| A.8 | `compute_scaling_factors()` | inline in `bgm.R` + `bgmCompare.R` | `compute_utils.R` | Unit tests for scaling | ✅ `ed33f34` |
 
 > **Note (A.6b):** `collapse_categories_across_groups()` is extracted
 > separately from `reformat_ordinal_data()` because the group-conditional
@@ -726,8 +726,15 @@ which have the most subtle behavioral differences.
 > matrix) has no counterpart in the single-model path. This was identified
 > as the highest-risk extraction point by both reviewers.
 
-**Checkpoint A**: All 1,788+ tests pass. All golden-snapshot fixtures
-still match. Old functions now delegate to new validators. No new public API.
+**Checkpoint A**: ✅ All 2,285 tests pass (497 new unit tests added).
+All golden-snapshot fixtures still match. Old functions now delegate to
+new validators. No new public API.
+
+New files created during Phase A:
+- `R/validate_model.R` — `validate_variable_types()`, `validate_baseline_category()`, `validate_edge_prior()`, `validate_difference_prior()`
+- `R/validate_data.R` — `validate_missing_data()`, `reformat_ordinal_data()`, `collapse_categories_across_groups()`
+- `R/validate_sampler.R` — `validate_sampler()`
+- `R/compute_utils.R` — `compute_scaling_factors()`
 
 #### Phase B: Build bgm_spec constructor
 
