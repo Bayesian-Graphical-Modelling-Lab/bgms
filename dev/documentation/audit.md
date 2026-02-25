@@ -250,7 +250,7 @@ extractor functions (audit #1)`).
 | 14 | Write GGM vignette | vignettes/ggm.Rmd | Blocked on a suitable continuous dataset. Covers fitting, precision matrix output, simulation, prediction, missing data. |
 | ~~15~~ | ~~Review `compute_utils.R` / `nuts_diagnostics.R`~~ | ~~R/~~ | ~~Done. `compute_utils.R` already compliant. Added file banner and `# ----` header blocks with `# @param` and `Returns:` to both functions in `nuts_diagnostics.R`.~~ |
 | ~~16~~ | ~~Run `bgms_style()` on assignment-inconsistent files~~ | ~~R/, tests/, vignettes/~~ | ~~Done. Fixed `bgms_style.R` transformer to also convert `LEFT_ASSIGN` (`<-`) tokens (original rule only prevented `=` → `<-`). Updated `transformers_drop` hint so styler visits files containing `<-`. Ran on full package: 39 files restyled (0 `<-` remaining in R source), 0 errors.~~ |
-| 17 | Document `sbm_edge_prior.h` | src/priors/ | Convert old-style `// ---` banners to Doxygen `/** */`. |
+| ~~17~~ | ~~Document `sbm_edge_prior.h`~~ | ~~src/priors/, src/~~ | ~~Done. Added `@file` block and `/** */` with `@param`/`@return` to both functions in `sbm_edge_prior.h`. Added `@file` and `/** */` to `sbm_edge_prior_interface.h`. Referenced Geng, Bhattacharya & Pati (2019, JASA) origin.~~ |
 | 18 | Update intro vignette to mention GGM | vignettes/intro.Rmd | Mention `variable_type = "continuous"`. |
 | 19 | Update NEWS.md for GGM imputation | NEWS.md | Add entries for GGM missing-data imputation when `ggm_mixed` merges. |
 | 20 | Update README for GGM | README.md, Readme.Rmd | README only mentions binary/ordinal. Update tagline, intro paragraph, and main functions section to cover continuous variables, GGM, simulation, and prediction. Edit `Readme.Rmd` (source) and re-knit. |
