@@ -43,8 +43,8 @@ public:
         vectorized_parameters_(dim_),
         vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
         proposal_sds_(arma::vec(dim_, arma::fill::ones) * 0.25),
-        precision_proposal_(arma::mat(p_, p_, arma::fill::none)),
-        observations_(na_impute ? observations : arma::mat())
+        observations_(na_impute ? observations : arma::mat()),
+        precision_proposal_(arma::mat(p_, p_, arma::fill::none))
     {}
 
     // Construct from sufficient statistics
@@ -92,10 +92,10 @@ public:
           proposal_sds_(other.proposal_sds_),
           total_warmup_(other.total_warmup_),
           rng_(other.rng_),
-          precision_proposal_(other.precision_proposal_),
           observations_(other.observations_),
           has_missing_(other.has_missing_),
-          missing_index_(other.missing_index_)
+          missing_index_(other.missing_index_),
+          precision_proposal_(other.precision_proposal_)
     {}
 
     bool has_gradient()        const override { return false; }
