@@ -1,29 +1,75 @@
-# Null-coalescing operator for R < 4.4 compatibility
-if (!exists("%||%", baseenv())) {
-  `%||%` <- function(x, y) if (is.null(x)) y else x
-}
-
-##' Extractor Functions for bgms Objects
+#' Extractor Functions for bgms Objects
 #'
-#' These functions extract various components from objects returned by the `bgm()` function,
-#' such as edge indicators, posterior inclusion probabilities, and parameter summaries.
+#' Extract posterior samples, summaries, and diagnostics from objects
+#' returned by [bgm()] or [bgmCompare()].
 #'
 #' @param bgms_object An object of class `bgms` or `bgmCompare`.
 #'
-#' @section Functions:
-#' - `extract_arguments()` – Extract model arguments
-#' - `extract_indicators()` – Get sampled edge indicators
-#' - `extract_posterior_inclusion_probabilities()` – Posterior edge inclusion probabilities
-#' - `extract_pairwise_interactions()` – Posterior mean of pairwise interactions
-#' - `extract_category_thresholds()` – Posterior mean of category thresholds
-#' - `extract_indicator_priors()` – Prior structure used for edge indicators
-#' - `extract_sbm()` – Extract stochastic block model parameters (if applicable)
-#' - `extract_rhat()` – Extract R-hat convergence diagnostics
-#' - `extract_ess()` – Extract effective sample size estimates
+#' @return The return value depends on the function called:
+#'
+#' \describe{
+#'   \item{`extract_arguments()`}{A named list of the arguments used to fit
+#'     the model.}
+#'   \item{`extract_indicators()`}{A matrix of sampled edge indicators with
+#'     one row per post-warmup iteration and one column per edge.}
+#'   \item{`extract_posterior_inclusion_probabilities()`}{A symmetric
+#'     \eqn{p \times p}{p x p} matrix of posterior inclusion probabilities.
+#'     For `bgmCompare` objects, diagonal entries are main-effect inclusion
+#'     probabilities and off-diagonal entries are pairwise inclusion
+#'     probabilities.}
+#'   \item{`extract_pairwise_interactions()`}{A matrix of posterior samples
+#'     of pairwise interaction parameters, with one row per iteration and one
+#'     column per edge.}
+#'   \item{`extract_category_thresholds()`}{For `bgms` objects, a matrix
+#'     with one row per variable and one column per category threshold.
+#'     For `bgmCompare` objects, a matrix of raw posterior samples of
+#'     baseline main effects.}
+#'   \item{`extract_indicator_priors()`}{A named list describing the prior
+#'     structure used for edge indicators.}
+#'   \item{`extract_sbm()`}{A list with stochastic block model summaries:
+#'     `posterior_num_blocks`, `posterior_mean_allocations`,
+#'     `posterior_mode_allocations`, and
+#'     `posterior_mean_coclustering_matrix`.}
+#'   \item{`extract_group_params()`}{A list with elements
+#'     `main_effects_groups` and `pairwise_effects_groups`, each a matrix
+#'     with one column per group (`bgmCompare` only).}
+#'   \item{`extract_rhat()`}{A named list of R-hat convergence diagnostics,
+#'     with elements for each parameter type present in the fitted model
+#'     (e.g., `main`, `pairwise`, `indicator`).}
+#'   \item{`extract_ess()`}{A named list of effective sample size estimates,
+#'     structured the same way as `extract_rhat()`.}
+#' }
+#'
+#' @examples
+#' \donttest{
+#' # Fit a model on a subset of the Wenchuan data
+#' fit = bgm(x = Wenchuan[, 1:3])
+#'
+#' # Extract the arguments used to fit the model
+#' extract_arguments(fit)
+#'
+#' # Posterior inclusion probabilities
+#' extract_posterior_inclusion_probabilities(fit)
+#'
+#' # Raw edge indicator samples
+#' extract_indicators(fit)
+#'
+#' # Posterior samples of pairwise interactions
+#' extract_pairwise_interactions(fit)
+#'
+#' # Category thresholds
+#' extract_category_thresholds(fit)
+#'
+#' # R-hat diagnostics and effective sample sizes
+#' extract_rhat(fit)
+#' extract_ess(fit)
+#' }
+#'
+#' @seealso [bgm()], [bgmCompare()], [summary.bgms()], [coef.bgms()]
+#' @family extractors
 #'
 #' @name extractor_functions
 #' @title Extractor Functions for bgms Objects
-#' @keywords internal
 NULL
 
 #' @name extractor_functions
