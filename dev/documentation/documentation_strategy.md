@@ -66,18 +66,23 @@ standard. New documentation should match it.
    - Bullet lists where a sentence suffices
    - Overlong parameter descriptions when a clause will do
 
-5. **Match the existing voice.** Before writing new documentation,
+5. **Do not write session-oriented documentation.** Avoid phrases
+   like "in your R session", "you should see", "run this in your
+   console". Documentation describes what a function does and
+   returns, not what the reader should do interactively.
+
+6. **Match the existing voice.** Before writing new documentation,
    read the `bgm()` roxygen block and the intro vignette. The tone
    is academic, technical, and concise — not chatty, not formal,
    not promotional. New text should be indistinguishable from the
    existing text.
 
-6. **Error messages** follow the pattern in `validate_data.R`:
+7. **Error messages** follow the pattern in `validate_data.R`:
    state what went wrong, why, and what the user can do about it.
    Use complete sentences. Do not start with "Error:" — R adds
    that automatically.
 
-7. **Code comments** are notes to the next developer, not prose.
+8. **Code comments** are notes to the next developer, not prose.
    "Centering needed because suf_stat = X'X conflates means with
    precision" — not "We center the data here in order to ensure
    that the sufficient statistic correctly reflects the precision
