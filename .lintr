@@ -1,0 +1,20 @@
+linters: linters_with_defaults(
+    assignment_linter = NULL,
+    indentation_linter = NULL,
+    brace_linter = NULL,
+    spaces_inside_linter = NULL,
+    spaces_left_parentheses_linter = NULL,
+    commented_code_linter = NULL,
+    trailing_blank_lines_linter = NULL,
+    object_name_linter = NULL,
+    object_length_linter = NULL,
+    object_usage_linter = NULL,
+    return_linter = NULL,
+    line_length_linter(100),
+    T_and_F_symbol_linter(),
+    seq_linter()
+  )
+exclusions: list(
+    "R/RcppExports.R",
+    "inst/"
+  )
