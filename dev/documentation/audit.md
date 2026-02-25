@@ -238,8 +238,9 @@ extractor functions (audit #1)`).
 | ~~2~~ | ~~Add `@examples`/`@seealso` to S3 methods~~ | ~~6 Rd pages (coef, print, summary × 2)~~ | ~~Done (`ccfceb1`). Added `@examples`, `@seealso`, `@family posterior-methods`.~~ |
 | ~~3~~ | ~~Create `.github/copilot-instructions.md`~~ | ~~.github/~~ | ~~Done (`c34b674`). Includes `=` assignment, roxygen vs `#`, Doxygen rules, anti-patterns.~~ |
 | ~~4~~ | ~~Create `CONTRIBUTING.md` and `dev/README.md`~~ | ~~repo root, dev/~~ | ~~Done (`fd06629`). Onboarding guide linking to strategy, `bgms_style.R`, CI, `inst/CONTRIBUTORS.md`.~~ |
-| ~~5~~ | ~~Add `@family` and `@inheritParams`~~ | ~~All exported roxygen~~ | ~~Done. Added `@family model-fitting` to `bgm()`, `bgmCompare()`; `@family prediction` to `simulate_mrf()`, `simulate.bgms()`, `simulate.bgmCompare()`, `predict.bgms()`, `predict.bgmCompare()`. Tasks #1–#2 already added `@family extractors` and `@family posterior-methods`.~~ |
-| 6 | Update DESCRIPTION | DESCRIPTION | CRAN-submission blocker: current text omits continuous variables, GGM, group comparison, simulation, prediction. |
+| ~~5~~ | ~~Add `@family` and `@inheritParams`~~ | ~~All exported roxygen~~ | ~~Done (`8fc5fa5`). Added `@family model-fitting` to `bgm()`, `bgmCompare()`; `@family prediction` to `simulate_mrf()`, `simulate.bgms()`, `simulate.bgmCompare()`, `predict.bgms()`, `predict.bgmCompare()`. Tasks #1–#2 already added `@family extractors` and `@family posterior-methods`.~~ |
+| ~~6~~ | ~~Update DESCRIPTION~~ | ~~DESCRIPTION~~ | ~~Done. Updated Title to \"Bayesian Analysis of Graphical Models\". Description now mentions continuous variables, GGM, group comparison, simulation, prediction, and missing data imputation.~~ |
+| 7 | Create `.editorconfig` | repo root | CRAN-submission blocker: current text omits continuous variables, GGM, group comparison, simulation, prediction. |
 | 7 | Create `.editorconfig` | repo root | 5-minute task, prevents trivial formatting diffs across editors. |
 | 8 | Document `ggm_model.h` | src/models/ggm/ | High-impact C++ gap: ~30 undocumented private methods including non-trivial math. Add `@param` to constructors. Move TODO (line 33) to `dev/plans/future_tasks.md`. |
 | 9 | Document `omrf_model.h` public accessors | src/models/omrf/ | ~30 public getters/setters/capability queries have no Doxygen. All private methods are documented. |
@@ -253,3 +254,4 @@ extractor functions (audit #1)`).
 | 17 | Document `sbm_edge_prior.h` | src/priors/ | Convert old-style `// ---` banners to Doxygen `/** */`. |
 | 18 | Update intro vignette to mention GGM | vignettes/intro.Rmd | Mention `variable_type = "continuous"`. |
 | 19 | Update NEWS.md for GGM imputation | NEWS.md | Add entries for GGM missing-data imputation when `ggm_mixed` merges. |
+| 20 | Update README for GGM | README.md, Readme.Rmd | README only mentions binary/ordinal. Update tagline, intro paragraph, and main functions section to cover continuous variables, GGM, simulation, and prediction. Edit `Readme.Rmd` (source) and re-knit. |

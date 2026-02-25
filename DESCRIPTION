@@ -1,6 +1,6 @@
 Package: bgms
 Type: Package
-Title: Bayesian Analysis of Networks of Binary and/or Ordinal Variables
+Title: Bayesian Analysis of Graphical Models
 Version: 0.1.6.4
 Date: 2026-02-16
 Authors@R: c(
@@ -16,7 +16,10 @@ Authors@R: c(
     person("Gali", "Geller", role = "ctb")
   )
 Maintainer: Maarten Marsman <m.marsman@uva.nl>
-Description: Bayesian variable selection methods for analyzing the structure of a Markov random field model for a network of binary and/or ordinal variables. 
+Description: Bayesian estimation and variable selection for Markov random field
+    models of networks of binary, ordinal, and continuous variables. Supports
+    Gaussian graphical models, multi-group comparison via 'bgmCompare', and
+    provides simulation, prediction, and missing data imputation.
 Copyright: Includes datasets 'ADHD' and 'Boredom', which are licensed under CC-BY 4. See individual data documentation for license and citation.
 License: GPL (>= 2)
 URL: https://Bayesian-Graphical-Modelling-Lab.github.io/bgms/, https://github.com/Bayesian-Graphical-Modelling-Lab/bgms
