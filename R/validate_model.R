@@ -241,7 +241,7 @@ validate_baseline_category = function(baseline_category,
   variable_lower = apply(x, 2, min, na.rm = TRUE)
   variable_upper = apply(x, 2, max, na.rm = TRUE)
 
-  if(any(baseline_category < variable_lower) | any(baseline_category > variable_upper)) {
+  if(any(baseline_category < variable_lower) || any(baseline_category > variable_upper)) {
     out_of_range = which(baseline_category < variable_lower | baseline_category > variable_upper)
     stop(paste0(
       "The Blume-Capel model assumes that the reference category is within the range \n",

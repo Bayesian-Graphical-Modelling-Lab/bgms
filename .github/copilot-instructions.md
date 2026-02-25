@@ -5,12 +5,17 @@ Rules for AI agents (Copilot, Claude, etc.) working on this codebase.
 ## R code style
 
 - Use `=` for assignment, not `<-`.
+- **Exception**: inside function-call arguments where the result must
+  be captured, use `<-`. With `=` R treats it as a named argument.
+  Example: `expect_message(result <- foo(), "pattern")`.
 - No space between `if`/`for`/`while` and `(`: write `if(`, not `if (`.
 - Enforced by `inst/styler/bgms_style.R`. Run before committing:
   ```r
   source("inst/styler/bgms_style.R")
   styler::style_pkg(style = bgms_style)
   ```
+  After running, check test files for `expect_*(result = ...)` and
+  revert those to `result <- ...`.
 
 ## Exported R functions (Tier 1)
 

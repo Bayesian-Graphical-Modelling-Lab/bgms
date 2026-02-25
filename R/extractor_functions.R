@@ -407,7 +407,7 @@ extract_pairwise_interactions.bgms = function(bgms_object) {
       }
     }
 
-    dimnames(mat) = list(paste0("iter", 1:nrow(mat)), edge_names)
+    dimnames(mat) = list(paste0("iter", seq_len(nrow(mat))), edge_names)
     return(mat)
   }
 

@@ -28,7 +28,7 @@ test_that("listwise removes rows with NAs and messages", {
   old_opts = options(bgms.verbose = TRUE)
   on.exit(options(old_opts))
   expect_message(
-    result = validate_missing_data(x, na_action = "listwise"),
+    result <- validate_missing_data(x, na_action = "listwise"),
     "2 rows with missing values excluded"
   )
   expect_equal(nrow(result$x), 2)
@@ -42,7 +42,7 @@ test_that("listwise suppresses message when bgms.verbose is FALSE", {
   old_opts = options(bgms.verbose = FALSE)
   on.exit(options(old_opts))
   expect_silent(
-    result = validate_missing_data(x, na_action = "listwise")
+    result <- validate_missing_data(x, na_action = "listwise")
   )
   expect_equal(nrow(result$x), 3)
 })

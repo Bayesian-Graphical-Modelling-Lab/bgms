@@ -91,7 +91,7 @@ test_that("BC: values not starting at 0 are shifted, baseline adjusted", {
   old_opts = options(bgms.verbose = TRUE)
   on.exit(options(old_opts))
   expect_message(
-    result = reformat_ordinal_data(x, is_ordinal, bc),
+    result <- reformat_ordinal_data(x, is_ordinal, bc),
     "Variables 1, 2 recoded to start at 0"
   )
   expect_equal(result$x[, 1], c(0, 1, 2, 3))
@@ -109,7 +109,7 @@ test_that("BC: single variable shift messages without plural", {
   old_opts = options(bgms.verbose = TRUE)
   on.exit(options(old_opts))
   expect_message(
-    result = reformat_ordinal_data(x, is_ordinal, bc),
+    result <- reformat_ordinal_data(x, is_ordinal, bc),
     "Variable 2 recoded to start at 0 \\(baseline category adjusted\\)"
   )
   expect_equal(result$baseline_category[2], 1)
@@ -126,7 +126,7 @@ test_that("BC: verbose=FALSE suppresses shift message", {
   old_opts = options(bgms.verbose = FALSE)
   on.exit(options(old_opts))
   expect_silent(
-    result = reformat_ordinal_data(x, is_ordinal, bc)
+    result <- reformat_ordinal_data(x, is_ordinal, bc)
   )
   expect_equal(result$x[, 1], c(0, 1, 2, 3, 0, 1))
 })
@@ -149,7 +149,7 @@ test_that("BC: > 10 categories triggers warning", {
   bc = c(5, 0)
 
   expect_warning(
-    result = reformat_ordinal_data(x, is_ordinal, bc),
+    result <- reformat_ordinal_data(x, is_ordinal, bc),
     "Blume-Capel variable 1 has 11 categories"
   )
   expect_equal(result$num_categories[1], 11)
@@ -253,7 +253,7 @@ test_that("mixed ordinal and BC variables processed correctly", {
   old_opts = options(bgms.verbose = TRUE)
   on.exit(options(old_opts))
   expect_message(
-    result = reformat_ordinal_data(x, is_ordinal, bc),
+    result <- reformat_ordinal_data(x, is_ordinal, bc),
     "Variable 2 recoded to start at 0"
   )
 

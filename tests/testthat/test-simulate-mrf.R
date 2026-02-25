@@ -310,7 +310,7 @@ test_that("mrfSampler works with deprecation warning", {
   thresholds = matrix(0, n_vars, n_cats)
 
   expect_warning(
-    result = mrfSampler(
+    result <- mrfSampler(
       num_states = 20,
       num_variables = n_vars,
       num_categories = n_cats,

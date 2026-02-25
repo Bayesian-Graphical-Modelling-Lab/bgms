@@ -274,7 +274,7 @@ reformat_ordinal_data = function(x, is_ordinal, baseline_category) {
         }
         x[, node] = as.integer(x[, node])
 
-        if(baseline_category[node] < 0 | baseline_category[node] > max(x[, node])) {
+        if(baseline_category[node] < 0 || baseline_category[node] > max(x[, node])) {
           stop(paste0(
             "The reference category for the Blume-Capel variable ", node, "is outside its \n",
             "range of observations."
@@ -308,7 +308,7 @@ reformat_ordinal_data = function(x, is_ordinal, baseline_category) {
 
     # Warn that maximum category value is large --------------------------------
     num_categories[node] = max(x[, node])
-    if(!is_ordinal[node] & num_categories[node] > 10) {
+    if(!is_ordinal[node] && num_categories[node] > 10) {
       warning(
         "Blume-Capel variable ", node, " has ", num_categories[node], " categories. ",
         "This may slow computation. Empty categories are not collapsed.",

@@ -75,9 +75,9 @@ summarize_indicator = function(fit, component = c("indicator_samples"), param_na
   for(j in seq_len(nparam)) {
     draws = array3d[, , j]
     vec = as.vector(draws)
-    T = length(vec)
+    n_total = length(vec)
     g_next = vec[-1]
-    g_curr = vec[-T]
+    g_curr = vec[-n_total]
 
     p_hat = mean(vec)
     sd = sqrt(p_hat * (1 - p_hat))
@@ -92,7 +92,7 @@ summarize_indicator = function(fit, component = c("indicator_samples"), param_na
       a = n01 / (n00 + n01)
       b = n10 / (n10 + n11)
       tau_int = (2 - (a + b)) / (a + b)
-      n_eff = T / tau_int
+      n_eff = n_total / tau_int
       mcse = sd / sqrt(n_eff)
       est = compute_rhat_ess(draws)
       R = est$rhat
@@ -124,12 +124,12 @@ summarize_slab = function(fit, component = c("pairwise_samples"), param_names = 
     vec = as.vector(draws)
     nonzero = vec != 0
     vec = vec[nonzero]
-    T = length(vec)
+    n_total = length(vec)
 
-    if(T >= 1) {
+    if(n_total >= 1) {
       result[j, "mean"] = mean(vec)
     }
-    if(T > 10) {
+    if(n_total > 10) {
       sdev = sd(vec)
       est = compute_rhat_ess(vec) ## draws
       mcse = sdev / sqrt(est$ess)
@@ -173,7 +173,7 @@ summarize_pair = function(fit,
   array3d_pw = combine_chains(fit, slab_component)
   array3d_id = combine_chains(fit, indicator_component)
   nchains = dim(array3d_pw)[2]
-  T = prod(dim(array3d_pw)[1:2])
+  n_total = prod(dim(array3d_pw)[1:2])
 
   for(j in seq_len(nparam)) {
     draws_pw = array3d_pw[, , j]
@@ -189,9 +189,9 @@ summarize_pair = function(fit,
         chain_means[chain] = pi * e
         chain_vars[chain] = pi * (v + (1 - pi) * e^2)
       }
-      B = T * sum((chain_means - eap[j])^2) / (nchains - 1)
+      B = n_total * sum((chain_means - eap[j])^2) / (nchains - 1)
       W = mean(chain_vars)
-      V = (T - 1) * W / T + B / T
+      V = (n_total - 1) * W / n_total + B / n_total
       rhat[j] = sqrt(V / W)
     }
   }
@@ -288,9 +288,9 @@ summarize_alloc_pairs = function(allocations, node_names = NULL) {
     draws = get_draws_pair(i, j)
 
     vec = as.vector(draws)
-    T = length(vec)
+    n_total = length(vec)
     g_next = vec[-1]
-    g_curr = vec[-T]
+    g_curr = vec[-n_total]
 
     p_hat = mean(vec)
     sd = sqrt(p_hat * (1 - p_hat))
@@ -305,7 +305,7 @@ summarize_alloc_pairs = function(allocations, node_names = NULL) {
       a = n01 / (n00 + n01)
       b = n10 / (n10 + n11)
       tau_int = (2 - (a + b)) / (a + b)
-      n_eff = T / tau_int
+      n_eff = n_total / tau_int
       mcse = sd / sqrt(n_eff)
       est = compute_rhat_ess(draws)
       R = est$rhat
@@ -462,7 +462,7 @@ posterior_summary_SBM = function(
   # row in clusters
   p_k_given_t = matrix(NA, nrow = length(clusters), ncol = num_variables)
 
-  for(i in 1:length(clusters)) {
+  for(i in seq_along(clusters)) {
     p_k_given_t[i, ] = compute_p_k_given_t(
       clusters[i], log_Vn, dirichlet_alpha, num_variables, lambda
     )
@@ -549,9 +549,9 @@ summarize_indicator_compare = function(fit, component = "indicator_samples", par
   for(j in seq_len(nparam)) {
     draws = array3d[, , j]
     vec = as.vector(draws)
-    T = length(vec)
+    n_total = length(vec)
     g_next = vec[-1]
-    g_curr = vec[-T]
+    g_curr = vec[-n_total]
 
     p_hat = mean(vec)
     sd = sqrt(p_hat * (1 - p_hat))
@@ -566,7 +566,7 @@ summarize_indicator_compare = function(fit, component = "indicator_samples", par
       a = n01 / (n00 + n01)
       b = n10 / (n10 + n11)
       tau_int = (2 - (a + b)) / (a + b)
-      n_eff = T / tau_int
+      n_eff = n_total / tau_int
       mcse = sd / sqrt(n_eff)
       est = compute_rhat_ess(draws)
       R = est$rhat

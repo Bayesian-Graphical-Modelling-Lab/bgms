@@ -18,7 +18,7 @@ if(!exists("%||%", baseenv())) {
 # What remains: structural checks on the fixture set itself.
 # ==============================================================================
 
-fixture_dir = file.path("dev", "fixtures", "scaffolding")
+fixture_dir = file.path(testthat::test_path("..", ".."), "dev", "fixtures", "scaffolding")
 
 # Skip all tests if fixtures haven't been generated yet
 skip_if_no_fixtures = function() {
