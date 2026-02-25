@@ -241,9 +241,7 @@ extractor functions (audit #1)`).
 | ~~5~~ | ~~Add `@family` and `@inheritParams`~~ | ~~All exported roxygen~~ | ~~Done (`8fc5fa5`). Added `@family model-fitting` to `bgm()`, `bgmCompare()`; `@family prediction` to `simulate_mrf()`, `simulate.bgms()`, `simulate.bgmCompare()`, `predict.bgms()`, `predict.bgmCompare()`. Tasks #1–#2 already added `@family extractors` and `@family posterior-methods`.~~ |
 | ~~6~~ | ~~Update DESCRIPTION~~ | ~~DESCRIPTION~~ | ~~Done (`3f6f2a2`). Updated Title to \"Bayesian Analysis of Graphical Models\". Description now mentions continuous variables, GGM, group comparison, simulation, prediction, and missing data imputation.~~ |
 | ~~7~~ | ~~Create `.editorconfig`~~ | ~~repo root~~ | ~~Done. LF line endings, UTF-8, 2-space indent for R/Rmd, 4-space for C++, tab for Makevars, trailing whitespace trimming.~~ |
-| 8 | Document `ggm_model.h` | src/models/ggm/ | CRAN-submission blocker: current text omits continuous variables, GGM, group comparison, simulation, prediction. |
-| 7 | Create `.editorconfig` | repo root | 5-minute task, prevents trivial formatting diffs across editors. |
-| 8 | Document `ggm_model.h` | src/models/ggm/ | High-impact C++ gap: ~30 undocumented private methods including non-trivial math. Add `@param` to constructors. Move TODO (line 33) to `dev/plans/future_tasks.md`. |
+| ~~8~~ | ~~Document `ggm_model.h`~~ | ~~src/models/ggm/~~ | ~~Done. Added `/** */` Doxygen blocks to all public methods, private methods, constructors (`@param`), and free function `createGGMModelFromR`. Converted data/parameter field comments to `///`. Moved inline TODO to `dev/plans/future_tasks.md` (#5).~~ |
 | 9 | Document `omrf_model.h` public accessors | src/models/omrf/ | ~30 public getters/setters/capability queries have no Doxygen. All private methods are documented. |
 | 10 | Document `cholupdate.h` | src/models/ggm/ | Add algorithm description, origin note (mgcv), `@param` for each argument. |
 | 11 | Document `bgmCompare` free functions | src/bgmCompare/ | `bgmCompare_helper.h`, `bgmCompare_logp_and_grad.h`, `bgmCompare_sampler.h` have zero Doxygen on any function. `bgmCompareOutput` struct is fine. |
