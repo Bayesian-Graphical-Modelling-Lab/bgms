@@ -69,7 +69,7 @@ run_sampler_ggm <- function(spec) {
     lambda                   = p$lambda
   )
 
-  transform_ggm_backend_output(out_raw, d$num_variables)
+  out_raw
 }
 
 
@@ -127,8 +127,7 @@ run_sampler_omrf <- function(spec) {
     pairwise_scaling_factors_nullable = p$pairwise_scaling_factors
   )
 
-  num_thresholds <- spec$precomputed$num_thresholds
-  transform_new_backend_output(out_raw, num_thresholds)
+  out_raw
 }
 
 

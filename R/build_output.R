@@ -5,7 +5,8 @@
 # Phase C.2-C.3 of the R scaffolding refactor.
 #
 # build_output()         — thin dispatcher
-# build_output_bgm()     — unified GGM + OMRF builder
+# build_output_bgm()     — unified GGM + OMRF builder (normalizes raw C++
+#                           output, computes MCMC summaries, assembles fit)
 # build_output_compare() — Compare-specific builder
 #
 # Both use build_arguments() from bgm_spec.R for the $arguments list.
@@ -18,21 +19,12 @@
 build_output <- function(spec, raw) {
   stopifnot(inherits(spec, "bgm_spec"))
 
-  output <- switch(spec$model_type,
+  switch(spec$model_type,
     ggm     = build_output_bgm(spec, raw),
     omrf    = build_output_bgm(spec, raw),
     compare = build_output_compare(spec, raw),
     stop("Unknown model_type: ", spec$model_type)
   )
-
-  # NUTS diagnostics (shared across all model types)
-  if (spec$sampler$update_method == "nuts") {
-    output$nuts_diag <- summarize_nuts_diagnostics(
-      raw, nuts_max_depth = spec$sampler$nuts_max_depth
-    )
-  }
-
-  output
 }
 
 
@@ -55,6 +47,68 @@ build_output_bgm <- function(spec, raw) {
   data_columnnames <- d$data_columnnames
   edge_selection   <- p$edge_selection
   edge_prior       <- p$edge_prior
+
+  # --- Normalize raw C++ output -----------------------------------------------
+  # The C++ GGM/OMRF backends return a flat `samples` matrix (params x iters)
+  # via convert_results_to_list(). Split into main and pairwise components and
+  # transpose to (iters x params) — the layout that MCMC summary functions
+  # expect.
+  if (is_continuous) {
+    # GGM: samples contain the upper triangle of the precision matrix
+    # (row-major). Diagonal entries are "main"; off-diagonal are "pairwise".
+    diag_idx    <- integer(num_variables)
+    offdiag_idx <- integer(num_variables * (num_variables - 1L) / 2L)
+    pos <- 0L; di <- 0L; oi <- 0L
+    for (i in seq_len(num_variables)) {
+      for (j in i:num_variables) {
+        pos <- pos + 1L
+        if (i == j) {
+          di <- di + 1L
+          diag_idx[di] <- pos
+        } else {
+          oi <- oi + 1L
+          offdiag_idx[oi] <- pos
+        }
+      }
+    }
+    raw <- lapply(raw, function(chain) {
+      samples_t <- t(chain$samples)
+      res <- list(
+        main_samples     = samples_t[, diag_idx, drop = FALSE],
+        pairwise_samples = samples_t[, offdiag_idx, drop = FALSE],
+        userInterrupt    = isTRUE(chain$userInterrupt),
+        chain_id         = chain$chain_id
+      )
+      if (!is.null(chain$indicator_samples))
+        res$indicator_samples <- t(chain$indicator_samples)[, offdiag_idx, drop = FALSE]
+      if (!is.null(chain$allocation_samples))
+        res$allocations <- t(chain$allocation_samples)
+      res
+    })
+  } else {
+    # OMRF: the first num_thresholds params are main effects, the rest are
+    # pairwise. NUTS diagnostics use bare names from C++; rename to the
+    # trailing-__ convention expected by summarize_nuts_diagnostics().
+    num_thresholds <- spec$precomputed$num_thresholds
+    raw <- lapply(raw, function(chain) {
+      samples_t <- t(chain$samples)
+      n_params  <- ncol(samples_t)
+      res <- list(
+        main_samples     = samples_t[, seq_len(num_thresholds), drop = FALSE],
+        pairwise_samples = samples_t[, seq(num_thresholds + 1L, n_params), drop = FALSE],
+        userInterrupt    = isTRUE(chain$userInterrupt),
+        chain_id         = chain$chain_id
+      )
+      if (!is.null(chain$indicator_samples))
+        res$indicator_samples <- t(chain$indicator_samples)
+      if (!is.null(chain$allocation_samples))
+        res$allocations <- t(chain$allocation_samples)
+      if (!is.null(chain$treedepth)) res[["treedepth__"]] <- chain$treedepth
+      if (!is.null(chain$divergent))  res[["divergent__"]]  <- chain$divergent
+      if (!is.null(chain$energy))     res[["energy__"]]     <- chain$energy
+      res
+    })
+  }
 
   # --- Parameter names --------------------------------------------------------
   if (is_continuous) {
@@ -235,6 +289,13 @@ build_output_bgm <- function(spec, raw) {
     }
   }
 
+  # --- NUTS diagnostics -------------------------------------------------------
+  if (s$update_method == "nuts") {
+    results$nuts_diag <- summarize_nuts_diagnostics(
+      raw, nuts_max_depth = s$nuts_max_depth
+    )
+  }
+
   results
 }
 
@@ -341,6 +402,13 @@ build_output_compare <- function(spec, raw) {
   # --- arguments + class ------------------------------------------------------
   results$arguments <- build_arguments(spec)
   class(results) <- "bgmCompare"
+
+  # --- NUTS diagnostics -------------------------------------------------------
+  if (s$update_method == "nuts") {
+    results$nuts_diag <- summarize_nuts_diagnostics(
+      raw, nuts_max_depth = s$nuts_max_depth
+    )
+  }
 
   results
 }

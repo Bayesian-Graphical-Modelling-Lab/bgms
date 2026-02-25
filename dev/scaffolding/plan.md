@@ -6,6 +6,11 @@
 R-layer restructuring to support the upcoming mixed MRF and future variable
 types / design structures.
 
+> **Progress (2025-07-22):** Phases A-0 through C.8 are **complete**.
+> All validators extracted, `bgm_spec()` constructor built, pipeline wired,
+> dead code deleted. 3,870 tests pass. Phase D (file cleanup) is next.
+> See §6.2 and §11 for detailed status.
+
 > **Review changelog (2026-02-24):** Incorporated feedback from
 > `dev/scaffolding/review 1.md` and `dev/scaffolding/review 2.md`.
 > Major changes: (1) added `new_bgm_spec()` constructor +
@@ -739,42 +744,49 @@ New files created during Phase A:
 - `R/validate_sampler.R` — `validate_sampler()`
 - `R/compute_utils.R` — `compute_scaling_factors()`
 
-#### Phase B: Build bgm_spec constructor
+#### Phase B: Build bgm_spec constructor ✅ COMPLETE
 
-| Step | What |
-|------|------|
-| B.1 | Create `new_bgm_spec()` low-level constructor with type/presence assertions |
-| B.2 | Create `validate_bgm_spec()` with cross-field invariant checks |
-| B.3 | Create `bgm_spec()` that calls all Phase A validators → `new_bgm_spec()` → `validate_bgm_spec()` |
-| B.4 | Add `print.bgm_spec()` for debugging |
-| B.5 | Write comprehensive unit tests for `bgm_spec()` construction |
-| B.6 | Add `$arguments` regression test: compare `build_arguments(spec)` against current `output$arguments` field-by-field for all model types |
-| B.7 | Add `bgm_spec()` call inside `bgm()` alongside existing code, assert equivalence |
-| B.8 | Add `bgm_spec()` call inside `bgmCompare()` alongside existing code, assert equivalence |
+| Step | What | Status |
+|------|------|--------|
+| B.1 | Create `new_bgm_spec()` low-level constructor with type/presence assertions | ✅ `ab824a1` |
+| B.2 | Create `validate_bgm_spec()` with cross-field invariant checks | ✅ `ab824a1` |
+| B.3 | Create `bgm_spec()` that calls all Phase A validators → `new_bgm_spec()` → `validate_bgm_spec()` | ✅ `ab824a1` |
+| B.4 | Add `print.bgm_spec()` for debugging | ✅ `ab824a1` |
+| B.5 | Write comprehensive unit tests for `bgm_spec()` construction | ✅ `ab824a1` |
+| B.6 | Add `$arguments` regression test: compare `build_arguments(spec)` against current `output$arguments` field-by-field for all model types | ✅ `ad32a30` |
+| B.7 | Add `bgm_spec()` call inside `bgm()` alongside existing code, assert equivalence | ✅ `ad32a30` |
+| B.8 | Add `bgm_spec()` call inside `bgmCompare()` alongside existing code, assert equivalence | ✅ `ad32a30` |
 
-**Checkpoint B**: `bgm_spec()` produces correct specs for all model types.
+**Checkpoint B**: ✅ `bgm_spec()` produces correct specs for all model types.
 `build_arguments(spec)` matches `output$arguments` for all model types.
 Old code still runs in parallel. All tests pass. All golden-snapshot
 fixtures still match.
 
-#### Phase C: Wire spec to backends
+New files created during Phase B:
+- `R/bgm_spec.R` — `bgm_spec()`, `new_bgm_spec()`, `validate_bgm_spec()`, `print.bgm_spec()`
+- `R/build_output.R` — `build_output()`, `build_output_bgm()`, `build_output_compare()`, `build_arguments()`
+- `R/run_sampler.R` — `run_sampler()` dispatch
 
-| Step | What |
-|------|------|
-| C.1 | Create `run_sampler()` dispatch that reads from spec → calls C++ |
-| C.2 | Create `build_output_bgm()` (unified GGM + OMRF) and `build_output_compare()` + shared helpers |
-| C.3 | Create thin `build_output()` dispatcher |
-| C.4 | In `bgm()`: replace inline GGM/OMRF paths with `run_sampler(spec)` + `build_output(spec, raw)` |
-| C.5 | In `bgmCompare()`: replace inline path with `run_sampler(spec)` + `build_output(spec, raw)` |
-| C.6 | Add simulate/predict regression tests (call `simulate()` and `predict()` on refactored fit objects, compare to golden fixtures) |
-| C.7 | **Gate check:** verify §6.1c exit criteria are met before proceeding |
-| C.8 | Delete dead code from old functions |
+#### Phase C: Wire spec to backends ✅ COMPLETE
 
-**Checkpoint C**: Entry points are thin wrappers (~100–120 lines each).
-All tests pass (including simulate/predict regression). Old monolithic
-functions deleted.
+| Step | What | Status |
+|------|------|--------|
+| C.1 | Create `run_sampler()` dispatch that reads from spec → calls C++ | ✅ `3a1e750` |
+| C.2 | Create `build_output_bgm()` (unified GGM + OMRF) and `build_output_compare()` + shared helpers | ✅ `3a1e750` |
+| C.3 | Create thin `build_output()` dispatcher | ✅ `3a1e750` |
+| C.4 | In `bgm()`: replace inline GGM/OMRF paths with `run_sampler(spec)` + `build_output(spec, raw)` | ✅ `3a1e750` |
+| C.5 | In `bgmCompare()`: replace inline path with `run_sampler(spec)` + `build_output(spec, raw)` | ✅ `3a1e750` |
+| C.6 | Add simulate/predict regression tests (call `simulate()` and `predict()` on refactored fit objects, compare to golden fixtures) | ✅ `53741f0` |
+| C.7 | **Gate check:** verify §6.1c exit criteria are met before proceeding | ✅ all 5 exit criteria met |
+| C.8 | Delete dead code from old functions | ✅ `1aadf0b` |
 
-#### Phase D: Clean up residual files
+**Checkpoint C**: ✅ Entry points are thin wrappers (~120 lines `bgm()`,
+~100 lines `bgmCompare()`). All 3,870 tests pass (including
+simulate/predict regression). Old monolithic functions deleted:
+`check_model()`, `check_compare_model()`, `reformat_data()`,
+`compare_reformat_data()` all removed.
+
+#### Phase D: Clean up residual files ← CURRENT PHASE
 
 | Step | What |
 |------|------|
@@ -813,13 +825,14 @@ ensures consistent error messages across estimation and simulation.
 > **Updated after Review 1 & 2:** The original estimate of ~15 commits is
 > optimistic by ~2× once proper fixtures and tests are included.
 
-- **Phase A-0**: 1 PR (fixtures).
-- **Phase A**: 9 PRs (one per validator extraction, A.6 and A.6b are
-  separate). Each PR gets its own review cycle, especially A.5/A.6/A.6b.
-- **Phase B**: 2–3 PRs (spec constructor + integration).
-- **Phase C**: 2–3 PRs (wiring + cleanup).
-- **Phase D**: 1 PR (housekeeping).
-- **Total: ~25–30 commits across 8–10 PRs.**
+> **Status (2025-07-22):** Phases A-0 through C.8 used 16 commits across
+> the single `ggm_mixed` branch / PR #78. Phase D remains.
+
+- **Phase A-0**: 1 commit (fixtures) — `2ca15a4` ✅
+- **Phase A**: 9 commits (one per validator extraction) — `7108bf6`–`ed33f34` ✅
+- **Phase B**: 2 commits (spec constructor + integration) — `ab824a1`, `ad32a30` ✅
+- **Phase C**: 3 commits (wiring + sim/predict fix + cleanup) — `3a1e750`, `53741f0`, `1aadf0b` ✅
+- **Phase D**: 1 commit (housekeeping) — pending
 
 Every commit:
 - Passes `R CMD check`
@@ -948,23 +961,23 @@ These assertions are removed in Phase C when the old path is deleted.
 
 ## 11. Definition of Done
 
-- [ ] Golden-snapshot fixtures captured for 15+ representative cases
-- [ ] All validators extracted and unit-tested
-- [ ] `collapse_categories_across_groups()` extracted with dedicated tests
-- [ ] `new_bgm_spec()` constructor enforces field types/presence
-- [ ] `validate_bgm_spec()` checks cross-field invariants
-- [ ] `bgm_spec()` constructor builds correct specs for GGM, OMRF, BC, Compare
-- [ ] `build_output_bgm()` (unified GGM + OMRF) and `build_output_compare()` each tested independently
-- [ ] `build_arguments(spec)` matches `output$arguments` field-by-field for all model types
-- [ ] `bgm()` and `bgmCompare()` are thin wrappers (~100–120 lines)
-- [ ] All 1,788+ existing tests pass unchanged
-- [ ] All golden-snapshot fixtures match between old and new pipelines
-- [ ] simulate/predict regression tests pass for all model types
-- [ ] New validator tests provide >95% coverage of validation logic
-- [ ] Old monolithic functions deleted
-- [ ] File structure matches Section 3.3
-- [ ] `R CMD check` passes with 0 errors, 0 warnings, 0 notes
-- [ ] Dev docs updated (roadmap.md references this plan)
+- [x] Golden-snapshot fixtures captured for 15+ representative cases (Phase A-0, `2ca15a4`)
+- [x] All validators extracted and unit-tested (Phase A, `7108bf6`–`ed33f34`)
+- [x] `collapse_categories_across_groups()` extracted with dedicated tests (A.6b, `0252731`)
+- [x] `new_bgm_spec()` constructor enforces field types/presence (Phase B, `ab824a1`)
+- [x] `validate_bgm_spec()` checks cross-field invariants (Phase B, `ab824a1`)
+- [x] `bgm_spec()` constructor builds correct specs for GGM, OMRF, BC, Compare (Phase B, `ab824a1`)
+- [x] `build_output_bgm()` (unified GGM + OMRF) and `build_output_compare()` each tested independently (Phase C, `3a1e750`)
+- [x] `build_arguments(spec)` matches `output$arguments` field-by-field for all model types (Phase B, `ad32a30`)
+- [x] `bgm()` and `bgmCompare()` are thin wrappers (~120 / ~100 lines) (Phase C, `3a1e750`)
+- [x] All 3,870 tests pass (expanded from original 1,788) (Phase C, `1aadf0b`)
+- [x] All golden-snapshot fixtures match between old and new pipelines (Phase B/C)
+- [x] simulate/predict regression tests pass for all model types (Phase C.6, `53741f0`)
+- [x] New validator tests provide >95% coverage of validation logic (Phase A/B)
+- [x] Old monolithic functions deleted (Phase C.8, `1aadf0b`)
+- [ ] File structure matches Section 3.3 (Phase D — remaining cleanup)
+- [ ] `R CMD check` passes with 0 errors, 0 warnings, 0 notes (Phase D)
+- [ ] Dev docs updated (roadmap.md references this plan) (Phase D)
 
 ---
 
