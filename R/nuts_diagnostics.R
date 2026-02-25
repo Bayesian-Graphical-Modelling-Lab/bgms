@@ -1,4 +1,35 @@
-# Assess warmup adequacy using energy stationarity
+# ==============================================================================
+# NUTS diagnostics
+# ==============================================================================
+#
+# Post-sampling diagnostic checks for the No-U-Turn Sampler (NUTS).
+# Covers energy-based warmup assessment and per-chain summary
+# statistics (divergences, tree depth, E-BFMI).
+# ==============================================================================
+
+
+# ------------------------------------------------------------------------------
+# check_warmup_complete
+# ------------------------------------------------------------------------------
+# Assess whether warmup is complete using energy stationarity.
+#
+# Splits each chain's energy trace at the midpoint and checks three
+# criteria: (1) significant linear trend in energy, (2) first-half
+# E-BFMI below 0.3, and (3) first-half / second-half variance ratio
+# above 2.0. Any triggered criterion flags the chain.
+#
+# @param energy_mat  Numeric matrix (chains x iterations) of energy
+#   values from the NUTS sampler.
+#
+# Returns: A named list with one element per diagnostic, each a
+#   vector of length nchains:
+#   - warmup_incomplete:  Logical, TRUE if any criterion triggered.
+#   - energy_slope:       Numeric, OLS slope of energy on iteration.
+#   - slope_significant:  Logical, |t| > 2.58 for the slope.
+#   - ebfmi_first_half:   Numeric, E-BFMI for the first half.
+#   - ebfmi_second_half:  Numeric, E-BFMI for the second half.
+#   - var_ratio:          Numeric, var(first_half) / var(second_half).
+# ------------------------------------------------------------------------------
 check_warmup_complete <- function(energy_mat) {
   nchains <- nrow(energy_mat)
   n <- ncol(energy_mat)
@@ -58,7 +89,33 @@ check_warmup_complete <- function(energy_mat) {
   )
 }
 
-# Summarize NUTS diagnostics across chains
+# ------------------------------------------------------------------------------
+# summarize_nuts_diagnostics
+# ------------------------------------------------------------------------------
+# Combine and summarize NUTS diagnostics across chains.
+#
+# Extracts treedepth, divergence, and energy traces from a list of
+# chain outputs. Computes per-chain E-BFMI, runs the warmup check,
+# and optionally prints a human-readable issues summary.
+#
+# @param out  List of chain outputs. Each element is a named list
+#   that must contain "treedepth__", "divergent__", and "energy__".
+#   Chains without these fields are silently dropped.
+# @param nuts_max_depth  Integer scalar: the maximum tree depth used
+#   during sampling. Iterations that reached this depth are counted
+#   as tree-depth hits (default: 10).
+# @param verbose  Logical scalar: if TRUE (the default), print a
+#   summary of any detected issues to the console.
+#
+# Returns: An invisible named list with:
+#   - treedepth:  Integer matrix (chains x iterations).
+#   - divergent:  Integer matrix (chains x iterations), 0/1.
+#   - energy:     Numeric matrix (chains x iterations).
+#   - ebfmi:      Numeric vector of per-chain E-BFMI values.
+#   - warmup_check: Output of check_warmup_complete().
+#   - summary:    List with total_divergences, max_tree_depth_hits,
+#       min_ebfmi, and warmup_incomplete (logical).
+# ------------------------------------------------------------------------------
 summarize_nuts_diagnostics <- function(out, nuts_max_depth = 10, verbose = TRUE) {
   nuts_chains <- Filter(function(chain) {
     all(c("treedepth__", "divergent__", "energy__") %in% names(chain))

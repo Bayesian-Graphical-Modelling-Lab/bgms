@@ -100,8 +100,8 @@ This matches the strategy. Quality varies:
 | run_sampler.R | Good | None |
 | build_output.R | Good | None |
 | mcmc_summary.R | Good | None |
-| compute_utils.R | Minimal | Add header blocks to undocumented helpers |
-| nuts_diagnostics.R | Adequate | Add `# @param` / `Returns:` |
+| compute_utils.R | ✅ Done | Already compliant — file banner + `# @param` / `Returns:` on all 4 functions |
+| nuts_diagnostics.R | ✅ Done | Added file banner, `# ----` header blocks, `# @param`, `Returns:` for both functions |
 | simulate_predict.R | Good | Verify new GGM functions have headers |
 | zzz.R | Minimal | Low priority (package hooks only) |
 
