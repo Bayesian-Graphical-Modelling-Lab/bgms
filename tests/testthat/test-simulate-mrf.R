@@ -455,6 +455,6 @@ test_that("simulate_mrf rejects mixed continuous and ordinal", {
       main = matrix(0, 3, 2),
       variable_type = c("continuous", "ordinal", "ordinal")
     ),
-    "Mixed"
+    "all variables must be of type"
   )
 })

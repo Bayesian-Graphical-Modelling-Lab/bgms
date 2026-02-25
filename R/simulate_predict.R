@@ -186,50 +186,32 @@ simulate_mrf = function(num_states,
   check_positive_integer(num_variables, "num_variables")
 
   # Check variable specification -----------------------------------------------
-  if(length(variable_type) == 1) {
-    variable_type = match.arg(
-      arg = variable_type,
-      choices = c("ordinal", "blume-capel", "continuous")
-    )
+  vt <- validate_variable_types(
+    variable_type   = variable_type,
+    num_variables   = num_variables,
+    allow_continuous = TRUE,
+    caller          = "simulate_mrf"
+  )
+  variable_type <- vt$variable_type
+  is_continuous  <- vt$is_continuous
 
-    if(variable_type == "blume-capel" && any(num_categories < 2)) {
+  # Blume-Capel binary guard (simulation-specific: uses num_categories)
+  if (any(variable_type == "blume-capel")) {
+    bc_binary <- variable_type == "blume-capel" & num_categories < 2
+    if (any(bc_binary)) {
       stop(paste0(
         "The Blume-Capel model only works for ordinal variables with more than two \n",
-        "response options. But variables ", which(num_categories < 2), " are binary variables."
+        "response options. But variables ",
+        paste(which(bc_binary), collapse = ", "),
+        " are binary variables."
       ))
-    }
-    variable_type = rep(variable_type, num_variables)
-  } else {
-    if(length(variable_type) != num_variables) {
-      stop(paste0(
-        "The argument ``variable_type'' should be either a single character string or a \n",
-        "vector of character strings of length ``num_variables''."
-      ))
-    } else {
-      for(variable in 1:num_variables) {
-        variable_type[variable] = match.arg(
-          arg = variable_type[variable],
-          choices = c("ordinal", "blume-capel", "continuous")
-        )
-      }
-      if(any(variable_type == "continuous") && !all(variable_type == "continuous")) {
-        stop("Mixed continuous and ordinal/blume-capel variable types are not yet supported.")
-      }
-      if(any(variable_type == "blume-capel" & num_categories < 2)) {
-        stop(paste0(
-          "The Blume-Capel model only works for ordinal variables with more than two \n",
-          "response options. But variables ",
-          which(variable_type == "blume-capel" & num_categories < 2),
-          " are binary variables."
-        ))
-      }
     }
   }
 
   # ===========================================================================
   #   Continuous (GGM) path — direct multivariate normal sampling
   # ===========================================================================
-  if(all(variable_type == "continuous")) {
+  if(is_continuous) {
     # Check pairwise (full precision matrix, including diagonal)
     if(!inherits(pairwise, what = "matrix")) {
       pairwise = as.matrix(pairwise)
