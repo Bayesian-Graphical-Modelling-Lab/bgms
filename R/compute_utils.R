@@ -95,3 +95,79 @@ compute_scaling_factors <- function(num_variables,
 
   pairwise_scaling_factors
 }
+
+
+# ------------------------------------------------------------------------------
+# compute_counts_per_category
+# ------------------------------------------------------------------------------
+#
+# Compute per-group category counts for each variable.
+# Originally in data_utils.R; moved here in Phase D.2.
+# ------------------------------------------------------------------------------
+compute_counts_per_category = function(x, num_categories, group = NULL) {
+  counts_per_category = list()
+  for(g in unique(group)) {
+    counts_per_category_gr = matrix(0, nrow = max(num_categories), ncol = ncol(x))
+    for(variable in seq_len(ncol(x))) {
+      for(category in seq_len(num_categories[variable])) {
+        counts_per_category_gr[category, variable] = sum(x[group == g, variable] == category)
+      }
+    }
+    counts_per_category[[length(counts_per_category) + 1]] = counts_per_category_gr
+  }
+  return(counts_per_category)
+}
+
+
+# ------------------------------------------------------------------------------
+# compute_blume_capel_stats
+# ------------------------------------------------------------------------------
+#
+# Compute sufficient statistics for Blume-Capel variables (linear and
+# quadratic deviations from baseline). Originally in data_utils.R; moved
+# here in Phase D.2.
+# ------------------------------------------------------------------------------
+compute_blume_capel_stats = function(x, baseline_category, ordinal_variable, group = NULL) {
+  if(is.null(group)) { # One-group design
+    sufficient_stats = matrix(0, nrow = 2, ncol = ncol(x))
+    bc_vars = which(!ordinal_variable)
+    for (i in bc_vars) {
+      sufficient_stats[1, i] = sum(x[, i] - baseline_category[i])
+      sufficient_stats[2, i] = sum((x[, i] - baseline_category[i]) ^ 2)
+    }
+    return(sufficient_stats)
+  } else { # Multi-group design
+    sufficient_stats = list()
+    for(g in unique(group)) {
+      sufficient_stats_gr = matrix(0, nrow = 2, ncol = ncol(x))
+      bc_vars = which(!ordinal_variable)
+      for (i in bc_vars) {
+        sufficient_stats_gr[1, i] = sum(x[group == g, i] - baseline_category[i])
+        sufficient_stats_gr[2, i] = sum((x[group == g, i] - baseline_category[i]) ^ 2)
+      }
+      sufficient_stats[[length(sufficient_stats) + 1]] = sufficient_stats_gr
+    }
+    return(sufficient_stats)
+  }
+}
+
+
+# ------------------------------------------------------------------------------
+# compute_pairwise_stats
+# ------------------------------------------------------------------------------
+#
+# Compute sufficient statistics for pairwise interactions (cross-product
+# of observations per group). Originally in data_utils.R; moved here in
+# Phase D.2.
+# ------------------------------------------------------------------------------
+compute_pairwise_stats <- function(x, group) {
+  result <- list()
+
+  for(g in unique(group)) {
+    obs <- x[group == g, , drop = FALSE]
+    # cross-product: gives number of co-occurrences of categories
+    result[[length(result) + 1]] <- t(obs) %*% obs
+  }
+
+  result
+}

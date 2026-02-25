@@ -11,6 +11,27 @@
 
 
 # ------------------------------------------------------------------------------
+# data_check
+# ------------------------------------------------------------------------------
+#
+# Coerce user data to a numeric matrix and perform basic dimension checks.
+# Originally in data_utils.R; moved here in Phase D.2.
+# ------------------------------------------------------------------------------
+data_check = function(data, name) {
+  if(!inherits(data, c("matrix", "data.frame"))) {
+    stop(paste(name, "must be a matrix or data.frame."))
+  }
+  if(inherits(data, "data.frame")) {
+    data = data.matrix(data)
+  }
+  if(nrow(data) < 2 || ncol(data) < 2) {
+    stop(paste(name, "must have at least 2 rows and 2 columns."))
+  }
+  return(data)
+}
+
+
+# ------------------------------------------------------------------------------
 # validate_missing_data
 # ------------------------------------------------------------------------------
 #
