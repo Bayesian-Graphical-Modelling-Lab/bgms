@@ -8,6 +8,15 @@
 #'
 #' @return Invisibly returns `x`.
 #'
+#' @examples
+#' \donttest{
+#' fit = bgm(x = Wenchuan[, 1:3])
+#' print(fit)
+#' }
+#'
+#' @seealso [bgm()], [summary.bgms()], [coef.bgms()]
+#' @family posterior-methods
+#'
 #' @export
 print.bgms <- function(x, ...) {
   arguments <- extract_arguments(x)
@@ -60,6 +69,16 @@ print.bgms <- function(x, ...) {
 #' @param ... Currently ignored.
 #'
 #' @return An object of class `summary.bgms` with posterior summaries.
+#'
+#' @examples
+#' \donttest{
+#' fit = bgm(x = Wenchuan[, 1:3])
+#' summary(fit)
+#' }
+#'
+#' @seealso [bgm()], [print.bgms()], [coef.bgms()]
+#' @family posterior-methods
+#'
 #' @export
 summary.bgms <- function(object, ...) {
   arguments <- extract_arguments(object)
@@ -171,6 +190,15 @@ print.summary.bgms <- function(x, digits = 3, ...) {
 #'   \item{pairwise}{Posterior mean of the pairwise interaction matrix.}
 #'   \item{indicator}{Posterior mean of the edge inclusion indicators (if available).}
 #' }
+#'
+#' @examples
+#' \donttest{
+#' fit = bgm(x = Wenchuan[, 1:3])
+#' coef(fit)
+#' }
+#'
+#' @seealso [bgm()], [print.bgms()], [summary.bgms()]
+#' @family posterior-methods
 #'
 #' @export
 coef.bgms <- function(object, ...) {

@@ -17,3 +17,21 @@ An object of class `summary.bgms` with posterior summaries.
 \description{
 Returns posterior summaries and diagnostics for a fitted `bgms` model.
 }
+\examples{
+\donttest{
+fit = bgm(x = Wenchuan[, 1:3])
+summary(fit)
+}
+
+}
+\seealso{
+[bgm()], [print.bgms()], [coef.bgms()]
+
+Other posterior-methods: 
+\code{\link{coef.bgmCompare}()},
+\code{\link{coef.bgms}()},
+\code{\link{print.bgmCompare}()},
+\code{\link{print.bgms}()},
+\code{\link{summary.bgmCompare}()}
+}
+\concept{posterior-methods}

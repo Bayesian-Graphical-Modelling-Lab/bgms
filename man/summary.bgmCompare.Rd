@@ -17,3 +17,20 @@ An object of class `summary.bgmCompare` with posterior summaries.
 \description{
 Returns posterior summaries and diagnostics for a fitted `bgmCompare` model.
 }
+\examples{
+\donttest{
+# See ?bgmCompare for a full example
+}
+
+}
+\seealso{
+[bgmCompare()], [print.bgmCompare()], [coef.bgmCompare()]
+
+Other posterior-methods: 
+\code{\link{coef.bgmCompare}()},
+\code{\link{coef.bgms}()},
+\code{\link{print.bgmCompare}()},
+\code{\link{print.bgms}()},
+\code{\link{summary.bgms}()}
+}
+\concept{posterior-methods}

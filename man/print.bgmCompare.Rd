@@ -17,3 +17,20 @@ Invisibly returns `x`.
 \description{
 Minimal console output for `bgmCompare` fit objects.
 }
+\examples{
+\donttest{
+# See ?bgmCompare for a full example
+}
+
+}
+\seealso{
+[bgmCompare()], [summary.bgmCompare()], [coef.bgmCompare()]
+
+Other posterior-methods: 
+\code{\link{coef.bgmCompare}()},
+\code{\link{coef.bgms}()},
+\code{\link{print.bgms}()},
+\code{\link{summary.bgmCompare}()},
+\code{\link{summary.bgms}()}
+}
+\concept{posterior-methods}

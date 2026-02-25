@@ -22,3 +22,21 @@ A list with the following components:
 \description{
 Returns the posterior mean thresholds, pairwise effects, and edge inclusion indicators from a \code{bgms} model fit.
 }
+\examples{
+\donttest{
+fit = bgm(x = Wenchuan[, 1:3])
+coef(fit)
+}
+
+}
+\seealso{
+[bgm()], [print.bgms()], [summary.bgms()]
+
+Other posterior-methods: 
+\code{\link{coef.bgmCompare}()},
+\code{\link{print.bgmCompare}()},
+\code{\link{print.bgms}()},
+\code{\link{summary.bgmCompare}()},
+\code{\link{summary.bgms}()}
+}
+\concept{posterior-methods}

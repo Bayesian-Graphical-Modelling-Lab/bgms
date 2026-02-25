@@ -6,6 +6,15 @@
 #' @param x An object of class `bgmCompare`.
 #' @param ... Ignored.
 #' @return Invisibly returns `x`.
+#'
+#' @examples
+#' \donttest{
+#' # See ?bgmCompare for a full example
+#' }
+#'
+#' @seealso [bgmCompare()], [summary.bgmCompare()], [coef.bgmCompare()]
+#' @family posterior-methods
+#'
 #' @export
 print.bgmCompare = function(x, ...) {
   arguments = extract_arguments(x)
@@ -63,6 +72,15 @@ print.bgmCompare = function(x, ...) {
 #' @param ... Currently ignored.
 #'
 #' @return An object of class `summary.bgmCompare` with posterior summaries.
+#'
+#' @examples
+#' \donttest{
+#' # See ?bgmCompare for a full example
+#' }
+#'
+#' @seealso [bgmCompare()], [print.bgmCompare()], [coef.bgmCompare()]
+#' @family posterior-methods
+#'
 #' @export
 summary.bgmCompare = function(object, ...) {
   arguments = extract_arguments(object)
@@ -235,6 +253,15 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
 #'   \item{indicators}{Posterior mean inclusion probabilities as a symmetric matrix,
 #'   with diagonals corresponding to main effects and off-diagonals to pairwise effects.}
 #' }
+#'
+#' @examples
+#' \donttest{
+#' # See ?bgmCompare for a full example
+#' }
+#'
+#' @seealso [bgmCompare()], [print.bgmCompare()], [summary.bgmCompare()]
+#' @family posterior-methods
+#'
 #' @export
 coef.bgmCompare <- function(object, ...) {
   args <- extract_arguments(object)

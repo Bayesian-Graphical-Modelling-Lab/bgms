@@ -30,3 +30,20 @@ A list with components:
 Returns posterior means for raw parameters (baseline + differences)
 and group-specific effects from a \code{bgmCompare} fit, as well as inclusion indicators.
 }
+\examples{
+\donttest{
+# See ?bgmCompare for a full example
+}
+
+}
+\seealso{
+[bgmCompare()], [print.bgmCompare()], [summary.bgmCompare()]
+
+Other posterior-methods: 
+\code{\link{coef.bgms}()},
+\code{\link{print.bgmCompare}()},
+\code{\link{print.bgms}()},
+\code{\link{summary.bgmCompare}()},
+\code{\link{summary.bgms}()}
+}
+\concept{posterior-methods}

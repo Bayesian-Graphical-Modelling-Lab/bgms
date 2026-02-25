@@ -17,3 +17,21 @@ Invisibly returns `x`.
 \description{
 Minimal console output for `bgms` fit objects.
 }
+\examples{
+\donttest{
+fit = bgm(x = Wenchuan[, 1:3])
+print(fit)
+}
+
+}
+\seealso{
+[bgm()], [summary.bgms()], [coef.bgms()]
+
+Other posterior-methods: 
+\code{\link{coef.bgmCompare}()},
+\code{\link{coef.bgms}()},
+\code{\link{print.bgmCompare}()},
+\code{\link{summary.bgmCompare}()},
+\code{\link{summary.bgms}()}
+}
+\concept{posterior-methods}
