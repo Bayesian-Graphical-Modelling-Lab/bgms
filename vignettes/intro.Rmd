@@ -19,16 +19,22 @@ knitr::opts_chunk$set(
 # Introduction
 
 The **bgms** package implements Bayesian methods for analyzing graphical
-models of binary and ordinal variables. It estimates main effects
-(category thresholds) and pairwise interactions in an ordinal Markov
-random field (MRF), with optional Bayesian edge selection via
-spike–and–slab priors. The package provides two main entry points:
+models. It supports three variable types:
+
+- **ordinal** (including binary) — Markov random field (MRF) models,
+- **Blume–Capel** — ordinal MRF with a reference category,
+- **continuous** — Gaussian graphical models (GGM).
+
+The package estimates main effects and pairwise interactions, with optional
+Bayesian edge selection via spike-and-slab priors. It provides two main
+entry points:
 
 - `bgm()` for one-sample designs (single network),
 - `bgmCompare()` for independent-sample designs (group comparisons).
 
-This vignette walks through the basic workflow: fitting a model,
-summarizing posterior output, and visualizing results.
+This vignette walks through the basic workflow for ordinal data. For
+continuous data, set `variable_type = "continuous"` in `bgm()` to fit a
+Gaussian graphical model.
 
 
 # Wenchuan dataset
@@ -91,6 +97,20 @@ qgraph(median_probability_network,
   labels = colnames(data)
 )
 ```
+
+# Continuous data (GGM)
+
+For continuous variables, `bgm()` fits a Gaussian graphical model when
+`variable_type = "continuous"`. The workflow is the same:
+
+```{r, eval=FALSE}
+fit_ggm = bgm(continuous_data, variable_type = "continuous", seed = 1234)
+summary(fit_ggm)
+```
+
+The pairwise effects are partial correlations (off-diagonal entries of
+the standardized precision matrix). Missing values can be imputed during
+sampling with `na_action = "impute"`.
 
 # Next steps
 
