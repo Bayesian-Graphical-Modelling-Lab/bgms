@@ -13,9 +13,11 @@ struct WarmupSchedule;
  * BaseModel — Abstract interface for all graphical models.
  *
  * Defines the virtual methods that the MCMC framework (MetropolisSampler,
- * NUTSSampler, ChainRunner) calls during sampling. Concrete subclasses
- * must implement parameter_dimension() and should override the methods
- * relevant to their sampling strategy.
+ * NUTSSampler, ChainRunner) calls during sampling. Most methods are pure
+ * virtual (`= 0`) so the compiler enforces implementation in every
+ * subclass. The exceptions are gradient-only methods (gradient,
+ * logp_and_gradient, set_vectorized_parameters) which throw at runtime
+ * and are guarded by the has_gradient() capability query.
  *
  * Subclass hierarchy:
  *   - GGMModel  — Gaussian Graphical Model (precision matrix, Metropolis only)
@@ -87,10 +89,7 @@ public:
      *
      * @param iteration  Current iteration index (for Robbins-Monro adaptation)
      */
-    virtual void do_one_metropolis_step(int iteration = -1) {
-        (void)iteration;
-        throw std::runtime_error("do_one_metropolis_step method must be implemented in derived class");
-    }
+    virtual void do_one_metropolis_step(int iteration = -1) = 0;
 
     /**
      * Initialize Metropolis adaptation controllers.
@@ -131,18 +130,14 @@ public:
      * Only meaningful when has_edge_selection() returns true. GGMModel
      * handles this inside do_one_metropolis_step() instead.
      */
-    virtual void update_edge_indicators() {
-        throw std::runtime_error("update_edge_indicators not implemented for this model");
-    }
+    virtual void update_edge_indicators() = 0;
 
     // =========================================================================
     // Parameter vectorization
     // =========================================================================
 
     /** @return Active parameters as a flat vector (dimension may change with edge selection). */
-    virtual arma::vec get_vectorized_parameters() const {
-        throw std::runtime_error("get_vectorized_parameters method must be implemented in derived class");
-    }
+    virtual arma::vec get_vectorized_parameters() const = 0;
 
     /**
      * Set parameters from a flat vector (inverse of get_vectorized_parameters).
@@ -153,9 +148,7 @@ public:
     }
 
     /** @return Edge indicators as a flat integer vector. */
-    virtual arma::ivec get_vectorized_indicator_parameters() {
-        throw std::runtime_error("get_vectorized_indicator_parameters method must be implemented in derived class");
-    }
+    virtual arma::ivec get_vectorized_indicator_parameters() = 0;
 
     /**
      * @return Full parameter dimension (fixed size, includes inactive parameters).
@@ -172,9 +165,7 @@ public:
      * Used for sample storage to avoid dimension changes when edges are
      * toggled on/off.
      */
-    virtual arma::vec get_full_vectorized_parameters() const {
-        throw std::runtime_error("get_full_vectorized_parameters must be implemented in derived class");
-    }
+    virtual arma::vec get_full_vectorized_parameters() const = 0;
 
     /** @return Dimensionality of the active parameter space. Pure virtual. */
     virtual size_t parameter_dimension() const = 0;
@@ -187,19 +178,13 @@ public:
      * Set the random seed for reproducibility.
      * @param seed  Integer seed value
      */
-    virtual void set_seed(int seed) {
-        throw std::runtime_error("set_seed method must be implemented in derived class");
-    }
+    virtual void set_seed(int seed) = 0;
 
     /** @return Deep copy of this model (for parallel chains). */
-    virtual std::unique_ptr<BaseModel> clone() const {
-        throw std::runtime_error("clone method must be implemented in derived class");
-    }
+    virtual std::unique_ptr<BaseModel> clone() const = 0;
 
     /** @return Reference to the model's random number generator. */
-    virtual SafeRNG& get_rng() {
-        throw std::runtime_error("get_rng method must be implemented in derived class");
-    }
+    virtual SafeRNG& get_rng() = 0;
 
     // =========================================================================
     // NUTS/HMC adaptation
@@ -259,24 +244,16 @@ public:
     // =========================================================================
 
     /** @return Current edge-indicator matrix. */
-    virtual const arma::imat& get_edge_indicators() const {
-        throw std::runtime_error("get_edge_indicators not implemented for this model");
-    }
+    virtual const arma::imat& get_edge_indicators() const = 0;
 
     /** @return Mutable reference to the prior inclusion-probability matrix. */
-    virtual arma::mat& get_inclusion_probability() {
-        throw std::runtime_error("get_inclusion_probability not implemented for this model");
-    }
+    virtual arma::mat& get_inclusion_probability() = 0;
 
     /** @return Number of variables (p). */
-    virtual int get_num_variables() const {
-        throw std::runtime_error("get_num_variables not implemented for this model");
-    }
+    virtual int get_num_variables() const = 0;
 
     /** @return Number of unique off-diagonal pairs p(p-1)/2. */
-    virtual int get_num_pairwise() const {
-        throw std::runtime_error("get_num_pairwise not implemented for this model");
-    }
+    virtual int get_num_pairwise() const = 0;
 
 protected:
     BaseModel() = default;
