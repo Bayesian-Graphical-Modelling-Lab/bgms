@@ -174,32 +174,32 @@
 #'
 #' @export
 simulate_mrf = function(num_states,
-                      num_variables,
-                      num_categories,
-                      pairwise,
-                      main,
-                      variable_type = "ordinal",
-                      baseline_category,
-                      iter = 1e3,
-                      seed = NULL) {
+                        num_variables,
+                        num_categories,
+                        pairwise,
+                        main,
+                        variable_type = "ordinal",
+                        baseline_category,
+                        iter = 1e3,
+                        seed = NULL) {
   # Check num_states, num_variables ---------------------------------------------
   check_positive_integer(num_states, "num_states")
   check_positive_integer(num_variables, "num_variables")
 
   # Check variable specification -----------------------------------------------
-  vt <- validate_variable_types(
-    variable_type   = variable_type,
-    num_variables   = num_variables,
+  vt = validate_variable_types(
+    variable_type = variable_type,
+    num_variables = num_variables,
     allow_continuous = TRUE,
-    caller          = "simulate_mrf"
+    caller = "simulate_mrf"
   )
-  variable_type <- vt$variable_type
-  is_continuous  <- vt$is_continuous
+  variable_type = vt$variable_type
+  is_continuous = vt$is_continuous
 
   # Blume-Capel binary guard (simulation-specific: uses num_categories)
-  if (any(variable_type == "blume-capel")) {
-    bc_binary <- variable_type == "blume-capel" & num_categories < 2
-    if (any(bc_binary)) {
+  if(any(variable_type == "blume-capel")) {
+    bc_binary = variable_type == "blume-capel" & num_categories < 2
+    if(any(bc_binary)) {
       stop(paste0(
         "The Blume-Capel model only works for ordinal variables with more than two \n",
         "response options. But variables ",
@@ -249,9 +249,9 @@ simulate_mrf = function(num_states,
     }
 
     # Handle seed
-    seed <- check_seed(seed)
+    seed = check_seed(seed)
 
-    x <- sample_ggm_direct(
+    x = sample_ggm_direct(
       num_states = num_states,
       precision = precision,
       means = means,
@@ -289,14 +289,18 @@ simulate_mrf = function(num_states,
       baseline_category = rep(baseline_category, num_variables)
     }
     if(any(baseline_category < 0) || any(abs(baseline_category - round(baseline_category)) > .Machine$double.eps)) {
-      stop(paste0("For variables ",
-                  which(baseline_category < 0),
-                  " ``baseline_category'' was either negative or not integer."))
+      stop(paste0(
+        "For variables ",
+        which(baseline_category < 0),
+        " ``baseline_category'' was either negative or not integer."
+      ))
     }
     if(any(baseline_category - num_categories > 0)) {
-      stop(paste0("For variables ",
-                  which(baseline_category - num_categories > 0),
-                  " the ``baseline_category'' category was larger than the maximum category value."))
+      stop(paste0(
+        "For variables ",
+        which(baseline_category - num_categories > 0),
+        " the ``baseline_category'' category was larger than the maximum category value."
+      ))
     }
   }
 
@@ -422,11 +426,11 @@ simulate_mrf = function(num_states,
   }
 
   # Handle seed ----------------------------------------------------------------
-  seed <- check_seed(seed)
+  seed = check_seed(seed)
 
   # The Gibbs sampler ----------------------------------------------------------
   if(!any(variable_type == "blume-capel")) {
-    x <- sample_omrf_gibbs(
+    x = sample_omrf_gibbs(
       num_states = num_states,
       num_variables = num_variables,
       num_categories = num_categories,
@@ -436,7 +440,7 @@ simulate_mrf = function(num_states,
       seed = seed
     )
   } else {
-    x <- sample_bcomrf_gibbs(
+    x = sample_bcomrf_gibbs(
       num_states = num_states,
       num_variables = num_variables,
       num_categories = num_categories,
@@ -552,64 +556,66 @@ mrfSampler = function(num_states,
 #' @examples
 #' \donttest{
 #' # Fit a model
-#' fit <- bgm(x = Wenchuan[, 1:5], chains = 2)
+#' fit = bgm(x = Wenchuan[, 1:5], chains = 2)
 #'
 #' # Simulate 100 new observations using posterior means
-#' new_data <- simulate(fit, nsim = 100)
+#' new_data = simulate(fit, nsim = 100)
 #'
 #' # Simulate with parameter uncertainty (10 datasets)
-#' new_data_list <- simulate(fit, nsim = 100, method = "posterior-sample", ndraws = 10)
+#' new_data_list = simulate(fit, nsim = 100, method = "posterior-sample", ndraws = 10)
 #'
 #' # Use parallel processing for faster simulation
-#' new_data_list <- simulate(fit, nsim = 100, method = "posterior-sample",
-#'                           ndraws = 100, cores = 2)
+#' new_data_list = simulate(fit,
+#'   nsim = 100, method = "posterior-sample",
+#'   ndraws = 100, cores = 2
+#' )
 #' }
 #'
 #' @importFrom stats simulate
 #' @export
-simulate.bgms <- function(object,
-                          nsim = 500,
-                          seed = NULL,
-                          method = c("posterior-mean", "posterior-sample"),
-                          ndraws = NULL,
-                          iter = 1000,
-                          cores = parallel::detectCores(),
-                          display_progress = c("per-chain", "total", "none"),
-                          ...) {
-  method <- match.arg(method)
-  progress_type <- progress_type_from_display_progress(display_progress)
+simulate.bgms = function(object,
+                         nsim = 500,
+                         seed = NULL,
+                         method = c("posterior-mean", "posterior-sample"),
+                         ndraws = NULL,
+                         iter = 1000,
+                         cores = parallel::detectCores(),
+                         display_progress = c("per-chain", "total", "none"),
+                         ...) {
+  method = match.arg(method)
+  progress_type = progress_type_from_display_progress(display_progress)
 
   # Validate cores
   check_positive_integer(cores, "cores")
-  cores <- as.integer(cores)
+  cores = as.integer(cores)
 
   # Setting the seed
-  seed <- check_seed(seed)
+  seed = check_seed(seed)
 
   # Extract model information
 
-  arguments <- extract_arguments(object)
-  num_variables <- arguments$num_variables
-  num_categories <- arguments$num_categories
-  variable_type <- arguments$variable_type
-  data_columnnames <- arguments$data_columnnames
+  arguments = extract_arguments(object)
+  num_variables = arguments$num_variables
+  num_categories = arguments$num_categories
+  variable_type = arguments$variable_type
+  data_columnnames = arguments$data_columnnames
 
   # Handle variable_type
 
   if(length(variable_type) == 1) {
-    variable_type <- rep(variable_type, num_variables)
+    variable_type = rep(variable_type, num_variables)
   }
 
   # Get baseline_category (for Blume-Capel variables)
-  baseline_category <- arguments$baseline_category
+  baseline_category = arguments$baseline_category
   if(is.null(baseline_category)) {
-    baseline_category <- rep(0L, num_variables)
+    baseline_category = rep(0L, num_variables)
   }
 
   # ============================================================================
   #   GGM (continuous) path
   # ============================================================================
-  if (isTRUE(arguments$is_continuous)) {
+  if(isTRUE(arguments$is_continuous)) {
     return(simulate_bgms_ggm(
       object = object,
       nsim = nsim,
@@ -629,14 +635,14 @@ simulate.bgms <- function(object,
 
   if(method == "posterior-mean") {
     # Use posterior mean parameters
-    pairwise <- object$posterior_mean_pairwise
-    main <- object$posterior_mean_main
+    pairwise = object$posterior_mean_pairwise
+    main = object$posterior_mean_main
 
     # Set R's RNG for simulate_mrf
     if(!is.null(seed)) set.seed(seed)
 
     # Call simulate_mrf
-    result <- simulate_mrf(
+    result = simulate_mrf(
       num_states = nsim,
       num_variables = num_variables,
       num_categories = num_categories,
@@ -647,26 +653,25 @@ simulate.bgms <- function(object,
       iter = iter
     )
 
-    colnames(result) <- data_columnnames
+    colnames(result) = data_columnnames
     return(result)
-
   } else {
     # Use posterior samples with parallel processing
-    pairwise_samples <- do.call(rbind, object$raw_samples$pairwise)
-    main_samples <- do.call(rbind, object$raw_samples$main)
+    pairwise_samples = do.call(rbind, object$raw_samples$pairwise)
+    main_samples = do.call(rbind, object$raw_samples$main)
 
-    total_draws <- nrow(pairwise_samples)
+    total_draws = nrow(pairwise_samples)
     if(is.null(ndraws)) {
-      ndraws <- total_draws
+      ndraws = total_draws
     }
-    ndraws <- min(ndraws, total_draws)
+    ndraws = min(ndraws, total_draws)
 
     # Sample which draws to use
     if(!is.null(seed)) set.seed(seed)
-    draw_indices <- sample.int(total_draws, ndraws)
+    draw_indices = sample.int(total_draws, ndraws)
 
     # Call parallel C++ function
-    results <- run_simulation_parallel(
+    results = run_simulation_parallel(
       pairwise_samples = pairwise_samples,
       main_samples = main_samples,
       draw_indices = as.integer(draw_indices),
@@ -683,7 +688,7 @@ simulate.bgms <- function(object,
 
     # Add column names
     for(i in seq_along(results)) {
-      colnames(results[[i]]) <- data_columnnames
+      colnames(results[[i]]) = data_columnnames
     }
 
     return(results)
@@ -734,94 +739,94 @@ simulate.bgms <- function(object,
 #' @examples
 #' \donttest{
 #' # Fit a comparison model
-#' x <- Boredom[Boredom$language == "fr", 2:6]
-#' y <- Boredom[Boredom$language != "fr", 2:6]
-#' fit <- bgmCompare(x, y, chains = 2)
+#' x = Boredom[Boredom$language == "fr", 2:6]
+#' y = Boredom[Boredom$language != "fr", 2:6]
+#' fit = bgmCompare(x, y, chains = 2)
 #'
 #' # Simulate 100 observations from group 1
-#' new_data_g1 <- simulate(fit, nsim = 100, group = 1)
+#' new_data_g1 = simulate(fit, nsim = 100, group = 1)
 #'
 #' # Simulate 100 observations from group 2
-#' new_data_g2 <- simulate(fit, nsim = 100, group = 2)
+#' new_data_g2 = simulate(fit, nsim = 100, group = 2)
 #' }
 #'
 #' @export
-simulate.bgmCompare <- function(object,
-                                nsim = 500,
-                                seed = NULL,
-                                group,
-                                method = c("posterior-mean"),
-                                iter = 1000,
-                                ...) {
-  method <- match.arg(method)
+simulate.bgmCompare = function(object,
+                               nsim = 500,
+                               seed = NULL,
+                               group,
+                               method = c("posterior-mean"),
+                               iter = 1000,
+                               ...) {
+  method = match.arg(method)
 
   # Validate group argument
   if(missing(group)) {
     stop("Argument 'group' is required. Specify which group to simulate from (1 to num_groups).")
   }
 
-  arguments <- extract_arguments(object)
-  num_groups <- arguments$num_groups
+  arguments = extract_arguments(object)
+  num_groups = arguments$num_groups
 
   if(!is.numeric(group) || length(group) != 1 || is.na(group) ||
-     group < 1 || group > num_groups) {
+    group < 1 || group > num_groups) {
     stop(sprintf("Argument 'group' must be an integer between 1 and %d.", num_groups))
   }
-  group <- as.integer(group)
+  group = as.integer(group)
 
   # Setting the seed
-  seed <- check_seed(seed)
+  seed = check_seed(seed)
 
   # Extract model information
-  num_variables <- arguments$num_variables
-  num_categories <- arguments$num_categories
-  is_ordinal <- arguments$is_ordinal_variable
-  data_columnnames <- arguments$data_columnnames
-  projection <- arguments$projection  # [num_groups x (num_groups-1)]
+  num_variables = arguments$num_variables
+  num_categories = arguments$num_categories
+  is_ordinal = arguments$is_ordinal_variable
+  data_columnnames = arguments$data_columnnames
+  projection = arguments$projection # [num_groups x (num_groups-1)]
 
   # Determine variable_type from is_ordinal
-  variable_type <- ifelse(is_ordinal, "ordinal", "blume-capel")
+  variable_type = ifelse(is_ordinal, "ordinal", "blume-capel")
 
   # Get baseline_category (for Blume-Capel variables)
-  baseline_category <- arguments$baseline_category
+  baseline_category = arguments$baseline_category
   if(is.null(baseline_category)) {
-    baseline_category <- rep(0L, num_variables)
+    baseline_category = rep(0L, num_variables)
   }
 
   if(method == "posterior-mean") {
     # Extract group-specific parameters using projection
-    group_params <- extract_group_params(object)
+    group_params = extract_group_params(object)
 
-    main_group <- group_params$main_effects_groups[, group]
-    pairwise_group <- group_params$pairwise_effects_groups[, group]
+    main_group = group_params$main_effects_groups[, group]
+    pairwise_group = group_params$pairwise_effects_groups[, group]
 
     # Reconstruct threshold matrix
-    max_cats <- max(num_categories)
-    main <- matrix(NA_real_, nrow = num_variables, ncol = max_cats)
+    max_cats = max(num_categories)
+    main = matrix(NA_real_, nrow = num_variables, ncol = max_cats)
 
-    pos <- 1
+    pos = 1
     for(v in seq_len(num_variables)) {
       if(is_ordinal[v]) {
-        k <- num_categories[v]
-        main[v, 1:k] <- main_group[pos:(pos + k - 1)]
-        pos <- pos + k
+        k = num_categories[v]
+        main[v, 1:k] = main_group[pos:(pos + k - 1)]
+        pos = pos + k
       } else {
         # Blume-Capel: 2 parameters
-        main[v, 1:2] <- main_group[pos:(pos + 1)]
-        pos <- pos + 2
+        main[v, 1:2] = main_group[pos:(pos + 1)]
+        pos = pos + 2
       }
     }
 
     # Reconstruct interaction matrix
-    pairwise <- matrix(0, nrow = num_variables, ncol = num_variables)
-    pairwise[lower.tri(pairwise)] <- pairwise_group
-    pairwise <- pairwise + t(pairwise)
+    pairwise = matrix(0, nrow = num_variables, ncol = num_variables)
+    pairwise[lower.tri(pairwise)] = pairwise_group
+    pairwise = pairwise + t(pairwise)
 
     # Set R's RNG for simulate_mrf
     set.seed(seed)
 
     # Call simulate_mrf
-    result <- simulate_mrf(
+    result = simulate_mrf(
       num_states = nsim,
       num_variables = num_variables,
       num_categories = num_categories,
@@ -832,7 +837,7 @@ simulate.bgmCompare <- function(object,
       iter = iter
     )
 
-    colnames(result) <- data_columnnames
+    colnames(result) = data_columnnames
     return(result)
   }
 }
@@ -923,34 +928,34 @@ simulate.bgmCompare <- function(object,
 #' @examples
 #' \donttest{
 #' # Fit a model
-#' fit <- bgm(x = Wenchuan[, 1:5], chains = 2)
+#' fit = bgm(x = Wenchuan[, 1:5], chains = 2)
 #'
 #' # Compute conditional probabilities for all variables
-#' probs <- predict(fit, newdata = Wenchuan[1:10, 1:5])
+#' probs = predict(fit, newdata = Wenchuan[1:10, 1:5])
 #'
 #' # Predict the first variable only
-#' probs_v1 <- predict(fit, newdata = Wenchuan[1:10, 1:5], variables = 1)
+#' probs_v1 = predict(fit, newdata = Wenchuan[1:10, 1:5], variables = 1)
 #'
 #' # Get predicted categories
-#' pred_class <- predict(fit, newdata = Wenchuan[1:10, 1:5], type = "response")
+#' pred_class = predict(fit, newdata = Wenchuan[1:10, 1:5], type = "response")
 #' }
 #'
 #' @importFrom stats predict
 #' @export
-predict.bgms <- function(object,
-                         newdata,
-                         variables = NULL,
-                         type = c("probabilities", "response"),
-                         method = c("posterior-mean", "posterior-sample"),
-                         ndraws = NULL,
-                         seed = NULL,
-                         ...) {
-  type <- match.arg(type)
-  method <- match.arg(method)
+predict.bgms = function(object,
+                        newdata,
+                        variables = NULL,
+                        type = c("probabilities", "response"),
+                        method = c("posterior-mean", "posterior-sample"),
+                        ndraws = NULL,
+                        seed = NULL,
+                        ...) {
+  type = match.arg(type)
+  method = match.arg(method)
 
   # Setting the seed (for R's RNG used by sample.int for draw selection)
   if(!is.null(seed)) {
-    seed <- check_seed(seed)
+    seed = check_seed(seed)
     set.seed(seed)
   }
 
@@ -964,15 +969,15 @@ predict.bgms <- function(object,
   }
 
   if(inherits(newdata, "data.frame")) {
-    newdata <- data.matrix(newdata)
+    newdata = data.matrix(newdata)
   }
 
   # Extract model information
-  arguments <- extract_arguments(object)
-  num_variables <- arguments$num_variables
-  num_categories <- arguments$num_categories
-  variable_type <- arguments$variable_type
-  data_columnnames <- arguments$data_columnnames
+  arguments = extract_arguments(object)
+  num_variables = arguments$num_variables
+  num_categories = arguments$num_categories
+  variable_type = arguments$variable_type
+  data_columnnames = arguments$data_columnnames
 
   # Validate dimensions
 
@@ -985,28 +990,28 @@ predict.bgms <- function(object,
 
   # Handle variable_type
   if(length(variable_type) == 1) {
-    variable_type <- rep(variable_type, num_variables)
+    variable_type = rep(variable_type, num_variables)
   }
 
   # Get baseline_category
-  baseline_category <- arguments$baseline_category
+  baseline_category = arguments$baseline_category
   if(is.null(baseline_category)) {
-    baseline_category <- rep(0L, num_variables)
+    baseline_category = rep(0L, num_variables)
   }
 
   # Convert variable_type to is_ordinal logical vector
-  is_ordinal <- variable_type != "blume-capel"
+  is_ordinal = variable_type != "blume-capel"
 
   # Determine which variables to predict
   if(is.null(variables)) {
-    predict_vars <- seq_len(num_variables)
+    predict_vars = seq_len(num_variables)
   } else if(is.character(variables)) {
-    predict_vars <- match(variables, data_columnnames)
+    predict_vars = match(variables, data_columnnames)
     if(anyNA(predict_vars)) {
       stop("Variable names not found: ", paste(variables[is.na(predict_vars)], collapse = ", "))
     }
   } else {
-    predict_vars <- as.integer(variables)
+    predict_vars = as.integer(variables)
     if(any(predict_vars < 1 | predict_vars > num_variables)) {
       stop("Variable indices must be between 1 and ", num_variables)
     }
@@ -1015,7 +1020,7 @@ predict.bgms <- function(object,
   # ============================================================================
   #   GGM (continuous) path
   # ============================================================================
-  if (isTRUE(arguments$is_continuous)) {
+  if(isTRUE(arguments$is_continuous)) {
     return(predict_bgms_ggm(
       object = object,
       newdata = newdata,
@@ -1033,16 +1038,16 @@ predict.bgms <- function(object,
   # ============================================================================
 
   # Recode data to 0-based integers (matching what bgm() does)
-  newdata_recoded <- recode_data_for_prediction(newdata, num_categories, is_ordinal)
+  newdata_recoded = recode_data_for_prediction(newdata, num_categories, is_ordinal)
 
   if(method == "posterior-mean") {
     # Use posterior mean parameters
-    pairwise <- object$posterior_mean_pairwise
-    main <- object$posterior_mean_main
+    pairwise = object$posterior_mean_pairwise
+    main = object$posterior_mean_main
 
-    probs <- compute_conditional_probs(
+    probs = compute_conditional_probs(
       observations = newdata_recoded,
-      predict_vars = predict_vars - 1L,  # C++ uses 0-based indexing
+      predict_vars = predict_vars - 1L, # C++ uses 0-based indexing
       pairwise = pairwise,
       main = main,
       num_categories = num_categories,
@@ -1051,46 +1056,45 @@ predict.bgms <- function(object,
     )
 
     # Add names
-    names(probs) <- data_columnnames[predict_vars]
+    names(probs) = data_columnnames[predict_vars]
     for(v in seq_along(probs)) {
-      var_idx <- predict_vars[v]
-      n_cats <- num_categories[var_idx] + 1
-      colnames(probs[[v]]) <- paste0("cat_", 0:(n_cats - 1))
+      var_idx = predict_vars[v]
+      n_cats = num_categories[var_idx] + 1
+      colnames(probs[[v]]) = paste0("cat_", 0:(n_cats - 1))
     }
-
   } else {
     # Use posterior samples
-    pairwise_samples <- do.call(rbind, object$raw_samples$pairwise)
-    main_samples <- do.call(rbind, object$raw_samples$main)
+    pairwise_samples = do.call(rbind, object$raw_samples$pairwise)
+    main_samples = do.call(rbind, object$raw_samples$main)
 
-    total_draws <- nrow(pairwise_samples)
+    total_draws = nrow(pairwise_samples)
     if(is.null(ndraws)) {
-      ndraws <- total_draws
+      ndraws = total_draws
     }
-    ndraws <- min(ndraws, total_draws)
+    ndraws = min(ndraws, total_draws)
 
-    draw_indices <- sample.int(total_draws, ndraws)
+    draw_indices = sample.int(total_draws, ndraws)
 
     # Collect probabilities from each draw
-    all_probs <- vector("list", ndraws)
+    all_probs = vector("list", ndraws)
 
     for(i in seq_len(ndraws)) {
-      idx <- draw_indices[i]
+      idx = draw_indices[i]
 
       # Reconstruct interaction matrix
-      pairwise <- matrix(0, nrow = num_variables, ncol = num_variables)
-      pairwise[lower.tri(pairwise)] <- pairwise_samples[idx, ]
-      pairwise <- pairwise + t(pairwise)
+      pairwise = matrix(0, nrow = num_variables, ncol = num_variables)
+      pairwise[lower.tri(pairwise)] = pairwise_samples[idx, ]
+      pairwise = pairwise + t(pairwise)
 
       # Reconstruct threshold matrix
-      main <- reconstruct_main(
+      main = reconstruct_main(
         main_samples[idx, ],
         num_variables,
         num_categories,
         variable_type
       )
 
-      all_probs[[i]] <- compute_conditional_probs(
+      all_probs[[i]] = compute_conditional_probs(
         observations = newdata_recoded,
         predict_vars = predict_vars - 1L,
         pairwise = pairwise,
@@ -1102,38 +1106,39 @@ predict.bgms <- function(object,
     }
 
     # Average over draws
-    probs <- vector("list", length(predict_vars))
-    probs_sd <- vector("list", length(predict_vars))
-    names(probs) <- data_columnnames[predict_vars]
-    names(probs_sd) <- data_columnnames[predict_vars]
+    probs = vector("list", length(predict_vars))
+    probs_sd = vector("list", length(predict_vars))
+    names(probs) = data_columnnames[predict_vars]
+    names(probs_sd) = data_columnnames[predict_vars]
 
     for(v in seq_along(predict_vars)) {
       # Stack probabilities from all draws: n x categories x ndraws
-      var_probs <- lapply(all_probs, `[[`, v)
-      prob_array <- array(unlist(var_probs),
-                          dim = c(nrow(newdata), ncol(var_probs[[1]]), ndraws))
+      var_probs = lapply(all_probs, `[[`, v)
+      prob_array = array(unlist(var_probs),
+        dim = c(nrow(newdata), ncol(var_probs[[1]]), ndraws)
+      )
 
-      probs[[v]] <- apply(prob_array, c(1, 2), mean)
-      probs_sd[[v]] <- apply(prob_array, c(1, 2), sd)
+      probs[[v]] = apply(prob_array, c(1, 2), mean)
+      probs_sd[[v]] = apply(prob_array, c(1, 2), sd)
 
-      var_idx <- predict_vars[v]
-      n_cats <- num_categories[var_idx] + 1
-      colnames(probs[[v]]) <- paste0("cat_", 0:(n_cats - 1))
-      colnames(probs_sd[[v]]) <- paste0("cat_", 0:(n_cats - 1))
+      var_idx = predict_vars[v]
+      n_cats = num_categories[var_idx] + 1
+      colnames(probs[[v]]) = paste0("cat_", 0:(n_cats - 1))
+      colnames(probs_sd[[v]]) = paste0("cat_", 0:(n_cats - 1))
     }
 
-    attr(probs, "sd") <- probs_sd
+    attr(probs, "sd") = probs_sd
   }
 
   if(type == "response") {
     # Return predicted categories (mode)
-    pred_matrix <- sapply(probs, function(p) {
-      apply(p, 1, which.max) - 1L  # Convert to 0-based category
+    pred_matrix = sapply(probs, function(p) {
+      apply(p, 1, which.max) - 1L # Convert to 0-based category
     })
     if(is.vector(pred_matrix)) {
-      pred_matrix <- matrix(pred_matrix, ncol = 1)
+      pred_matrix = matrix(pred_matrix, ncol = 1)
     }
-    colnames(pred_matrix) <- data_columnnames[predict_vars]
+    colnames(pred_matrix) = data_columnnames[predict_vars]
     return(pred_matrix)
   }
 
@@ -1199,41 +1204,41 @@ predict.bgms <- function(object,
 #' @examples
 #' \donttest{
 #' # Fit a comparison model
-#' x <- Boredom[Boredom$language == "fr", 2:6]
-#' y <- Boredom[Boredom$language != "fr", 2:6]
-#' fit <- bgmCompare(x, y, chains = 2)
+#' x = Boredom[Boredom$language == "fr", 2:6]
+#' y = Boredom[Boredom$language != "fr", 2:6]
+#' fit = bgmCompare(x, y, chains = 2)
 #'
 #' # Predict conditional probabilities using group 1 parameters
-#' probs_g1 <- predict(fit, newdata = x[1:10, ], group = 1)
+#' probs_g1 = predict(fit, newdata = x[1:10, ], group = 1)
 #'
 #' # Predict responses using group 2 parameters
-#' pred_g2 <- predict(fit, newdata = y[1:10, ], group = 2, type = "response")
+#' pred_g2 = predict(fit, newdata = y[1:10, ], group = 2, type = "response")
 #' }
 #'
 #' @export
-predict.bgmCompare <- function(object,
-                               newdata,
-                               group,
-                               variables = NULL,
-                               type = c("probabilities", "response"),
-                               method = c("posterior-mean"),
-                               ...) {
-  type <- match.arg(type)
-  method <- match.arg(method)
+predict.bgmCompare = function(object,
+                              newdata,
+                              group,
+                              variables = NULL,
+                              type = c("probabilities", "response"),
+                              method = c("posterior-mean"),
+                              ...) {
+  type = match.arg(type)
+  method = match.arg(method)
 
   # Validate group argument
   if(missing(group)) {
     stop("Argument 'group' is required. Specify which group's parameters to use (1 to num_groups).")
   }
 
-  arguments <- extract_arguments(object)
-  num_groups <- arguments$num_groups
+  arguments = extract_arguments(object)
+  num_groups = arguments$num_groups
 
   if(!is.numeric(group) || length(group) != 1 || is.na(group) ||
-     group < 1 || group > num_groups) {
+    group < 1 || group > num_groups) {
     stop(sprintf("Argument 'group' must be an integer between 1 and %d.", num_groups))
   }
-  group <- as.integer(group)
+  group = as.integer(group)
 
   # Validate newdata
   if(missing(newdata)) {
@@ -1245,15 +1250,15 @@ predict.bgmCompare <- function(object,
   }
 
   if(inherits(newdata, "data.frame")) {
-    newdata <- data.matrix(newdata)
+    newdata = data.matrix(newdata)
   }
 
   # Extract model information
-  num_variables <- arguments$num_variables
-  num_categories <- arguments$num_categories
-  is_ordinal <- arguments$is_ordinal_variable
-  data_columnnames <- arguments$data_columnnames
-  projection <- arguments$projection
+  num_variables = arguments$num_variables
+  num_categories = arguments$num_categories
+  is_ordinal = arguments$is_ordinal_variable
+  data_columnnames = arguments$data_columnnames
+  projection = arguments$projection
 
   # Validate dimensions
   if(ncol(newdata) != num_variables) {
@@ -1264,64 +1269,64 @@ predict.bgmCompare <- function(object,
   }
 
   # Determine variable_type from is_ordinal
-  variable_type <- ifelse(is_ordinal, "ordinal", "blume-capel")
+  variable_type = ifelse(is_ordinal, "ordinal", "blume-capel")
 
   # Get baseline_category (for Blume-Capel variables)
-  baseline_category <- arguments$baseline_category
+  baseline_category = arguments$baseline_category
   if(is.null(baseline_category)) {
-    baseline_category <- rep(0L, num_variables)
+    baseline_category = rep(0L, num_variables)
   }
 
   # Determine which variables to predict
   if(is.null(variables)) {
-    predict_vars <- seq_len(num_variables)
+    predict_vars = seq_len(num_variables)
   } else if(is.character(variables)) {
-    predict_vars <- match(variables, data_columnnames)
+    predict_vars = match(variables, data_columnnames)
     if(anyNA(predict_vars)) {
       stop("Variable names not found: ", paste(variables[is.na(predict_vars)], collapse = ", "))
     }
   } else {
-    predict_vars <- as.integer(variables)
+    predict_vars = as.integer(variables)
     if(any(predict_vars < 1 | predict_vars > num_variables)) {
       stop("Variable indices must be between 1 and ", num_variables)
     }
   }
 
   # Recode data to 0-based integers
-  newdata_recoded <- recode_data_for_prediction(newdata, num_categories, is_ordinal)
+  newdata_recoded = recode_data_for_prediction(newdata, num_categories, is_ordinal)
 
   if(method == "posterior-mean") {
     # Extract group-specific parameters using projection
-    group_params <- extract_group_params(object)
+    group_params = extract_group_params(object)
 
-    main_group <- group_params$main_effects_groups[, group]
-    pairwise_group <- group_params$pairwise_effects_groups[, group]
+    main_group = group_params$main_effects_groups[, group]
+    pairwise_group = group_params$pairwise_effects_groups[, group]
 
     # Reconstruct threshold matrix
-    max_cats <- max(num_categories)
-    main <- matrix(NA_real_, nrow = num_variables, ncol = max_cats)
+    max_cats = max(num_categories)
+    main = matrix(NA_real_, nrow = num_variables, ncol = max_cats)
 
-    pos <- 1
+    pos = 1
     for(v in seq_len(num_variables)) {
       if(is_ordinal[v]) {
-        k <- num_categories[v]
-        main[v, 1:k] <- main_group[pos:(pos + k - 1)]
-        pos <- pos + k
+        k = num_categories[v]
+        main[v, 1:k] = main_group[pos:(pos + k - 1)]
+        pos = pos + k
       } else {
         # Blume-Capel: 2 parameters
-        main[v, 1:2] <- main_group[pos:(pos + 1)]
-        pos <- pos + 2
+        main[v, 1:2] = main_group[pos:(pos + 1)]
+        pos = pos + 2
       }
     }
 
     # Reconstruct interaction matrix
-    pairwise <- matrix(0, nrow = num_variables, ncol = num_variables)
-    pairwise[lower.tri(pairwise)] <- pairwise_group
-    pairwise <- pairwise + t(pairwise)
+    pairwise = matrix(0, nrow = num_variables, ncol = num_variables)
+    pairwise[lower.tri(pairwise)] = pairwise_group
+    pairwise = pairwise + t(pairwise)
 
-    probs <- compute_conditional_probs(
+    probs = compute_conditional_probs(
       observations = newdata_recoded,
-      predict_vars = predict_vars - 1L,  # C++ uses 0-based indexing
+      predict_vars = predict_vars - 1L, # C++ uses 0-based indexing
       pairwise = pairwise,
       main = main,
       num_categories = num_categories,
@@ -1330,23 +1335,23 @@ predict.bgmCompare <- function(object,
     )
 
     # Add names
-    names(probs) <- data_columnnames[predict_vars]
+    names(probs) = data_columnnames[predict_vars]
     for(v in seq_along(probs)) {
-      var_idx <- predict_vars[v]
-      n_cats <- num_categories[var_idx] + 1
-      colnames(probs[[v]]) <- paste0("cat_", 0:(n_cats - 1))
+      var_idx = predict_vars[v]
+      n_cats = num_categories[var_idx] + 1
+      colnames(probs[[v]]) = paste0("cat_", 0:(n_cats - 1))
     }
   }
 
   if(type == "response") {
     # Return predicted categories (mode)
-    pred_matrix <- sapply(probs, function(p) {
-      apply(p, 1, which.max) - 1L  # Convert to 0-based category
+    pred_matrix = sapply(probs, function(p) {
+      apply(p, 1, which.max) - 1L # Convert to 0-based category
     })
     if(is.vector(pred_matrix)) {
-      pred_matrix <- matrix(pred_matrix, ncol = 1)
+      pred_matrix = matrix(pred_matrix, ncol = 1)
     }
-    colnames(pred_matrix) <- data_columnnames[predict_vars]
+    colnames(pred_matrix) = data_columnnames[predict_vars]
     return(pred_matrix)
   }
 
@@ -1359,23 +1364,23 @@ predict.bgmCompare <- function(object,
 # ==============================================================================
 
 # Helper function to reconstruct threshold matrix from flat vector
-reconstruct_main <- function(main_vec, num_variables, num_categories, variable_type) {
+reconstruct_main = function(main_vec, num_variables, num_categories, variable_type) {
   if(length(variable_type) == 1) {
-    variable_type <- rep(variable_type, num_variables)
+    variable_type = rep(variable_type, num_variables)
   }
 
-  max_cats <- max(num_categories)
-  main <- matrix(NA, nrow = num_variables, ncol = max_cats)
+  max_cats = max(num_categories)
+  main = matrix(NA, nrow = num_variables, ncol = max_cats)
 
-  pos <- 1
+  pos = 1
   for(v in seq_len(num_variables)) {
     if(variable_type[v] != "blume-capel") {
-      k <- num_categories[v]
-      main[v, 1:k] <- main_vec[pos:(pos + k - 1)]
-      pos <- pos + k
+      k = num_categories[v]
+      main[v, 1:k] = main_vec[pos:(pos + k - 1)]
+      pos = pos + k
     } else {
-      main[v, 1:2] <- main_vec[pos:(pos + 1)]
-      pos <- pos + 2
+      main[v, 1:2] = main_vec[pos:(pos + 1)]
+      pos = pos + 2
     }
   }
 
@@ -1384,17 +1389,17 @@ reconstruct_main <- function(main_vec, num_variables, num_categories, variable_t
 
 
 # Helper function to recode data for prediction
-recode_data_for_prediction <- function(x, num_categories, is_ordinal) {
-  x <- as.matrix(x)
-  num_variables <- ncol(x)
+recode_data_for_prediction = function(x, num_categories, is_ordinal) {
+  x = as.matrix(x)
+  num_variables = ncol(x)
 
   for(v in seq_len(num_variables)) {
     if(is_ordinal[v]) {
       # For ordinal variables, ensure values are in 0:num_categories[v]
-      x[, v] <- as.integer(x[, v])
+      x[, v] = as.integer(x[, v])
       if(min(x[, v], na.rm = TRUE) > 0) {
         # Shift to 0-based if necessary
-        x[, v] <- x[, v] - min(x[, v], na.rm = TRUE)
+        x[, v] = x[, v] - min(x[, v], na.rm = TRUE)
       }
     }
   }
@@ -1415,11 +1420,11 @@ recode_data_for_prediction <- function(x, num_categories, is_ordinal) {
 #   (column named "precision_diag").
 #
 # @return p x p precision matrix (Omega).
-reconstruct_precision <- function(posterior_mean_pairwise, posterior_mean_main) {
-  omega <- posterior_mean_pairwise
+reconstruct_precision = function(posterior_mean_pairwise, posterior_mean_main) {
+  omega = posterior_mean_pairwise
   # Excluded edges (NA) have zero precision
-  omega[is.na(omega)] <- 0
-  diag(omega) <- as.numeric(posterior_mean_main)
+  omega[is.na(omega)] = 0
+  diag(omega) = as.numeric(posterior_mean_main)
   return(omega)
 }
 
@@ -1432,11 +1437,11 @@ reconstruct_precision <- function(posterior_mean_pairwise, posterior_mean_main) 
 # @param p Number of variables.
 #
 # @return p x p precision matrix (Omega).
-reconstruct_precision_from_draw <- function(pairwise_vec, main_vec, p) {
-  omega <- matrix(0, nrow = p, ncol = p)
-  omega[lower.tri(omega)] <- pairwise_vec
-  omega <- omega + t(omega)
-  diag(omega) <- main_vec
+reconstruct_precision_from_draw = function(pairwise_vec, main_vec, p) {
+  omega = matrix(0, nrow = p, ncol = p)
+  omega[lower.tri(omega)] = pairwise_vec
+  omega = omega + t(omega)
+  diag(omega) = main_vec
   return(omega)
 }
 
@@ -1453,102 +1458,101 @@ reconstruct_precision_from_draw <- function(pairwise_vec, main_vec, p) {
 # @param ndraws Number of posterior draws (NULL = all).
 #
 # @return See predict.bgms() documentation for GGM return format.
-predict_bgms_ggm <- function(object, newdata, predict_vars, data_columnnames,
-                             num_variables,
-                             type, method, ndraws) {
-
+predict_bgms_ggm = function(object, newdata, predict_vars, data_columnnames,
+                            num_variables,
+                            type, method, ndraws) {
   # Center newdata by its own column means
-  newdata_means <- colMeans(newdata)
-  newdata_centered <- sweep(newdata, 2, newdata_means)
+  newdata_means = colMeans(newdata)
+  newdata_centered = sweep(newdata, 2, newdata_means)
 
-  if (method == "posterior-mean") {
+  if(method == "posterior-mean") {
     # Reconstruct precision matrix from posterior means
-    omega <- reconstruct_precision(
+    omega = reconstruct_precision(
       object$posterior_mean_pairwise,
       object$posterior_mean_main
     )
 
-    result <- compute_conditional_ggm(
+    result = compute_conditional_ggm(
       observations = newdata_centered,
       predict_vars = predict_vars - 1L,
       precision = omega
     )
 
     # Add names and shift conditional means back to original scale
-    names(result) <- data_columnnames[predict_vars]
-    for (v in seq_along(result)) {
-      colnames(result[[v]]) <- c("mean", "sd")
-      result[[v]][, "mean"] <- result[[v]][, "mean"] + newdata_means[predict_vars[v]]
+    names(result) = data_columnnames[predict_vars]
+    for(v in seq_along(result)) {
+      colnames(result[[v]]) = c("mean", "sd")
+      result[[v]][, "mean"] = result[[v]][, "mean"] + newdata_means[predict_vars[v]]
     }
-
   } else {
     # Use posterior samples
-    pairwise_samples <- do.call(rbind, object$raw_samples$pairwise)
-    main_samples <- do.call(rbind, object$raw_samples$main)
+    pairwise_samples = do.call(rbind, object$raw_samples$pairwise)
+    main_samples = do.call(rbind, object$raw_samples$main)
 
-    total_draws <- nrow(pairwise_samples)
-    if (is.null(ndraws)) {
-      ndraws <- total_draws
+    total_draws = nrow(pairwise_samples)
+    if(is.null(ndraws)) {
+      ndraws = total_draws
     }
-    ndraws <- min(ndraws, total_draws)
+    ndraws = min(ndraws, total_draws)
 
-    draw_indices <- sample.int(total_draws, ndraws)
+    draw_indices = sample.int(total_draws, ndraws)
 
     # Collect predictions from each draw
-    all_preds <- vector("list", ndraws)
+    all_preds = vector("list", ndraws)
 
-    for (i in seq_len(ndraws)) {
-      idx <- draw_indices[i]
+    for(i in seq_len(ndraws)) {
+      idx = draw_indices[i]
 
-      omega <- reconstruct_precision_from_draw(
+      omega = reconstruct_precision_from_draw(
         pairwise_vec = pairwise_samples[idx, ],
         main_vec = main_samples[idx, ],
         p = num_variables
       )
 
-      preds <- compute_conditional_ggm(
+      preds = compute_conditional_ggm(
         observations = newdata_centered,
         predict_vars = predict_vars - 1L,
         precision = omega
       )
 
       # Shift conditional means back to original scale
-      for (v in seq_along(predict_vars)) {
-        preds[[v]][, 1] <- preds[[v]][, 1] + newdata_means[predict_vars[v]]
+      for(v in seq_along(predict_vars)) {
+        preds[[v]][, 1] = preds[[v]][, 1] + newdata_means[predict_vars[v]]
       }
 
-      all_preds[[i]] <- preds
+      all_preds[[i]] = preds
     }
 
     # Average over draws
-    result <- vector("list", length(predict_vars))
-    result_sd <- vector("list", length(predict_vars))
-    names(result) <- data_columnnames[predict_vars]
-    names(result_sd) <- data_columnnames[predict_vars]
+    result = vector("list", length(predict_vars))
+    result_sd = vector("list", length(predict_vars))
+    names(result) = data_columnnames[predict_vars]
+    names(result_sd) = data_columnnames[predict_vars]
 
-    for (v in seq_along(predict_vars)) {
+    for(v in seq_along(predict_vars)) {
       # Stack predictions: n x 2 x ndraws
-      var_preds <- lapply(all_preds, `[[`, v)
-      pred_array <- array(unlist(var_preds),
-                          dim = c(nrow(newdata), 2, ndraws))
+      var_preds = lapply(all_preds, `[[`, v)
+      pred_array = array(unlist(var_preds),
+        dim = c(nrow(newdata), 2, ndraws)
+      )
 
-      result[[v]] <- apply(pred_array, c(1, 2), mean)
-      result_sd[[v]] <- apply(pred_array, c(1, 2), sd)
+      result[[v]] = apply(pred_array, c(1, 2), mean)
+      result_sd[[v]] = apply(pred_array, c(1, 2), sd)
 
-      colnames(result[[v]]) <- c("mean", "sd")
-      colnames(result_sd[[v]]) <- c("mean", "sd")
+      colnames(result[[v]]) = c("mean", "sd")
+      colnames(result_sd[[v]]) = c("mean", "sd")
     }
 
-    attr(result, "sd") <- result_sd
+    attr(result, "sd") = result_sd
   }
 
-  if (type == "response") {
+  if(type == "response") {
     # Return conditional means
-    pred_matrix <- sapply(result, function(m) m[, "mean"])
-    if (is.vector(pred_matrix)) {
-      pred_matrix <- matrix(pred_matrix, ncol = 1)
+    pred_matrix = sapply(result, function(m) m[, "mean"])
+    if(is.vector(pred_matrix)) {
+      pred_matrix = matrix(pred_matrix, ncol = 1)
     }
-    colnames(pred_matrix) <- data_columnnames[predict_vars]
+    colnames(pred_matrix) = data_columnnames[predict_vars]
     return(pred_matrix)
   }
 
@@ -1573,19 +1577,18 @@ predict_bgms_ggm <- function(object, newdata, predict_vars, data_columnnames,
 # @param progress_type Integer progress type (0/1/2).
 #
 # @return See simulate.bgms() documentation.
-simulate_bgms_ggm <- function(object, nsim, seed, method, ndraws,
-                               num_variables, data_columnnames,
-                               cores, progress_type) {
-
-  if (method == "posterior-mean") {
+simulate_bgms_ggm = function(object, nsim, seed, method, ndraws,
+                             num_variables, data_columnnames,
+                             cores, progress_type) {
+  if(method == "posterior-mean") {
     # Reconstruct precision matrix: inject diagonal from posterior_mean_main
-    precision <- reconstruct_precision(
+    precision = reconstruct_precision(
       object$posterior_mean_pairwise,
       object$posterior_mean_main
     )
 
     # Call simulate_mrf with variable_type = "continuous"
-    result <- simulate_mrf(
+    result = simulate_mrf(
       num_states = nsim,
       num_variables = num_variables,
       pairwise = precision,
@@ -1594,26 +1597,25 @@ simulate_bgms_ggm <- function(object, nsim, seed, method, ndraws,
       seed = seed
     )
 
-    colnames(result) <- data_columnnames
+    colnames(result) = data_columnnames
     return(result)
-
   } else {
     # Use posterior samples with parallel processing
-    pairwise_samples <- do.call(rbind, object$raw_samples$pairwise)
-    main_samples <- do.call(rbind, object$raw_samples$main)
+    pairwise_samples = do.call(rbind, object$raw_samples$pairwise)
+    main_samples = do.call(rbind, object$raw_samples$main)
 
-    total_draws <- nrow(pairwise_samples)
-    if (is.null(ndraws)) {
-      ndraws <- total_draws
+    total_draws = nrow(pairwise_samples)
+    if(is.null(ndraws)) {
+      ndraws = total_draws
     }
-    ndraws <- min(ndraws, total_draws)
+    ndraws = min(ndraws, total_draws)
 
     # Sample which draws to use
-    if (!is.null(seed)) set.seed(seed)
-    draw_indices <- sample.int(total_draws, ndraws)
+    if(!is.null(seed)) set.seed(seed)
+    draw_indices = sample.int(total_draws, ndraws)
 
     # Call parallel C++ function for GGM
-    results <- run_ggm_simulation_parallel(
+    results = run_ggm_simulation_parallel(
       pairwise_samples = pairwise_samples,
       main_samples = main_samples,
       draw_indices = as.integer(draw_indices),
@@ -1626,8 +1628,8 @@ simulate_bgms_ggm <- function(object, nsim, seed, method, ndraws,
     )
 
     # Add column names
-    for (i in seq_along(results)) {
-      colnames(results[[i]]) <- data_columnnames
+    for(i in seq_along(results)) {
+      colnames(results[[i]]) = data_columnnames
     }
 
     return(results)

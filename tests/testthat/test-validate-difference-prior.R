@@ -9,7 +9,7 @@
 # ==============================================================================
 
 test_that("difference_selection = FALSE returns Not applicable with 1x1 matrix", {
-  result <- validate_difference_prior(
+  result = validate_difference_prior(
     difference_selection = FALSE,
     num_variables        = 5
   )
@@ -30,11 +30,11 @@ test_that("difference_selection NA errors", {
 # ==============================================================================
 
 test_that("Bernoulli with scalar 0.5 builds p x p matrix", {
-  result <- validate_difference_prior(
-    difference_selection  = TRUE,
-    difference_prior      = "Bernoulli",
+  result = validate_difference_prior(
+    difference_selection = TRUE,
+    difference_prior = "Bernoulli",
     difference_probability = 0.5,
-    num_variables         = 4
+    num_variables = 4
   )
   expect_true(result$difference_selection)
   expect_equal(result$difference_prior, "Bernoulli")
@@ -76,19 +76,19 @@ test_that("Bernoulli scalar: >= 1 errors", {
 # ==============================================================================
 
 test_that("Bernoulli with symmetric matrix accepted", {
-  mat <- matrix(0.3, 3, 3)
-  diag(mat) <- 0.5
-  result <- validate_difference_prior(
-    difference_selection  = TRUE,
-    difference_prior      = "Bernoulli",
+  mat = matrix(0.3, 3, 3)
+  diag(mat) = 0.5
+  result = validate_difference_prior(
+    difference_selection = TRUE,
+    difference_prior = "Bernoulli",
     difference_probability = mat,
-    num_variables         = 3
+    num_variables = 3
   )
   expect_equal(result$inclusion_probability_difference, mat)
 })
 
 test_that("Bernoulli matrix: non-symmetric errors", {
-  mat <- matrix(c(0.5, 0.3, 0.4, 0.5), 2, 2)
+  mat = matrix(c(0.5, 0.3, 0.4, 0.5), 2, 2)
   expect_error(
     validate_difference_prior(
       difference_selection = TRUE, difference_prior = "Bernoulli",
@@ -99,7 +99,7 @@ test_that("Bernoulli matrix: non-symmetric errors", {
 })
 
 test_that("Bernoulli matrix: wrong dimension errors", {
-  mat <- matrix(0.3, 2, 2)
+  mat = matrix(0.3, 2, 2)
   expect_error(
     validate_difference_prior(
       difference_selection = TRUE, difference_prior = "Bernoulli",
@@ -110,8 +110,8 @@ test_that("Bernoulli matrix: wrong dimension errors", {
 })
 
 test_that("Bernoulli matrix: NA in lower tri (diag=TRUE) errors", {
-  mat <- matrix(0.3, 3, 3)
-  mat[2, 2] <- NA
+  mat = matrix(0.3, 3, 3)
+  mat[2, 2] = NA
   expect_error(
     validate_difference_prior(
       difference_selection = TRUE, difference_prior = "Bernoulli",
@@ -122,9 +122,9 @@ test_that("Bernoulli matrix: NA in lower tri (diag=TRUE) errors", {
 })
 
 test_that("Bernoulli matrix: zero in lower tri errors", {
-  mat <- matrix(0.3, 3, 3)
-  mat[2, 1] <- 0
-  mat[1, 2] <- 0
+  mat = matrix(0.3, 3, 3)
+  mat[2, 1] = 0
+  mat[1, 2] = 0
   expect_error(
     validate_difference_prior(
       difference_selection = TRUE, difference_prior = "Bernoulli",
@@ -135,8 +135,8 @@ test_that("Bernoulli matrix: zero in lower tri errors", {
 })
 
 test_that("Bernoulli matrix: value >= 1 in lower tri errors", {
-  mat <- matrix(0.3, 3, 3)
-  mat[3, 3] <- 1.0
+  mat = matrix(0.3, 3, 3)
+  mat[3, 3] = 1.0
   expect_error(
     validate_difference_prior(
       difference_selection = TRUE, difference_prior = "Bernoulli",
@@ -161,7 +161,7 @@ test_that("Bernoulli with vector (not matrix) errors", {
 # ==============================================================================
 
 test_that("Beta-Bernoulli with valid params returns 0.5 matrix", {
-  result <- validate_difference_prior(
+  result = validate_difference_prior(
     difference_selection = TRUE,
     difference_prior     = "Beta-Bernoulli",
     num_variables        = 4,

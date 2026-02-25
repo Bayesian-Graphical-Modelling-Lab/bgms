@@ -13,11 +13,13 @@ bgms_style <- function() {
 
   # "a <- 1" -> "a = 1"
   style$token$force_assignment_op <- function(pd) {
-    to_replace <- pd$token == "EQ_ASSIGN"
-    pd$token[to_replace] <- "LEFT_ASSIGN"
+    to_replace <- pd$token %in% c("EQ_ASSIGN", "LEFT_ASSIGN")
+    pd$token[to_replace] <- "EQ_ASSIGN"
     pd$text[to_replace] <- "="
     pd
   }
+  style$transformers_drop$token$force_assignment_op <-
+    c("EQ_ASSIGN", "LEFT_ASSIGN")
   style
 }
 

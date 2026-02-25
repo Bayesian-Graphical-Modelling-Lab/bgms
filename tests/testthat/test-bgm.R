@@ -20,13 +20,13 @@
 
 test_that("bgm is reproducible", {
   # Use cached fixture as fit1, run one fresh fit as fit2 with same params
-  fit1 <- get_bgms_fit_ordinal()
-  
+  fit1 = get_bgms_fit_ordinal()
+
   data("Wenchuan", package = "bgms")
-  fit2 <- bgm(
+  fit2 = bgm(
     Wenchuan[1:50, 1:4],
     iter = 50, warmup = 100, chains = 2,
-    seed = 12345,  # Same seed as fixture
+    seed = 12345, # Same seed as fixture
     display_progress = "none"
   )
 
@@ -35,21 +35,21 @@ test_that("bgm is reproducible", {
 
 test_that("bgmCompare is reproducible", {
   # Use cached fixture as fit1, run one fresh fit as fit2 with same params
-  fit1 <- get_bgmcompare_fit_ordinal()
-  
+  fit1 = get_bgmcompare_fit_ordinal()
+
   data("Wenchuan", package = "bgms")
-  x <- Wenchuan[1:50, 1:4]
-  group_ind <- rep(1:2, each = 25)
-  fit2 <- bgmCompare(
+  x = Wenchuan[1:50, 1:4]
+  group_ind = rep(1:2, each = 25)
+  fit2 = bgmCompare(
     x = x, group_indicator = group_ind,
     iter = 50, warmup = 100, chains = 2,
-    seed = 54321,  # Same seed as fixture
+    seed = 54321, # Same seed as fixture
     display_progress = "none"
   )
 
-  combine_chains <- function(fit) {
-    pairs <- do.call(rbind, fit$raw_samples$pairwise)
-    mains <- do.call(rbind, fit$raw_samples$main)
+  combine_chains = function(fit) {
+    pairs = do.call(rbind, fit$raw_samples$pairwise)
+    mains = do.call(rbind, fit$raw_samples$main)
     cbind(mains, pairs)
   }
 
@@ -61,17 +61,17 @@ test_that("bgmCompare is reproducible", {
 # ==============================================================================
 
 test_that("bgm GGM is reproducible", {
-  fit1 <- get_bgms_fit_ggm()
+  fit1 = get_bgms_fit_ggm()
 
   set.seed(42)
-  x <- matrix(rnorm(200), nrow = 50, ncol = 4)
-  colnames(x) <- paste0("V", 1:4)
+  x = matrix(rnorm(200), nrow = 50, ncol = 4)
+  colnames(x) = paste0("V", 1:4)
 
-  fit2 <- bgm(
+  fit2 = bgm(
     x = x, variable_type = "continuous",
     edge_selection = TRUE,
     iter = 50, warmup = 100, chains = 1,
-    seed = 44442,  # Same seed as fixture
+    seed = 44442, # Same seed as fixture
     display_progress = "none"
   )
 
@@ -80,16 +80,16 @@ test_that("bgm GGM is reproducible", {
 })
 
 test_that("bgm GGM output has correct dimensions", {
-  fit <- get_bgms_fit_ggm()
-  args <- extract_arguments(fit)
-  p <- args$num_variables
+  fit = get_bgms_fit_ggm()
+  args = extract_arguments(fit)
+  p = args$num_variables
 
   # main: p diagonal precision elements
   expect_equal(nrow(fit$posterior_summary_main), p)
   expect_equal(nrow(fit$posterior_mean_main), p)
 
   # pairwise: p*(p-1)/2 off-diagonal elements
-  n_edges <- p * (p - 1) / 2
+  n_edges = p * (p - 1) / 2
   expect_equal(nrow(fit$posterior_summary_pairwise), n_edges)
   expect_equal(nrow(fit$posterior_mean_pairwise), p)
   expect_equal(ncol(fit$posterior_mean_pairwise), p)
@@ -106,7 +106,7 @@ test_that("bgm GGM output has correct dimensions", {
 })
 
 test_that("bgm GGM without edge selection omits indicators", {
-  fit <- get_bgms_fit_ggm_no_es()
+  fit = get_bgms_fit_ggm_no_es()
 
   expect_s3_class(fit, "bgms")
   expect_null(fit$posterior_summary_indicator)
@@ -114,7 +114,7 @@ test_that("bgm GGM without edge selection omits indicators", {
 })
 
 test_that("bgm GGM posterior precision diagonals are positive", {
-  fit <- get_bgms_fit_ggm_no_es()
+  fit = get_bgms_fit_ggm_no_es()
 
   expect_true(all(fit$posterior_summary_main$mean > 0))
 })
@@ -127,14 +127,14 @@ test_that("bgm GGM posterior precision diagonals are positive", {
 
 test_that("bgm with HMC is reproducible", {
   # Use cached fixture as fit1, run one fresh fit as fit2 with same params
-  fit1 <- get_bgms_fit_hmc()
-  
+  fit1 = get_bgms_fit_hmc()
+
   data("Wenchuan", package = "bgms")
-  fit2 <- bgm(
+  fit2 = bgm(
     Wenchuan[1:50, 1:4],
     update_method = "hamiltonian-mc",
     iter = 25, warmup = 50, chains = 1,
-    seed = 55555,  # Same seed as fixture
+    seed = 55555, # Same seed as fixture
     display_progress = "none"
   )
 
@@ -162,28 +162,29 @@ test_that("bgm GGM output has correct parameter ordering", {
   #   Row-major position 3 = (1,4), column-major position 3 = (2,3)
   #   Row-major position 7 = (2,5), column-major position 7 = (3,4)
   # Zero vs non-zero at these positions makes any swap detectable.
-  p <- 5
-  omega <- diag(p) * 2
-  omega[1, 2] <- omega[2, 1] <-  0.6
-  omega[1, 3] <- omega[3, 1] <- -0.4
-  omega[1, 4] <- omega[4, 1] <-  0.0    # swaps with V2-V3 under wrong ordering
-  omega[1, 5] <- omega[5, 1] <-  0.3
-  omega[2, 3] <- omega[3, 2] <-  0.0    # swaps with V1-V4 under wrong ordering
-  omega[2, 4] <- omega[4, 2] <- -0.5
-  omega[2, 5] <- omega[5, 2] <-  0.0    # swaps with V3-V4 under wrong ordering
-  omega[3, 4] <- omega[4, 3] <-  0.25
-  omega[3, 5] <- omega[5, 3] <-  0.0
-  omega[4, 5] <- omega[5, 4] <- -0.35
+  p = 5
+  omega = diag(p) * 2
+  omega[1, 2] = omega[2, 1] = 0.6
+  omega[1, 3] = omega[3, 1] = -0.4
+  omega[1, 4] = omega[4, 1] = 0.0 # swaps with V2-V3 under wrong ordering
+  omega[1, 5] = omega[5, 1] = 0.3
+  omega[2, 3] = omega[3, 2] = 0.0 # swaps with V1-V4 under wrong ordering
+  omega[2, 4] = omega[4, 2] = -0.5
+  omega[2, 5] = omega[5, 2] = 0.0 # swaps with V3-V4 under wrong ordering
+  omega[3, 4] = omega[4, 3] = 0.25
+  omega[3, 5] = omega[5, 3] = 0.0
+  omega[4, 5] = omega[5, 4] = -0.35
 
-  n <- 1000
-  x <- simulate_mrf(
+  n = 1000
+  x = simulate_mrf(
     num_states = n, num_variables = p, pairwise = omega,
     variable_type = "continuous", seed = 42
   )
-  colnames(x) <- paste0("V", 1:p)
+  colnames(x) = paste0("V", 1:p)
 
-  fit <- bgm(
-    x, variable_type = "continuous",
+  fit = bgm(
+    x,
+    variable_type = "continuous",
     iter = 500, warmup = 500, chains = 1,
     edge_selection = FALSE, seed = 42,
     display_progress = "none"
@@ -199,7 +200,7 @@ test_that("bgm GGM output has correct parameter ordering", {
   )
 
   # Extractor column means -> matrix positions
-  pw_means <- colMeans(extract_pairwise_interactions(fit))
+  pw_means = colMeans(extract_pairwise_interactions(fit))
   expect_true(
     all(check_extractor_matrix_consistency(pw_means, fit$posterior_mean_pairwise)),
     info = "GGM extract_pairwise_interactions() names do not match matrix positions"
@@ -209,26 +210,34 @@ test_that("bgm GGM output has correct parameter ordering", {
   # V1-V4 (true = 0) should be near zero, not ~0.25 (V3-V4's value)
   expect_true(
     abs(fit$posterior_mean_pairwise["V1", "V4"]) < 0.15,
-    info = sprintf("V1-V4 should be ~0 but is %.3f (possible swap with V2-V3)",
-                   fit$posterior_mean_pairwise["V1", "V4"])
+    info = sprintf(
+      "V1-V4 should be ~0 but is %.3f (possible swap with V2-V3)",
+      fit$posterior_mean_pairwise["V1", "V4"]
+    )
   )
   # V2-V3 (true = 0) should be near zero, not ~0.6 (V1-V2's value)
   expect_true(
     abs(fit$posterior_mean_pairwise["V2", "V3"]) < 0.15,
-    info = sprintf("V2-V3 should be ~0 but is %.3f (possible swap with V1-V4)",
-                   fit$posterior_mean_pairwise["V2", "V3"])
+    info = sprintf(
+      "V2-V3 should be ~0 but is %.3f (possible swap with V1-V4)",
+      fit$posterior_mean_pairwise["V2", "V3"]
+    )
   )
   # V3-V4 (true = 0.25) should NOT be near zero
   expect_true(
     fit$posterior_mean_pairwise["V3", "V4"] > 0.1,
-    info = sprintf("V3-V4 should be ~0.25 but is %.3f (possible swap with V2-V5)",
-                   fit$posterior_mean_pairwise["V3", "V4"])
+    info = sprintf(
+      "V3-V4 should be ~0.25 but is %.3f (possible swap with V2-V5)",
+      fit$posterior_mean_pairwise["V3", "V4"]
+    )
   )
   # V2-V4 (true = -0.5) should be strongly negative
   expect_true(
     fit$posterior_mean_pairwise["V2", "V4"] < -0.3,
-    info = sprintf("V2-V4 should be ~-0.5 but is %.3f",
-                   fit$posterior_mean_pairwise["V2", "V4"])
+    info = sprintf(
+      "V2-V4 should be ~-0.5 but is %.3f",
+      fit$posterior_mean_pairwise["V2", "V4"]
+    )
   )
 })
 
@@ -236,10 +245,11 @@ test_that("bgm OMRF output has correct parameter ordering", {
   skip_on_cran()
 
   data("Wenchuan", package = "bgms")
-  x <- na.omit(Wenchuan[, 1:5])  # p=5 to detect row/column-major bugs
+  x = na.omit(Wenchuan[, 1:5]) # p=5 to detect row/column-major bugs
 
-  fit <- bgm(
-    x, iter = 1000, warmup = 500, chains = 1,
+  fit = bgm(
+    x,
+    iter = 1000, warmup = 500, chains = 1,
     edge_selection = TRUE, seed = 42,
     display_progress = "none"
   )
@@ -254,7 +264,7 @@ test_that("bgm OMRF output has correct parameter ordering", {
   )
 
   # Extractor column means -> matrix positions
-  pw_means <- colMeans(extract_pairwise_interactions(fit))
+  pw_means = colMeans(extract_pairwise_interactions(fit))
   expect_true(
     all(check_extractor_matrix_consistency(pw_means, fit$posterior_mean_pairwise)),
     info = "OMRF extract_pairwise_interactions() names do not match matrix positions"
@@ -285,28 +295,29 @@ test_that("bgm OMRF output has correct parameter ordering", {
 test_that("bgm GGM multi-chain produces valid Rhat", {
   skip_on_cran()
 
-  p <- 5
-  omega <- diag(p) * 2
-  omega[1, 2] <- omega[2, 1] <- 0.5
-  omega[2, 3] <- omega[3, 2] <- -0.4
-  omega[3, 4] <- omega[4, 3] <- 0.3
+  p = 5
+  omega = diag(p) * 2
+  omega[1, 2] = omega[2, 1] = 0.5
+  omega[2, 3] = omega[3, 2] = -0.4
+  omega[3, 4] = omega[4, 3] = 0.3
 
-  x <- simulate_mrf(
+  x = simulate_mrf(
     num_states = 200, num_variables = p, pairwise = omega,
     variable_type = "continuous", seed = 101
   )
-  colnames(x) <- paste0("V", 1:p)
+  colnames(x) = paste0("V", 1:p)
 
-  fit <- bgm(
-    x, variable_type = "continuous",
+  fit = bgm(
+    x,
+    variable_type = "continuous",
     edge_selection = FALSE,
     iter = 1000, warmup = 500, chains = 2,
     seed = 202, display_progress = "none"
   )
 
   # All Rhat values should be below 1.1 for converged chains
-  rhat_main <- fit$posterior_summary_main$Rhat
-  rhat_pair <- fit$posterior_summary_pairwise$Rhat
+  rhat_main = fit$posterior_summary_main$Rhat
+  rhat_pair = fit$posterior_summary_pairwise$Rhat
 
   expect_true(
     all(rhat_main < 1.1),
@@ -324,40 +335,41 @@ test_that("bgm GGM multi-chain produces valid Rhat", {
 test_that("bgm GGM posterior mean approaches MLE for large n", {
   # For large n without edge selection, the posterior mean should approach
   # the sample precision matrix, since the likelihood dominates the prior.
-  p <- 4
-  omega_true <- diag(p)
-  omega_true[1, 2] <- omega_true[2, 1] <- 0.4
-  omega_true[3, 4] <- omega_true[4, 3] <- -0.3
+  p = 4
+  omega_true = diag(p)
+  omega_true[1, 2] = omega_true[2, 1] = 0.4
+  omega_true[3, 4] = omega_true[4, 3] = -0.3
 
-  n <- 500
-  x <- simulate_mrf(
+  n = 500
+  x = simulate_mrf(
     num_states = n, num_variables = p, pairwise = omega_true,
     variable_type = "continuous", seed = 42
   )
-  colnames(x) <- paste0("V", 1:p)
+  colnames(x) = paste0("V", 1:p)
 
   # MLE of the precision matrix = solve of sample covariance (centered)
-  x_centered <- scale(x, center = TRUE, scale = FALSE)
-  S <- crossprod(x_centered) / n
-  mle_precision <- solve(S)
+  x_centered = scale(x, center = TRUE, scale = FALSE)
+  S = crossprod(x_centered) / n
+  mle_precision = solve(S)
 
-  fit <- bgm(
-    x, variable_type = "continuous",
+  fit = bgm(
+    x,
+    variable_type = "continuous",
     edge_selection = FALSE,
     iter = 500, warmup = 500, chains = 1,
     seed = 43, display_progress = "none"
   )
 
   # Reconstruct posterior mean precision
-  omega_hat <- fit$posterior_mean_pairwise
-  diag(omega_hat) <- as.numeric(fit$posterior_mean_main)
+  omega_hat = fit$posterior_mean_pairwise
+  diag(omega_hat) = as.numeric(fit$posterior_mean_main)
 
   # Posterior mean should correlate highly with MLE (likelihood dominates)
-  cor_offdiag <- cor(
+  cor_offdiag = cor(
     omega_hat[lower.tri(omega_hat)],
     mle_precision[lower.tri(mle_precision)]
   )
-  cor_diag <- cor(diag(omega_hat), diag(mle_precision))
+  cor_diag = cor(diag(omega_hat), diag(mle_precision))
 
   expect_true(
     cor_offdiag > 0.95,
@@ -374,16 +386,17 @@ test_that("bgm GGM posterior mean approaches MLE for large n", {
 
 test_that("bgm GGM with listwise deletion drops rows correctly", {
   set.seed(42)
-  x <- matrix(rnorm(200), nrow = 50, ncol = 4)
-  colnames(x) <- paste0("V", 1:4)
+  x = matrix(rnorm(200), nrow = 50, ncol = 4)
+  colnames(x) = paste0("V", 1:4)
 
   # Introduce NAs
-  x[5, 2] <- NA
-  x[10, 3] <- NA
-  x[20, 1] <- NA
+  x[5, 2] = NA
+  x[10, 3] = NA
+  x[20, 1] = NA
 
-  fit <- bgm(
-    x, variable_type = "continuous",
+  fit = bgm(
+    x,
+    variable_type = "continuous",
     na_action = "listwise",
     edge_selection = FALSE,
     iter = 50, warmup = 100, chains = 1,
@@ -397,14 +410,17 @@ test_that("bgm GGM with listwise deletion drops rows correctly", {
 
 test_that("GGM with na_action='impute' runs without error", {
   set.seed(1)
-  n <- 20; p <- 3
-  x <- matrix(rnorm(n * p), n, p)
-  colnames(x) <- paste0("V", 1:p)
-  x[c(1, 5, 10)] <- NA
+  n = 20
+  p = 3
+  x = matrix(rnorm(n * p), n, p)
+  colnames(x) = paste0("V", 1:p)
+  x[c(1, 5, 10)] = NA
 
-  fit <- bgm(x, iter = 50, warmup = 50, chains = 1,
-             variable_type = "continuous",
-             na_action = "impute", display_progress = "none")
+  fit = bgm(x,
+    iter = 50, warmup = 50, chains = 1,
+    variable_type = "continuous",
+    na_action = "impute", display_progress = "none"
+  )
 
   expect_s3_class(fit, "bgms")
   expect_true(extract_arguments(fit)$na_impute)
@@ -415,33 +431,38 @@ test_that("GGM imputation preserves posterior accuracy", {
   skip_on_cran()
   set.seed(42)
 
-  p <- 6; n <- 300
+  p = 6
+  n = 300
   # Known sparse precision matrix
-  Omega_true <- diag(p)
-  Omega_true[1,2] <- Omega_true[2,1] <- 0.4
-  Omega_true[3,4] <- Omega_true[4,3] <- -0.3
+  Omega_true = diag(p)
+  Omega_true[1, 2] = Omega_true[2, 1] = 0.4
+  Omega_true[3, 4] = Omega_true[4, 3] = -0.3
 
-  Sigma <- solve(Omega_true)
-  x_full <- MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
-  colnames(x_full) <- paste0("V", 1:p)
+  Sigma = solve(Omega_true)
+  x_full = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
+  colnames(x_full) = paste0("V", 1:p)
 
   # Fit on complete data
-  fit_full <- bgm(x_full, iter = 2000, edge_selection = FALSE,
-                  variable_type = "continuous",
-                  chains = 1, display_progress = "none")
+  fit_full = bgm(x_full,
+    iter = 2000, edge_selection = FALSE,
+    variable_type = "continuous",
+    chains = 1, display_progress = "none"
+  )
 
   # Introduce 5% MCAR missing data
-  x_miss <- x_full
-  miss_idx <- sample(length(x_miss), size = round(0.05 * length(x_miss)))
-  x_miss[miss_idx] <- NA
+  x_miss = x_full
+  miss_idx = sample(length(x_miss), size = round(0.05 * length(x_miss)))
+  x_miss[miss_idx] = NA
 
-  fit_miss <- bgm(x_miss, iter = 2000, edge_selection = FALSE,
-                  variable_type = "continuous",
-                  na_action = "impute", chains = 1,
-                  display_progress = "none")
+  fit_miss = bgm(x_miss,
+    iter = 2000, edge_selection = FALSE,
+    variable_type = "continuous",
+    na_action = "impute", chains = 1,
+    display_progress = "none"
+  )
 
   # Posterior means should be correlated > 0.85
-  cor_pairwise <- cor(
+  cor_pairwise = cor(
     as.numeric(fit_full$posterior_mean_pairwise),
     as.numeric(fit_miss$posterior_mean_pairwise)
   )
@@ -452,27 +473,32 @@ test_that("GGM imputation gives comparable results to listwise", {
   skip_on_cran()
   set.seed(123)
 
-  p <- 5; n <- 200
-  x <- matrix(rnorm(n * p), n, p)
-  colnames(x) <- paste0("V", 1:p)
+  p = 5
+  n = 200
+  x = matrix(rnorm(n * p), n, p)
+  colnames(x) = paste0("V", 1:p)
 
   # Introduce 3% missing
-  miss_idx <- sample(length(x), size = round(0.03 * length(x)))
-  x[miss_idx] <- NA
+  miss_idx = sample(length(x), size = round(0.03 * length(x)))
+  x[miss_idx] = NA
 
-  fit_listwise <- bgm(x, iter = 500, na_action = "listwise",
-                      variable_type = "continuous",
-                      edge_selection = FALSE, chains = 1,
-                      display_progress = "none")
-  fit_impute   <- bgm(x, iter = 500, na_action = "impute",
-                      variable_type = "continuous",
-                      edge_selection = FALSE, chains = 1,
-                      display_progress = "none")
+  fit_listwise = bgm(x,
+    iter = 500, na_action = "listwise",
+    variable_type = "continuous",
+    edge_selection = FALSE, chains = 1,
+    display_progress = "none"
+  )
+  fit_impute = bgm(x,
+    iter = 500, na_action = "impute",
+    variable_type = "continuous",
+    edge_selection = FALSE, chains = 1,
+    display_progress = "none"
+  )
 
   expect_s3_class(fit_listwise, "bgms")
   expect_s3_class(fit_impute, "bgms")
 
-  cor_val <- cor(
+  cor_val = cor(
     as.numeric(fit_listwise$posterior_mean_pairwise),
     as.numeric(fit_impute$posterior_mean_pairwise)
   )
@@ -481,62 +507,73 @@ test_that("GGM imputation gives comparable results to listwise", {
 
 test_that("GGM imputation handles edge cases", {
   set.seed(1)
-  n <- 50; p <- 4
-  x <- matrix(rnorm(n * p), n, p)
-  colnames(x) <- paste0("V", 1:p)
+  n = 50
+  p = 4
+  x = matrix(rnorm(n * p), n, p)
+  colnames(x) = paste0("V", 1:p)
 
   # Single missing value
-  x[1, 1] <- NA
-  fit <- bgm(x, iter = 50, warmup = 50, chains = 1,
-             variable_type = "continuous",
-             na_action = "impute", display_progress = "none")
+  x[1, 1] = NA
+  fit = bgm(x,
+    iter = 50, warmup = 50, chains = 1,
+    variable_type = "continuous",
+    na_action = "impute", display_progress = "none"
+  )
   expect_s3_class(fit, "bgms")
 
   # Multiple missing in same row
-  x[2, 1:3] <- NA
-  fit2 <- bgm(x, iter = 50, warmup = 50, chains = 1,
-              variable_type = "continuous",
-              na_action = "impute", display_progress = "none")
+  x[2, 1:3] = NA
+  fit2 = bgm(x,
+    iter = 50, warmup = 50, chains = 1,
+    variable_type = "continuous",
+    na_action = "impute", display_progress = "none"
+  )
   expect_s3_class(fit2, "bgms")
 })
 
 test_that("GGM impute: posterior samples remain finite and bounded", {
   set.seed(1)
-  x <- matrix(rnorm(500), 100, 5)
-  colnames(x) <- paste0("V", 1:5)
-  x[sample(500, 25)] <- NA
-  fit <- bgm(x, iter = 50, warmup = 50, chains = 1,
-             variable_type = "continuous",
-             na_action = "impute", edge_selection = FALSE,
-             display_progress = "none")
-  samples <- fit$raw_samples$pairwise[[1]]
+  x = matrix(rnorm(500), 100, 5)
+  colnames(x) = paste0("V", 1:5)
+  x[sample(500, 25)] = NA
+  fit = bgm(x,
+    iter = 50, warmup = 50, chains = 1,
+    variable_type = "continuous",
+    na_action = "impute", edge_selection = FALSE,
+    display_progress = "none"
+  )
+  samples = fit$raw_samples$pairwise[[1]]
   expect_true(all(is.finite(samples)))
   expect_true(all(abs(samples) < 100))
 })
 
 test_that("GGM with na_action='impute' but no NAs works transparently", {
-  x <- matrix(rnorm(100), 20, 5)
-  colnames(x) <- paste0("V", 1:5)
-  fit <- bgm(x, iter = 50, warmup = 50, chains = 1,
-             variable_type = "continuous",
-             na_action = "impute", display_progress = "none")
+  x = matrix(rnorm(100), 20, 5)
+  colnames(x) = paste0("V", 1:5)
+  fit = bgm(x,
+    iter = 50, warmup = 50, chains = 1,
+    variable_type = "continuous",
+    na_action = "impute", display_progress = "none"
+  )
   expect_s3_class(fit, "bgms")
 })
 
 test_that("GGM impute: entire-column-missing gives clear error", {
-  x <- matrix(rnorm(100), 20, 5)
-  colnames(x) <- paste0("V", 1:5)
-  x[, 3] <- NA
+  x = matrix(rnorm(100), 20, 5)
+  colnames(x) = paste0("V", 1:5)
+  x[, 3] = NA
   expect_error(
-    bgm(x, iter = 50, variable_type = "continuous",
-        na_action = "impute", display_progress = "none"),
+    bgm(x,
+      iter = 50, variable_type = "continuous",
+      na_action = "impute", display_progress = "none"
+    ),
     "no observed values"
   )
 })
 
 test_that("bgm GGM arguments do not leak internal fields", {
-  fit <- get_bgms_fit_ggm()
-  args <- extract_arguments(fit)
+  fit = get_bgms_fit_ggm()
+  args = extract_arguments(fit)
 
   expect_null(args$column_means)
 })
@@ -547,27 +584,28 @@ test_that("bgm GGM arguments do not leak internal fields", {
 test_that("bgm GGM with p = 15 produces valid output", {
   skip_on_cran()
 
-  p <- 15
+  p = 15
   # Diagonally dominant precision matrix (ensures positive definiteness)
-  omega <- diag(p) * 3
+  omega = diag(p) * 3
   set.seed(77)
-  for (i in 1:(p - 1)) {
-    for (j in (i + 1):p) {
-      if (runif(1) < 0.2) {  # ~20% non-zero edges
-        val <- runif(1, -0.3, 0.3)
-        omega[i, j] <- omega[j, i] <- val
+  for(i in 1:(p - 1)) {
+    for(j in (i + 1):p) {
+      if(runif(1) < 0.2) { # ~20% non-zero edges
+        val = runif(1, -0.3, 0.3)
+        omega[i, j] = omega[j, i] = val
       }
     }
   }
 
-  x <- simulate_mrf(
+  x = simulate_mrf(
     num_states = 300, num_variables = p, pairwise = omega,
     variable_type = "continuous", seed = 88
   )
-  colnames(x) <- paste0("V", 1:p)
+  colnames(x) = paste0("V", 1:p)
 
-  fit <- bgm(
-    x, variable_type = "continuous",
+  fit = bgm(
+    x,
+    variable_type = "continuous",
     edge_selection = FALSE,
     iter = 500, warmup = 500, chains = 1,
     seed = 99, display_progress = "none"
@@ -584,7 +622,7 @@ test_that("bgm GGM with p = 15 produces valid output", {
   expect_true(all(is.finite(fit$posterior_summary_pairwise$mean)))
 
   # Correct dimensions
-  n_edges <- p * (p - 1) / 2
+  n_edges = p * (p - 1) / 2
   expect_equal(nrow(fit$posterior_summary_main), p)
   expect_equal(nrow(fit$posterior_summary_pairwise), n_edges)
 })
@@ -595,39 +633,40 @@ test_that("bgm GGM with p = 15 produces valid output", {
 test_that("bgm GGM edge selection discriminates true edges", {
   skip_on_cran()
 
-  p <- 6
-  omega_true <- diag(p) * 2
+  p = 6
+  omega_true = diag(p) * 2
   # 5 true edges (sparse graph)
-  omega_true[1, 2] <- omega_true[2, 1] <-  0.6
-  omega_true[2, 3] <- omega_true[3, 2] <- -0.5
-  omega_true[3, 4] <- omega_true[4, 3] <-  0.4
-  omega_true[4, 5] <- omega_true[5, 4] <- -0.5
-  omega_true[5, 6] <- omega_true[6, 5] <-  0.3
+  omega_true[1, 2] = omega_true[2, 1] = 0.6
+  omega_true[2, 3] = omega_true[3, 2] = -0.5
+  omega_true[3, 4] = omega_true[4, 3] = 0.4
+  omega_true[4, 5] = omega_true[5, 4] = -0.5
+  omega_true[5, 6] = omega_true[6, 5] = 0.3
 
   # True adjacency
-  adj_true <- (omega_true != 0)
-  diag(adj_true) <- FALSE
-  true_edges <- adj_true[lower.tri(adj_true)]
+  adj_true = (omega_true != 0)
+  diag(adj_true) = FALSE
+  true_edges = adj_true[lower.tri(adj_true)]
 
-  x <- simulate_mrf(
+  x = simulate_mrf(
     num_states = 500, num_variables = p, pairwise = omega_true,
     variable_type = "continuous", seed = 321
   )
-  colnames(x) <- paste0("V", 1:p)
+  colnames(x) = paste0("V", 1:p)
 
-  fit <- bgm(
-    x, variable_type = "continuous",
+  fit = bgm(
+    x,
+    variable_type = "continuous",
     edge_selection = TRUE,
     iter = 3000, warmup = 500, chains = 2,
     seed = 654, display_progress = "none"
   )
 
   # Posterior inclusion probabilities
-  pip <- fit$posterior_mean_indicator[lower.tri(fit$posterior_mean_indicator)]
+  pip = fit$posterior_mean_indicator[lower.tri(fit$posterior_mean_indicator)]
 
   # True edges should have higher PIPs than non-edges on average
-  mean_pip_true  <- mean(pip[true_edges])
-  mean_pip_false <- mean(pip[!true_edges])
+  mean_pip_true = mean(pip[true_edges])
+  mean_pip_false = mean(pip[!true_edges])
 
   expect_true(
     mean_pip_true > mean_pip_false,
@@ -662,45 +701,46 @@ test_that("bgm GGM edge selection discriminates true edges", {
 test_that("bgm GGM implied regression matches OLS for large n", {
   skip_on_cran()
 
-  p <- 5
-  omega_true <- diag(p) * 2
-  omega_true[1, 2] <- omega_true[2, 1] <-  0.5
-  omega_true[2, 3] <- omega_true[3, 2] <- -0.4
-  omega_true[3, 4] <- omega_true[4, 3] <-  0.3
-  omega_true[1, 5] <- omega_true[5, 1] <-  0.2
+  p = 5
+  omega_true = diag(p) * 2
+  omega_true[1, 2] = omega_true[2, 1] = 0.5
+  omega_true[2, 3] = omega_true[3, 2] = -0.4
+  omega_true[3, 4] = omega_true[4, 3] = 0.3
+  omega_true[1, 5] = omega_true[5, 1] = 0.2
 
-  n <- 1000
-  x <- simulate_mrf(
+  n = 1000
+  x = simulate_mrf(
     num_states = n, num_variables = p, pairwise = omega_true,
     variable_type = "continuous", seed = 111
   )
-  colnames(x) <- paste0("V", 1:p)
+  colnames(x) = paste0("V", 1:p)
 
-  fit <- bgm(
-    x, variable_type = "continuous",
+  fit = bgm(
+    x,
+    variable_type = "continuous",
     edge_selection = FALSE,
     iter = 2000, warmup = 500, chains = 2,
     seed = 222, display_progress = "none"
   )
 
   # Reconstruct posterior mean precision matrix
-  omega_hat <- fit$posterior_mean_pairwise
-  diag(omega_hat) <- as.numeric(fit$posterior_mean_main)
+  omega_hat = fit$posterior_mean_pairwise
+  diag(omega_hat) = as.numeric(fit$posterior_mean_main)
 
   # For each variable j, the implied regression coefficients are:
   #   beta_j = -omega_{j,-j} / omega_{jj}
   # This should match OLS coefficients from the data.
-  x_centered <- sweep(x, 2, colMeans(x))
+  x_centered = sweep(x, 2, colMeans(x))
 
-  for (j in seq_len(p)) {
-    rest <- setdiff(seq_len(p), j)
+  for(j in seq_len(p)) {
+    rest = setdiff(seq_len(p), j)
 
     # Implied regression from precision matrix
-    beta_implied <- -omega_hat[rest, j] / omega_hat[j, j]
+    beta_implied = -omega_hat[rest, j] / omega_hat[j, j]
 
     # OLS regression on centered data
-    ols_fit <- lm(x_centered[, j] ~ x_centered[, rest] - 1)
-    beta_ols <- coef(ols_fit)
+    ols_fit = lm(x_centered[, j] ~ x_centered[, rest] - 1)
+    beta_ols = coef(ols_fit)
 
     # For large n, these should agree closely
     expect_true(

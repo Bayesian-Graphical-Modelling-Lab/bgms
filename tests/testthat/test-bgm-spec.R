@@ -8,38 +8,38 @@
 # ==============================================================================
 
 # Minimal continuous data (GGM)
-make_continuous_data <- function(n = 20, p = 3) {
+make_continuous_data = function(n = 20, p = 3) {
   set.seed(42)
-  x <- matrix(rnorm(n * p), nrow = n, ncol = p)
-  colnames(x) <- paste0("V", seq_len(p))
+  x = matrix(rnorm(n * p), nrow = n, ncol = p)
+  colnames(x) = paste0("V", seq_len(p))
   x
 }
 
 # Minimal ordinal data (OMRF / Compare) — values 0,1,2
-make_ordinal_data <- function(n = 30, p = 3, max_cat = 2) {
+make_ordinal_data = function(n = 30, p = 3, max_cat = 2) {
   set.seed(99)
-  x <- matrix(sample(0:max_cat, n * p, replace = TRUE), nrow = n, ncol = p)
-  colnames(x) <- paste0("V", seq_len(p))
+  x = matrix(sample(0:max_cat, n * p, replace = TRUE), nrow = n, ncol = p)
+  colnames(x) = paste0("V", seq_len(p))
   x
 }
 
 # Helper that calls bgm_spec() with sensible defaults, easy to override
-spec <- function(...) {
-  defaults <- list(
-    x              = make_ordinal_data(),
-    model_type     = "omrf",
-    variable_type  = "ordinal",
-    na_action      = "listwise",
-    update_method  = "nuts",
-    iter           = 500L,
-    warmup         = 100L,
-    chains         = 2L,
-    cores          = 1L,
-    seed           = 1L,
+spec = function(...) {
+  defaults = list(
+    x = make_ordinal_data(),
+    model_type = "omrf",
+    variable_type = "ordinal",
+    na_action = "listwise",
+    update_method = "nuts",
+    iter = 500L,
+    warmup = 100L,
+    chains = 2L,
+    cores = 1L,
+    seed = 1L,
     display_progress = "none",
-    verbose        = FALSE
+    verbose = FALSE
   )
-  args <- modifyList(defaults, list(...))
+  args = modifyList(defaults, list(...))
   do.call(bgm_spec, args)
 }
 
@@ -49,15 +49,17 @@ spec <- function(...) {
 # ==============================================================================
 
 test_that("bgm_spec returns an object of class 'bgm_spec'", {
-  s <- spec()
+  s = spec()
   expect_s3_class(s, "bgm_spec")
 })
 
 test_that("bgm_spec has top-level elements", {
-  s <- spec()
-  nms <- names(s)
-  expected <- c("model_type", "data", "variables", "missing",
-                "prior", "sampler", "precomputed")
+  s = spec()
+  nms = names(s)
+  expected = c(
+    "model_type", "data", "variables", "missing",
+    "prior", "sampler", "precomputed"
+  )
   expect_true(all(expected %in% nms))
 })
 
@@ -67,24 +69,30 @@ test_that("bgm_spec has top-level elements", {
 # ==============================================================================
 
 test_that("GGM spec: model_type resolved correctly", {
-  s <- spec(x = make_continuous_data(), model_type = "ggm",
-            variable_type = "continuous",
-            update_method = "adaptive-metropolis")
+  s = spec(
+    x = make_continuous_data(), model_type = "ggm",
+    variable_type = "continuous",
+    update_method = "adaptive-metropolis"
+  )
   expect_equal(s$model_type, "ggm")
   expect_true(s$variables$is_continuous)
 })
 
 test_that("GGM spec: sampler forced to adaptive-metropolis", {
-  s <- spec(x = make_continuous_data(), model_type = "ggm",
-            variable_type = "continuous",
-            update_method = "adaptive-metropolis")
+  s = spec(
+    x = make_continuous_data(), model_type = "ggm",
+    variable_type = "continuous",
+    update_method = "adaptive-metropolis"
+  )
   expect_equal(s$sampler$update_method, "adaptive-metropolis")
 })
 
 test_that("GGM spec: data sub-list fields", {
-  x <- make_continuous_data(n = 15, p = 4)
-  s <- spec(x = x, model_type = "ggm", variable_type = "continuous",
-            update_method = "adaptive-metropolis")
+  x = make_continuous_data(n = 15, p = 4)
+  s = spec(
+    x = x, model_type = "ggm", variable_type = "continuous",
+    update_method = "adaptive-metropolis"
+  )
   expect_true(is.matrix(s$data$x))
   expect_equal(s$data$num_variables, 4L)
   expect_equal(s$data$num_cases, 15L)
@@ -92,43 +100,51 @@ test_that("GGM spec: data sub-list fields", {
 })
 
 test_that("GGM spec: edge_selection = FALSE sets edge_prior to 'Not Applicable'", {
-  s <- spec(x = make_continuous_data(), model_type = "ggm",
-            variable_type = "continuous",
-            update_method = "adaptive-metropolis",
-            edge_selection = FALSE)
+  s = spec(
+    x = make_continuous_data(), model_type = "ggm",
+    variable_type = "continuous",
+    update_method = "adaptive-metropolis",
+    edge_selection = FALSE
+  )
   expect_false(s$prior$edge_selection)
   expect_equal(s$prior$edge_prior, "Not Applicable")
 })
 
 test_that("GGM spec: edge_selection = TRUE with Bernoulli prior", {
-  s <- spec(x = make_continuous_data(), model_type = "ggm",
-            variable_type = "continuous",
-            update_method = "adaptive-metropolis",
-            edge_selection = TRUE,
-            edge_prior = "Bernoulli",
-            inclusion_probability = 0.3)
+  s = spec(
+    x = make_continuous_data(), model_type = "ggm",
+    variable_type = "continuous",
+    update_method = "adaptive-metropolis",
+    edge_selection = TRUE,
+    edge_prior = "Bernoulli",
+    inclusion_probability = 0.3
+  )
   expect_true(s$prior$edge_selection)
   expect_equal(s$prior$edge_prior, "Bernoulli")
   expect_true(is.matrix(s$prior$inclusion_probability))
   # Off-diagonal should be 0.3
-  nv <- s$data$num_variables
-  ip <- s$prior$inclusion_probability
+  nv = s$data$num_variables
+  ip = s$prior$inclusion_probability
   expect_true(all(ip[upper.tri(ip)] == 0.3))
 })
 
 test_that("GGM spec: missing data fields", {
-  s <- spec(x = make_continuous_data(), model_type = "ggm",
-            variable_type = "continuous",
-            update_method = "adaptive-metropolis",
-            na_action = "listwise")
+  s = spec(
+    x = make_continuous_data(), model_type = "ggm",
+    variable_type = "continuous",
+    update_method = "adaptive-metropolis",
+    na_action = "listwise"
+  )
   expect_equal(s$missing$na_action, "listwise")
   expect_false(s$missing$na_impute)
 })
 
 test_that("auto-promotion: omrf + continuous => ggm", {
-  s <- spec(x = make_continuous_data(), model_type = "omrf",
-            variable_type = "continuous",
-            update_method = "adaptive-metropolis")
+  s = spec(
+    x = make_continuous_data(), model_type = "omrf",
+    variable_type = "continuous",
+    update_method = "adaptive-metropolis"
+  )
   expect_equal(s$model_type, "ggm")
 })
 
@@ -138,31 +154,31 @@ test_that("auto-promotion: omrf + continuous => ggm", {
 # ==============================================================================
 
 test_that("OMRF spec: model_type = 'omrf' for ordinal data", {
-  s <- spec()
+  s = spec()
   expect_equal(s$model_type, "omrf")
 })
 
 test_that("OMRF spec: data sub-list has num_categories", {
-  s <- spec()
+  s = spec()
   expect_true(!is.null(s$data$num_categories))
   expect_equal(length(s$data$num_categories), s$data$num_variables)
 })
 
 test_that("OMRF spec: prior sub-list has scaling factors", {
-  s <- spec()
-  nv <- s$data$num_variables
+  s = spec()
+  nv = s$data$num_variables
   expect_true(is.matrix(s$prior$pairwise_scaling_factors))
   expect_equal(dim(s$prior$pairwise_scaling_factors), c(nv, nv))
 })
 
 test_that("OMRF spec: precomputed has num_thresholds", {
-  s <- spec()
+  s = spec()
   expect_true(!is.null(s$precomputed$num_thresholds))
   expect_true(is.integer(s$precomputed$num_thresholds))
 })
 
 test_that("OMRF spec: sampler fields are properly coerced", {
-  s <- spec(iter = 500L, warmup = 100L, chains = 2L)
+  s = spec(iter = 500L, warmup = 100L, chains = 2L)
   expect_true(is.integer(s$sampler$iter))
   expect_true(is.integer(s$sampler$warmup))
   expect_true(is.integer(s$sampler$chains))
@@ -171,24 +187,30 @@ test_that("OMRF spec: sampler fields are properly coerced", {
 })
 
 test_that("OMRF spec: Blume-Capel variable types work", {
-  x <- make_ordinal_data(n = 30, p = 3, max_cat = 2)
-  s <- spec(x = x, variable_type = c("ordinal", "blume-capel", "ordinal"),
-            baseline_category = c(0L, 1L, 0L))
+  x = make_ordinal_data(n = 30, p = 3, max_cat = 2)
+  s = spec(
+    x = x, variable_type = c("ordinal", "blume-capel", "ordinal"),
+    baseline_category = c(0L, 1L, 0L)
+  )
   expect_equal(s$variables$is_ordinal, c(TRUE, FALSE, TRUE))
 })
 
 test_that("OMRF spec: edge_prior = 'Beta-Bernoulli' preserves alpha/beta", {
-  s <- spec(edge_selection = TRUE, edge_prior = "Beta-Bernoulli",
-            beta_bernoulli_alpha = 2, beta_bernoulli_beta = 3)
+  s = spec(
+    edge_selection = TRUE, edge_prior = "Beta-Bernoulli",
+    beta_bernoulli_alpha = 2, beta_bernoulli_beta = 3
+  )
   expect_equal(s$prior$beta_bernoulli_alpha, 2)
   expect_equal(s$prior$beta_bernoulli_beta, 3)
 })
 
 test_that("OMRF spec: edge_prior = 'Stochastic-Block' preserves all params", {
-  s <- spec(edge_selection = TRUE, edge_prior = "Stochastic-Block",
-            beta_bernoulli_alpha_between = 1.5,
-            beta_bernoulli_beta_between = 2.5,
-            dirichlet_alpha = 0.5, lambda = 2)
+  s = spec(
+    edge_selection = TRUE, edge_prior = "Stochastic-Block",
+    beta_bernoulli_alpha_between = 1.5,
+    beta_bernoulli_beta_between = 2.5,
+    dirichlet_alpha = 0.5, lambda = 2
+  )
   expect_equal(s$prior$beta_bernoulli_alpha_between, 1.5)
   expect_equal(s$prior$beta_bernoulli_beta_between, 2.5)
   expect_equal(s$prior$dirichlet_alpha, 0.5)
@@ -201,10 +223,12 @@ test_that("OMRF spec: edge_prior = 'Stochastic-Block' preserves all params", {
 # ==============================================================================
 
 test_that("Compare spec: basic two-group x/y", {
-  x1 <- make_ordinal_data(n = 20, p = 3, max_cat = 2)
-  x2 <- make_ordinal_data(n = 25, p = 3, max_cat = 2)
-  s <- spec(x = x1, y = x2, model_type = "compare",
-            update_method = "nuts")
+  x1 = make_ordinal_data(n = 20, p = 3, max_cat = 2)
+  x2 = make_ordinal_data(n = 25, p = 3, max_cat = 2)
+  s = spec(
+    x = x1, y = x2, model_type = "compare",
+    update_method = "nuts"
+  )
   expect_equal(s$model_type, "compare")
   expect_equal(s$data$num_groups, 2L)
   expect_true(is.matrix(s$data$group_indices))
@@ -212,48 +236,58 @@ test_that("Compare spec: basic two-group x/y", {
 })
 
 test_that("Compare spec: group_indicator path", {
-  x <- make_ordinal_data(n = 40, p = 3, max_cat = 2)
-  gi <- rep(c(1L, 2L), each = 20)
-  s <- spec(x = x, group_indicator = gi, model_type = "compare",
-            update_method = "nuts")
+  x = make_ordinal_data(n = 40, p = 3, max_cat = 2)
+  gi = rep(c(1L, 2L), each = 20)
+  s = spec(
+    x = x, group_indicator = gi, model_type = "compare",
+    update_method = "nuts"
+  )
   expect_equal(s$model_type, "compare")
   expect_equal(s$data$num_groups, 2L)
 })
 
 test_that("Compare spec: three groups via group_indicator", {
-  x <- make_ordinal_data(n = 60, p = 3, max_cat = 2)
-  gi <- rep(1:3, each = 20)
-  s <- spec(x = x, group_indicator = gi, model_type = "compare",
-            update_method = "nuts")
+  x = make_ordinal_data(n = 60, p = 3, max_cat = 2)
+  gi = rep(1:3, each = 20)
+  s = spec(
+    x = x, group_indicator = gi, model_type = "compare",
+    update_method = "nuts"
+  )
   expect_equal(s$data$num_groups, 3L)
   expect_equal(nrow(s$data$group_indices), 3L)
-  expect_equal(ncol(s$data$projection), 2L)  # num_groups - 1
+  expect_equal(ncol(s$data$projection), 2L) # num_groups - 1
 })
 
 test_that("Compare spec: prior sub-list has difference fields", {
-  x1 <- make_ordinal_data(n = 20, p = 3, max_cat = 2)
-  x2 <- make_ordinal_data(n = 25, p = 3, max_cat = 2)
-  s <- spec(x = x1, y = x2, model_type = "compare",
-            update_method = "nuts", difference_selection = TRUE)
+  x1 = make_ordinal_data(n = 20, p = 3, max_cat = 2)
+  x2 = make_ordinal_data(n = 25, p = 3, max_cat = 2)
+  s = spec(
+    x = x1, y = x2, model_type = "compare",
+    update_method = "nuts", difference_selection = TRUE
+  )
   expect_true(s$prior$difference_selection)
   expect_true(s$prior$difference_prior %in% c("Bernoulli", "Beta-Bernoulli"))
   expect_true(is.matrix(s$prior$inclusion_probability_difference))
 })
 
 test_that("Compare spec: difference_selection = FALSE", {
-  x1 <- make_ordinal_data(n = 20, p = 3, max_cat = 2)
-  x2 <- make_ordinal_data(n = 25, p = 3, max_cat = 2)
-  s <- spec(x = x1, y = x2, model_type = "compare",
-            update_method = "nuts", difference_selection = FALSE)
+  x1 = make_ordinal_data(n = 20, p = 3, max_cat = 2)
+  x2 = make_ordinal_data(n = 25, p = 3, max_cat = 2)
+  s = spec(
+    x = x1, y = x2, model_type = "compare",
+    update_method = "nuts", difference_selection = FALSE
+  )
   expect_false(s$prior$difference_selection)
 })
 
 test_that("Compare spec: precomputed structures present", {
-  x1 <- make_ordinal_data(n = 20, p = 3, max_cat = 2)
-  x2 <- make_ordinal_data(n = 25, p = 3, max_cat = 2)
-  s <- spec(x = x1, y = x2, model_type = "compare",
-            update_method = "nuts")
-  pc <- s$precomputed
+  x1 = make_ordinal_data(n = 20, p = 3, max_cat = 2)
+  x2 = make_ordinal_data(n = 25, p = 3, max_cat = 2)
+  s = spec(
+    x = x1, y = x2, model_type = "compare",
+    update_method = "nuts"
+  )
+  pc = s$precomputed
   expect_true(!is.null(pc$counts_per_category))
   expect_true(!is.null(pc$blume_capel_stats))
   expect_true(!is.null(pc$pairwise_stats))
@@ -271,37 +305,51 @@ test_that("error: non-matrix input", {
 })
 
 test_that("error: single row", {
-  x <- matrix(0:2, nrow = 1)
+  x = matrix(0:2, nrow = 1)
   expect_error(spec(x = x), "2 rows")
 })
 
 test_that("error: compare without y or group_indicator", {
-  expect_error(spec(model_type = "compare", update_method = "nuts"),
-               "group_indicator|y")
+  expect_error(
+    spec(model_type = "compare", update_method = "nuts"),
+    "group_indicator|y"
+  )
 })
 
 test_that("error: compare with y having different ncol", {
-  x <- make_ordinal_data(n = 20, p = 3)
-  y <- make_ordinal_data(n = 20, p = 4)
-  expect_error(spec(x = x, y = y, model_type = "compare",
-                    update_method = "nuts"),
-               "same number of columns")
+  x = make_ordinal_data(n = 20, p = 3)
+  y = make_ordinal_data(n = 20, p = 4)
+  expect_error(
+    spec(
+      x = x, y = y, model_type = "compare",
+      update_method = "nuts"
+    ),
+    "same number of columns"
+  )
 })
 
 test_that("error: compare group_indicator length mismatch", {
-  x <- make_ordinal_data(n = 20, p = 3)
-  gi <- rep(1:2, each = 5)  # length 10, not 20
-  expect_error(spec(x = x, group_indicator = gi, model_type = "compare",
-                    update_method = "nuts"),
-               "Length of group_indicator")
+  x = make_ordinal_data(n = 20, p = 3)
+  gi = rep(1:2, each = 5) # length 10, not 20
+  expect_error(
+    spec(
+      x = x, group_indicator = gi, model_type = "compare",
+      update_method = "nuts"
+    ),
+    "Length of group_indicator"
+  )
 })
 
 test_that("error: compare group_indicator with one group", {
-  x <- make_ordinal_data(n = 20, p = 3)
-  gi <- rep(1L, 20)
-  expect_error(spec(x = x, group_indicator = gi, model_type = "compare",
-                    update_method = "nuts"),
-               "only one group")
+  x = make_ordinal_data(n = 20, p = 3)
+  gi = rep(1L, 20)
+  expect_error(
+    spec(
+      x = x, group_indicator = gi, model_type = "compare",
+      update_method = "nuts"
+    ),
+    "only one group"
+  )
 })
 
 
@@ -340,13 +388,17 @@ test_that("validate: compare requires num_groups >= 2", {
     validate_bgm_spec(
       structure(list(
         model_type = "compare",
-        data       = list(group = 1L, num_groups = 1L,
-                          num_variables = 3L, num_categories = c(3L, 3L, 3L)),
-        variables  = list(is_continuous = FALSE),
-        sampler    = list(update_method = "nuts"),
-        prior      = list(difference_selection = TRUE,
-                          difference_prior = "Bernoulli",
-                          pairwise_scaling_factors = matrix(1, 3, 3))
+        data = list(
+          group = 1L, num_groups = 1L,
+          num_variables = 3L, num_categories = c(3L, 3L, 3L)
+        ),
+        variables = list(is_continuous = FALSE),
+        sampler = list(update_method = "nuts"),
+        prior = list(
+          difference_selection = TRUE,
+          difference_prior = "Bernoulli",
+          pairwise_scaling_factors = matrix(1, 3, 3)
+        )
       ), class = "bgm_spec")
     ),
     "num_groups"
@@ -358,12 +410,14 @@ test_that("validate: edge_selection + edge_prior inconsistency", {
     validate_bgm_spec(
       structure(list(
         model_type = "omrf",
-        data       = list(num_variables = 3L, num_categories = c(3L, 3L, 3L)),
-        variables  = list(is_continuous = FALSE),
-        sampler    = list(update_method = "nuts"),
-        prior      = list(edge_selection = TRUE,
-                          edge_prior = "Not Applicable",
-                          pairwise_scaling_factors = matrix(1, 3, 3))
+        data = list(num_variables = 3L, num_categories = c(3L, 3L, 3L)),
+        variables = list(is_continuous = FALSE),
+        sampler = list(update_method = "nuts"),
+        prior = list(
+          edge_selection = TRUE,
+          edge_prior = "Not Applicable",
+          pairwise_scaling_factors = matrix(1, 3, 3)
+        )
       ), class = "bgm_spec")
     ),
     "Not Applicable"
@@ -375,12 +429,14 @@ test_that("validate: scaling factors dimension mismatch", {
     validate_bgm_spec(
       structure(list(
         model_type = "omrf",
-        data       = list(num_variables = 3L, num_categories = c(3L, 3L, 3L)),
-        variables  = list(is_continuous = FALSE),
-        sampler    = list(update_method = "nuts"),
-        prior      = list(edge_selection = TRUE,
-                          edge_prior = "Bernoulli",
-                          pairwise_scaling_factors = matrix(1, 2, 2))
+        data = list(num_variables = 3L, num_categories = c(3L, 3L, 3L)),
+        variables = list(is_continuous = FALSE),
+        sampler = list(update_method = "nuts"),
+        prior = list(
+          edge_selection = TRUE,
+          edge_prior = "Bernoulli",
+          pairwise_scaling_factors = matrix(1, 2, 2)
+        )
       ), class = "bgm_spec")
     ),
     "pairwise_scaling_factors"
@@ -396,17 +452,25 @@ test_that("new_bgm_spec: rejects invalid model_type", {
   expect_error(
     new_bgm_spec(
       model_type = "unknown",
-      data = list(x = matrix(0, 2, 2), data_columnnames = c("A", "B"),
-                  num_variables = 2L, num_cases = 2L),
-      variables = list(variable_type = "ordinal", is_ordinal = c(TRUE, TRUE),
-                       is_continuous = FALSE, baseline_category = c(0L, 0L)),
-      missing = list(na_action = "listwise", na_impute = FALSE,
-                     missing_index = NULL),
+      data = list(
+        x = matrix(0, 2, 2), data_columnnames = c("A", "B"),
+        num_variables = 2L, num_cases = 2L
+      ),
+      variables = list(
+        variable_type = "ordinal", is_ordinal = c(TRUE, TRUE),
+        is_continuous = FALSE, baseline_category = c(0L, 0L)
+      ),
+      missing = list(
+        na_action = "listwise", na_impute = FALSE,
+        missing_index = NULL
+      ),
       prior = list(),
-      sampler = list(update_method = "nuts", target_accept = 0.8,
-                     iter = 100L, warmup = 50L, chains = 2L, cores = 1L,
-                     hmc_num_leapfrogs = 100L, nuts_max_depth = 10L,
-                     learn_mass_matrix = TRUE, seed = 1L, progress_type = 0L)
+      sampler = list(
+        update_method = "nuts", target_accept = 0.8,
+        iter = 100L, warmup = 50L, chains = 2L, cores = 1L,
+        hmc_num_leapfrogs = 100L, nuts_max_depth = 10L,
+        learn_mass_matrix = TRUE, seed = 1L, progress_type = 0L
+      )
     ),
     "model_type"
   )
@@ -416,21 +480,31 @@ test_that("new_bgm_spec: rejects non-matrix x", {
   expect_error(
     new_bgm_spec(
       model_type = "omrf",
-      data = list(x = data.frame(a = 1, b = 2), data_columnnames = c("a", "b"),
-                  num_variables = 2L, num_cases = 1L,
-                  num_categories = c(2L, 2L)),
-      variables = list(variable_type = "ordinal", is_ordinal = c(TRUE, TRUE),
-                       is_continuous = FALSE, baseline_category = c(0L, 0L)),
-      missing = list(na_action = "listwise", na_impute = FALSE,
-                     missing_index = NULL),
-      prior = list(pairwise_scale = 2.5, main_alpha = 0.5, main_beta = 0.5,
-                   standardize = FALSE, pairwise_scaling_factors = matrix(1, 2, 2),
-                   edge_selection = TRUE, edge_prior = "Bernoulli",
-                   inclusion_probability = matrix(0.5, 2, 2)),
-      sampler = list(update_method = "nuts", target_accept = 0.8,
-                     iter = 100L, warmup = 50L, chains = 2L, cores = 1L,
-                     hmc_num_leapfrogs = 100L, nuts_max_depth = 10L,
-                     learn_mass_matrix = TRUE, seed = 1L, progress_type = 0L)
+      data = list(
+        x = data.frame(a = 1, b = 2), data_columnnames = c("a", "b"),
+        num_variables = 2L, num_cases = 1L,
+        num_categories = c(2L, 2L)
+      ),
+      variables = list(
+        variable_type = "ordinal", is_ordinal = c(TRUE, TRUE),
+        is_continuous = FALSE, baseline_category = c(0L, 0L)
+      ),
+      missing = list(
+        na_action = "listwise", na_impute = FALSE,
+        missing_index = NULL
+      ),
+      prior = list(
+        pairwise_scale = 2.5, main_alpha = 0.5, main_beta = 0.5,
+        standardize = FALSE, pairwise_scaling_factors = matrix(1, 2, 2),
+        edge_selection = TRUE, edge_prior = "Bernoulli",
+        inclusion_probability = matrix(0.5, 2, 2)
+      ),
+      sampler = list(
+        update_method = "nuts", target_accept = 0.8,
+        iter = 100L, warmup = 50L, chains = 2L, cores = 1L,
+        hmc_num_leapfrogs = 100L, nuts_max_depth = 10L,
+        learn_mass_matrix = TRUE, seed = 1L, progress_type = 0L
+      )
     ),
     "is.matrix"
   )
@@ -442,10 +516,10 @@ test_that("new_bgm_spec: rejects non-matrix x", {
 # ==============================================================================
 
 test_that("sampler_sublist coerces to integer", {
-  s <- list(
+  s = list(
     update_method     = "nuts",
     target_accept     = 0.8,
-    iter              = 1000,   # numeric, not integer
+    iter              = 1000, # numeric, not integer
     warmup            = 250,
     chains            = 2,
     cores             = 1,
@@ -455,7 +529,7 @@ test_that("sampler_sublist coerces to integer", {
     seed              = 42,
     progress_type     = 0
   )
-  res <- sampler_sublist(s)
+  res = sampler_sublist(s)
   expect_true(is.integer(res$iter))
   expect_true(is.integer(res$warmup))
   expect_true(is.integer(res$chains))
@@ -469,24 +543,26 @@ test_that("sampler_sublist coerces to integer", {
 # ==============================================================================
 
 test_that("print.bgm_spec outputs key info", {
-  s <- spec()
-  out <- capture.output(print(s))
+  s = spec()
+  out = capture.output(print(s))
   expect_true(any(grepl("bgm_spec object", out)))
   expect_true(any(grepl("model_type.*omrf", out)))
   expect_true(any(grepl("sampler.*nuts", out)))
 })
 
 test_that("print.bgm_spec for compare shows group info", {
-  x1 <- make_ordinal_data(n = 20, p = 3, max_cat = 2)
-  x2 <- make_ordinal_data(n = 25, p = 3, max_cat = 2)
-  s <- spec(x = x1, y = x2, model_type = "compare",
-            update_method = "nuts")
-  out <- capture.output(print(s))
+  x1 = make_ordinal_data(n = 20, p = 3, max_cat = 2)
+  x2 = make_ordinal_data(n = 25, p = 3, max_cat = 2)
+  s = spec(
+    x = x1, y = x2, model_type = "compare",
+    update_method = "nuts"
+  )
+  out = capture.output(print(s))
   expect_true(any(grepl("groups:", out)))
 })
 
 test_that("print.bgm_spec returns invisible", {
-  s <- spec()
+  s = spec()
   capture.output(expect_invisible(print(s)))
 })
 
@@ -496,19 +572,19 @@ test_that("print.bgm_spec returns invisible", {
 # ==============================================================================
 
 test_that("OMRF spec: listwise deletion with NAs", {
-  x <- make_ordinal_data(n = 30, p = 3)
-  x[1, 1] <- NA
-  x[5, 2] <- NA
-  s <- spec(x = x, na_action = "listwise")
+  x = make_ordinal_data(n = 30, p = 3)
+  x[1, 1] = NA
+  x[5, 2] = NA
+  s = spec(x = x, na_action = "listwise")
   expect_equal(s$missing$na_action, "listwise")
   expect_false(s$missing$na_impute)
   expect_equal(s$data$num_cases, 28L)
 })
 
 test_that("OMRF spec: impute path", {
-  x <- make_ordinal_data(n = 30, p = 3)
-  x[1, 1] <- NA
-  s <- spec(x = x, na_action = "impute")
+  x = make_ordinal_data(n = 30, p = 3)
+  x[1, 1] = NA
+  s = spec(x = x, na_action = "impute")
   expect_equal(s$missing$na_action, "impute")
   expect_true(s$missing$na_impute)
   expect_equal(s$data$num_cases, 30L)
@@ -522,15 +598,15 @@ test_that("OMRF spec: impute path", {
 # ==============================================================================
 
 test_that("OMRF spec: standardize = TRUE produces non-trivial scaling factors", {
-  x <- make_ordinal_data(n = 50, p = 3, max_cat = 3)
-  s <- spec(x = x, standardize = TRUE)
-  psf <- s$prior$pairwise_scaling_factors
+  x = make_ordinal_data(n = 50, p = 3, max_cat = 3)
+  s = spec(x = x, standardize = TRUE)
+  psf = s$prior$pairwise_scaling_factors
   # At least some off-diagonal values should differ from 1
   expect_false(all(psf == 1))
 })
 
 test_that("OMRF spec: standardize = FALSE produces ones matrix", {
-  s <- spec(standardize = FALSE)
-  psf <- s$prior$pairwise_scaling_factors
+  s = spec(standardize = FALSE)
+  psf = s$prior$pairwise_scaling_factors
   expect_true(all(psf == 1))
 })

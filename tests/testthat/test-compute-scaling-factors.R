@@ -9,7 +9,7 @@
 # ==============================================================================
 
 test_that("standardize = FALSE returns all-ones matrix with names", {
-  res <- compute_scaling_factors(
+  res = compute_scaling_factors(
     num_variables     = 3,
     is_ordinal        = c(TRUE, TRUE, TRUE),
     num_categories    = c(3, 4, 2),
@@ -24,7 +24,7 @@ test_that("standardize = FALSE returns all-ones matrix with names", {
 })
 
 test_that("standardize = FALSE with NULL varnames gives default names", {
-  res <- compute_scaling_factors(
+  res = compute_scaling_factors(
     num_variables     = 2,
     is_ordinal        = c(TRUE, TRUE),
     num_categories    = c(3, 4),
@@ -43,7 +43,7 @@ test_that("standardize = FALSE with NULL varnames gives default names", {
 
 test_that("two ordinal variables: scaling = M1 * M2", {
   # Variables with 4 and 3 categories (so max scores M=4 and M=3)
-  res <- compute_scaling_factors(
+  res = compute_scaling_factors(
     num_variables     = 2,
     is_ordinal        = c(TRUE, TRUE),
     num_categories    = c(4, 3),
@@ -52,13 +52,13 @@ test_that("two ordinal variables: scaling = M1 * M2", {
     varnames          = c("V1", "V2")
   )
   expect_equal(res[1, 2], 4 * 3)
-  expect_equal(res[2, 1], 4 * 3)  # symmetric
-  expect_equal(res[1, 1], 1)      # diagonal stays 1
+  expect_equal(res[2, 1], 4 * 3) # symmetric
+  expect_equal(res[1, 1], 1) # diagonal stays 1
   expect_equal(res[2, 2], 1)
 })
 
 test_that("three ordinal variables: all pairs", {
-  res <- compute_scaling_factors(
+  res = compute_scaling_factors(
     num_variables     = 3,
     is_ordinal        = c(TRUE, TRUE, TRUE),
     num_categories    = c(2, 5, 3),
@@ -83,7 +83,7 @@ test_that("three ordinal variables: all pairs", {
 test_that("two Blume-Capel: baseline at 0, range is (-0, M-0) = (0, M)", {
   # M1=4, b1=0 → endpoints (-0, 4); M2=3, b2=0 → endpoints (0, 3)
   # max(|outer|) = max(0*0, 0*3, 4*0, 4*3) = 12
-  res <- compute_scaling_factors(
+  res = compute_scaling_factors(
     num_variables     = 2,
     is_ordinal        = c(FALSE, FALSE),
     num_categories    = c(4, 3),
@@ -99,7 +99,7 @@ test_that("two Blume-Capel: non-zero baselines", {
   # M1=4, b1=2 → endpoints (-2, 2); M2=5, b2=1 → endpoints (-1, 4)
   # outer: (-2)*(-1)=2, (-2)*4=-8, 2*(-1)=-2, 2*4=8
   # max(abs) = 8
-  res <- compute_scaling_factors(
+  res = compute_scaling_factors(
     num_variables     = 2,
     is_ordinal        = c(FALSE, FALSE),
     num_categories    = c(4, 5),
@@ -120,7 +120,7 @@ test_that("ordinal + Blume-Capel: v1 ordinal, v2 BC", {
   # V2: BC, M=4, b=1, range (-1, 3)
   # outer: 0*(-1)=0, 0*3=0, 3*(-1)=-3, 3*3=9
   # max(abs) = 9
-  res <- compute_scaling_factors(
+  res = compute_scaling_factors(
     num_variables     = 2,
     is_ordinal        = c(TRUE, FALSE),
     num_categories    = c(3, 4),
@@ -136,7 +136,7 @@ test_that("Blume-Capel + ordinal: v1 BC, v2 ordinal", {
   # V1: BC, M=4, b=1, range (-1, 3)
   # V2: ordinal, M=3, range (0, 3)
   # Same result as above by symmetry of the formula
-  res <- compute_scaling_factors(
+  res = compute_scaling_factors(
     num_variables     = 2,
     is_ordinal        = c(FALSE, TRUE),
     num_categories    = c(4, 3),
@@ -163,7 +163,7 @@ test_that("3 variables: ordinal, BC, ordinal — covers all mixed pairs", {
   # (1,3) ordinal+ordinal: 3 * 2 = 6
   # (2,3) BC+ordinal: endpoints1=(-2,3), endpoints2=(0,2)
   #   max(|(-2)*0, (-2)*2, 3*0, 3*2|) = max(0, 4, 0, 6) = 6
-  res <- compute_scaling_factors(
+  res = compute_scaling_factors(
     num_variables     = 3,
     is_ordinal        = c(TRUE, FALSE, TRUE),
     num_categories    = c(3, 5, 2),
@@ -188,7 +188,7 @@ test_that("3 variables: ordinal, BC, ordinal — covers all mixed pairs", {
 # ==============================================================================
 
 test_that("result is always symmetric", {
-  res <- compute_scaling_factors(
+  res = compute_scaling_factors(
     num_variables     = 4,
     is_ordinal        = c(TRUE, FALSE, TRUE, FALSE),
     num_categories    = c(3, 4, 2, 5),
@@ -200,7 +200,7 @@ test_that("result is always symmetric", {
 })
 
 test_that("diagonal is always 1", {
-  res <- compute_scaling_factors(
+  res = compute_scaling_factors(
     num_variables     = 4,
     is_ordinal        = c(TRUE, FALSE, TRUE, FALSE),
     num_categories    = c(3, 4, 2, 5),
@@ -212,7 +212,7 @@ test_that("diagonal is always 1", {
 })
 
 test_that("all scaling factors are positive", {
-  res <- compute_scaling_factors(
+  res = compute_scaling_factors(
     num_variables     = 3,
     is_ordinal        = c(FALSE, FALSE, TRUE),
     num_categories    = c(4, 5, 3),
@@ -229,7 +229,7 @@ test_that("all scaling factors are positive", {
 # ==============================================================================
 
 test_that("single variable returns 1x1 matrix", {
-  res <- compute_scaling_factors(
+  res = compute_scaling_factors(
     num_variables     = 1,
     is_ordinal        = TRUE,
     num_categories    = 3,

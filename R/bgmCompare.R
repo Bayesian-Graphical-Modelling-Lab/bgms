@@ -181,7 +181,7 @@
 #' x = Boredom[Boredom$language == "fr", 2:6]
 #' y = Boredom[Boredom$language != "fr", 2:6]
 #'
-#' fit <- bgmCompare(x, y, chains = 2)
+#' fit = bgmCompare(x, y, chains = 2)
 #'
 #' # Posterior inclusion probabilities
 #' summary(fit)$indicator
@@ -243,7 +243,7 @@ bgmCompare = function(
   save
 ) {
   # Set verbose option for internal functions, restore on exit
-  old_verbose <- getOption("bgms.verbose")
+  old_verbose = getOption("bgms.verbose")
   options(bgms.verbose = verbose)
   on.exit(options(bgms.verbose = old_verbose), add = TRUE)
 
@@ -335,42 +335,42 @@ bgmCompare = function(
   }
 
   # --- Build spec, sample, build output ----------------------------------------
-  spec <- bgm_spec(
-    x              = x,
-    model_type     = "compare",
-    variable_type  = variable_type,
-    baseline_category = if (hasArg(baseline_category)) baseline_category else 0L,
-    y              = if (hasArg(y)) y else NULL,
-    group_indicator = if (hasArg(group_indicator)) group_indicator else NULL,
-    na_action      = na_action,
+  spec = bgm_spec(
+    x = x,
+    model_type = "compare",
+    variable_type = variable_type,
+    baseline_category = if(hasArg(baseline_category)) baseline_category else 0L,
+    y = if(hasArg(y)) y else NULL,
+    group_indicator = if(hasArg(group_indicator)) group_indicator else NULL,
+    na_action = na_action,
     pairwise_scale = pairwise_scale,
-    main_alpha     = main_alpha,
-    main_beta      = main_beta,
-    standardize    = standardize,
-    difference_selection      = difference_selection,
+    main_alpha = main_alpha,
+    main_beta = main_beta,
+    standardize = standardize,
+    difference_selection = difference_selection,
     main_difference_selection = main_difference_selection,
-    difference_prior          = difference_prior,
-    difference_scale          = difference_scale,
-    difference_probability    = difference_probability,
-    beta_bernoulli_alpha      = beta_bernoulli_alpha,
-    beta_bernoulli_beta       = beta_bernoulli_beta,
-    update_method  = update_method,
-    target_accept  = if (hasArg(target_accept)) target_accept else NULL,
-    iter           = iter,
-    warmup         = warmup,
+    difference_prior = difference_prior,
+    difference_scale = difference_scale,
+    difference_probability = difference_probability,
+    beta_bernoulli_alpha = beta_bernoulli_alpha,
+    beta_bernoulli_beta = beta_bernoulli_beta,
+    update_method = update_method,
+    target_accept = if(hasArg(target_accept)) target_accept else NULL,
+    iter = iter,
+    warmup = warmup,
     hmc_num_leapfrogs = hmc_num_leapfrogs,
     nuts_max_depth = nuts_max_depth,
     learn_mass_matrix = learn_mass_matrix,
-    chains         = chains,
-    cores          = cores,
-    seed           = seed,
+    chains = chains,
+    cores = cores,
+    seed = seed,
     display_progress = display_progress,
-    verbose        = verbose
+    verbose = verbose
   )
 
-  raw <- run_sampler(spec)
-  output <- build_output(spec, raw)
+  raw = run_sampler(spec)
+  output = build_output(spec, raw)
 
-  output$.bgm_spec <- spec
+  output$.bgm_spec = spec
   return(output)
 }

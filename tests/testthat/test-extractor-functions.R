@@ -16,7 +16,7 @@
 # ------------------------------------------------------------------------------
 # Define all fixtures to test against, with their properties
 
-get_all_fixtures <- function() {
+get_all_fixtures = function() {
   list(
     list(
       label = "bgms_binary",
@@ -57,28 +57,28 @@ get_all_fixtures <- function() {
 # ------------------------------------------------------------------------------
 
 test_that("extract_arguments returns complete argument list for all fit types", {
-  fixtures <- get_all_fixtures()
-  
-  for (spec in fixtures) {
-    ctx <- sprintf("[%s]", spec$label)
-    fit <- spec$get_fit()
-    args <- extract_arguments(fit)
-    
+  fixtures = get_all_fixtures()
+
+  for(spec in fixtures) {
+    ctx = sprintf("[%s]", spec$label)
+    fit = spec$get_fit()
+    args = extract_arguments(fit)
+
     # Basic structure
     expect_true(is.list(args), info = paste(ctx, "should be list"))
     expect_true(length(args) > 0, info = ctx)
-    
+
     # Essential fields present
     expect_true("num_variables" %in% names(args), info = paste(ctx, "missing num_variables"))
     expect_true("num_cases" %in% names(args), info = paste(ctx, "missing num_cases"))
     expect_true("data_columnnames" %in% names(args), info = paste(ctx, "missing data_columnnames"))
-    
+
     # Values are sensible
     expect_true(args$num_variables >= 1, info = ctx)
     expect_true(args$num_cases >= 1, info = ctx)
-    
+
     # Type-specific fields
-    if (spec$type == "bgms") {
+    if(spec$type == "bgms") {
       expect_true(is.logical(args$edge_selection), info = paste(ctx, "edge_selection should be logical"))
     } else {
       expect_true(args$num_groups >= 2, info = paste(ctx, "bgmCompare should have >= 2 groups"))
@@ -97,26 +97,27 @@ test_that("extract_arguments errors on non-bgms objects", {
 # ------------------------------------------------------------------------------
 
 test_that("extract_pairwise_interactions returns valid matrix for all fit types", {
-  fixtures <- get_all_fixtures()
-  
-  for (spec in fixtures) {
-    ctx <- sprintf("[%s]", spec$label)
-    fit <- spec$get_fit()
-    args <- extract_arguments(fit)
-    
-    pairwise <- extract_pairwise_interactions(fit)
-    
+  fixtures = get_all_fixtures()
+
+  for(spec in fixtures) {
+    ctx = sprintf("[%s]", spec$label)
+    fit = spec$get_fit()
+    args = extract_arguments(fit)
+
+    pairwise = extract_pairwise_interactions(fit)
+
     # Structure checks
     expect_true(is.matrix(pairwise), info = paste(ctx, "should be matrix"))
-    
-    p <- args$num_variables
-    expected_cols <- p * (p - 1) / 2
-    expect_equal(ncol(pairwise), expected_cols, 
-                 info = paste(ctx, "wrong number of edge columns"))
-    
+
+    p = args$num_variables
+    expected_cols = p * (p - 1) / 2
+    expect_equal(ncol(pairwise), expected_cols,
+      info = paste(ctx, "wrong number of edge columns")
+    )
+
     # Values finite
     expect_true(all(is.finite(pairwise)), info = paste(ctx, "should have finite values"))
-    
+
     # Has column names
     expect_true(!is.null(colnames(pairwise)), info = paste(ctx, "should have column names"))
   }
@@ -128,20 +129,20 @@ test_that("extract_pairwise_interactions returns valid matrix for all fit types"
 # ------------------------------------------------------------------------------
 
 test_that("extract_category_thresholds returns valid output for all fit types", {
-  fixtures <- get_all_fixtures()
-  
-  for (spec in fixtures) {
-    ctx <- sprintf("[%s]", spec$label)
-    fit <- spec$get_fit()
-    args <- extract_arguments(fit)
-    
-    thresholds <- extract_category_thresholds(fit)
-    
+  fixtures = get_all_fixtures()
+
+  for(spec in fixtures) {
+    ctx = sprintf("[%s]", spec$label)
+    fit = spec$get_fit()
+    args = extract_arguments(fit)
+
+    thresholds = extract_category_thresholds(fit)
+
     # Structure checks
     expect_true(is.matrix(thresholds), info = paste(ctx, "should be matrix"))
-    
+
     # Values finite where not NA
-    vals <- thresholds[!is.na(thresholds)]
+    vals = thresholds[!is.na(thresholds)]
     expect_true(all(is.finite(vals)), info = paste(ctx, "non-NA values should be finite"))
   }
 })
@@ -154,75 +155,76 @@ test_that("extract_category_thresholds returns valid output for all fit types", 
 
 test_that("extract_indicators returns binary matrix for edge-selection fits", {
   # Only test fixtures with edge selection
-  fixtures <- list(
+  fixtures = list(
     list(label = "bgms_binary", get_fit = get_bgms_fit)
   )
-  
-  for (spec in fixtures) {
-    ctx <- sprintf("[%s]", spec$label)
-    fit <- spec$get_fit()
-    args <- extract_arguments(fit)
-    
-    if (!isTRUE(args$edge_selection)) {
+
+  for(spec in fixtures) {
+    ctx = sprintf("[%s]", spec$label)
+    fit = spec$get_fit()
+    args = extract_arguments(fit)
+
+    if(!isTRUE(args$edge_selection)) {
       next
     }
-    
-    indicators <- extract_indicators(fit)
-    
+
+    indicators = extract_indicators(fit)
+
     # Structure
     expect_true(is.matrix(indicators), info = ctx)
-    
-    p <- args$num_variables
-    expected_cols <- p * (p - 1) / 2
+
+    p = args$num_variables
+    expected_cols = p * (p - 1) / 2
     expect_equal(ncol(indicators), expected_cols, info = paste(ctx, "wrong indicator columns"))
-    
+
     # Binary values
-    expect_true(all(indicators %in% c(0, 1)), 
-                info = paste(ctx, "indicators should be 0 or 1"))
+    expect_true(all(indicators %in% c(0, 1)),
+      info = paste(ctx, "indicators should be 0 or 1")
+    )
   }
 })
 
 test_that("extract_posterior_inclusion_probabilities returns symmetric PIP matrix", {
   # Only test fixtures with edge selection
-  fixtures <- list(
+  fixtures = list(
     list(label = "bgms_binary", get_fit = get_bgms_fit)
   )
-  
-  for (spec in fixtures) {
-    ctx <- sprintf("[%s]", spec$label)
-    fit <- spec$get_fit()
-    args <- extract_arguments(fit)
-    
-    if (!isTRUE(args$edge_selection)) {
+
+  for(spec in fixtures) {
+    ctx = sprintf("[%s]", spec$label)
+    fit = spec$get_fit()
+    args = extract_arguments(fit)
+
+    if(!isTRUE(args$edge_selection)) {
       next
     }
-    
-    pip <- extract_posterior_inclusion_probabilities(fit)
-    p <- args$num_variables
-    
+
+    pip = extract_posterior_inclusion_probabilities(fit)
+    p = args$num_variables
+
     # Structure
     expect_true(is.matrix(pip), info = ctx)
     expect_equal(dim(pip), c(p, p), info = paste(ctx, "should be p x p"))
-    
+
     # Symmetry
     expect_true(is_symmetric(pip), info = paste(ctx, "should be symmetric"))
-    
+
     # Range [0, 1]
     expect_true(values_in_range(pip, 0, 1), info = paste(ctx, "PIPs should be in [0,1]"))
-    
+
     # Diagonal is zero (no self-loops)
     expect_true(all(diag(pip) == 0), info = paste(ctx, "diagonal should be 0"))
-    
+
     # Has variable names
     expect_equal(colnames(pip), args$data_columnnames, info = ctx)
   }
 })
 
 test_that("extract_indicators errors when edge_selection = FALSE", {
-  data <- generate_test_data(n = 20, p = 3)
-  args <- c(list(x = data, edge_selection = FALSE), quick_mcmc_args())
-  fit <- do.call(bgm, args)
-  
+  data = generate_test_data(n = 20, p = 3)
+  args = c(list(x = data, edge_selection = FALSE), quick_mcmc_args())
+  fit = do.call(bgm, args)
+
   expect_error(extract_indicators(fit), regexp = "edge_selection")
 })
 
@@ -232,22 +234,23 @@ test_that("extract_indicators errors when edge_selection = FALSE", {
 # ------------------------------------------------------------------------------
 
 test_that("extract_rhat returns valid diagnostics for all fit types", {
-  fixtures <- get_all_fixtures()
-  
-  for (spec in fixtures) {
-    ctx <- sprintf("[%s]", spec$label)
-    fit <- spec$get_fit()
-    args <- extract_arguments(fit)
-    
-    rhat <- extract_rhat(fit)
-    
+  fixtures = get_all_fixtures()
+
+  for(spec in fixtures) {
+    ctx = sprintf("[%s]", spec$label)
+    fit = spec$get_fit()
+    args = extract_arguments(fit)
+
+    rhat = extract_rhat(fit)
+
     expect_true(is.list(rhat), info = paste(ctx, "should be list"))
-    
-    if (spec$type == "bgms") {
+
+    if(spec$type == "bgms") {
       expect_true("pairwise" %in% names(rhat), info = paste(ctx, "missing pairwise"))
       expect_true(is.numeric(rhat$pairwise), info = ctx)
-      expect_true(all(is.na(rhat$pairwise) | rhat$pairwise > 0), 
-                  info = paste(ctx, "R-hat should be positive"))
+      expect_true(all(is.na(rhat$pairwise) | rhat$pairwise > 0),
+        info = paste(ctx, "R-hat should be positive")
+      )
     } else {
       expect_true("pairwise_baseline" %in% names(rhat), info = paste(ctx, "missing pairwise_baseline"))
       expect_true(is.numeric(rhat$pairwise_baseline), info = ctx)
@@ -257,22 +260,23 @@ test_that("extract_rhat returns valid diagnostics for all fit types", {
 })
 
 test_that("extract_ess returns valid diagnostics for all fit types", {
-  fixtures <- get_all_fixtures()
-  
-  for (spec in fixtures) {
-    ctx <- sprintf("[%s]", spec$label)
-    fit <- spec$get_fit()
-    args <- extract_arguments(fit)
-    
-    ess <- extract_ess(fit)
-    
+  fixtures = get_all_fixtures()
+
+  for(spec in fixtures) {
+    ctx = sprintf("[%s]", spec$label)
+    fit = spec$get_fit()
+    args = extract_arguments(fit)
+
+    ess = extract_ess(fit)
+
     expect_true(is.list(ess), info = paste(ctx, "should be list"))
-    
-    if (spec$type == "bgms") {
+
+    if(spec$type == "bgms") {
       expect_true("pairwise" %in% names(ess), info = paste(ctx, "missing pairwise"))
       expect_true(is.numeric(ess$pairwise), info = ctx)
-      expect_true(all(is.na(ess$pairwise) | ess$pairwise > 0), 
-                  info = paste(ctx, "ESS should be positive"))
+      expect_true(all(is.na(ess$pairwise) | ess$pairwise > 0),
+        info = paste(ctx, "ESS should be positive")
+      )
     } else {
       expect_true("pairwise_baseline" %in% names(ess), info = paste(ctx, "missing pairwise_baseline"))
       expect_true(is.numeric(ess$pairwise_baseline), info = ctx)
@@ -293,39 +297,39 @@ test_that("extract_rhat and extract_ess error on non-bgms objects", {
 # ------------------------------------------------------------------------------
 
 test_that("extract_indicator_priors returns prior specification", {
-  fit <- get_bgms_fit()
-  args <- extract_arguments(fit)
-  
-  if (!isTRUE(args$edge_selection)) {
+  fit = get_bgms_fit()
+  args = extract_arguments(fit)
+
+  if(!isTRUE(args$edge_selection)) {
     skip("Fit object does not have edge_selection = TRUE")
   }
-  
-  priors <- extract_indicator_priors(fit)
-  
+
+  priors = extract_indicator_priors(fit)
+
   expect_type(priors, "list")
   expect_true("type" %in% names(priors))
-  
-  valid_types <- c("Bernoulli", "Beta-Bernoulli", "Stochastic-Block")
+
+  valid_types = c("Bernoulli", "Beta-Bernoulli", "Stochastic-Block")
   expect_true(priors$type %in% valid_types)
-  
+
   # Type-specific checks
-  if (priors$type == "Bernoulli") {
+  if(priors$type == "Bernoulli") {
     expect_true("prior_inclusion_probability" %in% names(priors))
-    pip <- priors$prior_inclusion_probability
+    pip = priors$prior_inclusion_probability
     expect_true(all(pip >= 0 & pip <= 1))
   }
-  
-  if (priors$type == "Beta-Bernoulli") {
+
+  if(priors$type == "Beta-Bernoulli") {
     expect_true(all(c("alpha", "beta") %in% names(priors)))
     expect_true(priors$alpha > 0 && priors$beta > 0)
   }
 })
 
 test_that("extract_indicator_priors errors when no selection performed", {
-  data <- generate_test_data(n = 20, p = 3)
-  args <- c(list(x = data, edge_selection = FALSE), quick_mcmc_args())
-  fit <- do.call(bgm, args)
-  
+  data = generate_test_data(n = 20, p = 3)
+  args = c(list(x = data, edge_selection = FALSE), quick_mcmc_args())
+  fit = do.call(bgm, args)
+
   expect_error(extract_indicator_priors(fit), regexp = "selection")
 })
 
@@ -335,20 +339,20 @@ test_that("extract_indicator_priors errors when no selection performed", {
 # ------------------------------------------------------------------------------
 
 test_that("extract_group_params returns group-level parameters", {
-  fit <- get_bgmcompare_fit()
-  args <- extract_arguments(fit)
-  
-  group_params <- extract_group_params(fit)
-  
+  fit = get_bgmcompare_fit()
+  args = extract_arguments(fit)
+
+  group_params = extract_group_params(fit)
+
   expect_type(group_params, "list")
   expect_true("main_effects_groups" %in% names(group_params))
   expect_true("pairwise_effects_groups" %in% names(group_params))
-  
+
   # Dimensions match number of groups
-  n_groups <- args$num_groups
+  n_groups = args$num_groups
   expect_equal(ncol(group_params$main_effects_groups), n_groups)
   expect_equal(ncol(group_params$pairwise_effects_groups), n_groups)
-  
+
   # Values finite
   expect_true(all(is.finite(group_params$main_effects_groups)))
   expect_true(all(is.finite(group_params$pairwise_effects_groups)))
@@ -360,33 +364,33 @@ test_that("extract_group_params returns group-level parameters", {
 # ------------------------------------------------------------------------------
 
 test_that("extractor outputs are dimensionally consistent", {
-  fixtures <- list(
+  fixtures = list(
     list(label = "bgms_binary", get_fit = get_bgms_fit)
   )
-  
-  for (spec in fixtures) {
-    ctx <- sprintf("[%s]", spec$label)
-    fit <- spec$get_fit()
-    args <- extract_arguments(fit)
-    
-    if (!isTRUE(args$edge_selection)) {
+
+  for(spec in fixtures) {
+    ctx = sprintf("[%s]", spec$label)
+    fit = spec$get_fit()
+    args = extract_arguments(fit)
+
+    if(!isTRUE(args$edge_selection)) {
       next
     }
-    
-    p <- args$num_variables
-    n_edges <- p * (p - 1) / 2
-    
+
+    p = args$num_variables
+    n_edges = p * (p - 1) / 2
+
     # All should agree on number of variables/edges
-    pip <- extract_posterior_inclusion_probabilities(fit)
+    pip = extract_posterior_inclusion_probabilities(fit)
     expect_equal(nrow(pip), p, info = paste(ctx, "PIP rows"))
-    
-    indicators <- extract_indicators(fit)
+
+    indicators = extract_indicators(fit)
     expect_equal(ncol(indicators), n_edges, info = paste(ctx, "indicator cols"))
-    
-    pairwise <- extract_pairwise_interactions(fit)
+
+    pairwise = extract_pairwise_interactions(fit)
     expect_equal(ncol(pairwise), n_edges, info = paste(ctx, "pairwise cols"))
-    
-    thresholds <- extract_category_thresholds(fit)
+
+    thresholds = extract_category_thresholds(fit)
     expect_equal(nrow(thresholds), p, info = paste(ctx, "threshold rows"))
   }
 })
@@ -397,23 +401,23 @@ test_that("extractor outputs are dimensionally consistent", {
 # ------------------------------------------------------------------------------
 
 test_that("bgms fit contains all fields accessed by easybgm", {
-  fixtures <- list(
+  fixtures = list(
     list(label = "bgms", get_fit = get_bgms_fit, type = "bgms"),
     list(label = "bgmCompare", get_fit = get_bgmcompare_fit, type = "bgmCompare")
   )
-  
-  for (spec in fixtures) {
-    ctx <- sprintf("[%s]", spec$label)
-    fit <- spec$get_fit()
-    args <- extract_arguments(fit)
-    
-    if (spec$type == "bgms") {
+
+  for(spec in fixtures) {
+    ctx = sprintf("[%s]", spec$label)
+    fit = spec$get_fit()
+    args = extract_arguments(fit)
+
+    if(spec$type == "bgms") {
       expect_true("posterior_summary_pairwise" %in% names(fit), info = ctx)
       expect_true(is.data.frame(fit$posterior_summary_pairwise), info = ctx)
       expect_true("Rhat" %in% names(fit$posterior_summary_pairwise), info = ctx)
       expect_true("n_eff" %in% names(fit$posterior_summary_pairwise), info = ctx)
-      
-      if (isTRUE(args$edge_selection)) {
+
+      if(isTRUE(args$edge_selection)) {
         expect_true("posterior_summary_indicator" %in% names(fit), info = ctx)
         expect_true("n_eff" %in% names(fit$posterior_summary_indicator), info = ctx)
       }
@@ -432,34 +436,35 @@ test_that("bgms fit contains all fields accessed by easybgm", {
 # ------------------------------------------------------------------------------
 
 test_that("extract_indicators.bgmCompare returns indicator matrix for difference selection fits", {
-  fit <- get_bgmcompare_fit()
-  args <- extract_arguments(fit)
-  
-  if (!isTRUE(args$difference_selection)) {
+  fit = get_bgmcompare_fit()
+  args = extract_arguments(fit)
+
+  if(!isTRUE(args$difference_selection)) {
     skip("Fit object does not have difference_selection = TRUE")
   }
-  
-  indicators <- extract_indicators(fit)
-  
+
+  indicators = extract_indicators(fit)
+
   # Structure
   expect_true(is.matrix(indicators), info = "should be matrix")
-  
+
   # Binary values
-  expect_true(all(indicators %in% c(0, 1)), 
-              info = "indicators should be 0 or 1")
-  
+  expect_true(all(indicators %in% c(0, 1)),
+    info = "indicators should be 0 or 1"
+  )
+
   # Has column names
   expect_true(!is.null(colnames(indicators)), info = "should have column names")
 })
 
 test_that("extract_indicators.bgmCompare errors when difference_selection = FALSE", {
-  data <- generate_grouped_test_data(n_per_group = 15, p = 3)
-  args <- c(
+  data = generate_grouped_test_data(n_per_group = 15, p = 3)
+  args = c(
     list(x = data$x, group_indicator = data$group_indicator, difference_selection = FALSE),
     quick_mcmc_args()
   )
-  fit <- do.call(bgmCompare, args)
-  
+  fit = do.call(bgmCompare, args)
+
   expect_error(extract_indicators(fit), regexp = "difference_selection")
 })
 
@@ -469,38 +474,38 @@ test_that("extract_indicators.bgmCompare errors when difference_selection = FALS
 # ------------------------------------------------------------------------------
 
 test_that("extract_posterior_inclusion_probabilities.bgmCompare returns symmetric PIP matrix", {
-  fit <- get_bgmcompare_fit()
-  args <- extract_arguments(fit)
-  
-  if (!isTRUE(args$difference_selection)) {
+  fit = get_bgmcompare_fit()
+  args = extract_arguments(fit)
+
+  if(!isTRUE(args$difference_selection)) {
     skip("Fit object does not have difference_selection = TRUE")
   }
-  
-  pip <- extract_posterior_inclusion_probabilities(fit)
-  p <- args$num_variables
-  
+
+  pip = extract_posterior_inclusion_probabilities(fit)
+  p = args$num_variables
+
   # Structure
   expect_true(is.matrix(pip), info = "should be matrix")
   expect_equal(dim(pip), c(p, p), info = "should be p x p")
-  
+
   # Symmetry
   expect_true(is_symmetric(pip), info = "should be symmetric")
-  
+
   # Range [0, 1]
   expect_true(values_in_range(pip, 0, 1), info = "PIPs should be in [0,1]")
-  
+
   # Has variable names
   expect_equal(colnames(pip), args$data_columnnames, info = "should have column names")
 })
 
 test_that("extract_posterior_inclusion_probabilities.bgmCompare errors when difference_selection = FALSE", {
-  data <- generate_grouped_test_data(n_per_group = 15, p = 3)
-  args <- c(
+  data = generate_grouped_test_data(n_per_group = 15, p = 3)
+  args = c(
     list(x = data$x, group_indicator = data$group_indicator, difference_selection = FALSE),
     quick_mcmc_args()
   )
-  fit <- do.call(bgmCompare, args)
-  
+  fit = do.call(bgmCompare, args)
+
   expect_error(extract_posterior_inclusion_probabilities(fit), regexp = "difference_selection")
 })
 
@@ -510,27 +515,27 @@ test_that("extract_posterior_inclusion_probabilities.bgmCompare errors when diff
 # ------------------------------------------------------------------------------
 
 test_that("extract_indicator_priors.bgmCompare returns prior specification", {
-  fit <- get_bgmcompare_fit()
-  args <- extract_arguments(fit)
-  
-  if (!isTRUE(args$difference_selection)) {
+  fit = get_bgmcompare_fit()
+  args = extract_arguments(fit)
+
+  if(!isTRUE(args$difference_selection)) {
     skip("Fit object does not have difference_selection = TRUE")
   }
-  
-  priors <- extract_indicator_priors(fit)
-  
+
+  priors = extract_indicator_priors(fit)
+
   # Returns the difference_prior from arguments
   expect_true(!is.null(priors), info = "should return prior specification")
 })
 
 test_that("extract_indicator_priors.bgmCompare errors when difference_selection = FALSE", {
-  data <- generate_grouped_test_data(n_per_group = 15, p = 3)
-  args <- c(
+  data = generate_grouped_test_data(n_per_group = 15, p = 3)
+  args = c(
     list(x = data$x, group_indicator = data$group_indicator, difference_selection = FALSE),
     quick_mcmc_args()
   )
-  fit <- do.call(bgmCompare, args)
-  
+  fit = do.call(bgmCompare, args)
+
   expect_error(extract_indicator_priors(fit), regexp = "selection")
 })
 
@@ -540,74 +545,78 @@ test_that("extract_indicator_priors.bgmCompare errors when difference_selection 
 # ------------------------------------------------------------------------------
 
 test_that("bgmCompare with main_difference_selection = TRUE produces valid output", {
-  fit <- get_bgmcompare_fit_main_selection()
-  args <- extract_arguments(fit)
-  
+  fit = get_bgmcompare_fit_main_selection()
+  args = extract_arguments(fit)
+
   # Verify main_difference_selection is TRUE in arguments
 
-  expect_true(isTRUE(args$main_difference_selection), 
-              info = "main_difference_selection should be TRUE")
-  expect_true(isTRUE(args$difference_selection), 
-              info = "difference_selection should be TRUE")
+  expect_true(isTRUE(args$main_difference_selection),
+    info = "main_difference_selection should be TRUE"
+  )
+  expect_true(isTRUE(args$difference_selection),
+    info = "difference_selection should be TRUE"
+  )
 })
 
 test_that("extract_indicators works with main_difference_selection = TRUE", {
-  fit <- get_bgmcompare_fit_main_selection()
-  args <- extract_arguments(fit)
-  
-  indicators <- extract_indicators(fit)
-  
+  fit = get_bgmcompare_fit_main_selection()
+  args = extract_arguments(fit)
+
+  indicators = extract_indicators(fit)
+
   # Structure
   expect_true(is.matrix(indicators), info = "should be matrix")
-  
+
   # Binary values
-  expect_true(all(indicators %in% c(0, 1)), 
-              info = "indicators should be 0 or 1")
-  
+  expect_true(all(indicators %in% c(0, 1)),
+    info = "indicators should be 0 or 1"
+  )
+
   # With main_difference_selection = TRUE, there should be more indicator columns
   # than just pairwise (includes main effect indicators)
-  p <- args$num_variables
-  n_pairwise <- p * (p - 1) / 2
-  
+  p = args$num_variables
+  n_pairwise = p * (p - 1) / 2
+
   # Indicator dimensions should include main effects + pairwise
   # Exact count depends on number of categories, but should be > n_pairwise
-  expect_true(ncol(indicators) >= n_pairwise, 
-              info = "indicators should include at least pairwise effects")
+  expect_true(ncol(indicators) >= n_pairwise,
+    info = "indicators should include at least pairwise effects"
+  )
 })
 
 test_that("extract_posterior_inclusion_probabilities works with main_difference_selection = TRUE", {
-  fit <- get_bgmcompare_fit_main_selection()
-  args <- extract_arguments(fit)
-  
-  pip <- extract_posterior_inclusion_probabilities(fit)
-  p <- args$num_variables
-  
+  fit = get_bgmcompare_fit_main_selection()
+  args = extract_arguments(fit)
+
+  pip = extract_posterior_inclusion_probabilities(fit)
+  p = args$num_variables
+
   # Structure - should be p x p matrix
   expect_true(is.matrix(pip), info = "should be matrix")
   expect_equal(dim(pip), c(p, p), info = "should be p x p")
-  
+
   # Symmetry
   expect_true(is_symmetric(pip), info = "should be symmetric")
-  
+
   # Range [0, 1]
   expect_true(values_in_range(pip, 0, 1), info = "PIPs should be in [0,1]")
 })
 
 test_that("extract_group_params works with main_difference_selection = TRUE", {
-  fit <- get_bgmcompare_fit_main_selection()
-  args <- extract_arguments(fit)
-  
-  group_params <- extract_group_params(fit)
-  
+  fit = get_bgmcompare_fit_main_selection()
+  args = extract_arguments(fit)
+
+  group_params = extract_group_params(fit)
+
   expect_type(group_params, "list")
   expect_true("main_effects_groups" %in% names(group_params))
   expect_true("pairwise_effects_groups" %in% names(group_params))
-  
+
   # Dimensions match number of groups
-  n_groups <- args$num_groups
+  n_groups = args$num_groups
   expect_equal(ncol(group_params$main_effects_groups), n_groups)
   expect_equal(ncol(group_params$pairwise_effects_groups), n_groups)
-  
+
   # Values finite
   expect_true(all(is.finite(group_params$main_effects_groups)))
   expect_true(all(is.finite(group_params$pairwise_effects_groups)))
@@ -619,37 +628,42 @@ test_that("extract_group_params works with main_difference_selection = TRUE", {
 # ------------------------------------------------------------------------------
 
 test_that("extract_sbm.bgms returns SBM summaries for Stochastic-Block prior", {
-  fit <- get_bgms_fit_sbm()
-  args <- extract_arguments(fit)
-  
-  sbm <- extract_sbm(fit)
-  
+  fit = get_bgms_fit_sbm()
+  args = extract_arguments(fit)
+
+  sbm = extract_sbm(fit)
+
   # Structure
   expect_type(sbm, "list")
-  
+
   # Required fields
-  expect_true("posterior_num_blocks" %in% names(sbm), 
-              info = "should have posterior_num_blocks")
-  expect_true("posterior_mean_allocations" %in% names(sbm), 
-              info = "should have posterior_mean_allocations")
-  expect_true("posterior_mode_allocations" %in% names(sbm), 
-              info = "should have posterior_mode_allocations")
-  expect_true("posterior_mean_coclustering_matrix" %in% names(sbm), 
-              info = "should have posterior_mean_coclustering_matrix")
-  
+  expect_true("posterior_num_blocks" %in% names(sbm),
+    info = "should have posterior_num_blocks"
+  )
+  expect_true("posterior_mean_allocations" %in% names(sbm),
+    info = "should have posterior_mean_allocations"
+  )
+  expect_true("posterior_mode_allocations" %in% names(sbm),
+    info = "should have posterior_mode_allocations"
+  )
+  expect_true("posterior_mean_coclustering_matrix" %in% names(sbm),
+    info = "should have posterior_mean_coclustering_matrix"
+  )
+
   # Coclustering matrix should be symmetric
-  ccm <- sbm$posterior_mean_coclustering_matrix
+  ccm = sbm$posterior_mean_coclustering_matrix
   expect_true(is.matrix(ccm), info = "coclustering matrix should be matrix")
   expect_true(is_symmetric(ccm), info = "coclustering matrix should be symmetric")
-  
+
   # Values in [0, 1] for coclustering probabilities
-  expect_true(values_in_range(ccm, 0, 1), 
-              info = "coclustering probabilities should be in [0,1]")
+  expect_true(values_in_range(ccm, 0, 1),
+    info = "coclustering probabilities should be in [0,1]"
+  )
 })
 
 test_that("extract_sbm.bgms errors for non-SBM prior", {
-  fit <- get_bgms_fit()  # Uses default Bernoulli prior
-  
+  fit = get_bgms_fit() # Uses default Bernoulli prior
+
   expect_error(extract_sbm(fit), regexp = "Stochastic-Block")
 })
 
@@ -659,19 +673,19 @@ test_that("extract_sbm.bgms errors for non-SBM prior", {
 # ------------------------------------------------------------------------------
 
 test_that("extract_indicator_priors returns Beta-Bernoulli parameters", {
-  fit <- get_bgms_fit_beta_bernoulli()
-  args <- extract_arguments(fit)
-  
-  priors <- extract_indicator_priors(fit)
-  
+  fit = get_bgms_fit_beta_bernoulli()
+  args = extract_arguments(fit)
+
+  priors = extract_indicator_priors(fit)
+
   # Type check
   expect_type(priors, "list")
   expect_equal(priors$type, "Beta-Bernoulli")
-  
+
   # Required parameters
   expect_true("alpha" %in% names(priors), info = "should have alpha parameter")
   expect_true("beta" %in% names(priors), info = "should have beta parameter")
-  
+
   # Positive values
 
   expect_true(priors$alpha > 0, info = "alpha should be positive")
@@ -679,21 +693,24 @@ test_that("extract_indicator_priors returns Beta-Bernoulli parameters", {
 })
 
 test_that("extract_indicator_priors returns Stochastic-Block parameters", {
-  fit <- get_bgms_fit_sbm()
-  
-  priors <- extract_indicator_priors(fit)
-  
+  fit = get_bgms_fit_sbm()
+
+  priors = extract_indicator_priors(fit)
+
   # Type check
   expect_type(priors, "list")
   expect_equal(priors$type, "Stochastic-Block")
-  
+
   # Required parameters
-  expect_true("beta_bernoulli_alpha" %in% names(priors), 
-              info = "should have beta_bernoulli_alpha")
-  expect_true("beta_bernoulli_beta" %in% names(priors), 
-              info = "should have beta_bernoulli_beta")
-  expect_true("dirichlet_alpha" %in% names(priors), 
-              info = "should have dirichlet_alpha")
+  expect_true("beta_bernoulli_alpha" %in% names(priors),
+    info = "should have beta_bernoulli_alpha"
+  )
+  expect_true("beta_bernoulli_beta" %in% names(priors),
+    info = "should have beta_bernoulli_beta"
+  )
+  expect_true("dirichlet_alpha" %in% names(priors),
+    info = "should have dirichlet_alpha"
+  )
 })
 
 # ==============================================================================
@@ -734,53 +751,53 @@ test_that("extract_indicator_priors returns Stochastic-Block parameters", {
 
 # Get the legacy fixtures directory path
 # NOTE: skip_on_cran() here ensures ALL legacy tests are skipped on CRAN
-get_legacy_dir <- function() {
-  skip_on_cran()  # Legacy fixtures not shipped to CRAN
-  
+get_legacy_dir = function() {
+  skip_on_cran() # Legacy fixtures not shipped to CRAN
+
   # Try relative path first (for devtools::test())
-  legacy_dir <- file.path("fixtures", "legacy")
-  if (!dir.exists(legacy_dir)) {
+  legacy_dir = file.path("fixtures", "legacy")
+  if(!dir.exists(legacy_dir)) {
     # Try from package root (for testthat::test_file())
-    legacy_dir <- file.path("tests", "testthat", "fixtures", "legacy")
+    legacy_dir = file.path("tests", "testthat", "fixtures", "legacy")
   }
-  if (!dir.exists(legacy_dir)) {
+  if(!dir.exists(legacy_dir)) {
     return(NULL)
   }
   legacy_dir
 }
 
 # Load a legacy fixture by filename
-load_legacy_fixture <- function(filename) {
-  legacy_dir <- get_legacy_dir()
-  if (is.null(legacy_dir)) {
+load_legacy_fixture = function(filename) {
+  legacy_dir = get_legacy_dir()
+  if(is.null(legacy_dir)) {
     skip("Legacy fixtures directory not found - run dev/generate_legacy_fixtures.R")
   }
-  
-  path <- file.path(legacy_dir, paste0(filename, ".rds"))
-  if (!file.exists(path)) {
+
+  path = file.path(legacy_dir, paste0(filename, ".rds"))
+  if(!file.exists(path)) {
     skip(paste("Legacy fixture not found:", filename, "- run dev/generate_legacy_fixtures.R"))
   }
   readRDS(path)
 }
 
 # Categorize version by format era (works for both bgm and bgmCompare)
-categorize_version <- function(version, type = "bgm") {
-  v <- numeric_version(version)
-  
-  if (type == "bgm") {
-    if (v < "0.1.4") {
-      return("pre-0.1.4")      # Defunct: $gamma field → error
-    } else if (v < "0.1.6") {
-      return("0.1.4-0.1.5")    # Deprecated: $indicator at top level → warning
+categorize_version = function(version, type = "bgm") {
+  v = numeric_version(version)
+
+  if(type == "bgm") {
+    if(v < "0.1.4") {
+      return("pre-0.1.4") # Defunct: $gamma field → error
+    } else if(v < "0.1.6") {
+      return("0.1.4-0.1.5") # Deprecated: $indicator at top level → warning
     } else {
-      return("0.1.6+")         # Current: $raw_samples$indicator → no warning
+      return("0.1.6+") # Current: $raw_samples$indicator → no warning
     }
   } else {
     # bgmCompare (introduced in 0.1.4)
-    if (v < "0.1.6") {
-      return("0.1.4-0.1.5")    # Deprecated: top-level fields → warning
+    if(v < "0.1.6") {
+      return("0.1.4-0.1.5") # Deprecated: top-level fields → warning
     } else {
-      return("0.1.6+")         # Current: $raw_samples$* → no warning
+      return("0.1.6+") # Current: $raw_samples$* → no warning
     }
   }
 }
@@ -788,21 +805,21 @@ categorize_version <- function(version, type = "bgm") {
 # Build legacy fixture specs from available files
 # Returns list of specs like get_all_fixtures(), with:
 #   label, version, type (bgm/bgmCompare), era, get_fit
-get_legacy_fixture_specs <- function() {
-  legacy_dir <- get_legacy_dir()
-  if (is.null(legacy_dir)) {
+get_legacy_fixture_specs = function() {
+  legacy_dir = get_legacy_dir()
+  if(is.null(legacy_dir)) {
     return(list())
   }
-  
-  specs <- list()
-  
+
+  specs = list()
+
   # bgm fixtures: fit_v*.rds
   # Use local() to properly capture variables in closures
-  bgm_files <- list.files(legacy_dir, pattern = "^fit_v.*\\.rds$")
-  for (file in bgm_files) {
-    specs[[length(specs) + 1]] <- local({
-      version <- gsub("^fit_v(.*)\\.rds$", "\\1", file)
-      fn <- gsub("\\.rds$", "", file)
+  bgm_files = list.files(legacy_dir, pattern = "^fit_v.*\\.rds$")
+  for(file in bgm_files) {
+    specs[[length(specs) + 1]] = local({
+      version = gsub("^fit_v(.*)\\.rds$", "\\1", file)
+      fn = gsub("\\.rds$", "", file)
       list(
         label = paste0("bgm_v", version),
         version = version,
@@ -812,13 +829,13 @@ get_legacy_fixture_specs <- function() {
       )
     })
   }
-  
+
   # bgmCompare fixtures: bgmcompare_v*.rds
-  bgmcompare_files <- list.files(legacy_dir, pattern = "^bgmcompare_v.*\\.rds$")
-  for (file in bgmcompare_files) {
-    specs[[length(specs) + 1]] <- local({
-      version <- gsub("^bgmcompare_v(.*)\\.rds$", "\\1", file)
-      fn <- gsub("\\.rds$", "", file)
+  bgmcompare_files = list.files(legacy_dir, pattern = "^bgmcompare_v.*\\.rds$")
+  for(file in bgmcompare_files) {
+    specs[[length(specs) + 1]] = local({
+      version = gsub("^bgmcompare_v(.*)\\.rds$", "\\1", file)
+      fn = gsub("\\.rds$", "", file)
       list(
         label = paste0("bgmCompare_v", version),
         version = version,
@@ -828,15 +845,15 @@ get_legacy_fixture_specs <- function() {
       )
     })
   }
-  
+
   specs
 }
 
 # Helper to filter specs by type and/or era
-filter_legacy_specs <- function(specs, type = NULL, era = NULL) {
+filter_legacy_specs = function(specs, type = NULL, era = NULL) {
   Filter(function(spec) {
-    type_match <- is.null(type) || spec$type == type
-    era_match <- is.null(era) || spec$era == era
+    type_match = is.null(type) || spec$type == type
+    era_match = is.null(era) || spec$era == era
     type_match && era_match
   }, specs)
 }
@@ -846,64 +863,73 @@ filter_legacy_specs <- function(specs, type = NULL, era = NULL) {
 # ------------------------------------------------------------------------------
 
 test_that("pre-0.1.4 bgm formats throw defunct errors for indicator extraction", {
-  specs <- filter_legacy_specs(get_legacy_fixture_specs(), type = "bgm", era = "pre-0.1.4")
+  specs = filter_legacy_specs(get_legacy_fixture_specs(), type = "bgm", era = "pre-0.1.4")
   skip_if(length(specs) == 0, "No pre-0.1.4 bgm fixtures available")
-  
-  for (spec in specs) {
-    fit <- spec$get_fit()
-    
+
+  for(spec in specs) {
+    fit = spec$get_fit()
+
     expect_error(extract_indicators(fit), "defunct",
-                 info = paste(spec$label, "extract_indicators should error (defunct)"))
+      info = paste(spec$label, "extract_indicators should error (defunct)")
+    )
     expect_error(extract_posterior_inclusion_probabilities(fit), "defunct",
-                 info = paste(spec$label, "extract_pip should error (defunct)"))
+      info = paste(spec$label, "extract_pip should error (defunct)")
+    )
   }
 })
 
 test_that("pre-0.1.4 bgm formats emit deprecation warnings for pairwise/thresholds", {
-  specs <- filter_legacy_specs(get_legacy_fixture_specs(), type = "bgm", era = "pre-0.1.4")
+  specs = filter_legacy_specs(get_legacy_fixture_specs(), type = "bgm", era = "pre-0.1.4")
   skip_if(length(specs) == 0, "No pre-0.1.4 bgm fixtures available")
-  
-  for (spec in specs) {
-    fit <- spec$get_fit()
-    
+
+  for(spec in specs) {
+    fit = spec$get_fit()
+
     expect_warning(extract_pairwise_interactions(fit), "deprecated",
-                   info = paste(spec$label, "extract_pairwise should warn"))
+      info = paste(spec$label, "extract_pairwise should warn")
+    )
     expect_warning(extract_category_thresholds(fit), "deprecated",
-                   info = paste(spec$label, "extract_thresholds should warn"))
+      info = paste(spec$label, "extract_thresholds should warn")
+    )
   }
 })
 
 test_that("0.1.4-0.1.5 formats emit deprecation warnings", {
-  specs <- filter_legacy_specs(get_legacy_fixture_specs(), era = "0.1.4-0.1.5")
+  specs = filter_legacy_specs(get_legacy_fixture_specs(), era = "0.1.4-0.1.5")
   skip_if(length(specs) == 0, "No 0.1.4-0.1.5 fixtures available")
-  
-  for (spec in specs) {
-    fit <- spec$get_fit()
-    
+
+  for(spec in specs) {
+    fit = spec$get_fit()
+
     expect_warning(extract_indicators(fit), "deprecated",
-                   info = paste(spec$label, "extract_indicators should warn"))
+      info = paste(spec$label, "extract_indicators should warn")
+    )
     expect_warning(extract_posterior_inclusion_probabilities(fit), "deprecated",
-                   info = paste(spec$label, "extract_pip should warn"))
+      info = paste(spec$label, "extract_pip should warn")
+    )
     expect_warning(extract_pairwise_interactions(fit), "deprecated",
-                   info = paste(spec$label, "extract_pairwise should warn"))
+      info = paste(spec$label, "extract_pairwise should warn")
+    )
     expect_warning(extract_category_thresholds(fit), "deprecated",
-                   info = paste(spec$label, "extract_thresholds should warn"))
-    
+      info = paste(spec$label, "extract_thresholds should warn")
+    )
+
     # bgmCompare also has extract_group_params
-    if (spec$type == "bgmCompare") {
+    if(spec$type == "bgmCompare") {
       expect_warning(extract_group_params(fit), "deprecated",
-                     info = paste(spec$label, "extract_group_params should warn"))
+        info = paste(spec$label, "extract_group_params should warn")
+      )
     }
   }
 })
 
 test_that("0.1.6+ formats work without deprecation warnings", {
-  specs <- filter_legacy_specs(get_legacy_fixture_specs(), era = "0.1.6+")
+  specs = filter_legacy_specs(get_legacy_fixture_specs(), era = "0.1.6+")
   skip_if(length(specs) == 0, "No 0.1.6+ fixtures available")
-  
-  for (spec in specs) {
-    fit <- spec$get_fit()
-    
+
+  for(spec in specs) {
+    fit = spec$get_fit()
+
     # expect_no_warning doesn't support info= parameter, so use labeled tests
     expect_no_warning(extract_indicators(fit))
     expect_no_warning(extract_posterior_inclusion_probabilities(fit))
@@ -917,13 +943,13 @@ test_that("0.1.6+ formats work without deprecation warnings", {
 # ------------------------------------------------------------------------------
 
 test_that("extract_indicators works with deprecated formats (0.1.4-0.1.5)", {
-  specs <- filter_legacy_specs(get_legacy_fixture_specs(), era = "0.1.4-0.1.5")
+  specs = filter_legacy_specs(get_legacy_fixture_specs(), era = "0.1.4-0.1.5")
   skip_if(length(specs) == 0, "No 0.1.4-0.1.5 fixtures available")
-  
-  for (spec in specs) {
-    fit <- spec$get_fit()
-    result <- suppressWarnings(extract_indicators(fit))
-    
+
+  for(spec in specs) {
+    fit = spec$get_fit()
+    result = suppressWarnings(extract_indicators(fit))
+
     expect_true(is.matrix(result), info = paste(spec$label, "should return matrix"))
     expect_true(nrow(result) > 0, info = paste(spec$label, "should have rows"))
     expect_true(ncol(result) > 0, info = paste(spec$label, "should have columns"))
@@ -932,13 +958,13 @@ test_that("extract_indicators works with deprecated formats (0.1.4-0.1.5)", {
 })
 
 test_that("extract_posterior_inclusion_probabilities works with deprecated formats", {
-  specs <- filter_legacy_specs(get_legacy_fixture_specs(), era = "0.1.4-0.1.5")
+  specs = filter_legacy_specs(get_legacy_fixture_specs(), era = "0.1.4-0.1.5")
   skip_if(length(specs) == 0, "No 0.1.4-0.1.5 fixtures available")
-  
-  for (spec in specs) {
-    fit <- spec$get_fit()
-    result <- suppressWarnings(extract_posterior_inclusion_probabilities(fit))
-    
+
+  for(spec in specs) {
+    fit = spec$get_fit()
+    result = suppressWarnings(extract_posterior_inclusion_probabilities(fit))
+
     expect_true(is.matrix(result), info = paste(spec$label, "should return matrix"))
     expect_true(isSymmetric(result), info = paste(spec$label, "should be symmetric"))
     expect_true(all(result >= 0 & result <= 1), info = paste(spec$label, "should be in [0,1]"))
@@ -946,73 +972,79 @@ test_that("extract_posterior_inclusion_probabilities works with deprecated forma
 })
 
 test_that("extract_pairwise_interactions works with pre-0.1.6 formats", {
-  specs <- filter_legacy_specs(get_legacy_fixture_specs(), era = NULL)
-  specs <- Filter(function(s) s$era != "0.1.6+", specs)
+  specs = filter_legacy_specs(get_legacy_fixture_specs(), era = NULL)
+  specs = Filter(function(s) s$era != "0.1.6+", specs)
   skip_if(length(specs) == 0, "No pre-0.1.6 fixtures available")
-  
-  for (spec in specs) {
-    fit <- spec$get_fit()
-    result <- suppressWarnings(extract_pairwise_interactions(fit))
-    
+
+  for(spec in specs) {
+    fit = spec$get_fit()
+    result = suppressWarnings(extract_pairwise_interactions(fit))
+
     expect_true(is.matrix(result), info = paste(spec$label, "should return matrix"))
     expect_true(nrow(result) > 0, info = paste(spec$label, "should have rows"))
   }
 })
 
 test_that("extract_category_thresholds works with pre-0.1.6 formats", {
-  specs <- filter_legacy_specs(get_legacy_fixture_specs(), era = NULL)
-  specs <- Filter(function(s) s$era != "0.1.6+", specs)
+  specs = filter_legacy_specs(get_legacy_fixture_specs(), era = NULL)
+  specs = Filter(function(s) s$era != "0.1.6+", specs)
   skip_if(length(specs) == 0, "No pre-0.1.6 fixtures available")
-  
-  for (spec in specs) {
-    fit <- spec$get_fit()
-    result <- suppressWarnings(extract_category_thresholds(fit))
-    
+
+  for(spec in specs) {
+    fit = spec$get_fit()
+    result = suppressWarnings(extract_category_thresholds(fit))
+
     expect_true(is.matrix(result), info = paste(spec$label, "should return matrix"))
     expect_true(nrow(result) > 0, info = paste(spec$label, "should have rows"))
   }
 })
 
 test_that("extract_group_params works with deprecated bgmCompare formats", {
-  specs <- filter_legacy_specs(get_legacy_fixture_specs(), type = "bgmCompare", era = "0.1.4-0.1.5")
+  specs = filter_legacy_specs(get_legacy_fixture_specs(), type = "bgmCompare", era = "0.1.4-0.1.5")
   skip_if(length(specs) == 0, "No 0.1.4-0.1.5 bgmCompare fixtures available")
-  
-  for (spec in specs) {
-    fit <- spec$get_fit()
-    result <- suppressWarnings(extract_group_params(fit))
-    
+
+  for(spec in specs) {
+    fit = spec$get_fit()
+    result = suppressWarnings(extract_group_params(fit))
+
     expect_type(result, "list")
     expect_true("main_effects_groups" %in% names(result),
-                info = paste(spec$label, "should have main_effects_groups"))
+      info = paste(spec$label, "should have main_effects_groups")
+    )
     expect_true("pairwise_effects_groups" %in% names(result),
-                info = paste(spec$label, "should have pairwise_effects_groups"))
+      info = paste(spec$label, "should have pairwise_effects_groups")
+    )
     expect_equal(ncol(result$main_effects_groups), 2,
-                 info = paste(spec$label, "should have 2 groups"))
+      info = paste(spec$label, "should have 2 groups")
+    )
     expect_equal(ncol(result$pairwise_effects_groups), 2,
-                 info = paste(spec$label, "should have 2 groups"))
+      info = paste(spec$label, "should have 2 groups")
+    )
   }
 })
 
 test_that("extract_arguments works with all legacy versions", {
-  specs <- get_legacy_fixture_specs()
+  specs = get_legacy_fixture_specs()
   skip_if(length(specs) == 0, "No legacy fixtures available")
-  
-  for (spec in specs) {
-    fit <- spec$get_fit()
-    args <- extract_arguments(fit)
-    
+
+  for(spec in specs) {
+    fit = spec$get_fit()
+    args = extract_arguments(fit)
+
     expect_type(args, "list")
     expect_true(
       "no_variables" %in% names(args) || "num_variables" %in% names(args),
       info = paste(spec$label, "should have variable count")
     )
     expect_true("data_columnnames" %in% names(args),
-                info = paste(spec$label, "should have column names"))
-    
+      info = paste(spec$label, "should have column names")
+    )
+
     # bgmCompare specific
-    if (spec$type == "bgmCompare") {
+    if(spec$type == "bgmCompare") {
       expect_true("difference_selection" %in% names(args),
-                  info = paste(spec$label, "should have difference_selection"))
+        info = paste(spec$label, "should have difference_selection")
+      )
     }
   }
 })

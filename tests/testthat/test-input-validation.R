@@ -26,12 +26,12 @@ test_that("bgm errors on non-matrix/data.frame input", {
 })
 
 test_that("bgm errors on data with too few variables", {
-  bad_data <- matrix(c(0, 1, 0, 1), ncol = 1)
+  bad_data = matrix(c(0, 1, 0, 1), ncol = 1)
   expect_error(bgm(x = bad_data), regexp = "variable|column")
 })
 
 test_that("bgm errors on invalid iter values", {
-  data <- generate_test_data(n = 20, p = 3)
+  data = generate_test_data(n = 20, p = 3)
 
   expect_error(bgm(x = data, iter = 0), regexp = "iter")
   expect_error(bgm(x = data, iter = -10), regexp = "iter")
@@ -39,7 +39,7 @@ test_that("bgm errors on invalid iter values", {
 })
 
 test_that("bgm errors on invalid edge_prior", {
-  data <- generate_test_data(n = 20, p = 3)
+  data = generate_test_data(n = 20, p = 3)
 
   expect_error(
     bgm(x = data, edge_selection = TRUE, edge_prior = "Invalid"),
@@ -48,7 +48,7 @@ test_that("bgm errors on invalid edge_prior", {
 })
 
 test_that("bgm errors on invalid na_action", {
-  data <- generate_test_data(n = 20, p = 3)
+  data = generate_test_data(n = 20, p = 3)
 
   expect_error(
     bgm(x = data, na_action = "invalid_action"),
@@ -57,7 +57,7 @@ test_that("bgm errors on invalid na_action", {
 })
 
 test_that("bgm errors on invalid update_method", {
-  data <- generate_test_data(n = 20, p = 3)
+  data = generate_test_data(n = 20, p = 3)
 
   expect_error(
     bgm(x = data, update_method = "not-a-method"),
@@ -72,7 +72,7 @@ test_that("bgm errors on invalid update_method", {
 
 test_that("GGM rejects NUTS and HMC update methods", {
   set.seed(42)
-  x <- matrix(rnorm(200), nrow = 50, ncol = 4)
+  x = matrix(rnorm(200), nrow = 50, ncol = 4)
 
   expect_error(
     bgm(x = x, variable_type = "continuous", update_method = "nuts"),
@@ -86,7 +86,7 @@ test_that("GGM rejects NUTS and HMC update methods", {
 
 test_that("Mixed continuous and ordinal variable types are rejected", {
   set.seed(42)
-  x <- matrix(rnorm(200), nrow = 50, ncol = 4)
+  x = matrix(rnorm(200), nrow = 50, ncol = 4)
 
   expect_error(
     bgm(x = x, variable_type = c("continuous", "ordinal", "ordinal", "ordinal")),
@@ -101,8 +101,8 @@ test_that("Mixed continuous and ordinal variable types are rejected", {
 
 test_that("bgmCompare errors on insufficient data", {
   # Too few groups
-  data <- generate_test_data(n = 20, p = 3)
-  group_ind <- rep(1, 20) # Only one group
+  data = generate_test_data(n = 20, p = 3)
+  group_ind = rep(1, 20) # Only one group
 
   expect_error(
     bgmCompare(x = data, group_indicator = group_ind),
@@ -111,8 +111,8 @@ test_that("bgmCompare errors on insufficient data", {
 })
 
 test_that("bgmCompare errors on mismatched group_indicator length", {
-  data <- generate_test_data(n = 20, p = 3)
-  group_ind <- rep(1:2, each = 5) # Only 10 elements for 20 rows
+  data = generate_test_data(n = 20, p = 3)
+  group_ind = rep(1:2, each = 5) # Only 10 elements for 20 rows
 
   expect_error(
     bgmCompare(x = data, group_indicator = group_ind),
@@ -150,7 +150,7 @@ test_that("simulate_mrf errors on invalid num_states", {
 })
 
 test_that("simulate_mrf errors on non-symmetric pairwise", {
-  non_sym <- matrix(c(0, 1, 0, 0, 0, 1, 0, 0, 0), 3, 3)
+  non_sym = matrix(c(0, 1, 0, 0, 0, 1, 0, 0, 0), 3, 3)
 
   expect_error(
     simulate_mrf(
@@ -197,17 +197,17 @@ test_that("simulate_mrf errors on missing thresholds", {
 # ------------------------------------------------------------------------------
 
 test_that("predict.bgms errors when newdata is missing", {
-  fit <- get_bgms_fit()
+  fit = get_bgms_fit()
 
   expect_error(predict(fit), regexp = "newdata")
 })
 
 test_that("predict.bgms errors on invalid variable names", {
-  fit <- get_bgms_fit()
-  args <- extract_arguments(fit)
+  fit = get_bgms_fit()
+  args = extract_arguments(fit)
 
   data("Wenchuan", package = "bgms")
-  newdata <- Wenchuan[1:5, 1:args$num_variables]
+  newdata = Wenchuan[1:5, 1:args$num_variables]
 
   expect_error(
     predict(fit, newdata = newdata, variables = "NonexistentVar"),
@@ -216,11 +216,11 @@ test_that("predict.bgms errors on invalid variable names", {
 })
 
 test_that("predict.bgms errors on out-of-range variable indices", {
-  fit <- get_bgms_fit()
-  args <- extract_arguments(fit)
+  fit = get_bgms_fit()
+  args = extract_arguments(fit)
 
   data("Wenchuan", package = "bgms")
-  newdata <- Wenchuan[1:5, 1:args$num_variables]
+  newdata = Wenchuan[1:5, 1:args$num_variables]
 
   expect_error(
     predict(fit, newdata = newdata, variables = 999),
@@ -234,14 +234,14 @@ test_that("predict.bgms errors on out-of-range variable indices", {
 # ------------------------------------------------------------------------------
 
 test_that("simulate.bgms errors on invalid seed", {
-  fit <- get_bgms_fit()
+  fit = get_bgms_fit()
 
   expect_error(simulate(fit, nsim = 10, seed = -1), regexp = "seed")
   expect_error(simulate(fit, nsim = 10, seed = "abc"), regexp = "seed")
 })
 
 test_that("simulate.bgms errors on invalid cores argument", {
-  fit <- get_bgms_fit()
+  fit = get_bgms_fit()
 
   expect_error(
     simulate(fit, nsim = 10, method = "posterior-sample", cores = 0),
@@ -259,25 +259,25 @@ test_that("simulate.bgms errors on invalid cores argument", {
 # ------------------------------------------------------------------------------
 
 test_that("predict.bgmCompare errors when newdata is missing", {
-  fit <- get_bgmcompare_fit()
+  fit = get_bgmcompare_fit()
 
   expect_error(predict(fit, group = 1), regexp = "newdata")
 })
 
 test_that("predict.bgmCompare errors when group is missing", {
-  fit <- get_bgmcompare_fit()
-  args <- extract_arguments(fit)
+  fit = get_bgmcompare_fit()
+  args = extract_arguments(fit)
 
-  newdata <- matrix(0L, nrow = 5, ncol = args$num_variables)
+  newdata = matrix(0L, nrow = 5, ncol = args$num_variables)
 
   expect_error(predict(fit, newdata = newdata), regexp = "group.*required")
 })
 
 test_that("predict.bgmCompare errors on invalid group argument", {
-  fit <- get_bgmcompare_fit()
-  args <- extract_arguments(fit)
+  fit = get_bgmcompare_fit()
+  args = extract_arguments(fit)
 
-  newdata <- matrix(0L, nrow = 5, ncol = args$num_variables)
+  newdata = matrix(0L, nrow = 5, ncol = args$num_variables)
 
   # Group out of range
   expect_error(
@@ -296,10 +296,10 @@ test_that("predict.bgmCompare errors on invalid group argument", {
 })
 
 test_that("predict.bgmCompare errors on invalid variable names", {
-  fit <- get_bgmcompare_fit()
-  args <- extract_arguments(fit)
+  fit = get_bgmcompare_fit()
+  args = extract_arguments(fit)
 
-  newdata <- matrix(0L, nrow = 5, ncol = args$num_variables)
+  newdata = matrix(0L, nrow = 5, ncol = args$num_variables)
 
   expect_error(
     predict(fit, newdata = newdata, group = 1, variables = "NonexistentVar"),
@@ -313,13 +313,13 @@ test_that("predict.bgmCompare errors on invalid variable names", {
 # ------------------------------------------------------------------------------
 
 test_that("simulate.bgmCompare errors when group is missing", {
-  fit <- get_bgmcompare_fit()
+  fit = get_bgmcompare_fit()
 
   expect_error(simulate(fit, nsim = 10), regexp = "group.*required")
 })
 
 test_that("simulate.bgmCompare errors on invalid group argument", {
-  fit <- get_bgmcompare_fit()
+  fit = get_bgmcompare_fit()
 
   # Group out of range
   expect_error(simulate(fit, nsim = 10, group = 0), regexp = "group.*1")
@@ -329,7 +329,7 @@ test_that("simulate.bgmCompare errors on invalid group argument", {
 })
 
 test_that("simulate.bgmCompare errors on invalid seed", {
-  fit <- get_bgmcompare_fit()
+  fit = get_bgmcompare_fit()
 
   expect_error(simulate(fit, nsim = 10, group = 1, seed = -1), regexp = "seed")
   expect_error(simulate(fit, nsim = 10, group = 1, seed = "abc"), regexp = "seed")
@@ -341,17 +341,17 @@ test_that("simulate.bgmCompare errors on invalid seed", {
 # ------------------------------------------------------------------------------
 
 test_that("extract_indicators errors correctly without edge selection", {
-  data <- generate_test_data(n = 20, p = 3)
-  args <- c(list(x = data, edge_selection = FALSE), quick_mcmc_args())
-  fit <- do.call(bgm, args)
+  data = generate_test_data(n = 20, p = 3)
+  args = c(list(x = data, edge_selection = FALSE), quick_mcmc_args())
+  fit = do.call(bgm, args)
 
   expect_error(extract_indicators(fit), regexp = "edge_selection")
 })
 
 test_that("extract_posterior_inclusion_probabilities errors without edge selection", {
-  data <- generate_test_data(n = 20, p = 3)
-  args <- c(list(x = data, edge_selection = FALSE), quick_mcmc_args())
-  fit <- do.call(bgm, args)
+  data = generate_test_data(n = 20, p = 3)
+  args = c(list(x = data, edge_selection = FALSE), quick_mcmc_args())
+  fit = do.call(bgm, args)
 
   expect_error(
     extract_posterior_inclusion_probabilities(fit),
@@ -360,11 +360,11 @@ test_that("extract_posterior_inclusion_probabilities errors without edge selecti
 })
 
 test_that("extract_sbm errors with non-SBM prior", {
-  fit <- get_bgms_fit()
-  args <- extract_arguments(fit)
+  fit = get_bgms_fit()
+  args = extract_arguments(fit)
 
   # Skip if this fit actually used SBM
-  if (identical(args$edge_prior, "Stochastic-Block")) {
+  if(identical(args$edge_prior, "Stochastic-Block")) {
     skip("Fit uses SBM prior")
   }
 
@@ -377,21 +377,21 @@ test_that("extract_sbm errors with non-SBM prior", {
 # ------------------------------------------------------------------------------
 
 test_that("bgm handles constant columns gracefully", {
-  data <- generate_test_data(n = 20, p = 3)
-  data[, 1] <- 0 # Make first column constant
+  data = generate_test_data(n = 20, p = 3)
+  data[, 1] = 0 # Make first column constant
 
   # This test verifies bgm doesn't crash unexpectedly on edge cases.
   # The function may error, warn, or succeed depending on implementation.
-  result <- tryCatch(
+  result = tryCatch(
     {
-      args <- c(list(x = data), quick_mcmc_args())
+      args = c(list(x = data), quick_mcmc_args())
       do.call(bgm, args)
     },
     error = function(e) list(type = "error", obj = e)
   )
 
   # Either it errors or it succeeds - both are acceptable behaviors
-  if (is.list(result) && !is.null(result$type)) {
+  if(is.list(result) && !is.null(result$type)) {
     # Got an error - bgm handled the edge case
     expect_true(TRUE, info = "bgm raised an error for constant column")
   } else {
@@ -401,8 +401,8 @@ test_that("bgm handles constant columns gracefully", {
 })
 
 test_that("bgm handles all-NA columns", {
-  data <- generate_test_data(n = 20, p = 3)
-  data[, 1] <- NA # Make first column all NA
+  data = generate_test_data(n = 20, p = 3)
+  data[, 1] = NA # Make first column all NA
 
   expect_error(bgm(x = data), regexp = "NA|missing|incomplete")
 })

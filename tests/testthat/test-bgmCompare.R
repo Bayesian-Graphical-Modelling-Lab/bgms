@@ -23,17 +23,17 @@
 
 test_that("bgmCompare is reproducible with seed (x, y interface)", {
   # Use cached fixture as fit1, run one fresh fit as fit2 with same params
-  fit1 <- get_bgmcompare_fit_xy()
+  fit1 = get_bgmcompare_fit_xy()
 
   data("Wenchuan", package = "bgms")
-  x <- Wenchuan[1:25, 1:4]
-  y <- Wenchuan[26:50, 1:4]
+  x = Wenchuan[1:25, 1:4]
+  y = Wenchuan[26:50, 1:4]
 
-  fit2 <- bgmCompare(x = x, y = y, iter = 50, warmup = 100, chains = 2, seed = 1234, display_progress = "none")
+  fit2 = bgmCompare(x = x, y = y, iter = 50, warmup = 100, chains = 2, seed = 1234, display_progress = "none")
 
-  combine_chains <- function(fit) {
-    pairs <- do.call(rbind, fit$raw_samples$pairwise)
-    mains <- do.call(rbind, fit$raw_samples$main)
+  combine_chains = function(fit) {
+    pairs = do.call(rbind, fit$raw_samples$pairwise)
+    mains = do.call(rbind, fit$raw_samples$main)
     cbind(mains, pairs)
   }
 
@@ -46,7 +46,7 @@ test_that("bgmCompare is reproducible with seed (x, y interface)", {
 # ------------------------------------------------------------------------------
 
 test_that("bgmCompare output has expected structure", {
-  fit <- get_bgmcompare_fit()
+  fit = get_bgmcompare_fit()
 
   expect_s3_class(fit, "bgmCompare")
 
@@ -60,15 +60,15 @@ test_that("bgmCompare output has expected structure", {
 })
 
 test_that("bgmCompare stores correct number of groups", {
-  fit <- get_bgmcompare_fit()
-  args <- extract_arguments(fit)
+  fit = get_bgmcompare_fit()
+  args = extract_arguments(fit)
 
   expect_true("num_groups" %in% names(args))
   expect_true(args$num_groups >= 2)
 })
 
 test_that("bgmCompare posterior summaries have expected format", {
-  fit <- get_bgmcompare_fit()
+  fit = get_bgmcompare_fit()
 
   # Should have baseline summaries
   expect_true(!is.null(fit$posterior_summary_pairwise_baseline))
@@ -81,25 +81,25 @@ test_that("bgmCompare posterior summaries have expected format", {
 # ------------------------------------------------------------------------------
 
 test_that("bgmCompare outputs are numerically sane", {
-  fit <- get_bgmcompare_fit()
-  args <- extract_arguments(fit)
-  p <- args$num_variables
+  fit = get_bgmcompare_fit()
+  args = extract_arguments(fit)
+  p = args$num_variables
 
   # Check baseline pairwise
-  M <- fit$posterior_mean_pairwise_baseline
+  M = fit$posterior_mean_pairwise_baseline
 
   expect_true(is.matrix(M))
   expect_equal(dim(M), c(p, p))
 
   # Symmetry check
-  asym <- max(abs(M - t(M)), na.rm = TRUE)
+  asym = max(abs(M - t(M)), na.rm = TRUE)
   expect_true(asym <= 1e-8, info = sprintf("Asymmetry too large: %g", asym))
 
   # Values should be finite
   expect_true(all(is.finite(M)))
 
   # Check group params
-  group_params <- extract_group_params(fit)
+  group_params = extract_group_params(fit)
 
   expect_true(all(is.finite(group_params$main_effects_groups)))
   expect_true(all(is.finite(group_params$pairwise_effects_groups)))
@@ -111,9 +111,9 @@ test_that("bgmCompare outputs are numerically sane", {
 # ------------------------------------------------------------------------------
 
 test_that("bgmCompare without selection produces valid estimates", {
-  data <- generate_grouped_test_data(n_per_group = 20, p = 3, n_groups = 2, seed = 42)
+  data = generate_grouped_test_data(n_per_group = 20, p = 3, n_groups = 2, seed = 42)
 
-  fit <- bgmCompare(
+  fit = bgmCompare(
     x = data$x,
     group_indicator = data$group_indicator,
     difference_selection = FALSE,
@@ -131,10 +131,10 @@ test_that("bgmCompare without selection produces valid estimates", {
 })
 
 test_that("bgmCompare with selection produces valid indicators", {
-  data <- generate_grouped_test_data(n_per_group = 20, p = 3, n_groups = 2, seed = 123)
+  data = generate_grouped_test_data(n_per_group = 20, p = 3, n_groups = 2, seed = 123)
 
   # Test with single chain (previously caused bug in summarize_mixture_effect)
-  fit <- bgmCompare(
+  fit = bgmCompare(
     x = data$x,
     group_indicator = data$group_indicator,
     difference_selection = TRUE,
@@ -150,7 +150,7 @@ test_that("bgmCompare with selection produces valid indicators", {
   expect_true(!is.null(fit$raw_samples$indicator))
 
   # Indicators should be binary
-  ind_samples <- do.call(rbind, fit$raw_samples$indicator)
+  ind_samples = do.call(rbind, fit$raw_samples$indicator)
   expect_true(all(ind_samples %in% c(0, 1)))
 })
 
@@ -160,13 +160,13 @@ test_that("bgmCompare with selection produces valid indicators", {
 # ------------------------------------------------------------------------------
 
 test_that("bgmCompare works with different update methods", {
-  data <- generate_grouped_test_data(n_per_group = 20, p = 3, n_groups = 2, seed = 99)
+  data = generate_grouped_test_data(n_per_group = 20, p = 3, n_groups = 2, seed = 99)
 
-  methods_to_test <- c("adaptive-metropolis")
+  methods_to_test = c("adaptive-metropolis")
   # Note: Could add "hmc", "nuts" if testing more thoroughly
 
-  for (method in methods_to_test) {
-    fit <- tryCatch(
+  for(method in methods_to_test) {
+    fit = tryCatch(
       bgmCompare(
         x = data$x,
         group_indicator = data$group_indicator,
@@ -179,7 +179,7 @@ test_that("bgmCompare works with different update methods", {
       error = function(e) e
     )
 
-    if (!inherits(fit, "error")) {
+    if(!inherits(fit, "error")) {
       expect_s3_class(fit, "bgmCompare")
     }
   }
@@ -191,13 +191,13 @@ test_that("bgmCompare works with different update methods", {
 # ------------------------------------------------------------------------------
 
 test_that("bgmCompare handles more than 2 groups", {
-  data <- generate_grouped_test_data(
+  data = generate_grouped_test_data(
     n_per_group = 15, p = 3, n_groups = 3, seed = 456
   )
 
   # Use difference_selection = FALSE to avoid summary computation issues
   # with very short chains
-  fit <- bgmCompare(
+  fit = bgmCompare(
     x = data$x,
     group_indicator = data$group_indicator,
     difference_selection = FALSE,
@@ -209,11 +209,11 @@ test_that("bgmCompare handles more than 2 groups", {
 
   expect_s3_class(fit, "bgmCompare")
 
-  args <- extract_arguments(fit)
+  args = extract_arguments(fit)
   expect_equal(args$num_groups, 3)
 
   # Group-specific effects should have 3 columns
-  group_params <- extract_group_params(fit)
+  group_params = extract_group_params(fit)
   expect_equal(ncol(group_params$main_effects_groups), 3)
   expect_equal(ncol(group_params$pairwise_effects_groups), 3)
 })
@@ -231,10 +231,10 @@ test_that("bgmCompare output has correct parameter ordering", {
   skip_on_cran()
 
   data("Wenchuan", package = "bgms")
-  x <- na.omit(Wenchuan[, 1:5])  # p=5 to detect row/column-major bugs
-  group_ind <- rep(1:2, length.out = nrow(x))
+  x = na.omit(Wenchuan[, 1:5]) # p=5 to detect row/column-major bugs
+  group_ind = rep(1:2, length.out = nrow(x))
 
-  fit <- bgmCompare(
+  fit = bgmCompare(
     x = x, group_indicator = group_ind,
     difference_selection = TRUE,
     iter = 1000, warmup = 500, chains = 1,
@@ -243,14 +243,14 @@ test_that("bgmCompare output has correct parameter ordering", {
   )
 
   # Summary mean vector -> matrix lower triangle (same row-major order)
-  M <- fit$posterior_mean_pairwise_baseline
+  M = fit$posterior_mean_pairwise_baseline
   expect_true(
     all(abs(fit$posterior_summary_pairwise_baseline$mean - M[lower.tri(M)]) < 1e-10),
     info = "bgmCompare pairwise baseline summary means do not match matrix lower triangle"
   )
 
   # Extractor column means -> matrix positions (uses named "Vi-Vj" columns)
-  pw_means <- colMeans(extract_pairwise_interactions(fit))
+  pw_means = colMeans(extract_pairwise_interactions(fit))
   expect_true(
     all(check_extractor_matrix_consistency(
       pw_means, fit$posterior_mean_pairwise_baseline

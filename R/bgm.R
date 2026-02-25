@@ -381,44 +381,44 @@
 #'
 #' @export
 bgm = function(
-    x,
-    variable_type = "ordinal",
-    baseline_category,
-    iter = 1e3,
-    warmup = 1e3,
-    pairwise_scale = 2.5,
-    main_alpha = 0.5,
-    main_beta = 0.5,
-    edge_selection = TRUE,
-    edge_prior = c("Bernoulli", "Beta-Bernoulli", "Stochastic-Block"),
-    inclusion_probability = 0.5,
-    beta_bernoulli_alpha = 1,
-    beta_bernoulli_beta = 1,
-    beta_bernoulli_alpha_between = 1,
-    beta_bernoulli_beta_between = 1,
-    dirichlet_alpha = 1,
-    lambda = 1,
-    na_action = c("listwise", "impute"),
-    update_method = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
-    target_accept,
-    hmc_num_leapfrogs = 100,
-    nuts_max_depth = 10,
-    learn_mass_matrix = TRUE,
-    chains = 4,
-    cores = parallel::detectCores(),
-    display_progress = c("per-chain", "total", "none"),
-    seed = NULL,
-    standardize = FALSE,
-    verbose = getOption("bgms.verbose", TRUE),
-    interaction_scale,
-    burnin,
-    save,
-    threshold_alpha,
-    threshold_beta
+  x,
+  variable_type = "ordinal",
+  baseline_category,
+  iter = 1e3,
+  warmup = 1e3,
+  pairwise_scale = 2.5,
+  main_alpha = 0.5,
+  main_beta = 0.5,
+  edge_selection = TRUE,
+  edge_prior = c("Bernoulli", "Beta-Bernoulli", "Stochastic-Block"),
+  inclusion_probability = 0.5,
+  beta_bernoulli_alpha = 1,
+  beta_bernoulli_beta = 1,
+  beta_bernoulli_alpha_between = 1,
+  beta_bernoulli_beta_between = 1,
+  dirichlet_alpha = 1,
+  lambda = 1,
+  na_action = c("listwise", "impute"),
+  update_method = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
+  target_accept,
+  hmc_num_leapfrogs = 100,
+  nuts_max_depth = 10,
+  learn_mass_matrix = TRUE,
+  chains = 4,
+  cores = parallel::detectCores(),
+  display_progress = c("per-chain", "total", "none"),
+  seed = NULL,
+  standardize = FALSE,
+  verbose = getOption("bgms.verbose", TRUE),
+  interaction_scale,
+  burnin,
+  save,
+  threshold_alpha,
+  threshold_beta
 ) {
   # Set verbose option for internal functions, restore on exit
 
-  old_verbose <- getOption("bgms.verbose")
+  old_verbose = getOption("bgms.verbose")
   options(bgms.verbose = verbose)
   on.exit(options(bgms.verbose = old_verbose), add = TRUE)
 
@@ -451,42 +451,42 @@ bgm = function(
   }
 
   # --- Build spec, sample, build output ----------------------------------------
-  spec <- bgm_spec(
-    x              = x,
-    model_type     = "omrf",
-    variable_type  = variable_type,
-    baseline_category = if (hasArg(baseline_category)) baseline_category else 0L,
-    na_action      = na_action,
+  spec = bgm_spec(
+    x = x,
+    model_type = "omrf",
+    variable_type = variable_type,
+    baseline_category = if(hasArg(baseline_category)) baseline_category else 0L,
+    na_action = na_action,
     pairwise_scale = pairwise_scale,
-    main_alpha     = main_alpha,
-    main_beta      = main_beta,
-    standardize    = standardize,
+    main_alpha = main_alpha,
+    main_beta = main_beta,
+    standardize = standardize,
     edge_selection = edge_selection,
-    edge_prior     = edge_prior,
-    inclusion_probability      = inclusion_probability,
-    beta_bernoulli_alpha       = beta_bernoulli_alpha,
-    beta_bernoulli_beta        = beta_bernoulli_beta,
+    edge_prior = edge_prior,
+    inclusion_probability = inclusion_probability,
+    beta_bernoulli_alpha = beta_bernoulli_alpha,
+    beta_bernoulli_beta = beta_bernoulli_beta,
     beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
-    beta_bernoulli_beta_between  = beta_bernoulli_beta_between,
-    dirichlet_alpha            = dirichlet_alpha,
-    lambda                     = lambda,
-    update_method  = update_method,
-    target_accept  = if (hasArg(target_accept)) target_accept else NULL,
-    iter           = iter,
-    warmup         = warmup,
+    beta_bernoulli_beta_between = beta_bernoulli_beta_between,
+    dirichlet_alpha = dirichlet_alpha,
+    lambda = lambda,
+    update_method = update_method,
+    target_accept = if(hasArg(target_accept)) target_accept else NULL,
+    iter = iter,
+    warmup = warmup,
     hmc_num_leapfrogs = hmc_num_leapfrogs,
     nuts_max_depth = nuts_max_depth,
     learn_mass_matrix = learn_mass_matrix,
-    chains         = chains,
-    cores          = cores,
-    seed           = seed,
+    chains = chains,
+    cores = cores,
+    seed = seed,
     display_progress = display_progress,
-    verbose        = verbose
+    verbose = verbose
   )
 
-  raw <- run_sampler(spec)
-  output <- build_output(spec, raw)
+  raw = run_sampler(spec)
+  output = build_output(spec, raw)
 
-  output$.bgm_spec <- spec
+  output$.bgm_spec = spec
   return(output)
 }

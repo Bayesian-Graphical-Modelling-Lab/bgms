@@ -24,15 +24,15 @@
 # ------------------------------------------------------------------------------
 
 test_that("simulate_mrf returns matrix of correct dimensions", {
-  n_states <- 50
-  n_vars <- 4
-  n_cats <- 2
+  n_states = 50
+  n_vars = 4
+  n_cats = 2
 
-  interactions <- matrix(0, n_vars, n_vars)
-  interactions[1, 2] <- interactions[2, 1] <- 0.3
-  thresholds <- matrix(0, n_vars, n_cats)
+  interactions = matrix(0, n_vars, n_vars)
+  interactions[1, 2] = interactions[2, 1] = 0.3
+  thresholds = matrix(0, n_vars, n_cats)
 
-  result <- simulate_mrf(
+  result = simulate_mrf(
     num_states = n_states,
     num_variables = n_vars,
     num_categories = n_cats,
@@ -47,13 +47,13 @@ test_that("simulate_mrf returns matrix of correct dimensions", {
 })
 
 test_that("simulate_mrf produces values in valid range", {
-  n_cats <- 3
-  n_vars <- 5
+  n_cats = 3
+  n_vars = 5
 
-  interactions <- matrix(0, n_vars, n_vars)
-  thresholds <- matrix(0, n_vars, n_cats)
+  interactions = matrix(0, n_vars, n_vars)
+  thresholds = matrix(0, n_vars, n_cats)
 
-  result <- simulate_mrf(
+  result = simulate_mrf(
     num_states = 100,
     num_variables = n_vars,
     num_categories = n_cats,
@@ -71,14 +71,14 @@ test_that("simulate_mrf produces values in valid range", {
 })
 
 test_that("simulate_mrf is reproducible with seed", {
-  n_vars <- 3
-  n_cats <- 2
+  n_vars = 3
+  n_cats = 2
 
-  interactions <- matrix(0.2, n_vars, n_vars)
-  diag(interactions) <- 0
-  thresholds <- matrix(0.5, n_vars, n_cats)
+  interactions = matrix(0.2, n_vars, n_vars)
+  diag(interactions) = 0
+  thresholds = matrix(0.5, n_vars, n_cats)
 
-  result1 <- simulate_mrf(
+  result1 = simulate_mrf(
     num_states = 50,
     num_variables = n_vars,
     num_categories = n_cats,
@@ -87,7 +87,7 @@ test_that("simulate_mrf is reproducible with seed", {
     seed = 999
   )
 
-  result2 <- simulate_mrf(
+  result2 = simulate_mrf(
     num_states = 50,
     num_variables = n_vars,
     num_categories = n_cats,
@@ -105,14 +105,14 @@ test_that("simulate_mrf is reproducible with seed", {
 # ------------------------------------------------------------------------------
 
 test_that("simulate_mrf handles different categories per variable", {
-  n_vars <- 4
-  n_cats <- c(1, 2, 3, 4) # Different number of categories
+  n_vars = 4
+  n_cats = c(1, 2, 3, 4) # Different number of categories
 
-  interactions <- matrix(0, n_vars, n_vars)
-  thresholds <- matrix(0, n_vars, max(n_cats))
+  interactions = matrix(0, n_vars, n_vars)
+  thresholds = matrix(0, n_vars, max(n_cats))
 
   # Warnings expected: variables with fewer categories have extra threshold columns
-  result <- suppressWarnings(simulate_mrf(
+  result = suppressWarnings(simulate_mrf(
     num_states = 100,
     num_variables = n_vars,
     num_categories = n_cats,
@@ -122,7 +122,7 @@ test_that("simulate_mrf handles different categories per variable", {
   ))
 
   # Check each variable's range
-  for (j in 1:n_vars) {
+  for(j in 1:n_vars) {
     expect_true(
       all(result[, j] <= n_cats[j]),
       info = sprintf("Variable %d should have max value %d", j, n_cats[j])
@@ -131,14 +131,14 @@ test_that("simulate_mrf handles different categories per variable", {
 })
 
 test_that("simulate_mrf handles binary variables correctly", {
-  n_vars <- 3
-  n_cats <- 1 # Binary: 0 or 1
+  n_vars = 3
+  n_cats = 1 # Binary: 0 or 1
 
-  interactions <- matrix(0.3, n_vars, n_vars)
-  diag(interactions) <- 0
-  thresholds <- matrix(0, n_vars, n_cats)
+  interactions = matrix(0.3, n_vars, n_vars)
+  diag(interactions) = 0
+  thresholds = matrix(0, n_vars, n_cats)
 
-  result <- simulate_mrf(
+  result = simulate_mrf(
     num_states = 100,
     num_variables = n_vars,
     num_categories = n_cats,
@@ -157,16 +157,16 @@ test_that("simulate_mrf handles binary variables correctly", {
 # ------------------------------------------------------------------------------
 
 test_that("simulate_mrf works with blume-capel variables", {
-  n_vars <- 3
-  n_cats <- 4 # Need > 2 categories for Blume-Capel
+  n_vars = 3
+  n_cats = 4 # Need > 2 categories for Blume-Capel
 
-  interactions <- matrix(0, n_vars, n_vars)
+  interactions = matrix(0, n_vars, n_vars)
   # Blume-Capel thresholds: alpha and beta
-  thresholds <- matrix(NA, n_vars, n_cats)
-  thresholds[, 1] <- 0 # alpha
-  thresholds[, 2] <- -0.5 # beta
+  thresholds = matrix(NA, n_vars, n_cats)
+  thresholds[, 1] = 0 # alpha
+  thresholds[, 2] = -0.5 # beta
 
-  result <- simulate_mrf(
+  result = simulate_mrf(
     num_states = 100,
     num_variables = n_vars,
     num_categories = n_cats,
@@ -183,18 +183,18 @@ test_that("simulate_mrf works with blume-capel variables", {
 })
 
 test_that("simulate_mrf works with mixed ordinal and blume-capel", {
-  n_vars <- 4
-  n_cats <- 4
+  n_vars = 4
+  n_cats = 4
 
-  interactions <- matrix(0, n_vars, n_vars)
-  thresholds <- matrix(0, n_vars, n_cats)
+  interactions = matrix(0, n_vars, n_vars)
+  thresholds = matrix(0, n_vars, n_cats)
   # Fill ordinal thresholds for vars 1 and 2
-  thresholds[1:2, ] <- c(0, 0.3, 0.6, 0.9)
+  thresholds[1:2, ] = c(0, 0.3, 0.6, 0.9)
   # Blume-Capel params for vars 3 and 4
-  thresholds[3:4, 1:2] <- cbind(c(0, 0), c(-0.3, -0.5))
+  thresholds[3:4, 1:2] = cbind(c(0, 0), c(-0.3, -0.5))
 
   # Warnings expected: Blume-Capel variables only use 2 threshold columns
-  result <- suppressWarnings(simulate_mrf(
+  result = suppressWarnings(simulate_mrf(
     num_states = 80,
     num_variables = n_vars,
     num_categories = n_cats,
@@ -217,16 +217,16 @@ test_that("simulate_mrf works with mixed ordinal and blume-capel", {
 test_that("simulate_mrf: positive interaction tends to align responses", {
   # This is a weaker test that checks the basic behavior of interactions
   # Strong interactions can sometimes collapse variance, so we use moderate values
-  n_vars <- 2
-  n_cats <- 2
+  n_vars = 2
+  n_cats = 2
 
   # Moderate positive interaction
-  pos_int <- matrix(c(0, 0.8, 0.8, 0), 2, 2)
+  pos_int = matrix(c(0, 0.8, 0.8, 0), 2, 2)
 
   # Use spread-out thresholds to ensure variance in responses
-  thresholds <- matrix(c(0, 0.5, 0, 0.5), n_vars, n_cats, byrow = TRUE)
+  thresholds = matrix(c(0, 0.5, 0, 0.5), n_vars, n_cats, byrow = TRUE)
 
-  result <- simulate_mrf(
+  result = simulate_mrf(
     num_states = 1000,
     num_variables = n_vars,
     num_categories = n_cats,
@@ -237,15 +237,15 @@ test_that("simulate_mrf: positive interaction tends to align responses", {
   )
 
   # Check that both variables have variance
-  var1 <- var(result[, 1])
-  var2 <- var(result[, 2])
+  var1 = var(result[, 1])
+  var2 = var(result[, 2])
 
   # With moderate interaction and spread thresholds, should have some variance
   expect_true(var1 > 0 && var2 > 0, info = "Variables should have non-zero variance")
 
   # Check the correlation is positive (as expected with positive interaction)
-  if (var1 > 0 && var2 > 0) {
-    cor_val <- cor(result[, 1], result[, 2])
+  if(var1 > 0 && var2 > 0) {
+    cor_val = cor(result[, 1], result[, 2])
     # With positive interaction, correlation should be non-negative
     # (allowing some tolerance for stochastic variation)
     expect_true(
@@ -256,18 +256,18 @@ test_that("simulate_mrf: positive interaction tends to align responses", {
 })
 
 test_that("simulate_mrf: threshold affects marginal distribution", {
-  n_vars <- 1
-  n_cats <- 1 # Binary
+  n_vars = 1
+  n_cats = 1 # Binary
 
-  interactions <- matrix(0, 1, 1)
+  interactions = matrix(0, 1, 1)
 
   # Positive threshold -> more likely to be 1
   # In MRF parameterization, positive threshold increases log-odds of category 1
-  pos_thresh <- matrix(3, 1, 1)
+  pos_thresh = matrix(3, 1, 1)
   # Negative threshold -> more likely to be 0
-  neg_thresh <- matrix(-3, 1, 1)
+  neg_thresh = matrix(-3, 1, 1)
 
-  result_pos <- simulate_mrf(
+  result_pos = simulate_mrf(
     num_states = 500,
     num_variables = n_vars,
     num_categories = n_cats,
@@ -277,7 +277,7 @@ test_that("simulate_mrf: threshold affects marginal distribution", {
     seed = 42
   )
 
-  result_neg <- simulate_mrf(
+  result_neg = simulate_mrf(
     num_states = 500,
     num_variables = n_vars,
     num_categories = n_cats,
@@ -287,8 +287,8 @@ test_that("simulate_mrf: threshold affects marginal distribution", {
     seed = 42
   )
 
-  prop_pos <- mean(result_pos == 1)
-  prop_neg <- mean(result_neg == 1)
+  prop_pos = mean(result_pos == 1)
+  prop_neg = mean(result_neg == 1)
 
   # Positive threshold should have higher proportion of 1s
   expect_true(
@@ -303,14 +303,14 @@ test_that("simulate_mrf: threshold affects marginal distribution", {
 # ------------------------------------------------------------------------------
 
 test_that("mrfSampler works with deprecation warning", {
-  n_vars <- 3
-  n_cats <- 2
+  n_vars = 3
+  n_cats = 2
 
-  interactions <- matrix(0, n_vars, n_vars)
-  thresholds <- matrix(0, n_vars, n_cats)
+  interactions = matrix(0, n_vars, n_vars)
+  thresholds = matrix(0, n_vars, n_cats)
 
   expect_warning(
-    result <- mrfSampler(
+    result = mrfSampler(
       num_states = 20,
       num_variables = n_vars,
       num_categories = n_cats,
@@ -324,7 +324,7 @@ test_that("mrfSampler works with deprecation warning", {
 })
 
 test_that("mrfSampler produces identical results to simulate_mrf", {
-  args <- list(
+  args = list(
     num_states = 50,
     num_variables = 4,
     num_categories = 3,
@@ -334,8 +334,8 @@ test_that("mrfSampler produces identical results to simulate_mrf", {
     seed = 999
   )
 
-  result_new <- do.call(simulate_mrf, args)
-  result_old <- suppressWarnings(do.call(mrfSampler, args))
+  result_new = do.call(simulate_mrf, args)
+  result_old = suppressWarnings(do.call(mrfSampler, args))
 
   expect_identical(result_new, result_old)
 })
@@ -346,22 +346,22 @@ test_that("mrfSampler produces identical results to simulate_mrf", {
 # ==============================================================================
 
 test_that("simulate_mrf works with variable_type = 'continuous'", {
-  p <- 4
-  n <- 100
-  
+  p = 4
+  n = 100
+
   # Precision matrix (diagonal dominant for PD)
-  omega <- diag(p)
-  omega[1, 2] <- omega[2, 1] <- 0.3
-  omega[3, 4] <- omega[4, 3] <- -0.2
-  
-  result <- simulate_mrf(
+  omega = diag(p)
+  omega[1, 2] = omega[2, 1] = 0.3
+  omega[3, 4] = omega[4, 3] = -0.2
+
+  result = simulate_mrf(
     num_states = n,
     num_variables = p,
     pairwise = omega,
     variable_type = "continuous",
     seed = 42
   )
-  
+
   expect_true(is.matrix(result))
   expect_equal(nrow(result), n)
   expect_equal(ncol(result), p)
@@ -370,70 +370,72 @@ test_that("simulate_mrf works with variable_type = 'continuous'", {
 })
 
 test_that("simulate_mrf continuous is reproducible with seed", {
-  p <- 3
-  omega <- diag(p)
-  omega[1, 2] <- omega[2, 1] <- 0.5
-  
-  sim1 <- simulate_mrf(
+  p = 3
+  omega = diag(p)
+  omega[1, 2] = omega[2, 1] = 0.5
+
+  sim1 = simulate_mrf(
     num_states = 50,
     num_variables = p,
     pairwise = omega,
     variable_type = "continuous",
     seed = 123
   )
-  sim2 <- simulate_mrf(
+  sim2 = simulate_mrf(
     num_states = 50,
     num_variables = p,
     pairwise = omega,
     variable_type = "continuous",
     seed = 123
   )
-  
+
   expect_equal(sim1, sim2)
 })
 
 test_that("simulate_mrf continuous: sample covariance approaches true covariance", {
-  p <- 3
-  n <- 5000
-  
+  p = 3
+  n = 5000
+
   # Known precision matrix
-  omega <- matrix(c(
+  omega = matrix(c(
     2.0,  0.5, 0.0,
     0.5,  1.5, 0.3,
     0.0,  0.3, 1.0
   ), nrow = p, byrow = TRUE)
-  
-  result <- simulate_mrf(
+
+  result = simulate_mrf(
     num_states = n,
     num_variables = p,
     pairwise = omega,
     variable_type = "continuous",
     seed = 42
   )
-  
+
   # True covariance
-  sigma_true <- solve(omega)
-  
+  sigma_true = solve(omega)
+
   # Sample covariance should be close
-  sigma_hat <- cov(result)
-  
+  sigma_hat = cov(result)
+
   # Off-diagonal elements should correlate highly
   expect_true(
     cor(sigma_true[lower.tri(sigma_true)], sigma_hat[lower.tri(sigma_hat)]) > 0.95,
     info = "Sample covariance should track true covariance"
   )
-  
+
   # Diagonal elements should be close
-  for (j in 1:p) {
-    expect_equal(sigma_hat[j, j], sigma_true[j, j], tolerance = 0.1,
-      info = sprintf("Variance of variable %d", j))
+  for(j in 1:p) {
+    expect_equal(sigma_hat[j, j], sigma_true[j, j],
+      tolerance = 0.1,
+      info = sprintf("Variance of variable %d", j)
+    )
   }
 })
 
 test_that("simulate_mrf continuous rejects non-positive diagonal", {
-  p <- 3
-  omega <- diag(c(1, -1, 1))  # negative diagonal element
-  
+  p = 3
+  omega = diag(c(1, -1, 1)) # negative diagonal element
+
   expect_error(
     simulate_mrf(
       num_states = 10,

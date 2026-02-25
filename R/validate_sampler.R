@@ -45,7 +45,7 @@ check_seed = function(seed) {
   as.integer(seed)
 }
 
-progress_type_from_display_progress <- function(display_progress = c("per-chain", "total", "none")) {
+progress_type_from_display_progress = function(display_progress = c("per-chain", "total", "none")) {
   if(is.logical(display_progress) && length(display_progress) == 1) {
     if(is.na(display_progress)) {
       stop("The display_progress argument must be a single logical value, but not NA.")
@@ -86,47 +86,45 @@ progress_type_from_display_progress <- function(display_progress = c("per-chain"
 #   list(update_method, target_accept, iter, warmup, hmc_num_leapfrogs,
 #        nuts_max_depth, learn_mass_matrix, chains, cores, seed, progress_type)
 # ------------------------------------------------------------------------------
-validate_sampler <- function(update_method,
-                             target_accept = NULL,
-                             iter,
-                             warmup,
-                             hmc_num_leapfrogs = 100,
-                             nuts_max_depth = 10,
-                             learn_mass_matrix = TRUE,
-                             chains = 4,
-                             cores = parallel::detectCores(),
-                             seed = NULL,
-                             display_progress = c("per-chain", "total", "none"),
-                             is_continuous = FALSE,
-                             edge_selection = FALSE,
-                             verbose = TRUE) {
-
+validate_sampler = function(update_method,
+                            target_accept = NULL,
+                            iter,
+                            warmup,
+                            hmc_num_leapfrogs = 100,
+                            nuts_max_depth = 10,
+                            learn_mass_matrix = TRUE,
+                            chains = 4,
+                            cores = parallel::detectCores(),
+                            seed = NULL,
+                            display_progress = c("per-chain", "total", "none"),
+                            is_continuous = FALSE,
+                            edge_selection = FALSE,
+                            verbose = TRUE) {
   # --- update_method ----------------------------------------------------------
-  user_chose_method <- length(update_method) == 1
-  update_method <- match.arg(
+  user_chose_method = length(update_method) == 1
+  update_method = match.arg(
     update_method,
     choices = c("nuts", "adaptive-metropolis", "hamiltonian-mc")
   )
 
   # --- GGM guard: force adaptive-metropolis -----------------------------------
-  if (is_continuous) {
-    if (user_chose_method && update_method %in% c("nuts", "hamiltonian-mc")) {
+  if(is_continuous) {
+    if(user_chose_method && update_method %in% c("nuts", "hamiltonian-mc")) {
       stop(paste0(
         "The Gaussian model (variable_type = 'continuous') only supports ",
         "update_method = 'adaptive-metropolis'. ",
         "Got '", update_method, "'."
       ))
     }
-    update_method <- "adaptive-metropolis"
+    update_method = "adaptive-metropolis"
   }
 
   # --- target_accept ----------------------------------------------------------
-  if (!is.null(target_accept)) {
-    target_accept <- min(target_accept, 1 - sqrt(.Machine$double.eps))
-    target_accept <- max(target_accept, 0 + sqrt(.Machine$double.eps))
+  if(!is.null(target_accept)) {
+    target_accept = min(target_accept, 1 - sqrt(.Machine$double.eps))
+    target_accept = max(target_accept, 0 + sqrt(.Machine$double.eps))
   } else {
-    target_accept <- switch(
-      update_method,
+    target_accept = switch(update_method,
       "adaptive-metropolis" = 0.44,
       "hamiltonian-mc"      = 0.65,
       "nuts"                = 0.80
@@ -138,48 +136,58 @@ validate_sampler <- function(update_method,
   check_non_negative_integer(warmup, "warmup")
 
   # --- warmup warnings --------------------------------------------------------
-  if (verbose && update_method %in% c("hamiltonian-mc", "nuts")) {
-    if (edge_selection) {
-      if (warmup < 50) {
-        warning("warmup = ", warmup,
-                " is very short for edge selection. Consider >= 300.")
-      } else if (warmup < 200) {
-        warning("warmup = ", warmup,
-                ": proposal SD tuning skipped (needs >= 200). Consider >= 300.")
-      } else if (warmup < 300) {
-        warning("warmup = ", warmup,
-                ": limited proposal SD tuning. Consider >= 300.")
+  if(verbose && update_method %in% c("hamiltonian-mc", "nuts")) {
+    if(edge_selection) {
+      if(warmup < 50) {
+        warning(
+          "warmup = ", warmup,
+          " is very short for edge selection. Consider >= 300."
+        )
+      } else if(warmup < 200) {
+        warning(
+          "warmup = ", warmup,
+          ": proposal SD tuning skipped (needs >= 200). Consider >= 300."
+        )
+      } else if(warmup < 300) {
+        warning(
+          "warmup = ", warmup,
+          ": limited proposal SD tuning. Consider >= 300."
+        )
       }
     } else {
-      if (warmup < 20) {
-        warning("warmup = ", warmup,
-                ": no mass matrix estimation (needs >= 20).")
-      } else if (warmup < 150) {
-        warning("warmup = ", warmup,
-                ": using proportional allocation (needs >= 150 for fixed buffers).")
+      if(warmup < 20) {
+        warning(
+          "warmup = ", warmup,
+          ": no mass matrix estimation (needs >= 20)."
+        )
+      } else if(warmup < 150) {
+        warning(
+          "warmup = ", warmup,
+          ": using proportional allocation (needs >= 150 for fixed buffers)."
+        )
       }
     }
   }
 
   # --- hmc_num_leapfrogs / nuts_max_depth -------------------------------------
   check_positive_integer(hmc_num_leapfrogs, "hmc_num_leapfrogs")
-  hmc_num_leapfrogs <- max(hmc_num_leapfrogs, 1L)
+  hmc_num_leapfrogs = max(hmc_num_leapfrogs, 1L)
 
   check_positive_integer(nuts_max_depth, "nuts_max_depth")
-  nuts_max_depth <- max(nuts_max_depth, 1L)
+  nuts_max_depth = max(nuts_max_depth, 1L)
 
   # --- learn_mass_matrix ------------------------------------------------------
-  learn_mass_matrix <- check_logical(learn_mass_matrix, "learn_mass_matrix")
+  learn_mass_matrix = check_logical(learn_mass_matrix, "learn_mass_matrix")
 
   # --- chains / cores ---------------------------------------------------------
   check_positive_integer(chains, "chains")
   check_positive_integer(cores, "cores")
 
   # --- seed -------------------------------------------------------------------
-  seed <- check_seed(seed)
+  seed = check_seed(seed)
 
   # --- display_progress -------------------------------------------------------
-  progress_type <- progress_type_from_display_progress(display_progress)
+  progress_type = progress_type_from_display_progress(display_progress)
 
   list(
     update_method     = update_method,

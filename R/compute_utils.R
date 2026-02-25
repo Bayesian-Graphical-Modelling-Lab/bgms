@@ -32,65 +32,63 @@
 #   A num_variables x num_variables matrix of scaling factors with named
 #   rows and columns.
 # ------------------------------------------------------------------------------
-compute_scaling_factors <- function(num_variables,
-                                    is_ordinal,
-                                    num_categories,
-                                    baseline_category,
-                                    standardize,
-                                    varnames = NULL) {
+compute_scaling_factors = function(num_variables,
+                                   is_ordinal,
+                                   num_categories,
+                                   baseline_category,
+                                   standardize,
+                                   varnames = NULL) {
+  pairwise_scaling_factors = matrix(1,
+    nrow = num_variables,
+    ncol = num_variables
+  )
 
-  pairwise_scaling_factors <- matrix(1,
-                                     nrow = num_variables,
-                                     ncol = num_variables)
-
-  if (standardize) {
-    for (v1 in seq_len(num_variables - 1)) {
-      for (v2 in seq(v1 + 1, num_variables)) {
-        if (is_ordinal[v1] && is_ordinal[v2]) {
+  if(standardize) {
+    for(v1 in seq_len(num_variables - 1)) {
+      for(v2 in seq(v1 + 1, num_variables)) {
+        if(is_ordinal[v1] && is_ordinal[v2]) {
           # Both ordinal: M_i * M_j (range 0..M)
-          pairwise_scaling_factors[v1, v2] <-
+          pairwise_scaling_factors[v1, v2] =
             num_categories[v1] * num_categories[v2]
-
-        } else if (!is_ordinal[v1] && !is_ordinal[v2]) {
+        } else if(!is_ordinal[v1] && !is_ordinal[v2]) {
           # Both Blume-Capel: max of absolute endpoint products
-          b1 <- baseline_category[v1]
-          b2 <- baseline_category[v2]
-          m1 <- num_categories[v1]
-          m2 <- num_categories[v2]
-          endpoints1 <- c(-b1, m1 - b1)
-          endpoints2 <- c(-b2, m2 - b2)
-          all_products <- abs(outer(endpoints1, endpoints2))
-          pairwise_scaling_factors[v1, v2] <- max(all_products)
-
+          b1 = baseline_category[v1]
+          b2 = baseline_category[v2]
+          m1 = num_categories[v1]
+          m2 = num_categories[v2]
+          endpoints1 = c(-b1, m1 - b1)
+          endpoints2 = c(-b2, m2 - b2)
+          all_products = abs(outer(endpoints1, endpoints2))
+          pairwise_scaling_factors[v1, v2] = max(all_products)
         } else {
           # Mixed: one ordinal, one Blume-Capel
-          if (is_ordinal[v1]) {
-            m1 <- num_categories[v1]
-            b2 <- baseline_category[v2]
-            m2 <- num_categories[v2]
-            endpoints1 <- c(0, m1)
-            endpoints2 <- c(-b2, m2 - b2)
+          if(is_ordinal[v1]) {
+            m1 = num_categories[v1]
+            b2 = baseline_category[v2]
+            m2 = num_categories[v2]
+            endpoints1 = c(0, m1)
+            endpoints2 = c(-b2, m2 - b2)
           } else {
-            b1 <- baseline_category[v1]
-            m1 <- num_categories[v1]
-            m2 <- num_categories[v2]
-            endpoints1 <- c(-b1, m1 - b1)
-            endpoints2 <- c(0, m2)
+            b1 = baseline_category[v1]
+            m1 = num_categories[v1]
+            m2 = num_categories[v2]
+            endpoints1 = c(-b1, m1 - b1)
+            endpoints2 = c(0, m2)
           }
-          all_products <- abs(outer(endpoints1, endpoints2))
-          pairwise_scaling_factors[v1, v2] <- max(all_products)
+          all_products = abs(outer(endpoints1, endpoints2))
+          pairwise_scaling_factors[v1, v2] = max(all_products)
         }
-        pairwise_scaling_factors[v2, v1] <- pairwise_scaling_factors[v1, v2]
+        pairwise_scaling_factors[v2, v1] = pairwise_scaling_factors[v1, v2]
       }
     }
   }
 
   # Label rows and columns
-  if (is.null(varnames)) {
-    varnames <- paste0("Variable ", seq_len(num_variables))
+  if(is.null(varnames)) {
+    varnames = paste0("Variable ", seq_len(num_variables))
   }
-  rownames(pairwise_scaling_factors) <- varnames
-  colnames(pairwise_scaling_factors) <- varnames
+  rownames(pairwise_scaling_factors) = varnames
+  colnames(pairwise_scaling_factors) = varnames
 
   pairwise_scaling_factors
 }
@@ -144,9 +142,9 @@ compute_blume_capel_stats = function(x, baseline_category, ordinal_variable, gro
   if(is.null(group)) { # One-group design
     sufficient_stats = matrix(0, nrow = 2, ncol = ncol(x))
     bc_vars = which(!ordinal_variable)
-    for (i in bc_vars) {
+    for(i in bc_vars) {
       sufficient_stats[1, i] = sum(x[, i] - baseline_category[i])
-      sufficient_stats[2, i] = sum((x[, i] - baseline_category[i]) ^ 2)
+      sufficient_stats[2, i] = sum((x[, i] - baseline_category[i])^2)
     }
     return(sufficient_stats)
   } else { # Multi-group design
@@ -154,9 +152,9 @@ compute_blume_capel_stats = function(x, baseline_category, ordinal_variable, gro
     for(g in unique(group)) {
       sufficient_stats_gr = matrix(0, nrow = 2, ncol = ncol(x))
       bc_vars = which(!ordinal_variable)
-      for (i in bc_vars) {
+      for(i in bc_vars) {
         sufficient_stats_gr[1, i] = sum(x[group == g, i] - baseline_category[i])
-        sufficient_stats_gr[2, i] = sum((x[group == g, i] - baseline_category[i]) ^ 2)
+        sufficient_stats_gr[2, i] = sum((x[group == g, i] - baseline_category[i])^2)
       }
       sufficient_stats[[length(sufficient_stats) + 1]] = sufficient_stats_gr
     }
@@ -178,13 +176,13 @@ compute_blume_capel_stats = function(x, baseline_category, ordinal_variable, gro
 #
 # Returns: list of p x p cross-product matrices (one per group).
 # ------------------------------------------------------------------------------
-compute_pairwise_stats <- function(x, group) {
-  result <- list()
+compute_pairwise_stats = function(x, group) {
+  result = list()
 
   for(g in unique(group)) {
-    obs <- x[group == g, , drop = FALSE]
+    obs = x[group == g, , drop = FALSE]
     # cross-product: gives number of co-occurrences of categories
-    result[[length(result) + 1]] <- t(obs) %*% obs
+    result[[length(result) + 1]] = t(obs) %*% obs
   }
 
   result

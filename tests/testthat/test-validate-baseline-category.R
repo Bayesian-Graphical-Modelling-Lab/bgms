@@ -4,13 +4,13 @@
 # ==============================================================================
 
 # Helper: access the internal function
-vbc <- bgms:::validate_baseline_category
+vbc = bgms:::validate_baseline_category
 
 # --- All ordinal (no Blume-Capel) -------------------------------------------
 
 test_that("all-ordinal returns zeros", {
-  x <- matrix(c(0, 1, 2, 1, 0, 2), nrow = 3, ncol = 2)
-  res <- vbc(
+  x = matrix(c(0, 1, 2, 1, 0, 2), nrow = 3, ncol = 2)
+  res = vbc(
     baseline_category          = 999,
     baseline_category_provided = FALSE,
     x                          = x,
@@ -20,8 +20,8 @@ test_that("all-ordinal returns zeros", {
 })
 
 test_that("all-ordinal ignores baseline_category value", {
-  x <- matrix(c(0, 1, 2, 1, 0, 2), nrow = 3, ncol = 2)
-  res <- vbc(
+  x = matrix(c(0, 1, 2, 1, 0, 2), nrow = 3, ncol = 2)
+  res = vbc(
     baseline_category          = 42,
     baseline_category_provided = TRUE,
     x                          = x,
@@ -33,7 +33,7 @@ test_that("all-ordinal ignores baseline_category value", {
 # --- Blume-Capel: baseline_category not provided ----------------------------
 
 test_that("BC variables without baseline_category errors", {
-  x <- matrix(c(0, 1, 2, 1, 0, 2), nrow = 3, ncol = 2)
+  x = matrix(c(0, 1, 2, 1, 0, 2), nrow = 3, ncol = 2)
   expect_error(
     vbc(
       baseline_category          = NULL,
@@ -48,8 +48,8 @@ test_that("BC variables without baseline_category errors", {
 # --- Scalar baseline_category -----------------------------------------------
 
 test_that("scalar baseline_category replicates to ncol(x)", {
-  x <- matrix(c(0, 1, 2, 0, 1, 2, 0, 1, 2), nrow = 3, ncol = 3)
-  res <- vbc(
+  x = matrix(c(0, 1, 2, 0, 1, 2, 0, 1, 2), nrow = 3, ncol = 3)
+  res = vbc(
     baseline_category          = 1,
     baseline_category_provided = TRUE,
     x                          = x,
@@ -59,7 +59,7 @@ test_that("scalar baseline_category replicates to ncol(x)", {
 })
 
 test_that("scalar non-integer baseline_category errors", {
-  x <- matrix(c(0, 1, 2, 0, 1, 2), nrow = 3, ncol = 2)
+  x = matrix(c(0, 1, 2, 0, 1, 2), nrow = 3, ncol = 2)
   # 1.3 is clearly non-integer
   expect_error(
     vbc(
@@ -84,7 +84,7 @@ test_that("scalar non-integer baseline_category errors", {
 })
 
 test_that("scalar NA baseline_category errors", {
-  x <- matrix(c(0, 1, 2, 0, 1, 2), nrow = 3, ncol = 2)
+  x = matrix(c(0, 1, 2, 0, 1, 2), nrow = 3, ncol = 2)
   expect_error(
     vbc(
       baseline_category          = NA,
@@ -99,8 +99,8 @@ test_that("scalar NA baseline_category errors", {
 # --- Vector baseline_category ------------------------------------------------
 
 test_that("vector baseline_category with correct length works", {
-  x <- matrix(c(0, 1, 2, 0, 1, 2, 0, 1, 2), nrow = 3, ncol = 3)
-  res <- vbc(
+  x = matrix(c(0, 1, 2, 0, 1, 2, 0, 1, 2), nrow = 3, ncol = 3)
+  res = vbc(
     baseline_category          = c(0, 1, 2),
     baseline_category_provided = TRUE,
     x                          = x,
@@ -110,7 +110,7 @@ test_that("vector baseline_category with correct length works", {
 })
 
 test_that("wrong-length vector baseline_category errors", {
-  x <- matrix(c(0, 1, 2, 0, 1, 2), nrow = 3, ncol = 2)
+  x = matrix(c(0, 1, 2, 0, 1, 2), nrow = 3, ncol = 2)
   expect_error(
     vbc(
       baseline_category          = c(0, 1, 2),
@@ -123,7 +123,7 @@ test_that("wrong-length vector baseline_category errors", {
 })
 
 test_that("non-integer in vector baseline_category errors", {
-  x <- matrix(c(0, 1, 2, 0, 1, 2), nrow = 3, ncol = 2)
+  x = matrix(c(0, 1, 2, 0, 1, 2), nrow = 3, ncol = 2)
   expect_error(
     vbc(
       baseline_category          = c(1, 1.3),
@@ -146,7 +146,7 @@ test_that("non-integer in vector baseline_category errors", {
 })
 
 test_that("NA in vector baseline_category errors", {
-  x <- matrix(c(0, 1, 2, 0, 1, 2), nrow = 3, ncol = 2)
+  x = matrix(c(0, 1, 2, 0, 1, 2), nrow = 3, ncol = 2)
   expect_error(
     vbc(
       baseline_category          = c(1, NA),
@@ -161,7 +161,7 @@ test_that("NA in vector baseline_category errors", {
 # --- Out of range -----------------------------------------------------------
 
 test_that("baseline_category below minimum errors", {
-  x <- matrix(c(1, 2, 3, 1, 2, 3), nrow = 3, ncol = 2)
+  x = matrix(c(1, 2, 3, 1, 2, 3), nrow = 3, ncol = 2)
   expect_error(
     vbc(
       baseline_category          = 0,
@@ -174,7 +174,7 @@ test_that("baseline_category below minimum errors", {
 })
 
 test_that("baseline_category above maximum errors", {
-  x <- matrix(c(0, 1, 2, 0, 1, 2), nrow = 3, ncol = 2)
+  x = matrix(c(0, 1, 2, 0, 1, 2), nrow = 3, ncol = 2)
   expect_error(
     vbc(
       baseline_category          = 5,
@@ -189,9 +189,9 @@ test_that("baseline_category above maximum errors", {
 # --- Mixed ordinal + Blume-Capel --------------------------------------------
 
 test_that("mixed ordinal+BC validates only BC variables", {
-  x <- matrix(c(0, 1, 2, 0, 1, 2, 0, 1, 2), nrow = 3, ncol = 3)
+  x = matrix(c(0, 1, 2, 0, 1, 2, 0, 1, 2), nrow = 3, ncol = 3)
   # variable 1 = ordinal, variable 2+3 = BC
-  res <- vbc(
+  res = vbc(
     baseline_category          = c(0, 1, 1),
     baseline_category_provided = TRUE,
     x                          = x,
@@ -202,7 +202,7 @@ test_that("mixed ordinal+BC validates only BC variables", {
 
 test_that("mixed: out-of-range on ordinal column is still caught", {
   # baseline_category for ordinal columns is checked against data range too
-  x <- matrix(c(0, 1, 2, 0, 1, 2), nrow = 3, ncol = 2)
+  x = matrix(c(0, 1, 2, 0, 1, 2), nrow = 3, ncol = 2)
   expect_error(
     vbc(
       baseline_category          = c(5, 1),

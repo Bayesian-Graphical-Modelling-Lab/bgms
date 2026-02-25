@@ -315,9 +315,9 @@ extract_posterior_inclusion_probabilities.bgmCompare = function(bgms_object) {
       }
     }
 
-  rownames(ind_mat) = arguments$data_columnnames
-  colnames(ind_mat) = arguments$data_columnnames
-  return(ind_mat)
+    rownames(ind_mat) = arguments$data_columnnames
+    colnames(ind_mat) = arguments$data_columnnames
+    return(ind_mat)
   }
 
   # Deprecated format (0.1.4–0.1.5): $pairwise_difference_indicator at top level
@@ -803,7 +803,6 @@ extract_pairwise_thresholds = function(bgms_object) {
 #' @rdname extractor_functions
 #' @export
 extract_rhat = function(bgms_object) {
-
   UseMethod("extract_rhat")
 }
 
@@ -961,4 +960,3 @@ extract_ess.bgmCompare = function(bgms_object) {
 
   return(result)
 }
-

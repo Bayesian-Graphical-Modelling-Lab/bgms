@@ -37,21 +37,21 @@ test_that("bgms outputs are numerically sane (stochastic-robust)", {
   #   - Symmetry for pairwise matrices
   #   - Coarse aggregates within wide bounds
   # ---------------------------------------------------------------------------
-  
+
   set.seed(123)
-  
+
   data("Wenchuan", package = "bgms")
-  dat <- na.omit(Wenchuan)[1:40, 1:4]
-  p   <- ncol(dat)
-  
-  upper_vals <- function(M) M[upper.tri(M)]
-  
-  specs <- list(
+  dat = na.omit(Wenchuan)[1:40, 1:4]
+  p = ncol(dat)
+
+  upper_vals = function(M) M[upper.tri(M)]
+
+  specs = list(
     list(
-      label     = "single_bgm",
+      label = "single_bgm",
       fun_label = "bgm",
-      fun       = bgms::bgm,
-      args      = list(
+      fun = bgms::bgm,
+      args = list(
         x                = dat,
         iter             = 50,
         warmup           = 100,
@@ -65,39 +65,39 @@ test_that("bgms outputs are numerically sane (stochastic-robust)", {
       checks = list(
         # indicator sanity
         function(res, ctx) {
-          fld <- "posterior_mean_indicator"
-          M <- res[[fld]]
-          
-          actual_dim <- if (!is.null(dim(M))) paste(dim(M), collapse = "x") else "NULL"
-          
+          fld = "posterior_mean_indicator"
+          M = res[[fld]]
+
+          actual_dim = if(!is.null(dim(M))) paste(dim(M), collapse = "x") else "NULL"
+
           expect_true(is.matrix(M), info = sprintf("%s %s is not a matrix", ctx, fld))
           expect_equal(
             dim(M), c(p, p),
             info = sprintf("%s %s wrong dim: expected %ix%i, got %s", ctx, fld, p, p, actual_dim)
           )
           expect_false(all(is.na(M)), info = sprintf("%s %s is all NA", ctx, fld))
-          
+
           expect_true(
             all(is.na(M) | (M >= 0 & M <= 1)),
             info = sprintf("%s %s has values outside [0,1]", ctx, fld)
           )
         },
-        
+
         # pairwise sanity + symmetry
         function(res, ctx) {
-          fld <- "posterior_mean_pairwise"
-          M <- res[[fld]]
-          
-          actual_dim <- if (!is.null(dim(M))) paste(dim(M), collapse = "x") else "NULL"
-          
+          fld = "posterior_mean_pairwise"
+          M = res[[fld]]
+
+          actual_dim = if(!is.null(dim(M))) paste(dim(M), collapse = "x") else "NULL"
+
           expect_true(is.matrix(M), info = sprintf("%s %s is not a matrix", ctx, fld))
           expect_equal(
             dim(M), c(p, p),
             info = sprintf("%s %s wrong dim: expected %ix%i, got %s", ctx, fld, p, p, actual_dim)
           )
           expect_false(all(is.na(M)), info = sprintf("%s %s is all NA", ctx, fld))
-          
-          asym <- max(abs(M - t(M)), na.rm = TRUE)
+
+          asym = max(abs(M - t(M)), na.rm = TRUE)
           expect_true(
             is.finite(asym),
             info = sprintf("%s %s asymmetry not finite", ctx, fld)
@@ -107,14 +107,14 @@ test_that("bgms outputs are numerically sane (stochastic-robust)", {
             info = sprintf("%s %s asymmetry too large: %g", ctx, fld, asym)
           )
         },
-        
+
         # coarse aggregate for pairwise (wide bounds; calibrate if you want tighter)
         function(res, ctx) {
-          fld <- "posterior_mean_pairwise"
-          M <- res[[fld]]
-          vals <- abs(upper_vals(M))
-          stat <- mean(vals, na.rm = TRUE)
-          
+          fld = "posterior_mean_pairwise"
+          M = res[[fld]]
+          vals = abs(upper_vals(M))
+          stat = mean(vals, na.rm = TRUE)
+
           expect_true(
             is.finite(stat),
             info = sprintf("%s %s mean(|upper|) not finite", ctx, fld)
@@ -130,12 +130,11 @@ test_that("bgms outputs are numerically sane (stochastic-robust)", {
         }
       )
     ),
-    
     list(
-      label     = "compare_bgm",
+      label = "compare_bgm",
       fun_label = "bgmCompare",
-      fun       = bgms::bgmCompare,
-      args      = list(
+      fun = bgms::bgmCompare,
+      args = list(
         x                    = dat,
         group_indicator      = rep(1:2, each = 20),
         iter                 = 50,
@@ -149,19 +148,19 @@ test_that("bgms outputs are numerically sane (stochastic-robust)", {
       checks = list(
         # baseline pairwise sanity + symmetry
         function(res, ctx) {
-          fld <- "posterior_mean_pairwise_baseline"
-          M <- res[[fld]]
-          
-          actual_dim <- if (!is.null(dim(M))) paste(dim(M), collapse = "x") else "NULL"
-          
+          fld = "posterior_mean_pairwise_baseline"
+          M = res[[fld]]
+
+          actual_dim = if(!is.null(dim(M))) paste(dim(M), collapse = "x") else "NULL"
+
           expect_true(is.matrix(M), info = sprintf("%s %s is not a matrix", ctx, fld))
           expect_equal(
             dim(M), c(p, p),
             info = sprintf("%s %s wrong dim: expected %ix%i, got %s", ctx, fld, p, p, actual_dim)
           )
           expect_false(all(is.na(M)), info = sprintf("%s %s is all NA", ctx, fld))
-          
-          asym <- max(abs(M - t(M)), na.rm = TRUE)
+
+          asym = max(abs(M - t(M)), na.rm = TRUE)
           expect_true(
             is.finite(asym),
             info = sprintf("%s %s asymmetry not finite", ctx, fld)
@@ -171,14 +170,14 @@ test_that("bgms outputs are numerically sane (stochastic-robust)", {
             info = sprintf("%s %s asymmetry too large: %g", ctx, fld, asym)
           )
         },
-        
+
         # coarse aggregate for baseline pairwise (wide bounds; calibrate if you want tighter)
         function(res, ctx) {
-          fld <- "posterior_mean_pairwise_baseline"
-          M <- res[[fld]]
-          vals <- abs(upper_vals(M))
-          stat <- mean(vals, na.rm = TRUE)
-          
+          fld = "posterior_mean_pairwise_baseline"
+          M = res[[fld]]
+          vals = abs(upper_vals(M))
+          stat = mean(vals, na.rm = TRUE)
+
           expect_true(
             is.finite(stat),
             info = sprintf("%s %s mean(|upper|) not finite", ctx, fld)
@@ -195,10 +194,10 @@ test_that("bgms outputs are numerically sane (stochastic-robust)", {
       )
     )
   )
-  
-  for (spec in specs) {
-    ctx <- sprintf("[%s / %s]", spec$fun_label, spec$label)
-    res <- do.call(spec$fun, spec$args)
-    for (chk in spec$checks) chk(res, ctx)
+
+  for(spec in specs) {
+    ctx = sprintf("[%s / %s]", spec$fun_label, spec$label)
+    res = do.call(spec$fun, spec$args)
+    for(chk in spec$checks) chk(res, ctx)
   }
 })

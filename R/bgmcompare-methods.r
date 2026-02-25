@@ -150,10 +150,10 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
 
   if(!is.null(x$indicator)) {
     cat("Inclusion probabilities:\n")
-    ind <- head(x$indicator, 6)
+    ind = head(x$indicator, 6)
 
     # round only numeric columns
-    ind[] <- lapply(ind, function(col) {
+    ind[] = lapply(ind, function(col) {
       if(is.numeric(col)) {
         round(col, digits)
       } else {
@@ -162,7 +162,7 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
     })
 
     # replace NA with empty string for printing
-    ind[] <- lapply(ind, function(col) {
+    ind[] = lapply(ind, function(col) {
       ifelse(is.na(col), "", col)
     })
 
@@ -178,11 +178,11 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
   if(!is.null(x$main_diff)) {
     cat("Group differences (main effects):\n")
 
-    maind <- head(x$main_diff, 6)
+    maind = head(x$main_diff, 6)
 
     # Only round numeric columns
-    is_num <- vapply(maind, is.numeric, logical(1))
-    maind[is_num] <- lapply(
+    is_num = vapply(maind, is.numeric, logical(1))
+    maind[is_num] = lapply(
       maind[is_num],
       function(col) ifelse(is.na(col), "", round(col, digits))
     )
@@ -204,11 +204,11 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
   if(!is.null(x$pairwise_diff)) {
     cat("Group differences (pairwise effects):\n")
 
-    pairwised <- head(x$pairwise_diff, 6)
+    pairwised = head(x$pairwise_diff, 6)
 
     # Only round numeric columns
-    is_num <- vapply(pairwised, is.numeric, logical(1))
-    pairwised[is_num] <- lapply(
+    is_num = vapply(pairwised, is.numeric, logical(1))
+    pairwised[is_num] = lapply(
       pairwised[is_num],
       function(col) ifelse(is.na(col), "", round(col, digits))
     )
@@ -263,47 +263,47 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
 #' @family posterior-methods
 #'
 #' @export
-coef.bgmCompare <- function(object, ...) {
-  args <- extract_arguments(object)
+coef.bgmCompare = function(object, ...) {
+  args = extract_arguments(object)
 
-  var_names <- args$data_columnnames
-  num_categories <- as.integer(args$num_categories)
-  is_ordinal <- as.logical(args$is_ordinal_variable)
-  num_groups <- as.integer(args$num_groups)
-  num_variables <- as.integer(args$num_variables)
-  projection <- args$projection # [num_groups x (num_groups-1)]
+  var_names = args$data_columnnames
+  num_categories = as.integer(args$num_categories)
+  is_ordinal = as.logical(args$is_ordinal_variable)
+  num_groups = as.integer(args$num_groups)
+  num_variables = as.integer(args$num_variables)
+  projection = args$projection # [num_groups x (num_groups-1)]
 
   # ---- helper: combine chains into [iter, chain, param], robust to vectors/1-col
-  to_array3d <- function(xlist) {
+  to_array3d = function(xlist) {
     if(is.null(xlist)) {
       return(NULL)
     }
     stopifnot(length(xlist) >= 1)
-    mats <- lapply(xlist, function(x) {
-      m <- as.matrix(x)
-      if(is.null(dim(m))) m <- matrix(m, ncol = 1L)
+    mats = lapply(xlist, function(x) {
+      m = as.matrix(x)
+      if(is.null(dim(m))) m = matrix(m, ncol = 1L)
       m
     })
-    niter <- nrow(mats[[1]])
-    nparam <- ncol(mats[[1]])
-    arr <- array(NA_real_, dim = c(niter, length(mats), nparam))
-    for(c in seq_along(mats)) arr[, c, ] <- mats[[c]]
+    niter = nrow(mats[[1]])
+    nparam = ncol(mats[[1]])
+    arr = array(NA_real_, dim = c(niter, length(mats), nparam))
+    for(c in seq_along(mats)) arr[, c, ] = mats[[c]]
     arr
   }
 
   # ============================================================
   # ---- main effects ----
-  array3d_main <- to_array3d(object$raw_samples$main)
+  array3d_main = to_array3d(object$raw_samples$main)
   stopifnot(!is.null(array3d_main))
-  mean_main <- apply(array3d_main, 3, mean)
+  mean_main = apply(array3d_main, 3, mean)
 
   stopifnot(length(mean_main) %% num_groups == 0L)
-  num_main <- as.integer(length(mean_main) / num_groups)
+  num_main = as.integer(length(mean_main) / num_groups)
 
-  main_mat <- matrix(mean_main, nrow = num_main, ncol = num_groups, byrow = FALSE)
+  main_mat = matrix(mean_main, nrow = num_main, ncol = num_groups, byrow = FALSE)
 
   # row names in sampler row order
-  rownames(main_mat) <- unlist(lapply(seq_len(num_variables), function(v) {
+  rownames(main_mat) = unlist(lapply(seq_len(num_variables), function(v) {
     if(is_ordinal[v]) {
       paste0(var_names[v], "(c", seq_len(num_categories[v]), ")")
     } else {
@@ -313,82 +313,82 @@ coef.bgmCompare <- function(object, ...) {
       )
     }
   }))
-  colnames(main_mat) <- c("baseline", paste0("diff", seq_len(num_groups - 1L)))
+  colnames(main_mat) = c("baseline", paste0("diff", seq_len(num_groups - 1L)))
 
   # group-specific main effects: baseline + P %*% diffs
-  main_effects_groups <- matrix(NA_real_, nrow = num_main, ncol = num_groups)
+  main_effects_groups = matrix(NA_real_, nrow = num_main, ncol = num_groups)
   for(r in seq_len(num_main)) {
-    baseline <- main_mat[r, 1]
-    diffs <- main_mat[r, -1, drop = TRUE]
-    main_effects_groups[r, ] <- baseline + as.vector(projection %*% diffs)
+    baseline = main_mat[r, 1]
+    diffs = main_mat[r, -1, drop = TRUE]
+    main_effects_groups[r, ] = baseline + as.vector(projection %*% diffs)
   }
-  rownames(main_effects_groups) <- rownames(main_mat)
-  colnames(main_effects_groups) <- paste0("group", seq_len(num_groups))
+  rownames(main_effects_groups) = rownames(main_mat)
+  colnames(main_effects_groups) = paste0("group", seq_len(num_groups))
 
   # ============================================================
   # ---- pairwise effects ----
-  array3d_pair <- to_array3d(object$raw_samples$pairwise)
+  array3d_pair = to_array3d(object$raw_samples$pairwise)
   stopifnot(!is.null(array3d_pair))
-  mean_pair <- apply(array3d_pair, 3, mean)
+  mean_pair = apply(array3d_pair, 3, mean)
 
   stopifnot(length(mean_pair) %% num_groups == 0L)
-  num_pair <- as.integer(length(mean_pair) / num_groups)
+  num_pair = as.integer(length(mean_pair) / num_groups)
 
-  pairwise_mat <- matrix(mean_pair, nrow = num_pair, ncol = num_groups, byrow = FALSE)
+  pairwise_mat = matrix(mean_pair, nrow = num_pair, ncol = num_groups, byrow = FALSE)
 
   # row names in sampler row order (upper-tri i<j)
-  pair_names <- character()
+  pair_names = character()
   if(num_variables >= 2L) {
     for(i in 1L:(num_variables - 1L)) {
       for(j in (i + 1L):num_variables) {
-        pair_names <- c(pair_names, paste0(var_names[i], "-", var_names[j]))
+        pair_names = c(pair_names, paste0(var_names[i], "-", var_names[j]))
       }
     }
   }
-  rownames(pairwise_mat) <- pair_names
-  colnames(pairwise_mat) <- c("baseline", paste0("diff", seq_len(num_groups - 1L)))
+  rownames(pairwise_mat) = pair_names
+  colnames(pairwise_mat) = c("baseline", paste0("diff", seq_len(num_groups - 1L)))
 
   # group-specific pairwise effects
-  pairwise_effects_groups <- matrix(NA_real_, nrow = num_pair, ncol = num_groups)
+  pairwise_effects_groups = matrix(NA_real_, nrow = num_pair, ncol = num_groups)
   for(r in seq_len(num_pair)) {
-    baseline <- pairwise_mat[r, 1]
-    diffs <- pairwise_mat[r, -1, drop = TRUE]
-    pairwise_effects_groups[r, ] <- baseline + as.vector(projection %*% diffs)
+    baseline = pairwise_mat[r, 1]
+    diffs = pairwise_mat[r, -1, drop = TRUE]
+    pairwise_effects_groups[r, ] = baseline + as.vector(projection %*% diffs)
   }
-  rownames(pairwise_effects_groups) <- rownames(pairwise_mat)
-  colnames(pairwise_effects_groups) <- paste0("group", seq_len(num_groups))
+  rownames(pairwise_effects_groups) = rownames(pairwise_mat)
+  colnames(pairwise_effects_groups) = paste0("group", seq_len(num_groups))
 
   # ============================================================
   # ---- indicators (present only if selection was used) ----
-  indicators <- NULL
-  array3d_ind <- to_array3d(object$raw_samples$indicator)
+  indicators = NULL
+  array3d_ind = to_array3d(object$raw_samples$indicator)
   if(!is.null(array3d_ind)) {
-    mean_ind <- apply(array3d_ind, 3, mean)
+    mean_ind = apply(array3d_ind, 3, mean)
 
     # reconstruct VxV matrix using the sampler’s interleaved order:
     # (1,1),(1,2),...,(1,V),(2,2),...,(2,V),...,(V,V)
-    V <- num_variables
+    V = num_variables
     stopifnot(length(mean_ind) == V * (V + 1L) / 2L)
 
-    ind_mat <- matrix(0,
+    ind_mat = matrix(0,
       nrow = V, ncol = V,
       dimnames = list(var_names, var_names)
     )
-    pos <- 1L
+    pos = 1L
     for(i in seq_len(V)) {
       # diagonal (main indicator)
-      ind_mat[i, i] <- mean_ind[pos]
-      pos <- pos + 1L
+      ind_mat[i, i] = mean_ind[pos]
+      pos = pos + 1L
       if(i < V) {
         for(j in (i + 1L):V) {
-          val <- mean_ind[pos]
-          pos <- pos + 1L
-          ind_mat[i, j] <- val
-          ind_mat[j, i] <- val
+          val = mean_ind[pos]
+          pos = pos + 1L
+          ind_mat[i, j] = val
+          ind_mat[j, i] = val
         }
       }
     }
-    indicators <- ind_mat
+    indicators = ind_mat
   }
 
   # ============================================================

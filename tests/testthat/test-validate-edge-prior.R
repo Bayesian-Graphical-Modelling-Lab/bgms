@@ -8,8 +8,7 @@
 # ==============================================================================
 
 test_that("edge_selection = FALSE returns Not Applicable with 1x1 theta", {
-
-  result <- validate_edge_prior(
+  result = validate_edge_prior(
     edge_selection = FALSE,
     num_variables  = 5
   )
@@ -30,7 +29,7 @@ test_that("edge_selection coerced to logical; NA errors", {
 # ==============================================================================
 
 test_that("Bernoulli with scalar 0.5 builds p x p matrix", {
-  result <- validate_edge_prior(
+  result = validate_edge_prior(
     edge_selection        = TRUE,
     edge_prior            = "Bernoulli",
     inclusion_probability = 0.5,
@@ -96,9 +95,9 @@ test_that("Bernoulli scalar: exactly 1 errors", {
 # ==============================================================================
 
 test_that("Bernoulli with symmetric matrix accepted", {
-  mat <- matrix(0.3, 3, 3)
-  diag(mat) <- 0.5
-  result <- validate_edge_prior(
+  mat = matrix(0.3, 3, 3)
+  diag(mat) = 0.5
+  result = validate_edge_prior(
     edge_selection        = TRUE,
     edge_prior            = "Bernoulli",
     inclusion_probability = mat,
@@ -108,11 +107,11 @@ test_that("Bernoulli with symmetric matrix accepted", {
 })
 
 test_that("Bernoulli with data.frame coerced", {
-  mat <- matrix(0.3, 3, 3)
-  diag(mat) <- 0.5
-  rownames(mat) <- colnames(mat) <- paste0("V", 1:3)
-  df <- as.data.frame(mat)
-  result <- validate_edge_prior(
+  mat = matrix(0.3, 3, 3)
+  diag(mat) = 0.5
+  rownames(mat) = colnames(mat) = paste0("V", 1:3)
+  df = as.data.frame(mat)
+  result = validate_edge_prior(
     edge_selection        = TRUE,
     edge_prior            = "Bernoulli",
     inclusion_probability = df,
@@ -122,7 +121,7 @@ test_that("Bernoulli with data.frame coerced", {
 })
 
 test_that("Bernoulli matrix: non-symmetric errors", {
-  mat <- matrix(c(0.5, 0.3, 0.4, 0.5), 2, 2)
+  mat = matrix(c(0.5, 0.3, 0.4, 0.5), 2, 2)
   expect_error(
     validate_edge_prior(
       edge_selection = TRUE, edge_prior = "Bernoulli",
@@ -133,7 +132,7 @@ test_that("Bernoulli matrix: non-symmetric errors", {
 })
 
 test_that("Bernoulli matrix: wrong dimension errors", {
-  mat <- matrix(0.3, 2, 2)
+  mat = matrix(0.3, 2, 2)
   expect_error(
     validate_edge_prior(
       edge_selection = TRUE, edge_prior = "Bernoulli",
@@ -144,9 +143,9 @@ test_that("Bernoulli matrix: wrong dimension errors", {
 })
 
 test_that("Bernoulli matrix: NA in lower triangle errors", {
-  mat <- matrix(0.3, 3, 3)
-  mat[3, 1] <- NA
-  mat[1, 3] <- NA
+  mat = matrix(0.3, 3, 3)
+  mat[3, 1] = NA
+  mat[1, 3] = NA
   expect_error(
     validate_edge_prior(
       edge_selection = TRUE, edge_prior = "Bernoulli",
@@ -157,9 +156,9 @@ test_that("Bernoulli matrix: NA in lower triangle errors", {
 })
 
 test_that("Bernoulli matrix: zero in lower triangle errors", {
-  mat <- matrix(0.3, 3, 3)
-  mat[2, 1] <- 0
-  mat[1, 2] <- 0
+  mat = matrix(0.3, 3, 3)
+  mat[2, 1] = 0
+  mat[1, 2] = 0
   expect_error(
     validate_edge_prior(
       edge_selection = TRUE, edge_prior = "Bernoulli",
@@ -170,9 +169,9 @@ test_that("Bernoulli matrix: zero in lower triangle errors", {
 })
 
 test_that("Bernoulli matrix: value >= 1 in lower triangle errors", {
-  mat <- matrix(0.3, 3, 3)
-  mat[2, 1] <- 1.0
-  mat[1, 2] <- 1.0
+  mat = matrix(0.3, 3, 3)
+  mat[2, 1] = 1.0
+  mat[1, 2] = 1.0
   expect_error(
     validate_edge_prior(
       edge_selection = TRUE, edge_prior = "Bernoulli",
@@ -197,7 +196,7 @@ test_that("Bernoulli with vector (not matrix) errors", {
 # ==============================================================================
 
 test_that("Beta-Bernoulli with valid params returns 0.5 matrix", {
-  result <- validate_edge_prior(
+  result = validate_edge_prior(
     edge_selection       = TRUE,
     edge_prior           = "Beta-Bernoulli",
     num_variables        = 4,
@@ -243,7 +242,7 @@ test_that("Beta-Bernoulli: NA alpha errors", {
 # ==============================================================================
 
 test_that("Stochastic-Block with valid params succeeds", {
-  result <- validate_edge_prior(
+  result = validate_edge_prior(
     edge_selection               = TRUE,
     edge_prior                   = "Stochastic-Block",
     num_variables                = 3,
