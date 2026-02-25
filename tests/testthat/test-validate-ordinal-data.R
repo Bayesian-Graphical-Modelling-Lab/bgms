@@ -258,19 +258,19 @@ test_that("mixed ordinal and BC variables processed correctly", {
 
 
 # ==============================================================================
-# 6. Integration: reformat_data() delegates correctly
+# 6. Integration: validate_missing_data + reformat_ordinal_data pipeline
 # ==============================================================================
 
-test_that("reformat_data still works end-to-end with ordinal recoding", {
+test_that("validate_missing_data + reformat_ordinal_data pipeline works end-to-end", {
   x <- matrix(c(1, 2, 3, 1, 2, 3,
                 1, 2, 3, 1, 2, 3), nrow = 6, ncol = 2)
   variable_bool <- c(TRUE, TRUE)
   bc <- c(0, 0)
 
-  result <- reformat_data(x, na_action = "listwise",
-                          variable_bool = variable_bool,
-                          baseline_category = bc)
+  md <- validate_missing_data(x, na_action = "listwise", is_continuous = FALSE)
+  result <- reformat_ordinal_data(md$x, is_ordinal = variable_bool,
+                                  baseline_category = bc)
   expect_equal(result$x[, 1], c(0, 1, 2, 0, 1, 2))
   expect_equal(result$num_categories, c(2, 2))
-  expect_false(result$na_impute)
+  expect_false(md$na_impute)
 })

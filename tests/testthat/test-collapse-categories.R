@@ -152,7 +152,7 @@ test_that("error when all categories collapse to one value", {
 # 6. Integration: compare_reformat_data delegates correctly
 # ==============================================================================
 
-test_that("compare_reformat_data works end-to-end with group collapsing", {
+test_that("full pipeline works end-to-end with group collapsing", {
   # Variable 1: ordinal, values 1,2,3 across groups
   # Group 1 has {1,2,3}, group 2 has {1,3}
   # After ordinal recode: 0,1,2. Group 2 has {0,2} → category 1 missing
@@ -163,9 +163,15 @@ test_that("compare_reformat_data works end-to-end with group collapsing", {
   variable_bool <- c(TRUE, TRUE)
   bc <- c(0, 0)
 
-  result <- compare_reformat_data(x, group = group, na_action = "listwise",
-                                  variable_bool = variable_bool,
-                                  baseline_category = bc)
+  md <- validate_missing_data(x, na_action = "listwise", is_continuous = FALSE,
+                              group = group)
+  ord <- reformat_ordinal_data(md$x, is_ordinal = variable_bool,
+                               baseline_category = bc)
+  result <- collapse_categories_across_groups(
+    x = ord$x, group = md$group, is_ordinal = variable_bool,
+    num_categories = ord$num_categories,
+    baseline_category = ord$baseline_category
+  )
 
   # Variable 1: 1→0, 2→0(collapsed), 3→1
   expect_equal(result$x[1:6, 1], c(0, 0, 1, 0, 0, 1))
@@ -177,16 +183,22 @@ test_that("compare_reformat_data works end-to-end with group collapsing", {
   expect_equal(result$num_categories[2], 1)
 })
 
-test_that("compare_reformat_data preserves BC variables through collapsing", {
+test_that("full pipeline preserves BC variables through collapsing", {
   x <- matrix(c(0, 1, 2, 3, 0, 1, 2, 3,
                 0, 1, 2, 0, 0, 1, 2, 0), nrow = 8, ncol = 2)
   group <- c(1, 1, 1, 1, 2, 2, 2, 2)
   variable_bool <- c(FALSE, TRUE)
   bc <- c(1, 0)
 
-  result <- compare_reformat_data(x, group = group, na_action = "listwise",
-                                  variable_bool = variable_bool,
-                                  baseline_category = bc)
+  md <- validate_missing_data(x, na_action = "listwise", is_continuous = FALSE,
+                              group = group)
+  ord <- reformat_ordinal_data(md$x, is_ordinal = variable_bool,
+                               baseline_category = bc)
+  result <- collapse_categories_across_groups(
+    x = ord$x, group = md$group, is_ordinal = variable_bool,
+    num_categories = ord$num_categories,
+    baseline_category = ord$baseline_category
+  )
 
   # BC variable: no collapsing, just standard ordinal recode
   expect_equal(result$x[, 1], c(0, 1, 2, 3, 0, 1, 2, 3))

@@ -598,21 +598,67 @@ build_spec_compare <- function(x, y, group_indicator,
     beta_bernoulli_beta   = beta_bernoulli_beta
   )
 
-  # --- Missing data + ordinal recoding ----------------------------------------
-  data <- compare_reformat_data(
+  # --- Missing data (compare path) --------------------------------------------
+  md <- validate_missing_data(
+    x             = x,
+    na_action     = na_action,
+    is_continuous = FALSE,
+    group         = group
+  )
+  x             <- md$x
+  na_impute     <- md$na_impute
+  missing_index <- md$missing_index
+  group         <- md$group
+
+  # Post-listwise group validation (bgmCompare-specific) -----------------------
+  if (na_action == "listwise" && md$n_removed > 0) {
+    unique_g <- unique(group)
+    if (length(unique_g) == length(group)) {
+      stop(paste0(
+        "After rows with missing observations were excluded, there were no groups, as \n",
+        "there were only unique values in the input g left."
+      ))
+    }
+    if (length(unique_g) == 1) {
+      stop(paste0(
+        "After rows with missing observations were excluded, there were no groups, as \n",
+        "there was only one value in the input g left."
+      ))
+    }
+    g <- group
+    for (u in unique_g) {
+      group[g == u] <- which(unique_g == u)
+    }
+    tab <- tabulate(group)
+    if (any(tab < 2)) {
+      stop(paste0(
+        "After rows with missing observations were excluded, one or more groups, only \n",
+        "had one member in the input g."
+      ))
+    }
+  }
+
+  # --- Ordinal recoding (compare path) ----------------------------------------
+  ord <- reformat_ordinal_data(
     x                 = x,
-    group             = group,
-    na_action         = na_action,
-    variable_bool     = is_ordinal,
+    is_ordinal        = is_ordinal,
     baseline_category = bc
   )
+  x             <- ord$x
+  num_categories <- ord$num_categories
+  bc_final      <- ord$baseline_category
 
-  x_recoded       <- data$x
-  group           <- data$group
-  num_categories  <- data$num_categories
-  missing_index   <- data$missing_index
-  na_impute       <- data$na_impute
-  bc_final        <- data$baseline_category
+  # --- Collapse categories across groups (compare-specific) -------------------
+  col <- collapse_categories_across_groups(
+    x                 = x,
+    group             = group,
+    is_ordinal        = is_ordinal,
+    num_categories    = num_categories,
+    baseline_category = bc_final
+  )
+  x_recoded      <- col$x
+  num_categories <- col$num_categories
+  bc_final       <- col$baseline_category
   ordinal_variable <- is_ordinal
 
   num_variables   <- ncol(x_recoded)
