@@ -179,4 +179,11 @@ x = simulate_mrf(
 }
 \seealso{
 \code{\link{simulate.bgms}} for simulating from a fitted model.
+
+Other prediction: 
+\code{\link{predict.bgmCompare}()},
+\code{\link{predict.bgms}()},
+\code{\link{simulate.bgmCompare}()},
+\code{\link{simulate.bgms}()}
 }
+\concept{prediction}

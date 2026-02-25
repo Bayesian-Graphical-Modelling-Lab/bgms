@@ -432,4 +432,8 @@ summary(fit)$pairwise
 }
 \seealso{
 \code{vignette("intro", package = "bgms")} for a worked example.
+
+Other model-fitting: 
+\code{\link{bgmCompare}()}
 }
+\concept{model-fitting}

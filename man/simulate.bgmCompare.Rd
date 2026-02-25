@@ -70,4 +70,11 @@ new_data_g2 <- simulate(fit, nsim = 100, group = 2)
 \seealso{
 \code{\link{simulate.bgms}} for simulating from single-group models,
   \code{\link{predict.bgmCompare}} for computing conditional probabilities.
+
+Other prediction: 
+\code{\link{predict.bgmCompare}()},
+\code{\link{predict.bgms}()},
+\code{\link{simulate.bgms}()},
+\code{\link{simulate_mrf}()}
 }
+\concept{prediction}

@@ -22,6 +22,7 @@
 #' Key components of the model:
 #'
 #' @seealso \code{vignette("comparison", package = "bgms")} for a worked example.
+#' @family model-fitting
 #'
 #' @section Pairwise Interactions:
 #' For variables \eqn{i} and \eqn{j}, the group-specific interaction is

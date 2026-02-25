@@ -170,6 +170,7 @@
 #' )
 #'
 #' @seealso \code{\link{simulate.bgms}} for simulating from a fitted model.
+#' @family prediction
 #'
 #' @export
 simulate_mrf = function(num_states,
@@ -546,6 +547,7 @@ mrfSampler = function(num_states,
 #'
 #' @seealso \code{\link{predict.bgms}} for computing conditional probabilities,
 #'   \code{\link{simulate_mrf}} for simulation with user-specified parameters.
+#' @family prediction
 #'
 #' @examples
 #' \donttest{
@@ -727,6 +729,7 @@ simulate.bgms <- function(object,
 #'
 #' @seealso \code{\link{simulate.bgms}} for simulating from single-group models,
 #'   \code{\link{predict.bgmCompare}} for computing conditional probabilities.
+#' @family prediction
 #'
 #' @examples
 #' \donttest{
@@ -915,6 +918,7 @@ simulate.bgmCompare <- function(object,
 #' is the precision matrix.
 #'
 #' @seealso \code{\link{simulate.bgms}} for generating new data from the model.
+#' @family prediction
 #'
 #' @examples
 #' \donttest{
@@ -1190,6 +1194,7 @@ predict.bgms <- function(object,
 #'
 #' @seealso \code{\link{predict.bgms}} for predicting from single-group models,
 #'   \code{\link{simulate.bgmCompare}} for simulating from group-comparison models.
+#' @family prediction
 #'
 #' @examples
 #' \donttest{

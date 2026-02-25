@@ -86,4 +86,11 @@ new_data_list <- simulate(fit, nsim = 100, method = "posterior-sample",
 \seealso{
 \code{\link{predict.bgms}} for computing conditional probabilities,
   \code{\link{simulate_mrf}} for simulation with user-specified parameters.
+
+Other prediction: 
+\code{\link{predict.bgmCompare}()},
+\code{\link{predict.bgms}()},
+\code{\link{simulate.bgmCompare}()},
+\code{\link{simulate_mrf}()}
 }
+\concept{prediction}

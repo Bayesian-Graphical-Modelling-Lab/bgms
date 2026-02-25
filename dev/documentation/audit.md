@@ -237,8 +237,8 @@ extractor functions (audit #1)`).
 | ~~1~~ | ~~Fix extractor functions docs~~ | ~~R/extractor_functions.R~~ | ~~Done (`3eceb74`). Removed `@keywords internal`, fixed `##'` → `#'`, added `@return`, `@examples`, `@seealso`, `@family extractors`, moved `%||%` to `zzz.R`.~~ |
 | ~~2~~ | ~~Add `@examples`/`@seealso` to S3 methods~~ | ~~6 Rd pages (coef, print, summary × 2)~~ | ~~Done (`ccfceb1`). Added `@examples`, `@seealso`, `@family posterior-methods`.~~ |
 | ~~3~~ | ~~Create `.github/copilot-instructions.md`~~ | ~~.github/~~ | ~~Done (`c34b674`). Includes `=` assignment, roxygen vs `#`, Doxygen rules, anti-patterns.~~ |
-| ~~4~~ | ~~Create `CONTRIBUTING.md` and `dev/README.md`~~ | ~~repo root, dev/~~ | ~~Done (`f7aef22`). Onboarding guide linking to strategy, `bgms_style.R`, CI, `inst/CONTRIBUTORS.md`.~~ |
-| 5 | Add `@family` and `@inheritParams` | All exported roxygen | Prerequisite for pkgdown grouping. Must come before pkgdown restructuring. |
+| ~~4~~ | ~~Create `CONTRIBUTING.md` and `dev/README.md`~~ | ~~repo root, dev/~~ | ~~Done (`fd06629`). Onboarding guide linking to strategy, `bgms_style.R`, CI, `inst/CONTRIBUTORS.md`.~~ |
+| ~~5~~ | ~~Add `@family` and `@inheritParams`~~ | ~~All exported roxygen~~ | ~~Done. Added `@family model-fitting` to `bgm()`, `bgmCompare()`; `@family prediction` to `simulate_mrf()`, `simulate.bgms()`, `simulate.bgmCompare()`, `predict.bgms()`, `predict.bgmCompare()`. Tasks #1–#2 already added `@family extractors` and `@family posterior-methods`.~~ |
 | 6 | Update DESCRIPTION | DESCRIPTION | CRAN-submission blocker: current text omits continuous variables, GGM, group comparison, simulation, prediction. |
 | 7 | Create `.editorconfig` | repo root | 5-minute task, prevents trivial formatting diffs across editors. |
 | 8 | Document `ggm_model.h` | src/models/ggm/ | High-impact C++ gap: ~30 undocumented private methods including non-trivial math. Add `@param` to constructors. Move TODO (line 33) to `dev/plans/future_tasks.md`. |
