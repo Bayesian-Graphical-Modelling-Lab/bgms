@@ -27,22 +27,24 @@ stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://
 [![Codecov](https://codecov.io/gh/Bayesian-Graphical-Modelling-Lab/bgms/branch/main/graph/badge.svg)](https://app.codecov.io/gh/Bayesian-Graphical-Modelling-Lab/bgms)
 <!-- badges: end -->
 
-**Bayesian analysis of graphical models with binary and ordinal
-variables**
+**Bayesian analysis of graphical models**
 
 The **bgms** package implements Bayesian estimation and model comparison
-for **ordinal Markov random fields (MRFs)**, graphical models that
-represent networks of binary and/or ordinal variables (Marsman, van den
-Bergh, et al., 2025). The likelihood is approximated with a
-pseudolikelihood, and Markov chain Monte Carlo (MCMC) methods are used
-to sample from the corresponding pseudoposterior distribution of the
-model parameters.
+for graphical models of binary, ordinal, and continuous variables
+(<span class="nocase">Marsman, van den Bergh, et al.</span>, 2025). It
+supports **ordinal Markov random fields (MRFs)** for discrete data and
+**Gaussian graphical models (GGMs)** for continuous data. The likelihood
+is approximated with a pseudolikelihood, and Markov chain Monte Carlo
+(MCMC) methods are used to sample from the corresponding pseudoposterior
+distribution of the model parameters.
 
 ## Main functions
 
 The package has two main entry points:
 
-- `bgm()` – estimates a single network in a one-sample design.
+- `bgm()` – estimates a single network in a one-sample design. Use
+  `variable_type = "continuous"` for a GGM, or `"ordinal"` (default) for
+  an MRF.
 - `bgmCompare()` – compares networks between groups in an
   independent-sample design.
 
@@ -53,8 +55,9 @@ Both functions support **effect selection** with spike-and-slab priors:
 - **Edges in one-sample designs**: `bgm()` models the presence or
   absence of edges between variables. Posterior inclusion probabilities
   indicate the plausibility of each edge and can be converted into Bayes
-  factors for conditional independence tests (see Marsman, van den
-  Bergh, et al., 2025; Sekulovski et al., 2024).
+  factors for conditional independence tests (see
+  <span class="nocase">Marsman, van den Bergh, et al.</span>, 2025;
+  <span class="nocase">Sekulovski et al.</span>, 2024).
 
 - **Communities/clusters in one-sample designs**: `bgm()` can also model
   community structure. Posterior probabilities for the number of
@@ -112,7 +115,8 @@ result, when an edge or difference is excluded, it remains unclear
 whether this reflects true absence or simply insufficient power.
 
 Bayesian inference avoids this problem. Using **inclusion Bayes
-factors** (Huth et al., 2023; Sekulovski et al., 2024), we can quantify
+factors** (<span class="nocase">Huth et al.</span>, 2023;
+<span class="nocase">Sekulovski et al.</span>, 2024), we can quantify
 evidence in both directions:
 
 - **Evidence of edge presence** vs. **evidence of edge absence**, or
@@ -150,10 +154,11 @@ perspective: A systematic review. *Psychotherapy and Psychosomatics*,
 
 <div id="ref-HuthEtAl_2023_intro" class="csl-entry">
 
-Huth, K., de Ron, J., Goudriaan, A. E., Luigjes, K., Mohammadi, R., van
-Holst, R. J., Wagenmakers, E.-J., & Marsman, M. (2023). Bayesian
-analysis of cross-sectional networks: A tutorial in R and JASP.
-*Advances in Methods and Practices in Psychological Science*, *6*, 1–18.
+<span class="nocase">Huth, K., de Ron, J., Goudriaan, A. E., Luigjes,
+K., Mohammadi, R., van Holst, R. J., Wagenmakers, E.-J., & Marsman,
+M.</span> (2023). Bayesian analysis of cross-sectional networks: A
+tutorial in R and JASP. *Advances in Methods and Practices in
+Psychological Science*, *6*, 1–18.
 <https://doi.org/10.1177/25152459231193334>
 
 </div>
@@ -182,9 +187,9 @@ innovations inspired by empirical problems. *Psychometrika*, *87*, 1–11.
 
 <div id="ref-MarsmanVandenBerghHaslbeck_2025" class="csl-entry">
 
-Marsman, M., van den Bergh, D., & Haslbeck, J. M. B. (2025). Bayesian
-analysis of the ordinal Markov random field. *Psychometrika*, *90*(1),
-146–182. <https://doi.org/10.1017/psy.2024.4>
+<span class="nocase">Marsman, M., van den Bergh, D., & Haslbeck, J. M.
+B.</span> (2025). Bayesian analysis of the ordinal Markov random field.
+*Psychometrika*, *90*(1), 146–182. <https://doi.org/10.1017/psy.2024.4>
 
 </div>
 
@@ -218,10 +223,11 @@ class="uri">Https://Osf.io/Preprints/Psyarxiv/29p3m_v1</a>*.
 
 <div id="ref-SekulovskiEtAl_2024" class="csl-entry">
 
-Sekulovski, N., Keetelaar, S., Huth, K. B. S., Wagenmakers, E.-J., van
-Bork, R., van den Bergh, D., & Marsman, M. (2024). Testing conditional
-independence in psychometric networks: An analysis of three Bayesian
-methods. *Multivariate Behavioral Research*, *59*, 913–933.
+<span class="nocase">Sekulovski, N., Keetelaar, S., Huth, K. B. S.,
+Wagenmakers, E.-J., van Bork, R., van den Bergh, D., & Marsman,
+M.</span> (2024). Testing conditional independence in psychometric
+networks: An analysis of three Bayesian methods. *Multivariate
+Behavioral Research*, *59*, 913–933.
 <https://doi.org/10.1080/00273171.2024.2345915>
 
 </div>
