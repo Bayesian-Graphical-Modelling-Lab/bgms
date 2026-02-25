@@ -1,9 +1,36 @@
 #pragma once
 
+/**
+ * @file bgmCompare_logp_and_grad.h
+ * @brief Log-pseudoposterior and gradient functions for bgmCompare.
+ *
+ * Free functions implementing the log-pseudoposterior, its gradient, and
+ * component-wise evaluations used by Metropolis and NUTS/HMC samplers in
+ * the multi-group comparison model.
+ *
+ * Parameter columns are indexed by h: h = 0 is the overall (shared/baseline)
+ * effect; h > 0 are group-difference effects projected through the contrast
+ * matrix.
+ */
+
 #include <RcppArmadillo.h>
 
 
-
+/**
+ * Compute the total length of the flat parameter vector.
+ *
+ * Accounts for which group-difference entries are active based on the
+ * current inclusion indicators.
+ *
+ * @param num_variables            Number of variables (V)
+ * @param main_effect_indices      Start/end row indices per variable (V x 2)
+ * @param pairwise_effect_indices  Row index per variable pair (V x V)
+ * @param inclusion_indicator      Edge inclusion indicators (V x V)
+ * @param num_categories           Number of categories per variable
+ * @param is_ordinal_variable      1 = ordinal, 0 = Blume-Capel
+ * @param num_groups               Number of groups (G)
+ * @return Total number of active parameters
+ */
 arma::uword total_length(
     const int num_variables,
     const arma::imat& main_effect_indices,
@@ -14,6 +41,29 @@ arma::uword total_length(
     const int num_groups
 );
 
+/**
+ * Compute the observed-data contribution to the gradient.
+ *
+ * Projects sufficient statistics into the active-parameter layout using
+ * the group contrast matrix and the index maps from build_index_maps().
+ *
+ * @param main_effect_indices          Start/end row indices per variable (V x 2)
+ * @param pairwise_effect_indices      Row index per variable pair (V x V)
+ * @param projection                   Group contrast matrix (G x (G-1))
+ * @param observations                 Integer observation matrix (n x V)
+ * @param group_indices                Group start/end indices per group (G x 2)
+ * @param num_categories               Number of categories per variable
+ * @param inclusion_indicator          Edge inclusion indicators (V x V)
+ * @param counts_per_category_group    Category counts per group
+ * @param blume_capel_stats_group      Blume-Capel sufficient statistics per group
+ * @param pairwise_stats_group         Pairwise sufficient statistics per group
+ * @param num_groups                   Number of groups (G)
+ * @param is_ordinal_variable          1 = ordinal, 0 = Blume-Capel
+ * @param baseline_category            Reference categories for Blume-Capel variables
+ * @param main_index                   Main-effect index map from build_index_maps()
+ * @param pair_index                   Pairwise index map from build_index_maps()
+ * @return Gradient vector (observed-data component only)
+ */
 arma::vec gradient_observed_active(
   const arma::imat& main_effect_indices,
   const arma::imat& pairwise_effect_indices,
@@ -32,6 +82,38 @@ arma::vec gradient_observed_active(
   const arma::imat pair_index
 );
 
+/**
+ * Compute the full gradient of the log-pseudoposterior.
+ *
+ * Combines observed sufficient statistics (grad_obs), expected sufficient
+ * statistics (computed on-the-fly via softmax probabilities), and prior
+ * gradient terms (logistic-Beta for baselines, Cauchy for differences).
+ *
+ * @param main_effects             Current main-effect matrix
+ * @param pairwise_effects         Current pairwise-effect matrix
+ * @param main_effect_indices      Start/end row indices per variable (V x 2)
+ * @param pairwise_effect_indices  Row index per variable pair (V x V)
+ * @param projection               Group contrast matrix (G x (G-1))
+ * @param observations_double      Observations as double (n x V)
+ * @param group_indices            Group start/end indices per group (G x 2)
+ * @param num_categories           Number of categories per variable
+ * @param counts_per_category_group Category counts per group
+ * @param blume_capel_stats_group  Blume-Capel sufficient statistics per group
+ * @param pairwise_stats_group     Pairwise sufficient statistics per group
+ * @param num_groups               Number of groups (G)
+ * @param inclusion_indicator      Edge inclusion indicators (V x V)
+ * @param is_ordinal_variable      1 = ordinal, 0 = Blume-Capel
+ * @param baseline_category        Reference categories for Blume-Capel variables
+ * @param main_alpha               Beta prior alpha for baseline main effects
+ * @param main_beta                Beta prior beta for baseline main effects
+ * @param interaction_scale        Cauchy scale for baseline pairwise effects
+ * @param pairwise_scaling_factors Per-pair scaling factors for the Cauchy prior
+ * @param difference_scale         Cauchy scale for group-difference parameters
+ * @param main_index               Main-effect index map from build_index_maps()
+ * @param pair_index               Pairwise index map from build_index_maps()
+ * @param grad_obs                 Pre-computed observed-data gradient
+ * @return Full gradient vector
+ */
 arma::vec gradient(
     const arma::mat& main_effects,
     const arma::mat& pairwise_effects,
@@ -58,6 +140,15 @@ arma::vec gradient(
     const arma::vec& grad_obs
 );
 
+/**
+ * Compute the log-pseudoposterior and its gradient in a single pass.
+ *
+ * Shares intermediate computations (group-specific effects, residual
+ * matrices, probability vectors) to avoid redundant work during NUTS/HMC.
+ *
+ * @return Pair of (log-pseudoposterior value, gradient vector)
+ * @see gradient() for parameter descriptions
+ */
 std::pair<double, arma::vec> logp_and_gradient(
     const arma::mat& main_effects,
     const arma::mat& pairwise_effects,
@@ -84,6 +175,18 @@ std::pair<double, arma::vec> logp_and_gradient(
     const arma::vec& grad_obs
 );
 
+/**
+ * Log-pseudoposterior contribution of a single main-effect parameter.
+ *
+ * Used by element-wise Metropolis updates. Evaluates the pseudolikelihood
+ * and prior for one (variable, category/par, column h) entry.
+ *
+ * @param variable   Variable index
+ * @param category   Category index (ordinal variables only)
+ * @param par        Parameter index: 0 = linear, 1 = quadratic (Blume-Capel only)
+ * @param h          Column index: 0 = overall baseline, >0 = group difference
+ * @see gradient() for remaining parameter descriptions
+ */
 double log_pseudoposterior_main_component(
     const arma::mat& main_effects,
     const arma::mat& pairwise_effects,
@@ -103,11 +206,24 @@ double log_pseudoposterior_main_component(
     const double main_beta,
     const double difference_scale,
     int variable,
-    int category, // for ordinal variables only
-    int par, // for Blume-Capel variables only
-    int h // Overall = 0, differences are 1, ....
+    int category,
+    int par,
+    int h
 );
 
+/**
+ * Log-pseudoposterior contribution of a single pairwise-effect parameter.
+ *
+ * Uses pre-computed residual matrices adjusted by delta to avoid full
+ * recomputation. Used by element-wise Metropolis updates.
+ *
+ * @param residual_matrices  Pre-computed residual matrices per group
+ * @param variable1          First variable index
+ * @param variable2          Second variable index
+ * @param h                  Column index: 0 = overall baseline, >0 = group difference
+ * @param delta              Proposed change to pairwise_effects(idx, h)
+ * @see gradient() for remaining parameter descriptions
+ */
 double log_pseudoposterior_pair_component(
     const arma::mat& main_effects,
     const arma::mat& pairwise_effects,
@@ -118,7 +234,7 @@ double log_pseudoposterior_pair_component(
     const arma::imat& group_indices,
     const arma::ivec& num_categories,
     const std::vector<arma::mat>& pairwise_stats_group,
-    const std::vector<arma::mat>& residual_matrices,  // pre-computed per group
+    const std::vector<arma::mat>& residual_matrices,
     const int num_groups,
     const arma::imat& inclusion_indicator,
     const arma::uvec& is_ordinal_variable,
@@ -128,11 +244,23 @@ double log_pseudoposterior_pair_component(
     const double difference_scale,
     int variable1,
     int variable2,
-    int h, // Overall = 0, differences are 1, ....
-    double delta // proposed change to pairwise_effects(idx, h)
+    int h,
+    double delta
 );
 
 
+/**
+ * Log-pseudolikelihood ratio for toggling a variable's main-effect differences.
+ *
+ * Compares proposed vs. current main-effect parameters across all groups,
+ * combining sufficient-statistic differences with normalizing-constant ratios.
+ * Used by the reversible-jump indicator update for main effects.
+ *
+ * @param current_main_effects   Current main-effect matrix
+ * @param proposed_main_effects  Proposed main-effect matrix
+ * @param variable               Variable whose main effect is being toggled
+ * @see gradient() for remaining parameter descriptions
+ */
 double log_pseudolikelihood_ratio_main(
     const arma::mat& current_main_effects,
     const arma::mat& proposed_main_effects,
@@ -152,6 +280,19 @@ double log_pseudolikelihood_ratio_main(
     const int variable
 );
 
+/**
+ * Log-pseudolikelihood ratio for toggling a pairwise interaction's differences.
+ *
+ * Compares proposed vs. current pairwise-effect parameters for a single edge,
+ * summing the data contribution and normalizing-constant ratios for both
+ * endpoint variables. Used by the reversible-jump indicator update.
+ *
+ * @param current_pairwise_effects   Current pairwise-effect matrix
+ * @param proposed_pairwise_effects  Proposed pairwise-effect matrix
+ * @param var1                       First variable index
+ * @param var2                       Second variable index
+ * @see gradient() for remaining parameter descriptions
+ */
 double log_pseudolikelihood_ratio_pairwise(
     const arma::mat& main_effects,
     const arma::mat& current_pairwise_effects,
