@@ -649,11 +649,20 @@ test_that("predict.bgms GGM conditional mean matches analytic formula", {
   diag(omega_hat) <- as.numeric(fit$posterior_mean_main)
   p <- args$num_variables
 
+  # Get training column means (the model was fitted on centered data)
+  column_means <- args$column_means
+  if (is.null(column_means)) column_means <- rep(0, p)
+
+  # Center newdata using training means
+  newdata_centered <- sweep(newdata, 2, column_means)
+
   for (j in seq_len(p)) {
     omega_jj <- omega_hat[j, j]
     rest_cols <- setdiff(seq_len(p), j)
+    # Conditional mean in centered space, then shift back
     expected_means <- as.numeric(
-      -newdata[, rest_cols, drop = FALSE] %*% omega_hat[rest_cols, j] / omega_jj
+      column_means[j] - newdata_centered[, rest_cols, drop = FALSE] %*%
+        omega_hat[rest_cols, j] / omega_jj
     )
     expected_sd <- sqrt(1 / omega_jj)
 

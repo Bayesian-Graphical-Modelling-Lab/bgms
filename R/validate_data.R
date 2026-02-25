@@ -34,6 +34,40 @@ data_check = function(data, name) {
 
 
 # ------------------------------------------------------------------------------
+# center_continuous_data
+# ------------------------------------------------------------------------------
+#
+# Column-centers a numeric data matrix and returns both the centered
+# matrix and the column means used for centering. This is required for
+# GGM models because the likelihood is formulated in terms of the
+# precision matrix of a zero-mean Gaussian:
+#
+#   log p(X | Omega) \propto (n/2) log|Omega| - (1/2) tr(Omega S)
+#
+# where S = (X - Xbar)' (X - Xbar). Without centering, S = X'X
+# conflates the mean structure with the precision matrix, biasing the
+# estimates when column means are non-zero.
+#
+# The stored column means are needed downstream:
+#   - simulate.bgms() uses them as the mean vector for data generation
+#   - predict.bgms()  centers newdata before computing conditional
+#     distributions, then shifts the conditional means back
+#
+# @param x  Numeric matrix: the data (after missing-data handling).
+#
+# Returns:
+#   list(x, column_means)
+#   - x: column-centered matrix (same dimensions, same colnames)
+#   - column_means: named numeric vector of length ncol(x)
+# ------------------------------------------------------------------------------
+center_continuous_data <- function(x) {
+  column_means <- colMeans(x)
+  x <- sweep(x, 2, column_means)
+  list(x = x, column_means = column_means)
+}
+
+
+# ------------------------------------------------------------------------------
 # validate_missing_data
 # ------------------------------------------------------------------------------
 #

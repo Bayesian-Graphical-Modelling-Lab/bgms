@@ -608,6 +608,8 @@ simulate.bgms <- function(object,
   #   GGM (continuous) path
   # ============================================================================
   if (isTRUE(arguments$is_continuous)) {
+    column_means <- arguments$column_means
+    if (is.null(column_means)) column_means <- rep(0, num_variables)
     return(simulate_bgms_ggm(
       object = object,
       nsim = nsim,
@@ -616,6 +618,7 @@ simulate.bgms <- function(object,
       ndraws = ndraws,
       num_variables = num_variables,
       data_columnnames = data_columnnames,
+      column_means = column_means,
       cores = cores,
       progress_type = progress_type
     ))
@@ -1012,12 +1015,15 @@ predict.bgms <- function(object,
   #   GGM (continuous) path
   # ============================================================================
   if (isTRUE(arguments$is_continuous)) {
+    column_means <- arguments$column_means
+    if (is.null(column_means)) column_means <- rep(0, num_variables)
     return(predict_bgms_ggm(
       object = object,
       newdata = newdata,
       predict_vars = predict_vars,
       data_columnnames = data_columnnames,
       num_variables = num_variables,
+      column_means = column_means,
       type = type,
       method = method,
       ndraws = ndraws
@@ -1443,13 +1449,21 @@ reconstruct_precision_from_draw <- function(pairwise_vec, main_vec, p) {
 # @param predict_vars Integer vector of 1-based variable indices to predict.
 # @param data_columnnames Character vector of variable names.
 # @param num_variables Number of variables p.
+# @param column_means Numeric vector of length p: training column means used
+#   for centering. newdata is centered before computing conditional
+#   distributions, then conditional means are shifted back.
 # @param type "probabilities" or "response".
 # @param method "posterior-mean" or "posterior-sample".
 # @param ndraws Number of posterior draws (NULL = all).
 #
 # @return See predict.bgms() documentation for GGM return format.
 predict_bgms_ggm <- function(object, newdata, predict_vars, data_columnnames,
-                             num_variables, type, method, ndraws) {
+                             num_variables, column_means,
+                             type, method, ndraws) {
+
+  # Center newdata using training means (precision matrix is estimated on
+  # centered data, so predictions must use centered observations)
+  newdata_centered <- sweep(newdata, 2, column_means)
 
   if (method == "posterior-mean") {
     # Reconstruct precision matrix from posterior means
@@ -1459,15 +1473,16 @@ predict_bgms_ggm <- function(object, newdata, predict_vars, data_columnnames,
     )
 
     result <- compute_conditional_ggm(
-      observations = newdata,
+      observations = newdata_centered,
       predict_vars = predict_vars - 1L,
       precision = omega
     )
 
-    # Add names
+    # Add names and shift conditional means back to original scale
     names(result) <- data_columnnames[predict_vars]
     for (v in seq_along(result)) {
       colnames(result[[v]]) <- c("mean", "sd")
+      result[[v]][, "mean"] <- result[[v]][, "mean"] + column_means[predict_vars[v]]
     }
 
   } else {
@@ -1495,11 +1510,18 @@ predict_bgms_ggm <- function(object, newdata, predict_vars, data_columnnames,
         p = num_variables
       )
 
-      all_preds[[i]] <- compute_conditional_ggm(
-        observations = newdata,
+      preds <- compute_conditional_ggm(
+        observations = newdata_centered,
         predict_vars = predict_vars - 1L,
         precision = omega
       )
+
+      # Shift conditional means back to original scale
+      for (v in seq_along(predict_vars)) {
+        preds[[v]][, 1] <- preds[[v]][, 1] + column_means[predict_vars[v]]
+      }
+
+      all_preds[[i]] <- preds
     }
 
     # Average over draws
@@ -1557,6 +1579,7 @@ predict_bgms_ggm <- function(object, newdata, predict_vars, data_columnnames,
 # @return See simulate.bgms() documentation.
 simulate_bgms_ggm <- function(object, nsim, seed, method, ndraws,
                                num_variables, data_columnnames,
+                               column_means,
                                cores, progress_type) {
 
   if (method == "posterior-mean") {
@@ -1567,10 +1590,12 @@ simulate_bgms_ggm <- function(object, nsim, seed, method, ndraws,
     )
 
     # Call simulate_mrf with variable_type = "continuous"
+    # Pass column_means so simulated data has the original location
     result <- simulate_mrf(
       num_states = nsim,
       num_variables = num_variables,
       pairwise = precision,
+      main = column_means,
       variable_type = "continuous",
       seed = seed
     )
@@ -1593,9 +1618,6 @@ simulate_bgms_ggm <- function(object, nsim, seed, method, ndraws,
     if (!is.null(seed)) set.seed(seed)
     draw_indices <- sample.int(total_draws, ndraws)
 
-    # Means default to zero
-    means <- rep(0, num_variables)
-
     # Call parallel C++ function for GGM
     results <- run_ggm_simulation_parallel(
       pairwise_samples = pairwise_samples,
@@ -1603,7 +1625,7 @@ simulate_bgms_ggm <- function(object, nsim, seed, method, ndraws,
       draw_indices = as.integer(draw_indices),
       num_states = as.integer(nsim),
       num_variables = as.integer(num_variables),
-      means = means,
+      means = column_means,
       nThreads = cores,
       seed = seed,
       progress_type = progress_type
