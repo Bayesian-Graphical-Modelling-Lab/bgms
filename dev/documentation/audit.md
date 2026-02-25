@@ -242,8 +242,8 @@ extractor functions (audit #1)`).
 | ~~6~~ | ~~Update DESCRIPTION~~ | ~~DESCRIPTION~~ | ~~Done (`3f6f2a2`). Updated Title to \"Bayesian Analysis of Graphical Models\". Description now mentions continuous variables, GGM, group comparison, simulation, prediction, and missing data imputation.~~ |
 | ~~7~~ | ~~Create `.editorconfig`~~ | ~~repo root~~ | ~~Done. LF line endings, UTF-8, 2-space indent for R/Rmd, 4-space for C++, tab for Makevars, trailing whitespace trimming.~~ |
 | ~~8~~ | ~~Document `ggm_model.h`~~ | ~~src/models/ggm/~~ | ~~Done (`b9915a3`). Added `/** */` Doxygen blocks to all public methods, private methods, constructors (`@param`), and free function `createGGMModelFromR`. Converted data/parameter field comments to `///`. Moved inline TODO to `dev/plans/future_tasks.md` (#5).~~ |
-| 9 | Document `omrf_model.h` public accessors | src/models/omrf/ | ~30 public getters/setters/capability queries have no Doxygen. All private methods are documented. |
-| 10 | Document `cholupdate.h` | src/models/ggm/ | Add algorithm description, origin note (mgcv), `@param` for each argument. |
+| ~~9~~ | ~~Document `omrf_model.h` public accessors~~ | ~~src/models/omrf/~~ | ~~Done (`f562984`). Added `/** */` / `/** @return */` Doxygen blocks to ~29 public getters, setters, capability queries, and adaptation accessors.~~ |
+| ~~10~~ | ~~Document `cholupdate.h`~~ | ~~src/models/ggm/~~ | ~~Done. Added `@file` block with algorithm description, origin note (mgcv / Golub & Van Loan), and `@param` blocks to both `cholesky_update` and `cholesky_downdate`.~~ |
 | 11 | Document `bgmCompare` free functions | src/bgmCompare/ | `bgmCompare_helper.h`, `bgmCompare_logp_and_grad.h`, `bgmCompare_sampler.h` have zero Doxygen on any function. `bgmCompareOutput` struct is fine. |
 | 12 | Add pkgdown reference sections | _pkgdown.yml | Now possible because `@family` tags are done (step 5). Add `articles:` section for vignettes. |
 | 13 | Document `base_model.h` | src/models/ | Class-level doc explaining virtual interface and what subclasses must implement. |
