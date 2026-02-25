@@ -516,16 +516,6 @@ test_that("OMRF spec: impute path", {
   expect_equal(nrow(s$missing$missing_index), 1L)
 })
 
-test_that("GGM spec: impute not supported for continuous data", {
-  x <- make_continuous_data()
-  x[1, 1] <- NA
-  expect_error(
-    spec(x = x, model_type = "ggm", variable_type = "continuous",
-         update_method = "adaptive-metropolis", na_action = "impute"),
-    "Imputation|Gaussian"
-  )
-})
-
 
 # ==============================================================================
 # 11.  Standardize flag propagation

@@ -386,12 +386,71 @@ void GGMModel::initialize_graph() {
 }
 
 
+// =============================================================================
+// Missing data imputation
+// =============================================================================
+
+void GGMModel::update_suf_stat_for_imputation(int variable, int person, double delta) {
+    // INVARIANT: observations_(person, variable) must still hold x_old when
+    // this function is called. The loop adds 2 * delta * x_old to the (v,v)
+    // entry; the delta^2 correction completes the diagonal update.
+    for (size_t q = 0; q < p_; q++) {
+        suf_stat_(variable, q) += delta * observations_(person, q);
+        suf_stat_(q, variable) += delta * observations_(person, q);
+    }
+    suf_stat_(variable, variable) += delta * delta;
+}
+
+void GGMModel::impute_missing() {
+    if (!has_missing_) return;
+
+    const int num_missings = missing_index_.n_rows;
+
+    for (int miss = 0; miss < num_missings; miss++) {
+        const int person = missing_index_(miss, 0);
+        const int variable = missing_index_(miss, 1);
+
+        // Compute conditional mean: mu = -sum_{k != v} omega_{vk} * x_{ik} / omega_{vv}
+        double conditional_mean = 0.0;
+        for (size_t k = 0; k < p_; k++) {
+            if (k != static_cast<size_t>(variable)) {
+                conditional_mean += precision_matrix_(variable, k) * observations_(person, k);
+            }
+        }
+        conditional_mean = -conditional_mean / precision_matrix_(variable, variable);
+
+        // Conditional variance: 1 / omega_{vv}
+        double conditional_sd = std::sqrt(1.0 / precision_matrix_(variable, variable));
+
+        // Sample new value
+        double x_new = rnorm(rng_, conditional_mean, conditional_sd);
+        double x_old = observations_(person, variable);
+        double delta = x_new - x_old;
+
+        // Incrementally update suf_stat_ (observations_ still holds x_old)
+        update_suf_stat_for_imputation(variable, person, delta);
+
+        // Now update the observation
+        observations_(person, variable) = x_new;
+    }
+
+    // Full recompute at end of sweep to eliminate floating-point drift
+    // (matches OMRF pattern; cost is O(np^2), negligible for typical sizes)
+    suf_stat_ = observations_.t() * observations_;
+}
+
+
+// =============================================================================
+// Factory function
+// =============================================================================
+
 GGMModel createGGMModelFromR(
     const Rcpp::List& inputFromR,
     const arma::mat& prior_inclusion_prob,
     const arma::imat& initial_edge_indicators,
     const bool edge_selection,
-    const double pairwise_scale
+    const double pairwise_scale,
+    const bool na_impute
 ) {
 
     if (inputFromR.containsElementNamed("n") && inputFromR.containsElementNamed("suf_stat")) {
@@ -412,7 +471,8 @@ GGMModel createGGMModelFromR(
             prior_inclusion_prob,
             initial_edge_indicators,
             edge_selection,
-            pairwise_scale
+            pairwise_scale,
+            na_impute
         );
     } else {
         throw std::invalid_argument("Input list must contain either 'X' or both 'n' and 'suf_stat'.");

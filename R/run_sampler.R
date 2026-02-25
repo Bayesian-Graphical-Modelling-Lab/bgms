@@ -38,6 +38,7 @@ run_sampler_ggm <- function(spec) {
   d <- spec$data
   p <- spec$prior
   s <- spec$sampler
+  m <- spec$missing
 
   # C++ expects -1 for "no between-cluster prior"
   bb_alpha_between <- if (is.null(p$beta_bernoulli_alpha_between)) -1.0
@@ -63,7 +64,9 @@ run_sampler_ggm <- function(spec) {
     beta_bernoulli_alpha_between = bb_alpha_between,
     beta_bernoulli_beta_between  = bb_beta_between,
     dirichlet_alpha          = p$dirichlet_alpha,
-    lambda                   = p$lambda
+    lambda                   = p$lambda,
+    na_impute                = m$na_impute,
+    missing_index_nullable   = m$missing_index
   )
 
   out_raw

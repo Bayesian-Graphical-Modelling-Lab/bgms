@@ -37,33 +37,23 @@ data_check = function(data, name) {
 # center_continuous_data
 # ------------------------------------------------------------------------------
 #
-# Column-centers a numeric data matrix and returns both the centered
-# matrix and the column means used for centering. This is required for
-# GGM models because the likelihood is formulated in terms of the
-# precision matrix of a zero-mean Gaussian:
+# Column-centers a numeric data matrix. This is required for GGM models
+# because the likelihood is formulated in terms of the precision matrix
+# of a zero-mean Gaussian:
 #
 #   log p(X | Omega) \propto (n/2) log|Omega| - (1/2) tr(Omega S)
 #
-# where S = (X - Xbar)' (X - Xbar). Without centering, S = X'X
-# conflates the mean structure with the precision matrix, biasing the
-# estimates when column means are non-zero.
-#
-# The stored column means are needed downstream:
-#   - simulate.bgms() uses them as the mean vector for data generation
-#   - predict.bgms()  centers newdata before computing conditional
-#     distributions, then shifts the conditional means back
+# where S = X'X on centered data. Without centering, S conflates the
+# mean structure with the precision matrix, biasing estimates when
+# column means are non-zero.
 #
 # @param x  Numeric matrix: the data (after missing-data handling).
 #
 # Returns:
-#   list(x, column_means)
-#   - x: column-centered matrix (same dimensions, same colnames)
-#   - column_means: named numeric vector of length ncol(x)
+#   Column-centered matrix (same dimensions, same colnames).
 # ------------------------------------------------------------------------------
 center_continuous_data <- function(x) {
-  column_means <- colMeans(x)
-  x <- sweep(x, 2, column_means)
-  list(x = x, column_means = column_means)
+  sweep(x, 2, colMeans(x))
 }
 
 
@@ -97,14 +87,6 @@ validate_missing_data <- function(x,
                                   na_action,
                                   is_continuous = FALSE,
                                   group = NULL) {
-  # --- GGM + impute guard ---
-  if (is_continuous && na_action == "impute") {
-    stop(
-      "Imputation is not yet supported for the Gaussian model. ",
-      "Use na_action = 'listwise'."
-    )
-  }
-
   if (na_action == "listwise") {
     return(handle_listwise(x, group))
   }
@@ -182,6 +164,16 @@ handle_impute <- function(x, group = NULL) {
     )
     if (!is.null(group)) result$group <- group
     return(result)
+  }
+
+  # Guard: entire-column-missing
+  for (v in seq_len(ncol(x))) {
+    if (all(is.na(x[, v]))) {
+      stop(
+        "Variable '", colnames(x)[v], "' has no observed values. ",
+        "Remove it before fitting."
+      )
+    }
   }
 
   num_variables <- ncol(x)

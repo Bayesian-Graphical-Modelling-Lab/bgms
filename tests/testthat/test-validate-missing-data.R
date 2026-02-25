@@ -107,6 +107,7 @@ test_that("impute fills NAs and builds missing_index", {
 test_that("impute builds correct missing_index for multiple NAs", {
   set.seed(123)
   x <- matrix(c(1, NA, 3, NA, 5, 6, 7, 8, NA), nrow = 3, ncol = 3)
+  colnames(x) <- paste0("V", 1:3)
   result <- validate_missing_data(x, na_action = "impute")
 
   expect_true(result$na_impute)
@@ -115,14 +116,25 @@ test_that("impute builds correct missing_index for multiple NAs", {
 })
 
 # ==============================================================================
-# 7. GGM + impute guard
+# 7. GGM + impute now supported
 # ==============================================================================
 
-test_that("GGM + impute errors", {
+test_that("GGM + impute works (no longer errors)", {
   x <- matrix(rnorm(12), nrow = 4, ncol = 3)
+  colnames(x) <- paste0("V", 1:3)
+  x[1, 2] <- NA
+  result <- validate_missing_data(x, na_action = "impute", is_continuous = TRUE)
+  expect_true(result$na_impute)
+  expect_equal(nrow(result$missing_index), 1L)
+})
+
+test_that("GGM + impute: entire-column-missing gives clear error", {
+  x <- matrix(rnorm(12), nrow = 4, ncol = 3)
+  colnames(x) <- paste0("V", 1:3)
+  x[, 2] <- NA
   expect_error(
     validate_missing_data(x, na_action = "impute", is_continuous = TRUE),
-    "not yet supported for the Gaussian model"
+    "no observed values"
   )
 })
 

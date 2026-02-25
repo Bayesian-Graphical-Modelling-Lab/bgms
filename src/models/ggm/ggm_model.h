@@ -25,7 +25,8 @@ public:
             const arma::mat& inclusion_probability,
             const arma::imat& initial_edge_indicators,
             const bool edge_selection = true,
-            const double pairwise_scale = 2.5
+            const double pairwise_scale = 2.5,
+            const bool na_impute = false
     ) : n_(observations.n_rows),
         p_(observations.n_cols),
         // TODO: we need to adjust the algorithm to also sample the means!
@@ -42,7 +43,8 @@ public:
         vectorized_parameters_(dim_),
         vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
         proposal_sds_(arma::vec(dim_, arma::fill::ones) * 0.25),
-        precision_proposal_(arma::mat(p_, p_, arma::fill::none))
+        precision_proposal_(arma::mat(p_, p_, arma::fill::none)),
+        observations_(na_impute ? observations : arma::mat())
     {}
 
     // Construct from sufficient statistics
@@ -90,12 +92,28 @@ public:
           proposal_sds_(other.proposal_sds_),
           total_warmup_(other.total_warmup_),
           rng_(other.rng_),
-          precision_proposal_(other.precision_proposal_)
+          precision_proposal_(other.precision_proposal_),
+          observations_(other.observations_),
+          has_missing_(other.has_missing_),
+          missing_index_(other.missing_index_)
     {}
 
     bool has_gradient()        const override { return false; }
     bool has_adaptive_metropolis()     const override { return true; }
     bool has_edge_selection()  const override { return edge_selection_; }
+    bool has_missing_data()    const override { return has_missing_; }
+
+    void impute_missing() override;
+
+    void set_missing_data(const arma::imat& missing_index) {
+        if (observations_.n_elem == 0) {
+            throw std::logic_error(
+                "set_missing_data() called but observations_ is empty. "
+                "The model must be constructed with na_impute=true to retain observations.");
+        }
+        missing_index_ = missing_index;
+        has_missing_ = (missing_index.n_rows > 0 && missing_index.n_cols == 2);
+    }
 
     void set_edge_selection_active(bool active) override {
         edge_selection_active_ = active;
@@ -194,6 +212,13 @@ private:
     int total_warmup_ = 0;
     SafeRNG rng_;
 
+    // Missing data imputation
+    arma::mat observations_;           // n × p, only populated when na_impute=true
+    bool has_missing_ = false;
+    arma::imat missing_index_;         // M × 2 matrix of 0-based (row, col) indices
+
+    void update_suf_stat_for_imputation(int variable, int person, double delta);
+
     // Scratch space
     arma::mat precision_proposal_;
 
@@ -240,5 +265,6 @@ GGMModel createGGMModelFromR(
     const arma::mat& inclusion_probability,
     const arma::imat& initial_edge_indicators,
     const bool edge_selection = true,
-    const double pairwise_scale = 2.5
+    const double pairwise_scale = 2.5,
+    const bool na_impute = false
 );

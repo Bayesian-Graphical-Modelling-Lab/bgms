@@ -160,10 +160,9 @@
 #'
 #' @section Missing Data:
 #'
-#' If \code{na_action = "listwise"}, observations with missing values are
-#' removed.
-#' If \code{na_action = "impute"}, missing values are imputed during Gibbs
-#' sampling.
+#' If \code{na_action = "listwise"}, rows with missing values are removed.
+#' If \code{na_action = "impute"}, missing values are imputed within the
+#' MCMC loop via Gibbs sampling.
 #'
 #' @param x A data frame or matrix with \code{n} rows and \code{p} columns
 #'   containing binary and ordinal responses. Variables are automatically

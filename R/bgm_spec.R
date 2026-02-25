@@ -39,10 +39,7 @@ new_bgm_spec <- function(model_type, data, variables, missing, prior,
               length(data$num_categories) == data$num_variables)
   }
 
-  if (model_type == "ggm") {
-    stopifnot(is.numeric(data$column_means),
-              length(data$column_means) == data$num_variables)
-  }
+
 
   if (model_type == "compare") {
     stopifnot(is.integer(data$group), length(data$group) == data$num_cases)
@@ -378,9 +375,7 @@ build_spec_ggm <- function(x, data_columnnames, num_variables,
   x <- md$x
 
   # Center continuous data (GGM likelihood assumes zero mean)
-  cd <- center_continuous_data(x)
-  x <- cd$x
-  column_means <- cd$column_means
+  x <- center_continuous_data(x)
 
   # Edge prior
   ep <- validate_edge_prior(
@@ -400,8 +395,7 @@ build_spec_ggm <- function(x, data_columnnames, num_variables,
       x                = x,
       data_columnnames = data_columnnames,
       num_variables    = as.integer(ncol(x)),
-      num_cases        = as.integer(nrow(x)),
-      column_means     = column_means
+      num_cases        = as.integer(nrow(x))
     ),
     variables = list(
       variable_type     = variable_type,
@@ -876,7 +870,6 @@ build_arguments_ggm <- function(spec) {
     target_accept                = spec$sampler$target_accept,
     num_chains                   = spec$sampler$chains,
     data_columnnames             = spec$data$data_columnnames,
-    column_means                 = spec$data$column_means,
     no_variables                 = spec$data$num_variables,
     is_continuous                = TRUE
   )

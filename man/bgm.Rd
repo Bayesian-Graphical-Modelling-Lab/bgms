@@ -409,10 +409,9 @@ burn–in using Robbins–Monro updates, without staged fast/slow intervals.
 \section{Missing Data}{
 
 
-If \code{na_action = "listwise"}, observations with missing values are
-removed.
-If \code{na_action = "impute"}, missing values are imputed during Gibbs
-sampling.
+If \code{na_action = "listwise"}, rows with missing values are removed.
+If \code{na_action = "impute"}, missing values are imputed within the
+MCMC loop via Gibbs sampling.
 }
 
 \examples{

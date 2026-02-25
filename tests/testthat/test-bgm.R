@@ -395,26 +395,150 @@ test_that("bgm GGM with listwise deletion drops rows correctly", {
   expect_s3_class(fit, "bgms")
 })
 
-test_that("bgm GGM rejects na_action = 'impute'", {
-  set.seed(42)
-  x <- matrix(rnorm(200), nrow = 50, ncol = 4)
-  colnames(x) <- paste0("V", 1:4)
-  x[5, 2] <- NA
+test_that("GGM with na_action='impute' runs without error", {
+  set.seed(1)
+  n <- 20; p <- 3
+  x <- matrix(rnorm(n * p), n, p)
+  colnames(x) <- paste0("V", 1:p)
+  x[c(1, 5, 10)] <- NA
 
+  fit <- bgm(x, iter = 50, warmup = 50, chains = 1,
+             variable_type = "continuous",
+             na_action = "impute", display_progress = "none")
+
+  expect_s3_class(fit, "bgms")
+  expect_true(extract_arguments(fit)$na_impute)
+  expect_equal(nrow(fit$raw_samples$pairwise[[1]]), 50)
+})
+
+test_that("GGM imputation preserves posterior accuracy", {
+  skip_on_cran()
+  set.seed(42)
+
+  p <- 6; n <- 300
+  # Known sparse precision matrix
+  Omega_true <- diag(p)
+  Omega_true[1,2] <- Omega_true[2,1] <- 0.4
+  Omega_true[3,4] <- Omega_true[4,3] <- -0.3
+
+  Sigma <- solve(Omega_true)
+  x_full <- MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
+  colnames(x_full) <- paste0("V", 1:p)
+
+  # Fit on complete data
+  fit_full <- bgm(x_full, iter = 2000, edge_selection = FALSE,
+                  variable_type = "continuous",
+                  chains = 1, display_progress = "none")
+
+  # Introduce 5% MCAR missing data
+  x_miss <- x_full
+  miss_idx <- sample(length(x_miss), size = round(0.05 * length(x_miss)))
+  x_miss[miss_idx] <- NA
+
+  fit_miss <- bgm(x_miss, iter = 2000, edge_selection = FALSE,
+                  variable_type = "continuous",
+                  na_action = "impute", chains = 1,
+                  display_progress = "none")
+
+  # Posterior means should be correlated > 0.85
+  cor_pairwise <- cor(
+    as.numeric(fit_full$posterior_mean_pairwise),
+    as.numeric(fit_miss$posterior_mean_pairwise)
+  )
+  expect_gt(cor_pairwise, 0.85)
+})
+
+test_that("GGM imputation gives comparable results to listwise", {
+  skip_on_cran()
+  set.seed(123)
+
+  p <- 5; n <- 200
+  x <- matrix(rnorm(n * p), n, p)
+  colnames(x) <- paste0("V", 1:p)
+
+  # Introduce 3% missing
+  miss_idx <- sample(length(x), size = round(0.03 * length(x)))
+  x[miss_idx] <- NA
+
+  fit_listwise <- bgm(x, iter = 500, na_action = "listwise",
+                      variable_type = "continuous",
+                      edge_selection = FALSE, chains = 1,
+                      display_progress = "none")
+  fit_impute   <- bgm(x, iter = 500, na_action = "impute",
+                      variable_type = "continuous",
+                      edge_selection = FALSE, chains = 1,
+                      display_progress = "none")
+
+  expect_s3_class(fit_listwise, "bgms")
+  expect_s3_class(fit_impute, "bgms")
+
+  cor_val <- cor(
+    as.numeric(fit_listwise$posterior_mean_pairwise),
+    as.numeric(fit_impute$posterior_mean_pairwise)
+  )
+  expect_gt(cor_val, 0.80)
+})
+
+test_that("GGM imputation handles edge cases", {
+  set.seed(1)
+  n <- 50; p <- 4
+  x <- matrix(rnorm(n * p), n, p)
+  colnames(x) <- paste0("V", 1:p)
+
+  # Single missing value
+  x[1, 1] <- NA
+  fit <- bgm(x, iter = 50, warmup = 50, chains = 1,
+             variable_type = "continuous",
+             na_action = "impute", display_progress = "none")
+  expect_s3_class(fit, "bgms")
+
+  # Multiple missing in same row
+  x[2, 1:3] <- NA
+  fit2 <- bgm(x, iter = 50, warmup = 50, chains = 1,
+              variable_type = "continuous",
+              na_action = "impute", display_progress = "none")
+  expect_s3_class(fit2, "bgms")
+})
+
+test_that("GGM impute: posterior samples remain finite and bounded", {
+  set.seed(1)
+  x <- matrix(rnorm(500), 100, 5)
+  colnames(x) <- paste0("V", 1:5)
+  x[sample(500, 25)] <- NA
+  fit <- bgm(x, iter = 50, warmup = 50, chains = 1,
+             variable_type = "continuous",
+             na_action = "impute", edge_selection = FALSE,
+             display_progress = "none")
+  samples <- fit$raw_samples$pairwise[[1]]
+  expect_true(all(is.finite(samples)))
+  expect_true(all(abs(samples) < 100))
+})
+
+test_that("GGM with na_action='impute' but no NAs works transparently", {
+  x <- matrix(rnorm(100), 20, 5)
+  colnames(x) <- paste0("V", 1:5)
+  fit <- bgm(x, iter = 50, warmup = 50, chains = 1,
+             variable_type = "continuous",
+             na_action = "impute", display_progress = "none")
+  expect_s3_class(fit, "bgms")
+})
+
+test_that("GGM impute: entire-column-missing gives clear error", {
+  x <- matrix(rnorm(100), 20, 5)
+  colnames(x) <- paste0("V", 1:5)
+  x[, 3] <- NA
   expect_error(
-    bgm(x, variable_type = "continuous", na_action = "impute",
-        iter = 10, warmup = 10, chains = 1, display_progress = "none"),
-    "Imputation is not yet supported"
+    bgm(x, iter = 50, variable_type = "continuous",
+        na_action = "impute", display_progress = "none"),
+    "no observed values"
   )
 })
 
-test_that("bgm GGM column_means are stored in arguments", {
+test_that("bgm GGM arguments do not leak internal fields", {
   fit <- get_bgms_fit_ggm()
   args <- extract_arguments(fit)
 
-  expect_true(!is.null(args$column_means))
-  expect_true(is.numeric(args$column_means))
-  expect_equal(length(args$column_means), args$num_variables)
+  expect_null(args$column_means)
 })
 
 
@@ -566,8 +690,7 @@ test_that("bgm GGM implied regression matches OLS for large n", {
   # For each variable j, the implied regression coefficients are:
   #   beta_j = -omega_{j,-j} / omega_{jj}
   # This should match OLS coefficients from the data.
-  column_means <- extract_arguments(fit)$column_means
-  x_centered <- sweep(x, 2, column_means)
+  x_centered <- sweep(x, 2, colMeans(x))
 
   for (j in seq_len(p)) {
     rest <- setdiff(seq_len(p), j)

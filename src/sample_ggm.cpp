@@ -30,12 +30,22 @@ Rcpp::List sample_ggm(
     const double beta_bernoulli_alpha_between = 1.0,
     const double beta_bernoulli_beta_between = 1.0,
     const double dirichlet_alpha = 1.0,
-    const double lambda = 1.0
+    const double lambda = 1.0,
+    const bool na_impute = false,
+    const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable = R_NilValue
 ) {
 
     // Create model from R input
     GGMModel model = createGGMModelFromR(
-        inputFromR, prior_inclusion_prob, initial_edge_indicators, edge_selection);
+        inputFromR, prior_inclusion_prob, initial_edge_indicators,
+        edge_selection, 2.5, na_impute);
+
+    // Set up missing data imputation (same pattern as OMRF)
+    if (na_impute && missing_index_nullable.isNotNull()) {
+        arma::imat missing_index = Rcpp::as<arma::imat>(
+            Rcpp::IntegerMatrix(missing_index_nullable.get()));
+        model.set_missing_data(missing_index);
+    }
 
     // Configure sampler - GGM only supports MH
     SamplerConfig config;
@@ -44,6 +54,7 @@ Rcpp::List sample_ggm(
     config.no_warmup = no_warmup;
     config.edge_selection = edge_selection;
     config.seed = seed;
+    config.na_impute = na_impute;
 
     // Set up progress manager
     ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type);

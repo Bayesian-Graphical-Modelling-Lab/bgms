@@ -98,7 +98,7 @@ test_that("GGM build_arguments: all expected field names present", {
     "beta_bernoulli_alpha_between", "beta_bernoulli_beta_between",
     "dirichlet_alpha", "lambda", "na_action", "version",
     "update_method", "target_accept", "num_chains",
-    "data_columnnames", "column_means", "no_variables", "is_continuous"
+    "data_columnnames", "no_variables", "is_continuous"
   )
   expect_true(all(expected %in% names(a)),
               info = paste("Missing:", paste(setdiff(expected, names(a)),
@@ -126,8 +126,6 @@ test_that("GGM build_arguments: values are correct", {
   expect_equal(a$warmup, 100L)
   expect_equal(a$num_chains, 2L)
   expect_equal(a$data_columnnames, colnames(x))
-  expect_true(is.numeric(a$column_means))
-  expect_equal(length(a$column_means), 4L)
   expect_s3_class(a$version, "package_version")
 })
 
