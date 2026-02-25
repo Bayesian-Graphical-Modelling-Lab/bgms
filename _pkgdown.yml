@@ -3,3 +3,58 @@ template:
   package: tidytemplate
   bootstrap: 5
 
+reference:
+  - title: Model fitting
+    desc: Fit Bayesian graphical models and compare groups.
+    contents:
+      - bgm
+      - bgmCompare
+
+  - title: Posterior methods
+    desc: Inspect and summarize fitted models.
+    contents:
+      - print.bgms
+      - summary.bgms
+      - coef.bgms
+      - print.bgmCompare
+      - summary.bgmCompare
+      - coef.bgmCompare
+
+  - title: Simulation and prediction
+    desc: Simulate from Markov random fields and predict new observations.
+    contents:
+      - simulate_mrf
+      - simulate.bgms
+      - simulate.bgmCompare
+      - predict.bgms
+      - predict.bgmCompare
+
+  - title: Extractors
+    desc: Extract specific components from fitted model objects.
+    contents:
+      - extractor_functions
+
+  - title: Legacy
+    desc: Deprecated functions retained for backwards compatibility.
+    contents:
+      - mrfSampler
+
+  - title: Datasets
+    contents:
+      - ADHD
+      - Boredom
+      - Wenchuan
+
+  - title: Package
+    contents:
+      - bgms-package
+
+articles:
+  - title: Getting started
+    contents:
+      - intro
+  - title: Advanced topics
+    contents:
+      - comparison
+      - diagnostics
+
