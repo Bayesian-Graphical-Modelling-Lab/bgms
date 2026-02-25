@@ -1,7 +1,6 @@
 # bgms — AI Agent Instructions
 
 Rules for AI agents (Copilot, Claude, etc.) working on this codebase.
-Full documentation strategy: `dev/documentation/documentation_strategy.md`.
 
 ## R code style
 

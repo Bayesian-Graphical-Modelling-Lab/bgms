@@ -234,10 +234,10 @@ extractor functions (audit #1)`).
 
 | Priority | Task | Scope | Rationale |
 |----------|------|-------|-----------|
-| 1 | Fix extractor functions docs | R/extractor_functions.R | CRAN risk: exported functions marked `@keywords internal` with no `@return`. Highest-impact Tier 1 gap. Also fix `##'` → `#'` and move `%||%` polyfill to `zzz.R`. |
-| 2 | Add `@examples`/`@seealso` to S3 methods | 6 Rd pages (coef, print, summary × 2) | Quick wins that improve user-facing docs. |
-| 3 | Create `.github/copilot-instructions.md` | .github/ | Prevents AI agents from adding debt while other fixes land. Include `=` assignment, roxygen vs `#`, Doxygen rules. |
-| 4 | Create `CONTRIBUTING.md` and `dev/README.md` | repo root, dev/ | Newcomer onboarding. Link to strategy, `bgms_style.R`, CI workflows, `inst/CONTRIBUTORS.md`. |
+| ~~1~~ | ~~Fix extractor functions docs~~ | ~~R/extractor_functions.R~~ | ~~Done (`3eceb74`). Removed `@keywords internal`, fixed `##'` → `#'`, added `@return`, `@examples`, `@seealso`, `@family extractors`, moved `%||%` to `zzz.R`.~~ |
+| ~~2~~ | ~~Add `@examples`/`@seealso` to S3 methods~~ | ~~6 Rd pages (coef, print, summary × 2)~~ | ~~Done (`ccfceb1`). Added `@examples`, `@seealso`, `@family posterior-methods`.~~ |
+| ~~3~~ | ~~Create `.github/copilot-instructions.md`~~ | ~~.github/~~ | ~~Done (`c34b674`). Includes `=` assignment, roxygen vs `#`, Doxygen rules, anti-patterns.~~ |
+| ~~4~~ | ~~Create `CONTRIBUTING.md` and `dev/README.md`~~ | ~~repo root, dev/~~ | ~~Done (`f7aef22`). Onboarding guide linking to strategy, `bgms_style.R`, CI, `inst/CONTRIBUTORS.md`.~~ |
 | 5 | Add `@family` and `@inheritParams` | All exported roxygen | Prerequisite for pkgdown grouping. Must come before pkgdown restructuring. |
 | 6 | Update DESCRIPTION | DESCRIPTION | CRAN-submission blocker: current text omits continuous variables, GGM, group comparison, simulation, prediction. |
 | 7 | Create `.editorconfig` | repo root | 5-minute task, prevents trivial formatting diffs across editors. |
