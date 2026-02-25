@@ -1,5 +1,10 @@
 # bgms 0.1.6.4
 
+## New features
+
+* Gaussian graphical models (GGM): `bgm(x, variable_type = "continuous")` fits a GGM with Bayesian edge selection. Pairwise effects are partial correlations from the precision matrix.
+* Missing data imputation: `na_action = "impute"` integrates over missing values during MCMC sampling for both ordinal and continuous models.
+
 ## Bug fixes
 
 * fixed Blume-Capel centering: `observations_` was stored RAW (0-indexed) while `observations_double_` was CENTERED, causing six downstream sites to use wrong values when `baseline_category != 0`. Fixed by centering `observations_` in the constructor for Blume-Capel variables so both representations are in the same coordinate system.
