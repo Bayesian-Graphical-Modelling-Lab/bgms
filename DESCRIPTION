@@ -45,6 +45,7 @@ Suggests:
     covr,
     ggplot2,
     knitr,
+    MASS,
     parallel,
     qgraph,
     rmarkdown,
