@@ -783,6 +783,28 @@ functions deleted.
 | D.3 | Consolidate `output_utils.R` → `build_output.R` (keep `transform_*` in place) |
 | D.4 | Delete empty or near-empty old files |
 | D.5 | Update NAMESPACE, roxygen |
+| D.6 | Unify shared validation between `bgm_spec` and `simulate_predict.R` |
+
+**D.6 detail — shared validators for simulate/predict:**
+
+`simulate_mrf()`, `simulate.bgms()`, `simulate.bgmCompare()`, `predict.bgms()`,
+and `predict.bgmCompare()` each carry their own inline validation for
+`variable_type`, `pairwise` (symmetry, dimensions), `main` (matrix shape,
+NAs, finiteness), `num_categories`, and `baseline_category`. This duplicates
+logic that `bgm_spec` now centralises for the estimation path.
+
+Refactor as follows:
+- Extract reusable validators (e.g. `check_pairwise_matrix()`,
+  `check_main_matrix()`, `check_variable_type()`, `check_baseline_category()`,
+  `check_num_categories()`) into `R/validators.R` (where Phase A validators
+  already live).
+- Have both `bgm_spec()` and `simulate_mrf()` call them.
+- `simulate.bgms()` / `predict.bgms()` currently extract arguments from the
+  fitted object and rebuild matrices — these can be simplified since the
+  fitted object already passed validation at estimation time.
+
+This removes ~200 lines of duplicated checks from `simulate_predict.R` and
+ensures consistent error messages across estimation and simulation.
 
 **Checkpoint D**: Clean file structure. All tests pass.
 
