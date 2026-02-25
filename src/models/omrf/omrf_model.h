@@ -61,9 +61,13 @@ public:
     // BaseModel interface implementation
     // =========================================================================
 
+    /** @return true (OMRF supports gradient computation). */
     bool has_gradient()    const override { return true; }
+    /** @return true (OMRF supports adaptive Metropolis). */
     bool has_adaptive_metropolis() const override { return true; }
+    /** @return true when edge selection is enabled. */
     bool has_edge_selection() const override { return edge_selection_; }
+    /** @return true when missing-data imputation is active. */
     bool has_missing_data() const override { return has_missing_; }
 
     /**
@@ -120,13 +124,11 @@ public:
     arma::ivec get_vectorized_indicator_parameters() override;
 
     /**
-     * Clone the model for parallel execution
+     * Clone the model for parallel execution.
      */
     std::unique_ptr<BaseModel> clone() const override;
 
-    /**
-     * Get RNG for samplers
-     */
+    /** @return Reference to the model's random number generator. */
     SafeRNG& get_rng() override { return rng_; }
 
     // =========================================================================
@@ -167,31 +169,64 @@ public:
     // Accessors
     // =========================================================================
 
+    /** @return Current main-effect parameter matrix (p x max_cats). */
     const arma::mat& get_main_effects() const { return main_effects_; }
+    /** @return Current pairwise interaction matrix (p x p, symmetric). */
     const arma::mat& get_pairwise_effects() const { return pairwise_effects_; }
+    /** @return Current edge-indicator matrix (p x p, symmetric, 0/1). */
     const arma::imat& get_edge_indicators() const override { return edge_indicators_; }
+    /** @return Mutable reference to the prior inclusion-probability matrix. */
     arma::mat& get_inclusion_probability() override { return inclusion_probability_; }
+    /** @return Residual matrix X * pairwise_effects (n x p). */
     const arma::mat& get_residual_matrix() const { return residual_matrix_; }
 
+    /**
+     * Replace all main-effect parameters.
+     * @param main_effects  New main-effect matrix (p x max_cats)
+     */
     void set_main_effects(const arma::mat& main_effects) { main_effects_ = main_effects; }
+    /**
+     * Replace all pairwise effects and update residuals.
+     * @param pairwise_effects  New pairwise interaction matrix (p x p)
+     */
     void set_pairwise_effects(const arma::mat& pairwise_effects);
+    /**
+     * Replace all edge indicators.
+     * @param edge_indicators  New edge-indicator matrix (p x p)
+     */
     void set_edge_indicators(const arma::imat& edge_indicators) { edge_indicators_ = edge_indicators; }
 
+    /** @return Number of variables (p) as int. */
     int get_num_variables() const override { return static_cast<int>(p_); }
+    /** @return Number of unique off-diagonal pairs p(p-1)/2 as int. */
     int get_num_pairwise() const override { return static_cast<int>(num_pairwise_); }
+    /** @return Number of variables (p). */
     size_t num_variables() const { return p_; }
+    /** @return Number of observations (n). */
     size_t num_observations() const { return n_; }
+    /** @return Total number of main-effect parameters across all variables. */
     size_t num_main_effects() const { return num_main_; }
+    /** @return Number of unique pairwise interactions p(p-1)/2. */
     size_t num_pairwise_effects() const { return num_pairwise_; }
 
-    // Shorthand accessors (for interface compatibility)
+    /** @return Number of variables (shorthand for interface compatibility). */
     size_t get_p() const { return p_; }
+    /** @return Number of observations (shorthand for interface compatibility). */
     size_t get_n() const { return n_; }
 
-    // Adaptation control
+    /**
+     * Set the NUTS/HMC leapfrog step size.
+     * @param step_size  New step size
+     */
     void set_step_size(double step_size) override { step_size_ = step_size; }
+    /** @return Current NUTS/HMC leapfrog step size. */
     double get_step_size() const override { return step_size_; }
+    /**
+     * Set the inverse mass matrix diagonal for NUTS/HMC.
+     * @param inv_mass  Diagonal elements of the inverse mass matrix
+     */
     void set_inv_mass(const arma::vec& inv_mass) override { inv_mass_ = inv_mass; }
+    /** @return Current inverse mass matrix diagonal. */
     const arma::vec& get_inv_mass() const override { return inv_mass_; }
 
     /**
@@ -206,15 +241,23 @@ public:
      */
     arma::vec get_full_vectorized_parameters() const override;
 
-    // Proposal SD access (for external adaptation)
+    /** @return Mutable reference to main-effect proposal SDs (for external adaptation). */
     arma::mat& get_proposal_sd_main() { return proposal_sd_main_; }
+    /** @return Mutable reference to pairwise proposal SDs (for external adaptation). */
     arma::mat& get_proposal_sd_pairwise() { return proposal_sd_pairwise_; }
 
-    // Pairwise scaling factors
+    /**
+     * Set per-pair scaling factors for the Cauchy prior.
+     * @param sf  Scaling factor matrix (p x p)
+     */
     void set_pairwise_scaling_factors(const arma::mat& sf) { pairwise_scaling_factors_ = sf; }
 
-    // Control edge selection phase
+    /**
+     * Enable or disable edge-selection proposals.
+     * @param active  true to enable edge birth/death moves
+     */
     void set_edge_selection_active(bool active) override { edge_selection_active_ = active; }
+    /** @return true when edge-selection proposals are currently active. */
     bool is_edge_selection_active() const { return edge_selection_active_; }
 
 private:
