@@ -450,381 +450,43 @@ bgm = function(
     if(!hasArg(main_beta)) main_beta = threshold_beta
   }
 
-  # --- Phase B: parallel spec construction (temporary) -------------------------
-  .bgm_spec <- tryCatch(
-    bgm_spec(
-      x              = x,
-      model_type     = "omrf",
-      variable_type  = variable_type,
-      baseline_category = if (hasArg(baseline_category)) baseline_category else 0L,
-      na_action      = na_action,
-      pairwise_scale = pairwise_scale,
-      main_alpha     = main_alpha,
-      main_beta      = main_beta,
-      standardize    = standardize,
-      edge_selection = edge_selection,
-      edge_prior     = edge_prior,
-      inclusion_probability      = inclusion_probability,
-      beta_bernoulli_alpha       = beta_bernoulli_alpha,
-      beta_bernoulli_beta        = beta_bernoulli_beta,
-      beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
-      beta_bernoulli_beta_between  = beta_bernoulli_beta_between,
-      dirichlet_alpha            = dirichlet_alpha,
-      lambda                     = lambda,
-      update_method  = update_method,
-      target_accept  = if (hasArg(target_accept)) target_accept else NULL,
-      iter           = iter,
-      warmup         = warmup,
-      hmc_num_leapfrogs = hmc_num_leapfrogs,
-      nuts_max_depth = nuts_max_depth,
-      learn_mass_matrix = learn_mass_matrix,
-      chains         = chains,
-      cores          = cores,
-      seed           = seed,
-      display_progress = display_progress,
-      verbose        = verbose
-    ),
-    error = function(e) {
-      if (isTRUE(getOption("bgms.verbose"))) {
-        warning("[bgm_spec] parallel construction failed: ", conditionMessage(e))
-      }
-      NULL
-    }
-  )
-  # --- end Phase B spec construction ---
-
-  # Check data input ------------------------------------------------------------
-  if(!inherits(x, what = "matrix") && !inherits(x, what = "data.frame")) {
-    stop("The input x needs to be a matrix or dataframe.")
-  }
-  if(inherits(x, what = "data.frame")) {
-    x = data.matrix(x)
-  }
-  if(ncol(x) < 2) {
-    stop("The matrix x should have more than one variable (columns).")
-  }
-  if(nrow(x) < 2) {
-    stop("The matrix x should have more than one observation (rows).")
-  }
-
-  # Check model input -----------------------------------------------------------
-  model = check_model(
-    x = x,
-    variable_type = variable_type,
-    baseline_category = baseline_category,
+  # --- Build spec, sample, build output ----------------------------------------
+  spec <- bgm_spec(
+    x              = x,
+    model_type     = "omrf",
+    variable_type  = variable_type,
+    baseline_category = if (hasArg(baseline_category)) baseline_category else 0L,
+    na_action      = na_action,
     pairwise_scale = pairwise_scale,
-    main_alpha = main_alpha,
-    main_beta = main_beta,
+    main_alpha     = main_alpha,
+    main_beta      = main_beta,
+    standardize    = standardize,
     edge_selection = edge_selection,
-    edge_prior = edge_prior,
-    inclusion_probability = inclusion_probability,
-    beta_bernoulli_alpha = beta_bernoulli_alpha,
-    beta_bernoulli_beta = beta_bernoulli_beta,
+    edge_prior     = edge_prior,
+    inclusion_probability      = inclusion_probability,
+    beta_bernoulli_alpha       = beta_bernoulli_alpha,
+    beta_bernoulli_beta        = beta_bernoulli_beta,
     beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
-    beta_bernoulli_beta_between = beta_bernoulli_beta_between,
-    dirichlet_alpha = dirichlet_alpha,
-    lambda = lambda
-  )
-
-  # check hyperparameters input
-  # If user left them NULL, pass -1 to C++ (means: ignore between prior)
-  if(is.null(beta_bernoulli_alpha_between) && is.null(beta_bernoulli_beta_between)) {
-    beta_bernoulli_alpha_between <- -1.0
-    beta_bernoulli_beta_between <- -1.0
-  } else if(is.null(beta_bernoulli_alpha_between) || is.null(beta_bernoulli_beta_between)) {
-    stop("If you wish to specify different between and within cluster probabilites,
-         provide both beta_bernoulli_alpha_between and beta_bernoulli_beta_between,
-         otherwise leave both NULL.")
-  }
-  # ----------------------------------------------------------------------------
-  # The vector variable_type is now coded as boolean.
-  # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
-  # ----------------------------------------------------------------------------
-  variable_bool = model$variable_bool
-  # ----------------------------------------------------------------------------
-
-  baseline_category = model$baseline_category
-  edge_selection = model$edge_selection
-  edge_prior = model$edge_prior
-  inclusion_probability = model$inclusion_probability
-  is_continuous = model$is_continuous
-
-  # Validate sampler settings ---------------------------------------------------
-  sampler <- validate_sampler(
-    update_method     = update_method,
-    target_accept     = if(hasArg(target_accept)) target_accept else NULL,
-    iter              = iter,
-    warmup            = warmup,
-    hmc_num_leapfrogs = hmc_num_leapfrogs,
-    nuts_max_depth    = nuts_max_depth,
-    learn_mass_matrix = learn_mass_matrix,
-    chains            = chains,
-    cores             = cores,
-    seed              = seed,
-    display_progress  = display_progress,
-    is_continuous     = is_continuous,
-    edge_selection    = edge_selection,
-    verbose           = verbose
-  )
-  update_method     <- sampler$update_method
-  target_accept     <- sampler$target_accept
-  iter              <- sampler$iter
-  warmup            <- sampler$warmup
-  hmc_num_leapfrogs <- sampler$hmc_num_leapfrogs
-  nuts_max_depth    <- sampler$nuts_max_depth
-  learn_mass_matrix <- sampler$learn_mass_matrix
-  chains            <- sampler$chains
-  cores             <- sampler$cores
-  seed              <- sampler$seed
-  progress_type     <- sampler$progress_type
-
-  # Check na_action -------------------------------------------------------------
-  na_action_input = na_action
-  na_action = try(match.arg(na_action), silent = TRUE)
-  if(inherits(na_action, what = "try-error")) {
-    stop(paste0(
-      "The na_action argument should equal listwise or impute, not ",
-      na_action_input,
-      "."
-    ))
-  }
-
-  data_columnnames = if(is.null(colnames(x))) paste0("Variable ", seq_len(ncol(x))) else colnames(x)
-
-  # ==========================================================================
-  # Gaussian (continuous) path
-  # ==========================================================================
-  if (is_continuous) {
-    num_variables = ncol(x)
-
-    # Handle missing data for continuous variables
-    md <- validate_missing_data(
-      x             = x,
-      na_action     = na_action,
-      is_continuous = TRUE
-    )
-    x         <- md$x
-    na_impute <- md$na_impute
-
-    indicator = matrix(1L, nrow = num_variables, ncol = num_variables)
-
-    out_raw = sample_ggm(
-      inputFromR = list(X = x),
-      prior_inclusion_prob = matrix(inclusion_probability,
-                                    nrow = num_variables, ncol = num_variables),
-      initial_edge_indicators = indicator,
-      no_iter = iter,
-      no_warmup = warmup,
-      no_chains = chains,
-      edge_selection = edge_selection,
-      seed = seed,
-      no_threads = cores,
-      progress_type = progress_type,
-      edge_prior = edge_prior,
-      beta_bernoulli_alpha = beta_bernoulli_alpha,
-      beta_bernoulli_beta = beta_bernoulli_beta,
-      beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
-      beta_bernoulli_beta_between = beta_bernoulli_beta_between,
-      dirichlet_alpha = dirichlet_alpha,
-      lambda = lambda
-    )
-
-    out = transform_ggm_backend_output(out_raw, num_variables)
-
-    userInterrupt = any(vapply(out, FUN = `[[`, FUN.VALUE = logical(1L), "userInterrupt"))
-    if (userInterrupt) {
-      warning("Stopped sampling after user interrupt, results are likely uninterpretable.")
-    }
-
-    output = prepare_output_ggm(
-      out = out, x = x, iter = iter,
-      data_columnnames = data_columnnames,
-      warmup = warmup,
-      edge_selection = edge_selection, edge_prior = edge_prior,
-      inclusion_probability = inclusion_probability,
-      beta_bernoulli_alpha = beta_bernoulli_alpha,
-      beta_bernoulli_beta = beta_bernoulli_beta,
-      beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
-      beta_bernoulli_beta_between = beta_bernoulli_beta_between,
-      dirichlet_alpha = dirichlet_alpha,
-      lambda = lambda,
-      na_action = na_action, na_impute = na_impute,
-      variable_type = variable_type,
-      update_method = update_method,
-      target_accept = target_accept,
-      num_chains = chains
-    )
-
-    if (!is.null(.bgm_spec)) output$.bgm_spec <- .bgm_spec
-    return(output)
-  }
-
-  # ==========================================================================
-  # Ordinal / Blume-Capel path
-  # ==========================================================================
-
-  # Format the data input -------------------------------------------------------
-  data = reformat_data(
-    x = x,
-    na_action = na_action,
-    variable_bool = variable_bool,
-    baseline_category = baseline_category
-  )
-  x = data$x
-  num_categories = data$num_categories
-  missing_index = data$missing_index
-  na_impute = data$na_impute
-  baseline_category = data$baseline_category
-
-  num_variables = ncol(x)
-  num_thresholds = sum(ifelse(variable_bool, num_categories, 2L))
-
-  # Starting value of model matrix ---------------------------------------------
-  indicator = matrix(1,
-                     nrow = num_variables,
-                     ncol = num_variables
-  )
-
-  # Compute pairwise scaling factors for standardized priors --------------------
-  varnames <- if(is.null(colnames(x))) paste0("Variable ", seq_len(num_variables)) else colnames(x)
-  pairwise_scaling_factors <- compute_scaling_factors(
-    num_variables     = num_variables,
-    is_ordinal        = variable_bool,
-    num_categories    = num_categories,
-    baseline_category = baseline_category,
-    standardize       = standardize,
-    varnames          = varnames
-  )
-
-  input_list = list(
-    observations = x,
-    num_categories = num_categories,
-    is_ordinal_variable = variable_bool,
-    baseline_category = baseline_category,
-    main_alpha = main_alpha,
-    main_beta = main_beta,
-    pairwise_scale = pairwise_scale
-  )
-
-  out_raw = sample_omrf(
-    inputFromR = input_list,
-    prior_inclusion_prob = matrix(inclusion_probability,
-                                  nrow = num_variables, ncol = num_variables),
-    initial_edge_indicators = indicator,
-    no_iter = iter,
-    no_warmup = warmup,
-    no_chains = chains,
-    no_threads = cores,
-    progress_type = progress_type,
-    edge_selection = edge_selection,
-    sampler_type = update_method,
-    seed = seed,
-    edge_prior = edge_prior,
-    na_impute = na_impute,
-    missing_index_nullable = missing_index,
-    beta_bernoulli_alpha = beta_bernoulli_alpha,
-    beta_bernoulli_beta = beta_bernoulli_beta,
-    beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
-    beta_bernoulli_beta_between = beta_bernoulli_beta_between,
-    dirichlet_alpha = dirichlet_alpha,
-    lambda = lambda,
-    target_acceptance = target_accept,
-    max_tree_depth = nuts_max_depth,
-    num_leapfrogs = hmc_num_leapfrogs,
-    pairwise_scaling_factors_nullable = pairwise_scaling_factors
-  )
-
-  out = transform_new_backend_output(out_raw, num_thresholds)
-
-  userInterrupt = any(vapply(out, FUN = `[[`, FUN.VALUE = logical(1L), "userInterrupt"))
-  if(userInterrupt) {
-    warning("Stopped sampling after user interrupt, results are likely uninterpretable.")
-    # Try to prepare output, but catch any errors
-    output <- tryCatch(
-      prepare_output_bgm(
-        out = out, x = x, num_categories = num_categories, iter = iter,
-        data_columnnames = data_columnnames,
-        is_ordinal_variable = variable_bool,
-        warmup = warmup, pairwise_scale = pairwise_scale, standardize = standardize,
-        pairwise_scaling_factors = pairwise_scaling_factors,
-        main_alpha = main_alpha, main_beta = main_beta,
-        na_action = na_action, na_impute = na_impute,
-        edge_selection = edge_selection, edge_prior = edge_prior, inclusion_probability = inclusion_probability,
-        beta_bernoulli_alpha = beta_bernoulli_alpha, beta_bernoulli_beta = beta_bernoulli_beta,
-        beta_bernoulli_alpha_between = beta_bernoulli_alpha_between, beta_bernoulli_beta_between = beta_bernoulli_beta_between,
-        dirichlet_alpha = dirichlet_alpha, lambda = lambda,
-        variable_type = variable_type,
-        baseline_category = baseline_category,
-        update_method = update_method,
-        target_accept = target_accept,
-        hmc_num_leapfrogs = hmc_num_leapfrogs,
-        nuts_max_depth = nuts_max_depth,
-        learn_mass_matrix = learn_mass_matrix,
-        num_chains = chains
-      ),
-      error = function(e) {
-        list(partial = out, error = conditionMessage(e))
-      },
-      warning = function(w) {
-        # still salvage what we can
-        list(partial = out, warning = conditionMessage(w))
-      }
-    )
-    return(output)
-  }
-
-  # Main output handler in the wrapper function
-  output = prepare_output_bgm(
-    out = out, x = x, num_categories = num_categories, iter = iter,
-    data_columnnames = data_columnnames,
-    is_ordinal_variable = variable_bool,
-    warmup = warmup, pairwise_scale = pairwise_scale, standardize = standardize,
-    pairwise_scaling_factors = pairwise_scaling_factors,
-    main_alpha = main_alpha, main_beta = main_beta,
-    na_action = na_action, na_impute = na_impute,
-    edge_selection = edge_selection, edge_prior = edge_prior, inclusion_probability = inclusion_probability,
-    beta_bernoulli_alpha = beta_bernoulli_alpha,
-    beta_bernoulli_beta = beta_bernoulli_beta,
-    beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
-    beta_bernoulli_beta_between = beta_bernoulli_beta_between,
-    dirichlet_alpha = dirichlet_alpha, lambda = lambda,
-    variable_type = variable_type,
-    baseline_category = baseline_category,
-    update_method = update_method,
-    target_accept = target_accept,
+    beta_bernoulli_beta_between  = beta_bernoulli_beta_between,
+    dirichlet_alpha            = dirichlet_alpha,
+    lambda                     = lambda,
+    update_method  = update_method,
+    target_accept  = if (hasArg(target_accept)) target_accept else NULL,
+    iter           = iter,
+    warmup         = warmup,
     hmc_num_leapfrogs = hmc_num_leapfrogs,
     nuts_max_depth = nuts_max_depth,
     learn_mass_matrix = learn_mass_matrix,
-    num_chains = chains
+    chains         = chains,
+    cores          = cores,
+    seed           = seed,
+    display_progress = display_progress,
+    verbose        = verbose
   )
 
-  if(update_method == "nuts") {
-    nuts_diag = summarize_nuts_diagnostics(out, nuts_max_depth = nuts_max_depth)
-    output$nuts_diag = nuts_diag
-  }
+  raw <- run_sampler(spec)
+  output <- build_output(spec, raw)
 
-  # -------------------------------------------------------------------
-  # TODO: REMOVE after easybgm >= 0.2.2 is on CRAN
-  # Compatibility shim for easybgm <= 0.2.1
-  # -------------------------------------------------------------------
-  if("easybgm" %in% loadedNamespaces()) {
-    ebgm_version <- utils::packageVersion("easybgm")
-    if(ebgm_version <= "0.2.1") {
-      warning(
-        "bgms is running in compatibility mode for easybgm (<= 0.2.1). ",
-        "This will be removed once easybgm >= 0.2.2 is on CRAN."
-      )
-
-      # Add legacy variables to output
-      output$arguments$save <- TRUE
-      if(edge_selection) {
-        output$indicator <- extract_indicators(output)
-      }
-      output$interactions <- extract_pairwise_interactions(output)
-      output$thresholds <- extract_category_thresholds(output)
-    }
-  }
-
-  if (!is.null(.bgm_spec)) output$.bgm_spec <- .bgm_spec
+  output$.bgm_spec <- spec
   return(output)
 }

@@ -189,20 +189,23 @@ User call: bgm(x, ...)  or  bgmCompare(x, y, ...)
   │    └─ Compare: run_bgmCompare_parallel(...)
   │
   └─ build_output(spec, raw_out)        # [new] thin dispatcher
-       ├─ build_output_ggm(spec, raw)   # [refactored] GGM-specific builder
-       ├─ build_output_omrf(spec, raw)  # [refactored] OMRF-specific builder
+       ├─ build_output_bgm(spec, raw)     # [refactored] unified GGM + OMRF builder
        └─ build_output_compare(spec, raw) # [refactored] Compare-specific builder
-       (all three share helpers: build_posterior_mean_matrix(),
+       (both share helpers: build_posterior_mean_matrix(),
         build_raw_samples_list(), build_arguments(), generate_param_names())
 ```
 
-> **Design rationale (build_output):** Reviews 1 & 2 both identified that
-> the three output paths (GGM, OMRF, Compare) have genuinely different
-> naming, summary, and SBM structures. A single unified function would
-> couple independent logic via model-type branching. Instead, we keep
-> three model-specific builders sharing helpers, with `build_output()` as
-> a thin dispatcher. This matches the rstanarm pattern where `stan_glm.fit`,
-> `stan_glmer.fit`, etc. share helpers but have separate top-level builders.
+> **Design rationale (build_output):** The GGM and OMRF output paths
+> share ~80% of their code (MCMC summaries, pairwise/indicator matrices,
+> SBM handling, raw_samples assembly). The only differences are
+> **(1) parameter naming** (GGM: `"Var (precision)"` vs OMRF:
+> `"Var (1)", "Var (2)", ...` per category) and **(2) the main
+> posterior mean shape** (GGM: `p × 1` diagonal vs OMRF:
+> `p × max_categories`). These are small enough to handle with an
+> `if (is_continuous)` branch inside a single `build_output_bgm()`.
+> The Compare path has genuinely different structure (group-level
+> summaries, difference parameters, projection matrices) and stays
+> separate. `build_output()` dispatches to one of these two builders.
 
 ### 3.2 The bgm_spec object
 
@@ -354,7 +357,7 @@ validators, then calls `new_bgm_spec()` to assemble, then
 | `R/validate_sampler.R` | `validate_sampler()`, `validate_seed()`, `validate_progress()` | Inline code in bgm.R / bgmCompare.R |
 | `R/compute_utils.R` | `compute_scaling_factors()`, `compute_indices()`, `compute_projection()` | Inline code in bgm.R / bgmCompare.R |
 | `R/run_sampler.R` | `run_sampler()` dispatch, `run_sampler_ggm()`, `run_sampler_omrf()`, `run_sampler_compare()` | Inline C++ call blocks in bgm.R / bgmCompare.R |
-| `R/build_output.R` | `build_output()` (thin dispatcher), `build_output_ggm()`, `build_output_omrf()`, `build_output_compare()`, shared helpers: `build_arguments()`, `build_posterior_mean_matrix()`, `build_raw_samples_list()`, `generate_param_names()` | `output_utils.R` (prepare_output_bgm, prepare_output_ggm, prepare_output_bgmCompare) |
+| `R/build_output.R` | `build_output()` (thin dispatcher), `build_output_bgm()` (unified GGM + OMRF), `build_output_compare()`, shared helpers: `build_arguments()`, `build_posterior_mean_matrix()`, `build_raw_samples_list()`, `generate_param_names()` | `output_utils.R` (prepare_output_bgm, prepare_output_ggm, prepare_output_bgmCompare) |
 
 Files that stay (mostly) unchanged:
 - `R/bgm.R` — becomes thin: deprecated args → `bgm_spec()` → `run_sampler()` → `build_output()`
@@ -759,7 +762,7 @@ fixtures still match.
 | Step | What |
 |------|------|
 | C.1 | Create `run_sampler()` dispatch that reads from spec → calls C++ |
-| C.2 | Create `build_output_ggm()`, `build_output_omrf()`, `build_output_compare()` + shared helpers |
+| C.2 | Create `build_output_bgm()` (unified GGM + OMRF) and `build_output_compare()` + shared helpers |
 | C.3 | Create thin `build_output()` dispatcher |
 | C.4 | In `bgm()`: replace inline GGM/OMRF paths with `run_sampler(spec)` + `build_output(spec, raw)` |
 | C.5 | In `bgmCompare()`: replace inline path with `run_sampler(spec)` + `build_output(spec, raw)` |
@@ -929,7 +932,7 @@ These assertions are removed in Phase C when the old path is deleted.
 - [ ] `new_bgm_spec()` constructor enforces field types/presence
 - [ ] `validate_bgm_spec()` checks cross-field invariants
 - [ ] `bgm_spec()` constructor builds correct specs for GGM, OMRF, BC, Compare
-- [ ] `build_output_ggm()`, `build_output_omrf()`, `build_output_compare()` each tested independently
+- [ ] `build_output_bgm()` (unified GGM + OMRF) and `build_output_compare()` each tested independently
 - [ ] `build_arguments(spec)` matches `output$arguments` field-by-field for all model types
 - [ ] `bgm()` and `bgmCompare()` are thin wrappers (~100–120 lines)
 - [ ] All 1,788+ existing tests pass unchanged

@@ -238,7 +238,12 @@ bgm_spec <- function(x,
                      verbose         = TRUE) {
 
   model_type <- match.arg(model_type)
-  na_action  <- match.arg(na_action)
+  na_action  <- tryCatch(match.arg(na_action), error = function(e) {
+    stop(paste0(
+      "The na_action argument should be one of \"listwise\" or \"impute\", not \"",
+      na_action, "\"."
+    ), call. = FALSE)
+  })
 
   # --- Data validation --------------------------------------------------------
   x <- data_check(x, "x")
@@ -629,7 +634,7 @@ build_spec_compare <- function(x, y, group_indicator,
   pairwise_stats <- compute_pairwise_stats(x_centered, group)
 
   # Index structures
-  num_interactions <- num_variables * (num_variables - 1) / 2
+  num_interactions <- as.integer(num_variables * (num_variables - 1) / 2)
 
   main_effect_indices <- matrix(NA_integer_, nrow = num_variables, ncol = 2)
   for (variable in seq_len(num_variables)) {
@@ -654,6 +659,16 @@ build_spec_compare <- function(x, y, group_indicator,
       pairwise_effect_indices[v1, v2] <- tel
       pairwise_effect_indices[v2, v1] <- tel
       tel <- tel + 1L
+    }
+  }
+
+  # Interaction index matrix (used by C++ to iterate edges in random order)
+  interaction_index_matrix <- matrix(0L, nrow = num_interactions, ncol = 3)
+  counter <- 0L
+  for (v1 in seq_len(num_variables - 1)) {
+    for (v2 in seq(v1 + 1, num_variables)) {
+      counter <- counter + 1L
+      interaction_index_matrix[counter, ] <- c(counter, v1 - 1L, v2 - 1L)
     }
   }
 
@@ -734,7 +749,7 @@ build_spec_compare <- function(x, y, group_indicator,
       pairwise_stats           = pairwise_stats,
       main_effect_indices      = main_effect_indices,
       pairwise_effect_indices  = pairwise_effect_indices,
-      interaction_index_matrix = matrix(NA)  # placeholder
+      interaction_index_matrix = interaction_index_matrix
     )
   )
 }
