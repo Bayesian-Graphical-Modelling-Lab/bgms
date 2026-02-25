@@ -487,7 +487,7 @@ test_that("print.bgm_spec for compare shows group info", {
 
 test_that("print.bgm_spec returns invisible", {
   s <- spec()
-  expect_invisible(print(s))
+  capture.output(expect_invisible(print(s)))
 })
 
 

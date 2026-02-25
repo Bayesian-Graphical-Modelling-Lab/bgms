@@ -479,22 +479,19 @@ test_that("predict.bgms returns valid probabilities for ordinal fixtures", {
       expect_true(is.matrix(probs[[j]]), info = paste(ctx, "var", j))
       expect_equal(nrow(probs[[j]]), nrow(newdata), info = paste(ctx, "var", j))
       
-      # Non-NA probabilities in [0, 1]
-      non_na <- probs[[j]][!is.na(probs[[j]])]
-      if (length(non_na) > 0) {
-        expect_true(all(non_na >= 0 & non_na <= 1),
-                    info = sprintf("%s var %d probs out of [0,1]", ctx, j))
-      }
+      # No NAs in probability output
+      expect_false(anyNA(probs[[j]]),
+                   info = sprintf("%s var %d has NAs", ctx, j))
+      # Probabilities in [0, 1]
+      expect_true(all(probs[[j]] >= 0 & probs[[j]] <= 1),
+                  info = sprintf("%s var %d probs out of [0,1]", ctx, j))
       
       # Row sums = 1
-      row_sums <- rowSums(probs[[j]], na.rm = TRUE)
-      valid_rows <- !apply(probs[[j]], 1, function(x) any(is.na(x)))
-      if (any(valid_rows)) {
-        expect_true(
-          all(abs(row_sums[valid_rows] - 1) < 1e-6),
-          info = sprintf("%s var %d probs don't sum to 1", ctx, j)
-        )
-      }
+      row_sums <- rowSums(probs[[j]])
+      expect_true(
+        all(abs(row_sums - 1) < 1e-6),
+        info = sprintf("%s var %d probs don't sum to 1", ctx, j)
+      )
     }
   }
 })
@@ -760,22 +757,19 @@ test_that("predict.bgmCompare returns valid probabilities for all fixture types"
         expect_true(is.matrix(probs[[j]]), info = paste(ctx, "group", g, "var", j))
         expect_equal(nrow(probs[[j]]), nrow(newdata), info = paste(ctx, "group", g, "var", j))
         
-        # Non-NA probabilities in [0, 1]
-        non_na <- probs[[j]][!is.na(probs[[j]])]
-        if (length(non_na) > 0) {
-          expect_true(all(non_na >= 0 & non_na <= 1),
-                      info = sprintf("%s group %d var %d probs out of [0,1]", ctx, g, j))
-        }
+        # No NAs in probability output
+        expect_false(anyNA(probs[[j]]),
+                     info = sprintf("%s group %d var %d has NAs", ctx, g, j))
+        # Probabilities in [0, 1]
+        expect_true(all(probs[[j]] >= 0 & probs[[j]] <= 1),
+                    info = sprintf("%s group %d var %d probs out of [0,1]", ctx, g, j))
         
         # Row sums = 1
-        row_sums <- rowSums(probs[[j]], na.rm = TRUE)
-        valid_rows <- !apply(probs[[j]], 1, function(x) any(is.na(x)))
-        if (any(valid_rows)) {
-          expect_true(
-            all(abs(row_sums[valid_rows] - 1) < 1e-6),
-            info = sprintf("%s group %d var %d probs don't sum to 1", ctx, g, j)
-          )
-        }
+        row_sums <- rowSums(probs[[j]])
+        expect_true(
+          all(abs(row_sums - 1) < 1e-6),
+          info = sprintf("%s group %d var %d probs don't sum to 1", ctx, g, j)
+        )
       }
     }
   }

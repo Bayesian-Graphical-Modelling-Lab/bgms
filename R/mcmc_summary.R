@@ -126,12 +126,14 @@ summarize_slab = function(fit, component = c("pairwise_samples"), param_names = 
     vec = vec[nonzero]
     T = length(vec)
 
+    if(T >= 1) {
+      result[j, "mean"] = mean(vec)
+    }
     if(T > 10) {
-      eap = mean(vec)
       sdev = sd(vec)
       est = compute_rhat_ess(vec) ## draws
       mcse = sdev / sqrt(est$ess)
-      result[j, ] = c(eap, sdev, mcse, est$ess, est$rhat)
+      result[j, c("sd", "mcse", "n_eff", "Rhat")] = c(sdev, mcse, est$ess, est$rhat)
     }
   }
 
@@ -157,7 +159,10 @@ summarize_pair = function(fit,
   summ_slab = summarize_slab(fit, component = slab_component)
   nparam = nrow(summ_ind)
 
-  eap = summ_ind$mean * summ_slab$mean
+  # EAP = indicator_mean * slab_mean.
+  # When indicator_mean is 0, the edge was never selected, so EAP = 0
+  # regardless of slab_mean (which may be NA with 0 nonzero draws).
+  eap = ifelse(summ_ind$mean == 0, 0, summ_ind$mean * summ_slab$mean)
   v = (summ_slab$mean^2 * summ_ind$sd^2) + (summ_ind$mean^2 * summ_slab$sd^2)
   mcse2 = (summ_slab$mean^2 * summ_ind$mcse^2) + (summ_ind$mean^2 * summ_slab$mcse^2)
   mcse = sqrt(mcse2)

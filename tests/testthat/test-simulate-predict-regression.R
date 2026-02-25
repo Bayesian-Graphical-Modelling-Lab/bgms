@@ -1,0 +1,627 @@
+# ==============================================================================
+# Phase C.6: simulate / predict regression tests
+#
+# Verifies that simulate() and predict() work correctly with fit objects
+# produced by the refactored bgm() / bgmCompare() pipeline.
+#
+# Test groups:
+#   1. $arguments contract — every field simulate/predict extract is present
+#   2. Fit-object structure — posterior_mean_*, raw_samples present
+#   3. Golden fixture cross-check — simulate/predict-critical $arguments
+#      values match old pipeline output recorded in golden .rds files
+#   4. Functional roundtrip — simulate → predict for each model type
+#   5. Posterior-sample method regression
+#   6. Field type and value invariants
+# ==============================================================================
+
+
+# ------------------------------------------------------------------------------
+# Fixture Specifications (mirrored from test-methods.R)
+# These produce parameterized test specs using session-cached fits from
+# helper-fixtures.R.
+# ------------------------------------------------------------------------------
+get_bgms_fixtures <- function() {
+  list(
+    list(label = "binary", get_fit = get_bgms_fit,
+         get_prediction_data = get_prediction_data_binary,
+         var_type = "binary", is_continuous = FALSE),
+    list(label = "ordinal", get_fit = get_bgms_fit_ordinal,
+         get_prediction_data = get_prediction_data_ordinal,
+         var_type = "ordinal", is_continuous = FALSE),
+    list(label = "single-chain", get_fit = get_bgms_fit_single_chain,
+         get_prediction_data = get_prediction_data_binary,
+         var_type = "binary", is_continuous = FALSE),
+    list(label = "blume-capel", get_fit = get_bgms_fit_blumecapel,
+         get_prediction_data = get_prediction_data_ordinal,
+         var_type = "blume-capel", is_continuous = FALSE),
+    list(label = "adaptive-metropolis", get_fit = get_bgms_fit_adaptive_metropolis,
+         get_prediction_data = get_prediction_data_binary,
+         var_type = "binary", is_continuous = FALSE),
+    list(label = "hmc", get_fit = get_bgms_fit_hmc,
+         get_prediction_data = get_prediction_data_ordinal,
+         var_type = "ordinal", is_continuous = FALSE),
+    list(label = "am-blumecapel", get_fit = get_bgms_fit_am_blumecapel,
+         get_prediction_data = get_prediction_data_ordinal,
+         var_type = "blume-capel", is_continuous = FALSE),
+    list(label = "impute", get_fit = get_bgms_fit_impute,
+         get_prediction_data = get_prediction_data_ordinal,
+         var_type = "ordinal", is_continuous = FALSE),
+    list(label = "standardize", get_fit = get_bgms_fit_standardize,
+         get_prediction_data = get_prediction_data_ordinal,
+         var_type = "ordinal", is_continuous = FALSE),
+    list(label = "ggm", get_fit = get_bgms_fit_ggm,
+         get_prediction_data = get_prediction_data_ggm,
+         var_type = "continuous", is_continuous = TRUE),
+    list(label = "ggm-no-es", get_fit = get_bgms_fit_ggm_no_es,
+         get_prediction_data = get_prediction_data_ggm,
+         var_type = "continuous", is_continuous = TRUE)
+  )
+}
+
+get_bgmcompare_fixtures <- function() {
+  list(
+    list(label = "binary", get_fit = get_bgmcompare_fit,
+         get_prediction_data = get_prediction_data_bgmcompare_binary,
+         var_type = "binary"),
+    list(label = "ordinal", get_fit = get_bgmcompare_fit_ordinal,
+         get_prediction_data = get_prediction_data_bgmcompare_ordinal,
+         var_type = "ordinal"),
+    list(label = "adaptive-metropolis", get_fit = get_bgmcompare_fit_adaptive_metropolis,
+         get_prediction_data = get_prediction_data_bgmcompare_binary,
+         var_type = "binary"),
+    list(label = "hmc", get_fit = get_bgmcompare_fit_hmc,
+         get_prediction_data = get_prediction_data_bgmcompare_binary,
+         var_type = "binary"),
+    list(label = "hmc-blume-capel", get_fit = get_bgmcompare_fit_hmc_blumecapel,
+         get_prediction_data = get_prediction_data_bgmcompare_blumecapel,
+         var_type = "blume-capel"),
+    list(label = "blume-capel", get_fit = get_bgmcompare_fit_blumecapel,
+         get_prediction_data = get_prediction_data_bgmcompare_blumecapel,
+         var_type = "blume-capel"),
+    list(label = "am-blume-capel", get_fit = get_bgmcompare_fit_am_blumecapel,
+         get_prediction_data = get_prediction_data_bgmcompare_blumecapel,
+         var_type = "blume-capel"),
+    list(label = "impute", get_fit = get_bgmcompare_fit_impute,
+         get_prediction_data = get_prediction_data_bgmcompare_ordinal,
+         var_type = "ordinal"),
+    list(label = "blume-capel-impute", get_fit = get_bgmcompare_fit_blumecapel_impute,
+         get_prediction_data = get_prediction_data_bgmcompare_blumecapel,
+         var_type = "blume-capel"),
+    list(label = "beta-bernoulli", get_fit = get_bgmcompare_fit_beta_bernoulli,
+         get_prediction_data = get_prediction_data_bgmcompare_ordinal,
+         var_type = "ordinal"),
+    list(label = "standardize", get_fit = get_bgmcompare_fit_standardize,
+         get_prediction_data = get_prediction_data_bgmcompare_ordinal,
+         var_type = "ordinal")
+  )
+}
+
+
+# ==============================================================================
+# 1. $arguments contract tests
+# ==============================================================================
+# simulate.bgms / predict.bgms read these fields from extract_arguments():
+#   num_variables, num_categories, variable_type, data_columnnames,
+#   baseline_category, is_continuous (GGM only, via isTRUE guard)
+#
+# simulate.bgmCompare / predict.bgmCompare read:
+#   num_groups, num_variables, num_categories, is_ordinal_variable,
+#   data_columnnames, projection, baseline_category (NULL-safe)
+# ==============================================================================
+
+# Fields required by ALL bgms simulate/predict paths:
+BGMS_COMMON_FIELDS <- c(
+  "num_variables", "variable_type", "data_columnnames"
+)
+
+# Additional fields required only for OMRF (ordinal / blume-capel):
+BGMS_OMRF_FIELDS <- c(
+  "num_categories", "baseline_category"
+)
+
+COMPARE_SIM_PRED_FIELDS <- c(
+  "num_groups", "num_variables", "num_categories",
+  "is_ordinal_variable", "data_columnnames", "projection"
+)
+
+test_that("bgms $arguments contains all fields needed by simulate/predict", {
+  for (spec in get_bgms_fixtures()) {
+    ctx <- sprintf("[bgms %s]", spec$label)
+    fit <- spec$get_fit()
+    args <- extract_arguments(fit)
+
+    for (field in BGMS_COMMON_FIELDS) {
+      expect_true(
+        field %in% names(args),
+        info = sprintf("%s: missing arguments$%s", ctx, field)
+      )
+    }
+
+    if (isTRUE(spec$is_continuous)) {
+      # GGM fits must carry is_continuous = TRUE
+      expect_true(
+        isTRUE(args$is_continuous),
+        info = sprintf("%s: is_continuous should be TRUE for GGM", ctx)
+      )
+    } else {
+      # OMRF fits must also carry num_categories and baseline_category
+      for (field in BGMS_OMRF_FIELDS) {
+        expect_true(
+          field %in% names(args),
+          info = sprintf("%s: missing arguments$%s", ctx, field)
+        )
+      }
+    }
+  }
+})
+
+test_that("bgmCompare $arguments contains all fields needed by simulate/predict", {
+  for (spec in get_bgmcompare_fixtures()) {
+    ctx <- sprintf("[bgmCompare %s]", spec$label)
+    fit <- spec$get_fit()
+    args <- extract_arguments(fit)
+
+    for (field in COMPARE_SIM_PRED_FIELDS) {
+      expect_true(
+        field %in% names(args),
+        info = sprintf("%s: missing arguments$%s", ctx, field)
+      )
+    }
+  }
+})
+
+
+# ==============================================================================
+# 2. Fit-object structure tests
+# ==============================================================================
+# simulate/predict also read directly from the fit object:
+#   - posterior_mean_pairwise, posterior_mean_main  (posterior-mean method)
+#   - raw_samples$pairwise, raw_samples$main       (posterior-sample method)
+# ==============================================================================
+
+test_that("bgms fit objects have posterior_mean fields for simulate/predict", {
+  for (spec in get_bgms_fixtures()) {
+    ctx <- sprintf("[bgms %s]", spec$label)
+    fit <- spec$get_fit()
+    args <- extract_arguments(fit)
+    p <- args$num_variables
+
+    expect_false(is.null(fit$posterior_mean_pairwise),
+                 info = paste(ctx, "missing posterior_mean_pairwise"))
+    expect_false(is.null(fit$posterior_mean_main),
+                 info = paste(ctx, "missing posterior_mean_main"))
+    expect_true(is.matrix(fit$posterior_mean_pairwise),
+                info = paste(ctx, "posterior_mean_pairwise not a matrix"))
+    expect_equal(nrow(fit$posterior_mean_pairwise), p,
+                 info = paste(ctx, "posterior_mean_pairwise wrong nrow"))
+    expect_equal(ncol(fit$posterior_mean_pairwise), p,
+                 info = paste(ctx, "posterior_mean_pairwise wrong ncol"))
+  }
+})
+
+test_that("bgms fit objects have raw_samples for posterior-sample method", {
+  for (spec in get_bgms_fixtures()) {
+    ctx <- sprintf("[bgms %s]", spec$label)
+    fit <- spec$get_fit()
+
+    expect_false(is.null(fit$raw_samples),
+                 info = paste(ctx, "missing raw_samples"))
+    expect_false(is.null(fit$raw_samples$pairwise),
+                 info = paste(ctx, "missing raw_samples$pairwise"))
+    expect_false(is.null(fit$raw_samples$main),
+                 info = paste(ctx, "missing raw_samples$main"))
+    expect_true(is.list(fit$raw_samples$pairwise),
+                info = paste(ctx, "raw_samples$pairwise not a list"))
+    expect_true(is.list(fit$raw_samples$main),
+                info = paste(ctx, "raw_samples$main not a list"))
+  }
+})
+
+
+# ==============================================================================
+# 3. Golden fixture cross-check
+# ==============================================================================
+# For each golden fixture, construct a bgm_spec from the frozen inputs and
+# verify that build_arguments() produces the same simulate/predict-critical
+# values (num_categories, baseline_category, variable_type / is_ordinal_variable,
+# is_continuous) as the old pipeline's check_model + reformat_data output.
+#
+# This is fast: bgm_spec() + build_arguments() does no MCMC.
+# ==============================================================================
+
+golden_fixture_path <- function(id) {
+  fixture_dir <- file.path(
+    testthat::test_path(), "..", "..", "dev", "fixtures", "scaffolding"
+  )
+  file.path(fixture_dir, paste0(id, ".rds"))
+}
+
+has_golden_fixtures <- function() {
+  manifest_path <- golden_fixture_path("manifest")
+  file.exists(manifest_path)
+}
+
+test_that("golden fixtures: bgm specs produce correct num_categories", {
+  skip_if_not(has_golden_fixtures(), "golden fixtures not found")
+
+  manifest <- readRDS(golden_fixture_path("manifest"))
+  bgm_ids <- manifest$id[manifest$type == "bgm"]
+
+  for (id in bgm_ids) {
+    fix <- readRDS(golden_fixture_path(id))
+    ctx <- sprintf("[golden %s]", id)
+
+    # GGM fixtures don't have num_categories in reformat_data
+    if (is.null(fix$reformat_data$num_categories)) next
+
+    spec <- bgms:::bgm_spec(
+      fix$input$x,
+      variable_type     = fix$input$variable_type,
+      baseline_category = fix$input$baseline_category
+    )
+    args <- bgms:::build_arguments(spec)
+
+    expect_equal(
+      args$num_categories, fix$reformat_data$num_categories,
+      info = sprintf("%s: num_categories mismatch", ctx)
+    )
+  }
+})
+
+test_that("golden fixtures: bgm specs produce correct baseline_category", {
+  skip_if_not(has_golden_fixtures(), "golden fixtures not found")
+
+  manifest <- readRDS(golden_fixture_path("manifest"))
+  bgm_ids <- manifest$id[manifest$type == "bgm"]
+
+  for (id in bgm_ids) {
+    fix <- readRDS(golden_fixture_path(id))
+    ctx <- sprintf("[golden %s]", id)
+
+    if (is.null(fix$reformat_data$baseline_category)) next
+
+    spec <- bgms:::bgm_spec(
+      fix$input$x,
+      variable_type     = fix$input$variable_type,
+      baseline_category = fix$input$baseline_category
+    )
+    args <- bgms:::build_arguments(spec)
+
+    expect_equal(
+      as.numeric(args$baseline_category),
+      as.numeric(fix$reformat_data$baseline_category),
+      info = sprintf("%s: baseline_category mismatch", ctx)
+    )
+  }
+})
+
+test_that("golden fixtures: bgm specs preserve is_continuous flag", {
+  skip_if_not(has_golden_fixtures(), "golden fixtures not found")
+
+  manifest <- readRDS(golden_fixture_path("manifest"))
+  bgm_ids <- manifest$id[manifest$type == "bgm"]
+
+  for (id in bgm_ids) {
+    fix <- readRDS(golden_fixture_path(id))
+    ctx <- sprintf("[golden %s]", id)
+
+    spec <- bgms:::bgm_spec(
+      fix$input$x,
+      variable_type     = fix$input$variable_type,
+      baseline_category = fix$input$baseline_category
+    )
+    args <- bgms:::build_arguments(spec)
+
+    golden_is_continuous <- isTRUE(fix$check_model$is_continuous)
+    spec_is_continuous   <- isTRUE(args$is_continuous)
+    expect_equal(
+      spec_is_continuous, golden_is_continuous,
+      info = sprintf("%s: is_continuous mismatch", ctx)
+    )
+  }
+})
+
+test_that("golden fixtures: compare specs produce correct num_categories", {
+  skip_if_not(has_golden_fixtures(), "golden fixtures not found")
+
+  manifest <- readRDS(golden_fixture_path("manifest"))
+  compare_ids <- manifest$id[manifest$type == "compare"]
+
+  for (id in compare_ids) {
+    fix <- readRDS(golden_fixture_path(id))
+    ctx <- sprintf("[golden %s]", id)
+
+    spec <- bgms:::bgm_spec(
+      fix$input$x,
+      model_type        = "compare",
+      variable_type     = fix$input$variable_type,
+      baseline_category = fix$input$baseline_category,
+      group_indicator   = fix$input$group_indicator,
+      na_action         = fix$input$na_action
+    )
+    args <- bgms:::build_arguments(spec)
+
+    expect_equal(
+      args$num_categories, fix$reformat_data$num_categories,
+      info = sprintf("%s: num_categories mismatch", ctx)
+    )
+  }
+})
+
+test_that("golden fixtures: compare specs produce correct baseline_category", {
+  skip_if_not(has_golden_fixtures(), "golden fixtures not found")
+
+  manifest <- readRDS(golden_fixture_path("manifest"))
+  compare_ids <- manifest$id[manifest$type == "compare"]
+
+  for (id in compare_ids) {
+    fix <- readRDS(golden_fixture_path(id))
+    ctx <- sprintf("[golden %s]", id)
+
+    if (is.null(fix$reformat_data$baseline_category)) next
+
+    spec <- bgms:::bgm_spec(
+      fix$input$x,
+      model_type        = "compare",
+      variable_type     = fix$input$variable_type,
+      baseline_category = fix$input$baseline_category,
+      group_indicator   = fix$input$group_indicator,
+      na_action         = fix$input$na_action
+    )
+    args <- bgms:::build_arguments(spec)
+
+    # Compare uses is_ordinal_variable rather than baseline_category
+    # but baseline_category is still available in spec$variables
+    # The key field for simulate/predict is is_ordinal_variable
+    expect_true(!is.null(args$is_ordinal_variable),
+                info = sprintf("%s: missing is_ordinal_variable", ctx))
+
+    golden_is_ordinal <- fix$check_model$variable_bool
+    expect_equal(
+      args$is_ordinal_variable, golden_is_ordinal,
+      info = sprintf("%s: is_ordinal_variable mismatch", ctx)
+    )
+  }
+})
+
+
+# ==============================================================================
+# 4. Functional roundtrip tests
+# ==============================================================================
+# For every cached fixture type: simulate data → predict on it → verify
+# structural soundness. This catches any mismatch between $arguments and
+# the actual simulate/predict code paths after refactoring.
+# ==============================================================================
+
+test_that("simulate → predict roundtrip works for all bgms fixtures", {
+  for (spec in get_bgms_fixtures()) {
+    ctx <- sprintf("[bgms %s]", spec$label)
+    fit <- spec$get_fit()
+    args <- extract_arguments(fit)
+
+    n_sim <- 20
+    simulated <- simulate(fit, nsim = n_sim, method = "posterior-mean", seed = 1)
+
+    expect_true(is.matrix(simulated), info = paste(ctx, "simulate"))
+    expect_equal(nrow(simulated), n_sim, info = paste(ctx, "nrow"))
+    expect_equal(ncol(simulated), args$num_variables, info = paste(ctx, "ncol"))
+    expect_equal(colnames(simulated), args$data_columnnames, info = paste(ctx, "colnames"))
+
+    if (isTRUE(args$is_continuous)) {
+      # GGM: predict returns list of mean/sd matrices
+      colnames(simulated) <- args$data_columnnames
+      pred <- predict(fit, newdata = simulated)
+      expect_true(is.list(pred), info = paste(ctx, "predict type"))
+      expect_equal(length(pred), args$num_variables, info = paste(ctx, "predict length"))
+      for (j in seq_along(pred)) {
+        expect_equal(nrow(pred[[j]]), n_sim,
+                     info = sprintf("%s predict var %d nrow", ctx, j))
+        expect_equal(ncol(pred[[j]]), 2,
+                     info = sprintf("%s predict var %d ncol", ctx, j))
+      }
+    } else {
+      # OMRF: predict returns list of probability matrices
+      probs <- predict(fit, newdata = simulated, type = "probabilities")
+      expect_true(is.list(probs), info = paste(ctx, "predict type"))
+      expect_equal(length(probs), args$num_variables, info = paste(ctx, "predict length"))
+      for (j in seq_along(probs)) {
+        expect_equal(nrow(probs[[j]]), n_sim,
+                     info = sprintf("%s predict var %d nrow", ctx, j))
+        # No NAs in probability output
+        expect_false(anyNA(probs[[j]]),
+                     info = sprintf("%s predict var %d has NAs", ctx, j))
+        # Probability rows should sum to 1
+        row_sums <- rowSums(probs[[j]])
+        expect_true(
+          all(abs(row_sums - 1) < 1e-6),
+          info = sprintf("%s predict var %d probs don't sum to 1", ctx, j)
+        )
+      }
+
+      # type = "response" should work for all model types
+      resp <- predict(fit, newdata = simulated, type = "response")
+      expect_true(is.matrix(resp), info = paste(ctx, "response matrix"))
+      expect_equal(dim(resp), c(n_sim, args$num_variables),
+                   info = paste(ctx, "response dim"))
+      expect_true(all(resp == round(resp)),
+                  info = paste(ctx, "response not integers"))
+    }
+  }
+})
+
+test_that("simulate → predict roundtrip works for all bgmCompare fixtures", {
+  for (spec in get_bgmcompare_fixtures()) {
+    ctx <- sprintf("[bgmCompare %s]", spec$label)
+    fit <- spec$get_fit()
+    args <- extract_arguments(fit)
+
+    n_sim <- 20
+
+    for (g in seq_len(args$num_groups)) {
+      g_ctx <- sprintf("%s group %d", ctx, g)
+
+      simulated <- simulate(fit, nsim = n_sim, group = g,
+                            method = "posterior-mean", seed = 1)
+
+      expect_true(is.matrix(simulated), info = paste(g_ctx, "simulate"))
+      expect_equal(nrow(simulated), n_sim, info = paste(g_ctx, "nrow"))
+      expect_equal(ncol(simulated), args$num_variables, info = paste(g_ctx, "ncol"))
+      expect_equal(colnames(simulated), args$data_columnnames,
+                   info = paste(g_ctx, "colnames"))
+
+      # Values should be non-negative integers
+      expect_true(all(simulated >= 0),
+                  info = paste(g_ctx, "negative values"))
+      expect_true(all(simulated == round(simulated)),
+                  info = paste(g_ctx, "not integers"))
+
+      # Predict
+      probs <- predict(fit, newdata = simulated, group = g, type = "probabilities")
+      expect_true(is.list(probs), info = paste(g_ctx, "predict type"))
+      expect_equal(length(probs), args$num_variables,
+                   info = paste(g_ctx, "predict length"))
+
+      for (j in seq_along(probs)) {
+        expect_equal(nrow(probs[[j]]), n_sim,
+                     info = sprintf("%s predict var %d nrow", g_ctx, j))
+        row_sums <- rowSums(probs[[j]], na.rm = TRUE)
+        valid <- !apply(probs[[j]], 1, function(x) any(is.na(x)))
+        if (any(valid)) {
+          expect_true(
+            all(abs(row_sums[valid] - 1) < 1e-6),
+            info = sprintf("%s predict var %d probs don't sum to 1", g_ctx, j)
+          )
+        }
+      }
+
+      resp <- predict(fit, newdata = simulated, group = g, type = "response")
+      expect_true(is.matrix(resp), info = paste(g_ctx, "response matrix"))
+      expect_equal(dim(resp), c(n_sim, args$num_variables),
+                   info = paste(g_ctx, "response dim"))
+    }
+  }
+})
+
+
+# ==============================================================================
+# 5. Posterior-sample method regression
+# ==============================================================================
+# The posterior-sample path reads raw_samples$pairwise / raw_samples$main.
+# Verify it works for each model type and produces an sd attribute.
+# ==============================================================================
+
+test_that("simulate posterior-sample method works for all bgms fixtures", {
+  for (spec in get_bgms_fixtures()) {
+    ctx <- sprintf("[bgms %s]", spec$label)
+    fit <- spec$get_fit()
+    args <- extract_arguments(fit)
+
+    n_draws <- 2
+    n_sim   <- 10
+    sim <- simulate(fit, nsim = n_sim, method = "posterior-sample",
+                    ndraws = n_draws, seed = 42,
+                    display_progress = "none")
+
+    # posterior-sample returns a list of matrices (one per draw)
+    expect_true(is.list(sim), info = paste(ctx, "not a list"))
+    expect_equal(length(sim), n_draws, info = paste(ctx, "wrong length"))
+
+    for (d in seq_len(n_draws)) {
+      expect_true(is.matrix(sim[[d]]),
+                  info = sprintf("%s draw %d not a matrix", ctx, d))
+      expect_equal(nrow(sim[[d]]), n_sim,
+                  info = sprintf("%s draw %d wrong nrow", ctx, d))
+      expect_equal(ncol(sim[[d]]), args$num_variables,
+                  info = sprintf("%s draw %d wrong ncol", ctx, d))
+    }
+  }
+})
+
+test_that("predict posterior-sample method works for all bgms fixtures", {
+  for (spec in get_bgms_fixtures()) {
+    ctx <- sprintf("[bgms %s]", spec$label)
+    fit <- spec$get_fit()
+    args <- extract_arguments(fit)
+
+    newdata <- spec$get_prediction_data(n = 5)
+    result <- predict(fit, newdata = newdata, method = "posterior-sample",
+                      ndraws = 2, seed = 42)
+
+    expect_true(is.list(result), info = paste(ctx, "not a list"))
+    expect_equal(length(result), args$num_variables,
+                 info = paste(ctx, "wrong length"))
+
+    sd_attr <- attr(result, "sd")
+    expect_false(is.null(sd_attr), info = paste(ctx, "missing sd attribute"))
+    expect_equal(length(sd_attr), args$num_variables,
+                 info = paste(ctx, "sd wrong length"))
+  }
+})
+
+
+# ==============================================================================
+# 6. $arguments field type and value invariants
+# ==============================================================================
+# Verify that field types and ranges are what simulate/predict expect.
+# ==============================================================================
+
+test_that("bgms $arguments field types are correct for simulate/predict", {
+  for (spec in get_bgms_fixtures()) {
+    ctx <- sprintf("[bgms %s]", spec$label)
+    fit <- spec$get_fit()
+    args <- extract_arguments(fit)
+    p <- args$num_variables
+
+    expect_true(is.numeric(args$num_variables) && length(args$num_variables) == 1,
+                info = paste(ctx, "num_variables"))
+    expect_true(args$num_variables >= 1,
+                info = paste(ctx, "num_variables >= 1"))
+
+    expect_true(is.character(args$variable_type),
+                info = paste(ctx, "variable_type character"))
+    expect_true(all(args$variable_type %in% c("ordinal", "blume-capel", "continuous")),
+                info = paste(ctx, "variable_type values"))
+
+    expect_true(is.character(args$data_columnnames) && length(args$data_columnnames) == p,
+                info = paste(ctx, "data_columnnames length"))
+
+    if (!isTRUE(spec$is_continuous)) {
+      # OMRF-only fields
+      expect_true(is.numeric(args$num_categories) && length(args$num_categories) == p,
+                  info = paste(ctx, "num_categories length"))
+      expect_true(all(args$num_categories >= 1),
+                  info = paste(ctx, "num_categories >= 1"))
+      expect_true(is.numeric(args$baseline_category) && length(args$baseline_category) == p,
+                  info = paste(ctx, "baseline_category length"))
+    }
+  }
+})
+
+test_that("bgmCompare $arguments field types are correct for simulate/predict", {
+  for (spec in get_bgmcompare_fixtures()) {
+    ctx <- sprintf("[bgmCompare %s]", spec$label)
+    fit <- spec$get_fit()
+    args <- extract_arguments(fit)
+    p <- args$num_variables
+
+    expect_true(is.numeric(args$num_groups) && args$num_groups >= 2,
+                info = paste(ctx, "num_groups"))
+
+    expect_true(is.numeric(args$num_variables) && args$num_variables >= 1,
+                info = paste(ctx, "num_variables"))
+
+    expect_true(is.numeric(args$num_categories) && length(args$num_categories) == p,
+                info = paste(ctx, "num_categories length"))
+
+    expect_true(is.logical(args$is_ordinal_variable) && length(args$is_ordinal_variable) == p,
+                info = paste(ctx, "is_ordinal_variable"))
+
+    expect_true(is.character(args$data_columnnames) && length(args$data_columnnames) == p,
+                info = paste(ctx, "data_columnnames"))
+
+    expect_true(is.matrix(args$projection),
+                info = paste(ctx, "projection is matrix"))
+    expect_equal(nrow(args$projection), args$num_groups,
+                 info = paste(ctx, "projection nrow"))
+  }
+})
