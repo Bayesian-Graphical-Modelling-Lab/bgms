@@ -31,7 +31,6 @@ Rcpp::List compute_conditional_ggm(
     const arma::mat& precision
 ) {
   int n = observations.n_rows;
-  int p = observations.n_cols;
   int num_predict_vars = predict_vars.n_elem;
 
   Rcpp::List result(num_predict_vars);

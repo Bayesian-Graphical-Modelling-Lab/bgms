@@ -84,12 +84,12 @@ test_that("BC: values not starting at 0 are shifted, baseline adjusted", {
   is_ordinal <- c(FALSE, FALSE)
   bc <- c(3, 4)
 
-  withr::with_options(list(bgms.verbose = TRUE), {
-    expect_message(
-      result <- reformat_ordinal_data(x, is_ordinal, bc),
-      "Variables 1, 2 recoded to start at 0"
-    )
-  })
+  old_opts <- options(bgms.verbose = TRUE)
+  on.exit(options(old_opts))
+  expect_message(
+    result <- reformat_ordinal_data(x, is_ordinal, bc),
+    "Variables 1, 2 recoded to start at 0"
+  )
   expect_equal(result$x[, 1], c(0, 1, 2, 3))
   expect_equal(result$baseline_category, c(1, 2))
 })
@@ -100,12 +100,12 @@ test_that("BC: single variable shift messages without plural", {
   is_ordinal <- c(TRUE, FALSE)
   bc <- c(0, 4)
 
-  withr::with_options(list(bgms.verbose = TRUE), {
-    expect_message(
-      result <- reformat_ordinal_data(x, is_ordinal, bc),
-      "Variable 2 recoded to start at 0 \\(baseline category adjusted\\)"
-    )
-  })
+  old_opts <- options(bgms.verbose = TRUE)
+  on.exit(options(old_opts))
+  expect_message(
+    result <- reformat_ordinal_data(x, is_ordinal, bc),
+    "Variable 2 recoded to start at 0 \\(baseline category adjusted\\)"
+  )
   expect_equal(result$baseline_category[2], 1)
 })
 
@@ -115,11 +115,11 @@ test_that("BC: verbose=FALSE suppresses shift message", {
   is_ordinal <- c(FALSE, FALSE)
   bc <- c(2, 2)
 
-  withr::with_options(list(bgms.verbose = FALSE), {
-    expect_silent(
-      result <- reformat_ordinal_data(x, is_ordinal, bc)
-    )
-  })
+  old_opts <- options(bgms.verbose = FALSE)
+  on.exit(options(old_opts))
+  expect_silent(
+    result <- reformat_ordinal_data(x, is_ordinal, bc)
+  )
   expect_equal(result$x[, 1], c(0, 1, 2, 3, 0, 1))
 })
 
@@ -242,12 +242,12 @@ test_that("mixed ordinal and BC variables processed correctly", {
   is_ordinal <- c(TRUE, FALSE, TRUE)
   bc <- c(0, 3, 0)
 
-  withr::with_options(list(bgms.verbose = TRUE), {
-    expect_message(
-      result <- reformat_ordinal_data(x, is_ordinal, bc),
-      "Variable 2 recoded to start at 0"
-    )
-  })
+  old_opts <- options(bgms.verbose = TRUE)
+  on.exit(options(old_opts))
+  expect_message(
+    result <- reformat_ordinal_data(x, is_ordinal, bc),
+    "Variable 2 recoded to start at 0"
+  )
 
   expect_equal(result$x[, 1], c(0, 1, 2, 0, 1, 2))
   expect_equal(result$x[, 2], c(0, 1, 2, 3, 0, 1))

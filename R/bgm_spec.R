@@ -2,14 +2,13 @@
 # bgm_spec: validated intermediate specification object
 # ==============================================================================
 #
-# Phase B of the R scaffolding refactor.
-#
-# Three-layer construction pattern:
-#   bgm_spec()          — user-facing: calls Phase A validators, assembles
+# Central construction point for all bgm/bgmCompare models. Three layers:
+#   bgm_spec()          — user-facing: validates inputs, assembles sub-lists
 #   new_bgm_spec()      — low-level: type/presence assertions per field
 #   validate_bgm_spec() — cross-field invariant checks
 #
-# The spec is an S3 list of class "bgm_spec".
+# The result is an S3 list of class "bgm_spec" consumed by run_sampler()
+# and build_output().
 # ==============================================================================
 
 
@@ -18,8 +17,8 @@
 # ==============================================================================
 #
 # Asserts presence and type of every field. Does NOT validate values
-# (that's done upstream by Phase A validators) or cross-field invariants
-# (that's validate_bgm_spec).
+# (that's done upstream by the individual validators) or cross-field
+# invariants (that's validate_bgm_spec).
 # ==============================================================================
 new_bgm_spec <- function(model_type, data, variables, missing, prior,
                           sampler, precomputed = list()) {
@@ -180,8 +179,8 @@ validate_bgm_spec <- function(spec) {
 # bgm_spec()  — user-facing constructor
 # ==============================================================================
 #
-# Calls Phase A validators, assembles sub-lists, passes through
-# new_bgm_spec() and validate_bgm_spec().
+# Validates all user inputs via dedicated validators, assembles sub-lists,
+# and passes through new_bgm_spec() and validate_bgm_spec().
 #
 # Parameters mirror the union of bgm() and bgmCompare() arguments.
 # ==============================================================================
@@ -822,13 +821,12 @@ sampler_sublist <- function(s) {
 
 
 # ==============================================================================
-# build_arguments()  — convert spec → legacy arguments list
+# build_arguments()  — convert spec → arguments list for fit object
 # ==============================================================================
 #
-# Produces the same `arguments` list that prepare_output_bgm(),
-# prepare_output_ggm(), and prepare_output_bgmCompare() build, so
-# downstream code (extractor functions, simulate, predict) can work
-# unchanged.
+# Produces the $arguments list stored in every bgms/bgmCompare fit object.
+# Downstream code (extractor functions, simulate, predict, print, summary)
+# reads this list to determine model properties.
 # ==============================================================================
 build_arguments <- function(spec) {
   stopifnot(inherits(spec, "bgm_spec"))

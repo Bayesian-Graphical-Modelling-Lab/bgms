@@ -25,12 +25,12 @@ test_that("listwise removes rows with NAs and messages", {
   x[2, 1] <- NA
   x[4, 3] <- NA
 
-  withr::with_options(list(bgms.verbose = TRUE), {
-    expect_message(
-      result <- validate_missing_data(x, na_action = "listwise"),
-      "2 rows with missing values excluded"
-    )
-  })
+  old_opts <- options(bgms.verbose = TRUE)
+  on.exit(options(old_opts))
+  expect_message(
+    result <- validate_missing_data(x, na_action = "listwise"),
+    "2 rows with missing values excluded"
+  )
   expect_equal(nrow(result$x), 2)
   expect_false(result$na_impute)
   expect_equal(result$n_removed, 2L)
@@ -39,11 +39,11 @@ test_that("listwise removes rows with NAs and messages", {
 test_that("listwise suppresses message when bgms.verbose is FALSE", {
   x <- matrix(1:12, nrow = 4, ncol = 3)
   x[2, 1] <- NA
-  withr::with_options(list(bgms.verbose = FALSE), {
-    expect_silent(
-      result <- validate_missing_data(x, na_action = "listwise")
-    )
-  })
+  old_opts <- options(bgms.verbose = FALSE)
+  on.exit(options(old_opts))
+  expect_silent(
+    result <- validate_missing_data(x, na_action = "listwise")
+  )
   expect_equal(nrow(result$x), 3)
 })
 
@@ -67,12 +67,12 @@ test_that("listwise errors when < 2 rows remain", {
   x <- matrix(1:6, nrow = 3, ncol = 2)
   x[1, 1] <- NA
   x[2, 2] <- NA
-  withr::with_options(list(bgms.verbose = FALSE), {
-    expect_error(
-      validate_missing_data(x, na_action = "listwise"),
-      "less than two rows"
-    )
-  })
+  old_opts <- options(bgms.verbose = FALSE)
+  on.exit(options(old_opts))
+  expect_error(
+    validate_missing_data(x, na_action = "listwise"),
+    "less than two rows"
+  )
 })
 
 # ==============================================================================
@@ -129,9 +129,9 @@ test_that("GGM + impute errors", {
 test_that("GGM + listwise works", {
   x <- matrix(rnorm(12), nrow = 4, ncol = 3)
   x[1, 2] <- NA
-  withr::with_options(list(bgms.verbose = FALSE), {
-    result <- validate_missing_data(x, na_action = "listwise", is_continuous = TRUE)
-  })
+  old_opts <- options(bgms.verbose = FALSE)
+  on.exit(options(old_opts))
+  result <- validate_missing_data(x, na_action = "listwise", is_continuous = TRUE)
   expect_equal(nrow(result$x), 3)
   expect_false(result$na_impute)
 })
@@ -145,9 +145,9 @@ test_that("listwise with group filters group vector", {
   x[2, 1] <- NA
   group <- c(1, 1, 2, 2)
 
-  withr::with_options(list(bgms.verbose = FALSE), {
-    result <- validate_missing_data(x, na_action = "listwise", group = group)
-  })
+  old_opts <- options(bgms.verbose = FALSE)
+  on.exit(options(old_opts))
+  result <- validate_missing_data(x, na_action = "listwise", group = group)
   expect_equal(length(result$group), nrow(result$x))
   expect_equal(result$group, c(1, 2, 2))
 })

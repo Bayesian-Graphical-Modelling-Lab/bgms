@@ -2,8 +2,6 @@
 # build_output: assemble fit objects from bgm_spec + raw sampler output
 # ==============================================================================
 #
-# Phase C.2-C.3 of the R scaffolding refactor.
-#
 # build_output()         — thin dispatcher
 # build_output_bgm()     — unified GGM + OMRF builder (normalizes raw C++
 #                           output, computes MCMC summaries, assembles fit)
@@ -419,7 +417,15 @@ build_output_compare <- function(spec, raw) {
 # ==============================================================================
 #
 # Build parameter names for bgmCompare models. Used by build_output_compare().
-# Originally in output_utils.R; moved here in Phase D.3.
+#
+# @param data_columnnames  Character vector: variable names.
+# @param num_categories  Integer vector: max category per variable.
+# @param is_ordinal_variable  Logical vector: TRUE = ordinal, FALSE = BC.
+# @param num_variables  Integer: number of variables.
+# @param num_groups  Integer: number of groups.
+#
+# Returns: named list with main_baseline, main_diff, pairwise_baseline,
+#   pairwise_diff, and indicators character vectors.
 # ==============================================================================
 generate_param_names_bgmCompare = function(
   data_columnnames,

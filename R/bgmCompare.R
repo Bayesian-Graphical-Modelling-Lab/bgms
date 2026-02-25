@@ -333,7 +333,6 @@ bgmCompare = function(
     lifecycle::deprecate_warn("0.1.6.0", "bgmCompare(save =)")
   }
 
-  # --- Phase B: parallel spec construction (temporary) -------------------------
   # --- Build spec, sample, build output ----------------------------------------
   spec <- bgm_spec(
     x              = x,

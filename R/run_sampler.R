@@ -2,11 +2,8 @@
 # run_sampler: dispatch from bgm_spec to C++ backends
 # ==============================================================================
 #
-# Phase C.1 of the R scaffolding refactor.
-#
 # Thin dispatcher that reads a validated bgm_spec and calls the appropriate
-# C++ sampling function. Returns the transformed chain output (list of
-# per-chain lists with main_samples, pairwise_samples, etc.).
+# C++ sampling function. Returns the raw per-chain output lists from C++.
 # ==============================================================================
 
 

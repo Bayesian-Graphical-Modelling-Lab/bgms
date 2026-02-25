@@ -2,10 +2,9 @@
 # Compute utilities
 # ==============================================================================
 #
-# Extracted from inline code in bgm.R and bgmCompare.R as part of
-# Phase A.8 of the R scaffolding refactor.
-#
-# Each function is pure: input -> output (no side-effects).
+# Pure helper functions for computing derived quantities from data
+# (scaling factors, category counts, sufficient statistics). Each
+# function is pure: input -> output (no side-effects).
 # ==============================================================================
 
 
@@ -101,8 +100,14 @@ compute_scaling_factors <- function(num_variables,
 # compute_counts_per_category
 # ------------------------------------------------------------------------------
 #
-# Compute per-group category counts for each variable.
-# Originally in data_utils.R; moved here in Phase D.2.
+# Compute per-group category counts for each variable. Used to build
+# precomputed structures for the bgmCompare C++ backend.
+#
+# @param x  Numeric matrix: the recoded data.
+# @param num_categories  Integer vector: max category per variable.
+# @param group  Integer vector: group membership.
+#
+# Returns: list of matrices (one per group), each max_cat x num_variables.
 # ------------------------------------------------------------------------------
 compute_counts_per_category = function(x, num_categories, group = NULL) {
   counts_per_category = list()
@@ -124,8 +129,16 @@ compute_counts_per_category = function(x, num_categories, group = NULL) {
 # ------------------------------------------------------------------------------
 #
 # Compute sufficient statistics for Blume-Capel variables (linear and
-# quadratic deviations from baseline). Originally in data_utils.R; moved
-# here in Phase D.2.
+# quadratic deviations from baseline). Used to build precomputed
+# structures for the bgmCompare C++ backend.
+#
+# @param x  Numeric matrix: the recoded data.
+# @param baseline_category  Integer vector: baseline categories.
+# @param ordinal_variable  Logical vector: TRUE = ordinal, FALSE = BC.
+# @param group  Integer vector or NULL: group membership.
+#
+# Returns: matrix (one-group) or list of matrices (multi-group),
+#   each 2 x num_variables (row 1 = linear, row 2 = quadratic).
 # ------------------------------------------------------------------------------
 compute_blume_capel_stats = function(x, baseline_category, ordinal_variable, group = NULL) {
   if(is.null(group)) { # One-group design
@@ -157,8 +170,13 @@ compute_blume_capel_stats = function(x, baseline_category, ordinal_variable, gro
 # ------------------------------------------------------------------------------
 #
 # Compute sufficient statistics for pairwise interactions (cross-product
-# of observations per group). Originally in data_utils.R; moved here in
-# Phase D.2.
+# of observations per group). Used to build precomputed structures for
+# the bgmCompare C++ backend.
+#
+# @param x  Numeric matrix: the centered data.
+# @param group  Integer vector: group membership.
+#
+# Returns: list of p x p cross-product matrices (one per group).
 # ------------------------------------------------------------------------------
 compute_pairwise_stats <- function(x, group) {
   result <- list()

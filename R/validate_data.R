@@ -2,11 +2,8 @@
 # Data validation functions
 # ==============================================================================
 #
-# Extracted from reformat_data(), compare_reformat_data(), and inline GGM
-# handling in bgm.R as part of the R scaffolding refactor
-# (dev/scaffolding/plan.md, Phase A).
-#
-# Each validator is a pure function: input -> validated output (or error).
+# Pure validation and reformatting functions for observational data.
+# Each function takes input and returns validated output (or errors).
 # ==============================================================================
 
 
@@ -15,7 +12,12 @@
 # ------------------------------------------------------------------------------
 #
 # Coerce user data to a numeric matrix and perform basic dimension checks.
-# Originally in data_utils.R; moved here in Phase D.2.
+# Used by bgm_spec() as the first validation step for all model types.
+#
+# @param data  Data frame or matrix: the raw user input.
+# @param name  Character: name of the argument (for error messages).
+#
+# Returns: numeric matrix.
 # ------------------------------------------------------------------------------
 data_check = function(data, name) {
   if(!inherits(data, c("matrix", "data.frame"))) {
@@ -36,8 +38,8 @@ data_check = function(data, name) {
 # ------------------------------------------------------------------------------
 #
 # Handles missing data for all model types (OMRF, GGM, bgmCompare).
-# Shared by reformat_data(), compare_reformat_data(), and the GGM path
-# in bgm.R.
+# Either removes rows with missing values (listwise) or identifies
+# missing entries for C++ imputation.
 #
 # @param x  Numeric matrix: the data.
 # @param na_action  Character: "listwise" or "impute".
@@ -49,18 +51,13 @@ data_check = function(data, name) {
 #   NULL for bgm() calls.
 #
 # Returns:
-#   list(x, na_impute, missing_index)
+#   list(x, na_impute, missing_index, n_removed, [group])
 #   - x: data matrix (rows removed for listwise, NAs imputed for impute)
 #   - na_impute: logical
 #   - missing_index: matrix(NA, 1, 1) if no imputation,
 #       otherwise Nx2 matrix of 0-based (row, col) indices
-#   - group: filtered group vector (only present when group was non-NULL)
 #   - n_removed: integer count of rows removed (listwise only, 0 otherwise)
-#
-# Replaces:
-#   - reformat_data()         lines 5-68  (data_utils.R)
-#   - compare_reformat_data() lines 268-350 (data_utils.R)
-#   - bgm.R                   lines 606-622 (inline GGM path)
+#   - group: filtered group vector (only present when group was non-NULL)
 # ------------------------------------------------------------------------------
 validate_missing_data <- function(x,
                                   na_action,
@@ -187,9 +184,6 @@ handle_impute <- function(x, group = NULL) {
 # Per-variable recoding of ordinal and Blume-Capel data to 0-based
 # contiguous categories. Single-group only (no group-conditional
 # collapsing — see collapse_categories_across_groups() for that).
-#
-# Extracted from the per-variable for-loop in reformat_data()
-# (data_utils.R) as part of Phase A.6.
 #
 # @param x  Numeric matrix: the data (after missing-data handling).
 # @param is_ordinal  Logical vector of length ncol(x): TRUE = regular
@@ -334,9 +328,6 @@ reformat_ordinal_data <- function(x, is_ordinal, baseline_category) {
 # (0-based). Blume-Capel variables are left unchanged.
 #
 # Called immediately after reformat_ordinal_data() in the compare path.
-#
-# Extracted from the group-aware ordinal recoding loop in
-# compare_reformat_data() (data_utils.R) as part of Phase A.6b.
 #
 # @param x  Numeric matrix: data already recoded by reformat_ordinal_data().
 # @param group  Integer vector of length nrow(x): group membership (1:K).

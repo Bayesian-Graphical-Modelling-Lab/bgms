@@ -2,11 +2,9 @@
 # Model validation functions
 # ==============================================================================
 #
-# Extracted from check_model() and check_compare_model() as part of the
-# R scaffolding refactor (dev/scaffolding/plan.md, Phase A).
-#
-# Each validator is a pure function: input -> validated output (or error).
-# Validators do NOT read from parent environments or use hasArg().
+# Pure validation functions for model-level arguments (variable types,
+# baseline categories, edge priors, difference priors). Each function
+# takes input and returns validated output (or errors).
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
@@ -24,10 +22,6 @@
 # @param allow_continuous Logical: whether "continuous" is a valid type.
 #   TRUE for bgm(), FALSE for bgmCompare() (until GGM-Compare is added).
 # @param caller Character: name of the calling function, used in error messages.
-#
-# Replaces:
-#   - check_model()         lines 53-133  (function_input_utils.R)
-#   - check_compare_model() lines 405-468 (function_input_utils.R)
 # ------------------------------------------------------------------------------
 validate_variable_types <- function(variable_type,
                                     num_variables,
@@ -171,10 +165,6 @@ validate_variable_types <- function(variable_type,
 #
 # Returns:
 #   Integer vector of length ncol(x). For ordinal-only models, all zeros.
-#
-# Replaces:
-#   - check_model()         lines 63-139  (function_input_utils.R)
-#   - check_compare_model() lines 340-418 (function_input_utils.R)
 # ------------------------------------------------------------------------------
 validate_baseline_category <- function(baseline_category,
                                        baseline_category_provided,
@@ -291,9 +281,6 @@ validate_baseline_category <- function(baseline_category,
 # Returns:
 #   list(edge_selection, edge_prior, inclusion_probability)
 #   where inclusion_probability is a num_variables x num_variables matrix.
-#
-# Replaces:
-#   - check_model() lines 86-200 (function_input_utils.R)
 # ------------------------------------------------------------------------------
 validate_edge_prior <- function(edge_selection,
                                 edge_prior = c("Bernoulli", "Beta-Bernoulli",
@@ -521,10 +508,6 @@ validate_bernoulli_inclusion <- function(probability,
 #        inclusion_probability_difference)
 #   where inclusion_probability_difference is a
 #   num_variables x num_variables matrix.
-#
-# Replaces:
-#   - check_compare_model() difference selection block
-#     (function_input_utils.R)
 # ------------------------------------------------------------------------------
 validate_difference_prior <- function(difference_selection,
                                       difference_prior = c("Bernoulli",

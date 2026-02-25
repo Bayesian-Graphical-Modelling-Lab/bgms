@@ -2,10 +2,9 @@
 # Sampler validation
 # ==============================================================================
 #
-# Extracted from inline validation in bgm.R and bgmCompare.R as part of
-# Phase A.7 of the R scaffolding refactor.
-#
-# Each validator is a pure function: input -> validated output (or error).
+# Pure validation functions for sampler-related arguments shared by
+# bgm() and bgmCompare(). Each function takes input and returns
+# validated output (or errors).
 # ==============================================================================
 
 
@@ -14,7 +13,6 @@
 # ------------------------------------------------------------------------------
 #
 # Small reusable helpers used by validate_sampler() and other validators.
-# Originally in function_input_utils.R; moved here in Phase D.1.
 # ------------------------------------------------------------------------------
 
 check_positive_integer = function(value, name) {
