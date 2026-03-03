@@ -32,7 +32,7 @@ reference:
   - title: Extractors
     desc: Extract specific components from fitted model objects.
     contents:
-      - extractor_functions
+      - starts_with("extract_")
 
   - title: Legacy
     desc: Deprecated functions retained for backwards compatibility.
