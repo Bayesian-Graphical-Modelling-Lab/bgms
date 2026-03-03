@@ -220,10 +220,12 @@ coef.bgms = function(object, ...) {
 }
 
 
-.warning_issued = FALSE
+.warning_state = new.env(parent = emptyenv())
+.warning_state$issued = FALSE
+
 warning_once = function(msg) {
-  if(!.warning_issued) {
+  if(!.warning_state$issued) {
     warning(msg, call. = FALSE)
-    .warning_issued = TRUE
+    .warning_state$issued = TRUE
   }
 }

@@ -99,16 +99,16 @@ is the precision matrix.
 \examples{
 \donttest{
 # Fit a model
-fit <- bgm(x = Wenchuan[, 1:5], chains = 2)
+fit = bgm(x = Wenchuan[, 1:5], chains = 2)
 
 # Compute conditional probabilities for all variables
-probs <- predict(fit, newdata = Wenchuan[1:10, 1:5])
+probs = predict(fit, newdata = Wenchuan[1:10, 1:5])
 
 # Predict the first variable only
-probs_v1 <- predict(fit, newdata = Wenchuan[1:10, 1:5], variables = 1)
+probs_v1 = predict(fit, newdata = Wenchuan[1:10, 1:5], variables = 1)
 
 # Get predicted categories
-pred_class <- predict(fit, newdata = Wenchuan[1:10, 1:5], type = "response")
+pred_class = predict(fit, newdata = Wenchuan[1:10, 1:5], type = "response")
 }
 
 }
