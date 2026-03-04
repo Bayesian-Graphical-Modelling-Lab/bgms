@@ -24,12 +24,7 @@ priors to infer the network structure."></head><body>
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="nav-item dropdown">
-  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/comparison.html">Model Comparison with bgmCompare</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics.html">Diagnostics and Spike-and-Slab Summaries</a></li>
-    <li><a class="dropdown-item" href="../articles/intro.html">Getting Started with bgms</a></li>
-  </ul></li>
+<li class="nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -286,7 +281,7 @@ Defaults to <code>getOption("bgms.verbose", TRUE)</code>. Set
 
 <dt id="arg-interaction-scale-burnin-save-threshold-alpha-threshold-beta">interaction_scale, burnin, save, threshold_alpha, threshold_beta<a class="anchor" aria-label="anchor" href="#arg-interaction-scale-burnin-save-threshold-alpha-threshold-beta"></a></dt>
 <dd><p>`r lifecycle::badge("deprecated")`
-Deprecated arguments as of **bgms 0.1.6.0**.
+Deprecated arguments as of <strong>bgms 0.1.6.0</strong>.
 Use `pairwise_scale`, `warmup`, `main_alpha`, and `main_beta` instead.</p></dd>
 
 </dl></div>
@@ -497,10 +492,9 @@ burn–in using Robbins–Monro updates, without staged fast/slow intervals.</p>
 
 
 
-<p>If <code>na_action = "listwise"</code>, observations with missing values are
-removed.
-If <code>na_action = "impute"</code>, missing values are imputed during Gibbs
-sampling.</p>
+<p>If <code>na_action = "listwise"</code>, rows with missing values are removed.
+If <code>na_action = "impute"</code>, missing values are imputed within the
+MCMC loop via Gibbs sampling.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
@@ -521,7 +515,9 @@ Version 2.33, <a href="https://mc-stan.org/docs/" class="external-link">https://
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
-    <div class="dont-index"><p><code><a href="../articles/intro.html">vignette("intro", package = "bgms")</a></code> for a worked example.</p></div>
+    <div class="dont-index"><p><code><a href="../articles/intro.html">vignette("intro", package = "bgms")</a></code> for a worked example.</p>
+<p>Other model-fitting:
+<code><a href="bgmCompare.html">bgmCompare()</a></code></p></div>
     </div>
 
     <div class="section level2">
@@ -531,86 +527,92 @@ Version 2.33, <a href="https://mc-stan.org/docs/" class="external-link">https://
 <span class="r-in"><span><span class="va">fit</span> <span class="op">=</span> <span class="fu">bgm</span><span class="op">(</span>x <span class="op">=</span> <span class="va">Wenchuan</span><span class="op">[</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">]</span>, chains <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> 7 rows with missing values excluded (n = 355 remaining).</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> To impute missing values instead, use na_action = "impute".</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Warmup): ⦗<span style="color: #5FAFAF;">━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 150/2000 (7.5%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Warmup): ⦗<span style="color: #5FAFAF;">━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 162/2000 (8.1%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Warmup): ⦗<span style="color: #5FAFAF;">━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 312/4000 (7.8%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Warmup): ⦗<span style="color: #5FAFAF;">━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 100/2000 (5.0%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Warmup): ⦗<span style="color: #5FAFAF;">━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 87/2000 (4.3%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Warmup): ⦗<span style="color: #5FAFAF;">━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 187/4000 (4.7%)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 0s | ETA: 0s</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 500/2000 (25.0%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 491/2000 (24.6%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 991/4000 (24.8%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 1s | ETA: 3s</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 350/2000 (17.5%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 346/2000 (17.3%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 696/4000 (17.4%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 1s | ETA: 5s</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 650/2000 (32.5%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 655/2000 (32.8%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 1305/4000 (32.6%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 1s | ETA: 2s</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 900/2000 (45.0%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 871/2000 (43.5%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 1771/4000 (44.3%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 1s | ETA: 1s</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━</span>⦘ 1200/2000 (60.0%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━</span>⦘ 1176/2000 (58.8%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━</span>⦘ 2376/4000 (59.4%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━</span>⦘ 904/2000 (45.2%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━</span>⦘ 1804/4000 (45.1%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 2s | ETA: 2s</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━</span>⦘ 1150/2000 (57.5%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━</span>⦘ 1148/2000 (57.4%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━</span>⦘ 2298/4000 (57.5%)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 2s | ETA: 1s</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━</span>⦘ 1500/2000 (75.0%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━</span>⦘ 1487/2000 (74.4%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━</span>⦘ 2987/4000 (74.7%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 2s | ETA: 1s</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━</span>⦘ 1800/2000 (90.0%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━</span>⦘ 1801/2000 (90.0%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━</span>⦘ 3601/4000 (90.0%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 3s | ETA: 0s</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━</span>⦘ 1400/2000 (70.0%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━</span>⦘ 1391/2000 (69.5%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━</span>⦘ 2791/4000 (69.8%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 3s | ETA: 1s</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━</span>⦘ 1650/2000 (82.5%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━</span>⦘ 1643/2000 (82.2%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━</span>⦘ 3293/4000 (82.3%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 3s | ETA: 1s</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━</span>⦘ 1900/2000 (95.0%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━</span>⦘ 1906/2000 (95.3%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━</span>⦘ 3806/4000 (95.2%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 4s | ETA: 0s</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 2000/2000 (100.0%)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 2000/2000 (100.0%)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 4000/4000 (100.0%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 3s | ETA: 0s</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> NUTS issues:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   - Divergences: 1 (0.050%) - check R-hat and ESS </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 4s | ETA: 0s</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Posterior inclusion probabilities</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">$</span><span class="va">indicator</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                     mean        sd       mcse n0-&gt;0 n0-&gt;1 n1-&gt;0 n1-&gt;1</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-dreams  1.0000 0.0000000         NA     0     0     0  1999</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-flash   1.0000 0.0000000         NA     0     0     0  1999</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-upset   0.8785 0.3267074 0.04717057   233    10    10  1746</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-physior 0.9130 0.2818351 0.03511639   164    10     9  1816</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-upset   0.9685 0.1746647 0.02121556    59     4     4  1932</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-physior 0.9170 0.2758822 0.03347341   156    10    10  1823</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> dreams-flash      1.0000 0.0000000         NA     0     0     0  1999</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> dreams-upset      0.9680 0.1760000 0.03097771    62     2     1  1934</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> dreams-physior    0.1035 0.3046108 0.01962592  1753    39    40   167</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> flash-upset       0.0870 0.2818351 0.01616590  1784    41    42   132</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> dreams-upset      1.0000 0.0000000         NA     0     0     0  1999</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> dreams-physior    0.0630 0.2429630 0.01280899  1837    36    36    90</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> flash-upset       0.0695 0.2543025 0.01349547  1821    39    39   100</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> flash-physior     1.0000 0.0000000         NA     0     0     0  1999</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> upset-physior     1.0000 0.0000000         NA     0     0     0  1999</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                       n_eff     Rhat</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-dreams         NA       NA</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-flash          NA       NA</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-upset    47.97067 1.143397</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-physior  64.41253 1.182864</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-upset    67.77994 1.027690</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-physior  67.92781 1.010860</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> dreams-flash             NA       NA</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> dreams-upset       32.27950 1.324003</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> dreams-physior    240.89649 1.041097</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> flash-upset       303.94184 1.061752</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> dreams-upset             NA       NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> dreams-physior    359.79122 1.004332</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> flash-upset       355.07915 1.025636</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> flash-physior            NA       NA</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> upset-physior            NA       NA</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Posterior pairwise effects</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">$</span><span class="va">pairwise</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                         mean          sd        mcse      n_eff</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-dreams  0.63684473 0.002159019 0.068135979  995.95614</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-flash   0.34123470 0.001746032 0.062759170 1291.96298</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-upset   0.18386615 0.088909002 0.010456868   72.29166</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-physior 0.19370013 0.080392026 0.007819462  105.69931</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> dreams-flash      0.49923841 0.001748139 0.062549063 1280.23556</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> dreams-upset      0.22481056 0.070129724 0.007542454   86.45277</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> dreams-physior    0.01243285 0.037140886 0.002485456  223.30189</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> flash-upset       0.00919354 0.030288171 0.001774713  291.26588</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> flash-physior     0.30253281 0.001649808 0.052547384 1014.46111</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> upset-physior     0.71403904 0.001958722 0.062346308 1013.15483</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                          mean          sd        mcse     n_eff</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-dreams  0.629937009 0.001928998 0.066724388 1196.4806</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-flash   0.336044257 0.001942884 0.065103110 1122.8195</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-upset   0.201084799 0.068287035 0.004886568  195.2849</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-physior 0.189648655 0.078185227 0.007093100  121.5003</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> dreams-flash      0.499509106 0.001860358 0.062552409 1130.5642</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> dreams-upset      0.226834645 0.001861614 0.053438434  824.0015</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> dreams-physior    0.006375430 0.024860702 0.001328131  350.3845</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> flash-upset       0.006822247 0.025330064 0.001375963  338.8902</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> flash-physior     0.309393611 0.001749374 0.056815370 1054.7905</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> upset-physior     0.707962662 0.001839793 0.062438653 1151.7793</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                        Rhat</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-dreams  1.0008084</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-flash   0.9996853</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-upset   1.0060632</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-physior 1.0102001</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> dreams-flash      1.0045323</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> dreams-upset      1.0047400</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> dreams-physior    1.0151874</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> flash-upset       1.0100067</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> flash-physior     1.0001806</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> upset-physior     1.0114977</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-dreams  1.0011578</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-flash   1.0011985</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-upset   0.9997500</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion-physior 1.0008273</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> dreams-flash      0.9996944</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> dreams-upset      1.0004969</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> dreams-physior    1.0011952</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> flash-upset       1.0019451</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> flash-physior     1.0034177</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> upset-physior     1.0002738</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>

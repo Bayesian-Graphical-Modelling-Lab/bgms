@@ -32,14 +32,7 @@
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto">
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="active nav-item dropdown">
-  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/comparison.html">Model Comparison with bgmCompare</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics.html">Diagnostics and Spike-and-Slab Summaries</a></li>
-    <li><a class="dropdown-item" href="../articles/intro.html">Getting Started with bgms</a></li>
-  </ul>
-</li>
+<li class="active nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
@@ -73,11 +66,20 @@
 <h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
 </h2>
 <p>The <strong>bgms</strong> package implements Bayesian methods for
-analyzing graphical models of binary and ordinal variables. It estimates
-main effects (category thresholds) and pairwise interactions in an
-ordinal Markov random field (MRF), with optional Bayesian edge selection
-via spike–and–slab priors. The package provides two main entry
-points:</p>
+analyzing graphical models. It supports three variable types:</p>
+<ul>
+<li>
+<strong>ordinal</strong> (including binary) — Markov random field
+(MRF) models,</li>
+<li>
+<strong>Blume–Capel</strong> — ordinal MRF with a reference
+category,</li>
+<li>
+<strong>continuous</strong> — Gaussian graphical models (GGM).</li>
+</ul>
+<p>The package estimates main effects and pairwise interactions, with
+optional Bayesian edge selection via spike-and-slab priors. It provides
+two main entry points:</p>
 <ul>
 <li>
 <code><a href="../reference/bgm.html">bgm()</a></code> for one-sample designs (single network),</li>
@@ -85,8 +87,9 @@ points:</p>
 <code><a href="../reference/bgmCompare.html">bgmCompare()</a></code> for independent-sample designs (group
 comparisons).</li>
 </ul>
-<p>This vignette walks through the basic workflow: fitting a model,
-summarizing posterior output, and visualizing results.</p>
+<p>This vignette walks through the basic workflow for ordinal data. For
+continuous data, set <code>variable_type = "continuous"</code> in
+<code><a href="../reference/bgm.html">bgm()</a></code> to fit a Gaussian graphical model.</p>
 </div>
 <div class="section level2">
 <h2 id="wenchuan-dataset">Wenchuan dataset<a class="anchor" aria-label="anchor" href="#wenchuan-dataset"></a>
@@ -126,42 +129,42 @@ and <code><a href="../reference/bgmCompare.html">bgmCompare()</a></code> for mul
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Category thresholds:</span></span>
 <span><span class="co">#&gt;                 mean  mcse    sd    n_eff  Rhat</span></span>
-<span><span class="co">#&gt; intrusion (1)  0.475 0.007 0.223 1157.788 1.001</span></span>
-<span><span class="co">#&gt; intrusion (2) -1.906 0.011 0.315  880.403 1.005</span></span>
-<span><span class="co">#&gt; intrusion (3) -4.846 0.017 0.514  875.204 1.007</span></span>
-<span><span class="co">#&gt; intrusion (4) -9.519 0.028 0.845  904.952 1.008</span></span>
-<span><span class="co">#&gt; dreams (1)    -0.588 0.006 0.192 1159.841 1.001</span></span>
-<span><span class="co">#&gt; dreams (2)    -3.782 0.012 0.353  871.629 1.000</span></span>
+<span><span class="co">#&gt; intrusion (1)  0.486 0.008 0.234  955.016 1.000</span></span>
+<span><span class="co">#&gt; intrusion (2) -1.876 0.016 0.347  446.256 1.005</span></span>
+<span><span class="co">#&gt; intrusion (3) -4.792 0.029 0.567  373.846 1.003</span></span>
+<span><span class="co">#&gt; intrusion (4) -9.417 0.048 0.910  351.887 1.005</span></span>
+<span><span class="co">#&gt; dreams (1)    -0.599 0.006 0.195 1082.710 1.001</span></span>
+<span><span class="co">#&gt; dreams (2)    -3.786 0.013 0.363  800.508 1.001</span></span>
 <span><span class="co">#&gt; ... (use `summary(fit)$main` to see full output)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Pairwise interactions:</span></span>
 <span><span class="co">#&gt;                    mean    sd  mcse    n_eff  Rhat</span></span>
-<span><span class="co">#&gt; intrusion-dreams  0.629 0.002 0.067 1382.782 1.005</span></span>
-<span><span class="co">#&gt; intrusion-flash   0.339 0.002 0.060 1444.285 1.002</span></span>
-<span><span class="co">#&gt; intrusion-upset   0.202 0.064 0.005  187.988 1.003</span></span>
-<span><span class="co">#&gt; intrusion-physior 0.189 0.071 0.006  137.040 1.000</span></span>
-<span><span class="co">#&gt; dreams-flash      0.500 0.002 0.060 1124.700 1.002</span></span>
-<span><span class="co">#&gt; dreams-upset      0.226 0.053 0.002 1128.334 1.000</span></span>
+<span><span class="co">#&gt; intrusion-dreams  0.630 0.002 0.068 1093.158 1.002</span></span>
+<span><span class="co">#&gt; intrusion-flash   0.341 0.002 0.064 1035.398 1.001</span></span>
+<span><span class="co">#&gt; intrusion-upset   0.189 0.082 0.008   98.786 1.000</span></span>
+<span><span class="co">#&gt; intrusion-physior 0.186 0.079 0.008   97.763 1.013</span></span>
+<span><span class="co">#&gt; dreams-flash      0.497 0.002 0.062 1339.509 1.005</span></span>
+<span><span class="co">#&gt; dreams-upset      0.228 0.002 0.056  645.291 1.002</span></span>
 <span><span class="co">#&gt; ... (use `summary(fit)$pairwise` to see full output)</span></span>
 <span><span class="co">#&gt; Note: NA values are suppressed in the print table. They occur here when an </span></span>
 <span><span class="co">#&gt; indicator was zero across all iterations, so mcse/n_eff/Rhat are undefined;</span></span>
 <span><span class="co">#&gt; `summary(fit)$pairwise` still contains the NA values.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Inclusion probabilities:</span></span>
-<span><span class="co">#&gt;                    mean    sd  mcse n0-&gt;0 n0-&gt;1 n1-&gt;0 n1-&gt;1   n_eff</span></span>
-<span><span class="co">#&gt; intrusion-dreams  1.000 0.000           0     0     0  1999        </span></span>
-<span><span class="co">#&gt; intrusion-flash   1.000 0.000           0     0     0  1999        </span></span>
-<span><span class="co">#&gt; intrusion-upset   0.979 0.143  0.02    40     2     2  1955  49.853</span></span>
-<span><span class="co">#&gt; intrusion-physior 0.941 0.237 0.029   112     7     7  1873  64.566</span></span>
-<span><span class="co">#&gt; dreams-flash      1.000 0.000           0     0     0  1999        </span></span>
-<span><span class="co">#&gt; dreams-upset      0.999 0.039 0.002     2     1     1  1995 400.722</span></span>
+<span><span class="co">#&gt;                    mean    sd  mcse n0-&gt;0 n0-&gt;1 n1-&gt;0 n1-&gt;1  n_eff</span></span>
+<span><span class="co">#&gt; intrusion-dreams  1.000 0.000           0     0     0  1999       </span></span>
+<span><span class="co">#&gt; intrusion-flash   1.000 0.000           0     0     0  1999       </span></span>
+<span><span class="co">#&gt; intrusion-upset   0.909 0.288 0.038   173     9     9  1808 55.925</span></span>
+<span><span class="co">#&gt; intrusion-physior 0.905 0.293 0.038   180    10    10  1799 59.901</span></span>
+<span><span class="co">#&gt; dreams-flash      1.000 0.000           0     0     0  1999       </span></span>
+<span><span class="co">#&gt; dreams-upset      1.000 0.000           0     0     0  1999       </span></span>
 <span><span class="co">#&gt;                    Rhat</span></span>
 <span><span class="co">#&gt; intrusion-dreams       </span></span>
 <span><span class="co">#&gt; intrusion-flash        </span></span>
-<span><span class="co">#&gt; intrusion-upset   1.311</span></span>
-<span><span class="co">#&gt; intrusion-physior 1.016</span></span>
+<span><span class="co">#&gt; intrusion-upset   1.001</span></span>
+<span><span class="co">#&gt; intrusion-physior 1.087</span></span>
 <span><span class="co">#&gt; dreams-flash           </span></span>
-<span><span class="co">#&gt; dreams-upset      1.292</span></span>
+<span><span class="co">#&gt; dreams-upset           </span></span>
 <span><span class="co">#&gt; ... (use `summary(fit)$indicator` to see full output)</span></span>
 <span><span class="co">#&gt; Note: NA values are suppressed in the print table. They occur when an indicator</span></span>
 <span><span class="co">#&gt; was constant (all 0 or all 1) across all iterations, so sd/mcse/n_eff/Rhat</span></span>
@@ -175,27 +178,27 @@ directly:</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; $main</span></span>
 <span><span class="co">#&gt;              cat (1)   cat (2)   cat (3)    cat (4)</span></span>
-<span><span class="co">#&gt; intrusion  0.4752393 -1.905757 -4.846385  -9.519480</span></span>
-<span><span class="co">#&gt; dreams    -0.5884216 -3.781525 -7.109964 -11.530285</span></span>
-<span><span class="co">#&gt; flash     -0.1051154 -2.566799 -5.365407  -9.674749</span></span>
-<span><span class="co">#&gt; upset      0.4216365 -1.308488 -3.370565  -7.037020</span></span>
-<span><span class="co">#&gt; physior   -0.6037679 -3.140033 -6.167547 -10.489248</span></span>
+<span><span class="co">#&gt; intrusion  0.4863416 -1.875767 -4.791863  -9.417115</span></span>
+<span><span class="co">#&gt; dreams    -0.5986160 -3.786460 -7.110609 -11.538625</span></span>
+<span><span class="co">#&gt; flash     -0.1129889 -2.590796 -5.406574  -9.738771</span></span>
+<span><span class="co">#&gt; upset      0.4163331 -1.307319 -3.369964  -7.022134</span></span>
+<span><span class="co">#&gt; physior   -0.5866610 -3.114764 -6.128465 -10.417837</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $pairwise</span></span>
-<span><span class="co">#&gt;           intrusion      dreams       flash       upset     physior</span></span>
-<span><span class="co">#&gt; intrusion 0.0000000 0.629338089 0.338657791 0.202376428 0.188939686</span></span>
-<span><span class="co">#&gt; dreams    0.6293381 0.000000000 0.499816233 0.225595383 0.007497679</span></span>
-<span><span class="co">#&gt; flash     0.3386578 0.499816233 0.000000000 0.004566734 0.308420955</span></span>
-<span><span class="co">#&gt; upset     0.2023764 0.225595383 0.004566734 0.000000000 0.707339037</span></span>
-<span><span class="co">#&gt; physior   0.1889397 0.007497679 0.308420955 0.707339037 0.000000000</span></span>
+<span><span class="co">#&gt;           intrusion      dreams      flash      upset     physior</span></span>
+<span><span class="co">#&gt; intrusion 0.0000000 0.630266467 0.34134255 0.18935058 0.186344985</span></span>
+<span><span class="co">#&gt; dreams    0.6302665 0.000000000 0.49680046 0.22817892 0.007084831</span></span>
+<span><span class="co">#&gt; flash     0.3413426 0.496800456 0.00000000 0.01389899 0.306203789</span></span>
+<span><span class="co">#&gt; upset     0.1893506 0.228178918 0.01389899 0.00000000 0.705432395</span></span>
+<span><span class="co">#&gt; physior   0.1863450 0.007084831 0.30620379 0.70543240 0.000000000</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $indicator</span></span>
 <span><span class="co">#&gt;           intrusion dreams  flash  upset physior</span></span>
-<span><span class="co">#&gt; intrusion    0.0000 1.0000 1.0000 0.9790  0.9405</span></span>
-<span><span class="co">#&gt; dreams       1.0000 0.0000 1.0000 0.9985  0.0820</span></span>
-<span><span class="co">#&gt; flash        1.0000 1.0000 0.0000 0.0545  1.0000</span></span>
-<span><span class="co">#&gt; upset        0.9790 0.9985 0.0545 0.0000  1.0000</span></span>
-<span><span class="co">#&gt; physior      0.9405 0.0820 1.0000 1.0000  0.0000</span></span></code></pre></div>
+<span><span class="co">#&gt; intrusion     0.000 1.0000 1.0000 0.9090  0.9050</span></span>
+<span><span class="co">#&gt; dreams        1.000 0.0000 1.0000 1.0000  0.0715</span></span>
+<span><span class="co">#&gt; flash         1.000 1.0000 0.0000 0.1205  1.0000</span></span>
+<span><span class="co">#&gt; upset         0.909 1.0000 0.1205 0.0000  1.0000</span></span>
+<span><span class="co">#&gt; physior       0.905 0.0715 1.0000 1.0000  0.0000</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="network-plot">Network plot<a class="anchor" aria-label="anchor" href="#network-plot"></a>
@@ -218,6 +221,19 @@ matrix.</p>
 <span>  labels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">data</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p><img src="intro_files/figure-html/unnamed-chunk-7-1.png" class="r-plt" alt="" width="672"></p>
+</div>
+<div class="section level2">
+<h2 id="continuous-data-ggm">Continuous data (GGM)<a class="anchor" aria-label="anchor" href="#continuous-data-ggm"></a>
+</h2>
+<p>For continuous variables, <code><a href="../reference/bgm.html">bgm()</a></code> fits a Gaussian
+graphical model when <code>variable_type = "continuous"</code>. The
+workflow is the same:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit_ggm</span> <span class="op">=</span> <span class="fu"><a href="../reference/bgm.html">bgm</a></span><span class="op">(</span><span class="va">continuous_data</span>, variable_type <span class="op">=</span> <span class="st">"continuous"</span>, seed <span class="op">=</span> <span class="fl">1234</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_ggm</span><span class="op">)</span></span></code></pre></div>
+<p>The pairwise effects are partial correlations (off-diagonal entries
+of the standardized precision matrix). Missing values can be imputed
+during sampling with <code>na_action = "impute"</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="next-steps">Next steps<a class="anchor" aria-label="anchor" href="#next-steps"></a>

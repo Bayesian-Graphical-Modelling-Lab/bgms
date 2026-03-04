@@ -22,3 +22,22 @@ print(x, ...)
 ## Value
 
 Invisibly returns \`x\`.
+
+## See also
+
+\[bgmCompare()\], \[summary.bgmCompare()\], \[coef.bgmCompare()\]
+
+Other posterior-methods:
+[`coef.bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/coef.bgmCompare.md),
+[`coef.bgms()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/coef.bgms.md),
+[`print.bgms()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/print.bgms.md),
+[`summary.bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/summary.bgmCompare.md),
+[`summary.bgms()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/summary.bgms.md)
+
+## Examples
+
+``` r
+# \donttest{
+# See ?bgmCompare for a full example
+# }
+```

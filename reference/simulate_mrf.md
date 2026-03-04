@@ -1,7 +1,10 @@
-# Simulate Observations from an Ordinal MRF
+# Simulate Observations from a Markov Random Field
 
-\`simulate_mrf()\` generates observations from an ordinal Markov Random
-Field using Gibbs sampling with user-specified parameters.
+\`simulate_mrf()\` generates observations from a Markov Random Field
+using user-specified parameters. For ordinal and Blume-Capel variables,
+observations are generated via Gibbs sampling. For continuous variables
+(Gaussian graphical model), observations are drawn directly from the
+multivariate normal distribution implied by the precision matrix.
 
 ## Usage
 
@@ -23,42 +26,54 @@ simulate_mrf(
 
 - num_states:
 
-  The number of states of the ordinal MRF to be generated.
+  The number of observations to be generated.
 
 - num_variables:
 
-  The number of variables in the ordinal MRF.
+  The number of variables in the MRF.
 
 - num_categories:
 
   Either a positive integer or a vector of positive integers of length
   `num_variables`. The number of response categories on top of the base
-  category: `num_categories = 1` generates binary states.
+  category: `num_categories = 1` generates binary states. Only used for
+  ordinal and Blume-Capel variables; ignored when
+  `variable_type = "continuous"`.
 
 - pairwise:
 
-  A symmetric `num_variables` by `num_variables` matrix of pairwise
-  interactions. Only its off-diagonal elements are used.
+  A symmetric `num_variables` by `num_variables` matrix. For ordinal and
+  Blume-Capel variables, this contains the pairwise interaction
+  parameters; only the off-diagonal elements are used. For continuous
+  variables, this is the precision matrix \\\Omega\\ (including
+  diagonal) and must be positive definite.
 
 - main:
 
-  A `num_variables` by `max(num_categories)` matrix of category
-  thresholds. The elements in row `i` indicate the thresholds of
-  variable `i`. If `num_categories` is a vector, only the first
-  `num_categories[i]` elements are used in row `i`. If the Blume-Capel
-  model is used for the category thresholds for variable `i`, then row
-  `i` requires two values (details below); the first is \\\alpha\\, the
-  linear contribution of the Blume-Capel model and the second is
-  \\\beta\\, the quadratic contribution.
+  For ordinal and Blume-Capel variables: a `num_variables` by
+  `max(num_categories)` matrix of category thresholds. The elements in
+  row `i` indicate the thresholds of variable `i`. If `num_categories`
+  is a vector, only the first `num_categories[i]` elements are used in
+  row `i`. If the Blume-Capel model is used for the category thresholds
+  for variable `i`, then row `i` requires two values (details below);
+  the first is \\\alpha\\, the linear contribution of the Blume-Capel
+  model and the second is \\\beta\\, the quadratic contribution. For
+  continuous variables: a numeric vector of length `num_variables`
+  containing the means \\\mu\\ for each variable. Defaults to zeros if
+  not supplied or if all values are zero.
 
 - variable_type:
 
   What kind of variables are simulated? Can be a single character string
   specifying the variable type of all `p` variables at once or a vector
   of character strings of length `p` specifying the type for each
-  variable separately. Currently, bgm supports “ordinal” and
-  “blume-capel”. Binary variables are automatically treated as
-  “ordinal”. Defaults to `variable_type = "ordinal"`.
+  variable separately. Currently, bgm supports “ordinal”, “blume-capel”,
+  and “continuous”. Binary variables are automatically treated as
+  “ordinal”. Ordinal and Blume-Capel variables can be mixed freely, but
+  continuous variables cannot be mixed with ordinal or Blume-Capel
+  variables. When `variable_type = "continuous"`, the function simulates
+  from a Gaussian graphical model. Defaults to
+  `variable_type = "ordinal"`.
 
 - baseline_category:
 
@@ -69,9 +84,10 @@ simulate_mrf(
 
 - iter:
 
-  The number of iterations used by the Gibbs sampler. The function
-  provides the last state of the Gibbs sampler as output. By default set
-  to `1e3`.
+  The number of iterations used by the Gibbs sampler
+  (ordinal/Blume-Capel variables only). The function provides the last
+  state of the Gibbs sampler as output. Ignored for continuous
+  variables. By default set to `1e3`.
 
 - seed:
 
@@ -82,15 +98,21 @@ simulate_mrf(
 
 ## Value
 
-A `num_states` by `num_variables` matrix of simulated states of the
-ordinal MRF.
+A `num_states` by `num_variables` matrix of simulated observations. For
+ordinal/Blume-Capel variables, entries are non-negative integers. For
+continuous variables, entries are real-valued.
 
 ## Details
 
-The Gibbs sampler is initiated with random values from the response
-options, after which it proceeds by simulating states for each variable
-from a logistic model using the other variable states as predictor
-variables.
+**Ordinal / Blume-Capel variables:** The Gibbs sampler is initiated with
+random values from the response options, after which it proceeds by
+simulating states for each variable from its full conditional
+distribution given the other variable states.
+
+**Continuous variables (GGM):** Observations are drawn from \\N(\mu,
+\Omega^{-1})\\ where \\\Omega\\ is the precision matrix specified via
+\`pairwise\` and \\\mu\\ is the means vector specified via \`main\`. No
+Gibbs sampling is needed; \`iter\` is ignored.
 
 There are two modeling options for the category thresholds. The default
 option assumes that the category thresholds are free, except that the
@@ -117,6 +139,12 @@ suggests a preference for responding in the baseline_category category.
 [`simulate.bgms`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate.bgms.md)
 for simulating from a fitted model.
 
+Other prediction:
+[`predict.bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/predict.bgmCompare.md),
+[`predict.bgms()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/predict.bgms.md),
+[`simulate.bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate.bgmCompare.md),
+[`simulate.bgms()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate.bgms.md)
+
 ## Examples
 
 ``` r
@@ -137,17 +165,17 @@ x = simulate_mrf(
   pairwise = Pairwise,
   main = Main
 )
-#> Warning: The matrix ``main'' contains numeric values for variable 2 for category 
-#> (categories, i.e., columns) exceding the maximum of 2. These values will 
+#> Warning: The matrix ``main'' contains numeric values for variable 1 for category 
+#> (categories, i.e., columns) exceding the maximum of 4. These values will 
 #> be ignored.
-#> Warning: The matrix ``main'' contains numeric values for variable 3 for category 
-#> (categories, i.e., columns) exceding the maximum of 2. These values will 
+#> Warning: The matrix ``main'' contains numeric values for variable 2 for category 
+#> (categories, i.e., columns) exceding the maximum of 3. These values will 
 #> be ignored.
 #> Warning: The matrix ``main'' contains numeric values for variable 4 for category 
-#> (categories, i.e., columns) exceding the maximum of 3. These values will 
+#> (categories, i.e., columns) exceding the maximum of 2. These values will 
 #> be ignored.
 #> Warning: The matrix ``main'' contains numeric values for variable 5 for category 
-#> (categories, i.e., columns) exceding the maximum of 3. These values will 
+#> (categories, i.e., columns) exceding the maximum of 1. These values will 
 #> be ignored.
 
 # Generate responses from a network of 2 ordinal and 3 Blume-Capel variables.
@@ -173,5 +201,21 @@ x = simulate_mrf(
   main = Main,
   variable_type = c("b", "b", "o", "b", "o"),
   baseline_category = 2
+)
+
+# Generate responses from a Gaussian graphical model (GGM) with 4 variables.
+num_variables = 4
+
+# Precision matrix (symmetric, positive definite)
+Omega = diag(c(1, 1.2, 0.8, 1.5))
+Omega[2, 1] = Omega[1, 2] = 0.3
+Omega[3, 1] = Omega[1, 3] = 0.3
+Omega[4, 2] = Omega[2, 4] = -0.2
+
+x = simulate_mrf(
+  num_states = 500,
+  num_variables = num_variables,
+  pairwise = Omega,
+  variable_type = "continuous"
 )
 ```

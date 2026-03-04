@@ -5,16 +5,16 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Bayesian Analysis of Networks of Binary and/or Ordinal Variables • bgms</title>
+<title>Bayesian Analysis of Graphical Models • bgms</title>
 <script src="deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/Source_Sans_Pro-0.4.10/font.css" rel="stylesheet">
 <link href="deps/Source_Code_Pro-0.4.10/font.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Bayesian Analysis of Networks of Binary and/or Ordinal Variables">
-<meta name="description" content="Bayesian variable selection methods for analyzing the structure of a Markov random field model for a network of binary and/or ordinal variables.">
-<meta property="og:description" content="Bayesian variable selection methods for analyzing the structure of a Markov random field model for a network of binary and/or ordinal variables.">
+<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Bayesian Analysis of Graphical Models">
+<meta name="description" content="Bayesian estimation and variable selection for Markov random field models of networks of binary, ordinal, and continuous variables. Supports Gaussian graphical models, multi-group comparison via bgmCompare, and provides simulation, prediction, and missing data imputation.">
+<meta property="og:description" content="Bayesian estimation and variable selection for Markov random field models of networks of binary, ordinal, and continuous variables. Supports Gaussian graphical models, multi-group comparison via bgmCompare, and provides simulation, prediction, and missing data imputation.">
 </head>
 <body>
     <a href="#container" class="visually-hidden-focusable">Skip to content</a>
@@ -34,14 +34,7 @@
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto">
 <li class="nav-item"><a class="nav-link" href="reference/index.html">Reference</a></li>
-<li class="nav-item dropdown">
-  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="articles/comparison.html">Model Comparison with bgmCompare</a></li>
-    <li><a class="dropdown-item" href="articles/diagnostics.html">Diagnostics and Spike-and-Slab Summaries</a></li>
-    <li><a class="dropdown-item" href="articles/intro.html">Getting Started with bgms</a></li>
-  </ul>
-</li>
+<li class="nav-item"><a class="nav-link" href="articles/index.html">Articles</a></li>
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
@@ -64,15 +57,15 @@ bgms
 </div>
 <!-- badges: start -->
 
-<p><strong>Bayesian analysis of graphical models with binary and ordinal variables</strong></p>
-<p>The <strong>bgms</strong> package implements Bayesian estimation and model comparison for <strong>ordinal Markov random fields (MRFs)</strong>, graphical models that represent networks of binary and/or ordinal variables (Marsman, van den Bergh, et al., 2025). The likelihood is approximated with a pseudolikelihood, and Markov chain Monte Carlo (MCMC) methods are used to sample from the corresponding pseudoposterior distribution of the model parameters.</p>
+<p><strong>Bayesian analysis of graphical models</strong></p>
+<p>The <strong>bgms</strong> package implements Bayesian estimation and model comparison for graphical models of binary, ordinal, and continuous variables (<span class="nocase">Marsman, van den Bergh, et al.</span>, 2025). It supports <strong>ordinal Markov random fields (MRFs)</strong> for discrete data and <strong>Gaussian graphical models (GGMs)</strong> for continuous data. The likelihood is approximated with a pseudolikelihood, and Markov chain Monte Carlo (MCMC) methods are used to sample from the corresponding pseudoposterior distribution of the model parameters.</p>
 <div class="section level2">
 <h2 id="main-functions">Main functions<a class="anchor" aria-label="anchor" href="#main-functions"></a>
 </h2>
 <p>The package has two main entry points:</p>
 <ul>
 <li>
-<code><a href="reference/bgm.html">bgm()</a></code> – estimates a single network in a one-sample design.</li>
+<code><a href="reference/bgm.html">bgm()</a></code> – estimates a single network in a one-sample design. Use <code>variable_type = "continuous"</code> for a GGM, or <code>"ordinal"</code> (default) for an MRF.</li>
 <li>
 <code><a href="reference/bgmCompare.html">bgmCompare()</a></code> – compares networks between groups in an independent-sample design.</li>
 </ul>
@@ -82,7 +75,7 @@ bgms
 </h2>
 <p>Both functions support <strong>effect selection</strong> with spike-and-slab priors:</p>
 <ul>
-<li><p><strong>Edges in one-sample designs</strong>: <code><a href="reference/bgm.html">bgm()</a></code> models the presence or absence of edges between variables. Posterior inclusion probabilities indicate the plausibility of each edge and can be converted into Bayes factors for conditional independence tests (see Marsman, van den Bergh, et al., 2025; Sekulovski et al., 2024).</p></li>
+<li><p><strong>Edges in one-sample designs</strong>: <code><a href="reference/bgm.html">bgm()</a></code> models the presence or absence of edges between variables. Posterior inclusion probabilities indicate the plausibility of each edge and can be converted into Bayes factors for conditional independence tests (see <span class="nocase">Marsman, van den Bergh, et al.</span>, 2025; <span class="nocase">Sekulovski et al.</span>, 2024).</p></li>
 <li><p><strong>Communities/clusters in one-sample designs</strong>: <code><a href="reference/bgm.html">bgm()</a></code> can also model community structure. Posterior probabilities for the number of clusters quantify the plausibility of clustering solutions and can be converted into Bayes factors (see Sekulovski et al., 2025).</p></li>
 <li><p><strong>Group differences in independent-sample designs</strong>: <code><a href="reference/bgmCompare.html">bgmCompare()</a></code> models differences in edge weights and category thresholds between groups. Posterior inclusion probabilities indicate the plausibility of parameter differences and can be converted into Bayes factors for tests of parameter equivalence (see Marsman, Waldorp, et al., 2025).</p></li>
 </ul>
@@ -117,7 +110,7 @@ bgms
 <strong>Parameter difference vs. parameter equivalence</strong> in independent-sample designs.</li>
 </ul>
 <p>Frequentist approaches are limited in such comparisons: they can reject a null hypothesis, but they cannot provide evidence <em>for</em> it. As a result, when an edge or difference is excluded, it remains unclear whether this reflects true absence or simply insufficient power.</p>
-<p>Bayesian inference avoids this problem. Using <strong>inclusion Bayes factors</strong> (Huth et al., 2023; Sekulovski et al., 2024), we can quantify evidence in both directions:</p>
+<p>Bayesian inference avoids this problem. Using <strong>inclusion Bayes factors</strong> (<span class="nocase">Huth et al.</span>, 2023; <span class="nocase">Sekulovski et al.</span>, 2024), we can quantify evidence in both directions:</p>
 <ul>
 <li>
 <strong>Evidence of edge presence</strong> vs. <strong>evidence of edge absence</strong>, or</li>
@@ -144,7 +137,7 @@ bgms
 Contreras, A., Nieto, I., Valiente, C., Espinosa, R., &amp; Vazquez, C. (2019). The study of psychopathology from the network analysis perspective: A systematic review. <em>Psychotherapy and Psychosomatics</em>, <em>88</em>(2), 71–83. <a href="https://doi.org/10.1159/000497425" class="external-link uri">https://doi.org/10.1159/000497425</a>
 </div>
 <div id="ref-HuthEtAl_2023_intro" class="csl-entry">
-Huth, K., de Ron, J., Goudriaan, A. E., Luigjes, K., Mohammadi, R., van Holst, R. J., Wagenmakers, E.-J., &amp; Marsman, M. (2023). Bayesian analysis of cross-sectional networks: A tutorial in R and JASP. <em>Advances in Methods and Practices in Psychological Science</em>, <em>6</em>, 1–18. <a href="https://doi.org/10.1177/25152459231193334" class="external-link uri">https://doi.org/10.1177/25152459231193334</a>
+<span class="nocase">Huth, K., de Ron, J., Goudriaan, A. E., Luigjes, K., Mohammadi, R., van Holst, R. J., Wagenmakers, E.-J., &amp; Marsman, M.</span> (2023). Bayesian analysis of cross-sectional networks: A tutorial in R and JASP. <em>Advances in Methods and Practices in Psychological Science</em>, <em>6</em>, 1–18. <a href="https://doi.org/10.1177/25152459231193334" class="external-link uri">https://doi.org/10.1177/25152459231193334</a>
 </div>
 <div id="ref-KindermannSnell1980" class="csl-entry">
 Kindermann, R., &amp; Snell, J. L. (1980). <em>Markov random fields and their applications</em> (Vol. 1). American Mathematical Society.
@@ -156,7 +149,7 @@ Lauritzen, S. L. (2004). <em>Graphical models</em>. Oxford University Press.
 Marsman, M., &amp; Rhemtulla, M. (2022). Guest editors’ introduction to the special issue “network psychometrics in action”: Methodological innovations inspired by empirical problems. <em>Psychometrika</em>, <em>87</em>, 1–11. <a href="https://doi.org/10.1007/s11336-022-09861-x" class="external-link uri">https://doi.org/10.1007/s11336-022-09861-x</a>
 </div>
 <div id="ref-MarsmanVandenBerghHaslbeck_2025" class="csl-entry">
-Marsman, M., van den Bergh, D., &amp; Haslbeck, J. M. B. (2025). Bayesian analysis of the ordinal Markov random field. <em>Psychometrika</em>, <em>90</em>(1), 146–182. <a href="https://doi.org/10.1017/psy.2024.4" class="external-link uri">https://doi.org/10.1017/psy.2024.4</a>
+<span class="nocase">Marsman, M., van den Bergh, D., &amp; Haslbeck, J. M. B.</span> (2025). Bayesian analysis of the ordinal Markov random field. <em>Psychometrika</em>, <em>90</em>(1), 146–182. <a href="https://doi.org/10.1017/psy.2024.4" class="external-link uri">https://doi.org/10.1017/psy.2024.4</a>
 </div>
 <div id="ref-MarsmanWaldorpSekulovskiHaslbeck_2024" class="csl-entry">
 Marsman, M., Waldorp, L. J., Sekulovski, N., &amp; Haslbeck, J. M. B. (2025). Bayes factor tests for group differences in ordinal and binary graphical models. <em>Psychometrika</em>, <em>90</em>(5), 1809–1842. <a href="https://doi.org/10.1017/psy.2025.10060" class="external-link uri">https://doi.org/10.1017/psy.2025.10060</a>
@@ -168,7 +161,7 @@ Robinaugh, D. J., Hoekstra, R. H. A., Toner, E. R., &amp; Borsboom, D. (2020). T
 Sekulovski, N., Arena, G., Haslbeck, J. M. B., Huth, K. B. S., Friel, N., &amp; Marsman, M. (2025). A stochastic block prior for clustering in graphical models. <em>Retrieved from <a href="https://osf.io/preprints/psyarxiv/29p3m_v1" class="external-link uri">Https://Osf.io/Preprints/Psyarxiv/29p3m_v1</a></em>.
 </div>
 <div id="ref-SekulovskiEtAl_2024" class="csl-entry">
-Sekulovski, N., Keetelaar, S., Huth, K. B. S., Wagenmakers, E.-J., van Bork, R., van den Bergh, D., &amp; Marsman, M. (2024). Testing conditional independence in psychometric networks: An analysis of three Bayesian methods. <em>Multivariate Behavioral Research</em>, <em>59</em>, 913–933. <a href="https://doi.org/10.1080/00273171.2024.2345915" class="external-link uri">https://doi.org/10.1080/00273171.2024.2345915</a>
+<span class="nocase">Sekulovski, N., Keetelaar, S., Huth, K. B. S., Wagenmakers, E.-J., van Bork, R., van den Bergh, D., &amp; Marsman, M.</span> (2024). Testing conditional independence in psychometric networks: An analysis of three Bayesian methods. <em>Multivariate Behavioral Research</em>, <em>59</em>, 913–933. <a href="https://doi.org/10.1080/00273171.2024.2345915" class="external-link uri">https://doi.org/10.1080/00273171.2024.2345915</a>
 </div>
 </div>
 </div>
@@ -189,6 +182,12 @@ Sekulovski, N., Keetelaar, S., Huth, K. B. S., Wagenmakers, E.-J., van Bork, R.,
 </ul>
 </div>
 
+<div class="community">
+<h2 data-toc-skip>Community</h2>
+<ul class="list-unstyled">
+<li><a href="CONTRIBUTING.html">Contributing guide</a></li>
+</ul>
+</div>
 
 <div class="citation">
 <h2 data-toc-skip>Citation</h2>

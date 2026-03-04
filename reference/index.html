@@ -16,12 +16,7 @@
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="nav-item dropdown">
-  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/comparison.html">Model Comparison with bgmCompare</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics.html">Diagnostics and Spike-and-Slab Summaries</a></li>
-    <li><a class="dropdown-item" href="../articles/intro.html">Getting Started with bgms</a></li>
-  </ul></li>
+<li class="nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -38,7 +33,276 @@
     </div>
 
     <div class="section level2">
-      <h2 id="all-functions">All functions<a class="anchor" aria-label="anchor" href="#all-functions"></a></h2>
+      <h2 id="model-fitting">Model fitting<a class="anchor" aria-label="anchor" href="#model-fitting"></a></h2>
+
+      <div class="section-desc"><p>Fit Bayesian graphical models and compare groups.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="bgm.html">bgm()</a></code>
+
+        </dt>
+        <dd>Bayesian Estimation or Edge Selection for Markov Random Fields</dd>
+
+        <dt>
+
+          <code><a href="bgmCompare.html">bgmCompare()</a></code>
+
+        </dt>
+        <dd>Bayesian Estimation and Variable Selection for Group Differences in Markov Random Fields</dd>
+      </dl></div><div class="section level2">
+      <h2 id="posterior-methods">Posterior methods<a class="anchor" aria-label="anchor" href="#posterior-methods"></a></h2>
+
+      <div class="section-desc"><p>Inspect and summarize fitted models.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="print.bgms.html">print(<i>&lt;bgms&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Print method for `bgms` objects</dd>
+
+        <dt>
+
+          <code><a href="summary.bgms.html">summary(<i>&lt;bgms&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Summary method for `bgms` objects</dd>
+
+        <dt>
+
+          <code><a href="coef.bgms.html">coef(<i>&lt;bgms&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Extract Coefficients from a bgms Object</dd>
+
+        <dt>
+
+          <code><a href="print.bgmCompare.html">print(<i>&lt;bgmCompare&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Print method for `bgmCompare` objects</dd>
+
+        <dt>
+
+          <code><a href="summary.bgmCompare.html">summary(<i>&lt;bgmCompare&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Summary method for `bgmCompare` objects</dd>
+
+        <dt>
+
+          <code><a href="coef.bgmCompare.html">coef(<i>&lt;bgmCompare&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Extract Coefficients from a bgmCompare Object</dd>
+      </dl></div><div class="section level2">
+      <h2 id="simulation-and-prediction">Simulation and prediction<a class="anchor" aria-label="anchor" href="#simulation-and-prediction"></a></h2>
+
+      <div class="section-desc"><p>Simulate from Markov random fields and predict new observations.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="simulate_mrf.html">simulate_mrf()</a></code>
+
+        </dt>
+        <dd>Simulate Observations from a Markov Random Field</dd>
+
+        <dt>
+
+          <code><a href="simulate.bgms.html">simulate(<i>&lt;bgms&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Simulate Data from a Fitted bgms Model</dd>
+
+        <dt>
+
+          <code><a href="simulate.bgmCompare.html">simulate(<i>&lt;bgmCompare&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Simulate Data from a Fitted bgmCompare Model</dd>
+
+        <dt>
+
+          <code><a href="predict.bgms.html">predict(<i>&lt;bgms&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Predict Conditional Probabilities from a Fitted bgms Model</dd>
+
+        <dt>
+
+          <code><a href="predict.bgmCompare.html">predict(<i>&lt;bgmCompare&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Predict Conditional Probabilities from a Fitted bgmCompare Model</dd>
+      </dl></div><div class="section level2">
+      <h2 id="extractors">Extractors<a class="anchor" aria-label="anchor" href="#extractors"></a></h2>
+
+      <div class="section-desc"><p>Extract specific components from fitted model objects.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="extract_arguments.bgmCompare.html">extract_arguments(<i>&lt;bgmCompare&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Extract Model Arguments from bgmCompare Objects</dd>
+
+        <dt>
+
+          <code><a href="extract_arguments.bgms.html">extract_arguments(<i>&lt;bgms&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Extract Model Arguments from bgms Objects</dd>
+
+        <dt>
+
+          <code><a href="extract_category_thresholds.bgmCompare.html">extract_category_thresholds(<i>&lt;bgmCompare&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Extract Category Threshold Samples from bgmCompare Objects</dd>
+
+        <dt>
+
+          <code><a href="extract_category_thresholds.bgms.html">extract_category_thresholds(<i>&lt;bgms&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Extract Category Threshold Estimates from bgms Objects</dd>
+
+        <dt>
+
+          <code><a href="extract_ess.bgmCompare.html">extract_ess(<i>&lt;bgmCompare&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Extract Effective Sample Size from bgmCompare Objects</dd>
+
+        <dt>
+
+          <code><a href="extract_ess.bgms.html">extract_ess(<i>&lt;bgms&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Extract Effective Sample Size from bgms Objects</dd>
+
+        <dt>
+
+          <code><a href="extract_group_params.bgmCompare.html">extract_group_params(<i>&lt;bgmCompare&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Extract Group-Specific Parameters from bgmCompare Objects</dd>
+
+        <dt>
+
+          <code><a href="extract_indicator_priors.bgmCompare.html">extract_indicator_priors(<i>&lt;bgmCompare&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Extract Indicator Prior Structure from bgmCompare Objects</dd>
+
+        <dt>
+
+          <code><a href="extract_indicator_priors.bgms.html">extract_indicator_priors(<i>&lt;bgms&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Extract Indicator Prior Structure from bgms Objects</dd>
+
+        <dt>
+
+          <code><a href="extract_indicators.bgmCompare.html">extract_indicators(<i>&lt;bgmCompare&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Extract Difference Indicator Samples from bgmCompare Objects</dd>
+
+        <dt>
+
+          <code><a href="extract_indicators.bgms.html">extract_indicators(<i>&lt;bgms&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Extract Edge Indicator Samples from bgms Objects</dd>
+
+        <dt>
+
+          <code><a href="extract_pairwise_interactions.bgmCompare.html">extract_pairwise_interactions(<i>&lt;bgmCompare&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Extract Pairwise Interaction Samples from bgmCompare Objects</dd>
+
+        <dt>
+
+          <code><a href="extract_pairwise_interactions.bgms.html">extract_pairwise_interactions(<i>&lt;bgms&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Extract Pairwise Interaction Samples from bgms Objects</dd>
+
+        <dt>
+
+          <code><a href="extract_posterior_inclusion_probabilities.bgmCompare.html">extract_posterior_inclusion_probabilities(<i>&lt;bgmCompare&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Extract Posterior Inclusion Probabilities from bgmCompare Objects</dd>
+
+        <dt>
+
+          <code><a href="extract_posterior_inclusion_probabilities.bgms.html">extract_posterior_inclusion_probabilities(<i>&lt;bgms&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Extract Posterior Inclusion Probabilities from bgms Objects</dd>
+
+        <dt>
+
+          <code><a href="extract_rhat.bgmCompare.html">extract_rhat(<i>&lt;bgmCompare&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Extract R-hat Diagnostics from bgmCompare Objects</dd>
+
+        <dt>
+
+          <code><a href="extract_rhat.bgms.html">extract_rhat(<i>&lt;bgms&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Extract R-hat Diagnostics from bgms Objects</dd>
+
+        <dt>
+
+          <code><a href="extract_sbm.bgms.html">extract_sbm(<i>&lt;bgms&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Extract Stochastic Block Model Summaries from bgms Objects</dd>
+      </dl></div><div class="section level2">
+      <h2 id="legacy">Legacy<a class="anchor" aria-label="anchor" href="#legacy"></a></h2>
+
+      <div class="section-desc"><p>Deprecated functions retained for backwards compatibility.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="mrfSampler.html">mrfSampler()</a></code>
+
+        </dt>
+        <dd>Sample observations from the ordinal MRF</dd>
+      </dl></div><div class="section level2">
+      <h2 id="datasets">Datasets<a class="anchor" aria-label="anchor" href="#datasets"></a></h2>
 
 
 
@@ -67,99 +331,25 @@
 
         </dt>
         <dd>PTSD Symptoms in Wenchuan Earthquake Survivors Who Lost a Child</dd>
+      </dl></div><div class="section level2">
+      <h2 id="package">Package<a class="anchor" aria-label="anchor" href="#package"></a></h2>
 
-        <dt>
 
-          <code><a href="bgm.html">bgm()</a></code>
 
-        </dt>
-        <dd>Bayesian Estimation or Edge Selection for Markov Random Fields</dd>
+      <dl></dl></div><div class="section level2">
 
-        <dt>
 
-          <code><a href="bgmCompare.html">bgmCompare()</a></code>
 
-        </dt>
-        <dd>Bayesian Estimation and Variable Selection for Group Differences in Markov Random Fields</dd>
 
-        <dt>
+      <dl><dt>
 
-          <code><a href="coef.bgmCompare.html">coef(<i>&lt;bgmCompare&gt;</i>)</a></code>
+          <code><a href="bgms-package.html">bgms</a></code> <code><a href="bgms-package.html">bgms-package</a></code>
 
         </dt>
-        <dd>Extract Coefficients from a bgmCompare Object</dd>
-
-        <dt>
-
-          <code><a href="coef.bgms.html">coef(<i>&lt;bgms&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Extract Coefficients from a bgms Object</dd>
-
-        <dt>
-
-          <code><a href="predict.bgmCompare.html">predict(<i>&lt;bgmCompare&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Predict Conditional Probabilities from a Fitted bgmCompare Model</dd>
-
-        <dt>
-
-          <code><a href="predict.bgms.html">predict(<i>&lt;bgms&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Predict Conditional Probabilities from a Fitted bgms Model</dd>
-
-        <dt>
-
-          <code><a href="print.bgmCompare.html">print(<i>&lt;bgmCompare&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Print method for `bgmCompare` objects</dd>
-
-        <dt>
-
-          <code><a href="print.bgms.html">print(<i>&lt;bgms&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Print method for `bgms` objects</dd>
-
-        <dt>
-
-          <code><a href="simulate.bgmCompare.html">simulate(<i>&lt;bgmCompare&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Simulate Data from a Fitted bgmCompare Model</dd>
-
-        <dt>
-
-          <code><a href="simulate.bgms.html">simulate(<i>&lt;bgms&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Simulate Data from a Fitted bgms Model</dd>
-
-        <dt>
-
-          <code><a href="simulate_mrf.html">simulate_mrf()</a></code>
-
-        </dt>
-        <dd>Simulate Observations from an Ordinal MRF</dd>
-
-        <dt>
-
-          <code><a href="summary.bgmCompare.html">summary(<i>&lt;bgmCompare&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Summary method for `bgmCompare` objects</dd>
-
-        <dt>
-
-          <code><a href="summary.bgms.html">summary(<i>&lt;bgms&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Summary method for `bgms` objects</dd>
+        <dd>bgms: Bayesian Analysis of Networks of Binary and/or Ordinal Variables</dd>
       </dl></div>
-  </main></div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
    </div>

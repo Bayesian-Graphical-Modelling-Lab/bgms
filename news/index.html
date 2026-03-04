@@ -16,12 +16,7 @@
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="nav-item dropdown">
-  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/comparison.html">Model Comparison with bgmCompare</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics.html">Diagnostics and Spike-and-Slab Summaries</a></li>
-    <li><a class="dropdown-item" href="../articles/intro.html">Getting Started with bgms</a></li>
-  </ul></li>
+<li class="nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
 <li class="active nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -39,13 +34,26 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.1.6.4" id="bgms-0164">bgms 0.1.6.4<a class="anchor" aria-label="anchor" href="#bgms-0164"></a></h2>
+<div class="section level3">
+<h3 id="new-features-0-1-6-4">New features<a class="anchor" aria-label="anchor" href="#new-features-0-1-6-4"></a></h3>
+<ul><li>Gaussian graphical models (GGM): <code>bgm(x, variable_type = "continuous")</code> fits a GGM with Bayesian edge selection. Pairwise effects are partial correlations from the precision matrix.</li>
+<li>Missing data imputation: <code>na_action = "impute"</code> integrates over missing values during MCMC sampling for both ordinal and continuous models.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-0-1-6-4">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-1-6-4"></a></h3>
+<ul><li>fixed Blume-Capel centering: <code>observations_</code> was stored RAW (0-indexed) while <code>observations_double_</code> was CENTERED, causing six downstream sites to use wrong values when <code>baseline_category != 0</code>. Fixed by centering <code>observations_</code> in the constructor for Blume-Capel variables so both representations are in the same coordinate system.</li>
+<li>fixed Blume-Capel imputation: zero-category probability had wrong sign and was double-counted. Replaced with unified loop over all categories, matching <code><a href="../reference/simulate_mrf.html">simulate_mrf()</a></code>.</li>
+</ul></div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.6.3" id="bgms-0163">bgms 0.1.6.3<a class="anchor" aria-label="anchor" href="#bgms-0163"></a></h2><p class="text-muted">CRAN release: 2026-02-14</p>
 <div class="section level3">
 <h3 id="new-features-0-1-6-3">New features<a class="anchor" aria-label="anchor" href="#new-features-0-1-6-3"></a></h3>
 <ul><li>
-<code><a href="../reference/extractor_functions.html">extract_rhat()</a></code>: extract R-hat convergence diagnostics from fitted objects</li>
+<code>extract_rhat()</code>: extract R-hat convergence diagnostics from fitted objects</li>
 <li>
-<code><a href="../reference/extractor_functions.html">extract_ess()</a></code>: extract effective sample size estimates from fitted objects</li>
+<code>extract_ess()</code>: extract effective sample size estimates from fitted objects</li>
 <li>
 <code>verbose</code> argument: control informational messages; set <code>options(bgms.verbose = FALSE)</code> to suppress globally</li>
 <li>
@@ -184,10 +192,10 @@
 </ul></li>
 <li>Deprecated extractor functions:
 <ul><li>
-<code><a href="../reference/extractor_functions.html">extract_edge_indicators()</a></code> → use <code><a href="../reference/extractor_functions.html">extract_indicators()</a></code>
+<code><a href="../reference/extract_edge_indicators.html">extract_edge_indicators()</a></code> → use <code>extract_indicators()</code>
 </li>
 <li>
-<code><a href="../reference/extractor_functions.html">extract_pairwise_thresholds()</a></code> → use <code><a href="../reference/extractor_functions.html">extract_category_thresholds()</a></code>
+<code><a href="../reference/extract_pairwise_thresholds.html">extract_pairwise_thresholds()</a></code> → use <code>extract_category_thresholds()</code>
 </li>
 </ul></li>
 <li>Deprecated object fields:

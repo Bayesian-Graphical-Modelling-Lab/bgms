@@ -50,3 +50,22 @@ A list with components:
   Posterior mean inclusion probabilities as a symmetric matrix, with
   diagonals corresponding to main effects and off-diagonals to pairwise
   effects.
+
+## See also
+
+\[bgmCompare()\], \[print.bgmCompare()\], \[summary.bgmCompare()\]
+
+Other posterior-methods:
+[`coef.bgms()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/coef.bgms.md),
+[`print.bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/print.bgmCompare.md),
+[`print.bgms()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/print.bgms.md),
+[`summary.bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/summary.bgmCompare.md),
+[`summary.bgms()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/summary.bgms.md)
+
+## Examples
+
+``` r
+# \donttest{
+# See ?bgmCompare for a full example
+# }
+```
