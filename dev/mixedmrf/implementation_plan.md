@@ -1,6 +1,8 @@
 # Mixed MRF — Implementation Plan
 
-**Date:** 2026-02-25 (updated 2026-03-04; review amendments applied 2026-03-04)
+**Date:** 2026-02-25 (updated 2026-03-04; review amendments 2026-03-04;
+Blume-Capel + PL consistency 2026-03-05; commit strategy 2026-03-05;
+consistency review 2026-03-05)
 **Branch:** `ggm_mixed` (PR #78)
 **Goal:** Build a monolithic `MixedMRFModel` in C++ that supports both
 conditional and marginal pseudo-likelihood, with and without edge selection.
@@ -52,6 +54,19 @@ The following issues identified in the plan reviews have been fixed in mixedGM:
 - **Simulation study** (`dev/simulation_study_plan.md`): 54-cell design covering
   p ∈ {5,10,15}, q ∈ {5,10,15}, n ∈ {250,500,1000}.
 
+### Pseudolikelihood consistency (verified)
+
+The discrete pseudolikelihood formulas in mixedGM and the bgms OMRF have
+been compared and **match exactly** for ordinal variables.  The mixedGM code
+was originally ported from bgms (`compute_denom_ordinal`); the same
+category-threshold parameterization, rest-score definition, and log-sum-exp
+stabilization are used.  The marginal OMRF correctly handles the
+$\Theta_{ss}$ self-interaction term.  No reconciliation is needed.
+
+The mixedGM prototype does **not** implement Blume-Capel variables.  The
+Blume-Capel pseudolikelihood paths must therefore be adapted from the bgms
+OMRF code directly rather than ported from mixedGM (see §1 and Phase B/C).
+
 ---
 
 ## Table of contents
@@ -71,23 +86,44 @@ The following issues identified in the plan reviews have been fixed in mixedGM:
 13. [Testing strategy](#testing-strategy)
 14. [Reuse inventory](#reuse-inventory)
 15. [Risk register](#risk-register)
+16. [PR and commit strategy](#pr-and-commit-strategy)
 
 ---
 
 ## 1. Model overview
 
-The mixed MRF models the joint distribution of $p$ ordinal variables
+The mixed MRF models the joint distribution of $p$ discrete variables
 $x$ ($x_s \in \{0, 1, \ldots, C_s\}$) and $q$ continuous variables $y$:
 
 $$\log f(x, y) \propto \sum_s \mu_{x,s}(x_s) + x^\top K_{xx}\, x
   - \tfrac{1}{2}(y - \mu_y)^\top K_{yy}\,(y - \mu_y)
   + 2\, x^\top K_{xy}\, y$$
 
+### Discrete variable types
+
+Each discrete variable $x_s$ is either **ordinal** or **Blume-Capel**,
+matching the existing `OMRFModel` design:
+
+| Type | Main-effect parameterization | # free params | Reference level |
+|------|------------------------------|:---:|---|
+| Ordinal | $\mu_{x,s}(c) = \mu_{s,c}$, free thresholds ($c = 1,\ldots,C_s$; category 0 fixed at 0) | $C_s$ | Category 0 (fixed) |
+| Blume-Capel | $\mu_{x,s}(c) = \alpha_s(c - \text{ref}_s) + \beta_s(c - \text{ref}_s)^2$ | 2 | User-specified $\text{ref}_s$ |
+
+For Blume-Capel variables the observations are centered at
+$\text{ref}_s$ in the constructor (i.e., `x_.col(s) -= baseline_category_(s)`),
+so all downstream code — rest-scores, sufficient statistics, likelihoods —
+operates in a shifted coordinate system where the reference category
+corresponds to zero, exactly as in `OMRFModel`.
+
+The $x^\top K_{xx}\, x$ term uses the (centered) observation values
+for both variable types; only the main-effect structure $\mu_{x,s}(\cdot)$
+and the log-partition denominator differ.
+
 Parameters:
 
 | Symbol | Storage | Dimension | Role |
 |--------|---------|-----------|------|
-| $\mu_x$ | `mux_` | $p \times \max(C_s)$ | Ordinal thresholds (main effects) |
+| $\mu_x$ | `mux_` | $p \times \max(C_s)$ | Ordinal thresholds **or** Blume-Capel ($\alpha, \beta$) |
 | $K_{xx}$ | `Kxx_` | $p \times p$ symmetric, zero diag | Discrete pairwise interactions |
 | $K_{yy}$ | `Kyy_` | $q \times q$ SPD | Continuous precision matrix |
 | $K_{xy}$ | `Kxy_` | $p \times q$ | Cross-type interactions |
@@ -135,6 +171,11 @@ $$\log f(x_s = c \mid x_{-s}, y) = \mu_{x,s,c} + c \cdot r_s
   - \log\!\Bigl(1 + \sum_{c'=1}^{C_s} \exp(\mu_{x,s,c'} + c' \cdot r_s)\Bigr)$$
 
 The rest-score $r_s$ depends on $K_{xx}$ and $K_{xy}$ but **not** on $K_{yy}$.
+
+The formula above shows the ordinal form.  For Blume-Capel variables the
+main-effect term $\mu_{x,s,c}$ is replaced by
+$\alpha_s(c - \text{ref}_s) + \beta_s(c - \text{ref}_s)^2$ and the
+denominator uses `compute_denom_blume_capel()` (see §1 and Phase B.1).
 
 **Conditional GGM** — $y \mid x$ is multivariate Gaussian:
 
@@ -192,7 +233,7 @@ the MH acceptance ratio for each group.
 
 | Step | Parameter | Components in acceptance ratio |
 |------|-----------|-------------------------------|
-| 1 | $\mu_{x,s,c}$ (one threshold) | `cond_omrf(s)` + prior |
+| 1 | $\mu_{x,s}$ (one main effect) | `cond_omrf(s)` + prior |
 | 2 | $\mu_{y,j}$ (one mean) | `cond_ggm()` + prior |
 | 3 | $K_{xx,ij}$ (one pair) | `cond_omrf(i) + cond_omrf(j)` + prior |
 | 4 | $K_{yy}$ (one element) | `cond_ggm()` + prior (Cholesky proposal) |
@@ -202,7 +243,7 @@ the MH acceptance ratio for each group.
 
 | Step | Parameter | Components in acceptance ratio |
 |------|-----------|-------------------------------|
-| 1 | $\mu_{x,s,c}$ | `marg_omrf(s)` + prior |
+| 1 | $\mu_{x,s}$ | `marg_omrf(s)` + prior |
 | 2 | $\mu_{y,j}$ | `cond_ggm()` + $\sum_s$ `marg_omrf(s)` + prior |
 | 3 | $K_{xx,ij}$ | `marg_omrf(i) + marg_omrf(j)` + prior |
 | 4 | $K_{yy}$ | `cond_ggm()` + $\sum_s$ `marg_omrf(s)` + prior (Cholesky proposal) |
@@ -216,13 +257,14 @@ expensive per iteration.
 
 ### 3.3 Edge selection (post-warmup)
 
-Three independent edge-selection sweeps, same in both PL modes:
+Three independent edge-selection sweeps per iteration.  The acceptance
+components differ by PL mode because $\Theta$ depends on $K_{yy}$:
 
-| Edge type | Indicator | RJ proposal | Acceptance components |
-|-----------|-----------|-------------|----------------------|
-| Discrete-discrete | $G_{xx}$ | Toggle + spike-and-slab | `omrf(i) + omrf(j)` |
-| Continuous-continuous | $G_{yy}$ | Cholesky-based toggle | `cond_ggm()` |
-| Cross | $G_{xy}$ | Toggle + spike-and-slab | `omrf(i) + cond_ggm()` |
+| Edge type | Indicator | RJ proposal | Conditional PL | Marginal PL |
+|-----------|-----------|-------------|----------------|-------------|
+| Discrete-discrete | $G_{xx}$ | Toggle + spike-and-slab | `cond_omrf(i) + cond_omrf(j)` | `marg_omrf(i) + marg_omrf(j)` |
+| Continuous-continuous | $G_{yy}$ | Cholesky-based toggle | `cond_ggm()` | `cond_ggm()` + $\sum_s$ `marg_omrf(s)` |
+| Cross | $G_{xy}$ | Toggle + spike-and-slab | `cond_omrf(i) + cond_ggm()` | `cond_ggm()` + $\sum_s$ `marg_omrf(s)` |
 
 ---
 
@@ -286,6 +328,8 @@ public:
         const arma::imat& x,           // n × p discrete (0-based categories)
         const arma::mat& y,             // n × q continuous
         const arma::ivec& num_categories, // p-vector
+        const arma::uvec& is_ordinal_variable, // 1 = ordinal, 0 = Blume-Capel
+        const arma::ivec& baseline_category,   // reference category per variable
         bool edge_selection,
         const std::string& pseudolikelihood, // "conditional" or "marginal"
         int seed
@@ -324,16 +368,26 @@ public:
 private:
     // --- Data ---
     arma::imat x_;                    // n × p discrete observations
+                                     //   Blume-Capel columns are centered at baseline_category_
+                                     //   in the constructor (same convention as OMRFModel).
+    arma::mat x_dbl_;                 // n × p  double version of x_ (post-centering)
     arma::mat y_;                     // n × q continuous observations
     int n_, p_, q_;
     arma::ivec num_categories_;       // p-vector
     int max_cats_;                    // max(num_categories)
+    arma::uvec is_ordinal_variable_;  // 1 = ordinal, 0 = Blume-Capel
+    arma::ivec baseline_category_;    // reference category per discrete variable
+
+    // --- Sufficient statistics ---
+    arma::imat counts_per_category_;  // (max_cats+1) × p  category counts (ordinal vars only)
+    arma::imat blume_capel_stats_;    // 2 × p  linear and quadratic sums (BC vars only)
 
     // --- Parameters ---
-    arma::mat mux_;                   // p × max_cats thresholds
-                                     //   mux_(s, c) is the threshold for category c+1 of variable s;
-                                     //   category 0 is the reference level (threshold fixed at 0).
-                                     //   In C++ loops always use index c-1 when accessing mux_ for category c.
+    arma::mat mux_;                   // p × max_cats thresholds / Blume-Capel coefficients
+                                     //   Ordinal: mux_(s, c) = threshold for category c+1;
+                                     //     category 0 is the reference (fixed at 0).
+                                     //   Blume-Capel: mux_(s, 0) = linear α_s,
+                                     //     mux_(s, 1) = quadratic β_s.
     arma::vec muy_;                   // q-vector continuous means
     arma::mat Kxx_;                   // p × p discrete interactions (diagonal always zero;
                                      //   enforced by construction — not a free parameter)
@@ -393,17 +447,41 @@ Implement `parameter_dimension`, `get/set_vectorized_parameters`,
 `get_edge_indicators`, `get_inclusion_probability`, `get_num_variables`,
 `get_num_pairwise`, `has_edge_selection`, `has_adaptive_metropolis`.
 
+**Constructor must center Blume-Capel observations:**
+```cpp
+for (int s = 0; s < p_; ++s) {
+    if (!is_ordinal_variable_(s)) {
+        x_.col(s) -= baseline_category_(s);
+    }
+}
+x_dbl_ = arma::conv_to<arma::mat>::from(x_);
+```
+This mirrors `OMRFModel`'s constructor exactly and ensures that rest-scores,
+sufficient statistics, and the conditional mean all use the same coordinate
+system regardless of variable type.
+
+**Sufficient statistics** (computed in the constructor, identical to `OMRFModel`):
+- `counts_per_category_`: for each ordinal variable, count observations per
+  category $c \in \{0, \ldots, C_s\}$.
+- `blume_capel_stats_`: for each Blume-Capel variable, store
+  $\sum_i x_{is}$ (row 0, linear) and $\sum_i x_{is}^2$ (row 1, quadratic),
+  where $x$ is already centered.
+
 **Parameter vectorization order (free parameters only):**
-1. `mux_`: For each variable $s = 0,\ldots,p-1$, copy columns $0 \ldots C_s-1$
-   of row $s$ (i.e., the thresholds for categories $1 \ldots C_s$; category 0
-   is the fixed reference level). Each variable contributes $C_s$ entries;
-   the total count is $\sum_s C_s$. Variables with different $C_s$ produce
-   runs of different length — **do not use a fixed stride**.
+1. `mux_`: For each variable $s = 0,\ldots,p-1$:
+   - If ordinal: copy columns $0 \ldots C_s-1$ ($C_s$ thresholds).
+   - If Blume-Capel: copy columns 0 and 1 ($\alpha_s, \beta_s$; always 2 entries).
+   Total count: $\sum_{s \in \text{ord}} C_s + 2 \cdot |\text{BC}|$.
+   Variables produce runs of different length — **do not use a fixed stride**.
    ```
    idx = 0
    for s in 0..p-1:
-       for c in 0..num_categories_[s]-1:
-           out[idx++] = mux_(s, c)   // threshold for category c+1
+       if is_ordinal_variable_[s]:
+           for c in 0..num_categories_[s]-1:
+               out[idx++] = mux_(s, c)
+       else:  // Blume-Capel
+           out[idx++] = mux_(s, 0)  // linear α
+           out[idx++] = mux_(s, 1)  // quadratic β
    ```
 2. `Kxx_`: strictly upper-triangular entries (symmetry supplies the lower
    half). Count = $p(p-1)/2$. Diagonal entries are always zero and excluded.
@@ -446,24 +524,45 @@ In `mixed_mrf_likelihoods.cpp`:
 #### `log_conditional_omrf(int s)` — per-variable discrete PL
 
 Computes $\log f(x_s \mid x_{-s}, y)$ summed over all $n$ observations.
+The function **branches on `is_ordinal_variable_(s)`** to select the
+appropriate main-effect structure and denominator.
 
+**Rest-score (same for both variable types):**
 ```
-rest_score = x_[, -s] * Kxx_[-s, s] + 2 * y_ * Kxy_[s, ]^T
-             ^-- n×(p-1) * (p-1)×1     ^-- n×q * q×1
+rest_score = x_dbl_ * Kxx_.col(s) - x_dbl_.col(s) * Kxx_(s,s)
+             + 2 * y_ * Kxy_.row(s).t()
            = n-vector
+```
+(`Kxx_(s,s) = 0` by construction, so the self-interaction subtraction is
+a no-op for $K_{xx}$; it becomes relevant in the marginal case for $\Theta$.)
 
+**Ordinal path:**
+```
 For each observation v:
   For c = 1..C_s:
-    eta[v,c] = mux_[s, c] + c * rest_score[v]
+    eta[v,c] = mux_(s, c-1) + c * rest_score[v]
   log_Z[v] = log(1 + sum_c exp(eta[v,c]))   (log-sum-exp stabilized)
-  ll += mux_[s, x_[v,s]] + x_[v,s] * rest_score[v] - log_Z[v]
-        (only if x_[v,s] > 0 for the threshold part)
+  ll += mux_(s, x[v,s]-1) + x[v,s] * rest_score[v] - log_Z[v]
+        (only if x[v,s] > 0 for the threshold part)
 ```
+Use `compute_denom_ordinal()` from `variable_helpers.h`.
 
-**Reuse opportunity:** The inner loop (compute log-partition for
-one ordinal variable given a rest-score vector) is identical to
-`OMRFModel::ordinal_log_pseudolikelihood_ratio()`. Extract or
-duplicate the stabilized log-sum-exp computation.
+**Blume-Capel path:**
+```
+alpha = mux_(s, 0);  beta = mux_(s, 1);  ref = baseline_category_(s)
+For each observation v:
+  For c = 0..C_s:
+    theta_c = alpha * (c - ref) + beta * (c - ref)^2
+    eta[v,c] = theta_c + (c - ref) * rest_score[v]
+  log_Z[v] = log_sum_exp over c
+  ll += alpha * x[v,s] + beta * x[v,s]^2 + x[v,s] * rest_score[v] - log_Z[v]
+        (x already centered at ref)
+```
+Use `compute_denom_blume_capel()` from `variable_helpers.h`.
+
+**Reuse opportunity:** Both denominator functions already exist in
+`src/utils/variable_helpers.{h,cpp}` and are battle-tested in the OMRF.
+The mixed MRF calls them directly—no duplication needed.
 
 #### `log_conditional_ggm()` — conditional GGM log-likelihood
 
@@ -532,10 +631,22 @@ Each update function follows the pattern:
 4. Accept/reject
 5. Robbins-Monro update of proposal SD
 
-#### `update_threshold(int s, int c)` — one threshold $\mu_{x,s,c}$
-- Propose: $\mu'_{x,s,c} \sim N(\mu_{x,s,c}, \sigma_{\mu_x,s,c})$
-- Acceptance: `log_conditional_omrf(s)` at proposed vs current + prior ratio
-- Prior: Normal(0, $\sigma^2$)
+#### `update_main_effect(int s, int c)` — one main-effect parameter
+
+- **Ordinal** ($c \in \{0,\ldots,C_s-1\}$): updates threshold $\mu_{s,c}$.
+  - Propose: $\mu'_{s,c} \sim N(\mu_{s,c}, \sigma)$
+  - Acceptance: `log_conditional_omrf(s)` at proposed vs current + prior
+  - Prior: Beta-type (same as `OMRFModel`: $\alpha\,x - (\alpha+\beta)\log(1+e^x)$)
+- **Blume-Capel** ($c \in \{0, 1\}$: linear, quadratic):
+  updates $\alpha_s$ or $\beta_s$.
+  - Propose: same Normal random-walk
+  - Acceptance: `log_conditional_omrf(s)` at proposed vs current + prior
+  - Prior: same Beta-type prior on each coefficient
+
+The function signature is the same for both types; `is_ordinal_variable_(s)`
+selects which main-effect slot to perturb.  Matches `OMRFModel`'s
+`do_one_metropolis_step` loop which iterates over categories for ordinal
+variables and over `{0, 1}` for Blume-Capel variables.
 
 #### `update_continuous_mean(int j)` — one mean $\mu_{y,j}$
 - Propose: $\mu'_{y,j} \sim N(\mu_{y,j}, \sigma_{\mu_y,j})$
@@ -599,10 +710,16 @@ helpers in `mixed_mrf_cholesky.cpp`, ported from
 
 ```cpp
 void MixedMRFModel::do_one_metropolis_step(int iteration) {
-    // Step 1: Update all thresholds
-    for (int s = 0; s < p_; ++s)
-        for (int c = 0; c < num_categories_[s]; ++c)
-            update_threshold(s, c, iteration);
+    // Step 1: Update all main effects (ordinal thresholds or BC α/β)
+    for (int s = 0; s < p_; ++s) {
+        if (is_ordinal_variable_(s)) {
+            for (int c = 0; c < num_categories_[s]; ++c)
+                update_main_effect(s, c, iteration);
+        } else {
+            update_main_effect(s, 0, iteration);  // linear α
+            update_main_effect(s, 1, iteration);  // quadratic β
+        }
+    }
 
     // Step 2: Update all continuous means
     for (int j = 0; j < q_; ++j)
@@ -632,13 +749,13 @@ void MixedMRFModel::do_one_metropolis_step(int iteration) {
 
 ### B.5 Testing checkpoint — conditional PL estimation
 
-**Test 1: Likelihood agreement**
+**Test 1 (T1, T2, T10): Likelihood agreement**
 - Generate data from `mixed_gibbs_generate()` in R
 - Compute `log_conditional_omrf(s)` and `log_conditional_ggm()` in both
   R (prototype) and C++ at the same parameter values
 - Assert agreement to machine precision
 
-**Test 2: Recovery (estimation only, no edge selection)**
+**Test 2 (T13): Recovery (estimation only, no edge selection)**
 - Generate data from known parameters (p=3 ordinal, q=2 continuous)
 - Run mixed sampler with conditional PL, no edge selection
 - Check posterior means recover true parameters (correlation > 0.9)
@@ -659,14 +776,26 @@ excluded explicitly:
 Theta_ = Kxx_ + 2 * Kxy_ * Kyy_inv_ * Kxy_^T     (cached; see C.3)
 
 // n-vector of rest-scores:
-rest_score = x_dbl * Theta_.col(s)              // include all n obs, all p vars
-           - x_dbl.col(s) * Theta_(s, s)        // subtract self-interaction
+rest_score = x_dbl_ * Theta_.col(s)             // include all n obs, all p vars
+           - x_dbl_.col(s) * Theta_(s, s)        // subtract self-interaction
            + 2.0 * arma::dot(Kxy_.row(s),
                              Kyy_inv_ * muy_)   // scalar bias, same for all obs
 ```
 
 This matches `rcpp_log_pl_marginal_omrf` in `mixedGM/src/log_likelihoods.cpp`
-exactly.  The inner log-partition loop is then identical to `log_conditional_omrf`.
+exactly for ordinal variables.
+
+**Blume-Capel variables in marginal PL:** The rest-score is the same as
+above. The difference is in the numerator and denominator:
+- The numerator adds $\alpha_s x_{vs} + \beta_s x_{vs}^2 +
+  x_{vs} \cdot r_{vs}$ (using centered observations) plus
+  $\Theta_{ss} \cdot x_{vs}^2$ for the self-interaction.
+- The denominator uses `compute_denom_blume_capel()` with `col_offset(c)`
+  set to $\theta_c + (c - \text{ref})^2 \cdot \Theta_{ss}$ instead of
+  $\mu_{s,c} + c^2 \cdot \Theta_{ss}$.
+
+This parallels the ordinal-vs-Blume-Capel branching already present in
+`OMRFModel::log_pseudoposterior_with_state()`.
 
 ### C.2 Modify `update_continuous_mean(int j)` for marginal mode
 
@@ -713,15 +842,15 @@ in the two modes.
 
 ### C.5 Testing checkpoint — marginal PL estimation
 
-**Test 3: Marginal likelihood agreement**
+**Test 3 (T3, T11): Marginal likelihood agreement**
 - Same data as Test 1, compute `log_marginal_omrf(s)` in R and C++
 - Assert agreement
 
-**Test 4: Recovery (marginal PL)**
+**Test 4 (T14): Recovery (marginal PL)**
 - Same setup as Test 2 but `pseudolikelihood = "marginal"`
 - Check posterior means recover true parameters
 
-**Test 5: Conditional vs marginal agreement**
+**Test 5 (T16): Conditional vs marginal agreement**
 - Run both modes on the same data, compare posterior means
 - They should be similar (not identical — different approximations)
 
@@ -812,9 +941,25 @@ void MixedMRFModel::update_edge_indicators() {
 }
 ```
 
-### D.5 Testing checkpoint — edge selection
+### D.5 Blume-Capel and edge selection
 
-**Test 6: Structure recovery**
+Edge selection for $K_{xx}$ pairs is **type-agnostic**: the acceptance
+ratio evaluates `log_conditional_omrf(i) + log_conditional_omrf(j)`
+(or marginal equivalents), and those functions already branch on
+`is_ordinal_variable_`.  No additional edge-selection logic is needed
+for Blume-Capel variables—this mirrors the `OMRFModel` design where
+`update_edge_indicator_parameter_pair()` calls
+`compute_log_likelihood_ratio_for_variable()`, which dispatches to the
+correct denominator internally.
+
+Cross-edges $G_{xy}$ involving a Blume-Capel discrete variable also
+require no special handling: the rest-score uses the centered
+observations, and the likelihood function dispatches to the Blume-Capel
+denominator as needed.
+
+### D.6 Testing checkpoint — edge selection
+
+**Test 6 (T15): Structure recovery**
 - Generate data from a sparse mixed graph (some edges zero)
 - Run with edge selection, check posterior inclusion probabilities
   recover the true structure (true edges have high PIP, false edges low)
@@ -840,18 +985,26 @@ The user interface uses **Option A** (decided): a single data frame plus a
 `variable_type` argument:
 
 ```r
-bgm(data, variable_type = c("o", "o", "c", ...))
+bgm(data, variable_type = c("ordinal", "blume-capel", "continuous", ...))
 ```
 
 - `data`: an $n \times (p+q)$ data frame or matrix with all variables.
-- `variable_type`: character vector, length $p+q$; values `"o"` (ordinal)
-  or `"c"` (continuous). Column order must match `variable_type`.
+- `variable_type`: character vector, length $p+q$; values `"ordinal"`,
+  `"blume-capel"`, or `"continuous"`. Column order must match
+  `variable_type`. Abbreviated forms (`"o"`, `"b"`, `"c"`) may be
+  supported via `match.arg` for convenience.
+- `baseline_category`: integer vector, length $p+q$ (entries for
+  continuous and ordinal columns are ignored). Specifies the reference
+  category for each Blume-Capel variable. Passed through to
+  `sample_mixed_mrf_cpp()`.
 
-`bgm()` splits `data` into the integer matrix `x` (ordinal columns) and
-numeric matrix `y` (continuous columns), then dispatches to
-`sample_mixed_mrf_cpp()`. The split indices must be stored in the output
-object so that `coef`, `predict`, and `simulate` methods can reconstruct
-the original column order.
+`bgm()` splits `data` into the integer matrix `x` (ordinal + Blume-Capel
+columns) and numeric matrix `y` (continuous columns), constructs
+`is_ordinal_variable` and `baseline_category` vectors for the discrete
+subset, then dispatches to `sample_mixed_mrf_cpp()`. The split indices
+and variable-type metadata must be stored in the output object so that
+`coef`, `predict`, and `simulate` methods can reconstruct the original
+column order.
 
 **Missing data** is an explicit non-goal for this PR.
 `has_missing_data()` returns `false` and `impute_missing()` is an empty
@@ -868,7 +1021,7 @@ The output structure needs to accommodate:
 
 ### E.4 Testing checkpoint — end-to-end
 
-**Test 7: `bgm()` with mixed data**
+**Test 7 (T19): `bgm()` with mixed data**
 - Call `bgm()` with `variable_type` containing both ordinal and continuous
 - Check output structure matches expected format
 - Verify S3 methods work (`print`, `summary`, `coef`, `predict`)
@@ -924,9 +1077,16 @@ Extend `mrf_simulation.cpp` to support mixed data generation via
 block Gibbs sampling, matching `mixed_gibbs_generate()`:
 
 1. Sample $x_s \mid x_{-s}, y$: categorical from log-sum-exp stabilized
-   probabilities
+   probabilities.
+   - For ordinal variables use `compute_probs_ordinal()`.
+   - For Blume-Capel variables use `compute_probs_blume_capel()`
+     (both already available in `variable_helpers.h`).
 2. Sample $y \mid x$: multivariate Normal with conditional mean
    $\mu_y + 2\,x\,K_{xy}\,K_{yy}^{-1}$ and covariance $K_{yy}^{-1}$
+
+Note: the mixedGM Gibbs generator handles ordinal variables only.
+The Blume-Capel Gibbs sampling step must be added using the existing
+bgms probability helpers.
 
 ### G.2 Mixed MRF prediction
 
@@ -987,34 +1147,40 @@ Cross-reference the existing mixedGM test files for each scenario:
 | T1 | `log_conditional_omrf(s)` | Compare C++ vs R prototype at known parameters |
 | T2 | `log_conditional_ggm()` | Compare C++ vs R prototype at known parameters |
 | T3 | `log_marginal_omrf(s)` | Compare C++ vs R prototype at known parameters |
-| T4 | `parameter_dimension()` | Check count for known p, q, num_categories |
-| T5 | Vectorization round-trip | `set(get(params)) == params` |
+| T4 | `parameter_dimension()` | Check count for known p, q, num_categories (ordinal + BC mix) |
+| T5 | Vectorization round-trip | `set(get(params)) == params` (include BC variables) |
 | T6 | Cholesky permutation | Verify permute is involution, PD maintained |
 | T7 | Analytic Gaussian check | Set $K_{xy}=0$ so `log_conditional_ggm()` reduces to a standard MVN and compare against closed form |
 | T8 | Fixture replay | Load deterministic R fixtures and ensure C++ reproduces saved log-likelihood components bit-for-bit |
 | T9 | Cache freshness | After each parameter tweak, recompute `conditional_mean_` and (if needed) `Theta_` from scratch and compare with cached copies |
+| T10 | BC conditional OMRF | Compare `log_conditional_omrf(s)` for a Blume-Capel variable against OMRF-only model at same parameters |
+| T11 | BC marginal OMRF | Same as T10 but for `log_marginal_omrf(s)` |
+| T12 | BC observation centering | Verify that centered observations + `compute_denom_blume_capel` produce the same result as the standalone `OMRFModel` |
 
 ### Integration tests (sampling correctness)
 
 | Test | What | How |
 |------|------|-----|
-| T7 | Conditional PL recovery | Generate → estimate → check cor > 0.9 |
-| T8 | Marginal PL recovery | Generate → estimate → check cor > 0.9 |
-| T9 | Edge selection recovery | Sparse graph → check PIP > 0.5 for true, < 0.5 for false |
-| T10 | Cond vs marginal agreement | Both modes → posterior means close |
-| T11 | Reproducibility | Same seed → identical output |
-| T12 | Multi-chain | 4 chains → R-hat < 1.1 |
+| T13 | Conditional PL recovery | Generate → estimate → check cor > 0.9 |
+| T14 | Marginal PL recovery | Generate → estimate → check cor > 0.9 |
+| T15 | Edge selection recovery | Sparse graph → check PIP > 0.5 for true, < 0.5 for false |
+| T16 | Cond vs marginal agreement | Both modes → posterior means close |
+| T17 | Reproducibility | Same seed → identical output |
+| T18 | Multi-chain | 4 chains → R-hat < 1.1 |
+| T19 | End-to-end `bgm()` | Call `bgm()` with mixed data; check output structure and S3 methods |
 
 ### Edge-case & stress tests
 
 | Test | What | How |
 |------|------|-----|
-| T13 | Kyy PD invariant | Run 1k iterations with aggressive proposals; Cholesky of $K_{yy}$ must succeed after every accepted move |
-| T14 | Cache consistency under RJ | After edge births/deaths, recompute caches and assert equality (debug build) |
-| T15 | Degenerate $p=1$ | Single ordinal variable, ensure sampler runs and recovers $K_{xy}, K_{yy}$ |
-| T16 | Degenerate $q=1$ | Scalar precision, ensure Cholesky permutation code handles the trivial case |
-| T17 | Binary-only ordinal | All $C_s=1$, verify conditional PL matches logistic rest-scores |
-| T18 | Gibbs generator sanity | Compare empirical moments from `mixed_gibbs_generate()` against theoretical targets before using it for fixtures |
+| T20 | Kyy PD invariant | Run 1k iterations with aggressive proposals; Cholesky of $K_{yy}$ must succeed after every accepted move |
+| T21 | Cache consistency under RJ | After edge births/deaths, recompute caches and assert equality (debug build) |
+| T22 | Degenerate $p=1$ | Single ordinal variable, ensure sampler runs and recovers $K_{xy}, K_{yy}$ |
+| T23 | Degenerate $q=1$ | Scalar precision, ensure Cholesky permutation code handles the trivial case |
+| T24 | Binary-only ordinal | All $C_s=1$, verify conditional PL matches logistic rest-scores |
+| T25 | Gibbs generator sanity | Compare empirical moments from `mixed_gibbs_generate()` against theoretical targets before using it for fixtures |
+| T26 | Mixed ordinal + BC | Graph with both ordinal and Blume-Capel discrete variables; verify recovery |
+| T27 | BC-only discrete | All discrete variables are Blume-Capel; verify recovery and edge selection |
 
 ### Regression tests
 
@@ -1054,6 +1220,10 @@ Cross-reference the existing mixedGM test files for each scenario:
 |-----------|--------|------------|
 | Cholesky update/downdate | `src/models/ggm/cholupdate.h` | Direct include |
 | Log-sum-exp stabilization | `OMRFModel::compute_logZ_*` | Adapt pattern |
+| Ordinal denominator | `src/utils/variable_helpers.{h,cpp}` `compute_denom_ordinal` | Direct call |
+| Blume-Capel denominator | `src/utils/variable_helpers.{h,cpp}` `compute_denom_blume_capel` | Direct call |
+| Ordinal probabilities | `src/utils/variable_helpers.{h,cpp}` `compute_probs_ordinal` | Direct call (Gibbs generator) |
+| Blume-Capel probabilities | `src/utils/variable_helpers.{h,cpp}` `compute_probs_blume_capel` | Direct call (Gibbs generator) |
 | Robbins-Monro adaptation | `OMRFModel::robbins_monro_*` | Direct reuse |
 | Edge prior (SBM) | `src/priors/sbm_edge_prior.h` | Direct reuse |
 | WarmupSchedule | `src/mcmc/execution/warmup_schedule.h` | Direct reuse |
@@ -1079,60 +1249,72 @@ Cross-reference the existing mixedGM test files for each scenario:
 | Factor 2 convention mismatch | Wrong posteriors | Document consistently; unit-test against R prototype |
 | PD violation during Kyy proposals | Crash | Cholesky-based proposals guarantee PD by construction |
 | Large parameter space mixing | Poor ESS | Per-parameter Robbins-Monro; future: block updates or HMC |
+| Blume-Capel not in prototype | No mixedGM reference for BC paths | Adapt from bgms `OMRFModel`; validated via OMRF-vs-mixed comparison tests (T10-T12) |
 
 ---
 
-## Updated implementation workflow
+## PR and commit strategy
 
-Given that mixedGM provides tested C++ likelihood implementations and
-validated R MH updates, the recommended workflow is:
+**Branch:** `ggm_mixed` (currently at the same commit as `main`).
+**PR:** A single draft PR opened early for visibility, merged only after
+all phases are complete and CI passes.
 
-### Phase 1: Port likelihoods (1-2 days)
+### Principles
 
-1. Create `src/models/mixed/` directory
-2. Copy `mixedGM/src/log_likelihoods.cpp` → `mixed_mrf_likelihoods.cpp`
-3. Remove Rcpp exports, convert to internal functions
-4. Adapt to bgms coding conventions (SafeRNG, etc.)
-5. **Validation**: Call mixedGM Rcpp functions from R and compare to bgms
+1. **Every commit compiles and passes `R CMD check`.** No broken
+   intermediate states on the branch. If a phase needs multiple
+   sub-steps before the package can build, stage them locally and
+   squash into one commit that restores a green state.
+2. **One commit per logical unit of work.** A "logical unit" is the
+   smallest change that is self-contained and reviewable on its own:
+   a new file, a completed function group, a test suite, a wiring
+   change. Avoid mixing unrelated concerns in one commit.
+3. **Tests accompany the code they exercise.** When a commit adds
+   a function, the corresponding unit test belongs in the same commit
+   (or the immediately following one if fixtures must be generated
+   first). Do not defer all tests to the end.
+4. **Commit messages use the project's conventional-commit prefixes:**
+   `feat:`, `fix:`, `test:`, `refactor:`, `docs:`, `dev:`.
+   Keep the first line under 72 characters; add a body paragraph only
+   when the "why" is non-obvious.
 
-### Phase 2: Skeleton class (1-2 days)
+### Planned commits
 
-1. Create `mixed_mrf_model.h` following GGMModel pattern
-2. Implement all BaseModel pure virtuals (stubs where needed)
-3. Implement `parameter_dimension()`, `get/set_vectorized_parameters()`
-4. Implement `clone()`, `set_seed()`, lifecycle hooks
-5. **Validation**: Class compiles, vectorization round-trip passes
+The table below maps implementation phases to commits. Each row is one
+`git commit`. Rows may be split further if a phase turns out large, or
+merged if two steps are trivially small — the guiding rule is always
+principle 1 (green build) and principle 2 (one logical concern).
 
-### Phase 3: MH updates (2-3 days)
+| # | Prefix | Message | Phase | What ships |
+|:-:|--------|---------|:-----:|------------|
+| 1 | `feat` | `feat: add MixedMRFModel skeleton and data structures` | A | Header, constructor (incl. BC centering), trivial overrides, vectorization, sufficient statistics. Stubs for sampling functions (`do_one_metropolis_step` etc.) so the class compiles. No sampling yet. |
+| 2 | `test` | `test: add mixed MRF skeleton tests` | A | `test-mixed-mrf-skeleton.R`: compile check, `parameter_dimension`, vectorization round-trip (ordinal + BC mix). |
+| 3 | `feat` | `feat: add mixed MRF likelihood functions` | B.1 | `mixed_mrf_likelihoods.cpp`: `log_conditional_omrf`, `log_conditional_ggm`, cache helpers. Ordinal + Blume-Capel paths. |
+| 4 | `test` | `test: add mixed MRF likelihood unit tests` | B.1 | `test-mixed-mrf-likelihood.R`: T1–T3 (compare C++ vs R fixtures), T7 (analytic Gaussian), T10–T12 (BC-specific). |
+| 5 | `feat` | `feat: add conditional PL Metropolis updates` | B.3–B.4 | `mixed_mrf_metropolis.cpp`: all 5 MH update functions + `do_one_metropolis_step` (conditional mode). Cholesky helpers in `mixed_mrf_cholesky.cpp`. |
+| 6 | `test` | `test: add conditional PL recovery test` | B.5 | `test-mixed-mrf-sampling.R`: T13 (conditional PL parameter recovery, estimation only). |
+| 7 | `feat` | `feat: add marginal PL mode and Theta caching` | C | `log_marginal_omrf`, Theta cache, marginal-mode branches in MH updates. |
+| 8 | `test` | `test: add marginal PL recovery and comparison tests` | C.5 | T14 (marginal PL recovery), T16 (cond vs marginal agreement). |
+| 9 | `feat` | `feat: add mixed MRF edge selection` | D | `mixed_mrf_edge_selection.cpp`: RJ sweeps for Kxx, Kyy, Kxy. `update_edge_indicators`, `initialize_graph`, `prepare_iteration`. |
+| 10 | `test` | `test: add mixed MRF edge selection tests` | D | T15 (structure recovery), T26–T27 (BC edge cases). |
+| 11 | `feat` | `feat: add Rcpp interface and bgm() mixed dispatch` | E | `sample_mixed.cpp`, `bgm.R` changes, `validate_data.R`/`validate_model.R` extensions, `build_output.R` mixed output. |
+| 12 | `test` | `test: add end-to-end bgm() mixed model tests` | E | T19 (end-to-end), S3 method checks (`print`, `summary`, `coef`). |
+| 13 | `feat` | `feat: add mixed MRF warmup and adaptation` | F | `init_metropolis_adaptation`, `tune_proposal_sd`, warmup schedule integration. |
+| 14 | `feat` | `feat: add mixed MRF simulation and prediction` | G | Gibbs generator in `mrf_simulation.cpp`, `simulate.bgms` + `predict.bgms` extensions. |
+| 15 | `test` | `test: add simulation and prediction tests` | G | T25 (Gibbs sanity), generator tests, prediction tests. |
+| 16 | `test` | `test: verify GGM, OMRF, bgmCompare regression suite` | — | Run full existing test suite, fix any regressions. R1–R3. |
+| 17 | `docs` | `docs: add mixed MRF documentation and pkgdown entries` | — | Roxygen for new exported functions, `_pkgdown.yml` entries, NEWS.md entry. |
 
-1. Port `cond_omrf_update_*` functions from R to C++
-2. Port `cond_ggm_update_*` functions from R to C++
-3. Port `cond_update_cross_associations` from R to C++
-4. Implement `do_one_metropolis_step()` calling all update functions
-5. **Validation**: Compare posterior samples vs mixedGM on same data
+### Conventions for this branch
 
-### Phase 4: Edge selection (2-3 days)
-
-1. Port `*_update_*_indicator_pair` functions from R to C++
-2. Implement `update_edge_indicators()` calling all three edge types
-3. Implement `initialize_graph()`, `prepare_iteration()`
-4. **Validation**: Run edge selection tests from mixedGM
-
-### Phase 5: R interface (1-2 days)
-
-1. Create `sample_mixed.cpp` following `sample_ggm.cpp` pattern
-2. Extend `bgm()` to detect and dispatch mixed data
-3. Extend `build_output.R` for mixed model output structure
-4. **Validation**: End-to-end `bgm()` call works
-
-### Phase 6: Gibbs generator (1 day)
-
-1. Port `mixed_gibbs_generate_cpp()` to `mrf_simulation.cpp`
-2. Extend `simulate.bgms()` for mixed models
-3. **Validation**: Generated data matches mixedGM output
-
-### Total estimated effort: 8-13 days
-
-The C++ likelihood implementations (Phase B-C in the original plan) are
-largely complete via mixedGM, reducing the remaining work to porting MH
-updates and wiring into the bgms infrastructure.
+- **Do not rebase onto main mid-flight.** Merge main into `ggm_mixed`
+  only if a conflict blocks progress, and note it in the PR
+  description.
+- **Fixture files** (`.rds`, `.rda`) generated for tests go in
+  `dev/fixtures/mixed/` and are committed alongside the test that
+  consumes them.
+- **Plan updates** during implementation get their own `docs:` commit
+  (e.g., `docs: update mixed MRF plan — Phase B lessons`).
+- **Squash-merge** is used when merging the PR into `main`. The full
+  per-phase history remains on the branch for reference, but `main`
+  gets a single clean merge commit.
