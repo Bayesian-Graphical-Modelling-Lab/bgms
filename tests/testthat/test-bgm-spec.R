@@ -3,6 +3,12 @@
 # Phase B.5 of the R scaffolding refactor.
 # ==============================================================================
 
+# These are internal (non-exported) functions — bind via ::: for testing.
+bgm_spec = bgms:::bgm_spec
+validate_bgm_spec = bgms:::validate_bgm_spec
+new_bgm_spec = bgms:::new_bgm_spec
+sampler_sublist = bgms:::sampler_sublist
+
 # ==============================================================================
 # Shared helpers / fixtures
 # ==============================================================================
