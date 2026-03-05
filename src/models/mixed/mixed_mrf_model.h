@@ -338,6 +338,28 @@ private:
     double log_conditional_ggm() const;
 
     // =========================================================================
+    // MH update functions (implemented in mixed_mrf_metropolis.cpp)
+    // =========================================================================
+
+    /** Update one main-effect: mux_(s, c). Ordinal threshold or BC α/β. */
+    void update_main_effect(int s, int c);
+
+    /** Update one continuous mean: muy_(j). */
+    void update_continuous_mean(int j);
+
+    /** Update one discrete interaction: Kxx_(i, j). Symmetric. */
+    void update_Kxx(int i, int j);
+
+    /** Update one off-diagonal precision element: Kyy_(i, j). Cholesky-based. */
+    void update_Kyy_offdiag(int i, int j);
+
+    /** Update one diagonal precision element: Kyy_(i, i). Log-scale Cholesky. */
+    void update_Kyy_diag(int i);
+
+    /** Update one cross interaction: Kxy_(i, j). */
+    void update_Kxy(int i, int j);
+
+    // =========================================================================
     // Edge-indicator accessor helpers
     // =========================================================================
 

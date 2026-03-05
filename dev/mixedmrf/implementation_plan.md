@@ -588,7 +588,11 @@ ll = n/2 * (-q * log(2*pi) + Kyy_log_det_) - quad_sum / 2
 **Reuse opportunity:** This is structurally identical to `GGMModel::log_density_impl`
 but with a non-zero, observation-dependent conditional mean.
 
-### B.2 Implement cache maintenance
+### B.2 Implement cache maintenance ✅
+
+All three functions implemented in Phase A (`mixed_mrf_model.cpp`).
+The proposed-state bookkeeping rules below are the design contract
+consumed by B.3's MH updates.
 
 #### `recompute_conditional_mean()`
 Recompute `conditional_mean_ = 1*muy^T + 2 * discrete_observations_ * Kxy_ * Kyy_inv_`.
@@ -631,7 +635,7 @@ temporaries are discarded cheaply (Armadillo move semantics).
 5. **Every accepted RJ edge toggle (Phase D)** must trigger the same
    cache-refresh logic as an MH acceptance for that parameter type.
 
-### B.3 Implement MH updates (conditional PL)
+### B.3 Implement MH updates (conditional PL) ✅
 
 Each update function follows the pattern:
 1. Save current parameter value
@@ -715,7 +719,7 @@ helpers in `mixed_mrf_cholesky.cpp`, ported from
 - Prior: Cauchy(0, scale)
 - Only if $G_{xy,ij} = 1$
 
-### B.4 Implement `do_one_metropolis_step(int iteration)`
+### B.4 Implement `do_one_metropolis_step(int iteration)` ✅
 
 ```cpp
 void MixedMRFModel::do_one_metropolis_step(int iteration) {
@@ -1303,7 +1307,7 @@ principle 1 (green build) and principle 2 (one logical concern).
 | 2 | `test` | `test: add mixed MRF skeleton tests` | A | `test-mixed-mrf-skeleton.R`: compile check, `parameter_dimension`, vectorization round-trip (ordinal + BC mix). |
 | 3 | `feat` | `feat: add mixed MRF likelihood functions` | B.1 | `mixed_mrf_likelihoods.cpp`: `log_conditional_omrf`, `log_conditional_ggm`, cache helpers. Ordinal + Blume-Capel paths. |
 | 4 | `test` | `test: add mixed MRF likelihood unit tests` | B.1 | `test-mixed-mrf-likelihood.R`: T1–T3 (compare C++ vs R fixtures), T7 (analytic Gaussian), T10–T12 (BC-specific). |
-| 5 | `feat` | `feat: add conditional PL Metropolis updates` | B.3–B.4 | `mixed_mrf_metropolis.cpp`: all 5 MH update functions + `do_one_metropolis_step` (conditional mode). Cholesky helpers in `mixed_mrf_cholesky.cpp`. |
+| 5 | `feat` | `feat: add conditional PL Metropolis updates` | B.3–B.4 | `mixed_mrf_metropolis.cpp`: 6 MH update functions (main effect, muy, Kxx, Kyy off-diag, Kyy diag, Kxy) + static Cholesky helpers + `do_one_metropolis_step` 5-step sweep. |
 | 6 | `test` | `test: add conditional PL recovery test` | B.5 | `test-mixed-mrf-sampling.R`: T13 (conditional PL parameter recovery, estimation only). |
 | 7 | `feat` | `feat: add marginal PL mode and Theta caching` | C | `log_marginal_omrf`, Theta cache, marginal-mode branches in MH updates. |
 | 8 | `test` | `test: add marginal PL recovery and comparison tests` | C.5 | T14 (marginal PL recovery), T16 (cond vs marginal agreement). |

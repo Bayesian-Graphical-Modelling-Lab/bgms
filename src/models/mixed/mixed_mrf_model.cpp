@@ -417,7 +417,42 @@ std::unique_ptr<BaseModel> MixedMRFModel::clone() const {
 // =============================================================================
 
 void MixedMRFModel::do_one_metropolis_step(int /*iteration*/) {
-    // Phase B/C: MH updates for all parameter groups
+    // Step 1: Update all main effects (ordinal thresholds or BC α/β)
+    for(size_t s = 0; s < p_; ++s) {
+        if(is_ordinal_variable_(s)) {
+            for(int c = 0; c < num_categories_(s); ++c)
+                update_main_effect(s, c);
+        } else {
+            update_main_effect(s, 0);  // linear α
+            update_main_effect(s, 1);  // quadratic β
+        }
+    }
+
+    // Step 2: Update all continuous means
+    for(size_t j = 0; j < q_; ++j)
+        update_continuous_mean(j);
+
+    // Step 3: Update Kxx (upper triangle, edge-gated)
+    for(size_t i = 0; i < p_ - 1; ++i)
+        for(size_t j = i + 1; j < p_; ++j)
+            if(!edge_selection_active_ || gxx(i, j) == 1)
+                update_Kxx(i, j);
+
+    // Step 4: Update Kyy (off-diag + diagonal, edge-gated)
+    if(q_ >= 2) {
+        for(size_t i = 0; i < q_ - 1; ++i)
+            for(size_t j = i + 1; j < q_; ++j)
+                if(!edge_selection_active_ || gyy(i, j) == 1)
+                    update_Kyy_offdiag(i, j);
+    }
+    for(size_t i = 0; i < q_; ++i)
+        update_Kyy_diag(i);
+
+    // Step 5: Update Kxy (edge-gated)
+    for(size_t i = 0; i < p_; ++i)
+        for(size_t j = 0; j < q_; ++j)
+            if(!edge_selection_active_ || gxy(i, j) == 1)
+                update_Kxy(i, j);
 }
 
 void MixedMRFModel::update_edge_indicators() {
