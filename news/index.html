@@ -42,8 +42,9 @@
 </ul></div>
 <div class="section level3">
 <h3 id="bug-fixes-0-1-6-4">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-1-6-4"></a></h3>
-<ul><li>fixed Blume-Capel centering: <code>observations_</code> was stored RAW (0-indexed) while <code>observations_double_</code> was CENTERED, causing six downstream sites to use wrong values when <code>baseline_category != 0</code>. Fixed by centering <code>observations_</code> in the constructor for Blume-Capel variables so both representations are in the same coordinate system.</li>
-<li>fixed Blume-Capel imputation: zero-category probability had wrong sign and was double-counted. Replaced with unified loop over all categories, matching <code><a href="../reference/simulate_mrf.html">simulate_mrf()</a></code>.</li>
+<ul><li>fixed Blume-Capel imputation: zero-category probability had wrong sign and was double-counted. Replaced with unified loop over all categories, matching <code><a href="../reference/simulate_mrf.html">simulate_mrf()</a></code>.</li>
+<li>fixed stale gradient cache after missing data imputation: <code>impute_missing()</code> updated sufficient statistics (<code>counts_per_category_</code>, <code>blume_capel_stats_</code>, <code>pairwise_stats_</code>) but did not invalidate the gradient cache, causing NUTS to use outdated cached values for the leapfrog integration.</li>
+<li>fixed stale observation transpose after missing data imputation: the precomputed <code>observations_double_t_</code> matrix was set once in the constructor but never refreshed after <code>impute_missing()</code> changed cells in <code>observations_double_</code>, causing the pairwise gradient (<code>observations_double_t_ * E</code>) to use stale data.</li>
 </ul></div>
 </div>
     <div class="section level2">

@@ -14,15 +14,20 @@
 
 ### Bug fixes
 
-- fixed Blume-Capel centering: `observations_` was stored RAW
-  (0-indexed) while `observations_double_` was CENTERED, causing six
-  downstream sites to use wrong values when `baseline_category != 0`.
-  Fixed by centering `observations_` in the constructor for Blume-Capel
-  variables so both representations are in the same coordinate system.
 - fixed Blume-Capel imputation: zero-category probability had wrong sign
   and was double-counted. Replaced with unified loop over all
   categories, matching
   [`simulate_mrf()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate_mrf.md).
+- fixed stale gradient cache after missing data imputation:
+  `impute_missing()` updated sufficient statistics
+  (`counts_per_category_`, `blume_capel_stats_`, `pairwise_stats_`) but
+  did not invalidate the gradient cache, causing NUTS to use outdated
+  cached values for the leapfrog integration.
+- fixed stale observation transpose after missing data imputation: the
+  precomputed `observations_double_t_` matrix was set once in the
+  constructor but never refreshed after `impute_missing()` changed cells
+  in `observations_double_`, causing the pairwise gradient
+  (`observations_double_t_ * E`) to use stale data.
 
 ## bgms 0.1.6.3
 
