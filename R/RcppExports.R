@@ -57,3 +57,7 @@ compute_Vn_mfm_sbm <- function(num_variables, dirichlet_alpha, t_max, lambda) {
     .Call(`_bgms_compute_Vn_mfm_sbm`, num_variables, dirichlet_alpha, t_max, lambda)
 }
 
+test_mixed_mrf_skeleton <- function(discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, inclusion_probability, initial_edge_indicators, edge_selection, pseudolikelihood, seed) {
+    .Call(`_bgms_test_mixed_mrf_skeleton`, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, inclusion_probability, initial_edge_indicators, edge_selection, pseudolikelihood, seed)
+}
+
