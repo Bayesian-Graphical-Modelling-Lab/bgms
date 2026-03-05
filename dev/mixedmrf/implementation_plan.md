@@ -110,7 +110,7 @@ matching the existing `OMRFModel` design:
 | Blume-Capel | $\mu_{x,s}(c) = \alpha_s(c - \text{ref}_s) + \beta_s(c - \text{ref}_s)^2$ | 2 | User-specified $\text{ref}_s$ |
 
 For Blume-Capel variables the observations are centered at
-$\text{ref}_s$ in the constructor (i.e., `x_.col(s) -= baseline_category_(s)`),
+$\text{ref}_s$ in the constructor (i.e., `discrete_observations_.col(s) -= baseline_category_(s)`),
 so all downstream code — rest-scores, sufficient statistics, likelihoods —
 operates in a shifted coordinate system where the reference category
 corresponds to zero, exactly as in `OMRFModel`.
@@ -325,8 +325,8 @@ class MixedMRFModel : public BaseModel {
 public:
     // Construction
     MixedMRFModel(
-        const arma::imat& x,           // n × p discrete (0-based categories)
-        const arma::mat& y,             // n × q continuous
+        const arma::imat& discrete_observations,  // n × p discrete (0-based categories)
+        const arma::mat& continuous_observations, // n × q continuous
         const arma::ivec& num_categories, // p-vector
         const arma::uvec& is_ordinal_variable, // 1 = ordinal, 0 = Blume-Capel
         const arma::ivec& baseline_category,   // reference category per variable
@@ -367,11 +367,11 @@ public:
 
 private:
     // --- Data ---
-    arma::imat x_;                    // n × p discrete observations
-                                     //   Blume-Capel columns are centered at baseline_category_
-                                     //   in the constructor (same convention as OMRFModel).
-    arma::mat x_dbl_;                 // n × p  double version of x_ (post-centering)
-    arma::mat y_;                     // n × q continuous observations
+    arma::imat discrete_observations_;        // n × p discrete observations
+                                              //   Blume-Capel columns centered at baseline_category_
+                                              //   in the constructor (same convention as OMRFModel).
+    arma::mat discrete_observations_dbl_;     // n × p  double version (post-centering)
+    arma::mat continuous_observations_;       // n × q continuous observations
     int n_, p_, q_;
     arma::ivec num_categories_;       // p-vector
     int max_cats_;                    // max(num_categories)
@@ -451,10 +451,10 @@ Implement `parameter_dimension`, `get/set_vectorized_parameters`,
 ```cpp
 for (int s = 0; s < p_; ++s) {
     if (!is_ordinal_variable_(s)) {
-        x_.col(s) -= baseline_category_(s);
+        discrete_observations_.col(s) -= baseline_category_(s);
     }
 }
-x_dbl_ = arma::conv_to<arma::mat>::from(x_);
+discrete_observations_dbl_ = arma::conv_to<arma::mat>::from(discrete_observations_);
 ```
 This mirrors `OMRFModel`'s constructor exactly and ensures that rest-scores,
 sufficient statistics, and the conditional mean all use the same coordinate
@@ -529,8 +529,8 @@ appropriate main-effect structure and denominator.
 
 **Rest-score (same for both variable types):**
 ```
-rest_score = x_dbl_ * Kxx_.col(s) - x_dbl_.col(s) * Kxx_(s,s)
-             + 2 * y_ * Kxy_.row(s).t()
+rest_score = discrete_observations_dbl_ * Kxx_.col(s) - discrete_observations_dbl_.col(s) * Kxx_(s,s)
+             + 2 * continuous_observations_ * Kxy_.row(s).t()
            = n-vector
 ```
 (`Kxx_(s,s) = 0` by construction, so the self-interaction subtraction is
@@ -570,8 +570,8 @@ Computes $\log f(y \mid x)$ using cached `Kyy_inv_`, `Kyy_log_det_`,
 and `conditional_mean_`.
 
 ```
-conditional_mean_ = 1*muy_^T + 2 * x_ * Kxy_ * Kyy_inv_
-D = y_ - conditional_mean_
+conditional_mean_ = 1*muy_^T + 2 * discrete_observations_ * Kxy_ * Kyy_inv_
+D = continuous_observations_ - conditional_mean_
 quad_sum = sum((D * Kyy_) .* D)       // trace of Kyy * D^T * D
 ll = n/2 * (-q * log(2*pi) + Kyy_log_det_) - quad_sum / 2
 ```
@@ -582,7 +582,7 @@ but with a non-zero, observation-dependent conditional mean.
 ### B.2 Implement cache maintenance
 
 #### `recompute_conditional_mean()`
-Recompute `conditional_mean_ = 1*muy^T + 2 * x_ * Kxy_ * Kyy_inv_`.
+Recompute `conditional_mean_ = 1*muy^T + 2 * discrete_observations_ * Kxy_ * Kyy_inv_`.
 Called after any change to `muy_`, `Kxy_`, or `Kyy_`.
 
 #### `recompute_Kyy_decomposition()`
@@ -776,8 +776,8 @@ excluded explicitly:
 Theta_ = Kxx_ + 2 * Kxy_ * Kyy_inv_ * Kxy_^T     (cached; see C.3)
 
 // n-vector of rest-scores:
-rest_score = x_dbl_ * Theta_.col(s)             // include all n obs, all p vars
-           - x_dbl_.col(s) * Theta_(s, s)        // subtract self-interaction
+rest_score = discrete_observations_dbl_ * Theta_.col(s)             // include all n obs, all p vars
+           - discrete_observations_dbl_.col(s) * Theta_(s, s)        // subtract self-interaction
            + 2.0 * arma::dot(Kxy_.row(s),
                              Kyy_inv_ * muy_)   // scalar bias, same for all obs
 ```
