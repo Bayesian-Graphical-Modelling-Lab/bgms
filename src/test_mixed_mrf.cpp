@@ -112,3 +112,52 @@ Rcpp::List test_mixed_mrf_skeleton(
         Rcpp::Named("has_missing_data") = model.has_missing_data()
     );
 }
+
+
+// [[Rcpp::export]]
+Rcpp::List test_mixed_mrf_likelihoods(
+    const arma::imat& discrete_observations,
+    const arma::mat& continuous_observations,
+    const arma::ivec& num_categories,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& baseline_category,
+    const arma::mat& inclusion_probability,
+    const arma::imat& initial_edge_indicators,
+    bool edge_selection,
+    const std::string& pseudolikelihood,
+    const arma::vec& params,
+    int seed
+) {
+    MixedMRFModel model(
+        discrete_observations,
+        continuous_observations,
+        num_categories,
+        is_ordinal_variable,
+        baseline_category,
+        inclusion_probability,
+        initial_edge_indicators,
+        edge_selection,
+        pseudolikelihood,
+        1.0, 1.0, 2.5,
+        seed
+    );
+
+    // Set parameters (caller must ensure Kyy block is SPD)
+    model.set_vectorized_parameters(params);
+
+    int p = discrete_observations.n_cols;
+
+    // Evaluate log_conditional_omrf for each discrete variable
+    Rcpp::NumericVector omrf_ll(p);
+    for(int s = 0; s < p; ++s) {
+        omrf_ll[s] = model.log_conditional_omrf(s);
+    }
+
+    // Evaluate log_conditional_ggm
+    double ggm_ll = model.log_conditional_ggm();
+
+    return Rcpp::List::create(
+        Rcpp::Named("omrf_ll") = omrf_ll,
+        Rcpp::Named("ggm_ll") = ggm_ll
+    );
+}

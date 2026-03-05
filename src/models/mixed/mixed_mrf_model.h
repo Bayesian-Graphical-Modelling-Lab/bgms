@@ -27,6 +27,13 @@
 class MixedMRFModel : public BaseModel {
 public:
 
+    // Test helpers need access to private likelihood functions
+    friend Rcpp::List test_mixed_mrf_likelihoods(
+        const arma::imat&, const arma::mat&, const arma::ivec&,
+        const arma::uvec&, const arma::ivec&, const arma::mat&,
+        const arma::imat&, bool, const std::string&, const arma::vec&, int
+    );
+
     // =========================================================================
     // Construction
     // =========================================================================
@@ -319,6 +326,16 @@ private:
 
     /** Recompute Theta_ from Kxx_, Kxy_, Kyy_inv_ (marginal PL only). */
     void recompute_Theta();
+
+    // =========================================================================
+    // Likelihood functions (implemented in mixed_mrf_likelihoods.cpp)
+    // =========================================================================
+
+    /** Conditional OMRF pseudolikelihood for discrete variable s, summed over all n. */
+    double log_conditional_omrf(int s) const;
+
+    /** Conditional GGM log-likelihood: log f(y | x), using cached decomposition. */
+    double log_conditional_ggm() const;
 
     // =========================================================================
     // Edge-indicator accessor helpers

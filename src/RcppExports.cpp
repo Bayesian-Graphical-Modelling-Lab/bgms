@@ -309,6 +309,27 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// test_mixed_mrf_likelihoods
+Rcpp::List test_mixed_mrf_likelihoods(const arma::imat& discrete_observations, const arma::mat& continuous_observations, const arma::ivec& num_categories, const arma::uvec& is_ordinal_variable, const arma::ivec& baseline_category, const arma::mat& inclusion_probability, const arma::imat& initial_edge_indicators, bool edge_selection, const std::string& pseudolikelihood, const arma::vec& params, int seed);
+RcppExport SEXP _bgms_test_mixed_mrf_likelihoods(SEXP discrete_observationsSEXP, SEXP continuous_observationsSEXP, SEXP num_categoriesSEXP, SEXP is_ordinal_variableSEXP, SEXP baseline_categorySEXP, SEXP inclusion_probabilitySEXP, SEXP initial_edge_indicatorsSEXP, SEXP edge_selectionSEXP, SEXP pseudolikelihoodSEXP, SEXP paramsSEXP, SEXP seedSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::imat& >::type discrete_observations(discrete_observationsSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type continuous_observations(continuous_observationsSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type num_categories(num_categoriesSEXP);
+    Rcpp::traits::input_parameter< const arma::uvec& >::type is_ordinal_variable(is_ordinal_variableSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type baseline_category(baseline_categorySEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type inclusion_probability(inclusion_probabilitySEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type initial_edge_indicators(initial_edge_indicatorsSEXP);
+    Rcpp::traits::input_parameter< bool >::type edge_selection(edge_selectionSEXP);
+    Rcpp::traits::input_parameter< const std::string& >::type pseudolikelihood(pseudolikelihoodSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type params(paramsSEXP);
+    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
+    rcpp_result_gen = Rcpp::wrap(test_mixed_mrf_likelihoods(discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, inclusion_probability, initial_edge_indicators, edge_selection, pseudolikelihood, params, seed));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_bgms_run_bgmCompare_parallel", (DL_FUNC) &_bgms_run_bgmCompare_parallel, 38},
@@ -326,6 +347,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sample_omrf", (DL_FUNC) &_bgms_sample_omrf, 24},
     {"_bgms_compute_Vn_mfm_sbm", (DL_FUNC) &_bgms_compute_Vn_mfm_sbm, 4},
     {"_bgms_test_mixed_mrf_skeleton", (DL_FUNC) &_bgms_test_mixed_mrf_skeleton, 10},
+    {"_bgms_test_mixed_mrf_likelihoods", (DL_FUNC) &_bgms_test_mixed_mrf_likelihoods, 11},
     {NULL, NULL, 0}
 };
 

@@ -517,7 +517,16 @@ The diagonal of `edge_indicators_` is always zero and excluded throughout.
 
 ## Phase B — Conditional pseudo-likelihood
 
-### B.1 Implement log-likelihood functions
+### B.1 Implement log-likelihood functions ✅
+
+Implemented in `src/models/mixed/mixed_mrf_likelihoods.cpp`.
+Declared as private methods in `mixed_mrf_model.h` with a `friend`
+declaration for the test helper.
+
+Tests: `tests/testthat/test-mixed-mrf-likelihoods.R` (14 assertions)
+validated against pure-R reference implementations covering ordinal,
+Blume-Capel, GGM, zero-params, nonzero-params, minimal (p=1,q=1),
+and all-BC configurations.
 
 In `mixed_mrf_likelihoods.cpp`:
 
@@ -749,11 +758,14 @@ void MixedMRFModel::do_one_metropolis_step(int iteration) {
 
 ### B.5 Testing checkpoint — conditional PL estimation
 
-**Test 1 (T1, T2, T10): Likelihood agreement**
+**Test 1 (T1, T2, T10): Likelihood agreement + cross-validation**
 - Generate data from `mixed_gibbs_generate()` in R
 - Compute `log_conditional_omrf(s)` and `log_conditional_ggm()` in both
   R (prototype) and C++ at the same parameter values
 - Assert agreement to machine precision
+- Cross-validate against `mixedGM::rcpp_log_pl_conditional_omrf` and
+  `mixedGM::rcpp_log_pl_conditional_ggm` for a three-way check
+  (bgms C++, R reference, mixedGM C++)
 
 **Test 2 (T13): Recovery (estimation only, no edge selection)**
 - Generate data from known parameters (p=3 ordinal, q=2 continuous)
