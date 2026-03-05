@@ -35,10 +35,10 @@ CRAN release: 2026-02-14
 
 ### New features
 
-- `extract_rhat()`: extract R-hat convergence diagnostics from fitted
-  objects
-- `extract_ess()`: extract effective sample size estimates from fitted
-  objects
+- [`extract_rhat()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_rhat.md):
+  extract R-hat convergence diagnostics from fitted objects
+- [`extract_ess()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_ess.md):
+  extract effective sample size estimates from fitted objects
 - `verbose` argument: control informational messages; set
   `options(bgms.verbose = FALSE)` to suppress globally
 - [`simulate_mrf()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate_mrf.md):
@@ -201,9 +201,11 @@ CRAN release: 2025-09-27
   - `save` → no longer needed
 - Deprecated extractor functions:
   - [`extract_edge_indicators()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_edge_indicators.md)
-    → use `extract_indicators()`
+    → use
+    [`extract_indicators()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_indicators.md)
   - [`extract_pairwise_thresholds()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_pairwise_thresholds.md)
-    → use `extract_category_thresholds()`
+    → use
+    [`extract_category_thresholds()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_category_thresholds.md)
 - Deprecated object fields:
   - `$gamma` (pre-0.1.4) and `$indicator` (0.1.4–0.1.5) → replaced by
     `$raw_samples$indicator`

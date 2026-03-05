@@ -46,42 +46,26 @@ Simulate from Markov random fields and predict new observations.
 
 Extract specific components from fitted model objects.
 
-- [`extract_arguments(`*`<bgmCompare>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_arguments.bgmCompare.md)
-  : Extract Model Arguments from bgmCompare Objects
-- [`extract_arguments(`*`<bgms>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_arguments.bgms.md)
-  : Extract Model Arguments from bgms Objects
-- [`extract_category_thresholds(`*`<bgmCompare>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_category_thresholds.bgmCompare.md)
-  : Extract Category Threshold Samples from bgmCompare Objects
-- [`extract_category_thresholds(`*`<bgms>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_category_thresholds.bgms.md)
-  : Extract Category Threshold Estimates from bgms Objects
-- [`extract_ess(`*`<bgmCompare>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_ess.bgmCompare.md)
-  : Extract Effective Sample Size from bgmCompare Objects
-- [`extract_ess(`*`<bgms>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_ess.bgms.md)
-  : Extract Effective Sample Size from bgms Objects
-- [`extract_group_params(`*`<bgmCompare>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_group_params.bgmCompare.md)
-  : Extract Group-Specific Parameters from bgmCompare Objects
-- [`extract_indicator_priors(`*`<bgmCompare>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_indicator_priors.bgmCompare.md)
-  : Extract Indicator Prior Structure from bgmCompare Objects
-- [`extract_indicator_priors(`*`<bgms>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_indicator_priors.bgms.md)
-  : Extract Indicator Prior Structure from bgms Objects
-- [`extract_indicators(`*`<bgmCompare>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_indicators.bgmCompare.md)
-  : Extract Difference Indicator Samples from bgmCompare Objects
-- [`extract_indicators(`*`<bgms>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_indicators.bgms.md)
-  : Extract Edge Indicator Samples from bgms Objects
-- [`extract_pairwise_interactions(`*`<bgmCompare>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_pairwise_interactions.bgmCompare.md)
-  : Extract Pairwise Interaction Samples from bgmCompare Objects
-- [`extract_pairwise_interactions(`*`<bgms>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_pairwise_interactions.bgms.md)
-  : Extract Pairwise Interaction Samples from bgms Objects
-- [`extract_posterior_inclusion_probabilities(`*`<bgmCompare>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_posterior_inclusion_probabilities.bgmCompare.md)
-  : Extract Posterior Inclusion Probabilities from bgmCompare Objects
-- [`extract_posterior_inclusion_probabilities(`*`<bgms>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_posterior_inclusion_probabilities.bgms.md)
-  : Extract Posterior Inclusion Probabilities from bgms Objects
-- [`extract_rhat(`*`<bgmCompare>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_rhat.bgmCompare.md)
-  : Extract R-hat Diagnostics from bgmCompare Objects
-- [`extract_rhat(`*`<bgms>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_rhat.bgms.md)
-  : Extract R-hat Diagnostics from bgms Objects
-- [`extract_sbm(`*`<bgms>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_sbm.bgms.md)
-  : Extract Stochastic Block Model Summaries from bgms Objects
+- [`extract_arguments()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_arguments.md)
+  : Extract Model Arguments
+- [`extract_category_thresholds()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_category_thresholds.md)
+  : Extract Category Threshold Estimates
+- [`extract_ess()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_ess.md)
+  : Extract Effective Sample Size
+- [`extract_group_params()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_group_params.md)
+  : Extract Group-Specific Parameters
+- [`extract_indicator_priors()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_indicator_priors.md)
+  : Extract Indicator Prior Structure
+- [`extract_indicators()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_indicators.md)
+  : Extract Indicator Samples
+- [`extract_pairwise_interactions()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_pairwise_interactions.md)
+  : Extract Pairwise Interaction Samples
+- [`extract_posterior_inclusion_probabilities()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_posterior_inclusion_probabilities.md)
+  : Extract Posterior Inclusion Probabilities
+- [`extract_rhat()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_rhat.md)
+  : Extract R-hat Convergence Diagnostics
+- [`extract_sbm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_sbm.md)
+  : Extract Stochastic Block Model Summaries
 
 ## Legacy
 
