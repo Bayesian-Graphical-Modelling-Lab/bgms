@@ -278,6 +278,7 @@ private:
     arma::mat prop_sd_Kxx_;             // p × p
     arma::mat prop_sd_Kyy_;             // q × q
     arma::mat prop_sd_Kxy_;             // p × q
+    int total_warmup_ = 0;              // stored by init_metropolis_adaptation
 
     // =========================================================================
     // Cached quantities
@@ -377,22 +378,22 @@ private:
     // --- Parameter update sweeps ---
 
     /** Update one main-effect: mux_(s, c). Ordinal threshold or BC α/β. */
-    void update_main_effect(int s, int c);
+    void update_main_effect(int s, int c, int iteration);
 
     /** Update one continuous mean: muy_(j). */
-    void update_continuous_mean(int j);
+    void update_continuous_mean(int j, int iteration);
 
     /** Update one discrete interaction: Kxx_(i, j). Symmetric. */
-    void update_Kxx(int i, int j);
+    void update_Kxx(int i, int j, int iteration);
 
     /** Update one off-diagonal precision element: Kyy_(i, j). Cholesky-based. */
-    void update_Kyy_offdiag(int i, int j);
+    void update_Kyy_offdiag(int i, int j, int iteration);
 
     /** Update one diagonal precision element: Kyy_(i, i). Log-scale Cholesky. */
-    void update_Kyy_diag(int i);
+    void update_Kyy_diag(int i, int iteration);
 
     /** Update one cross interaction: Kxy_(i, j). */
-    void update_Kxy(int i, int j);
+    void update_Kxy(int i, int j, int iteration);
 
     // --- Edge-indicator update sweeps (Phase D) ---
 

@@ -145,6 +145,7 @@ MixedMRFModel::MixedMRFModel(const MixedMRFModel& other)
       prop_sd_Kxx_(other.prop_sd_Kxx_),
       prop_sd_Kyy_(other.prop_sd_Kyy_),
       prop_sd_Kxy_(other.prop_sd_Kxy_),
+      total_warmup_(other.total_warmup_),
       Kyy_chol_(other.Kyy_chol_),
       inv_cholesky_yy_(other.inv_cholesky_yy_),
       covariance_yy_(other.covariance_yy_),
@@ -434,43 +435,43 @@ std::unique_ptr<BaseModel> MixedMRFModel::clone() const {
 // Stubs (to be implemented in later phases)
 // =============================================================================
 
-void MixedMRFModel::do_one_metropolis_step(int /*iteration*/) {
+void MixedMRFModel::do_one_metropolis_step(int iteration) {
     // Step 1: Update all main effects (ordinal thresholds or BC α/β)
     for(size_t s = 0; s < p_; ++s) {
         if(is_ordinal_variable_(s)) {
             for(int c = 0; c < num_categories_(s); ++c)
-                update_main_effect(s, c);
+                update_main_effect(s, c, iteration);
         } else {
-            update_main_effect(s, 0);  // linear α
-            update_main_effect(s, 1);  // quadratic β
+            update_main_effect(s, 0, iteration);  // linear α
+            update_main_effect(s, 1, iteration);  // quadratic β
         }
     }
 
     // Step 2: Update all continuous means
     for(size_t j = 0; j < q_; ++j)
-        update_continuous_mean(j);
+        update_continuous_mean(j, iteration);
 
     // Step 3: Update Kxx (upper triangle, edge-gated)
     for(size_t i = 0; i < p_ - 1; ++i)
         for(size_t j = i + 1; j < p_; ++j)
             if(!edge_selection_active_ || gxx(i, j) == 1)
-                update_Kxx(i, j);
+                update_Kxx(i, j, iteration);
 
     // Step 4: Update Kyy (off-diag + diagonal, edge-gated)
     if(q_ >= 2) {
         for(size_t i = 0; i < q_ - 1; ++i)
             for(size_t j = i + 1; j < q_; ++j)
                 if(!edge_selection_active_ || gyy(i, j) == 1)
-                    update_Kyy_offdiag(i, j);
+                    update_Kyy_offdiag(i, j, iteration);
     }
     for(size_t i = 0; i < q_; ++i)
-        update_Kyy_diag(i);
+        update_Kyy_diag(i, iteration);
 
     // Step 5: Update Kxy (edge-gated)
     for(size_t i = 0; i < p_; ++i)
         for(size_t j = 0; j < q_; ++j)
             if(!edge_selection_active_ || gxy(i, j) == 1)
-                update_Kxy(i, j);
+                update_Kxy(i, j, iteration);
 
     // Step 6: Edge selection (reversible-jump birth/death)
     update_edge_indicators();
@@ -567,10 +568,11 @@ void MixedMRFModel::prepare_iteration() {
     edge_order_xy_ = arma_randperm(rng_, num_cross_);
 }
 
-void MixedMRFModel::init_metropolis_adaptation(const WarmupSchedule& /*schedule*/) {
-    // Phase F: initialize Robbins-Monro controllers
+void MixedMRFModel::init_metropolis_adaptation(const WarmupSchedule& schedule) {
+    total_warmup_ = schedule.total_warmup;
 }
 
 void MixedMRFModel::tune_proposal_sd(int /*iteration*/, const WarmupSchedule& /*schedule*/) {
-    // Phase F: Robbins-Monro proposal-SD tuning
+    // Robbins-Monro adaptation is embedded in each MH update function,
+    // gated by iteration < total_warmup_. No separate tuning pass needed.
 }

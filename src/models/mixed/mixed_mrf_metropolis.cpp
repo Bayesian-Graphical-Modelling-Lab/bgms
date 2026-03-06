@@ -26,7 +26,7 @@ static double log_beta_prior(double x, double alpha, double beta) {
 // The accept/reject uses log_conditional_omrf(s) + beta-type prior.
 // =============================================================================
 
-void MixedMRFModel::update_main_effect(int s, int c) {
+void MixedMRFModel::update_main_effect(int s, int c, int iteration) {
     double& current = mux_(s, c);
     double proposal_sd = prop_sd_mux_(s, c);
 
@@ -47,6 +47,12 @@ void MixedMRFModel::update_main_effect(int s, int c) {
     if(std::log(runif(rng_)) >= ln_alpha) {
         current = current_val;  // reject
     }
+
+    if(iteration >= 1 && iteration < total_warmup_) {
+        double rm_weight = std::pow(iteration, -0.75);
+        prop_sd_mux_(s, c) = update_proposal_sd_with_robbins_monro(
+            prop_sd_mux_(s, c), ln_alpha, rm_weight, 0.44);
+    }
 }
 
 
@@ -58,7 +64,7 @@ void MixedMRFModel::update_main_effect(int s, int c) {
 // Must save/restore conditional_mean_ around the proposal.
 // =============================================================================
 
-void MixedMRFModel::update_continuous_mean(int j) {
+void MixedMRFModel::update_continuous_mean(int j, int iteration) {
     double current_val = muy_(j);
     double proposed = rnorm(rng_, current_val, prop_sd_muy_(j));
 
@@ -86,6 +92,12 @@ void MixedMRFModel::update_continuous_mean(int j) {
         muy_(j) = current_val;  // reject
         conditional_mean_ = std::move(cond_mean_saved);
     }
+
+    if(iteration >= 1 && iteration < total_warmup_) {
+        double rm_weight = std::pow(iteration, -0.75);
+        prop_sd_muy_(j) = update_proposal_sd_with_robbins_monro(
+            prop_sd_muy_(j), ln_alpha, rm_weight, 0.44);
+    }
 }
 
 
@@ -97,7 +109,7 @@ void MixedMRFModel::update_continuous_mean(int j) {
 // Acceptance: log_conditional_omrf(i) + log_conditional_omrf(j) + Cauchy prior.
 // =============================================================================
 
-void MixedMRFModel::update_Kxx(int i, int j) {
+void MixedMRFModel::update_Kxx(int i, int j, int iteration) {
     double current_val = Kxx_(i, j);
     double proposed = rnorm(rng_, current_val, prop_sd_Kxx_(i, j));
 
@@ -130,6 +142,12 @@ void MixedMRFModel::update_Kxx(int i, int j) {
         Kxx_(i, j) = current_val;  // reject
         Kxx_(j, i) = current_val;
         if(use_marginal_pl_) recompute_Theta();
+    }
+
+    if(iteration >= 1 && iteration < total_warmup_) {
+        double rm_weight = std::pow(iteration, -0.75);
+        prop_sd_Kxx_(i, j) = update_proposal_sd_with_robbins_monro(
+            prop_sd_Kxx_(i, j), ln_alpha, rm_weight, 0.44);
     }
 }
 
@@ -366,7 +384,7 @@ void MixedMRFModel::cholesky_update_after_kyy_diag(double old_ii, int i) {
 // Prior: Cauchy(0, pairwise_scale_) on off-diag, Gamma(1, 1) on diagonal.
 // =============================================================================
 
-void MixedMRFModel::update_Kyy_offdiag(int i, int j) {
+void MixedMRFModel::update_Kyy_offdiag(int i, int j, int iteration) {
     get_kyy_constants(i, j);
 
     double phi_curr = kyy_constants_[0];  // Phi_q1q
@@ -417,6 +435,12 @@ void MixedMRFModel::update_Kyy_offdiag(int i, int j) {
         recompute_conditional_mean();
         if(use_marginal_pl_) recompute_Theta();
     }
+
+    if(iteration >= 1 && iteration < total_warmup_) {
+        double rm_weight = std::pow(iteration, -0.75);
+        prop_sd_Kyy_(i, j) = update_proposal_sd_with_robbins_monro(
+            prop_sd_Kyy_(i, j), ln_alpha, rm_weight, 0.44);
+    }
 }
 
 
@@ -429,7 +453,7 @@ void MixedMRFModel::update_Kyy_offdiag(int i, int j) {
 // Prior: Gamma(1, 1) on the diagonal element + Jacobian for log-scale proposal.
 // =============================================================================
 
-void MixedMRFModel::update_Kyy_diag(int i) {
+void MixedMRFModel::update_Kyy_diag(int i, int iteration) {
     double logdet = cholesky_helpers::get_log_det(Kyy_chol_);
     double logdet_sub_ii = logdet + std::log(covariance_yy_(i, i));
 
@@ -473,6 +497,12 @@ void MixedMRFModel::update_Kyy_diag(int i) {
         recompute_conditional_mean();
         if(use_marginal_pl_) recompute_Theta();
     }
+
+    if(iteration >= 1 && iteration < total_warmup_) {
+        double rm_weight = std::pow(iteration, -0.75);
+        prop_sd_Kyy_(i, i) = update_proposal_sd_with_robbins_monro(
+            prop_sd_Kyy_(i, i), ln_alpha, rm_weight, 0.44);
+    }
 }
 
 
@@ -484,7 +514,7 @@ void MixedMRFModel::update_Kyy_diag(int i) {
 // Must save/restore conditional_mean_ around the proposal.
 // =============================================================================
 
-void MixedMRFModel::update_Kxy(int i, int j) {
+void MixedMRFModel::update_Kxy(int i, int j, int iteration) {
     double current_val = Kxy_(i, j);
     double proposed = rnorm(rng_, current_val, prop_sd_Kxy_(i, j));
 
@@ -521,6 +551,12 @@ void MixedMRFModel::update_Kxy(int i, int j) {
         Kxy_(i, j) = current_val;  // reject
         conditional_mean_ = std::move(cond_mean_saved);
         if(use_marginal_pl_) Theta_ = std::move(Theta_saved);
+    }
+
+    if(iteration >= 1 && iteration < total_warmup_) {
+        double rm_weight = std::pow(iteration, -0.75);
+        prop_sd_Kxy_(i, j) = update_proposal_sd_with_robbins_monro(
+            prop_sd_Kxy_(i, j), ln_alpha, rm_weight, 0.44);
     }
 }
 
