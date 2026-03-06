@@ -1,7 +1,10 @@
 #pragma once
 
+#include <array>
 #include <memory>
 #include "models/base_model.h"
+#include "math/cholesky_helpers.h"
+#include "models/ggm/cholupdate.h"
 #include "rng/rng_utils.h"
 
 /**
@@ -32,6 +35,13 @@ public:
         const arma::imat&, const arma::mat&, const arma::ivec&,
         const arma::uvec&, const arma::ivec&, const arma::mat&,
         const arma::imat&, bool, const std::string&, const arma::vec&, int
+    );
+
+    // Test helper for rank-1 Cholesky correctness (T28/T29)
+    friend Rcpp::List test_mixed_mrf_cholesky(
+        const arma::imat&, const arma::mat&, const arma::ivec&,
+        const arma::uvec&, const arma::ivec&, const arma::mat&,
+        const arma::imat&, const arma::vec&, int, int, int
     );
 
     // =========================================================================
@@ -287,11 +297,22 @@ private:
     // Cached quantities
     // =========================================================================
 
-    arma::mat Kyy_inv_;                 // q × q  inverse of Kyy
-    arma::mat Kyy_chol_;                // q × q  upper Cholesky of Kyy
+    arma::mat Kyy_chol_;                // q × q  upper Cholesky of Kyy (Kyy = R'R)
+    arma::mat inv_cholesky_yy_;         // q × q  R^{-1} (upper triangular)
+    arma::mat covariance_yy_;           // q × q  Kyy^{-1} = R^{-1} R^{-T}
     double Kyy_log_det_;                // log|Kyy|
-    arma::mat Theta_;                   // p × p  Kxx + 2 Kxy Kyy_inv Kxy' (marginal PL only)
-    arma::mat conditional_mean_;        // n × q  μ_y' + 2 discrete_obs Kxy Kyy_inv
+    arma::mat Theta_;                   // p × p  Kxx + 2 Kxy covariance_yy_ Kxy' (marginal PL only)
+    arma::mat conditional_mean_;        // n × q  μ_y' + 2 discrete_obs Kxy covariance_yy_
+
+    // Rank-1 Cholesky update workspace
+    std::array<double, 6> kyy_constants_{};  // reparameterization constants
+    arma::mat precision_yy_proposal_;        // q × q scratch for proposed Kyy
+    arma::vec kyy_v1_ = {0, -1};             // rank-2 decomposition helpers
+    arma::vec kyy_v2_ = {0, 0};
+    arma::vec kyy_vf1_;                      // q-vectors, zeroed between uses
+    arma::vec kyy_vf2_;
+    arma::vec kyy_u1_;
+    arma::vec kyy_u2_;
 
     // =========================================================================
     // Configuration
@@ -318,13 +339,13 @@ private:
     /** Compute category counts and BC sufficient statistics from discrete_observations_. */
     void compute_sufficient_statistics();
 
-    /** Recompute conditional_mean_ from muy_, Kxy_, Kyy_inv_. */
+    /** Recompute conditional_mean_ from muy_, Kxy_, covariance_yy_. */
     void recompute_conditional_mean();
 
-    /** Recompute Kyy_chol_, Kyy_inv_, Kyy_log_det_ from Kyy_. */
+    /** Recompute Kyy_chol_, inv_cholesky_yy_, covariance_yy_, Kyy_log_det_ from Kyy_. */
     void recompute_Kyy_decomposition();
 
-    /** Recompute Theta_ from Kxx_, Kxy_, Kyy_inv_ (marginal PL only). */
+    /** Recompute Theta_ from Kxx_, Kxy_, covariance_yy_ (marginal PL only). */
     void recompute_Theta();
 
     // =========================================================================
@@ -340,6 +361,31 @@ private:
     // =========================================================================
     // MH update functions (implemented in mixed_mrf_metropolis.cpp)
     // =========================================================================
+
+    // --- Rank-1 Kyy proposal helpers (permutation-free) ---
+
+    // Extract reparameterization constants for the (i,j) off-diagonal Kyy update.
+    // Populates kyy_constants_[0..5] from Kyy_chol_ and covariance_yy_.
+    void get_kyy_constants(int i, int j);
+
+    // Constrained diagonal value for a proposed off-diagonal Kyy element.
+    double kyy_constrained_diagonal(double x) const;
+
+    // Log-likelihood ratio for a proposed off-diagonal Kyy change (rank-2).
+    // Assumes precision_yy_proposal_ is already filled by the caller.
+    double log_ggm_ratio_edge(int i, int j) const;
+
+    // Log-likelihood ratio for a proposed diagonal Kyy change (rank-1).
+    // Assumes precision_yy_proposal_ is already filled by the caller.
+    double log_ggm_ratio_diag(int i) const;
+
+    // Rank-1 Cholesky update after accepting an off-diagonal Kyy change.
+    void cholesky_update_after_kyy_edge(double old_ij, double old_jj, int i, int j);
+
+    // Rank-1 Cholesky update after accepting a diagonal Kyy change.
+    void cholesky_update_after_kyy_diag(double old_ii, int i);
+
+    // --- Parameter update sweeps ---
 
     /** Update one main-effect: mux_(s, c). Ordinal threshold or BC α/β. */
     void update_main_effect(int s, int c);

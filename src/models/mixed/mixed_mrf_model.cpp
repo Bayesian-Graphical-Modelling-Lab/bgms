@@ -78,8 +78,16 @@ MixedMRFModel::MixedMRFModel(
 
     // Initialize Kyy caches (Kyy starts as identity)
     Kyy_chol_ = arma::eye<arma::mat>(q_, q_);
-    Kyy_inv_ = arma::eye<arma::mat>(q_, q_);
+    inv_cholesky_yy_ = arma::eye<arma::mat>(q_, q_);
+    covariance_yy_ = arma::eye<arma::mat>(q_, q_);
     Kyy_log_det_ = 0.0;
+
+    // Rank-1 Cholesky update workspace
+    precision_yy_proposal_ = arma::mat(q_, q_, arma::fill::none);
+    kyy_vf1_ = arma::zeros<arma::vec>(q_);
+    kyy_vf2_ = arma::zeros<arma::vec>(q_);
+    kyy_u1_ = arma::zeros<arma::vec>(q_);
+    kyy_u2_ = arma::zeros<arma::vec>(q_);
 
     // Initialize conditional mean: μ_y' + 2 x Kxy Kyy_inv
     //   With Kxy = 0 and Kyy = I, this is just 1 * μ_y' = 0.
@@ -137,11 +145,20 @@ MixedMRFModel::MixedMRFModel(const MixedMRFModel& other)
       prop_sd_Kxx_(other.prop_sd_Kxx_),
       prop_sd_Kyy_(other.prop_sd_Kyy_),
       prop_sd_Kxy_(other.prop_sd_Kxy_),
-      Kyy_inv_(other.Kyy_inv_),
       Kyy_chol_(other.Kyy_chol_),
+      inv_cholesky_yy_(other.inv_cholesky_yy_),
+      covariance_yy_(other.covariance_yy_),
       Kyy_log_det_(other.Kyy_log_det_),
       Theta_(other.Theta_),
       conditional_mean_(other.conditional_mean_),
+      kyy_constants_(other.kyy_constants_),
+      precision_yy_proposal_(other.precision_yy_proposal_),
+      kyy_v1_(other.kyy_v1_),
+      kyy_v2_(other.kyy_v2_),
+      kyy_vf1_(other.kyy_vf1_),
+      kyy_vf2_(other.kyy_vf2_),
+      kyy_u1_(other.kyy_u1_),
+      kyy_u2_(other.kyy_u2_),
       use_marginal_pl_(other.use_marginal_pl_),
       rng_(other.rng_),
       edge_order_xx_(other.edge_order_xx_),
@@ -201,20 +218,21 @@ size_t MixedMRFModel::count_num_main_effects() const {
 // =============================================================================
 
 void MixedMRFModel::recompute_conditional_mean() {
-    // conditional_mean_ = 1*μ_y' + 2 * discrete_obs * Kxy * Kyy_inv
+    // conditional_mean_ = 1*μ_y' + 2 * discrete_obs * Kxy * covariance_yy_
     conditional_mean_ = arma::repmat(muy_.t(), n_, 1) +
-                        2.0 * discrete_observations_dbl_ * Kxy_ * Kyy_inv_;
+                        2.0 * discrete_observations_dbl_ * Kxy_ * covariance_yy_;
 }
 
 void MixedMRFModel::recompute_Kyy_decomposition() {
-    Kyy_chol_ = arma::chol(Kyy_);                // upper Cholesky
-    Kyy_inv_ = arma::inv_sympd(Kyy_);
-    Kyy_log_det_ = 2.0 * arma::sum(arma::log(Kyy_chol_.diag()));
+    Kyy_chol_ = arma::chol(Kyy_);                // upper Cholesky: Kyy = R'R
+    arma::inv(inv_cholesky_yy_, arma::trimatu(Kyy_chol_));
+    covariance_yy_ = inv_cholesky_yy_ * inv_cholesky_yy_.t();
+    Kyy_log_det_ = cholesky_helpers::get_log_det(Kyy_chol_);
 }
 
 void MixedMRFModel::recompute_Theta() {
-    // Θ = Kxx + 2 Kxy Kyy_inv Kxy'
-    Theta_ = Kxx_ + 2.0 * Kxy_ * Kyy_inv_ * Kxy_.t();
+    // Θ = Kxx + 2 Kxy covariance_yy_ Kxy'
+    Theta_ = Kxx_ + 2.0 * Kxy_ * covariance_yy_ * Kxy_.t();
 }
 
 

@@ -4,19 +4,15 @@
 #include "mcmc/execution/step_result.h"
 #include "mcmc/execution/warmup_schedule.h"
 
-double GGMModel::compute_inv_submatrix_i(const arma::mat& A, const size_t i, const size_t ii, const size_t jj) const {
-    return(A(ii, jj) - A(ii, i) * A(jj, i) / A(i, i));
-}
-
 void GGMModel::get_constants(size_t i, size_t j) {
 
-    double logdet_omega = get_log_det(cholesky_of_precision_);
+    double logdet_omega = cholesky_helpers::get_log_det(cholesky_of_precision_);
 
     double log_adj_omega_ii = logdet_omega + std::log(std::abs(covariance_matrix_(i, i)));
     double log_adj_omega_ij = logdet_omega + std::log(std::abs(covariance_matrix_(i, j)));
     double log_adj_omega_jj = logdet_omega + std::log(std::abs(covariance_matrix_(j, j)));
 
-    double inv_omega_sub_j1j1 = compute_inv_submatrix_i(covariance_matrix_, i, j, j);
+    double inv_omega_sub_j1j1 = cholesky_helpers::compute_inv_submatrix_i(covariance_matrix_, i, j, j);
     double log_abs_inv_omega_sub_jj = log_adj_omega_ii + std::log(std::abs(inv_omega_sub_j1j1));
     double Phi_q1q  = (2 * std::signbit(covariance_matrix_(i, j)) - 1) * std::exp(
         (log_adj_omega_ij - (log_adj_omega_jj + log_abs_inv_omega_sub_jj) / 2)
@@ -40,14 +36,9 @@ double GGMModel::constrained_diagonal(const double x) const {
     }
 }
 
-double GGMModel::get_log_det(arma::mat triangular_A) const {
-    // log-determinant of A'A where A is upper-triangular Cholesky factor
-    return 2 * arma::accu(arma::log(triangular_A.diag()));
-}
-
 double GGMModel::log_density_impl(const arma::mat& omega, const arma::mat& phi) const {
 
-    double logdet_omega = get_log_det(phi);
+    double logdet_omega = cholesky_helpers::get_log_det(phi);
     double trace_prod = arma::accu(omega % suf_stat_);
 
     double log_likelihood = n_ * (p_ * log(2 * arma::datum::pi) / 2 + logdet_omega / 2) - trace_prod / 2;
@@ -173,7 +164,7 @@ void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_o
 }
 
 void GGMModel::update_diagonal_parameter(size_t i, int iteration) {
-    double logdet_omega = get_log_det(cholesky_of_precision_);
+    double logdet_omega = cholesky_helpers::get_log_det(cholesky_of_precision_);
     double logdet_omega_sub_ii = logdet_omega + std::log(covariance_matrix_(i, i));
 
     size_t e = i * (i + 3) / 2; // parameter index in vectorized form (column-major upper triangle, i==j)

@@ -59,9 +59,9 @@ double MixedMRFModel::log_conditional_omrf(int s) const {
 // log_conditional_ggm
 // =============================================================================
 // Conditional GGM log-likelihood: log f(y | x)
-//   y | x ~ N(conditional_mean_, Kyy_inv_)
+//   y | x ~ N(conditional_mean_, covariance_yy_)
 //
-// Uses cached Kyy_inv_, Kyy_log_det_, and conditional_mean_.
+// Uses cached covariance_yy_, Kyy_log_det_, and conditional_mean_.
 // =============================================================================
 
 double MixedMRFModel::log_conditional_ggm() const {
