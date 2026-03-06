@@ -153,11 +153,20 @@ Rcpp::List test_mixed_mrf_likelihoods(
         omrf_ll[s] = model.log_conditional_omrf(s);
     }
 
+    // Evaluate log_marginal_omrf for each discrete variable (marginal mode only)
+    Rcpp::NumericVector marg_omrf_ll(p);
+    if(pseudolikelihood == "marginal") {
+        for(int s = 0; s < p; ++s) {
+            marg_omrf_ll[s] = model.log_marginal_omrf(s);
+        }
+    }
+
     // Evaluate log_conditional_ggm
     double ggm_ll = model.log_conditional_ggm();
 
     return Rcpp::List::create(
         Rcpp::Named("omrf_ll") = omrf_ll,
+        Rcpp::Named("marg_omrf_ll") = marg_omrf_ll,
         Rcpp::Named("ggm_ll") = ggm_ll
     );
 }
