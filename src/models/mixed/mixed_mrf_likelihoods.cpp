@@ -56,6 +56,69 @@ double MixedMRFModel::log_conditional_omrf(int s) const {
 
 
 // =============================================================================
+// log_marginal_omrf
+// =============================================================================
+// Marginal OMRF pseudolikelihood for discrete variable s:
+//   log f(x_s | x_{-s}) using Theta = Kxx + 2 Kxy Kyy^{-1} Kxy'
+//
+// Differs from conditional form in three ways:
+//   1. rest score uses Theta_ instead of Kxx_, minus self-interaction
+//   2. scalar bias 2 * Kxy(s,:) * muy added to rest
+//   3. numerator includes Theta_(s,s) * sum(x_s^2)
+//   4. denominator offsets include c^2 * Theta_(s,s)
+// =============================================================================
+
+double MixedMRFModel::log_marginal_omrf(int s) const {
+    int C_s = num_categories_(s);
+
+    // Rest score: Theta-based interaction + Kxy*muy bias
+    double theta_ss = Theta_(s, s);
+    arma::vec rest = discrete_observations_dbl_ * Theta_.col(s)
+                   - discrete_observations_dbl_.col(s) * theta_ss
+                   + 2.0 * arma::dot(Kxy_.row(s), muy_);
+
+    // Numerator: dot(x_s, rest) + theta_ss * dot(x_s, x_s) + main effects
+    double numer = arma::dot(discrete_observations_dbl_.col(s), rest)
+                 + theta_ss * arma::dot(discrete_observations_dbl_.col(s),
+                                        discrete_observations_dbl_.col(s));
+
+    if(is_ordinal_variable_(s)) {
+        for(int c = 1; c <= C_s; ++c) {
+            numer += static_cast<double>(counts_per_category_(c, s)) * mux_(s, c - 1);
+        }
+
+        // Denominator: main_param(c) = mux(s,c) + (c+1)^2 * theta_ss
+        arma::vec main_param(C_s);
+        for(int c = 0; c < C_s; ++c) {
+            main_param(c) = mux_(s, c) + static_cast<double>((c + 1) * (c + 1)) * theta_ss;
+        }
+
+        arma::vec bound = static_cast<double>(C_s) * rest;
+        arma::vec denom = compute_denom_ordinal(rest, main_param, bound);
+
+        return numer - arma::accu(bound + ARMA_MY_LOG(denom));
+    } else {
+        // Blume-Capel: alpha * sum(x) + beta * sum(x^2)
+        double alpha = mux_(s, 0);
+        double beta = mux_(s, 1);
+        numer += alpha * static_cast<double>(blume_capel_stats_(0, s))
+               + beta * static_cast<double>(blume_capel_stats_(1, s));
+
+        // Denominator: theta_c includes Theta_(s,s) * (c - ref)^2
+        int ref = baseline_category_(s);
+        double effective_beta = beta + theta_ss;
+
+        arma::vec bound;
+        arma::vec denom = compute_denom_blume_capel(
+            rest, alpha, effective_beta, ref, C_s, bound
+        );
+
+        return numer - arma::accu(bound + ARMA_MY_LOG(denom));
+    }
+}
+
+
+// =============================================================================
 // log_conditional_ggm
 // =============================================================================
 // Conditional GGM log-likelihood: log f(y | x)

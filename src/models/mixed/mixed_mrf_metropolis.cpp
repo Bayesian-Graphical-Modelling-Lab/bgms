@@ -34,11 +34,13 @@ void MixedMRFModel::update_main_effect(int s, int c) {
     double proposed = rnorm(rng_, current_val, proposal_sd);
 
     // Current log-posterior
-    double ll_curr = log_conditional_omrf(s) + log_beta_prior(current_val, main_alpha_, main_beta_);
+    double ll_curr = (use_marginal_pl_ ? log_marginal_omrf(s) : log_conditional_omrf(s))
+                   + log_beta_prior(current_val, main_alpha_, main_beta_);
 
     // Proposed log-posterior
     current = proposed;
-    double ll_prop = log_conditional_omrf(s) + log_beta_prior(proposed, main_alpha_, main_beta_);
+    double ll_prop = (use_marginal_pl_ ? log_marginal_omrf(s) : log_conditional_omrf(s))
+                   + log_beta_prior(proposed, main_alpha_, main_beta_);
 
     double ln_alpha = ll_prop - ll_curr;
 
@@ -62,6 +64,10 @@ void MixedMRFModel::update_continuous_mean(int j) {
 
     // Current log-posterior (Normal(0,1) prior: -x^2/2 up to constant)
     double ll_curr = log_conditional_ggm() + R::dnorm(current_val, 0.0, 1.0, true);
+    if(use_marginal_pl_) {
+        for(size_t s = 0; s < p_; ++s)
+            ll_curr += log_marginal_omrf(s);
+    }
 
     // Set proposed value and refresh conditional_mean_
     arma::mat cond_mean_saved = conditional_mean_;
@@ -69,6 +75,10 @@ void MixedMRFModel::update_continuous_mean(int j) {
     recompute_conditional_mean();
 
     double ll_prop = log_conditional_ggm() + R::dnorm(proposed, 0.0, 1.0, true);
+    if(use_marginal_pl_) {
+        for(size_t s = 0; s < p_; ++s)
+            ll_prop += log_marginal_omrf(s);
+    }
 
     double ln_alpha = ll_prop - ll_curr;
 
@@ -92,21 +102,34 @@ void MixedMRFModel::update_Kxx(int i, int j) {
     double proposed = rnorm(rng_, current_val, prop_sd_Kxx_(i, j));
 
     // Current log-posterior
-    double ll_curr = log_conditional_omrf(i) + log_conditional_omrf(j)
-                   + R::dcauchy(current_val, 0.0, pairwise_scale_, true);
+    double ll_curr, ll_prop;
+    if(use_marginal_pl_) {
+        ll_curr = log_marginal_omrf(i) + log_marginal_omrf(j)
+                + R::dcauchy(current_val, 0.0, pairwise_scale_, true);
 
-    // Set proposed value (symmetric)
-    Kxx_(i, j) = proposed;
-    Kxx_(j, i) = proposed;
+        Kxx_(i, j) = proposed;
+        Kxx_(j, i) = proposed;
+        recompute_Theta();
 
-    double ll_prop = log_conditional_omrf(i) + log_conditional_omrf(j)
-                   + R::dcauchy(proposed, 0.0, pairwise_scale_, true);
+        ll_prop = log_marginal_omrf(i) + log_marginal_omrf(j)
+                + R::dcauchy(proposed, 0.0, pairwise_scale_, true);
+    } else {
+        ll_curr = log_conditional_omrf(i) + log_conditional_omrf(j)
+                + R::dcauchy(current_val, 0.0, pairwise_scale_, true);
+
+        Kxx_(i, j) = proposed;
+        Kxx_(j, i) = proposed;
+
+        ll_prop = log_conditional_omrf(i) + log_conditional_omrf(j)
+                + R::dcauchy(proposed, 0.0, pairwise_scale_, true);
+    }
 
     double ln_alpha = ll_prop - ll_curr;
 
     if(std::log(runif(rng_)) >= ln_alpha) {
         Kxx_(i, j) = current_val;  // reject
         Kxx_(j, i) = current_val;
+        if(use_marginal_pl_) recompute_Theta();
     }
 }
 
@@ -361,6 +384,21 @@ void MixedMRFModel::update_Kyy_offdiag(int i, int j) {
 
     double ln_alpha = log_ggm_ratio_edge(i, j);
 
+    // Marginal mode: add OMRF ratio with proposed Theta
+    if(use_marginal_pl_) {
+        for(size_t s = 0; s < p_; ++s)
+            ln_alpha -= log_marginal_omrf(s);
+
+        arma::mat Theta_saved = Theta_;
+        arma::mat Kyy_saved = Kyy_;
+        Kyy_ = precision_yy_proposal_;
+        recompute_Theta();
+        for(size_t s = 0; s < p_; ++s)
+            ln_alpha += log_marginal_omrf(s);
+        Kyy_ = Kyy_saved;
+        Theta_ = std::move(Theta_saved);
+    }
+
     // Prior ratio: Cauchy on off-diag + Gamma(1,1) on diagonal
     ln_alpha += R::dcauchy(omega_prop_ij, 0.0, pairwise_scale_, true);
     ln_alpha -= R::dcauchy(Kyy_(i, j), 0.0, pairwise_scale_, true);
@@ -405,6 +443,21 @@ void MixedMRFModel::update_Kyy_diag(int i) {
 
     double ln_alpha = log_ggm_ratio_diag(i);
 
+    // Marginal mode: add OMRF ratio with proposed Theta
+    if(use_marginal_pl_) {
+        for(size_t s = 0; s < p_; ++s)
+            ln_alpha -= log_marginal_omrf(s);
+
+        arma::mat Theta_saved = Theta_;
+        arma::mat Kyy_saved = Kyy_;
+        Kyy_ = precision_yy_proposal_;
+        recompute_Theta();
+        for(size_t s = 0; s < p_; ++s)
+            ln_alpha += log_marginal_omrf(s);
+        Kyy_ = Kyy_saved;
+        Theta_ = std::move(Theta_saved);
+    }
+
     // Prior ratio: Gamma(1,1) on diagonal
     ln_alpha += R::dgamma(precision_yy_proposal_(i, i), 1.0, 1.0, true);
     ln_alpha -= R::dgamma(Kyy_(i, i), 1.0, 1.0, true);
@@ -436,23 +489,37 @@ void MixedMRFModel::update_Kxy(int i, int j) {
     double proposed = rnorm(rng_, current_val, prop_sd_Kxy_(i, j));
 
     // Current log-posterior
-    double ll_curr = log_conditional_omrf(i) + log_conditional_ggm()
+    double ll_curr = log_conditional_ggm()
                    + R::dcauchy(current_val, 0.0, pairwise_scale_, true);
+    if(use_marginal_pl_) {
+        for(size_t s = 0; s < p_; ++s)
+            ll_curr += log_marginal_omrf(s);
+    } else {
+        ll_curr += log_conditional_omrf(i);
+    }
 
-    // Set proposed value and refresh conditional_mean_
+    // Set proposed value and refresh caches
     arma::mat cond_mean_saved = conditional_mean_;
+    arma::mat Theta_saved;
+    if(use_marginal_pl_) Theta_saved = Theta_;
     Kxy_(i, j) = proposed;
     recompute_conditional_mean();
+    if(use_marginal_pl_) recompute_Theta();
 
-    double ll_prop = log_conditional_omrf(i) + log_conditional_ggm()
+    double ll_prop = log_conditional_ggm()
                    + R::dcauchy(proposed, 0.0, pairwise_scale_, true);
+    if(use_marginal_pl_) {
+        for(size_t s = 0; s < p_; ++s)
+            ll_prop += log_marginal_omrf(s);
+    } else {
+        ll_prop += log_conditional_omrf(i);
+    }
 
     double ln_alpha = ll_prop - ll_curr;
 
     if(std::log(runif(rng_)) >= ln_alpha) {
         Kxy_(i, j) = current_val;  // reject
         conditional_mean_ = std::move(cond_mean_saved);
-    } else if(use_marginal_pl_) {
-        recompute_Theta();
+        if(use_marginal_pl_) Theta_ = std::move(Theta_saved);
     }
 }

@@ -355,6 +355,9 @@ private:
     /** Conditional OMRF pseudolikelihood for discrete variable s, summed over all n. */
     double log_conditional_omrf(int s) const;
 
+    /** Marginal OMRF pseudolikelihood for discrete variable s, using Theta_. */
+    double log_marginal_omrf(int s) const;
+
     /** Conditional GGM log-likelihood: log f(y | x), using cached decomposition. */
     double log_conditional_ggm() const;
 
