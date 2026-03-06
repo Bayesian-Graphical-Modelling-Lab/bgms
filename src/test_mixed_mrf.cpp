@@ -161,3 +161,53 @@ Rcpp::List test_mixed_mrf_likelihoods(
         Rcpp::Named("ggm_ll") = ggm_ll
     );
 }
+
+
+// [[Rcpp::export]]
+Rcpp::List test_mixed_mrf_sampler(
+    const arma::imat& discrete_observations,
+    const arma::mat& continuous_observations,
+    const arma::ivec& num_categories,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& baseline_category,
+    const arma::mat& inclusion_probability,
+    const arma::imat& initial_edge_indicators,
+    bool edge_selection,
+    const std::string& pseudolikelihood,
+    int n_warmup,
+    int n_samples,
+    int seed
+) {
+    MixedMRFModel model(
+        discrete_observations,
+        continuous_observations,
+        num_categories,
+        is_ordinal_variable,
+        baseline_category,
+        inclusion_probability,
+        initial_edge_indicators,
+        edge_selection,
+        pseudolikelihood,
+        1.0, 1.0, 2.5,
+        seed
+    );
+
+    size_t full_dim = model.full_parameter_dimension();
+
+    // Warmup (discard samples)
+    for(int iter = 0; iter < n_warmup; ++iter) {
+        model.do_one_metropolis_step(iter);
+    }
+
+    // Sampling
+    arma::mat samples(n_samples, full_dim);
+    for(int iter = 0; iter < n_samples; ++iter) {
+        model.do_one_metropolis_step(n_warmup + iter);
+        samples.row(iter) = model.get_full_vectorized_parameters().t();
+    }
+
+    return Rcpp::List::create(
+        Rcpp::Named("samples") = samples,
+        Rcpp::Named("full_parameter_dimension") = full_dim
+    );
+}

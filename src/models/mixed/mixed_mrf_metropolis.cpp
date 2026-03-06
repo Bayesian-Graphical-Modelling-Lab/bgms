@@ -169,10 +169,14 @@ static CholConstants get_constants(const arma::mat& L, int q) {
         c1 += L(k, qm1) * L(k, qm2);
     }
     double c2 = L(qm2, qm2);
+    // c3 excludes only row qm2 (the row being modified), not qm1.
+    // In R: sum(cholm[-(q-1), q]^2)  — excludes row q-1 (1-based) = row qm2 (0-based).
+    // Must include L(qm1, qm1) (the diagonal entry of the last row).
     double c3 = 0.0;
     for(int k = 0; k < qm2; ++k) {
         c3 += L(k, qm1) * L(k, qm1);
     }
+    c3 += L(qm1, qm1) * L(qm1, qm1);  // diagonal entry
     double c4 = c3 + c1 * c1 / (c2 * c2);
 
     return {c1, c2, c3, c4};

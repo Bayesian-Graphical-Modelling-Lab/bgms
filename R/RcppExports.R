@@ -65,3 +65,7 @@ test_mixed_mrf_likelihoods <- function(discrete_observations, continuous_observa
     .Call(`_bgms_test_mixed_mrf_likelihoods`, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, inclusion_probability, initial_edge_indicators, edge_selection, pseudolikelihood, params, seed)
 }
 
+test_mixed_mrf_sampler <- function(discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, inclusion_probability, initial_edge_indicators, edge_selection, pseudolikelihood, n_warmup, n_samples, seed) {
+    .Call(`_bgms_test_mixed_mrf_sampler`, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, inclusion_probability, initial_edge_indicators, edge_selection, pseudolikelihood, n_warmup, n_samples, seed)
+}
+
