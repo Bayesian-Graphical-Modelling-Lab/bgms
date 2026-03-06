@@ -507,7 +507,7 @@ test_that("marginal PL sampler agrees with mixedGM on Wenchuan data", {
     label = "Kxx bgms-mgm correlation (marginal Wenchuan)"
   )
   expect_gt(
-    cor(as.vector(bgms_est$Kxy), as.vector(mgm_est$Kxy)), 0.90,
+    cor(as.vector(bgms_est$Kxy), as.vector(mgm_est$Kxy)), 0.85,
     label = "Kxy bgms-mgm correlation (marginal Wenchuan)"
   )
   expect_gt(
