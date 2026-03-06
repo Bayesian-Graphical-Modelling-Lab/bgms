@@ -78,15 +78,16 @@ OMRF code directly rather than ported from mixedGM (see §1 and Phase B/C).
 5. [Implementation phases](#5-implementation-phases)
 6. [Phase A — Skeleton and data structures](#phase-a--skeleton-and-data-structures)
 7. [Phase B — Conditional pseudo-likelihood](#phase-b--conditional-pseudo-likelihood)
-8. [Phase C — Marginal pseudo-likelihood](#phase-c--marginal-pseudo-likelihood)
-9. [Phase D — Edge selection](#phase-d--edge-selection)
-10. [Phase E — R interface and integration](#phase-e--r-interface-and-integration)
-11. [Phase F — Warmup, adaptation, and diagnostics](#phase-f--warmup-adaptation-and-diagnostics)
-12. [Phase G — Simulation and prediction](#phase-g--simulation-and-prediction)
-13. [Testing strategy](#testing-strategy)
-14. [Reuse inventory](#reuse-inventory)
-15. [Risk register](#risk-register)
-16. [PR and commit strategy](#pr-and-commit-strategy)
+8. [Phase B+ — Rank-1 Cholesky optimization](#phase-b--rank-1-cholesky-optimization)
+9. [Phase C — Marginal pseudo-likelihood](#phase-c--marginal-pseudo-likelihood)
+10. [Phase D — Edge selection](#phase-d--edge-selection)
+11. [Phase E — R interface and integration](#phase-e--r-interface-and-integration)
+12. [Phase F — Warmup, adaptation, and diagnostics](#phase-f--warmup-adaptation-and-diagnostics)
+13. [Phase G — Simulation and prediction](#phase-g--simulation-and-prediction)
+14. [Testing strategy](#testing-strategy)
+15. [Reuse inventory](#reuse-inventory)
+16. [Risk register](#risk-register)
+17. [PR and commit strategy](#pr-and-commit-strategy)
 
 ---
 
@@ -308,9 +309,10 @@ add the new Rcpp export to `src/RcppExports.cpp`, `R/RcppExports.R`, and
 |-------|------|------------|-------------|
 | **A** | Skeleton: class, data structures, `BaseModel` overrides | — | Compiles, no sampling |
 | **B** | Conditional PL: all 5 MH updates, no edge selection | A | Recovery test passes (cond PL, estimation only) |
-| **C** | Marginal PL: $\Theta$ caching, marginal OMRF, $\mu_y$ full sweep | B | Recovery test passes (marg PL, estimation only) |
-| **D** | Edge selection: 3 RJ sweeps | B | Structure recovery test passes |
-| **E** | R interface: `bgm()` dispatch, output formatting | B | End-to-end `bgm(mixed_data)` works |
+| **B+** | Rank-1 Cholesky optimization for Kyy updates | B | Same correctness, $O(q^2)$ per Kyy move instead of $O(q^3)$ |
+| **C** | Marginal PL: $\Theta$ caching, marginal OMRF, $\mu_y$ full sweep | B+ | Recovery test passes (marg PL, estimation only) |
+| **D** | Edge selection: 3 RJ sweeps | B+ | Structure recovery test passes |
+| **E** | R interface: `bgm()` dispatch, output formatting | B+ | End-to-end `bgm(mixed_data)` works |
 | **F** | Warmup schedule, adaptation, diagnostics | E | Full warmup pipeline |
 | **G** | Simulation and prediction | E | `simulate.bgms` and `predict.bgms` for mixed |
 
@@ -690,6 +692,11 @@ conditional mean depends on $K_{yy}^{-1}$, so each proposal evaluates the
 full `log_conditional_ggm()` with freshly computed `Kyy_inv_` and
 `conditional_mean_`.
 
+**Status (Phase B):** The current implementation follows the mixedGM
+permute-then-Cholesky approach ($O(q^3)$ per Kyy move). Phase B+ replaces
+this with the GGM's rank-1 infrastructure to bring it down to $O(q^2)$.
+See [Phase B+](#phase-b--rank-1-cholesky-optimization) for the detailed plan.
+
 **Jacobian for diagonal Kyy proposals.** The diagonal element is proposed
 on the log scale to guarantee positivity:
 ```
@@ -777,6 +784,301 @@ void MixedMRFModel::do_one_metropolis_step(int iteration) {
 - Check posterior means recover true parameters (correlation > 0.9)
 - Use `dev/plans/mixedMRF/mixedGM/dev/conditional_vs_marginal_pl.R`
   as template
+
+---
+
+## Phase B+ — Rank-1 Cholesky optimization
+
+The Phase B implementation ports the mixedGM permute-then-Cholesky approach
+for $K_{yy}$ updates: each proposal calls `arma::chol` ($O(q^3)$), evaluates
+the full `log_conditional_ggm()` twice (proposed and current), and recomputes
+all caches from scratch on acceptance. The GGM model avoids this entirely
+with rank-1 Cholesky updates, log-likelihood ratios via the matrix
+determinant lemma, and cached covariance. Phase B+ brings the same
+infrastructure to the mixed model.
+
+**Design decision: Cholesky over Woodbury.**  An alternative is to
+maintain only $(K_{yy}, \Sigma_{yy}, \log|K_{yy}|)$ and update
+$\Sigma_{yy}$ directly via the Woodbury identity, dropping the Cholesky
+factor entirely (fewer members, simpler code).  The asymptotic cost is
+identical — both eliminate the $O(q^3)$ bottleneck — but the Cholesky
+factor provides a structural positive-definiteness guarantee between
+periodic full recomputes, while a Woodbury-only covariance can silently
+lose symmetry or PD from floating-point drift.  We therefore keep the
+Cholesky factor.  The Woodbury-only variant remains a future option to
+investigate if profiling shows the Cholesky maintenance constant matters.
+
+### B+.0 Why this matters now
+
+Every subsequent phase (C, D, E, F) exercises $K_{yy}$ updates. Marginal PL
+(Phase C) adds $\sum_s$ `marg_omrf(s)` to every $K_{yy}$ acceptance ratio,
+and edge selection (Phase D) adds Cholesky-based birth/death moves for
+$G_{yy}$. Optimizing $K_{yy}$ after those phases are built means
+retrofitting the rank-1 machinery into more code paths. Doing it now, while
+only `update_Kyy_offdiag` and `update_Kyy_diag` exist, is cleaner.
+
+### B+.1 Add GGM-style member variables
+
+New members in `MixedMRFModel` (mirroring `GGMModel`):
+
+```cpp
+// --- Cholesky workspace (Phase B+) ---
+arma::mat covariance_yy_;            // q × q  Kyy^{-1}, replaces Kyy_inv_
+arma::mat inv_cholesky_yy_;          // q × q  R^{-1} where Kyy = R'R
+std::array<double, 6> kyy_constants_; // reparametrization constants
+arma::mat precision_yy_proposal_;    // q × q  scratch for proposed Kyy
+arma::vec v1_, v2_;                  // 2-vectors for rank-2 decomposition
+arma::vec vf1_, vf2_;               // q-vectors (full-size update vectors)
+arma::vec u1_, u2_;                  // q-vectors (decomposed rank-1 vectors)
+```
+
+`Kyy_inv_` is renamed to `covariance_yy_` for clarity (it is the covariance
+$\Sigma_{yy} = K_{yy}^{-1}$).  `Kyy_chol_` is retained as the upper
+Cholesky factor.
+
+### B+.2 Port `get_constants` and `constrained_diagonal` (no-permutation form)
+
+Replace the current permutation-based `get_constants(const arma::mat& L,
+int q)` and `constrained_diagonal(double omega, const CholConstants& C)`
+with the GGM's direct-indexing approach that reads constants from
+`covariance_yy_` without permuting:
+
+```cpp
+void MixedMRFModel::get_kyy_constants(int i, int j) {
+    double logdet = get_log_det(Kyy_chol_);
+    double log_adj_ii = logdet + std::log(std::abs(covariance_yy_(i, i)));
+    double log_adj_ij = logdet + std::log(std::abs(covariance_yy_(i, j)));
+    double log_adj_jj = logdet + std::log(std::abs(covariance_yy_(j, j)));
+
+    double inv_sub = compute_inv_submatrix_i(covariance_yy_, i, j, j);
+    double log_abs_inv_sub = log_adj_ii + std::log(std::abs(inv_sub));
+
+    double Phi_q1q  = (2 * std::signbit(covariance_yy_(i, j)) - 1)
+                    * std::exp(log_adj_ij - (log_adj_jj + log_abs_inv_sub) / 2);
+    double Phi_q1q1 = std::exp((log_adj_jj - log_abs_inv_sub) / 2);
+
+    kyy_constants_[0] = Phi_q1q;
+    kyy_constants_[1] = Phi_q1q1;
+    kyy_constants_[2] = Kyy_(i, j) - Phi_q1q * Phi_q1q1;   // c1
+    kyy_constants_[3] = Phi_q1q1;                           // c2
+    kyy_constants_[4] = Kyy_(j, j) - Phi_q1q * Phi_q1q;    // c3
+    kyy_constants_[5] = kyy_constants_[4]
+                      + kyy_constants_[2] * kyy_constants_[2]
+                      / (kyy_constants_[3] * kyy_constants_[3]); // c4
+}
+```
+
+This is `GGMModel::get_constants` operating on the $q \times q$ precision
+and covariance pair instead of the GGM's $p \times p$ pair.  The helper
+`compute_inv_submatrix_i` and `get_log_det` are reused directly from
+`GGMModel` (they are pure algebra with no model-specific state).
+
+### B+.3 Implement `log_ggm_ratio_edge(int i, int j)` — rank-2 log-LR
+
+The GGM's `log_density_impl_edge` computes the log-likelihood **ratio**
+for a 2-element change $\Delta\omega_{ij}, \Delta\omega_{jj}$ using the
+matrix determinant lemma. The formula involves:
+
+1. **Log-determinant ratio** from the $2 \times 2$ Schur complement.
+2. **Trace ratio** from the sufficient statistic $S = X^\top X$.
+
+For the mixed model's conditional GGM, the sufficient statistic is
+$S^* = D^\top D$ where $D = Y - M$.  The key question is whether $S^*$
+remains fixed when only $K_{yy}$ changes.
+
+**It does not.**  The conditional mean $M = \mathbf{1}\mu_y^\top + 2\,X\,K_{xy}\,K_{yy}^{-1}$ depends on $K_{yy}^{-1}$.  However, the
+Cholesky-based proposal changes $K_{yy}$ by a structured rank-2
+perturbation (off-diagonal + constrained diagonal), and the
+corresponding rank-2 change in $K_{yy}^{-1}$ (via the Woodbury identity)
+can be computed in $O(q)$ from the update vectors.
+
+The `log_ggm_ratio_edge` function therefore:
+
+1. Computes the log-det ratio using the same $2 \times 2$ determinant
+   lemma as the GGM: $O(q)$ from covariance entries.
+2. Computes the proposed covariance $\Sigma'_{yy}$ via rank-2 Woodbury
+   update on `covariance_yy_`: $O(q^2)$.
+3. Computes the proposed conditional mean $M' = \mathbf{1}\mu_y^\top +
+   2\,X\,K_{xy}\,\Sigma'_{yy}$: $O(npq)$ (matrix multiply, but this is
+   the same cost as `recompute_conditional_mean` so no regression).
+4. Computes the proposed quadratic form $\text{tr}(K'_{yy} (Y-M')^\top (Y-M'))$
+   using the proposed precision and residuals.
+5. Returns the full log-likelihood ratio including both log-det and
+   quadratic-form changes.
+
+The initial implementation recomputes the full conditional mean
+$M'$, making step 3 the bottleneck at $O(npq)$.  Step B+.10 eliminates
+this by exploiting the rank-2 structure of $\Sigma'_{yy} - \Sigma_{yy}$.
+
+### B+.4 Implement `log_ggm_ratio_diag(int i)` — rank-1 log-LR
+
+Same approach as B+.3 but for a diagonal-only change.  The rank-1 case
+is simpler (1 × 1 Schur complement, single Woodbury vector).  Mirrors
+`GGMModel::log_density_impl_diag`.
+
+### B+.5 Implement rank-1 Cholesky update after acceptance
+
+Port `GGMModel::cholesky_update_after_edge` and
+`cholesky_update_after_diag` to operate on `Kyy_chol_`,
+`inv_cholesky_yy_`, and `covariance_yy_`:
+
+```cpp
+void MixedMRFModel::cholesky_update_after_kyy_edge(
+    double omega_ij_old, double omega_jj_old, int i, int j)
+{
+    // Decompose rank-2 Omega change into 2 rank-1 ops (same as GGM)
+    v2_[0] = omega_ij_old - precision_yy_proposal_(i, j);
+    v2_[1] = (omega_jj_old - precision_yy_proposal_(j, j)) / 2;
+    vf1_[i] = v1_[0];  vf1_[j] = v1_[1];
+    vf2_[i] = v2_[0];  vf2_[j] = v2_[1];
+    u1_ = (vf1_ + vf2_) / std::sqrt(2.0);
+    u2_ = (vf1_ - vf2_) / std::sqrt(2.0);
+
+    cholesky_update(Kyy_chol_, u1_);
+    cholesky_downdate(Kyy_chol_, u2_);
+
+    arma::inv(inv_cholesky_yy_, arma::trimatu(Kyy_chol_));
+    covariance_yy_ = inv_cholesky_yy_ * inv_cholesky_yy_.t();
+    Kyy_log_det_ = get_log_det(Kyy_chol_);
+
+    vf1_[i] = 0; vf1_[j] = 0;
+    vf2_[i] = 0; vf2_[j] = 0;
+}
+```
+
+The Cholesky update/downdate calls are $O(q^2)$ each.  Inverting the
+triangular factor and forming `covariance_yy_` is also $O(q^2)$ (back-
+substitution + symmetric product).  Total: $O(q^2)$ vs. the current
+$O(q^3)$.
+
+After the Cholesky update, recompute `conditional_mean_` (and `Theta_`
+if marginal PL) as before — those are independent of the Cholesky
+strategy.
+
+### B+.6 Rewrite `update_Kyy_offdiag` and `update_Kyy_diag`
+
+Replace the permute-then-Cholesky implementation with:
+
+```
+update_Kyy_offdiag(i, j):
+    get_kyy_constants(i, j)
+    propose phi' ~ N(Phi_q1q, sigma)
+    map to omega'_ij, omega'_jj via constrained_diagonal
+    fill precision_yy_proposal_
+    ln_alpha = log_ggm_ratio_edge(i, j)  // rank-2 log-LR
+    + prior ratio (Cauchy off-diag + Gamma diag)
+    if accept:
+        old_ij = Kyy_(i,j); old_jj = Kyy_(j,j)
+        Kyy_ = precision_yy_proposal_ (only 3 entries changed)
+        cholesky_update_after_kyy_edge(old_ij, old_jj, i, j)
+        recompute_conditional_mean()
+        if marginal: recompute_Theta()
+```
+
+The current save-evaluate-restore-evaluate-compare pattern is replaced
+by a single log-ratio call.  No full `log_conditional_ggm()` evaluation
+is needed.
+
+### B+.7 Remove permutation helpers
+
+Delete `make_perm_offdiag`, `make_perm_diag`, `permute_matrix`,
+`get_constants(const arma::mat& L, int q)`, `constrained_diagonal(double,
+CholConstants)`, and the `CholConstants` struct from
+`mixed_mrf_metropolis.cpp`.  They are fully superseded by the GGM-style
+functions.
+
+### B+.8 Functions reused from GGM
+
+| Function | Source | Reuse form |
+|----------|--------|------------|
+| `cholesky_update` / `cholesky_downdate` | `cholupdate.h` | Direct call |
+| `get_log_det` | `GGMModel` | Copy as free function or method |
+| `compute_inv_submatrix_i` | `GGMModel` | Copy as free function or method |
+| `constrained_diagonal` (GGM form) | `GGMModel` | Adapted as `kyy_constrained_diagonal` |
+
+`get_log_det` and `compute_inv_submatrix_i` are currently private methods
+of `GGMModel`.  They are pure algebra with no model state.  Options:
+
+- **(a)** Extract to a shared utility header (`src/math/cholesky_helpers.h`)
+  and include from both models.
+- **(b)** Duplicate as private methods on `MixedMRFModel`.
+
+Option (a) is preferred (avoids code duplication and makes the shared
+algebra explicit), but option (b) is acceptable if the extraction touches
+too many files for this phase.
+
+### B+.9 Testing checkpoint
+
+**Correctness (non-negotiable):**
+- Existing `test-mixed-mrf-likelihoods.R` must still pass unchanged
+  (likelihood functions are not modified).
+- Existing `test-mixed-mrf-sampling.R` must still pass (recovery results
+  must be identical at the same seed).
+- New test: for a known $K_{yy}$ proposal, verify that `log_ggm_ratio_edge`
+  equals `log_conditional_ggm(proposed) - log_conditional_ggm(current)`
+  to machine precision (T28).
+- New test: verify rank-1 Cholesky update produces the same
+  `Kyy_chol_`, `covariance_yy_`, `Kyy_log_det_` as a full recompute (T29).
+
+**Performance (informational):**
+- Benchmark `update_Kyy_offdiag` before and after on a $q = 20$ problem.
+  Expected speedup: order of magnitude for the Cholesky portion.
+
+### B+.10 Rank-2 quadratic-form shortcut
+
+After B+.3–B+.6 are working, the remaining bottleneck in
+`log_ggm_ratio_edge` is the $O(npq)$ conditional-mean recompute (step 3)
+followed by the $O(nq^2)$ quadratic form (step 4).  Both can be reduced
+by exploiting the rank-2 structure of the covariance change.
+
+The Woodbury identity gives:
+
+$$\Sigma'_{yy} - \Sigma_{yy} = \Delta\Sigma$$
+
+where $\Delta\Sigma$ is a rank-2 matrix (it comes from the rank-2
+perturbation of $K_{yy}$).  The conditional-mean change is:
+
+$$\Delta M = M' - M = 2\,X\,K_{xy}\,\Delta\Sigma$$
+
+Since $\Delta\Sigma$ is rank 2, $\Delta M$ is an $n \times q$ matrix of
+rank at most 2.  Write $\Delta\Sigma = a\,b^\top + b\,a^\top$ (or its
+actual Woodbury form) and define the two $n$-vectors
+$g_1 = 2\,X\,K_{xy}\,a$ and $g_2 = 2\,X\,K_{xy}\,b$.  Then:
+
+$$\Delta M = g_1\,b^\top + g_2\,a^\top$$
+
+The proposed residual is $D' = D - \Delta M$.  The quadratic-form
+difference becomes:
+
+$$\text{tr}(K'_{yy}\,D'^\top D') - \text{tr}(K_{yy}\,D^\top D)
+  = \text{tr}(\Delta K_{yy}\,D^\top D)
+  - 2\,\text{tr}(K'_{yy}\,D^\top \Delta M)
+  + \text{tr}(K'_{yy}\,\Delta M^\top \Delta M)$$
+
+Each term can be evaluated without forming the full $n \times q$
+matrices $M'$ or $D'$:
+
+- $\text{tr}(\Delta K_{yy}\,D^\top D)$: $\Delta K_{yy}$ is nonzero at
+  3 entries, and $D^\top D$ is the cached sufficient statistic $S^*$.
+  Cost: $O(1)$.
+- $\text{tr}(K'_{yy}\,D^\top \Delta M)$: Compute $D^\top g_1$ and
+  $D^\top g_2$ ($O(nq)$ each), then contract with $K'_{yy} b$ and
+  $K'_{yy} a$ ($O(q^2)$ each).  Total: $O(nq)$.
+- $\text{tr}(K'_{yy}\,\Delta M^\top \Delta M)$: Inner products of
+  $g_1, g_2$ ($O(n)$ each) contracted with a $2 \times 2$ block from
+  $a^\top K'_{yy}\,b$ etc.  Total: $O(n + q^2)$.
+
+Overall cost: $O(nq)$ instead of $O(npq + nq^2)$.  This also eliminates
+the need to store the $n \times q$ proposed conditional mean.
+
+**Pre-condition:** $D^\top D$ (the current residual cross-product) must be
+cached.  Add a member `suf_stat_ggm_` ($q \times q$) updated after every
+accepted move that changes $K_{yy}$, $K_{xy}$, or $\mu_y$.
+
+**Testing:**
+- T30: For a known proposal, verify the shortcut quadratic-form difference
+  matches the brute-force computation to machine precision.
+- Existing T28 still covers end-to-end log-ratio agreement.
 
 ---
 
@@ -984,6 +1286,16 @@ denominator as needed.
 
 ## Phase E — R interface and integration
 
+### E.0 Remove `src/test_mixed_mrf.cpp`
+
+Delete `src/test_mixed_mrf.cpp` once `sample_mixed.cpp` provides the
+production Rcpp interface (E.1).  The test helpers
+(`test_mixed_mrf_skeleton`, `test_mixed_mrf_likelihoods`,
+`test_mixed_mrf_sampler`) were scaffolding for Phases A–B; their
+functionality is superseded by the real entry point and should not ship
+in the installed package.  Update `src/RcppExports.cpp` and
+`R/RcppExports.R` accordingly (re-run `Rcpp::compileAttributes()`).
+
 ### E.1 Create `sample_mixed.cpp`
 
 Rcpp interface function `sample_mixed_mrf_cpp(...)`:
@@ -1173,6 +1485,14 @@ Cross-reference the existing mixedGM test files for each scenario:
 | T11 | BC marginal OMRF | Same as T10 but for `log_marginal_omrf(s)` |
 | T12 | BC observation centering | Verify that centered observations + `compute_denom_blume_capel` produce the same result as the standalone `OMRFModel` |
 
+### Rank-1 Cholesky optimization tests (Phase B+)
+
+| Test | What | How |
+|------|------|-----|
+| T28 | Log-ratio agreement | For a known $K_{yy}$ off-diag proposal, verify `log_ggm_ratio_edge(i,j)` equals `log_conditional_ggm(proposed) - log_conditional_ggm(current)` to machine precision |
+| T29 | Cholesky update fidelity | After rank-1 update, verify `Kyy_chol_`, `covariance_yy_`, `Kyy_log_det_` match a full `arma::chol` / `arma::inv` recompute |
+| T30 | Rank-2 quadratic shortcut | For a known proposal, verify the B+.10 shortcut quadratic-form difference matches brute-force computation to machine precision |
+
 ### Integration tests (sampling correctness)
 
 | Test | What | How |
@@ -1235,6 +1555,10 @@ Cross-reference the existing mixedGM test files for each scenario:
 | Component | Source | Reuse type |
 |-----------|--------|------------|
 | Cholesky update/downdate | `src/models/ggm/cholupdate.h` | Direct include |
+| `get_log_det` | `GGMModel` | Extract to shared utility or copy (Phase B+) |
+| `compute_inv_submatrix_i` | `GGMModel` | Extract to shared utility or copy (Phase B+) |
+| Rank-2 log-LR pattern | `GGMModel::log_density_impl_edge` | Adapt for observation-dependent mean (Phase B+) |
+| Rank-2 Cholesky decomposition | `GGMModel::cholesky_update_after_edge` | Port to $q \times q$ Kyy workspace (Phase B+) |
 | Log-sum-exp stabilization | `OMRFModel::compute_logZ_*` | Adapt pattern |
 | Ordinal denominator | `src/utils/variable_helpers.{h,cpp}` `compute_denom_ordinal` | Direct call |
 | Blume-Capel denominator | `src/utils/variable_helpers.{h,cpp}` `compute_denom_blume_capel` | Direct call |
@@ -1256,7 +1580,7 @@ Cross-reference the existing mixedGM test files for each scenario:
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Kyy inversion per MH step is $O(q^3)$ | Slow for large $q$ | Cache `Kyy_inv_`; incremental rank-1 updates after Cholesky proposals |
+| Kyy inversion per MH step is $O(q^3)$ | Slow for large $q$ | Phase B+: rank-1 Cholesky updates + GGM-style log-ratio shortcut bring per-move cost to $O(q^2)$ |
 | Marginal PL $\mu_y$ update evaluates all $p$ OMRF terms | Slow for large $p$ | Cache rest-scores; provide conditional PL as faster default |
 | $\Theta$ recomputation after every $K_{yy}$/$K_{xy}$ change | $O(p^2 q + pq^2)$ | Defer $\Theta$ recompute to once per accepted move, not per-element; proposed-state uses a temporary (Phase B.2, C.3) |
 | Edge selection order effects | Bias | Shuffle edge order each iteration (already done in OMRF) |
@@ -1265,6 +1589,7 @@ Cross-reference the existing mixedGM test files for each scenario:
 | Factor 2 convention mismatch | Wrong posteriors | Document consistently; unit-test against R prototype |
 | PD violation during Kyy proposals | Crash | Cholesky-based proposals guarantee PD by construction |
 | Large parameter space mixing | Poor ESS | Per-parameter Robbins-Monro; future: block updates or HMC |
+| Cholesky maintenance constant | Moderate overhead for small $q$ | Investigate Woodbury-only covariance update (same asymptotics, fewer members, but weaker PD guarantee; see Phase B+ design decision) |
 | Blume-Capel not in prototype | No mixedGM reference for BC paths | Adapt from bgms `OMRFModel`; validated via OMRF-vs-mixed comparison tests (T10-T12) |
 
 ---
@@ -1309,6 +1634,10 @@ principle 1 (green build) and principle 2 (one logical concern).
 | 4 | `test` | `test: add mixed MRF likelihood unit tests` | B.1 | `test-mixed-mrf-likelihood.R`: T1–T3 (compare C++ vs R fixtures), T7 (analytic Gaussian), T10–T12 (BC-specific). |
 | 5 | `feat` | `feat: add conditional PL Metropolis updates` | B.3–B.4 | `mixed_mrf_metropolis.cpp`: 6 MH update functions (main effect, muy, Kxx, Kyy off-diag, Kyy diag, Kxy) + static Cholesky helpers + `do_one_metropolis_step` 5-step sweep. |
 | 6 | `test` | `test: add conditional PL recovery test` | B.5 | `test-mixed-mrf-sampling.R`: T13 (conditional PL parameter recovery, estimation only). |
+| 6a | `refactor` | `refactor: rank-1 Cholesky optimization for Kyy updates` | B+ | Replace permute-based $O(q^3)$ Kyy updates with GGM-style rank-1 infrastructure. Shared utility for `get_log_det` / `compute_inv_submatrix_i`. |
+| 6b | `test` | `test: add rank-1 Cholesky correctness tests` | B+ | T28 (log-ratio agreement), T29 (Cholesky update fidelity). Verify existing tests still pass at same seed. |
+| 6c | `refactor` | `refactor: rank-2 quadratic-form shortcut for Kyy log-ratio` | B+.10 | Exploit rank-2 structure of $\Delta\Sigma$ to reduce log-ratio cost from $O(npq + nq^2)$ to $O(nq)$. Cache `suf_stat_ggm_`. |
+| 6d | `test` | `test: add quadratic shortcut correctness test` | B+.10 | T30 (shortcut vs brute-force agreement). |
 | 7 | `feat` | `feat: add marginal PL mode and Theta caching` | C | `log_marginal_omrf`, Theta cache, marginal-mode branches in MH updates. |
 | 8 | `test` | `test: add marginal PL recovery and comparison tests` | C.5 | T14 (marginal PL recovery), T16 (cond vs marginal agreement). |
 | 9 | `feat` | `feat: add mixed MRF edge selection` | D | `mixed_mrf_edge_selection.cpp`: RJ sweeps for Kxx, Kyy, Kxy. `update_edge_indicators`, `initialize_graph`, `prepare_iteration`. |
