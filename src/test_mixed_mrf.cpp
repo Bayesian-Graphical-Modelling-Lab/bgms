@@ -203,22 +203,41 @@ Rcpp::List test_mixed_mrf_sampler(
 
     size_t full_dim = model.full_parameter_dimension();
 
-    // Warmup (discard samples)
+    // Warmup (discard samples, no edge selection yet)
     for(int iter = 0; iter < n_warmup; ++iter) {
+        model.prepare_iteration();
         model.do_one_metropolis_step(iter);
+    }
+
+    // Activate edge selection after warmup
+    if(edge_selection) {
+        model.set_edge_selection_active(true);
     }
 
     // Sampling
     arma::mat samples(n_samples, full_dim);
+    int num_indicators = model.get_num_pairwise();
+    arma::imat indicator_samples(n_samples, num_indicators);
+
     for(int iter = 0; iter < n_samples; ++iter) {
+        model.prepare_iteration();
         model.do_one_metropolis_step(n_warmup + iter);
         samples.row(iter) = model.get_full_vectorized_parameters().t();
+        if(edge_selection) {
+            indicator_samples.row(iter) = model.get_vectorized_indicator_parameters().t();
+        }
     }
 
-    return Rcpp::List::create(
+    Rcpp::List result = Rcpp::List::create(
         Rcpp::Named("samples") = samples,
         Rcpp::Named("full_parameter_dimension") = full_dim
     );
+
+    if(edge_selection) {
+        result["indicator_samples"] = indicator_samples;
+    }
+
+    return result;
 }
 
 

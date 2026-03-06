@@ -307,11 +307,11 @@ add the new Rcpp export to `src/RcppExports.cpp`, `R/RcppExports.R`, and
 
 | Phase | What | Depends on | Deliverable |
 |-------|------|------------|-------------|
-| **A** | Skeleton: class, data structures, `BaseModel` overrides | — | Compiles, no sampling |
-| **B** | Conditional PL: all 5 MH updates, no edge selection | A | Recovery test passes (cond PL, estimation only) |
-| **B+** | Rank-1 Cholesky optimization for Kyy updates | B | Same correctness, $O(q^2)$ per Kyy move instead of $O(q^3)$ |
-| **C** | Marginal PL: $\Theta$ caching, marginal OMRF, $\mu_y$ full sweep | B+ | Recovery test passes (marg PL, estimation only) |
-| **D** | Edge selection: 3 RJ sweeps | B+ | Structure recovery test passes |
+| **A** | Skeleton: class, data structures, `BaseModel` overrides | — | Compiles, no sampling | ✅ |
+| **B** | Conditional PL: all 5 MH updates, no edge selection | A | Recovery test passes (cond PL, estimation only) | ✅ |
+| **B+** | Rank-1 Cholesky optimization for Kyy updates | B | Same correctness, $O(q^2)$ per Kyy move instead of $O(q^3)$ | ✅ |
+| **C** | Marginal PL: $\Theta$ caching, marginal OMRF, $\mu_y$ full sweep | B+ | Recovery test passes (marg PL, estimation only) | ✅ |
+| **D** | Edge selection: 3 RJ sweeps | B+ | Structure recovery test passes | ✅ |
 | **E** | R interface: `bgm()` dispatch, output formatting | B+ | End-to-end `bgm(mixed_data)` works |
 | **F** | Warmup schedule, adaptation, diagnostics | E | Full warmup pipeline |
 | **G** | Simulation and prediction | E | `simulate.bgms` and `predict.bgms` for mixed |
@@ -1174,9 +1174,9 @@ in the two modes.
 
 ---
 
-## Phase D — Edge selection
+## Phase D — Edge selection ✅
 
-### D.1 Discrete edge selection (`update_edge_indicator_Kxx`)
+### D.1 Discrete edge selection (`update_edge_indicator_Kxx`) ✅
 
 For each pair $(i, j)$ with $i < j$:
 1. Propose $G'_{xx,ij} = 1 - G_{xx,ij}$
@@ -1197,7 +1197,7 @@ All log-density calls must use `log = true` to keep all terms on the log scale.
 Follows `cond_omrf_update_association_indicator_pair` in the R prototype.
 Transplant the Hastings terms verbatim from that R code; do not re-derive.
 
-### D.2 Continuous edge selection (`update_edge_indicator_Kyy`)
+### D.2 Continuous edge selection (`update_edge_indicator_Kyy`) ✅
 
 Cholesky-based birth/death as in `GGMModel`:
 1. Permute, Cholesky, extract constants
@@ -1213,7 +1213,7 @@ Follows `cond_ggm_update_precision_indicator_pair` in the R prototype.
 **Reuse opportunity:** Directly reuse `GGMModel::update_edge_indicator_parameter_pair`
 logic, adapted for the mixed model's conditional GGM likelihood.
 
-### D.3 Cross edge selection (`update_edge_indicator_Kxy`)
+### D.3 Cross edge selection (`update_edge_indicator_Kxy`) ✅
 
 Cross-edges $G_{xy,ij}$ share the same Bernoulli inclusion prior $\pi$ as
 $G_{xx}$ and $G_{yy}$ (decided).  A single $\pi$ keeps the SBM prior
@@ -1233,7 +1233,7 @@ For each pair $(i, j)$ where $i \in \{1..p\}$, $j \in \{1..q\}$:
 
 Follows `cond_omrf_update_cross_association_indicator_pair` in the R prototype.
 
-### D.4 Implement `update_edge_indicators()`
+### D.4 Implement `update_edge_indicators()` ✅
 
 ```cpp
 void MixedMRFModel::update_edge_indicators() {
@@ -1275,12 +1275,40 @@ require no special handling: the rest-score uses the centered
 observations, and the likelihood function dispatches to the Blume-Capel
 denominator as needed.
 
-### D.6 Testing checkpoint — edge selection
+### D.6 Testing checkpoint — edge selection ✅
 
 **Test 6 (T15): Structure recovery**
 - Generate data from a sparse mixed graph (some edges zero)
 - Run with edge selection, check posterior inclusion probabilities
   recover the true structure (true edges have high PIP, false edges low)
+
+### D.7 Pairwise prior standardization
+
+The pure OMRF scales the Cauchy slab prior per edge pair using
+`pairwise_scaling_factors_`, computed in `compute_scaling_factors()`.
+For two ordinal variables with $M_i$ and $M_j$ categories respectively,
+the factor is $M_i \times M_j$; for Blume-Capel pairs it is the maximum
+absolute product of the endpoint ranges; for mixed ordinal/Blume-Capel
+pairs it is the corresponding cross product.  This makes the prior
+comparable across variable pairs with different numbers of categories.
+
+The mixed MRF currently uses a single `pairwise_scale_` for all Kxx
+edges and does not apply per-pair scaling.  This must be fixed:
+
+1. **Add `pairwise_scaling_factors_xx_`** (p × p matrix) to
+   `MixedMRFModel`.  Kxy and Kyy edges are not scaled (continuous
+   variables have no category-count dependence; cross-type edges
+   couple a score in {0..M} with a continuous value, and the OMRF
+   does not scale cross-type edges either).
+2. **Compute the scaling factors** in the R interface layer (Phase E)
+   using the existing `compute_scaling_factors()` applied to the
+   discrete block, and pass them to `MixedMRFModel`.
+3. **Apply** `pairwise_scale_ * pairwise_scaling_factors_xx_(i, j)` in
+   `update_Kxx()`, `update_edge_indicator_Kxx()`, and anywhere
+   else the Cauchy slab prior appears for Kxx edges.
+4. **Test** that a model with variables of differing category counts
+   produces sensible edge estimates (no systematic bias toward
+   high-category pairs).
 
 ---
 

@@ -471,15 +471,92 @@ void MixedMRFModel::do_one_metropolis_step(int /*iteration*/) {
         for(size_t j = 0; j < q_; ++j)
             if(!edge_selection_active_ || gxy(i, j) == 1)
                 update_Kxy(i, j);
+
+    // Step 6: Edge selection (reversible-jump birth/death)
+    update_edge_indicators();
 }
 
 void MixedMRFModel::update_edge_indicators() {
-    // Phase D: reversible-jump edge birth/death moves
+    if(!edge_selection_active_) return;
+
+    // Discrete-discrete edges (shuffled order)
+    for(size_t e = 0; e < num_pairwise_xx_; ++e) {
+        size_t idx = edge_order_xx_(e);
+        // Decode upper-triangle index to (i, j)
+        size_t i = 0, j = 1;
+        size_t count = 0;
+        for(i = 0; i < p_ - 1; ++i) {
+            size_t row_len = p_ - 1 - i;
+            if(count + row_len > idx) {
+                j = i + 1 + (idx - count);
+                break;
+            }
+            count += row_len;
+        }
+        update_edge_indicator_Kxx(i, j);
+    }
+
+    // Continuous-continuous edges (shuffled order)
+    for(size_t e = 0; e < num_pairwise_yy_; ++e) {
+        size_t idx = edge_order_yy_(e);
+        size_t i = 0, j = 1;
+        size_t count = 0;
+        for(i = 0; i < q_ - 1; ++i) {
+            size_t row_len = q_ - 1 - i;
+            if(count + row_len > idx) {
+                j = i + 1 + (idx - count);
+                break;
+            }
+            count += row_len;
+        }
+        update_edge_indicator_Kyy(i, j);
+    }
+
+    // Cross edges (shuffled order)
+    for(size_t e = 0; e < num_cross_; ++e) {
+        size_t idx = edge_order_xy_(e);
+        size_t i = idx / q_;
+        size_t j = idx % q_;
+        update_edge_indicator_Kxy(i, j);
+    }
 }
 
 void MixedMRFModel::initialize_graph() {
-    // Phase D: random graph initialization for edge selection
-    // For now, start with all edges included (matching initial_edge_indicators)
+    // Draw initial graph from prior inclusion probabilities.
+    // Zero out parameters for excluded edges.
+    for(size_t i = 0; i < p_ - 1; ++i) {
+        for(size_t j = i + 1; j < p_; ++j) {
+            if(runif(rng_) >= inclusion_probability_(i, j)) {
+                set_gxx(i, j, 0);
+                Kxx_(i, j) = 0.0;
+                Kxx_(j, i) = 0.0;
+            }
+        }
+    }
+
+    for(size_t i = 0; i < q_ - 1; ++i) {
+        for(size_t j = i + 1; j < q_; ++j) {
+            if(runif(rng_) >= inclusion_probability_(p_ + i, p_ + j)) {
+                set_gyy(i, j, 0);
+                Kyy_(i, j) = 0.0;
+                Kyy_(j, i) = 0.0;
+            }
+        }
+    }
+    // Recompute Kyy decomposition after potential zeroing
+    recompute_Kyy_decomposition();
+    recompute_conditional_mean();
+
+    for(size_t i = 0; i < p_; ++i) {
+        for(size_t j = 0; j < q_; ++j) {
+            if(runif(rng_) >= inclusion_probability_(i, p_ + j)) {
+                set_gxy(i, j, 0);
+                Kxy_(i, j) = 0.0;
+            }
+        }
+    }
+    recompute_conditional_mean();
+    if(use_marginal_pl_) recompute_Theta();
 }
 
 void MixedMRFModel::prepare_iteration() {

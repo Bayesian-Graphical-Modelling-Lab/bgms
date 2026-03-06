@@ -408,6 +408,17 @@ private:
     /** Update one cross interaction: Kxy_(i, j). */
     void update_Kxy(int i, int j);
 
+    // --- Edge-indicator update sweeps (Phase D) ---
+
+    /** Reversible-jump birth/death for one Kxx edge (discrete-discrete). */
+    void update_edge_indicator_Kxx(int i, int j);
+
+    /** Reversible-jump birth/death for one Kyy edge (continuous-continuous). */
+    void update_edge_indicator_Kyy(int i, int j);
+
+    /** Reversible-jump birth/death for one Kxy edge (cross-type). */
+    void update_edge_indicator_Kxy(int i, int j);
+
     // =========================================================================
     // Edge-indicator accessor helpers
     // =========================================================================

@@ -523,3 +523,254 @@ void MixedMRFModel::update_Kxy(int i, int j) {
         if(use_marginal_pl_) Theta_ = std::move(Theta_saved);
     }
 }
+
+
+// =============================================================================
+// update_edge_indicator_Kxx
+// =============================================================================
+// Reversible-jump birth/death for a discrete-discrete edge (i, j).
+//   Birth (G=0→1): propose k ~ N(0, σ), accept with slab + Hastings.
+//   Death (G=1→0): set k = 0, accept with reverse terms.
+// Follows cond_omrf_update_association_indicator_pair in mixedGM.
+// =============================================================================
+
+void MixedMRFModel::update_edge_indicator_Kxx(int i, int j) {
+    double k_curr = Kxx_(i, j);
+    double prop_sd = prop_sd_Kxx_(i, j);
+
+    int g_curr = gxx(i, j);
+    int g_prop = 1 - g_curr;
+
+    double k_prop;
+    if(g_prop == 1) {
+        k_prop = rnorm(rng_, k_curr, prop_sd);  // k_curr = 0 on a true birth
+    } else {
+        k_prop = 0.0;
+    }
+
+    // --- Likelihood ratio ---
+    double ll_curr, ll_prop;
+    if(use_marginal_pl_) {
+        ll_curr = log_marginal_omrf(i) + log_marginal_omrf(j);
+
+        Kxx_(i, j) = k_prop;
+        Kxx_(j, i) = k_prop;
+        recompute_Theta();
+
+        ll_prop = log_marginal_omrf(i) + log_marginal_omrf(j);
+
+        // Restore
+        Kxx_(i, j) = k_curr;
+        Kxx_(j, i) = k_curr;
+        recompute_Theta();
+    } else {
+        ll_curr = log_conditional_omrf(i) + log_conditional_omrf(j);
+
+        Kxx_(i, j) = k_prop;
+        Kxx_(j, i) = k_prop;
+
+        ll_prop = log_conditional_omrf(i) + log_conditional_omrf(j);
+
+        // Restore
+        Kxx_(i, j) = k_curr;
+        Kxx_(j, i) = k_curr;
+    }
+
+    double ln_alpha = ll_prop - ll_curr;
+
+    if(g_prop == 1) {
+        // Birth: add slab prior, subtract proposal density, inclusion prior
+        ln_alpha += R::dcauchy(k_prop, 0.0, pairwise_scale_, true);
+        ln_alpha -= R::dnorm(k_prop, k_curr, prop_sd, true);
+        ln_alpha += std::log(inclusion_probability_(i, j))
+                  - std::log(1.0 - inclusion_probability_(i, j));
+    } else {
+        // Death: subtract slab prior, add reverse proposal density, inclusion prior
+        ln_alpha -= R::dcauchy(k_curr, 0.0, pairwise_scale_, true);
+        ln_alpha += R::dnorm(k_curr, k_prop, prop_sd, true);
+        ln_alpha -= std::log(inclusion_probability_(i, j))
+                  - std::log(1.0 - inclusion_probability_(i, j));
+    }
+
+    if(std::log(runif(rng_)) < ln_alpha) {
+        Kxx_(i, j) = k_prop;
+        Kxx_(j, i) = k_prop;
+        set_gxx(i, j, g_prop);
+        if(use_marginal_pl_) recompute_Theta();
+    }
+}
+
+
+// =============================================================================
+// update_edge_indicator_Kyy
+// =============================================================================
+// Reversible-jump birth/death for a continuous-continuous edge (i, j).
+// Uses Cholesky reparameterization (permute-free constants extraction).
+//   Birth (G=0→1): propose ε ~ N(0, σ), k = C[2]*ε, constrain diagonal.
+//   Death (G=1→0): set off-diag = 0, constrain diagonal.
+// Follows cond_ggm_update_precision_indicator_pair in mixedGM.
+// =============================================================================
+
+void MixedMRFModel::update_edge_indicator_Kyy(int i, int j) {
+    get_kyy_constants(i, j);
+
+    int g_curr = gyy(i, j);
+    int g_prop = 1 - g_curr;
+
+    double omega_prop_ij, omega_prop_jj;
+
+    if(g_prop == 1) {
+        // Birth: propose from N(0, σ) on reparameterized scale
+        double epsilon = rnorm(rng_, 0.0, prop_sd_Kyy_(i, j));
+        omega_prop_ij = kyy_constants_[3] * epsilon;
+        omega_prop_jj = kyy_constrained_diagonal(omega_prop_ij);
+    } else {
+        // Death: set off-diagonal to 0
+        omega_prop_ij = 0.0;
+        omega_prop_jj = kyy_constrained_diagonal(0.0);
+    }
+
+    // Fill proposal
+    precision_yy_proposal_ = Kyy_;
+    precision_yy_proposal_(i, j) = omega_prop_ij;
+    precision_yy_proposal_(j, i) = omega_prop_ij;
+    precision_yy_proposal_(j, j) = omega_prop_jj;
+
+    // --- Likelihood ratio ---
+    double ln_alpha = log_ggm_ratio_edge(i, j);
+
+    if(use_marginal_pl_) {
+        for(size_t s = 0; s < p_; ++s)
+            ln_alpha -= log_marginal_omrf(s);
+
+        arma::mat Theta_saved = Theta_;
+        arma::mat Kyy_saved = Kyy_;
+        Kyy_ = precision_yy_proposal_;
+        recompute_Theta();
+        for(size_t s = 0; s < p_; ++s)
+            ln_alpha += log_marginal_omrf(s);
+        Kyy_ = Kyy_saved;
+        Theta_ = std::move(Theta_saved);
+    }
+
+    // --- Spike-and-slab terms ---
+    if(g_prop == 1) {
+        // Birth: add slab prior on proposed off-diag
+        ln_alpha += R::dcauchy(omega_prop_ij, 0.0, pairwise_scale_, true);
+        // Subtract proposal density: dnorm(k_prop / C[2], 0, σ) / C[2]
+        // = dnorm(epsilon, 0, σ) / C[2]
+        ln_alpha -= R::dnorm(omega_prop_ij / kyy_constants_[3], 0.0,
+                             prop_sd_Kyy_(i, j), true)
+                  - std::log(kyy_constants_[3]);
+        // Inclusion prior: log(π / (1-π))
+        ln_alpha += std::log(inclusion_probability_(p_ + i, p_ + j))
+                  - std::log(1.0 - inclusion_probability_(p_ + i, p_ + j));
+    } else {
+        // Death: subtract slab prior on current off-diag
+        ln_alpha -= R::dcauchy(Kyy_(i, j), 0.0, pairwise_scale_, true);
+        // Add reverse proposal density: dnorm(k_curr / C[2], 0, σ) / C[2]
+        ln_alpha += R::dnorm(Kyy_(i, j) / kyy_constants_[3], 0.0,
+                             prop_sd_Kyy_(i, j), true)
+                  - std::log(kyy_constants_[3]);
+        // Inclusion prior: log((1-π) / π)
+        ln_alpha -= std::log(inclusion_probability_(p_ + i, p_ + j))
+                  - std::log(1.0 - inclusion_probability_(p_ + i, p_ + j));
+    }
+
+    if(std::log(runif(rng_)) < ln_alpha) {
+        double old_ij = Kyy_(i, j);
+        double old_jj = Kyy_(j, j);
+
+        Kyy_(i, j) = omega_prop_ij;
+        Kyy_(j, i) = omega_prop_ij;
+        Kyy_(j, j) = omega_prop_jj;
+
+        set_gyy(i, j, g_prop);
+        cholesky_update_after_kyy_edge(old_ij, old_jj, i, j);
+        recompute_conditional_mean();
+        if(use_marginal_pl_) recompute_Theta();
+    }
+}
+
+
+// =============================================================================
+// update_edge_indicator_Kxy
+// =============================================================================
+// Reversible-jump birth/death for a cross-type edge (i, j).
+//   Birth (G=0→1): propose k ~ N(0, σ).
+//   Death (G=1→0): set k = 0.
+// Follows cond_omrf_update_cross_association_indicator_pair in mixedGM.
+// =============================================================================
+
+void MixedMRFModel::update_edge_indicator_Kxy(int i, int j) {
+    double k_curr = Kxy_(i, j);
+    double prop_sd = prop_sd_Kxy_(i, j);
+
+    int g_curr = gxy(i, j);
+    int g_prop = 1 - g_curr;
+
+    double k_prop;
+    if(g_prop == 1) {
+        k_prop = rnorm(rng_, k_curr, prop_sd);  // k_curr = 0 on a true birth
+    } else {
+        k_prop = 0.0;
+    }
+
+    // --- Likelihood ratio ---
+    double ll_curr, ll_prop;
+    if(use_marginal_pl_) {
+        ll_curr = log_conditional_ggm();
+        for(size_t s = 0; s < p_; ++s)
+            ll_curr += log_marginal_omrf(s);
+
+        arma::mat cond_mean_saved = conditional_mean_;
+        arma::mat Theta_saved = Theta_;
+        Kxy_(i, j) = k_prop;
+        recompute_conditional_mean();
+        recompute_Theta();
+
+        ll_prop = log_conditional_ggm();
+        for(size_t s = 0; s < p_; ++s)
+            ll_prop += log_marginal_omrf(s);
+
+        // Restore
+        Kxy_(i, j) = k_curr;
+        conditional_mean_ = std::move(cond_mean_saved);
+        Theta_ = std::move(Theta_saved);
+    } else {
+        ll_curr = log_conditional_omrf(i) + log_conditional_ggm();
+
+        arma::mat cond_mean_saved = conditional_mean_;
+        Kxy_(i, j) = k_prop;
+        recompute_conditional_mean();
+
+        ll_prop = log_conditional_omrf(i) + log_conditional_ggm();
+
+        // Restore
+        Kxy_(i, j) = k_curr;
+        conditional_mean_ = std::move(cond_mean_saved);
+    }
+
+    double ln_alpha = ll_prop - ll_curr;
+
+    if(g_prop == 1) {
+        // Birth
+        ln_alpha += R::dcauchy(k_prop, 0.0, pairwise_scale_, true);
+        ln_alpha -= R::dnorm(k_prop, k_curr, prop_sd, true);
+        ln_alpha += std::log(inclusion_probability_(i, p_ + j))
+                  - std::log(1.0 - inclusion_probability_(i, p_ + j));
+    } else {
+        // Death
+        ln_alpha -= R::dcauchy(k_curr, 0.0, pairwise_scale_, true);
+        ln_alpha += R::dnorm(k_curr, k_prop, prop_sd, true);
+        ln_alpha -= std::log(inclusion_probability_(i, p_ + j))
+                  - std::log(1.0 - inclusion_probability_(i, p_ + j));
+    }
+
+    if(std::log(runif(rng_)) < ln_alpha) {
+        Kxy_(i, j) = k_prop;
+        set_gxy(i, j, g_prop);
+        recompute_conditional_mean();
+        if(use_marginal_pl_) recompute_Theta();
+    }
+}
