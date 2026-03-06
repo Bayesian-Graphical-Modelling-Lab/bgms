@@ -352,6 +352,27 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// test_mixed_mrf_cholesky
+Rcpp::List test_mixed_mrf_cholesky(const arma::imat& discrete_observations, const arma::mat& continuous_observations, const arma::ivec& num_categories, const arma::uvec& is_ordinal_variable, const arma::ivec& baseline_category, const arma::mat& inclusion_probability, const arma::imat& initial_edge_indicators, const arma::vec& params, int seed, int target_i, int target_j);
+RcppExport SEXP _bgms_test_mixed_mrf_cholesky(SEXP discrete_observationsSEXP, SEXP continuous_observationsSEXP, SEXP num_categoriesSEXP, SEXP is_ordinal_variableSEXP, SEXP baseline_categorySEXP, SEXP inclusion_probabilitySEXP, SEXP initial_edge_indicatorsSEXP, SEXP paramsSEXP, SEXP seedSEXP, SEXP target_iSEXP, SEXP target_jSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::imat& >::type discrete_observations(discrete_observationsSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type continuous_observations(continuous_observationsSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type num_categories(num_categoriesSEXP);
+    Rcpp::traits::input_parameter< const arma::uvec& >::type is_ordinal_variable(is_ordinal_variableSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type baseline_category(baseline_categorySEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type inclusion_probability(inclusion_probabilitySEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type initial_edge_indicators(initial_edge_indicatorsSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type params(paramsSEXP);
+    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
+    Rcpp::traits::input_parameter< int >::type target_i(target_iSEXP);
+    Rcpp::traits::input_parameter< int >::type target_j(target_jSEXP);
+    rcpp_result_gen = Rcpp::wrap(test_mixed_mrf_cholesky(discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, inclusion_probability, initial_edge_indicators, params, seed, target_i, target_j));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_bgms_run_bgmCompare_parallel", (DL_FUNC) &_bgms_run_bgmCompare_parallel, 38},
@@ -371,6 +392,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_test_mixed_mrf_skeleton", (DL_FUNC) &_bgms_test_mixed_mrf_skeleton, 10},
     {"_bgms_test_mixed_mrf_likelihoods", (DL_FUNC) &_bgms_test_mixed_mrf_likelihoods, 11},
     {"_bgms_test_mixed_mrf_sampler", (DL_FUNC) &_bgms_test_mixed_mrf_sampler, 12},
+    {"_bgms_test_mixed_mrf_cholesky", (DL_FUNC) &_bgms_test_mixed_mrf_cholesky, 11},
     {NULL, NULL, 0}
 };
 

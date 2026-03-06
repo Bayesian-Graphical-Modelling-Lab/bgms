@@ -211,3 +211,203 @@ Rcpp::List test_mixed_mrf_sampler(
         Rcpp::Named("full_parameter_dimension") = full_dim
     );
 }
+
+
+// =============================================================================
+// test_mixed_mrf_cholesky — T28 (log-ratio agreement) and T29 (Cholesky fidelity)
+// =============================================================================
+
+// [[Rcpp::export]]
+Rcpp::List test_mixed_mrf_cholesky(
+    const arma::imat& discrete_observations,
+    const arma::mat& continuous_observations,
+    const arma::ivec& num_categories,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& baseline_category,
+    const arma::mat& inclusion_probability,
+    const arma::imat& initial_edge_indicators,
+    const arma::vec& params,
+    int seed,
+    int target_i,
+    int target_j
+) {
+    MixedMRFModel model(
+        discrete_observations,
+        continuous_observations,
+        num_categories,
+        is_ordinal_variable,
+        baseline_category,
+        inclusion_probability,
+        initial_edge_indicators,
+        false,       // no edge selection
+        "conditional",
+        1.0, 1.0, 2.5,
+        seed
+    );
+
+    model.set_vectorized_parameters(params);
+
+    int q = static_cast<int>(model.q_);
+
+    // =========================================================================
+    // T28: log_ggm_ratio_edge vs brute-force log_conditional_ggm difference
+    // =========================================================================
+
+    // Current log-likelihood
+    double ggm_ll_curr = model.log_conditional_ggm();
+
+    // Extract reparameterization constants and build a deterministic proposal
+    model.get_kyy_constants(target_i, target_j);
+    double phi_curr = model.kyy_constants_[0];
+    double phi_prop = phi_curr + 0.05;  // small deterministic shift
+
+    double omega_prop_ij = model.kyy_constants_[2] + model.kyy_constants_[3] * phi_prop;
+    double omega_prop_jj = model.kyy_constrained_diagonal(omega_prop_ij);
+
+    model.precision_yy_proposal_ = model.Kyy_;
+    model.precision_yy_proposal_(target_i, target_j) = omega_prop_ij;
+    model.precision_yy_proposal_(target_j, target_i) = omega_prop_ij;
+    model.precision_yy_proposal_(target_j, target_j) = omega_prop_jj;
+
+    // Rank-2 log-ratio via new function
+    double ratio_rank2 = model.log_ggm_ratio_edge(target_i, target_j);
+
+    // Brute-force: install proposed Kyy, full recompute, evaluate
+    arma::mat Kyy_saved = model.Kyy_;
+    arma::mat cov_saved = model.covariance_yy_;
+    arma::mat chol_saved = model.Kyy_chol_;
+    arma::mat inv_chol_saved = model.inv_cholesky_yy_;
+    double logdet_saved = model.Kyy_log_det_;
+    arma::mat cmean_saved = model.conditional_mean_;
+
+    model.Kyy_ = model.precision_yy_proposal_;
+    model.recompute_Kyy_decomposition();
+    model.recompute_conditional_mean();
+    double ggm_ll_prop = model.log_conditional_ggm();
+
+    double ratio_bruteforce = ggm_ll_prop - ggm_ll_curr;
+
+    // =========================================================================
+    // T28b: log_ggm_ratio_diag vs brute-force
+    // =========================================================================
+
+    // Restore to current state
+    model.Kyy_ = Kyy_saved;
+    model.covariance_yy_ = cov_saved;
+    model.Kyy_chol_ = chol_saved;
+    model.inv_cholesky_yy_ = inv_chol_saved;
+    model.Kyy_log_det_ = logdet_saved;
+    model.conditional_mean_ = cmean_saved;
+
+    // Diagonal proposal: small shift on log-Cholesky scale
+    double logdet_curr = cholesky_helpers::get_log_det(model.Kyy_chol_);
+    double logdet_sub = logdet_curr + std::log(model.covariance_yy_(target_i, target_i));
+    double theta_curr = (logdet_curr - logdet_sub) / 2.0;
+    double theta_prop = theta_curr + 0.05;
+
+    model.precision_yy_proposal_ = model.Kyy_;
+    model.precision_yy_proposal_(target_i, target_i) = model.Kyy_(target_i, target_i)
+        - std::exp(theta_curr) * std::exp(theta_curr)
+        + std::exp(theta_prop) * std::exp(theta_prop);
+
+    double ratio_diag_rank1 = model.log_ggm_ratio_diag(target_i);
+
+    // Brute-force
+    model.Kyy_ = model.precision_yy_proposal_;
+    model.recompute_Kyy_decomposition();
+    model.recompute_conditional_mean();
+    double ggm_ll_diag_prop = model.log_conditional_ggm();
+
+    double ratio_diag_brute = ggm_ll_diag_prop - ggm_ll_curr;
+
+    // =========================================================================
+    // T29: Cholesky update fidelity — rank-2 edge update
+    // =========================================================================
+
+    // Restore to current state
+    model.Kyy_ = Kyy_saved;
+    model.covariance_yy_ = cov_saved;
+    model.Kyy_chol_ = chol_saved;
+    model.inv_cholesky_yy_ = inv_chol_saved;
+    model.Kyy_log_det_ = logdet_saved;
+    model.conditional_mean_ = cmean_saved;
+
+    // Re-fill off-diagonal proposal
+    model.precision_yy_proposal_ = model.Kyy_;
+    model.precision_yy_proposal_(target_i, target_j) = omega_prop_ij;
+    model.precision_yy_proposal_(target_j, target_i) = omega_prop_ij;
+    model.precision_yy_proposal_(target_j, target_j) = omega_prop_jj;
+
+    // Apply rank-1 Cholesky update
+    double old_ij = model.Kyy_(target_i, target_j);
+    double old_jj = model.Kyy_(target_j, target_j);
+    model.Kyy_(target_i, target_j) = omega_prop_ij;
+    model.Kyy_(target_j, target_i) = omega_prop_ij;
+    model.Kyy_(target_j, target_j) = omega_prop_jj;
+    model.cholesky_update_after_kyy_edge(old_ij, old_jj, target_i, target_j);
+
+    arma::mat chol_rank1 = model.Kyy_chol_;
+    arma::mat cov_rank1 = model.covariance_yy_;
+    double logdet_rank1 = model.Kyy_log_det_;
+
+    // Full recompute for ground truth
+    model.recompute_Kyy_decomposition();
+    arma::mat chol_full = model.Kyy_chol_;
+    arma::mat cov_full = model.covariance_yy_;
+    double logdet_full = model.Kyy_log_det_;
+
+    double chol_max_diff = arma::max(arma::max(arma::abs(chol_rank1 - chol_full)));
+    double cov_max_diff = arma::max(arma::max(arma::abs(cov_rank1 - cov_full)));
+    double logdet_diff = std::abs(logdet_rank1 - logdet_full);
+
+    // =========================================================================
+    // T29b: Cholesky update fidelity — rank-1 diagonal update
+    // =========================================================================
+
+    // Restore
+    model.Kyy_ = Kyy_saved;
+    model.covariance_yy_ = cov_saved;
+    model.Kyy_chol_ = chol_saved;
+    model.inv_cholesky_yy_ = inv_chol_saved;
+    model.Kyy_log_det_ = logdet_saved;
+
+    // Diagonal proposal (reuse from T28b)
+    model.precision_yy_proposal_ = model.Kyy_;
+    model.precision_yy_proposal_(target_i, target_i) = model.Kyy_(target_i, target_i)
+        - std::exp(theta_curr) * std::exp(theta_curr)
+        + std::exp(theta_prop) * std::exp(theta_prop);
+
+    double old_ii = model.Kyy_(target_i, target_i);
+    model.Kyy_(target_i, target_i) = model.precision_yy_proposal_(target_i, target_i);
+    model.cholesky_update_after_kyy_diag(old_ii, target_i);
+
+    arma::mat chol_diag_rank1 = model.Kyy_chol_;
+    arma::mat cov_diag_rank1 = model.covariance_yy_;
+    double logdet_diag_rank1 = model.Kyy_log_det_;
+
+    model.recompute_Kyy_decomposition();
+    arma::mat chol_diag_full = model.Kyy_chol_;
+    arma::mat cov_diag_full = model.covariance_yy_;
+    double logdet_diag_full = model.Kyy_log_det_;
+
+    double chol_diag_max_diff = arma::max(arma::max(arma::abs(chol_diag_rank1 - chol_diag_full)));
+    double cov_diag_max_diff = arma::max(arma::max(arma::abs(cov_diag_rank1 - cov_diag_full)));
+    double logdet_diag_diff = std::abs(logdet_diag_rank1 - logdet_diag_full);
+
+    return Rcpp::List::create(
+        // T28: off-diagonal log-ratio agreement
+        Rcpp::Named("ratio_rank2") = ratio_rank2,
+        Rcpp::Named("ratio_bruteforce") = ratio_bruteforce,
+        // T28b: diagonal log-ratio agreement
+        Rcpp::Named("ratio_diag_rank1") = ratio_diag_rank1,
+        Rcpp::Named("ratio_diag_brute") = ratio_diag_brute,
+        // T29: off-diagonal Cholesky fidelity
+        Rcpp::Named("chol_max_diff") = chol_max_diff,
+        Rcpp::Named("cov_max_diff") = cov_max_diff,
+        Rcpp::Named("logdet_diff") = logdet_diff,
+        // T29b: diagonal Cholesky fidelity
+        Rcpp::Named("chol_diag_max_diff") = chol_diag_max_diff,
+        Rcpp::Named("cov_diag_max_diff") = cov_diag_max_diff,
+        Rcpp::Named("logdet_diag_diff") = logdet_diag_diff
+    );
+}
