@@ -698,6 +698,123 @@ test_that("bgm GGM edge selection discriminates true edges", {
 
 # --- D.7: Conditional regression check ----------------------------------------
 
+# ==============================================================================
+# Mixed MRF End-to-End Tests
+# ==============================================================================
+
+test_that("bgm mixed MRF is reproducible", {
+  fit1 = get_bgms_fit_mixed_mrf()
+
+  set.seed(99)
+  n = 80
+  x = cbind(
+    sample(0:2, n, replace = TRUE),
+    rnorm(n),
+    sample(0:2, n, replace = TRUE),
+    rnorm(n),
+    sample(0:2, n, replace = TRUE)
+  )
+  colnames(x) = c("d1", "c1", "d2", "c2", "d3")
+
+  fit2 = bgm(
+    x = x,
+    variable_type = c("ordinal", "continuous", "ordinal",
+                      "continuous", "ordinal"),
+    edge_selection = TRUE,
+    iter = 50, warmup = 100, chains = 1,
+    seed = 77771,
+    display_progress = "none"
+  )
+
+  testthat::expect_equal(fit1$raw_samples$main, fit2$raw_samples$main)
+  testthat::expect_equal(fit1$raw_samples$pairwise, fit2$raw_samples$pairwise)
+})
+
+test_that("bgm mixed MRF output has correct dimensions", {
+  fit = get_bgms_fit_mixed_mrf()
+  args = extract_arguments(fit)
+  p_total = args$num_variables  # 5
+  p = 3L  # discrete
+  q = 2L  # continuous
+
+  # pairwise: p_total*(p_total-1)/2 edges
+  n_edges = p_total * (p_total - 1) / 2
+  expect_equal(nrow(fit$posterior_summary_pairwise), n_edges)
+  expect_equal(nrow(fit$posterior_mean_pairwise), p_total)
+  expect_equal(ncol(fit$posterior_mean_pairwise), p_total)
+
+  # indicators (edge selection = TRUE)
+  expect_equal(nrow(fit$posterior_summary_indicator), n_edges)
+  expect_equal(nrow(fit$posterior_mean_indicator), p_total)
+  expect_equal(ncol(fit$posterior_mean_indicator), p_total)
+
+  # posterior_mean_main: list with discrete and continuous
+  expect_true(is.list(fit$posterior_mean_main))
+  expect_equal(nrow(fit$posterior_mean_main$discrete), p)
+  expect_equal(nrow(fit$posterior_mean_main$continuous), q)
+  expect_equal(ncol(fit$posterior_mean_main$continuous), 2)  # mean + precision
+
+  # raw samples
+  expect_equal(ncol(fit$raw_samples$pairwise[[1]]), n_edges)
+  expect_equal(nrow(fit$raw_samples$main[[1]]), args$iter)
+})
+
+test_that("bgm mixed MRF without edge selection omits indicators", {
+  fit = get_bgms_fit_mixed_mrf_no_es()
+
+  expect_s3_class(fit, "bgms")
+  expect_null(fit$posterior_summary_indicator)
+  expect_null(fit$posterior_mean_indicator)
+})
+
+test_that("bgm mixed MRF pairwise matrix has correct variable names", {
+  fit = get_bgms_fit_mixed_mrf()
+
+  # Interleaved order: d1, c1, d2, c2, d3
+  expected_names = c("d1", "c1", "d2", "c2", "d3")
+  expect_equal(rownames(fit$posterior_mean_pairwise), expected_names)
+  expect_equal(colnames(fit$posterior_mean_pairwise), expected_names)
+  expect_equal(rownames(fit$posterior_mean_indicator), expected_names)
+  expect_equal(colnames(fit$posterior_mean_indicator), expected_names)
+})
+
+test_that("bgm mixed MRF pairwise matrix is symmetric", {
+  fit = get_bgms_fit_mixed_mrf()
+  expect_equal(fit$posterior_mean_pairwise, t(fit$posterior_mean_pairwise))
+  expect_equal(fit$posterior_mean_indicator, t(fit$posterior_mean_indicator))
+})
+
+test_that("bgm mixed MRF summary-matrix consistency", {
+  fit = get_bgms_fit_mixed_mrf()
+  expect_true(
+    all(check_summary_matrix_consistency(
+      fit$posterior_summary_pairwise,
+      fit$posterior_mean_pairwise
+    )),
+    info = "Mixed MRF pairwise summary names do not match matrix positions"
+  )
+  expect_true(
+    all(check_summary_matrix_consistency(
+      fit$posterior_summary_indicator,
+      fit$posterior_mean_indicator
+    )),
+    info = "Mixed MRF indicator summary names do not match matrix positions"
+  )
+})
+
+test_that("bgm mixed MRF posterior precision diagonals are positive", {
+  fit = get_bgms_fit_mixed_mrf_no_es()
+  expect_true(all(fit$posterior_mean_main$continuous[, "precision"] > 0))
+})
+
+test_that("bgm mixed MRF marginal pseudolikelihood runs", {
+  fit = get_bgms_fit_mixed_mrf_marginal()
+  expect_s3_class(fit, "bgms")
+  expect_equal(nrow(fit$posterior_mean_pairwise), 5)
+  expect_true(all(is.finite(fit$posterior_mean_pairwise)))
+})
+
+
 test_that("bgm GGM implied regression matches OLS for large n", {
   skip_on_cran()
 

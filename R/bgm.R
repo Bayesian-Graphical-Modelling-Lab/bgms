@@ -409,6 +409,7 @@ bgm = function(
   display_progress = c("per-chain", "total", "none"),
   seed = NULL,
   standardize = FALSE,
+  pseudolikelihood = c("conditional", "marginal"),
   verbose = getOption("bgms.verbose", TRUE),
   interaction_scale,
   burnin,
@@ -481,7 +482,8 @@ bgm = function(
     cores = cores,
     seed = seed,
     display_progress = display_progress,
-    verbose = verbose
+    verbose = verbose,
+    pseudolikelihood = pseudolikelihood
   )
 
   raw = run_sampler(spec)

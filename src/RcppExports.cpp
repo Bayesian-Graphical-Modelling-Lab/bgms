@@ -241,6 +241,33 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// sample_mixed_mrf
+Rcpp::List sample_mixed_mrf(const Rcpp::List& inputFromR, const arma::mat& prior_inclusion_prob, const arma::imat& initial_edge_indicators, const int no_iter, const int no_warmup, const int no_chains, const bool edge_selection, const int seed, const int no_threads, const int progress_type, const std::string& edge_prior, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double beta_bernoulli_alpha_between, const double beta_bernoulli_beta_between, const double dirichlet_alpha, const double lambda);
+RcppExport SEXP _bgms_sample_mixed_mrf(SEXP inputFromRSEXP, SEXP prior_inclusion_probSEXP, SEXP initial_edge_indicatorsSEXP, SEXP no_iterSEXP, SEXP no_warmupSEXP, SEXP no_chainsSEXP, SEXP edge_selectionSEXP, SEXP seedSEXP, SEXP no_threadsSEXP, SEXP progress_typeSEXP, SEXP edge_priorSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP beta_bernoulli_alpha_betweenSEXP, SEXP beta_bernoulli_beta_betweenSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type inputFromR(inputFromRSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type prior_inclusion_prob(prior_inclusion_probSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type initial_edge_indicators(initial_edge_indicatorsSEXP);
+    Rcpp::traits::input_parameter< const int >::type no_iter(no_iterSEXP);
+    Rcpp::traits::input_parameter< const int >::type no_warmup(no_warmupSEXP);
+    Rcpp::traits::input_parameter< const int >::type no_chains(no_chainsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type edge_selection(edge_selectionSEXP);
+    Rcpp::traits::input_parameter< const int >::type seed(seedSEXP);
+    Rcpp::traits::input_parameter< const int >::type no_threads(no_threadsSEXP);
+    Rcpp::traits::input_parameter< const int >::type progress_type(progress_typeSEXP);
+    Rcpp::traits::input_parameter< const std::string& >::type edge_prior(edge_priorSEXP);
+    Rcpp::traits::input_parameter< const double >::type beta_bernoulli_alpha(beta_bernoulli_alphaSEXP);
+    Rcpp::traits::input_parameter< const double >::type beta_bernoulli_beta(beta_bernoulli_betaSEXP);
+    Rcpp::traits::input_parameter< const double >::type beta_bernoulli_alpha_between(beta_bernoulli_alpha_betweenSEXP);
+    Rcpp::traits::input_parameter< const double >::type beta_bernoulli_beta_between(beta_bernoulli_beta_betweenSEXP);
+    Rcpp::traits::input_parameter< const double >::type dirichlet_alpha(dirichlet_alphaSEXP);
+    Rcpp::traits::input_parameter< const double >::type lambda(lambdaSEXP);
+    rcpp_result_gen = Rcpp::wrap(sample_mixed_mrf(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda));
+    return rcpp_result_gen;
+END_RCPP
+}
 // sample_omrf
 Rcpp::List sample_omrf(const Rcpp::List& inputFromR, const arma::mat& prior_inclusion_prob, const arma::imat& initial_edge_indicators, const int no_iter, const int no_warmup, const int no_chains, const bool edge_selection, const std::string& sampler_type, const int seed, const int no_threads, const int progress_type, const std::string& edge_prior, const bool na_impute, const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double beta_bernoulli_alpha_between, const double beta_bernoulli_beta_between, const double dirichlet_alpha, const double lambda, const double target_acceptance, const int max_tree_depth, const int num_leapfrogs, const Rcpp::Nullable<Rcpp::NumericMatrix> pairwise_scaling_factors_nullable);
 RcppExport SEXP _bgms_sample_omrf(SEXP inputFromRSEXP, SEXP prior_inclusion_probSEXP, SEXP initial_edge_indicatorsSEXP, SEXP no_iterSEXP, SEXP no_warmupSEXP, SEXP no_chainsSEXP, SEXP edge_selectionSEXP, SEXP sampler_typeSEXP, SEXP seedSEXP, SEXP no_threadsSEXP, SEXP progress_typeSEXP, SEXP edge_priorSEXP, SEXP na_imputeSEXP, SEXP missing_index_nullableSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP beta_bernoulli_alpha_betweenSEXP, SEXP beta_bernoulli_beta_betweenSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP, SEXP target_acceptanceSEXP, SEXP max_tree_depthSEXP, SEXP num_leapfrogsSEXP, SEXP pairwise_scaling_factors_nullableSEXP) {
@@ -289,90 +316,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// test_mixed_mrf_skeleton
-Rcpp::List test_mixed_mrf_skeleton(const arma::imat& discrete_observations, const arma::mat& continuous_observations, const arma::ivec& num_categories, const arma::uvec& is_ordinal_variable, const arma::ivec& baseline_category, const arma::mat& inclusion_probability, const arma::imat& initial_edge_indicators, bool edge_selection, const std::string& pseudolikelihood, int seed);
-RcppExport SEXP _bgms_test_mixed_mrf_skeleton(SEXP discrete_observationsSEXP, SEXP continuous_observationsSEXP, SEXP num_categoriesSEXP, SEXP is_ordinal_variableSEXP, SEXP baseline_categorySEXP, SEXP inclusion_probabilitySEXP, SEXP initial_edge_indicatorsSEXP, SEXP edge_selectionSEXP, SEXP pseudolikelihoodSEXP, SEXP seedSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::imat& >::type discrete_observations(discrete_observationsSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type continuous_observations(continuous_observationsSEXP);
-    Rcpp::traits::input_parameter< const arma::ivec& >::type num_categories(num_categoriesSEXP);
-    Rcpp::traits::input_parameter< const arma::uvec& >::type is_ordinal_variable(is_ordinal_variableSEXP);
-    Rcpp::traits::input_parameter< const arma::ivec& >::type baseline_category(baseline_categorySEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type inclusion_probability(inclusion_probabilitySEXP);
-    Rcpp::traits::input_parameter< const arma::imat& >::type initial_edge_indicators(initial_edge_indicatorsSEXP);
-    Rcpp::traits::input_parameter< bool >::type edge_selection(edge_selectionSEXP);
-    Rcpp::traits::input_parameter< const std::string& >::type pseudolikelihood(pseudolikelihoodSEXP);
-    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
-    rcpp_result_gen = Rcpp::wrap(test_mixed_mrf_skeleton(discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, inclusion_probability, initial_edge_indicators, edge_selection, pseudolikelihood, seed));
-    return rcpp_result_gen;
-END_RCPP
-}
-// test_mixed_mrf_likelihoods
-Rcpp::List test_mixed_mrf_likelihoods(const arma::imat& discrete_observations, const arma::mat& continuous_observations, const arma::ivec& num_categories, const arma::uvec& is_ordinal_variable, const arma::ivec& baseline_category, const arma::mat& inclusion_probability, const arma::imat& initial_edge_indicators, bool edge_selection, const std::string& pseudolikelihood, const arma::vec& params, int seed);
-RcppExport SEXP _bgms_test_mixed_mrf_likelihoods(SEXP discrete_observationsSEXP, SEXP continuous_observationsSEXP, SEXP num_categoriesSEXP, SEXP is_ordinal_variableSEXP, SEXP baseline_categorySEXP, SEXP inclusion_probabilitySEXP, SEXP initial_edge_indicatorsSEXP, SEXP edge_selectionSEXP, SEXP pseudolikelihoodSEXP, SEXP paramsSEXP, SEXP seedSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::imat& >::type discrete_observations(discrete_observationsSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type continuous_observations(continuous_observationsSEXP);
-    Rcpp::traits::input_parameter< const arma::ivec& >::type num_categories(num_categoriesSEXP);
-    Rcpp::traits::input_parameter< const arma::uvec& >::type is_ordinal_variable(is_ordinal_variableSEXP);
-    Rcpp::traits::input_parameter< const arma::ivec& >::type baseline_category(baseline_categorySEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type inclusion_probability(inclusion_probabilitySEXP);
-    Rcpp::traits::input_parameter< const arma::imat& >::type initial_edge_indicators(initial_edge_indicatorsSEXP);
-    Rcpp::traits::input_parameter< bool >::type edge_selection(edge_selectionSEXP);
-    Rcpp::traits::input_parameter< const std::string& >::type pseudolikelihood(pseudolikelihoodSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type params(paramsSEXP);
-    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
-    rcpp_result_gen = Rcpp::wrap(test_mixed_mrf_likelihoods(discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, inclusion_probability, initial_edge_indicators, edge_selection, pseudolikelihood, params, seed));
-    return rcpp_result_gen;
-END_RCPP
-}
-// test_mixed_mrf_sampler
-Rcpp::List test_mixed_mrf_sampler(const arma::imat& discrete_observations, const arma::mat& continuous_observations, const arma::ivec& num_categories, const arma::uvec& is_ordinal_variable, const arma::ivec& baseline_category, const arma::mat& inclusion_probability, const arma::imat& initial_edge_indicators, bool edge_selection, const std::string& pseudolikelihood, int n_warmup, int n_samples, int seed);
-RcppExport SEXP _bgms_test_mixed_mrf_sampler(SEXP discrete_observationsSEXP, SEXP continuous_observationsSEXP, SEXP num_categoriesSEXP, SEXP is_ordinal_variableSEXP, SEXP baseline_categorySEXP, SEXP inclusion_probabilitySEXP, SEXP initial_edge_indicatorsSEXP, SEXP edge_selectionSEXP, SEXP pseudolikelihoodSEXP, SEXP n_warmupSEXP, SEXP n_samplesSEXP, SEXP seedSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::imat& >::type discrete_observations(discrete_observationsSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type continuous_observations(continuous_observationsSEXP);
-    Rcpp::traits::input_parameter< const arma::ivec& >::type num_categories(num_categoriesSEXP);
-    Rcpp::traits::input_parameter< const arma::uvec& >::type is_ordinal_variable(is_ordinal_variableSEXP);
-    Rcpp::traits::input_parameter< const arma::ivec& >::type baseline_category(baseline_categorySEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type inclusion_probability(inclusion_probabilitySEXP);
-    Rcpp::traits::input_parameter< const arma::imat& >::type initial_edge_indicators(initial_edge_indicatorsSEXP);
-    Rcpp::traits::input_parameter< bool >::type edge_selection(edge_selectionSEXP);
-    Rcpp::traits::input_parameter< const std::string& >::type pseudolikelihood(pseudolikelihoodSEXP);
-    Rcpp::traits::input_parameter< int >::type n_warmup(n_warmupSEXP);
-    Rcpp::traits::input_parameter< int >::type n_samples(n_samplesSEXP);
-    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
-    rcpp_result_gen = Rcpp::wrap(test_mixed_mrf_sampler(discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, inclusion_probability, initial_edge_indicators, edge_selection, pseudolikelihood, n_warmup, n_samples, seed));
-    return rcpp_result_gen;
-END_RCPP
-}
-// test_mixed_mrf_cholesky
-Rcpp::List test_mixed_mrf_cholesky(const arma::imat& discrete_observations, const arma::mat& continuous_observations, const arma::ivec& num_categories, const arma::uvec& is_ordinal_variable, const arma::ivec& baseline_category, const arma::mat& inclusion_probability, const arma::imat& initial_edge_indicators, const arma::vec& params, int seed, int target_i, int target_j);
-RcppExport SEXP _bgms_test_mixed_mrf_cholesky(SEXP discrete_observationsSEXP, SEXP continuous_observationsSEXP, SEXP num_categoriesSEXP, SEXP is_ordinal_variableSEXP, SEXP baseline_categorySEXP, SEXP inclusion_probabilitySEXP, SEXP initial_edge_indicatorsSEXP, SEXP paramsSEXP, SEXP seedSEXP, SEXP target_iSEXP, SEXP target_jSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::imat& >::type discrete_observations(discrete_observationsSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type continuous_observations(continuous_observationsSEXP);
-    Rcpp::traits::input_parameter< const arma::ivec& >::type num_categories(num_categoriesSEXP);
-    Rcpp::traits::input_parameter< const arma::uvec& >::type is_ordinal_variable(is_ordinal_variableSEXP);
-    Rcpp::traits::input_parameter< const arma::ivec& >::type baseline_category(baseline_categorySEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type inclusion_probability(inclusion_probabilitySEXP);
-    Rcpp::traits::input_parameter< const arma::imat& >::type initial_edge_indicators(initial_edge_indicatorsSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type params(paramsSEXP);
-    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
-    Rcpp::traits::input_parameter< int >::type target_i(target_iSEXP);
-    Rcpp::traits::input_parameter< int >::type target_j(target_jSEXP);
-    rcpp_result_gen = Rcpp::wrap(test_mixed_mrf_cholesky(discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, inclusion_probability, initial_edge_indicators, params, seed, target_i, target_j));
-    return rcpp_result_gen;
-END_RCPP
-}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_bgms_run_bgmCompare_parallel", (DL_FUNC) &_bgms_run_bgmCompare_parallel, 38},
@@ -387,12 +330,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_run_simulation_parallel", (DL_FUNC) &_bgms_run_simulation_parallel, 12},
     {"_bgms_run_ggm_simulation_parallel", (DL_FUNC) &_bgms_run_ggm_simulation_parallel, 9},
     {"_bgms_sample_ggm", (DL_FUNC) &_bgms_sample_ggm, 19},
+    {"_bgms_sample_mixed_mrf", (DL_FUNC) &_bgms_sample_mixed_mrf, 17},
     {"_bgms_sample_omrf", (DL_FUNC) &_bgms_sample_omrf, 24},
     {"_bgms_compute_Vn_mfm_sbm", (DL_FUNC) &_bgms_compute_Vn_mfm_sbm, 4},
-    {"_bgms_test_mixed_mrf_skeleton", (DL_FUNC) &_bgms_test_mixed_mrf_skeleton, 10},
-    {"_bgms_test_mixed_mrf_likelihoods", (DL_FUNC) &_bgms_test_mixed_mrf_likelihoods, 11},
-    {"_bgms_test_mixed_mrf_sampler", (DL_FUNC) &_bgms_test_mixed_mrf_sampler, 12},
-    {"_bgms_test_mixed_mrf_cholesky", (DL_FUNC) &_bgms_test_mixed_mrf_cholesky, 11},
     {NULL, NULL, 0}
 };
 

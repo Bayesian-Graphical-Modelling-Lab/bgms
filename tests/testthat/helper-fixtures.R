@@ -519,6 +519,82 @@ get_bgms_fit_ggm_no_es = function() {
   .test_cache$bgms_fit_ggm_no_es
 }
 
+get_bgms_fit_mixed_mrf = function() {
+  if(is.null(.test_cache$bgms_fit_mixed_mrf)) {
+    set.seed(99)
+    n = 80
+    x = cbind(
+      sample(0:2, n, replace = TRUE),
+      rnorm(n),
+      sample(0:2, n, replace = TRUE),
+      rnorm(n),
+      sample(0:2, n, replace = TRUE)
+    )
+    colnames(x) = c("d1", "c1", "d2", "c2", "d3")
+    .test_cache$bgms_fit_mixed_mrf = bgm(
+      x = x,
+      variable_type = c("ordinal", "continuous", "ordinal",
+                        "continuous", "ordinal"),
+      edge_selection = TRUE,
+      iter = 50, warmup = 100, chains = 1,
+      seed = 77771,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit_mixed_mrf
+}
+
+get_bgms_fit_mixed_mrf_no_es = function() {
+  if(is.null(.test_cache$bgms_fit_mixed_mrf_no_es)) {
+    set.seed(99)
+    n = 80
+    x = cbind(
+      sample(0:2, n, replace = TRUE),
+      rnorm(n),
+      sample(0:2, n, replace = TRUE),
+      rnorm(n),
+      sample(0:2, n, replace = TRUE)
+    )
+    colnames(x) = c("d1", "c1", "d2", "c2", "d3")
+    .test_cache$bgms_fit_mixed_mrf_no_es = bgm(
+      x = x,
+      variable_type = c("ordinal", "continuous", "ordinal",
+                        "continuous", "ordinal"),
+      edge_selection = FALSE,
+      iter = 50, warmup = 100, chains = 1,
+      seed = 77772,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit_mixed_mrf_no_es
+}
+
+get_bgms_fit_mixed_mrf_marginal = function() {
+  if(is.null(.test_cache$bgms_fit_mixed_mrf_marginal)) {
+    set.seed(99)
+    n = 80
+    x = cbind(
+      sample(0:2, n, replace = TRUE),
+      rnorm(n),
+      sample(0:2, n, replace = TRUE),
+      rnorm(n),
+      sample(0:2, n, replace = TRUE)
+    )
+    colnames(x) = c("d1", "c1", "d2", "c2", "d3")
+    .test_cache$bgms_fit_mixed_mrf_marginal = bgm(
+      x = x,
+      variable_type = c("ordinal", "continuous", "ordinal",
+                        "continuous", "ordinal"),
+      edge_selection = FALSE,
+      pseudolikelihood = "marginal",
+      iter = 50, warmup = 100, chains = 1,
+      seed = 77773,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit_mixed_mrf_marginal
+}
+
 # ------------------------------------------------------------------------------
 # 2. Prediction Data Helpers
 # ------------------------------------------------------------------------------

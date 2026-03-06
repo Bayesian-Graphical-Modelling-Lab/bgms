@@ -25,20 +25,31 @@ new_bgm_spec = function(model_type, data, variables, missing, prior,
   # --- top-level structure ---
   stopifnot(
     is.character(model_type), length(model_type) == 1L,
-    model_type %in% c("ggm", "omrf", "compare")
+    model_type %in% c("ggm", "omrf", "compare", "mixed_mrf")
   )
 
   # --- data sub-list ---
   stopifnot(is.list(data))
-  stopifnot(is.matrix(data$x))
+  if(model_type == "mixed_mrf") {
+    stopifnot(is.matrix(data$x_discrete))
+    stopifnot(is.matrix(data$x_continuous))
+  } else {
+    stopifnot(is.matrix(data$x))
+  }
   stopifnot(is.character(data$data_columnnames))
   stopifnot(is.integer(data$num_variables), length(data$num_variables) == 1L)
   stopifnot(is.integer(data$num_cases), length(data$num_cases) == 1L)
 
-  if(model_type != "ggm") {
+  if(model_type == "omrf" || model_type == "compare") {
     stopifnot(
       is.integer(data$num_categories),
       length(data$num_categories) == data$num_variables
+    )
+  }
+  if(model_type == "mixed_mrf") {
+    stopifnot(
+      is.integer(data$num_categories),
+      length(data$num_categories) == data$num_discrete
     )
   }
 
@@ -71,14 +82,21 @@ new_bgm_spec = function(model_type, data, variables, missing, prior,
 
   # --- prior sub-list ---
   stopifnot(is.list(prior))
-  if(model_type != "ggm") {
+  if(model_type %in% c("omrf", "compare")) {
     stopifnot(is.numeric(prior$pairwise_scale), length(prior$pairwise_scale) == 1L)
     stopifnot(is.numeric(prior$main_alpha), length(prior$main_alpha) == 1L)
     stopifnot(is.numeric(prior$main_beta), length(prior$main_beta) == 1L)
     stopifnot(is.logical(prior$standardize), length(prior$standardize) == 1L)
     stopifnot(is.matrix(prior$pairwise_scaling_factors))
   }
-  if(model_type %in% c("ggm", "omrf")) {
+  if(model_type == "mixed_mrf") {
+    stopifnot(is.numeric(prior$pairwise_scale), length(prior$pairwise_scale) == 1L)
+    stopifnot(is.numeric(prior$main_alpha), length(prior$main_alpha) == 1L)
+    stopifnot(is.numeric(prior$main_beta), length(prior$main_beta) == 1L)
+    stopifnot(is.logical(prior$standardize), length(prior$standardize) == 1L)
+    stopifnot(is.character(prior$pseudolikelihood), length(prior$pseudolikelihood) == 1L)
+  }
+  if(model_type %in% c("ggm", "omrf", "mixed_mrf")) {
     stopifnot(is.logical(prior$edge_selection), length(prior$edge_selection) == 1L)
     stopifnot(is.character(prior$edge_prior), length(prior$edge_prior) == 1L)
     stopifnot(is.matrix(prior$inclusion_probability))
@@ -162,14 +180,14 @@ validate_bgm_spec = function(spec) {
   }
 
   # Edge selection consistency
-  if(mt %in% c("ggm", "omrf")) {
+  if(mt %in% c("ggm", "omrf", "mixed_mrf")) {
     if(spec$prior$edge_selection && spec$prior$edge_prior == "Not Applicable") {
       stop("bgm_spec: edge_selection = TRUE but edge_prior = 'Not Applicable'.")
     }
   }
 
   # Scaling factors dimensions
-  if(mt != "ggm") {
+  if(mt %in% c("omrf", "compare")) {
     nv = spec$data$num_variables
     sf = spec$prior$pairwise_scaling_factors
     if(nrow(sf) != nv || ncol(sf) != nv) {
@@ -181,9 +199,17 @@ validate_bgm_spec = function(spec) {
   }
 
   # num_categories length (OMRF / compare)
-  if(mt != "ggm") {
+  if(mt == "omrf" || mt == "compare") {
     if(length(spec$data$num_categories) != spec$data$num_variables) {
       stop("bgm_spec: num_categories length doesn't match num_variables.")
+    }
+  }
+  if(mt == "mixed_mrf") {
+    if(length(spec$data$num_categories) != spec$data$num_discrete) {
+      stop("bgm_spec: num_categories length doesn't match num_discrete.")
+    }
+    if(spec$sampler$update_method != "adaptive-metropolis") {
+      stop("bgm_spec: model_type = 'mixed_mrf' requires update_method = 'adaptive-metropolis'.")
     }
   }
 
@@ -201,7 +227,7 @@ validate_bgm_spec = function(spec) {
 # Parameters mirror the union of bgm() and bgmCompare() arguments.
 # ==============================================================================
 bgm_spec = function(x,
-                    model_type = c("omrf", "ggm", "compare"),
+                    model_type = c("omrf", "ggm", "compare", "mixed_mrf"),
                     # Variable specification
                     variable_type = "ordinal",
                     baseline_category = 0L,
@@ -248,7 +274,8 @@ bgm_spec = function(x,
                     cores = parallel::detectCores(),
                     seed = NULL,
                     display_progress = c("per-chain", "total", "none"),
-                    verbose = TRUE) {
+                    verbose = TRUE,
+                    pseudolikelihood = c("conditional", "marginal")) {
   model_type = match.arg(model_type)
   na_action = tryCatch(match.arg(na_action), error = function(e) {
     stop(paste0(
@@ -272,18 +299,25 @@ bgm_spec = function(x,
     variable_type    = variable_type,
     num_variables    = num_variables,
     allow_continuous = allow_continuous,
+    allow_mixed      = (model_type != "compare"),
     caller           = if(model_type == "compare") "bgmCompare" else "bgm"
   )
   variable_type = vt$variable_type
   is_ordinal = vt$variable_bool
   is_continuous = vt$is_continuous
+  is_mixed = vt$is_mixed
 
   # Resolve model_type if "omrf" default was kept but data is continuous
   if(model_type == "omrf" && is_continuous) {
     model_type = "ggm"
   }
+  if(model_type == "omrf" && is_mixed) {
+    model_type = "mixed_mrf"
+  }
 
   # --- Sampler (needs is_continuous and edge_selection early) ------------------
+  # Mixed MRF is MH-only (like GGM): force adaptive-metropolis via is_continuous
+  sampler_is_continuous = is_continuous || is_mixed
   sampler = validate_sampler(
     update_method     = update_method,
     target_accept     = target_accept,
@@ -296,7 +330,7 @@ bgm_spec = function(x,
     cores             = cores,
     seed              = seed,
     display_progress  = display_progress,
-    is_continuous     = is_continuous,
+    is_continuous     = sampler_is_continuous,
     edge_selection    = if(model_type == "compare") FALSE else edge_selection,
     verbose           = verbose
   )
@@ -310,6 +344,27 @@ bgm_spec = function(x,
       is_continuous = is_continuous,
       baseline_category = as.integer(rep(0L, num_variables)),
       na_action = na_action, sampler = sampler,
+      edge_selection = edge_selection,
+      edge_prior = edge_prior,
+      inclusion_probability = inclusion_probability,
+      beta_bernoulli_alpha = beta_bernoulli_alpha,
+      beta_bernoulli_beta = beta_bernoulli_beta,
+      beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+      beta_bernoulli_beta_between = beta_bernoulli_beta_between,
+      dirichlet_alpha = dirichlet_alpha,
+      lambda = lambda
+    )
+  } else if(model_type == "mixed_mrf") {
+    pseudolikelihood = match.arg(pseudolikelihood)
+    spec = build_spec_mixed_mrf(
+      x = x, data_columnnames = data_columnnames,
+      num_variables = num_variables,
+      variable_type = variable_type, is_ordinal = is_ordinal,
+      baseline_category = baseline_category,
+      na_action = na_action, sampler = sampler,
+      pairwise_scale = pairwise_scale, main_alpha = main_alpha,
+      main_beta = main_beta, standardize = standardize,
+      pseudolikelihood = pseudolikelihood,
       edge_selection = edge_selection,
       edge_prior = edge_prior,
       inclusion_probability = inclusion_probability,
@@ -528,6 +583,139 @@ build_spec_omrf = function(x, data_columnnames, num_variables,
       main_beta = main_beta,
       standardize = standardize,
       pairwise_scaling_factors = psf,
+      edge_selection = ep$edge_selection,
+      edge_prior = ep$edge_prior,
+      inclusion_probability = ep$inclusion_probability,
+      beta_bernoulli_alpha = beta_bernoulli_alpha,
+      beta_bernoulli_beta = beta_bernoulli_beta,
+      beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+      beta_bernoulli_beta_between = beta_bernoulli_beta_between,
+      dirichlet_alpha = dirichlet_alpha,
+      lambda = lambda
+    ),
+    sampler = sampler_sublist(sampler),
+    precomputed = list(
+      num_thresholds = as.integer(num_thresholds)
+    )
+  )
+}
+
+
+# ------------------------------------------------------------------
+# build_spec_mixed_mrf
+# ------------------------------------------------------------------
+# Builds a bgm_spec for the mixed MRF model (discrete + continuous).
+# Splits the input data matrix into discrete and continuous parts,
+# validates and recodes discrete variables (ordinal/BC), and assembles
+# the spec with metadata needed by sample_mixed_mrf() and
+# build_output_mixed_mrf().
+# ------------------------------------------------------------------
+build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
+                                variable_type, is_ordinal,
+                                baseline_category,
+                                na_action, sampler,
+                                pairwise_scale, main_alpha, main_beta,
+                                standardize, pseudolikelihood,
+                                edge_selection, edge_prior,
+                                inclusion_probability,
+                                beta_bernoulli_alpha, beta_bernoulli_beta,
+                                beta_bernoulli_alpha_between,
+                                beta_bernoulli_beta_between,
+                                dirichlet_alpha, lambda) {
+  # Identify discrete vs continuous columns
+  cont_idx = which(variable_type == "continuous")
+  disc_idx = which(variable_type != "continuous")
+  p = length(disc_idx)
+  q = length(cont_idx)
+
+  # Split data
+  x_disc = x[, disc_idx, drop = FALSE]
+  x_cont = x[, cont_idx, drop = FALSE]
+
+  # Ensure integer matrix for discrete data
+  storage.mode(x_disc) = "integer"
+  # Ensure numeric matrix for continuous data
+  storage.mode(x_cont) = "double"
+
+  # Discrete variable properties (subset to discrete columns)
+  is_ordinal_disc = is_ordinal[disc_idx]
+  vtype_disc = variable_type[disc_idx]
+
+  # Baseline category for discrete variables
+  bc = validate_baseline_category(
+    baseline_category = baseline_category,
+    baseline_category_provided = !identical(baseline_category, 0L),
+    x = x_disc,
+    variable_bool = is_ordinal_disc
+  )
+
+  # Missing data — not supported for mixed MRF (Phase H)
+  if(na_action == "impute") {
+    stop("Missing data imputation is not yet supported for mixed models.",
+         call. = FALSE)
+  }
+  if(anyNA(x)) {
+    stop("Missing data detected. Mixed models do not yet support missing data handling.",
+         call. = FALSE)
+  }
+
+  # Ordinal recoding (reformat discrete data)
+  ord = reformat_ordinal_data(
+    x = x_disc, is_ordinal = is_ordinal_disc,
+    baseline_category = bc
+  )
+  x_disc_recoded = ord$x
+  num_categories = ord$num_categories
+  bc_final = ord$baseline_category
+
+  # Edge prior (total variables = p + q)
+  ep = validate_edge_prior(
+    edge_selection = edge_selection, edge_prior = edge_prior,
+    inclusion_probability = inclusion_probability,
+    num_variables = num_variables,
+    beta_bernoulli_alpha = beta_bernoulli_alpha,
+    beta_bernoulli_beta = beta_bernoulli_beta,
+    beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+    beta_bernoulli_beta_between = beta_bernoulli_beta_between,
+    dirichlet_alpha = dirichlet_alpha, lambda = lambda
+  )
+
+  num_thresholds = sum(ifelse(is_ordinal_disc, num_categories, 2L))
+
+  new_bgm_spec(
+    model_type = "mixed_mrf",
+    data = list(
+      x_discrete       = x_disc_recoded,
+      x_continuous     = x_cont,
+      data_columnnames = data_columnnames,
+      data_columnnames_discrete   = data_columnnames[disc_idx],
+      data_columnnames_continuous = data_columnnames[cont_idx],
+      num_variables    = as.integer(num_variables),
+      num_discrete     = as.integer(p),
+      num_continuous   = as.integer(q),
+      num_cases        = as.integer(nrow(x)),
+      num_categories   = as.integer(num_categories),
+      discrete_indices   = disc_idx,
+      continuous_indices = cont_idx
+    ),
+    variables = list(
+      variable_type     = variable_type,
+      is_ordinal        = is_ordinal_disc,
+      is_continuous     = FALSE,
+      is_mixed          = TRUE,
+      baseline_category = as.integer(bc_final)
+    ),
+    missing = list(
+      na_action     = na_action,
+      na_impute     = FALSE,
+      missing_index = NULL
+    ),
+    prior = list(
+      pairwise_scale = pairwise_scale,
+      main_alpha = main_alpha,
+      main_beta = main_beta,
+      standardize = standardize,
+      pseudolikelihood = pseudolikelihood,
       edge_selection = ep$edge_selection,
       edge_prior = ep$edge_prior,
       inclusion_probability = ep$inclusion_probability,
@@ -862,6 +1050,8 @@ build_arguments = function(spec) {
     build_arguments_ggm(spec)
   } else if(mt == "omrf") {
     build_arguments_omrf(spec)
+  } else if(mt == "mixed_mrf") {
+    build_arguments_mixed_mrf(spec)
   } else {
     build_arguments_compare(spec)
   }
@@ -935,6 +1125,48 @@ build_arguments_omrf = function(spec) {
     baseline_category            = spec$variables$baseline_category,
     pairwise_scaling_factors     = spec$prior$pairwise_scaling_factors,
     no_variables                 = spec$data$num_variables
+  )
+}
+
+
+build_arguments_mixed_mrf = function(spec) {
+  list(
+    num_variables                = spec$data$num_variables,
+    num_discrete                 = spec$data$num_discrete,
+    num_continuous               = spec$data$num_continuous,
+    num_cases                    = spec$data$num_cases,
+    variable_type                = spec$variables$variable_type,
+    iter                         = spec$sampler$iter,
+    warmup                       = spec$sampler$warmup,
+    pairwise_scale               = spec$prior$pairwise_scale,
+    standardize                  = spec$prior$standardize,
+    pseudolikelihood             = spec$prior$pseudolikelihood,
+    main_alpha                   = spec$prior$main_alpha,
+    main_beta                    = spec$prior$main_beta,
+    edge_selection               = spec$prior$edge_selection,
+    edge_prior                   = spec$prior$edge_prior,
+    inclusion_probability        = spec$prior$inclusion_probability,
+    beta_bernoulli_alpha         = spec$prior$beta_bernoulli_alpha,
+    beta_bernoulli_beta          = spec$prior$beta_bernoulli_beta,
+    beta_bernoulli_alpha_between = spec$prior$beta_bernoulli_alpha_between,
+    beta_bernoulli_beta_between  = spec$prior$beta_bernoulli_beta_between,
+    dirichlet_alpha              = spec$prior$dirichlet_alpha,
+    lambda                       = spec$prior$lambda,
+    na_action                    = spec$missing$na_action,
+    version                      = packageVersion("bgms"),
+    update_method                = spec$sampler$update_method,
+    target_accept                = spec$sampler$target_accept,
+    num_chains                   = spec$sampler$chains,
+    num_categories               = spec$data$num_categories,
+    data_columnnames             = spec$data$data_columnnames,
+    data_columnnames_discrete    = spec$data$data_columnnames_discrete,
+    data_columnnames_continuous  = spec$data$data_columnnames_continuous,
+    discrete_indices             = spec$data$discrete_indices,
+    continuous_indices           = spec$data$continuous_indices,
+    baseline_category            = spec$variables$baseline_category,
+    is_ordinal                   = spec$variables$is_ordinal,
+    no_variables                 = spec$data$num_variables,
+    is_mixed                     = TRUE
   )
 }
 

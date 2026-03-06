@@ -30,20 +30,6 @@
 class MixedMRFModel : public BaseModel {
 public:
 
-    // Test helpers need access to private likelihood functions
-    friend Rcpp::List test_mixed_mrf_likelihoods(
-        const arma::imat&, const arma::mat&, const arma::ivec&,
-        const arma::uvec&, const arma::ivec&, const arma::mat&,
-        const arma::imat&, bool, const std::string&, const arma::vec&, int
-    );
-
-    // Test helper for rank-1 Cholesky correctness (T28/T29)
-    friend Rcpp::List test_mixed_mrf_cholesky(
-        const arma::imat&, const arma::mat&, const arma::ivec&,
-        const arma::uvec&, const arma::ivec&, const arma::mat&,
-        const arma::imat&, const arma::vec&, int, int, int
-    );
-
     // =========================================================================
     // Construction
     // =========================================================================

@@ -49,27 +49,15 @@ sample_ggm <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators
     .Call(`_bgms_sample_ggm`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, na_impute, missing_index_nullable)
 }
 
+sample_mixed_mrf <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0) {
+    .Call(`_bgms_sample_mixed_mrf`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda)
+}
+
 sample_omrf <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, edge_prior = "Bernoulli", na_impute = FALSE, missing_index_nullable = NULL, beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, target_acceptance = 0.8, max_tree_depth = 10L, num_leapfrogs = 10L, pairwise_scaling_factors_nullable = NULL) {
     .Call(`_bgms_sample_omrf`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, edge_prior, na_impute, missing_index_nullable, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, target_acceptance, max_tree_depth, num_leapfrogs, pairwise_scaling_factors_nullable)
 }
 
 compute_Vn_mfm_sbm <- function(num_variables, dirichlet_alpha, t_max, lambda) {
     .Call(`_bgms_compute_Vn_mfm_sbm`, num_variables, dirichlet_alpha, t_max, lambda)
-}
-
-test_mixed_mrf_skeleton <- function(discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, inclusion_probability, initial_edge_indicators, edge_selection, pseudolikelihood, seed) {
-    .Call(`_bgms_test_mixed_mrf_skeleton`, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, inclusion_probability, initial_edge_indicators, edge_selection, pseudolikelihood, seed)
-}
-
-test_mixed_mrf_likelihoods <- function(discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, inclusion_probability, initial_edge_indicators, edge_selection, pseudolikelihood, params, seed) {
-    .Call(`_bgms_test_mixed_mrf_likelihoods`, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, inclusion_probability, initial_edge_indicators, edge_selection, pseudolikelihood, params, seed)
-}
-
-test_mixed_mrf_sampler <- function(discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, inclusion_probability, initial_edge_indicators, edge_selection, pseudolikelihood, n_warmup, n_samples, seed) {
-    .Call(`_bgms_test_mixed_mrf_sampler`, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, inclusion_probability, initial_edge_indicators, edge_selection, pseudolikelihood, n_warmup, n_samples, seed)
-}
-
-test_mixed_mrf_cholesky <- function(discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, inclusion_probability, initial_edge_indicators, params, seed, target_i, target_j) {
-    .Call(`_bgms_test_mixed_mrf_cholesky`, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, inclusion_probability, initial_edge_indicators, params, seed, target_i, target_j)
 }
 

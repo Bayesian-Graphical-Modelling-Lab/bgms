@@ -26,6 +26,7 @@
 validate_variable_types = function(variable_type,
                                    num_variables,
                                    allow_continuous = TRUE,
+                                   allow_mixed = FALSE,
                                    caller = "bgm") {
   valid_choices = if(allow_continuous) {
     c("ordinal", "blume-capel", "continuous")
@@ -36,6 +37,7 @@ validate_variable_types = function(variable_type,
   supported_str = paste(valid_choices, collapse = ", ")
 
   is_continuous = FALSE
+  is_mixed = FALSE
 
   if(length(variable_type) == 1) {
     # --- Single string: replicate to all variables ---
@@ -70,15 +72,55 @@ validate_variable_types = function(variable_type,
     }
 
     has_continuous = any(variable_type == "continuous")
-    if(has_continuous && !all(variable_type == "continuous")) {
+    has_discrete = any(variable_type %in% c("ordinal", "blume-capel"))
+    is_mixed = has_continuous && has_discrete
+
+    if(has_continuous && !has_discrete && !all(variable_type == "continuous")) {
       stop(paste0(
         "When using continuous variables, all variables must be of type ",
-        "'continuous'. Mixtures of continuous and ordinal/blume-capel ",
-        "variables are not supported."
+        "'continuous' or mixed with ordinal/blume-capel variables."
       ))
     }
 
-    if(has_continuous) {
+    if(has_continuous && !allow_continuous) {
+      stop(paste0(
+        "The ", caller, " function supports variables of type ", supported_str,
+        ", but not of type continuous."
+      ))
+    }
+
+    if(is_mixed && !allow_mixed) {
+      stop(paste0(
+        "When using continuous variables, all variables must be of type ",
+        "'continuous'. Mixtures of continuous and ordinal/blume-capel ",
+        "variables are not supported by ", caller, "()."
+      ))
+    }
+
+    if(is_mixed) {
+      # Mixed: validate each entry individually
+      variable_type_checked = try(
+        match.arg(
+          arg = variable_type,
+          choices = valid_choices,
+          several.ok = TRUE
+        ),
+        silent = TRUE
+      )
+
+      if(inherits(variable_type_checked, what = "try-error")) {
+        invalid = setdiff(unique(variable_type), valid_choices)
+        stop(paste0(
+          "The ", caller, " function supports variables of type ", supported_str,
+          ", but not of type ", paste0(invalid, collapse = ", "), "."
+        ))
+      }
+
+      variable_type = variable_type_checked
+      # variable_bool: TRUE = ordinal (for discrete variables); continuous = NA
+      variable_bool = (variable_type == "ordinal")
+      is_continuous = FALSE
+    } else if(has_continuous) {
       if(!allow_continuous) {
         stop(paste0(
           "The ", caller, " function supports variables of type ", supported_str,
@@ -144,7 +186,8 @@ validate_variable_types = function(variable_type,
   list(
     variable_type  = variable_type,
     variable_bool  = variable_bool,
-    is_continuous  = is_continuous
+    is_continuous  = is_continuous,
+    is_mixed       = is_mixed
   )
 }
 

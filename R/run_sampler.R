@@ -14,9 +14,10 @@ run_sampler = function(spec) {
   stopifnot(inherits(spec, "bgm_spec"))
 
   raw = switch(spec$model_type,
-    ggm     = run_sampler_ggm(spec),
-    omrf    = run_sampler_omrf(spec),
-    compare = run_sampler_compare(spec),
+    ggm       = run_sampler_ggm(spec),
+    omrf      = run_sampler_omrf(spec),
+    mixed_mrf = run_sampler_mixed_mrf(spec),
+    compare   = run_sampler_compare(spec),
     stop("Unknown model_type: ", spec$model_type)
   )
 
@@ -141,6 +142,66 @@ run_sampler_omrf = function(spec) {
     max_tree_depth = s$nuts_max_depth,
     num_leapfrogs = s$hmc_num_leapfrogs,
     pairwise_scaling_factors_nullable = p$pairwise_scaling_factors
+  )
+
+  out_raw
+}
+
+
+# ==============================================================================
+# run_sampler_mixed_mrf()
+# ==============================================================================
+run_sampler_mixed_mrf = function(spec) {
+  d = spec$data
+  v = spec$variables
+  p = spec$prior
+  s = spec$sampler
+
+  # C++ expects -1 for "no between-cluster prior"
+  bb_alpha_between = if(is.null(p$beta_bernoulli_alpha_between)) {
+    -1.0
+  } else {
+    p$beta_bernoulli_alpha_between
+  }
+  bb_beta_between = if(is.null(p$beta_bernoulli_beta_between)) {
+    -1.0
+  } else {
+    p$beta_bernoulli_beta_between
+  }
+
+  input_list = list(
+    discrete_observations   = d$x_discrete,
+    continuous_observations = d$x_continuous,
+    num_categories          = d$num_categories,
+    is_ordinal_variable     = as.integer(v$is_ordinal),
+    baseline_category       = v$baseline_category,
+    main_alpha              = p$main_alpha,
+    main_beta               = p$main_beta,
+    pairwise_scale          = p$pairwise_scale,
+    pseudolikelihood        = p$pseudolikelihood
+  )
+
+  out_raw = sample_mixed_mrf(
+    inputFromR = input_list,
+    prior_inclusion_prob = p$inclusion_probability,
+    initial_edge_indicators = matrix(1L,
+      nrow = d$num_variables,
+      ncol = d$num_variables
+    ),
+    no_iter = s$iter,
+    no_warmup = s$warmup,
+    no_chains = s$chains,
+    edge_selection = p$edge_selection,
+    seed = s$seed,
+    no_threads = s$cores,
+    progress_type = s$progress_type,
+    edge_prior = p$edge_prior,
+    beta_bernoulli_alpha = p$beta_bernoulli_alpha,
+    beta_bernoulli_beta = p$beta_bernoulli_beta,
+    beta_bernoulli_alpha_between = bb_alpha_between,
+    beta_bernoulli_beta_between = bb_beta_between,
+    dirichlet_alpha = p$dirichlet_alpha,
+    lambda = p$lambda
   )
 
   out_raw
