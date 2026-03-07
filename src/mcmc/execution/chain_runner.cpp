@@ -5,11 +5,14 @@
 #include "mcmc/samplers/nuts_sampler.h"
 #include "mcmc/samplers/hmc_sampler.h"
 #include "mcmc/samplers/metropolis_sampler.h"
+#include "mcmc/samplers/hybrid_nuts_sampler.h"
 
 
 std::unique_ptr<SamplerBase> create_sampler(const SamplerConfig& config, WarmupSchedule& schedule) {
     if (config.sampler_type == "nuts") {
         return std::make_unique<NUTSSampler>(config, schedule);
+    } else if (config.sampler_type == "hybrid-nuts") {
+        return std::make_unique<HybridNUTSSampler>(config, schedule);
     } else if (config.sampler_type == "hmc" || config.sampler_type == "hamiltonian-mc") {
         return std::make_unique<HMCSampler>(config, schedule);
     } else if (config.sampler_type == "mh" || config.sampler_type == "adaptive-metropolis") {
@@ -32,6 +35,7 @@ void run_mcmc_chain(
 
     // Construct warmup schedule (shared by runner and sampler)
     const bool learn_sd = (config.sampler_type == "nuts" ||
+                           config.sampler_type == "hybrid-nuts" ||
                            config.sampler_type == "hmc" ||
                            config.sampler_type == "hamiltonian-mc");
     WarmupSchedule schedule(config.no_warmup, config.edge_selection, learn_sd);

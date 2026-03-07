@@ -208,8 +208,13 @@ validate_bgm_spec = function(spec) {
     if(length(spec$data$num_categories) != spec$data$num_discrete) {
       stop("bgm_spec: num_categories length doesn't match num_discrete.")
     }
-    if(spec$sampler$update_method != "adaptive-metropolis") {
-      stop("bgm_spec: model_type = 'mixed_mrf' requires update_method = 'adaptive-metropolis'.")
+    allowed = c("adaptive-metropolis", "hybrid-nuts")
+    if(!(spec$sampler$update_method %in% allowed)) {
+      stop(
+        "bgm_spec: model_type = 'mixed_mrf' requires update_method in ",
+        paste(sQuote(allowed), collapse = " or "), ". Got '",
+        spec$sampler$update_method, "'."
+      )
     }
   }
 
@@ -316,8 +321,6 @@ bgm_spec = function(x,
   }
 
   # --- Sampler (needs is_continuous and edge_selection early) ------------------
-  # Mixed MRF is MH-only (like GGM): force adaptive-metropolis via is_continuous
-  sampler_is_continuous = is_continuous || is_mixed
   sampler = validate_sampler(
     update_method     = update_method,
     target_accept     = target_accept,
@@ -330,10 +333,16 @@ bgm_spec = function(x,
     cores             = cores,
     seed              = seed,
     display_progress  = display_progress,
-    is_continuous     = sampler_is_continuous,
+    is_continuous     = is_continuous,
     edge_selection    = if(model_type == "compare") FALSE else edge_selection,
     verbose           = verbose
   )
+
+  # Mixed MRF: remap "nuts" to the hybrid sampler that uses NUTS for the
+  # unconstrained block and component-wise MH for the SPD-constrained Kyy.
+  if(is_mixed && sampler$update_method == "nuts") {
+    sampler$update_method = "hybrid-nuts"
+  }
 
   # --- Build by model type ----------------------------------------------------
   if(model_type == "ggm") {

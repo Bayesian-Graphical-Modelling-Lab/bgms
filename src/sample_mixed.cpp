@@ -2,7 +2,8 @@
 //
 // Uses the unified MCMC runner infrastructure to sample from models with
 // both discrete (ordinal / Blume-Capel) and continuous variables.
-// Supports MH sampler only, with optional edge selection.
+// Supports MH and hybrid-nuts (NUTS for unconstrained block + MH for Kyy)
+// samplers, with optional edge selection.
 #include <vector>
 #include <memory>
 #include <RcppArmadillo.h>
@@ -41,6 +42,10 @@
 // @param beta_bernoulli_beta_between  SBM between-cluster beta
 // @param dirichlet_alpha         Dirichlet alpha for SBM
 // @param lambda                  Lambda for SBM
+// @param sampler_type            Sampler type string ("mh", "hybrid-nuts", etc.)
+// @param target_acceptance       Target acceptance rate for gradient-based samplers
+// @param max_tree_depth          Maximum tree depth for NUTS
+// @param num_leapfrogs           Number of leapfrog steps for HMC
 //
 // @return List with per-chain results including samples and diagnostics
 // [[Rcpp::export]]
@@ -61,7 +66,11 @@ Rcpp::List sample_mixed_mrf(
     const double beta_bernoulli_alpha_between = 1.0,
     const double beta_bernoulli_beta_between = 1.0,
     const double dirichlet_alpha = 1.0,
-    const double lambda = 1.0
+    const double lambda = 1.0,
+    const std::string& sampler_type = "mh",
+    const double target_acceptance = 0.80,
+    const int max_tree_depth = 10,
+    const int num_leapfrogs = 100
 ) {
     // Extract model inputs from R list
     arma::imat discrete_obs = Rcpp::as<arma::imat>(inputFromR["discrete_observations"]);
@@ -93,14 +102,17 @@ Rcpp::List sample_mixed_mrf(
         dirichlet_alpha, lambda
     );
 
-    // Configure sampler — Mixed MRF is MH-only
+    // Configure sampler
     SamplerConfig config;
-    config.sampler_type = "mh";
+    config.sampler_type = sampler_type;
     config.no_iter = no_iter;
     config.no_warmup = no_warmup;
     config.edge_selection = edge_selection;
     config.seed = seed;
     config.na_impute = false;
+    config.target_acceptance = target_acceptance;
+    config.max_tree_depth = max_tree_depth;
+    config.num_leapfrogs = num_leapfrogs;
 
     // Set up progress manager
     ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type);

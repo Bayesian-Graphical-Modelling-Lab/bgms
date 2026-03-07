@@ -310,8 +310,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // sample_mixed_mrf
-Rcpp::List sample_mixed_mrf(const Rcpp::List& inputFromR, const arma::mat& prior_inclusion_prob, const arma::imat& initial_edge_indicators, const int no_iter, const int no_warmup, const int no_chains, const bool edge_selection, const int seed, const int no_threads, const int progress_type, const std::string& edge_prior, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double beta_bernoulli_alpha_between, const double beta_bernoulli_beta_between, const double dirichlet_alpha, const double lambda);
-RcppExport SEXP _bgms_sample_mixed_mrf(SEXP inputFromRSEXP, SEXP prior_inclusion_probSEXP, SEXP initial_edge_indicatorsSEXP, SEXP no_iterSEXP, SEXP no_warmupSEXP, SEXP no_chainsSEXP, SEXP edge_selectionSEXP, SEXP seedSEXP, SEXP no_threadsSEXP, SEXP progress_typeSEXP, SEXP edge_priorSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP beta_bernoulli_alpha_betweenSEXP, SEXP beta_bernoulli_beta_betweenSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP) {
+Rcpp::List sample_mixed_mrf(const Rcpp::List& inputFromR, const arma::mat& prior_inclusion_prob, const arma::imat& initial_edge_indicators, const int no_iter, const int no_warmup, const int no_chains, const bool edge_selection, const int seed, const int no_threads, const int progress_type, const std::string& edge_prior, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double beta_bernoulli_alpha_between, const double beta_bernoulli_beta_between, const double dirichlet_alpha, const double lambda, const std::string& sampler_type, const double target_acceptance, const int max_tree_depth, const int num_leapfrogs);
+RcppExport SEXP _bgms_sample_mixed_mrf(SEXP inputFromRSEXP, SEXP prior_inclusion_probSEXP, SEXP initial_edge_indicatorsSEXP, SEXP no_iterSEXP, SEXP no_warmupSEXP, SEXP no_chainsSEXP, SEXP edge_selectionSEXP, SEXP seedSEXP, SEXP no_threadsSEXP, SEXP progress_typeSEXP, SEXP edge_priorSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP beta_bernoulli_alpha_betweenSEXP, SEXP beta_bernoulli_beta_betweenSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP, SEXP sampler_typeSEXP, SEXP target_acceptanceSEXP, SEXP max_tree_depthSEXP, SEXP num_leapfrogsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -332,7 +332,11 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const double >::type beta_bernoulli_beta_between(beta_bernoulli_beta_betweenSEXP);
     Rcpp::traits::input_parameter< const double >::type dirichlet_alpha(dirichlet_alphaSEXP);
     Rcpp::traits::input_parameter< const double >::type lambda(lambdaSEXP);
-    rcpp_result_gen = Rcpp::wrap(sample_mixed_mrf(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda));
+    Rcpp::traits::input_parameter< const std::string& >::type sampler_type(sampler_typeSEXP);
+    Rcpp::traits::input_parameter< const double >::type target_acceptance(target_acceptanceSEXP);
+    Rcpp::traits::input_parameter< const int >::type max_tree_depth(max_tree_depthSEXP);
+    Rcpp::traits::input_parameter< const int >::type num_leapfrogs(num_leapfrogsSEXP);
+    rcpp_result_gen = Rcpp::wrap(sample_mixed_mrf(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, sampler_type, target_acceptance, max_tree_depth, num_leapfrogs));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -384,6 +388,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// test_mixed_gradient
+Rcpp::List test_mixed_gradient(const Rcpp::List& inputFromR, const arma::vec& theta, const bool edge_selection);
+RcppExport SEXP _bgms_test_mixed_gradient(SEXP inputFromRSEXP, SEXP thetaSEXP, SEXP edge_selectionSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type inputFromR(inputFromRSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type theta(thetaSEXP);
+    Rcpp::traits::input_parameter< const bool >::type edge_selection(edge_selectionSEXP);
+    rcpp_result_gen = Rcpp::wrap(test_mixed_gradient(inputFromR, theta, edge_selection));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_bgms_run_bgmCompare_parallel", (DL_FUNC) &_bgms_run_bgmCompare_parallel, 38},
@@ -401,9 +418,10 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sample_mixed_mrf_gibbs", (DL_FUNC) &_bgms_sample_mixed_mrf_gibbs, 11},
     {"_bgms_run_mixed_simulation_parallel", (DL_FUNC) &_bgms_run_mixed_simulation_parallel, 16},
     {"_bgms_sample_ggm", (DL_FUNC) &_bgms_sample_ggm, 19},
-    {"_bgms_sample_mixed_mrf", (DL_FUNC) &_bgms_sample_mixed_mrf, 17},
+    {"_bgms_sample_mixed_mrf", (DL_FUNC) &_bgms_sample_mixed_mrf, 21},
     {"_bgms_sample_omrf", (DL_FUNC) &_bgms_sample_omrf, 24},
     {"_bgms_compute_Vn_mfm_sbm", (DL_FUNC) &_bgms_compute_Vn_mfm_sbm, 4},
+    {"_bgms_test_mixed_gradient", (DL_FUNC) &_bgms_test_mixed_gradient, 3},
     {NULL, NULL, 0}
 };
 

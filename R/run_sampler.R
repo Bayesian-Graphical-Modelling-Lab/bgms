@@ -201,7 +201,11 @@ run_sampler_mixed_mrf = function(spec) {
     beta_bernoulli_alpha_between = bb_alpha_between,
     beta_bernoulli_beta_between = bb_beta_between,
     dirichlet_alpha = p$dirichlet_alpha,
-    lambda = p$lambda
+    lambda = p$lambda,
+    sampler_type = s$update_method,
+    target_acceptance = s$target_accept,
+    max_tree_depth = s$nuts_max_depth,
+    num_leapfrogs = s$hmc_num_leapfrogs
   )
 
   out_raw
