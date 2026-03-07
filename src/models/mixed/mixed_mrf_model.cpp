@@ -473,8 +473,8 @@ void MixedMRFModel::do_one_metropolis_step(int iteration) {
             if(!edge_selection_active_ || gxy(i, j) == 1)
                 update_Kxy(i, j, iteration);
 
-    // Step 6: Edge selection (reversible-jump birth/death)
-    update_edge_indicators();
+    // Edge-indicator updates are handled by ChainRunner, not here.
+    // (Matches the OMRF pattern; avoids double-counting indicator proposals.)
 }
 
 void MixedMRFModel::update_edge_indicators() {
