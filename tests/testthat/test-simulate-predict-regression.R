@@ -76,6 +76,16 @@ get_bgms_fixtures = function() {
       label = "ggm-no-es", get_fit = get_bgms_fit_ggm_no_es,
       get_prediction_data = get_prediction_data_ggm,
       var_type = "continuous", is_continuous = TRUE
+    ),
+    list(
+      label = "mixed-mrf", get_fit = get_bgms_fit_mixed_mrf,
+      get_prediction_data = get_prediction_data_mixed,
+      var_type = "mixed", is_continuous = FALSE, is_mixed = TRUE
+    ),
+    list(
+      label = "mixed-mrf-no-es", get_fit = get_bgms_fit_mixed_mrf_no_es,
+      get_prediction_data = get_prediction_data_mixed,
+      var_type = "mixed", is_continuous = FALSE, is_mixed = TRUE
     )
   )
 }
@@ -187,6 +197,25 @@ test_that("bgms $arguments contains all fields needed by simulate/predict", {
         isTRUE(args$is_continuous),
         info = sprintf("%s: is_continuous should be TRUE for GGM", ctx)
       )
+    } else if(isTRUE(spec$is_mixed)) {
+      # Mixed MRF: OMRF fields plus mixed-specific fields
+      for(field in BGMS_OMRF_FIELDS) {
+        expect_true(
+          field %in% names(args),
+          info = sprintf("%s: missing arguments$%s", ctx, field)
+        )
+      }
+      for(field in c("is_mixed", "discrete_indices", "continuous_indices",
+                      "num_discrete", "num_continuous", "is_ordinal",
+                      "data_columnnames_discrete", "data_columnnames_continuous")) {
+        expect_true(
+          field %in% names(args),
+          info = sprintf("%s: missing mixed arguments$%s", ctx, field)
+        )
+      }
+      expect_true(isTRUE(args$is_mixed),
+        info = sprintf("%s: is_mixed should be TRUE", ctx)
+      )
     } else {
       # OMRF fits must also carry num_categories and baseline_category
       for(field in BGMS_OMRF_FIELDS) {
@@ -245,6 +274,18 @@ test_that("bgms fit objects have posterior_mean fields for simulate/predict", {
     expect_equal(ncol(fit$posterior_mean_pairwise), p,
       info = paste(ctx, "posterior_mean_pairwise wrong ncol")
     )
+
+    if(isTRUE(spec$is_mixed)) {
+      expect_true(is.list(fit$posterior_mean_main),
+        info = paste(ctx, "mixed posterior_mean_main should be a list")
+      )
+      expect_false(is.null(fit$posterior_mean_main$discrete),
+        info = paste(ctx, "missing posterior_mean_main$discrete")
+      )
+      expect_false(is.null(fit$posterior_mean_main$continuous),
+        info = paste(ctx, "missing posterior_mean_main$continuous")
+      )
+    }
   }
 })
 
@@ -476,6 +517,42 @@ test_that("simulate → predict roundtrip works for all bgms fixtures", {
           info = sprintf("%s predict var %d ncol", ctx, j)
         )
       }
+    } else if(isTRUE(spec$is_mixed)) {
+      # Mixed MRF: predict returns list with discrete (probs) and continuous (mean/sd)
+      probs = predict(fit, newdata = simulated, type = "probabilities")
+      expect_true(is.list(probs), info = paste(ctx, "predict type"))
+      expect_equal(length(probs), args$num_variables, info = paste(ctx, "predict length"))
+
+      for(j in seq_len(args$num_variables)) {
+        vname = args$data_columnnames[j]
+        expect_equal(nrow(probs[[j]]), n_sim,
+          info = sprintf("%s predict %s nrow", ctx, vname)
+        )
+        expect_false(anyNA(probs[[j]]),
+          info = sprintf("%s predict %s has NAs", ctx, vname)
+        )
+
+        if(args$variable_type[j] %in% c("ordinal", "blume-capel")) {
+          # Discrete: probability rows sum to 1
+          row_sums = rowSums(probs[[j]])
+          expect_true(
+            all(abs(row_sums - 1) < 1e-6),
+            info = sprintf("%s predict %s probs don't sum to 1", ctx, vname)
+          )
+        } else {
+          # Continuous: 2-column (mean, sd) matrix
+          expect_equal(ncol(probs[[j]]), 2,
+            info = sprintf("%s predict %s ncol", ctx, vname)
+          )
+        }
+      }
+
+      # type = "response" should return a matrix
+      resp = predict(fit, newdata = simulated, type = "response")
+      expect_true(is.matrix(resp), info = paste(ctx, "response matrix"))
+      expect_equal(dim(resp), c(n_sim, args$num_variables),
+        info = paste(ctx, "response dim")
+      )
     } else {
       # OMRF: predict returns list of probability matrices
       probs = predict(fit, newdata = simulated, type = "probabilities")
@@ -668,7 +745,7 @@ test_that("bgms $arguments field types are correct for simulate/predict", {
       info = paste(ctx, "data_columnnames length")
     )
 
-    if(!isTRUE(spec$is_continuous)) {
+    if(!isTRUE(spec$is_continuous) && !isTRUE(spec$is_mixed)) {
       # OMRF-only fields
       expect_true(is.numeric(args$num_categories) && length(args$num_categories) == p,
         info = paste(ctx, "num_categories length")
@@ -678,6 +755,28 @@ test_that("bgms $arguments field types are correct for simulate/predict", {
       )
       expect_true(is.numeric(args$baseline_category) && length(args$baseline_category) == p,
         info = paste(ctx, "baseline_category length")
+      )
+    }
+
+    if(isTRUE(spec$is_mixed)) {
+      pd = args$num_discrete
+      qc = args$num_continuous
+      expect_equal(pd + qc, p, info = paste(ctx, "num_discrete + num_continuous == p"))
+      expect_true(
+        is.numeric(args$num_categories) && length(args$num_categories) == pd,
+        info = paste(ctx, "mixed num_categories length == num_discrete")
+      )
+      expect_true(
+        is.numeric(args$baseline_category) && length(args$baseline_category) == pd,
+        info = paste(ctx, "mixed baseline_category length == num_discrete")
+      )
+      expect_true(
+        is.numeric(args$discrete_indices) && length(args$discrete_indices) == pd,
+        info = paste(ctx, "discrete_indices length")
+      )
+      expect_true(
+        is.numeric(args$continuous_indices) && length(args$continuous_indices) == qc,
+        info = paste(ctx, "continuous_indices length")
       )
     }
   }

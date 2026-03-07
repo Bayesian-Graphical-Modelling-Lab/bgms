@@ -159,3 +159,150 @@ Rcpp::List compute_conditional_probs(
 
   return result;
 }
+
+
+// ============================================================================
+//   Mixed MRF Conditional Prediction
+// ============================================================================
+
+/**
+ * Compute conditional distributions for a mixed MRF.
+ *
+ * For discrete variables: P(x_s = c | x_{-s}, y) using the conditional OMRF.
+ * For continuous variables: E(y_j | y_{-j}, x) and SD(y_j | y_{-j}, x)
+ * using the conditional GGM.
+ *
+ * @param x_observations   n x p integer matrix of discrete data.
+ * @param y_observations   n x q numeric matrix of continuous data.
+ * @param predict_vars     0-based indices into the combined (p+q) variable list.
+ *                         Indices 0..p-1 refer to discrete variables,
+ *                         p..p+q-1 refer to continuous variables.
+ * @param Kxx              p x p pairwise interactions (diagonal zero).
+ * @param Kxy              p x q cross interactions.
+ * @param Kyy              q x q precision matrix.
+ * @param mux              p x max_cats threshold / Blume-Capel parameters.
+ * @param muy              q-vector of continuous means.
+ * @param num_categories   p-vector: categories per discrete variable.
+ * @param variable_type    p-vector: "ordinal" or "blume-capel".
+ * @param baseline_category p-vector.
+ *
+ * @return List of prediction matrices (one per predicted variable).
+ *         For discrete: n x (num_cats+1) probability matrix.
+ *         For continuous: n x 2 matrix (mean, sd).
+ */
+// [[Rcpp::export]]
+Rcpp::List compute_conditional_mixed(
+    const arma::imat& x_observations,
+    const arma::mat& y_observations,
+    const arma::ivec& predict_vars,
+    const arma::mat& Kxx,
+    const arma::mat& Kxy,
+    const arma::mat& Kyy,
+    const arma::mat& mux,
+    const arma::vec& muy,
+    const arma::ivec& num_categories,
+    const Rcpp::StringVector& variable_type,
+    const arma::ivec& baseline_category
+) {
+  int n = x_observations.n_rows;
+  int p = x_observations.n_cols;
+  int q = y_observations.n_cols;
+  int num_predict_vars = predict_vars.n_elem;
+
+  // Precompute Kyy inverse for continuous conditionals
+  arma::mat Kyy_inv = arma::inv_sympd(Kyy);
+
+  // Convert discrete to double (centered for rest-score computation)
+  arma::mat x_dbl = arma::conv_to<arma::mat>::from(x_observations);
+
+  Rcpp::List result(num_predict_vars);
+
+  for (int pv = 0; pv < num_predict_vars; pv++) {
+    int var_idx = predict_vars[pv];
+
+    if (var_idx < p) {
+      // --- Discrete variable: P(x_s = c | x_{-s}, y) ---
+      int s = var_idx;
+      int Cs = num_categories[s];
+
+      // Rest score from discrete neighbours (centered by baseline)
+      arma::vec rest_discrete(n, arma::fill::zeros);
+      for (int k = 0; k < p; k++) {
+        if (k == s) continue;
+        arma::vec obs_k = x_dbl.col(k);
+        double ref_k = static_cast<double>(baseline_category[k]);
+        rest_discrete += (obs_k - ref_k) * Kxx(k, s);
+      }
+
+      // Rest score from continuous (factor of 2)
+      arma::vec rest_continuous(n, arma::fill::zeros);
+      for (int j = 0; j < q; j++) {
+        rest_continuous += 2.0 * Kxy(s, j) * y_observations.col(j);
+      }
+
+      arma::vec rest_scores = rest_discrete + rest_continuous;
+
+      arma::mat probs;
+      if (std::string(variable_type[s]) == "blume-capel") {
+        int ref = baseline_category[s];
+        double lin_eff = mux(s, 0);
+        double quad_eff = mux(s, 1);
+        arma::vec bound;
+        probs = compute_probs_blume_capel(
+          rest_scores, lin_eff, quad_eff, ref, Cs, bound
+        );
+      } else {
+        arma::vec main_param = mux.row(s).head(Cs).t();
+        arma::vec bound(n, arma::fill::zeros);
+        for (int c = 0; c < Cs; c++) {
+          arma::vec exps = main_param[c] + (c + 1) * rest_scores;
+          bound = arma::max(bound, exps);
+        }
+        probs = compute_probs_ordinal(main_param, rest_scores, bound, Cs);
+      }
+
+      Rcpp::NumericMatrix prob_mat(n, Cs + 1);
+      for (int i = 0; i < n; i++) {
+        for (int c = 0; c <= Cs; c++) {
+          prob_mat(i, c) = probs(i, c);
+        }
+      }
+      result[pv] = prob_mat;
+
+    } else {
+      // --- Continuous variable: y_j | y_{-j}, x ---
+      int j = var_idx - p;
+
+      double omega_jj = Kyy(j, j);
+      double cond_var = 1.0 / omega_jj;
+      double cond_sd = std::sqrt(cond_var);
+
+      // Contribution from other continuous variables:
+      // -sum_{k != j} Kyy[j,k] * (y_k - muy_k)
+      arma::vec lp_continuous(n, arma::fill::zeros);
+      for (int k = 0; k < q; k++) {
+        if (k == j) continue;
+        lp_continuous -= Kyy(j, k) * (y_observations.col(k) - muy(k));
+      }
+
+      // Contribution from discrete variables (factor of 2):
+      // sum_s 2 * Kxy(s, j) * x_s_centered
+      arma::vec lp_discrete(n, arma::fill::zeros);
+      for (int s = 0; s < p; s++) {
+        double ref_s = static_cast<double>(baseline_category[s]);
+        lp_discrete += 2.0 * Kxy(s, j) * (x_dbl.col(s) - ref_s);
+      }
+
+      arma::vec cond_means = muy(j) + cond_var * (lp_continuous + lp_discrete);
+
+      Rcpp::NumericMatrix out(n, 2);
+      for (int i = 0; i < n; i++) {
+        out(i, 0) = cond_means[i];
+        out(i, 1) = cond_sd;
+      }
+      result[pv] = out;
+    }
+  }
+
+  return result;
+}

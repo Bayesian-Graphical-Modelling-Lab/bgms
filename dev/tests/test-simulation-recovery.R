@@ -683,3 +683,112 @@ test_that("GGM posterior recovers parameters from simulated data", {
   expect_false(is.null(fit_vs_sbm$posterior_mode_allocations))
   expect_false(is.null(fit_vs_sbm$raw_samples$allocations))
 })
+
+
+# ==============================================================================
+# Mixed MRF Simulation-Recovery
+# ==============================================================================
+
+#' Run simulation-recovery test for a mixed MRF bgms fit
+#'
+#' @param fit A fitted bgms object (mixed MRF)
+#' @param n_sim Number of observations to simulate
+#' @param mcmc_args List of MCMC arguments for refitting
+#' @param min_correlation Minimum acceptable correlation between estimates
+#' @param seed Random seed for reproducibility
+#'
+#' @return List with correlation values and pass/fail status
+run_simrec_test_mixed <- function(fit, n_sim = 500, mcmc_args = NULL,
+                                  min_correlation = 0.80, seed = 12345) {
+
+  if(is.null(mcmc_args)) {
+    mcmc_args <- list(iter = 1000, warmup = 1000, chains = 1,
+                      display_progress = "none")
+  }
+
+  args <- extract_arguments(fit)
+
+  # Extract pairwise estimates from original fit
+  original_pairwise <- colMeans(extract_pairwise_interactions(fit))
+
+  # Simulate data from the fitted model
+  set.seed(seed)
+  simulated_data <- simulate(fit, nsim = n_sim, method = "posterior-mean",
+                             seed = seed)
+
+  # Validate: check for constant discrete columns
+  disc_idx <- args$discrete_indices
+  col_vars <- apply(simulated_data[, disc_idx, drop = FALSE], 2,
+                    function(x) length(unique(x)))
+  if(any(col_vars < 2)) {
+    return(list(
+      cor_pairwise = NA_real_,
+      passed = NA,
+      skipped = TRUE,
+      reason = sprintf("Degenerate discrete predictions for variable(s): %s",
+                       paste(which(col_vars < 2), collapse = ", "))
+    ))
+  }
+
+  # Refit on simulated data
+  refit_args <- c(
+    list(x = simulated_data,
+         variable_type = args$variable_type,
+         edge_selection = FALSE),
+    mcmc_args
+  )
+
+  refit <- do.call(bgm, refit_args)
+
+  # Extract estimates from refit
+  refit_pairwise <- colMeans(extract_pairwise_interactions(refit))
+
+  # Calculate correlation
+  cor_pairwise <- cor(original_pairwise, refit_pairwise)
+  if(is.na(cor_pairwise)) cor_pairwise <- 0
+
+  list(
+    cor_pairwise = cor_pairwise,
+    passed = cor_pairwise >= min_correlation
+  )
+}
+
+
+test_that("bgm simulation-recovery: mixed MRF (Boredom, ordinal + continuous)", {
+  skip_on_cran()
+
+  # Use Boredom data: 8 ordinal variables (1-7 scale), treat 3 as continuous.
+  # Shift ordinal columns to 0-based to match bgm() expectations.
+  data("Boredom", package = "bgms")
+  x <- as.matrix(Boredom[, 2:6])
+  x <- x - 1L  # shift from 1-7 to 0-6
+  colnames(x) <- names(Boredom)[2:6]
+  n_obs <- nrow(x)
+
+  # Treat columns 2 and 4 as continuous, rest as ordinal
+  vtype <- c("ordinal", "continuous", "ordinal", "continuous", "ordinal")
+
+  fit <- bgm(x, variable_type = vtype,
+             edge_selection = FALSE,
+             iter = 1000, warmup = 1000, chains = 1,
+             seed = 44321, display_progress = "none")
+
+  result <- run_simrec_test_mixed(
+    fit,
+    n_sim = n_obs,
+    mcmc_args = list(iter = 1000, warmup = 1000, chains = 1,
+                     display_progress = "none"),
+    min_correlation = 0.80,
+    seed = 44321
+  )
+
+  if(isTRUE(result$skipped)) {
+    skip(result$reason)
+  }
+
+  expect_true(
+    result$cor_pairwise >= 0.80,
+    info = sprintf("Mixed MRF pairwise correlation = %.3f (expected >= 0.80)",
+                   result$cor_pairwise)
+  )
+})

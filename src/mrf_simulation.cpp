@@ -723,3 +723,494 @@ Rcpp::List run_ggm_simulation_parallel(
 
   return output;
 }
+
+
+// ============================================================================
+//   Mixed MRF Simulation (Block Gibbs: Discrete + Continuous)
+// ============================================================================
+
+/**
+ * Simulate observations from a mixed MRF using block Gibbs sampling.
+ *
+ * Each iteration updates all discrete variables from their full conditional
+ * given (x_{-s}, y), then updates all continuous variables from
+ * y | x ~ N(mu_y + 2 * x * Kxy * Kyy^{-1}, Kyy^{-1}).
+ *
+ * @param num_states      Number of observations to simulate.
+ * @param Kxx             p x p discrete pairwise interactions (diagonal zero).
+ * @param Kxy             p x q cross interactions.
+ * @param Kyy             q x q SPD continuous precision.
+ * @param mux             p x max_cats threshold / Blume-Capel parameters.
+ * @param muy             q-vector of continuous means.
+ * @param num_categories  p-vector: number of categories per discrete variable
+ *                        (on top of baseline 0).
+ * @param variable_type   p-vector: "ordinal" or "blume-capel".
+ * @param baseline_category  p-vector: reference category per variable.
+ * @param iter            Number of Gibbs iterations for burn-in.
+ * @param rng             Thread-safe RNG.
+ * @param x_out           Output: n x p integer matrix of discrete observations.
+ * @param y_out           Output: n x q numeric matrix of continuous observations.
+ */
+void simulate_mixed_mrf(
+    int num_states,
+    const arma::mat& Kxx,
+    const arma::mat& Kxy,
+    const arma::mat& Kyy,
+    const arma::mat& mux,
+    const arma::vec& muy,
+    const arma::ivec& num_categories,
+    const std::vector<std::string>& variable_type,
+    const arma::ivec& baseline_category,
+    int iter,
+    SafeRNG& rng,
+    arma::imat& x_out,
+    arma::mat& y_out) {
+
+  int p = Kxx.n_rows;
+  int q = Kyy.n_rows;
+
+  // Precompute Kyy decomposition
+  arma::mat Sigma_y = arma::inv_sympd(Kyy);
+  arma::mat L_Sigma = arma::chol(Sigma_y, "lower");
+
+  // Precompute Kxy * Kyy^{-1} for conditional mean
+  arma::mat Kxy_Sigma = Kxy * Sigma_y;  // p x q
+
+  // Copy Kxx with zeroed diagonal for safety
+  arma::mat Kxx_safe = Kxx;
+  Kxx_safe.diag().zeros();
+
+  // Generate each observation independently
+  for (int obs = 0; obs < num_states; obs++) {
+    // Initialize discrete variables uniformly
+    arma::ivec x_current(p);
+    for (int s = 0; s < p; s++) {
+      int max_cat = num_categories(s);
+      x_current(s) = static_cast<int>(runif(rng) * (max_cat + 1));
+      if (x_current(s) > max_cat) x_current(s) = max_cat;
+    }
+
+    // Initialize continuous from marginal N(muy, Sigma_y)
+    arma::vec z = arma_rnorm_vec(rng, q);
+    arma::vec y_current = muy + L_Sigma * z;
+
+    // Gibbs iterations
+    for (int it = 0; it < iter; it++) {
+
+      // --- Update discrete variables from f(x_s | x_{-s}, y) ---
+      for (int s = 0; s < p; s++) {
+        int Cs = num_categories(s);
+
+        // Rest score from discrete neighbours
+        double rest_discrete = 0.0;
+        for (int k = 0; k < p; k++) {
+          if (k != s) {
+            int obs_k = x_current(k);
+            int ref_k = baseline_category(k);
+            rest_discrete += (obs_k - ref_k) * Kxx_safe(k, s);
+          }
+        }
+
+        // Rest score from continuous (factor of 2)
+        double rest_continuous = 0.0;
+        for (int j = 0; j < q; j++) {
+          rest_continuous += 2.0 * Kxy(s, j) * y_current(j);
+        }
+
+        double rest = rest_discrete + rest_continuous;
+
+        if (variable_type[s] == "blume-capel") {
+          int ref = baseline_category(s);
+          double alpha = mux(s, 0);
+          double beta  = mux(s, 1);
+
+          // Compute log-probabilities for categories 0..Cs
+          arma::vec log_probs(Cs + 1);
+          double max_lp = -std::numeric_limits<double>::infinity();
+          for (int c = 0; c <= Cs; c++) {
+            int d = c - ref;
+            log_probs(c) = alpha * d + beta * d * d + d * rest;
+            if (log_probs(c) > max_lp) max_lp = log_probs(c);
+          }
+
+          // Stabilize and convert to cumulative probabilities
+          double cumsum = 0.0;
+          arma::vec cum_probs(Cs + 1);
+          for (int c = 0; c <= Cs; c++) {
+            cumsum += std::exp(log_probs(c) - max_lp);
+            cum_probs(c) = cumsum;
+          }
+
+          // Sample
+          double u = runif(rng) * cumsum;
+          int sampled = 0;
+          while (sampled < Cs && u > cum_probs(sampled)) sampled++;
+          x_current(s) = sampled;
+
+        } else {
+          // Ordinal: category 0 is reference with log-prob = 0
+          arma::vec log_probs(Cs + 1);
+          log_probs(0) = 0.0;
+          double max_lp = 0.0;
+          for (int c = 1; c <= Cs; c++) {
+            log_probs(c) = mux(s, c - 1) + c * rest;
+            if (log_probs(c) > max_lp) max_lp = log_probs(c);
+          }
+
+          double cumsum = 0.0;
+          arma::vec cum_probs(Cs + 1);
+          for (int c = 0; c <= Cs; c++) {
+            cumsum += std::exp(log_probs(c) - max_lp);
+            cum_probs(c) = cumsum;
+          }
+
+          double u = runif(rng) * cumsum;
+          int sampled = 0;
+          while (sampled < Cs && u > cum_probs(sampled)) sampled++;
+          x_current(s) = sampled;
+        }
+      }
+
+      // --- Update continuous variables from y | x ---
+      // y | x ~ N(muy + 2 * Kxy_Sigma^T * x_centered, Sigma_y)
+      // Compute centered discrete observations
+      arma::vec x_centered(p);
+      for (int s = 0; s < p; s++) {
+        x_centered(s) = static_cast<double>(x_current(s) - baseline_category(s));
+      }
+
+      // Conditional mean: muy + 2 * Sigma_y * Kxy^T * x_centered
+      //   = muy + 2 * Kxy_Sigma^T * x_centered
+      arma::vec cond_mean = muy + 2.0 * Kxy_Sigma.t() * x_centered;
+
+      // Sample y ~ N(cond_mean, Sigma_y)
+      arma::vec z2 = arma_rnorm_vec(rng, q);
+      y_current = cond_mean + L_Sigma * z2;
+    }
+
+    // Store final state
+    x_out.row(obs) = x_current.t();
+    y_out.row(obs) = y_current.t();
+  }
+}
+
+
+// ============================================================================
+//   R Interface for Mixed MRF Simulation (standalone)
+// ============================================================================
+
+// [[Rcpp::export]]
+Rcpp::List sample_mixed_mrf_gibbs(
+    int num_states,
+    NumericMatrix Kxx_r,
+    NumericMatrix Kxy_r,
+    NumericMatrix Kyy_r,
+    NumericMatrix mux_r,
+    NumericVector muy_r,
+    IntegerVector num_categories_r,
+    Rcpp::StringVector variable_type_r,
+    IntegerVector baseline_category_r,
+    int iter,
+    int seed) {
+
+  SafeRNG rng(seed);
+
+  int p = Kxx_r.nrow();
+  int q = Kyy_r.nrow();
+
+  arma::mat Kxx = Rcpp::as<arma::mat>(Kxx_r);
+  arma::mat Kxy = Rcpp::as<arma::mat>(Kxy_r);
+  arma::mat Kyy = Rcpp::as<arma::mat>(Kyy_r);
+  arma::mat mux = Rcpp::as<arma::mat>(mux_r);
+  arma::vec muy = Rcpp::as<arma::vec>(muy_r);
+  arma::ivec num_categories = Rcpp::as<arma::ivec>(num_categories_r);
+  arma::ivec baseline_category = Rcpp::as<arma::ivec>(baseline_category_r);
+
+  // Convert variable_type
+  std::vector<std::string> variable_type(p);
+  for (int i = 0; i < p; i++) {
+    variable_type[i] = Rcpp::as<std::string>(variable_type_r[i]);
+    if (variable_type[i] != "blume-capel") {
+      baseline_category[i] = 0;
+    }
+  }
+
+  arma::imat x_out(num_states, p);
+  arma::mat y_out(num_states, q);
+
+  simulate_mixed_mrf(
+    num_states, Kxx, Kxy, Kyy, mux, muy,
+    num_categories, variable_type, baseline_category,
+    iter, rng, x_out, y_out
+  );
+
+  Rcpp::checkUserInterrupt();
+
+  return Rcpp::List::create(
+    Rcpp::Named("x") = Rcpp::wrap(x_out),
+    Rcpp::Named("y") = Rcpp::wrap(y_out)
+  );
+}
+
+
+// ============================================================================
+//   Parallel Mixed MRF Simulation for simulate.bgms() with Posterior Draws
+// ============================================================================
+
+struct MixedSimulationResult {
+  arma::imat x_observations;
+  arma::mat y_observations;
+  int draw_index;
+  bool error;
+  std::string error_msg;
+};
+
+
+class MixedSimulationWorker : public RcppParallel::Worker {
+public:
+  // Input: posterior samples as flat vectors (one row per draw)
+  const arma::mat& mux_samples;       // ndraws x n_mux
+  const arma::mat& kxx_samples;       // ndraws x p*(p-1)/2
+  const arma::mat& muy_samples;       // ndraws x q
+  const arma::mat& kyy_samples;       // ndraws x q*(q+1)/2
+  const arma::mat& kxy_samples;       // ndraws x p*q
+
+  const arma::ivec& draw_indices;
+  const int num_states;
+  const int p, q;
+  const arma::ivec& num_categories;
+  const std::vector<std::string>& variable_type;
+  const arma::ivec& baseline_category;
+  const int iter;
+  const arma::ivec& mux_param_counts;
+
+  const std::vector<SafeRNG>& draw_rngs;
+  ProgressManager& pm;
+  std::vector<MixedSimulationResult>& results;
+
+  MixedSimulationWorker(
+    const arma::mat& mux_samples,
+    const arma::mat& kxx_samples,
+    const arma::mat& muy_samples,
+    const arma::mat& kyy_samples,
+    const arma::mat& kxy_samples,
+    const arma::ivec& draw_indices,
+    int num_states,
+    int p, int q,
+    const arma::ivec& num_categories,
+    const std::vector<std::string>& variable_type,
+    const arma::ivec& baseline_category,
+    int iter,
+    const arma::ivec& mux_param_counts,
+    const std::vector<SafeRNG>& draw_rngs,
+    ProgressManager& pm,
+    std::vector<MixedSimulationResult>& results
+  ) :
+    mux_samples(mux_samples),
+    kxx_samples(kxx_samples),
+    muy_samples(muy_samples),
+    kyy_samples(kyy_samples),
+    kxy_samples(kxy_samples),
+    draw_indices(draw_indices),
+    num_states(num_states),
+    p(p), q(q),
+    num_categories(num_categories),
+    variable_type(variable_type),
+    baseline_category(baseline_category),
+    iter(iter),
+    mux_param_counts(mux_param_counts),
+    draw_rngs(draw_rngs),
+    pm(pm),
+    results(results)
+  {}
+
+  void operator()(std::size_t begin, std::size_t end) {
+    for (std::size_t i = begin; i < end; i++) {
+      MixedSimulationResult result;
+      result.draw_index = draw_indices[i];
+      result.error = false;
+
+      try {
+        SafeRNG rng = draw_rngs[i];
+        int draw_row = draw_indices[i] - 1;  // 1-based to 0-based
+
+        // Reconstruct mux (p x max_cats)
+        int max_cats = arma::max(mux_param_counts);
+        arma::mat mux(p, max_cats, arma::fill::zeros);
+        int idx = 0;
+        for (int s = 0; s < p; s++) {
+          for (int c = 0; c < mux_param_counts[s]; c++) {
+            mux(s, c) = mux_samples(draw_row, idx);
+            idx++;
+          }
+        }
+
+        // Reconstruct Kxx (p x p symmetric, zero diagonal)
+        arma::mat Kxx(p, p, arma::fill::zeros);
+        idx = 0;
+        for (int col = 0; col < p; col++) {
+          for (int row = col + 1; row < p; row++) {
+            Kxx(row, col) = kxx_samples(draw_row, idx);
+            Kxx(col, row) = kxx_samples(draw_row, idx);
+            idx++;
+          }
+        }
+
+        // Reconstruct muy (q-vector)
+        arma::vec muy(q);
+        for (int j = 0; j < q; j++) {
+          muy(j) = muy_samples(draw_row, j);
+        }
+
+        // Reconstruct Kyy (q x q symmetric, upper triangle including diagonal)
+        arma::mat Kyy(q, q, arma::fill::zeros);
+        idx = 0;
+        for (int col = 0; col < q; col++) {
+          for (int row = col; row < q; row++) {
+            if (row == col) {
+              Kyy(row, col) = kyy_samples(draw_row, idx);
+            } else {
+              Kyy(row, col) = kyy_samples(draw_row, idx);
+              Kyy(col, row) = kyy_samples(draw_row, idx);
+            }
+            idx++;
+          }
+        }
+
+        // Reconstruct Kxy (p x q, row-major)
+        arma::mat Kxy(p, q, arma::fill::zeros);
+        idx = 0;
+        for (int s = 0; s < p; s++) {
+          for (int j = 0; j < q; j++) {
+            Kxy(s, j) = kxy_samples(draw_row, idx);
+            idx++;
+          }
+        }
+
+        // Simulate
+        result.x_observations.set_size(num_states, p);
+        result.y_observations.set_size(num_states, q);
+
+        simulate_mixed_mrf(
+          num_states, Kxx, Kxy, Kyy, mux, muy,
+          num_categories, variable_type, baseline_category,
+          iter, rng,
+          result.x_observations, result.y_observations
+        );
+
+      } catch (const std::exception& e) {
+        result.error = true;
+        result.error_msg = e.what();
+      } catch (...) {
+        result.error = true;
+        result.error_msg = "Unknown error";
+      }
+
+      results[i] = result;
+      pm.update(0);
+    }
+  }
+};
+
+
+/**
+ * Run parallel mixed MRF simulations across posterior draws.
+ *
+ * The R layer splits the flat parameter vector into the 5 component matrices
+ * and passes them as separate sample matrices.
+ *
+ * @param mux_samples     ndraws x n_mux
+ * @param kxx_samples     ndraws x p*(p-1)/2
+ * @param muy_samples     ndraws x q
+ * @param kyy_samples     ndraws x q*(q+1)/2
+ * @param kxy_samples     ndraws x p*q
+ * @param draw_indices    1-based indices of which draws to use
+ * @param num_states      Number of observations per draw
+ * @param p               Number of discrete variables
+ * @param q               Number of continuous variables
+ * @param num_categories  p-vector: categories per discrete variable
+ * @param variable_type_r p-vector: "ordinal" or "blume-capel"
+ * @param baseline_category p-vector
+ * @param iter            Gibbs burn-in iterations
+ * @param nThreads        Number of threads
+ * @param seed            Random seed
+ * @param progress_type   Progress bar type
+ *
+ * @return List of lists, each containing "x" (integer matrix) and "y" (numeric matrix).
+ */
+// [[Rcpp::export]]
+Rcpp::List run_mixed_simulation_parallel(
+    const arma::mat& mux_samples,
+    const arma::mat& kxx_samples,
+    const arma::mat& muy_samples,
+    const arma::mat& kyy_samples,
+    const arma::mat& kxy_samples,
+    const arma::ivec& draw_indices,
+    int num_states,
+    int p,
+    int q,
+    const arma::ivec& num_categories,
+    const Rcpp::StringVector& variable_type_r,
+    const arma::ivec& baseline_category,
+    int iter,
+    int nThreads,
+    int seed,
+    int progress_type) {
+
+  int ndraws = draw_indices.n_elem;
+
+  std::vector<std::string> variable_type(p);
+  arma::ivec baseline_category_safe = baseline_category;
+  for (int i = 0; i < p; i++) {
+    variable_type[i] = Rcpp::as<std::string>(variable_type_r[i]);
+    if (variable_type[i] != "blume-capel") {
+      baseline_category_safe[i] = 0;
+    }
+  }
+
+  // Compute mux param counts per discrete variable
+  arma::ivec mux_param_counts(p);
+  for (int s = 0; s < p; s++) {
+    if (variable_type[s] == "blume-capel") {
+      mux_param_counts[s] = 2;
+    } else {
+      mux_param_counts[s] = num_categories[s];
+    }
+  }
+
+  std::vector<SafeRNG> draw_rngs(ndraws);
+  for (int d = 0; d < ndraws; d++) {
+    draw_rngs[d] = SafeRNG(seed + d);
+  }
+
+  std::vector<MixedSimulationResult> results(ndraws);
+  ProgressManager pm(1, ndraws, 0, 50, progress_type);
+
+  MixedSimulationWorker worker(
+    mux_samples, kxx_samples, muy_samples, kyy_samples, kxy_samples,
+    draw_indices, num_states, p, q,
+    num_categories, variable_type, baseline_category_safe,
+    iter, mux_param_counts, draw_rngs, pm, results
+  );
+
+  {
+    tbb::global_control control(tbb::global_control::max_allowed_parallelism, nThreads);
+    parallelFor(0, ndraws, worker);
+  }
+
+  pm.finish();
+
+  Rcpp::List output(ndraws);
+  for (int i = 0; i < ndraws; i++) {
+    if (results[i].error) {
+      Rcpp::stop("Error in mixed MRF simulation draw %d: %s",
+                 results[i].draw_index, results[i].error_msg.c_str());
+    }
+    output[i] = Rcpp::List::create(
+      Rcpp::Named("x") = Rcpp::wrap(results[i].x_observations),
+      Rcpp::Named("y") = Rcpp::wrap(results[i].y_observations)
+    );
+  }
+
+  return output;
+}

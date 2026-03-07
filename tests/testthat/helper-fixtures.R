@@ -637,6 +637,22 @@ get_prediction_data_ggm = function(n = 10) {
   x
 }
 
+#' Get prediction data matching the mixed MRF bgms fixture
+#' Columns: d1 (ordinal 0-2), c1 (continuous), d2 (ordinal 0-2),
+#'          c2 (continuous), d3 (ordinal 0-2)
+get_prediction_data_mixed = function(n = 10) {
+  set.seed(199)
+  x = cbind(
+    sample(0:2, n, replace = TRUE),
+    rnorm(n),
+    sample(0:2, n, replace = TRUE),
+    rnorm(n),
+    sample(0:2, n, replace = TRUE)
+  )
+  colnames(x) = c("d1", "c1", "d2", "c2", "d3")
+  x
+}
+
 # ------------------------------------------------------------------------------
 # 3. Test Data Generators
 # ------------------------------------------------------------------------------

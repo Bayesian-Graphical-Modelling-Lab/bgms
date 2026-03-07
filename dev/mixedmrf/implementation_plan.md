@@ -312,13 +312,13 @@ add the new Rcpp export to `src/RcppExports.cpp`, `R/RcppExports.R`, and
 | **B+** | Rank-1 Cholesky optimization for Kyy updates | B | Same correctness, $O(q^2)$ per Kyy move instead of $O(q^3)$ | ✅ |
 | **C** | Marginal PL: $\Theta$ caching, marginal OMRF, $\mu_y$ full sweep | B+ | Recovery test passes (marg PL, estimation only) | ✅ |
 | **D** | Edge selection: 3 RJ sweeps | B+ | Structure recovery test passes | ✅ |
-| **E** | R interface: `bgm()` dispatch, output formatting | B+ | End-to-end `bgm(mixed_data)` works |
-| **F** | Warmup schedule, adaptation, diagnostics | E | Full warmup pipeline |
+| **E** | R interface: `bgm()` dispatch, output formatting | B+ | End-to-end `bgm(mixed_data)` works | ✅ |
+| **F** | Warmup schedule, adaptation, diagnostics | E | Full warmup pipeline | ✅ |
 | **G** | Simulation and prediction | E | `simulate.bgms` and `predict.bgms` for mixed |
 
 ---
 
-## Phase A — Skeleton and data structures
+## Phase A — Skeleton and data structures ✅
 
 ### A.1 Create `mixed_mrf_model.h`
 
@@ -517,7 +517,7 @@ The diagonal of `edge_indicators_` is always zero and excluded throughout.
 
 ---
 
-## Phase B — Conditional pseudo-likelihood
+## Phase B — Conditional pseudo-likelihood ✅
 
 ### B.1 Implement log-likelihood functions ✅
 
@@ -787,7 +787,7 @@ void MixedMRFModel::do_one_metropolis_step(int iteration) {
 
 ---
 
-## Phase B+ — Rank-1 Cholesky optimization
+## Phase B+ — Rank-1 Cholesky optimization ✅
 
 The Phase B implementation ports the mixedGM permute-then-Cholesky approach
 for $K_{yy}$ updates: each proposal calls `arma::chol` ($O(q^3)$), evaluates
@@ -1082,7 +1082,7 @@ accepted move that changes $K_{yy}$, $K_{xy}$, or $\mu_y$.
 
 ---
 
-## Phase C — Marginal pseudo-likelihood
+## Phase C — Marginal pseudo-likelihood ✅
 
 ### C.1 Implement `log_marginal_omrf(int s)`
 
@@ -1312,9 +1312,9 @@ edges and does not apply per-pair scaling.  This must be fixed:
 
 ---
 
-## Phase E — R interface and integration
+## Phase E — R interface and integration ✅
 
-### E.0 Remove `src/test_mixed_mrf.cpp`
+### E.0 Remove `src/test_mixed_mrf.cpp` ✅
 
 Delete `src/test_mixed_mrf.cpp` once `sample_mixed.cpp` provides the
 production Rcpp interface (E.1).  The test helpers
@@ -1324,7 +1324,7 @@ functionality is superseded by the real entry point and should not ship
 in the installed package.  Update `src/RcppExports.cpp` and
 `R/RcppExports.R` accordingly (re-run `Rcpp::compileAttributes()`).
 
-### E.1 Create `sample_mixed.cpp`
+### E.1 Create `sample_mixed.cpp` ✅
 
 Rcpp interface function `sample_mixed_mrf_cpp(...)`:
 - Takes R data (integer matrix `x`, numeric matrix `y`)
@@ -1335,7 +1335,7 @@ Rcpp interface function `sample_mixed_mrf_cpp(...)`:
 
 Follow the pattern of `sample_ggm.cpp` and `sample_omrf.cpp`.
 
-### E.2 Extend `bgm()` in R
+### E.2 Extend `bgm()` in R ✅
 
 The user interface uses **Option A** (decided): a single data frame plus a
 `variable_type` argument:
@@ -1367,7 +1367,7 @@ column order.
 override so the shared sampler pipeline compiles. Future imputation support
 for mixed data should be a separate phase (Phase H).
 
-### E.3 Extend `build_output.R`
+### E.3 Extend `build_output.R` ✅
 
 The output structure needs to accommodate:
 - Separate interaction matrices: `Kxx`, `Kyy`, `Kxy` (or a combined one)
@@ -1375,7 +1375,7 @@ The output structure needs to accommodate:
 - Mean samples: `muy` matrix
 - Edge indicators decomposed by type
 
-### E.4 Testing checkpoint — end-to-end
+### E.4 Testing checkpoint — end-to-end ✅
 
 **Test 7 (T19): `bgm()` with mixed data**
 - Call `bgm()` with `variable_type` containing both ordinal and continuous
@@ -1384,9 +1384,9 @@ The output structure needs to accommodate:
 
 ---
 
-## Phase F — Warmup, adaptation, and diagnostics
+## Phase F — Warmup, adaptation, and diagnostics ✅
 
-### F.1 Warmup schedule
+### F.1 Warmup schedule ✅
 
 **Pre-condition check (before Phase F begins):** Verify that `WarmupSchedule`
 and `ChainRunner` support a Metropolis-only model without NUTS mass-matrix
@@ -1404,7 +1404,7 @@ Use the same warmup schedule:
 - Stage 3b: Proposal SD tuning with edge selection (if enabled)
 - Stage 3c: Step-size re-adaptation with edge selection active
 
-### F.2 Robbins-Monro adaptation
+### F.2 Robbins-Monro adaptation ✅
 
 Per-parameter proposal SD adaptation, matching the R prototype:
 ```
@@ -1415,7 +1415,7 @@ target = 0.44
 
 Clamp to [0.001, 2.0].
 
-### F.3 Init metropolis adaptation
+### F.3 Init metropolis adaptation ✅
 
 Override `init_metropolis_adaptation(const WarmupSchedule&)` to store
 the schedule for use in `tune_proposal_sd()`.
@@ -1425,7 +1425,7 @@ Robbins-Monro is already embedded in each update function.
 
 ---
 
-## Phase G — Simulation and prediction
+## Phase G — Simulation and prediction ✅
 
 ### G.1 Mixed MRF simulation
 
@@ -1444,9 +1444,51 @@ Note: the mixedGM Gibbs generator handles ordinal variables only.
 The Blume-Capel Gibbs sampling step must be added using the existing
 bgms probability helpers.
 
+#### Implementation
+
+| File | Component |
+|------|-----------|
+| `src/mrf_simulation.cpp` | `simulate_mixed_mrf()` (core Gibbs), `sample_mixed_mrf_gibbs()` (single-draw Rcpp export), `MixedSimulationWorker` (RcppParallel worker with SafeRNG), `run_mixed_simulation_parallel()` (parallel Rcpp export) |
+| `R/simulate_predict.R` | `simulate_bgms_mixed()` dispatched from `simulate.bgms()`, `reconstruct_mixed_params_from_means()`, `split_mixed_raw_samples()`, `combine_mixed_result()` |
+
 ### G.2 Mixed MRF prediction
 
 Extend `mrf_prediction.cpp` for posterior predictive checks on mixed data.
+
+#### Implementation
+
+| File | Component |
+|------|-----------|
+| `src/mrf_prediction.cpp` | `compute_conditional_mixed()` (Rcpp export): discrete probs via rest-score + ordinal/BC helpers, continuous conditional mean and SD from precision matrix |
+| `R/simulate_predict.R` | `predict_bgms_mixed()` dispatched from `predict.bgms()`, `reconstruct_mixed_params_from_row()`, `format_mixed_predictions()`, `format_mixed_response()` |
+
+### G.3 Cycle-test validation
+
+Simulation-recovery cycle tests (fit → simulate → refit → correlate)
+confirm that estimation and simulation code are consistent.
+
+| PL mode | Pairwise r | Main r | Max |diff| (main) |
+|---------|-----------|--------|---------------------|
+| Conditional | 1.000 | 1.000 | 0.50 |
+| Marginal | 0.994 | 0.994 | 1.02 |
+
+The marginal PL main-effect offsets are a property of the parameterization,
+not a code bug. The marginal PL estimates $\mu_x$ under $\Theta = K_{xx} -
+K_{xy} K_{yy}^{-1} K_{xy}^\top$, but the Gibbs generator uses conditional
+parameters ($K_{xx}$ directly). Both bgms and the mixedGM prototype show the
+same pattern (mixedGM max |diff| = 2.4 on the same data). The pairwise
+interactions are unaffected because $K_{xx}$, $K_{yy}$, and $K_{xy}$ are
+shared across both parameterizations.
+
+Test files:
+
+| File | Content |
+|------|---------|
+| `tests/testthat/test-mixed-mrf-simulate-predict.R` | 77 tests: Gibbs sanity, parallel simulation, conditional prediction, S3 methods, edge cases (p=1, q=1) |
+| `tests/testthat/test-simulate-predict-regression.R` | Mixed MRF fixtures added to existing regression test infrastructure |
+| `dev/tests/test-simulation-recovery.R` | `run_simrec_test_mixed()` + Boredom cycle test |
+| `dev/tests/plot_cycle_scatterplots.R` | Scatterplots for conditional and marginal PL cycle tests |
+| `dev/tests/compare_bgms_mixedgm_cycle.R` | Cross-package comparison (bgms vs mixedGM) |
 
 ---
 
