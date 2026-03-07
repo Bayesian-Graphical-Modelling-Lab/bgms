@@ -160,6 +160,7 @@ MixedMRFModel::MixedMRFModel(const MixedMRFModel& other)
       kyy_vf2_(other.kyy_vf2_),
       kyy_u1_(other.kyy_u1_),
       kyy_u2_(other.kyy_u2_),
+      gradient_cache_valid_(false),
       use_marginal_pl_(other.use_marginal_pl_),
       rng_(other.rng_),
       edge_order_xx_(other.edge_order_xx_),
@@ -593,6 +594,8 @@ void MixedMRFModel::do_one_metropolis_step(int iteration) {
 
 void MixedMRFModel::update_edge_indicators() {
     if(!edge_selection_active_) return;
+
+    invalidate_gradient_cache();
 
     // Discrete-discrete edges (shuffled order)
     for(size_t e = 0; e < num_pairwise_xx_; ++e) {

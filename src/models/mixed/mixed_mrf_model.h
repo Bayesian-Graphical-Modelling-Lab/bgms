@@ -88,6 +88,21 @@ public:
     // =========================================================================
 
     /**
+     * Compute gradient of the log pseudo-posterior (NUTS block only).
+     * @param parameters  NUTS-dimension parameter vector
+     * @return Gradient vector (same size as parameters)
+     */
+    arma::vec gradient(const arma::vec& parameters) override;
+
+    /**
+     * Combined log pseudo-posterior and gradient evaluation.
+     * @param parameters  NUTS-dimension parameter vector
+     * @return Pair of (log-pseudo-posterior, gradient)
+     */
+    std::pair<double, arma::vec> logp_and_gradient(
+        const arma::vec& parameters) override;
+
+    /**
      * Perform one full Metropolis sweep over all parameter groups.
      * @param iteration  Current iteration (for Robbins-Monro adaptation)
      */
@@ -309,6 +324,17 @@ private:
     arma::vec kyy_u2_;                       ///< q-vector workspace
 
     // =========================================================================
+    // Gradient cache (populated by ensure_gradient_cache)
+    // =========================================================================
+
+    arma::mat discrete_observations_dbl_t_; ///< p x n transpose (BLAS gradient)
+    arma::vec grad_obs_cache_;          ///< Cached observed-data gradient component
+    arma::imat kxx_index_cache_;        ///< p x p map from (i,j) to gradient index
+    arma::imat kxy_index_cache_;        ///< p x q map from (i,j) to gradient index
+    int muy_grad_offset_ = 0;           ///< Offset of muy block in gradient vector
+    bool gradient_cache_valid_ = false; ///< Whether gradient cache is current
+
+    // =========================================================================
     // Configuration
     // =========================================================================
 
@@ -341,6 +367,25 @@ private:
 
     /** Recompute Theta_ from Kxx_, Kxy_, covariance_yy_ (marginal PL only). */
     void recompute_Theta();
+
+    // =========================================================================
+    // Gradient helpers (implemented in mixed_mrf_gradient.cpp)
+    // =========================================================================
+
+    /** Rebuild gradient index maps after edge-indicator changes. */
+    void ensure_gradient_cache();
+
+    /** Mark gradient cache as stale (call after edge-indicator changes). */
+    void invalidate_gradient_cache();
+
+    /** Unpack NUTS-vector into temporary parameter matrices (no model mutation). */
+    void unvectorize_nuts_to_temps(
+        const arma::vec& params,
+        arma::mat& temp_mux,
+        arma::mat& temp_Kxx,
+        arma::vec& temp_muy,
+        arma::mat& temp_Kxy
+    ) const;
 
     // =========================================================================
     // Likelihood functions (implemented in mixed_mrf_likelihoods.cpp)
