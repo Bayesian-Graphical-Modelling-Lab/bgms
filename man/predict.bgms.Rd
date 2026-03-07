@@ -40,11 +40,13 @@ the original data used to fit the model.}
 \item{method}{Character string specifying which parameter estimates to use:
 \describe{
   \item{\code{"posterior-mean"}}{Use posterior mean parameters.}
-  \item{\code{"posterior-sample"}}{Average predictions over posterior draws.}
+  \item{\code{"posterior-sample"}}{Average predictions
+    over posterior draws.}
 }}
 
 \item{ndraws}{Number of posterior draws to use when
-\code{method = "posterior-sample"}. If \code{NULL}, uses all available draws.}
+\code{method = "posterior-sample"}. If \code{NULL},
+uses all available draws.}
 
 \item{seed}{Optional random seed for reproducibility when
 \code{method = "posterior-sample"}.}
@@ -56,8 +58,9 @@ the original data used to fit the model.}
 
 For \code{type = "probabilities"}: A named list with one element per
 predicted variable. Each element is a matrix with \code{n} rows and
-\code{num_categories + 1} columns containing \eqn{P(X_j = c | X_{-j})}{P(X_j = c | X_-j)} for each
-observation and category.
+\code{num_categories + 1} columns containing
+\eqn{P(X_j = c | X_{-j})}{P(X_j = c | X_-j)}
+for each observation and category.
 
 For \code{type = "response"}: A matrix with \code{n} rows and
 \code{length(variables)} columns containing predicted categories.
@@ -79,10 +82,18 @@ For \code{type = "response"}: A matrix with \code{n} rows and
 
 When \code{method = "posterior-sample"}, conditional parameters are
 averaged over posterior draws, and an attribute \code{"sd"} is included.
+
+\strong{Mixed MRF models:}
+
+For mixed models, the return list contains elements for both discrete and
+continuous predicted variables. Discrete variables return probability
+matrices (as in ordinal models); continuous variables return conditional
+mean and SD matrices (as in GGM models).
 }
 \description{
 Computes conditional probability distributions for one or more variables
-given the observed values of other variables in the data.
+given the observed values of other variables in the data. Supports ordinal,
+Blume-Capel, continuous (GGM), and mixed MRF models.
 }
 \details{
 For each observation, the function computes the conditional distribution
@@ -92,7 +103,8 @@ sampler.
 
 For GGM (continuous) models, the conditional distribution of
 \eqn{X_j | X_{-j}}{X_j | X_{-j}} is Gaussian with mean
-\eqn{-\omega_{jj}^{-1} \sum_{k \neq j} \omega_{jk} x_k}{-omega_jj^{-1} sum_{k != j} omega_jk x_k}
+\eqn{-\omega_{jj}^{-1} \sum_{k \neq j}
+\omega_{jk} x_k}{-omega_jj^{-1} sum_{k != j} omega_jk x_k}
 and variance \eqn{\omega_{jj}^{-1}}{omega_jj^{-1}}, where \eqn{\Omega}{Omega}
 is the precision matrix.
 }

@@ -2,6 +2,7 @@
 
 ## New features
 
+* Mixed MRF models: `bgm()` accepts a per-variable `variable_type` vector that mixes `"ordinal"`, `"blume-capel"`, and `"continuous"` types to estimate networks with both discrete and continuous variables. `simulate.bgms()` and `predict.bgms()` also support mixed models.
 * Gaussian graphical models (GGM): `bgm(x, variable_type = "continuous")` fits a GGM with Bayesian edge selection. Pairwise effects are partial correlations from the precision matrix.
 * Missing data imputation: `na_action = "impute"` integrates over missing values during MCMC sampling for both ordinal and continuous models.
 

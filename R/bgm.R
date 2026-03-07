@@ -172,8 +172,11 @@
 #'   Blume–Capel variables, all categories are retained.
 #'
 #' @param variable_type Character or character vector. Specifies the type of
-#'   each variable in \code{x}. Allowed values: \code{"ordinal"} or
-#'   \code{"blume-capel"}. Binary variables are automatically treated as
+#'   each variable in \code{x}. Allowed values: \code{"ordinal"},
+#'   \code{"blume-capel"}, or \code{"continuous"}. A single string applies
+#'   to all variables. A per-variable vector that mixes discrete
+#'   (\code{"ordinal"} / \code{"blume-capel"}) and \code{"continuous"}
+#'   types fits a mixed MRF. Binary variables are automatically treated as
 #'   \code{"ordinal"}. Default: \code{"ordinal"}.
 #'
 #' @param baseline_category Integer or vector. Baseline category used in

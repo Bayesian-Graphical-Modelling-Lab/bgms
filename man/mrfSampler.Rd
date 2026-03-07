@@ -21,15 +21,18 @@ mrfSampler(
 
 \item{num_variables}{The number of variables in the MRF.}
 
-\item{num_categories}{Either a positive integer or a vector of positive
-integers of length \code{num_variables}. The number of response categories on top
-of the base category: \code{num_categories = 1} generates binary states.
+\item{num_categories}{Either a positive integer or a vector
+of positive integers of length \code{num_variables}. The
+number of response categories on top of the base category:
+\code{num_categories = 1} generates binary states.
 Only used for ordinal and Blume-Capel variables; ignored when
 \code{variable_type = "continuous"}.}
 
-\item{pairwise}{A symmetric \code{num_variables} by \code{num_variables} matrix.
-For ordinal and Blume-Capel variables, this contains the pairwise interaction
-parameters; only the off-diagonal elements are used. For continuous variables,
+\item{pairwise}{A symmetric \code{num_variables} by
+\code{num_variables} matrix. For ordinal and Blume-Capel
+variables, this contains the pairwise interaction parameters;
+only the off-diagonal elements are used. For continuous
+variables,
 this is the precision matrix \eqn{\Omega}{Omega} (including diagonal) and
 must be positive definite.}
 
@@ -37,7 +40,8 @@ must be positive definite.}
 \code{num_variables} by \code{max(num_categories)} matrix of category
 thresholds. The elements in row \code{i} indicate the thresholds of
 variable \code{i}. If \code{num_categories} is a vector, only the first
-\code{num_categories[i]} elements are used in row \code{i}. If the Blume-Capel
+\code{num_categories[i]} elements are used in row \code{i}.
+If the Blume-Capel
 model is used for the category thresholds for variable \code{i}, then row
 \code{i} requires two values (details below); the first is
 \eqn{\alpha}{\alpha}, the linear contribution of the Blume-Capel model and
@@ -57,8 +61,10 @@ variables. When \code{variable_type = "continuous"}, the function simulates
 from a Gaussian graphical model.
 Defaults to \code{variable_type = "ordinal"}.}
 
-\item{baseline_category}{An integer vector of length \code{num_variables} specifying the
-baseline_category category that is used for the Blume-Capel model (details below).
+\item{baseline_category}{An integer vector of length
+\code{num_variables} specifying the baseline_category
+category that is used for the Blume-Capel model
+(details below).
 Can be any integer value between \code{0} and \code{num_categories} (or
 \code{num_categories[i]}).}
 
