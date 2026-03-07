@@ -8,22 +8,20 @@ using namespace Rcpp;
 //   GGM Conditional Prediction
 // ============================================================================
 
-/**
- * Compute conditional Gaussian parameters for a GGM.
- *
- * For a GGM with precision matrix Omega, the conditional distribution of
- * X_j given X_{-j} = x_{-j} is:
- *
- *   X_j | X_{-j} ~ N( -omega_{jj}^{-1} sum_{k != j} omega_{jk} x_k,
- *                       omega_{jj}^{-1} )
- *
- * @param observations  n x p matrix of observed continuous data
- * @param predict_vars  0-based indices of variables to predict
- * @param precision     p x p precision matrix (Omega)
- *
- * @return List of n x 2 matrices (one per predicted variable), where
- *         column 0 = conditional mean, column 1 = conditional SD.
- */
+// Compute conditional Gaussian parameters for a GGM.
+//
+// For a GGM with precision matrix Omega, the conditional distribution of
+// X_j given X_{-j} = x_{-j} is:
+//
+//   X_j | X_{-j} ~ N( -omega_{jj}^{-1} sum_{k != j} omega_{jk} x_k,
+//                       omega_{jj}^{-1} )
+//
+// @param observations  n x p matrix of observed continuous data
+// @param predict_vars  0-based indices of variables to predict
+// @param precision     p x p precision matrix (Omega)
+//
+// @return List of n x 2 matrices (one per predicted variable), where
+//         column 0 = conditional mean, column 1 = conditional SD.
 // [[Rcpp::export]]
 Rcpp::List compute_conditional_ggm(
     const arma::mat& observations,
@@ -165,31 +163,29 @@ Rcpp::List compute_conditional_probs(
 //   Mixed MRF Conditional Prediction
 // ============================================================================
 
-/**
- * Compute conditional distributions for a mixed MRF.
- *
- * For discrete variables: P(x_s = c | x_{-s}, y) using the conditional OMRF.
- * For continuous variables: E(y_j | y_{-j}, x) and SD(y_j | y_{-j}, x)
- * using the conditional GGM.
- *
- * @param x_observations   n x p integer matrix of discrete data.
- * @param y_observations   n x q numeric matrix of continuous data.
- * @param predict_vars     0-based indices into the combined (p+q) variable list.
- *                         Indices 0..p-1 refer to discrete variables,
- *                         p..p+q-1 refer to continuous variables.
- * @param Kxx              p x p pairwise interactions (diagonal zero).
- * @param Kxy              p x q cross interactions.
- * @param Kyy              q x q precision matrix.
- * @param mux              p x max_cats threshold / Blume-Capel parameters.
- * @param muy              q-vector of continuous means.
- * @param num_categories   p-vector: categories per discrete variable.
- * @param variable_type    p-vector: "ordinal" or "blume-capel".
- * @param baseline_category p-vector.
- *
- * @return List of prediction matrices (one per predicted variable).
- *         For discrete: n x (num_cats+1) probability matrix.
- *         For continuous: n x 2 matrix (mean, sd).
- */
+// Compute conditional distributions for a mixed MRF.
+//
+// For discrete variables: P(x_s = c | x_{-s}, y) using the conditional OMRF.
+// For continuous variables: E(y_j | y_{-j}, x) and SD(y_j | y_{-j}, x)
+// using the conditional GGM.
+//
+// @param x_observations   n x p integer matrix of discrete data.
+// @param y_observations   n x q numeric matrix of continuous data.
+// @param predict_vars     0-based indices into the combined (p+q) variable list.
+//                         Indices 0..p-1 refer to discrete variables,
+//                         p..p+q-1 refer to continuous variables.
+// @param Kxx              p x p pairwise interactions (diagonal zero).
+// @param Kxy              p x q cross interactions.
+// @param Kyy              q x q precision matrix.
+// @param mux              p x max_cats threshold / Blume-Capel parameters.
+// @param muy              q-vector of continuous means.
+// @param num_categories   p-vector: categories per discrete variable.
+// @param variable_type    p-vector: "ordinal" or "blume-capel".
+// @param baseline_category p-vector.
+//
+// @return List of prediction matrices (one per predicted variable).
+//         For discrete: n x (num_cats+1) probability matrix.
+//         For continuous: n x 2 matrix (mean, sd).
 // [[Rcpp::export]]
 Rcpp::List compute_conditional_mixed(
     const arma::imat& x_observations,

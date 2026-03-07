@@ -202,8 +202,13 @@ test_that("bgm GGM output has correct parameter ordering", {
   # Extractor column means -> matrix positions
   pw_means = colMeans(extract_pairwise_interactions(fit))
   expect_true(
-    all(check_extractor_matrix_consistency(pw_means, fit$posterior_mean_pairwise)),
-    info = "GGM extract_pairwise_interactions() names do not match matrix positions"
+    all(check_extractor_matrix_consistency(
+      pw_means, fit$posterior_mean_pairwise
+    )),
+    info = paste(
+      "GGM extract_pairwise_interactions()",
+      "names do not match matrix positions"
+    )
   )
 
   # Truth-based swap-position checks:
@@ -266,8 +271,13 @@ test_that("bgm OMRF output has correct parameter ordering", {
   # Extractor column means -> matrix positions
   pw_means = colMeans(extract_pairwise_interactions(fit))
   expect_true(
-    all(check_extractor_matrix_consistency(pw_means, fit$posterior_mean_pairwise)),
-    info = "OMRF extract_pairwise_interactions() names do not match matrix positions"
+    all(check_extractor_matrix_consistency(
+      pw_means, fit$posterior_mean_pairwise
+    )),
+    info = paste(
+      "OMRF extract_pairwise_interactions()",
+      "names do not match matrix positions"
+    )
   )
 
   # Indicator summary names -> matrix positions
@@ -373,7 +383,10 @@ test_that("bgm GGM posterior mean approaches MLE for large n", {
 
   expect_true(
     cor_offdiag > 0.95,
-    info = sprintf("Off-diagonal cor with MLE = %.3f (expected > 0.95)", cor_offdiag)
+    info = sprintf(
+      "Off-diagonal cor with MLE = %.3f (expected > 0.95)",
+      cor_offdiag
+    )
   )
   expect_true(
     cor_diag > 0.95,
@@ -718,8 +731,10 @@ test_that("bgm mixed MRF is reproducible", {
 
   fit2 = bgm(
     x = x,
-    variable_type = c("ordinal", "continuous", "ordinal",
-                      "continuous", "ordinal"),
+    variable_type = c(
+      "ordinal", "continuous", "ordinal",
+      "continuous", "ordinal"
+    ),
     edge_selection = TRUE,
     iter = 50, warmup = 100, chains = 1,
     seed = 77771,
@@ -733,9 +748,9 @@ test_that("bgm mixed MRF is reproducible", {
 test_that("bgm mixed MRF output has correct dimensions", {
   fit = get_bgms_fit_mixed_mrf()
   args = extract_arguments(fit)
-  p_total = args$num_variables  # 5
-  p = 3L  # discrete
-  q = 2L  # continuous
+  p_total = args$num_variables # 5
+  p = 3L # discrete
+  q = 2L # continuous
 
   # pairwise: p_total*(p_total-1)/2 edges
   n_edges = p_total * (p_total - 1) / 2
@@ -752,7 +767,7 @@ test_that("bgm mixed MRF output has correct dimensions", {
   expect_true(is.list(fit$posterior_mean_main))
   expect_equal(nrow(fit$posterior_mean_main$discrete), p)
   expect_equal(nrow(fit$posterior_mean_main$continuous), q)
-  expect_equal(ncol(fit$posterior_mean_main$continuous), 2)  # mean + precision
+  expect_equal(ncol(fit$posterior_mean_main$continuous), 2) # mean + precision
 
   # raw samples
   expect_equal(ncol(fit$raw_samples$pairwise[[1]]), n_edges)

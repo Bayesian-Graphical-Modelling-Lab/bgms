@@ -1,10 +1,8 @@
-/**
- * sample_mixed.cpp - R interface for Mixed MRF model sampling
- *
- * Uses the unified MCMC runner infrastructure to sample from models with
- * both discrete (ordinal / Blume-Capel) and continuous variables.
- * Supports MH sampler only, with optional edge selection.
- */
+// sample_mixed.cpp - R interface for Mixed MRF model sampling
+//
+// Uses the unified MCMC runner infrastructure to sample from models with
+// both discrete (ordinal / Blume-Capel) and continuous variables.
+// Supports MH sampler only, with optional edge selection.
 #include <vector>
 #include <memory>
 #include <RcppArmadillo.h>
@@ -17,36 +15,34 @@
 #include "mcmc/execution/chain_runner.h"
 #include "mcmc/execution/sampler_config.h"
 
-/**
- * R-exported function to sample from a Mixed MRF model.
- *
- * @param inputFromR              List with model specification:
- *                                  discrete_observations (integer matrix n x p),
- *                                  continuous_observations (numeric matrix n x q),
- *                                  num_categories (integer vector, length p),
- *                                  is_ordinal_variable (integer vector, length p),
- *                                  baseline_category (integer vector, length p),
- *                                  main_alpha, main_beta, pairwise_scale (doubles),
- *                                  pseudolikelihood (string: "conditional" or "marginal")
- * @param prior_inclusion_prob    Prior inclusion probabilities ((p+q) x (p+q) matrix)
- * @param initial_edge_indicators Initial edge indicators ((p+q) x (p+q) integer matrix)
- * @param no_iter                 Number of post-warmup iterations
- * @param no_warmup               Number of warmup iterations
- * @param no_chains               Number of parallel chains
- * @param edge_selection          Whether to do edge selection (spike-and-slab)
- * @param seed                    Random seed
- * @param no_threads              Number of threads for parallel execution
- * @param progress_type           Progress bar type
- * @param edge_prior              Edge prior type
- * @param beta_bernoulli_alpha         Beta-Bernoulli alpha hyperparameter
- * @param beta_bernoulli_beta          Beta-Bernoulli beta hyperparameter
- * @param beta_bernoulli_alpha_between SBM between-cluster alpha
- * @param beta_bernoulli_beta_between  SBM between-cluster beta
- * @param dirichlet_alpha         Dirichlet alpha for SBM
- * @param lambda                  Lambda for SBM
- *
- * @return List with per-chain results including samples and diagnostics
- */
+// R-exported function to sample from a Mixed MRF model.
+//
+// @param inputFromR              List with model specification:
+//                                  discrete_observations (integer matrix n x p),
+//                                  continuous_observations (numeric matrix n x q),
+//                                  num_categories (integer vector, length p),
+//                                  is_ordinal_variable (integer vector, length p),
+//                                  baseline_category (integer vector, length p),
+//                                  main_alpha, main_beta, pairwise_scale (doubles),
+//                                  pseudolikelihood (string: "conditional" or "marginal")
+// @param prior_inclusion_prob    Prior inclusion probabilities ((p+q) x (p+q) matrix)
+// @param initial_edge_indicators Initial edge indicators ((p+q) x (p+q) integer matrix)
+// @param no_iter                 Number of post-warmup iterations
+// @param no_warmup               Number of warmup iterations
+// @param no_chains               Number of parallel chains
+// @param edge_selection          Whether to do edge selection (spike-and-slab)
+// @param seed                    Random seed
+// @param no_threads              Number of threads for parallel execution
+// @param progress_type           Progress bar type
+// @param edge_prior              Edge prior type
+// @param beta_bernoulli_alpha         Beta-Bernoulli alpha hyperparameter
+// @param beta_bernoulli_beta          Beta-Bernoulli beta hyperparameter
+// @param beta_bernoulli_alpha_between SBM between-cluster alpha
+// @param beta_bernoulli_beta_between  SBM between-cluster beta
+// @param dirichlet_alpha         Dirichlet alpha for SBM
+// @param lambda                  Lambda for SBM
+//
+// @return List with per-chain results including samples and diagnostics
 // [[Rcpp::export]]
 Rcpp::List sample_mixed_mrf(
     const Rcpp::List& inputFromR,

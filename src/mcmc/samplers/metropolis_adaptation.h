@@ -15,8 +15,11 @@
  */
 class MetropolisAdaptationController {
 public:
+  /// Reference to the proposal standard deviation matrix (modified in place).
   arma::mat& proposal_sd;
+  /// Total number of warmup iterations.
   const int total_warmup;
+  /// Target Metropolis acceptance rate.
   const double target_accept;
 
   MetropolisAdaptationController(arma::mat& proposal_sd_matrix,

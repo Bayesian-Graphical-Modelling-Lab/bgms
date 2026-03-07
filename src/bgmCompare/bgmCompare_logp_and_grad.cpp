@@ -8,34 +8,32 @@
 
 
 
-/**
- * Compute the total length of the parameter vector in the bgmCompare model.
- *
- * The parameter vector consists of:
- *  1. Main-effect overall parameters (column 0).
- *  2. Pairwise-effect overall parameters (column 0).
- *  3. Main-effect group-difference parameters (columns 1..G-1) for variables
- *     with inclusion_indicator(v,v) == 1.
- *  4. Pairwise-effect group-difference parameters (columns 1..G-1) for pairs
- *     with inclusion_indicator(v1,v2) == 1.
- *
- * Inputs:
- *  - num_variables: Number of observed variables.
- *  - main_effect_indices: Row ranges [start,end] in main_effects for each variable.
- *  - pairwise_effect_indices: Lookup table mapping (var1,var2) → row in pairwise_effects.
- *  - inclusion_indicator: Symmetric binary matrix; diagonal entries control main-effect
- *    differences, off-diagonal entries control pairwise-effect differences.
- *  - num_categories: Vector of category counts per variable.
- *  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel) for each variable.
- *  - num_groups: Number of groups in the model.
- *
- * Returns:
- *  - arma::uword: Total number of parameters in the vectorized model.
- *
- * Notes:
- *  - This function must be consistent with vectorize_model_parameters_bgmcompare().
- *  - Used to allocate gradient vectors, prior vectors, and mass matrices.
- */
+// Compute the total length of the parameter vector in the bgmCompare model.
+//
+// The parameter vector consists of:
+//  1. Main-effect overall parameters (column 0).
+//  2. Pairwise-effect overall parameters (column 0).
+//  3. Main-effect group-difference parameters (columns 1..G-1) for variables
+//     with inclusion_indicator(v,v) == 1.
+//  4. Pairwise-effect group-difference parameters (columns 1..G-1) for pairs
+//     with inclusion_indicator(v1,v2) == 1.
+//
+// Inputs:
+//  - num_variables: Number of observed variables.
+//  - main_effect_indices: Row ranges [start,end] in main_effects for each variable.
+//  - pairwise_effect_indices: Lookup table mapping (var1,var2) → row in pairwise_effects.
+//  - inclusion_indicator: Symmetric binary matrix; diagonal entries control main-effect
+//    differences, off-diagonal entries control pairwise-effect differences.
+//  - num_categories: Vector of category counts per variable.
+//  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel) for each variable.
+//  - num_groups: Number of groups in the model.
+//
+// Returns:
+//  - arma::uword: Total number of parameters in the vectorized model.
+//
+// Notes:
+//  - This function must be consistent with vectorize_model_parameters_bgmcompare().
+//  - Used to allocate gradient vectors, prior vectors, and mass matrices.
 arma::uword total_length(
     const int num_variables,
     const arma::imat& main_effect_indices,
@@ -71,49 +69,47 @@ arma::uword total_length(
 
 
 
-/**
- * Compute the observed-data contribution to the gradient vector
- * in the bgmCompare model (active parameterization).
- *
- * This function accumulates observed sufficient statistics from the data
- * and projects them into the parameter vector space. The output has the
- * same length and ordering as `vectorize_model_parameters_bgmcompare()`,
- * and includes:
- *  1. Main-effect overall parameters (column 0).
- *  2. Pairwise-effect overall parameters (column 0).
- *  3. Main-effect group-difference parameters (columns 1..G-1) if
- *     inclusion_indicator(v,v) == 1.
- *  4. Pairwise-effect group-difference parameters (columns 1..G-1) if
- *     inclusion_indicator(v1,v2) == 1.
- *
- * Inputs:
- *  - main_effect_indices: Row ranges [start,end] in main_effects for each variable.
- *  - pairwise_effect_indices: Lookup table mapping (var1,var2) → row in pairwise_effects.
- *  - projection: Matrix of size (num_groups × (num_groups-1)) containing group projections.
- *  - observations: Matrix of observed variable values (N × V).
- *  - group_indices: Index ranges [start,end] defining which rows in `observations`
- *    belong to each group.
- *  - num_categories: Vector giving the number of categories per variable.
- *  - inclusion_indicator: Symmetric binary matrix; diagonal entries control inclusion
- *    of main-effect differences, off-diagonal entries control inclusion of pairwise
- *    differences.
- *  - counts_per_category_group: Per-group category count tables (list of matrices).
- *  - blume_capel_stats_group: Per-group Blume–Capel sufficient statistics (list of matrices).
- *  - pairwise_stats_group: Per-group pairwise sufficient statistics (list of matrices).
- *  - num_groups: Number of groups.
- *  - is_ordinal_variable: Indicator vector (1 = ordinal, 0 = Blume–Capel) per variable.
- *  - baseline_category: Vector of baseline categories per variable (Blume–Capel).
- *  - main_index: Index map for main effects (from build_index_maps()).
- *  - pair_index: Index map for pairwise effects (from build_index_maps()).
- *
- * Returns:
- *  - arma::vec: Observed-data contribution to the gradient (length = total_length()).
- *
- * Notes:
- *  - This function computes the *data-dependent* part of the gradient only;
- *    parameter-dependent expected statistics and priors must be added separately.
- *  - The output ordering must remain consistent with `vectorize_model_parameters_bgmcompare()`.
- */
+// Compute the observed-data contribution to the gradient vector
+// in the bgmCompare model (active parameterization).
+//
+// This function accumulates observed sufficient statistics from the data
+// and projects them into the parameter vector space. The output has the
+// same length and ordering as `vectorize_model_parameters_bgmcompare()`,
+// and includes:
+//  1. Main-effect overall parameters (column 0).
+//  2. Pairwise-effect overall parameters (column 0).
+//  3. Main-effect group-difference parameters (columns 1..G-1) if
+//     inclusion_indicator(v,v) == 1.
+//  4. Pairwise-effect group-difference parameters (columns 1..G-1) if
+//     inclusion_indicator(v1,v2) == 1.
+//
+// Inputs:
+//  - main_effect_indices: Row ranges [start,end] in main_effects for each variable.
+//  - pairwise_effect_indices: Lookup table mapping (var1,var2) → row in pairwise_effects.
+//  - projection: Matrix of size (num_groups × (num_groups-1)) containing group projections.
+//  - observations: Matrix of observed variable values (N × V).
+//  - group_indices: Index ranges [start,end] defining which rows in `observations`
+//    belong to each group.
+//  - num_categories: Vector giving the number of categories per variable.
+//  - inclusion_indicator: Symmetric binary matrix; diagonal entries control inclusion
+//    of main-effect differences, off-diagonal entries control inclusion of pairwise
+//    differences.
+//  - counts_per_category_group: Per-group category count tables (list of matrices).
+//  - blume_capel_stats_group: Per-group Blume–Capel sufficient statistics (list of matrices).
+//  - pairwise_stats_group: Per-group pairwise sufficient statistics (list of matrices).
+//  - num_groups: Number of groups.
+//  - is_ordinal_variable: Indicator vector (1 = ordinal, 0 = Blume–Capel) per variable.
+//  - baseline_category: Vector of baseline categories per variable (Blume–Capel).
+//  - main_index: Index map for main effects (from build_index_maps()).
+//  - pair_index: Index map for pairwise effects (from build_index_maps()).
+//
+// Returns:
+//  - arma::vec: Observed-data contribution to the gradient (length = total_length()).
+//
+// Notes:
+//  - This function computes the *data-dependent* part of the gradient only;
+//    parameter-dependent expected statistics and priors must be added separately.
+//  - The output ordering must remain consistent with `vectorize_model_parameters_bgmcompare()`.
 arma::vec gradient_observed_active(
     const arma::imat& main_effect_indices,
     const arma::imat& pairwise_effect_indices,
@@ -218,63 +214,61 @@ arma::vec gradient_observed_active(
 
 
 
-/**
- * Computes the gradient of the log pseudoposterior for the bgmCompare model.
- *
- * The gradient combines three contributions:
- *  1. Observed sufficient statistics (precomputed and supplied via `grad_obs`).
- *  2. Expected sufficient statistics under the current parameter values
- *     (computed using softmax probabilities for ordinal or Blume–Capel variables).
- *  3. Prior contributions on main effects, pairwise effects, and group differences.
- *
- * Procedure:
- *  - Initialize gradient with `grad_obs` (observed-data contribution).
- *  - Loop over groups:
- *    * Build group-specific main and pairwise effects using
- *      `compute_group_main_effects()` and `compute_group_pairwise_effects()`.
- *    * Compute expected sufficient statistics from residual scores and
- *      subtract them from the gradient.
- *  - Add prior contributions:
- *    * Logistic–Beta prior gradient for main-effect baseline parameters.
- *    * Cauchy prior gradient for group-difference parameters and pairwise effects.
- *
- * Inputs:
- *  - main_effects: Matrix of main-effect parameters (rows = categories, cols = groups).
- *  - pairwise_effects: Matrix of pairwise-effect parameters (rows = pairs, cols = groups).
- *  - main_effect_indices: Index ranges [row_start,row_end] for each variable in main_effects.
- *  - pairwise_effect_indices: Lookup table mapping (var1,var2) → row in pairwise_effects.
- *  - projection: Group projection matrix (num_groups × (num_groups − 1)).
- *  - observations_double: Observation matrix (N × V), pre-converted to double.
- *  - group_indices: Row ranges [start,end] for each group in `observations_double`.
- *  - num_categories: Number of categories per variable.
- *  - counts_per_category_group: Per-group category counts (ordinal variables).
- *  - blume_capel_stats_group: Per-group sufficient statistics (Blume–Capel variables).
- *  - pairwise_stats_group: Per-group pairwise sufficient statistics.
- *  - num_groups: Number of groups.
- *  - inclusion_indicator: Symmetric binary matrix; diagonal entries control inclusion
- *    of main-effect differences, off-diagonal entries control inclusion of pairwise
- *    differences.
- *  - is_ordinal_variable: Indicator vector (1 = ordinal, 0 = Blume–Capel).
- *  - baseline_category: Reference categories for Blume–Capel variables.
- *  - main_alpha, main_beta: Hyperparameters for Beta priors on main effects.
- *  - interaction_scale: Scale parameter for Cauchy prior on baseline pairwise effects.
- *  - difference_scale: Scale parameter for Cauchy prior on group differences.
- *  - main_index: Index map for main-effect parameters (from build_index_maps()).
- *  - pair_index: Index map for pairwise-effect parameters (from build_index_maps()).
- *  - grad_obs: Precomputed observed-data contribution to the gradient
- *    (output of `gradient_observed_active()`).
- *
- * Returns:
- *  - arma::vec: Gradient of the log pseudoposterior with respect to all active
- *    parameters, in the layout defined by `vectorize_model_parameters_bgmcompare()`.
- *
- * Notes:
- *  - Must remain consistent with `vectorize_model_parameters_bgmcompare()` and
- *    `unvectorize_model_parameters_bgmcompare()`.
- *  - Expected sufficient statistics are computed on-the-fly, while observed
- *    statistics are passed in via `grad_obs`.
- *  - Priors are applied after observed and expected contributions.
- */
+// Computes the gradient of the log pseudoposterior for the bgmCompare model.
+//
+// The gradient combines three contributions:
+//  1. Observed sufficient statistics (precomputed and supplied via `grad_obs`).
+//  2. Expected sufficient statistics under the current parameter values
+//     (computed using softmax probabilities for ordinal or Blume–Capel variables).
+//  3. Prior contributions on main effects, pairwise effects, and group differences.
+//
+// Procedure:
+//  - Initialize gradient with `grad_obs` (observed-data contribution).
+//  - Loop over groups:
+//    * Build group-specific main and pairwise effects using
+//      `compute_group_main_effects()` and `compute_group_pairwise_effects()`.
+//    * Compute expected sufficient statistics from residual scores and
+//      subtract them from the gradient.
+//  - Add prior contributions:
+//    * Logistic–Beta prior gradient for main-effect baseline parameters.
+//    * Cauchy prior gradient for group-difference parameters and pairwise effects.
+//
+// Inputs:
+//  - main_effects: Matrix of main-effect parameters (rows = categories, cols = groups).
+//  - pairwise_effects: Matrix of pairwise-effect parameters (rows = pairs, cols = groups).
+//  - main_effect_indices: Index ranges [row_start,row_end] for each variable in main_effects.
+//  - pairwise_effect_indices: Lookup table mapping (var1,var2) → row in pairwise_effects.
+//  - projection: Group projection matrix (num_groups × (num_groups − 1)).
+//  - observations_double: Observation matrix (N × V), pre-converted to double.
+//  - group_indices: Row ranges [start,end] for each group in `observations_double`.
+//  - num_categories: Number of categories per variable.
+//  - counts_per_category_group: Per-group category counts (ordinal variables).
+//  - blume_capel_stats_group: Per-group sufficient statistics (Blume–Capel variables).
+//  - pairwise_stats_group: Per-group pairwise sufficient statistics.
+//  - num_groups: Number of groups.
+//  - inclusion_indicator: Symmetric binary matrix; diagonal entries control inclusion
+//    of main-effect differences, off-diagonal entries control inclusion of pairwise
+//    differences.
+//  - is_ordinal_variable: Indicator vector (1 = ordinal, 0 = Blume–Capel).
+//  - baseline_category: Reference categories for Blume–Capel variables.
+//  - main_alpha, main_beta: Hyperparameters for Beta priors on main effects.
+//  - interaction_scale: Scale parameter for Cauchy prior on baseline pairwise effects.
+//  - difference_scale: Scale parameter for Cauchy prior on group differences.
+//  - main_index: Index map for main-effect parameters (from build_index_maps()).
+//  - pair_index: Index map for pairwise-effect parameters (from build_index_maps()).
+//  - grad_obs: Precomputed observed-data contribution to the gradient
+//    (output of `gradient_observed_active()`).
+//
+// Returns:
+//  - arma::vec: Gradient of the log pseudoposterior with respect to all active
+//    parameters, in the layout defined by `vectorize_model_parameters_bgmcompare()`.
+//
+// Notes:
+//  - Must remain consistent with `vectorize_model_parameters_bgmcompare()` and
+//    `unvectorize_model_parameters_bgmcompare()`.
+//  - Expected sufficient statistics are computed on-the-fly, while observed
+//    statistics are passed in via `grad_obs`.
+//  - Priors are applied after observed and expected contributions.
 arma::vec gradient(
     const arma::mat& main_effects,
     const arma::mat& pairwise_effects,
@@ -505,18 +499,16 @@ arma::vec gradient(
 }
 
 
-/**
- * Computes both log pseudoposterior and gradient in a single pass.
- *
- * Fuses the computations of `log_pseudoposterior()` and `gradient()`,
- * sharing intermediate results (group-specific effects, residual matrices,
- * and probability computations) to avoid redundant work during NUTS sampling.
- *
- * Returns:
- *  - std::pair containing:
- *    - first: log pseudoposterior value (scalar)
- *    - second: gradient vector (same layout as gradient())
- */
+// Computes both log pseudoposterior and gradient in a single pass.
+//
+// Fuses the computations of `log_pseudoposterior()` and `gradient()`,
+// sharing intermediate results (group-specific effects, residual matrices,
+// and probability computations) to avoid redundant work during NUTS sampling.
+//
+// Returns:
+//  - std::pair containing:
+//    - first: log pseudoposterior value (scalar)
+//    - second: gradient vector (same layout as gradient())
 std::pair<double, arma::vec> logp_and_gradient(
     const arma::mat& main_effects,
     const arma::mat& pairwise_effects,
@@ -779,54 +771,52 @@ std::pair<double, arma::vec> logp_and_gradient(
 
 
 
-/**
- * Computes the log pseudoposterior contribution of a single main-effect parameter (bgmCompare model).
- *
- * This function isolates the contribution of one main-effect parameter,
- * either the overall (baseline) effect or one of its group-specific differences.
- *
- * Procedure:
- *  - For each group:
- *    * Construct group-specific main effects for the selected variable
- *      with `compute_group_main_effects()`.
- *    * Construct group-specific pairwise effects for the variable.
- *    * Add linear contributions from sufficient statistics.
- *    * Subtract log normalizing constants from the group-specific likelihood.
- *  - Add prior contribution:
- *    * Logistic–Beta prior for baseline (h == 0).
- *    * Cauchy prior for group differences (h > 0), if included.
- *
- * Inputs:
- *  - main_effects: Matrix of main-effect parameters (rows = categories, cols = groups).
- *  - pairwise_effects: Matrix of pairwise-effect parameters (rows = pairs, cols = groups).
- *  - main_effect_indices: Index ranges [row_start,row_end] for each variable.
- *  - pairwise_effect_indices: Lookup table mapping (var1,var2) → row in pairwise_effects.
- *  - projection: Group projection matrix (num_groups × (num_groups − 1)).
- *  - observations: Observation matrix (persons × variables).
- *  - group_indices: Row ranges [start,end] for each group in observations.
- *  - num_categories: Number of categories per variable.
- *  - counts_per_category_group: Per-group category counts (for ordinal variables).
- *  - blume_capel_stats_group: Per-group sufficient statistics (for Blume–Capel variables).
- *  - num_groups: Number of groups.
- *  - inclusion_indicator: Symmetric binary matrix of active variables (diag) and pairs (off-diag).
- *  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
- *  - baseline_category: Reference categories for Blume–Capel variables.
- *  - main_alpha, main_beta: Hyperparameters for Beta priors on main effects.
- *  - difference_scale: Scale parameter for Cauchy priors on group differences.
- *  - variable: Index of the variable of interest.
- *  - category: Category index (only used if variable is ordinal).
- *  - par: Parameter index (0 = linear, 1 = quadratic; used for Blume–Capel).
- *  - h: Column index (0 = overall baseline, >0 = group difference).
- *
- * Returns:
- *  - The scalar log pseudoposterior contribution of the selected parameter.
- *
- * Notes:
- *  - If h > 0 but inclusion_indicator(variable, variable) == 0,
- *    the function returns 0.0 (no contribution).
- *  - This component function is used in parameter-wise Metropolis updates.
- *  - Consistent with the full `log_pseudoposterior()` for bgmCompare.
- */
+// Computes the log pseudoposterior contribution of a single main-effect parameter (bgmCompare model).
+//
+// This function isolates the contribution of one main-effect parameter,
+// either the overall (baseline) effect or one of its group-specific differences.
+//
+// Procedure:
+//  - For each group:
+//    * Construct group-specific main effects for the selected variable
+//      with `compute_group_main_effects()`.
+//    * Construct group-specific pairwise effects for the variable.
+//    * Add linear contributions from sufficient statistics.
+//    * Subtract log normalizing constants from the group-specific likelihood.
+//  - Add prior contribution:
+//    * Logistic–Beta prior for baseline (h == 0).
+//    * Cauchy prior for group differences (h > 0), if included.
+//
+// Inputs:
+//  - main_effects: Matrix of main-effect parameters (rows = categories, cols = groups).
+//  - pairwise_effects: Matrix of pairwise-effect parameters (rows = pairs, cols = groups).
+//  - main_effect_indices: Index ranges [row_start,row_end] for each variable.
+//  - pairwise_effect_indices: Lookup table mapping (var1,var2) → row in pairwise_effects.
+//  - projection: Group projection matrix (num_groups × (num_groups − 1)).
+//  - observations: Observation matrix (persons × variables).
+//  - group_indices: Row ranges [start,end] for each group in observations.
+//  - num_categories: Number of categories per variable.
+//  - counts_per_category_group: Per-group category counts (for ordinal variables).
+//  - blume_capel_stats_group: Per-group sufficient statistics (for Blume–Capel variables).
+//  - num_groups: Number of groups.
+//  - inclusion_indicator: Symmetric binary matrix of active variables (diag) and pairs (off-diag).
+//  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
+//  - baseline_category: Reference categories for Blume–Capel variables.
+//  - main_alpha, main_beta: Hyperparameters for Beta priors on main effects.
+//  - difference_scale: Scale parameter for Cauchy priors on group differences.
+//  - variable: Index of the variable of interest.
+//  - category: Category index (only used if variable is ordinal).
+//  - par: Parameter index (0 = linear, 1 = quadratic; used for Blume–Capel).
+//  - h: Column index (0 = overall baseline, >0 = group difference).
+//
+// Returns:
+//  - The scalar log pseudoposterior contribution of the selected parameter.
+//
+// Notes:
+//  - If h > 0 but inclusion_indicator(variable, variable) == 0,
+//    the function returns 0.0 (no contribution).
+//  - This component function is used in parameter-wise Metropolis updates.
+//  - Consistent with the full `log_pseudoposterior()` for bgmCompare.
 double log_pseudoposterior_main_component(
     const arma::mat& main_effects,
     const arma::mat& pairwise_effects,
@@ -959,53 +949,51 @@ double log_pseudoposterior_main_component(
 }
 
 
-/**
- * Computes the log pseudoposterior contribution of a single pairwise-effect parameter (bgmCompare model).
- *
- * Isolates the contribution of one pairwise-effect parameter between two variables,
- * either the baseline effect (h == 0) or a group-specific difference (h > 0).
- *
- * Procedure:
- *  - For each group:
- *    * Construct group-specific main effects for the two variables.
- *    * Add linear contributions from the pairwise sufficient statistic.
- *      - Baseline (h == 0): contribution = 2 * suff_pair * proposed_value.
- *      - Difference (h > 0): scaled by projection value proj_g(h-1).
- *    * Subtract log normalizing constants from both variables' likelihoods.
- *  - Add prior contribution:
- *    * Cauchy prior for baseline (scale = interaction_scale).
- *    * Cauchy prior for group differences (scale = difference_scale).
- *
- * Inputs:
- *  - main_effects: Matrix of main-effect parameters (rows = categories, cols = groups).
- *  - pairwise_effects: Matrix of pairwise-effect parameters (rows = pairs, cols = groups).
- *  - main_effect_indices: Index ranges [row_start, row_end] for each variable.
- *  - pairwise_effect_indices: Lookup table mapping (var1, var2) to row in pairwise_effects.
- *  - projection: Group projection matrix (num_groups × (num_groups − 1)).
- *  - observations: Observation matrix (persons × variables).
- *  - group_indices: Row ranges [start, end] for each group in observations.
- *  - num_categories: Number of categories per variable.
- *  - pairwise_stats_group: Per-group pairwise sufficient statistics.
- *  - residual_matrices: Per-group residual matrices (persons × variables).
- *  - num_groups: Number of groups.
- *  - inclusion_indicator: Symmetric binary matrix of active variables (diag) and pairs (off-diag).
- *  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
- *  - baseline_category: Reference categories for Blume–Capel variables.
- *  - interaction_scale: Scale parameter for Cauchy prior on baseline pairwise effects.
- *  - pairwise_scaling_factors: Per-pair scaling factors for the prior.
- *  - difference_scale: Scale parameter for Cauchy prior on group differences.
- *  - variable1, variable2: Indices of the variable pair.
- *  - h: Column index (0 = baseline, > 0 = group difference).
- *  - delta: Parameter change (proposed - current).
- *
- * Returns:
- *  - The log pseudoposterior value at the proposed state.
- *
- * Notes:
- *  - If h > 0 but inclusion_indicator(variable1, variable2) == 0, returns 0.0.
- *  - The proposed value is computed as pairwise_effects(idx, h) + delta.
- *  - Residual scores are adjusted by delta without modifying residual_matrices.
- */
+// Computes the log pseudoposterior contribution of a single pairwise-effect parameter (bgmCompare model).
+//
+// Isolates the contribution of one pairwise-effect parameter between two variables,
+// either the baseline effect (h == 0) or a group-specific difference (h > 0).
+//
+// Procedure:
+//  - For each group:
+//    * Construct group-specific main effects for the two variables.
+//    * Add linear contributions from the pairwise sufficient statistic.
+//      - Baseline (h == 0): contribution = 2 * suff_pair * proposed_value.
+//      - Difference (h > 0): scaled by projection value proj_g(h-1).
+//    * Subtract log normalizing constants from both variables' likelihoods.
+//  - Add prior contribution:
+//    * Cauchy prior for baseline (scale = interaction_scale).
+//    * Cauchy prior for group differences (scale = difference_scale).
+//
+// Inputs:
+//  - main_effects: Matrix of main-effect parameters (rows = categories, cols = groups).
+//  - pairwise_effects: Matrix of pairwise-effect parameters (rows = pairs, cols = groups).
+//  - main_effect_indices: Index ranges [row_start, row_end] for each variable.
+//  - pairwise_effect_indices: Lookup table mapping (var1, var2) to row in pairwise_effects.
+//  - projection: Group projection matrix (num_groups × (num_groups − 1)).
+//  - observations: Observation matrix (persons × variables).
+//  - group_indices: Row ranges [start, end] for each group in observations.
+//  - num_categories: Number of categories per variable.
+//  - pairwise_stats_group: Per-group pairwise sufficient statistics.
+//  - residual_matrices: Per-group residual matrices (persons × variables).
+//  - num_groups: Number of groups.
+//  - inclusion_indicator: Symmetric binary matrix of active variables (diag) and pairs (off-diag).
+//  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
+//  - baseline_category: Reference categories for Blume–Capel variables.
+//  - interaction_scale: Scale parameter for Cauchy prior on baseline pairwise effects.
+//  - pairwise_scaling_factors: Per-pair scaling factors for the prior.
+//  - difference_scale: Scale parameter for Cauchy prior on group differences.
+//  - variable1, variable2: Indices of the variable pair.
+//  - h: Column index (0 = baseline, > 0 = group difference).
+//  - delta: Parameter change (proposed - current).
+//
+// Returns:
+//  - The log pseudoposterior value at the proposed state.
+//
+// Notes:
+//  - If h > 0 but inclusion_indicator(variable1, variable2) == 0, returns 0.0.
+//  - The proposed value is computed as pairwise_effects(idx, h) + delta.
+//  - Residual scores are adjusted by delta without modifying residual_matrices.
 double log_pseudoposterior_pair_component(
     const arma::mat& main_effects,
     const arma::mat& pairwise_effects,
@@ -1113,49 +1101,47 @@ double log_pseudoposterior_pair_component(
 
 
 
-/**
- * Computes the log-ratio of pseudolikelihood normalizing constants
- * for a single variable under current vs. proposed parameters (bgmCompare model).
- *
- * This function is used in Metropolis–Hastings updates for main-effect parameters.
- * It evaluates how the normalizing constant (denominator of the pseudolikelihood)
- * changes when switching from the current to the proposed parameter values.
- *
- * Procedure:
- *  - For each group:
- *    * Construct group-specific main effects (current vs. proposed).
- *    * Construct group-specific pairwise weights for the variable.
- *    * Compute residual scores for observations under both models.
- *    * Calculate denominators with stability bounds (ordinal vs. Blume–Capel cases).
- *    * Accumulate the log-ratio contribution across all observations.
- *
- * Inputs:
- *  - current_main_effects, proposed_main_effects: Matrices of main-effect parameters
- *    (rows = categories, cols = groups).
- *  - current_pairwise_effects, proposed_pairwise_effects: Matrices of pairwise-effect parameters
- *    (rows = pairs, cols = groups).
- *  - main_effect_indices: Index ranges [row_start,row_end] for each variable.
- *  - pairwise_effect_indices: Lookup table mapping (var1,var2) → row in pairwise_effects.
- *  - projection: Group projection matrix (num_groups × (num_groups − 1)).
- *  - observations: Observation matrix (persons × variables).
- *  - group_indices: Row ranges [start,end] for each group in observations.
- *  - num_categories: Number of categories per variable.
- *  - num_groups: Number of groups.
- *  - inclusion_indicator: Symmetric binary matrix of active variables (diag) and pairs (off-diag).
- *  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
- *  - baseline_category: Reference categories for Blume–Capel variables.
- *  - variable: Index of the variable being updated.
- *
- * Returns:
- *  - The scalar log-ratio of pseudolikelihood constants
- *    (current model vs. proposed model).
- *
- * Notes:
- *  - For ordinal variables, denominators include exp(-bound) and category terms.
- *  - For Blume–Capel variables, denominators use linear/quadratic scores
- *    with baseline centering.
- *  - Stability bounds (`bound_current`, `bound_proposed`) are applied to avoid overflow.
- */
+// Computes the log-ratio of pseudolikelihood normalizing constants
+// for a single variable under current vs. proposed parameters (bgmCompare model).
+//
+// This function is used in Metropolis–Hastings updates for main-effect parameters.
+// It evaluates how the normalizing constant (denominator of the pseudolikelihood)
+// changes when switching from the current to the proposed parameter values.
+//
+// Procedure:
+//  - For each group:
+//    * Construct group-specific main effects (current vs. proposed).
+//    * Construct group-specific pairwise weights for the variable.
+//    * Compute residual scores for observations under both models.
+//    * Calculate denominators with stability bounds (ordinal vs. Blume–Capel cases).
+//    * Accumulate the log-ratio contribution across all observations.
+//
+// Inputs:
+//  - current_main_effects, proposed_main_effects: Matrices of main-effect parameters
+//    (rows = categories, cols = groups).
+//  - current_pairwise_effects, proposed_pairwise_effects: Matrices of pairwise-effect parameters
+//    (rows = pairs, cols = groups).
+//  - main_effect_indices: Index ranges [row_start,row_end] for each variable.
+//  - pairwise_effect_indices: Lookup table mapping (var1,var2) → row in pairwise_effects.
+//  - projection: Group projection matrix (num_groups × (num_groups − 1)).
+//  - observations: Observation matrix (persons × variables).
+//  - group_indices: Row ranges [start,end] for each group in observations.
+//  - num_categories: Number of categories per variable.
+//  - num_groups: Number of groups.
+//  - inclusion_indicator: Symmetric binary matrix of active variables (diag) and pairs (off-diag).
+//  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
+//  - baseline_category: Reference categories for Blume–Capel variables.
+//  - variable: Index of the variable being updated.
+//
+// Returns:
+//  - The scalar log-ratio of pseudolikelihood constants
+//    (current model vs. proposed model).
+//
+// Notes:
+//  - For ordinal variables, denominators include exp(-bound) and category terms.
+//  - For Blume–Capel variables, denominators use linear/quadratic scores
+//    with baseline centering.
+//  - Stability bounds (`bound_current`, `bound_proposed`) are applied to avoid overflow.
 double log_ratio_pseudolikelihood_constant_variable(
     const arma::mat& current_main_effects,
     const arma::mat& current_pairwise_effects,
@@ -1256,50 +1242,48 @@ double log_ratio_pseudolikelihood_constant_variable(
 
 
 
-/**
- * Computes the log pseudolikelihood ratio for updating a single main-effect parameter (bgmCompare model).
- *
- * This function is used in Metropolis–Hastings updates for main effects.
- * It compares the likelihood of the data under the current vs. proposed
- * value of a single variable’s main-effect parameter, while keeping
- * all other parameters fixed.
- *
- * Procedure:
- *  - For each group:
- *    * Compute group-specific main effects for the variable (current vs. proposed).
- *    * Add contributions from observed sufficient statistics
- *      (category counts or Blume–Capel stats).
- *  - Add the ratio of pseudolikelihood normalizing constants by calling
- *    `log_ratio_pseudolikelihood_constant_variable()`.
- *
- * Inputs:
- *  - current_main_effects: Matrix of main-effect parameters (current state).
- *  - proposed_main_effects: Matrix of main-effect parameters (candidate state).
- *  - current_pairwise_effects: Matrix of pairwise-effect parameters (fixed at current state).
- *  - main_effect_indices: Index ranges [row_start,row_end] for each variable.
- *  - pairwise_effect_indices: Lookup table mapping (var1,var2) → row in pairwise_effects.
- *  - projection: Group projection matrix (num_groups × (num_groups − 1)).
- *  - observations: Observation matrix (persons × variables).
- *  - group_indices: Row ranges [start,end] for each group in observations.
- *  - num_categories: Number of categories per variable.
- *  - counts_per_category_group: Per-group category counts (for ordinal variables).
- *  - blume_capel_stats_group: Per-group sufficient statistics (for Blume–Capel variables).
- *  - num_groups: Number of groups.
- *  - inclusion_indicator: Symmetric binary matrix of active variables (diag) and pairs (off-diag).
- *  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
- *  - baseline_category: Reference categories for Blume–Capel variables.
- *  - variable: Index of the variable being updated.
- *
- * Returns:
- *  - The scalar log pseudolikelihood ratio (proposed vs. current).
- *
- * Notes:
- *  - A temporary copy of `inclusion_indicator` is made to ensure the
- *    variable’s self-term (diagonal entry) is included.
- *  - Only the variable under update changes between current and proposed states;
- *    all other variables and pairwise effects remain fixed.
- *  - This function does not add prior contributions — only pseudolikelihood terms.
- */
+// Computes the log pseudolikelihood ratio for updating a single main-effect parameter (bgmCompare model).
+//
+// This function is used in Metropolis–Hastings updates for main effects.
+// It compares the likelihood of the data under the current vs. proposed
+// value of a single variable’s main-effect parameter, while keeping
+// all other parameters fixed.
+//
+// Procedure:
+//  - For each group:
+//    * Compute group-specific main effects for the variable (current vs. proposed).
+//    * Add contributions from observed sufficient statistics
+//      (category counts or Blume–Capel stats).
+//  - Add the ratio of pseudolikelihood normalizing constants by calling
+//    `log_ratio_pseudolikelihood_constant_variable()`.
+//
+// Inputs:
+//  - current_main_effects: Matrix of main-effect parameters (current state).
+//  - proposed_main_effects: Matrix of main-effect parameters (candidate state).
+//  - current_pairwise_effects: Matrix of pairwise-effect parameters (fixed at current state).
+//  - main_effect_indices: Index ranges [row_start,row_end] for each variable.
+//  - pairwise_effect_indices: Lookup table mapping (var1,var2) → row in pairwise_effects.
+//  - projection: Group projection matrix (num_groups × (num_groups − 1)).
+//  - observations: Observation matrix (persons × variables).
+//  - group_indices: Row ranges [start,end] for each group in observations.
+//  - num_categories: Number of categories per variable.
+//  - counts_per_category_group: Per-group category counts (for ordinal variables).
+//  - blume_capel_stats_group: Per-group sufficient statistics (for Blume–Capel variables).
+//  - num_groups: Number of groups.
+//  - inclusion_indicator: Symmetric binary matrix of active variables (diag) and pairs (off-diag).
+//  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
+//  - baseline_category: Reference categories for Blume–Capel variables.
+//  - variable: Index of the variable being updated.
+//
+// Returns:
+//  - The scalar log pseudolikelihood ratio (proposed vs. current).
+//
+// Notes:
+//  - A temporary copy of `inclusion_indicator` is made to ensure the
+//    variable’s self-term (diagonal entry) is included.
+//  - Only the variable under update changes between current and proposed states;
+//    all other variables and pairwise effects remain fixed.
+//  - This function does not add prior contributions — only pseudolikelihood terms.
 double log_pseudolikelihood_ratio_main(
     const arma::mat& current_main_effects,
     const arma::mat& proposed_main_effects,
@@ -1359,49 +1343,47 @@ double log_pseudolikelihood_ratio_main(
 }
 
 
-/**
- * Computes the log pseudolikelihood ratio for updating a single pairwise-effect parameter (bgmCompare model).
- *
- * This function is used in Metropolis–Hastings updates for pairwise effects.
- * It compares the likelihood of the data under the current vs. proposed
- * value of a single interaction (var1,var2), while keeping all other
- * parameters fixed.
- *
- * Procedure:
- *  - Ensure the interaction is included in a temporary copy of inclusion_indicator.
- *  - For each group:
- *    * Compute group-specific pairwise effect for (var1,var2), current vs. proposed.
- *    * Add linear contribution from the pairwise sufficient statistic.
- *  - Add the ratio of pseudolikelihood normalizing constants for both variables:
- *    * Call `log_ratio_pseudolikelihood_constant_variable()` separately for var1 and var2,
- *      comparing current vs. proposed pairwise weights.
- *
- * Inputs:
- *  - main_effects: Matrix of main-effect parameters (fixed).
- *  - current_pairwise_effects: Matrix of pairwise-effect parameters (current state).
- *  - proposed_pairwise_effects: Matrix of pairwise-effect parameters (candidate state).
- *  - main_effect_indices: Index ranges [row_start,row_end] for each variable.
- *  - pairwise_effect_indices: Lookup table mapping (var1,var2) → row in pairwise_effects.
- *  - projection: Group projection matrix (num_groups × (num_groups − 1)).
- *  - observations: Observation matrix (persons × variables).
- *  - group_indices: Row ranges [start,end] for each group in observations.
- *  - num_categories: Number of categories per variable.
- *  - pairwise_stats_group: Per-group pairwise sufficient statistics.
- *  - num_groups: Number of groups.
- *  - inclusion_indicator: Symmetric binary matrix of active variables (diag) and pairs (off-diag).
- *  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
- *  - baseline_category: Reference categories for Blume–Capel variables.
- *  - var1, var2: Indices of the variable pair being updated.
- *
- * Returns:
- *  - The scalar log pseudolikelihood ratio (proposed vs. current).
- *
- * Notes:
- *  - A temporary copy of `inclusion_indicator` is used to force the edge (var1,var2) as active.
- *  - Only the selected pair changes between current and proposed states;
- *    all other effects remain fixed.
- *  - This function does not add prior contributions — only pseudolikelihood terms.
- */
+// Computes the log pseudolikelihood ratio for updating a single pairwise-effect parameter (bgmCompare model).
+//
+// This function is used in Metropolis–Hastings updates for pairwise effects.
+// It compares the likelihood of the data under the current vs. proposed
+// value of a single interaction (var1,var2), while keeping all other
+// parameters fixed.
+//
+// Procedure:
+//  - Ensure the interaction is included in a temporary copy of inclusion_indicator.
+//  - For each group:
+//    * Compute group-specific pairwise effect for (var1,var2), current vs. proposed.
+//    * Add linear contribution from the pairwise sufficient statistic.
+//  - Add the ratio of pseudolikelihood normalizing constants for both variables:
+//    * Call `log_ratio_pseudolikelihood_constant_variable()` separately for var1 and var2,
+//      comparing current vs. proposed pairwise weights.
+//
+// Inputs:
+//  - main_effects: Matrix of main-effect parameters (fixed).
+//  - current_pairwise_effects: Matrix of pairwise-effect parameters (current state).
+//  - proposed_pairwise_effects: Matrix of pairwise-effect parameters (candidate state).
+//  - main_effect_indices: Index ranges [row_start,row_end] for each variable.
+//  - pairwise_effect_indices: Lookup table mapping (var1,var2) → row in pairwise_effects.
+//  - projection: Group projection matrix (num_groups × (num_groups − 1)).
+//  - observations: Observation matrix (persons × variables).
+//  - group_indices: Row ranges [start,end] for each group in observations.
+//  - num_categories: Number of categories per variable.
+//  - pairwise_stats_group: Per-group pairwise sufficient statistics.
+//  - num_groups: Number of groups.
+//  - inclusion_indicator: Symmetric binary matrix of active variables (diag) and pairs (off-diag).
+//  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
+//  - baseline_category: Reference categories for Blume–Capel variables.
+//  - var1, var2: Indices of the variable pair being updated.
+//
+// Returns:
+//  - The scalar log pseudolikelihood ratio (proposed vs. current).
+//
+// Notes:
+//  - A temporary copy of `inclusion_indicator` is used to force the edge (var1,var2) as active.
+//  - Only the selected pair changes between current and proposed states;
+//    all other effects remain fixed.
+//  - This function does not add prior contributions — only pseudolikelihood terms.
 double log_pseudolikelihood_ratio_pairwise(
     const arma::mat& main_effects,
     const arma::mat& current_pairwise_effects,

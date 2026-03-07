@@ -60,7 +60,8 @@ options(bgms.verbose = FALSE)
 
 .test_cache = new.env(parent = emptyenv())
 
-#' @description Get cached bgms fit (4 binary variables, edge selection, 2 chains)
+#' @description Get cached bgms fit
+#' (4 binary variables, edge selection, 2 chains)
 get_bgms_fit = function() {
   if(is.null(.test_cache$bgms_fit)) {
     data("ADHD", package = "bgms")
@@ -74,7 +75,8 @@ get_bgms_fit = function() {
   .test_cache$bgms_fit
 }
 
-#' @description Get cached bgms fit (4 ordinal variables, edge selection, 2 chains)
+#' @description Get cached bgms fit
+#' (4 ordinal variables, edge selection, 2 chains)
 get_bgms_fit_ordinal = function() {
   if(is.null(.test_cache$bgms_fit_ordinal)) {
     data("Wenchuan", package = "bgms")
@@ -88,7 +90,8 @@ get_bgms_fit_ordinal = function() {
   .test_cache$bgms_fit_ordinal
 }
 
-#' @description Get cached bgmCompare fit (4 binary variables, 2 groups, 2 chains)
+#' @description Get cached bgmCompare fit
+#' (4 binary variables, 2 groups, 2 chains)
 get_bgmcompare_fit = function() {
   if(is.null(.test_cache$bgmcompare_fit)) {
     data("ADHD", package = "bgms")
@@ -103,7 +106,8 @@ get_bgmcompare_fit = function() {
   .test_cache$bgmcompare_fit
 }
 
-#' @description Get cached bgmCompare fit using x,y interface (4 ordinal variables, 2 chains)
+#' @description Get cached bgmCompare fit
+#' using x,y interface (4 ordinal variables, 2 chains)
 get_bgmcompare_fit_xy = function() {
   if(is.null(.test_cache$bgmcompare_fit_xy)) {
     data("Wenchuan", package = "bgms")
@@ -119,7 +123,8 @@ get_bgmcompare_fit_xy = function() {
   .test_cache$bgmcompare_fit_xy
 }
 
-#' @description Get cached bgmCompare fit (4 ordinal variables, 2 groups, 2 chains)
+#' @description Get cached bgmCompare fit
+#' (4 ordinal variables, 2 groups, 2 chains)
 get_bgmcompare_fit_ordinal = function() {
   if(is.null(.test_cache$bgmcompare_fit_ordinal)) {
     data("Wenchuan", package = "bgms")
@@ -151,7 +156,8 @@ get_bgms_fit_blumecapel = function() {
   .test_cache$bgms_fit_blumecapel
 }
 
-#' @description Get cached bgms fit with single chain (for R-hat edge case testing)
+#' @description Get cached bgms fit with
+#' single chain (for R-hat edge case testing)
 get_bgms_fit_single_chain = function() {
   if(is.null(.test_cache$bgms_fit_single)) {
     data("ADHD", package = "bgms")
@@ -234,7 +240,9 @@ get_bgmcompare_fit_hmc_blumecapel = function() {
   .test_cache$bgmcompare_fit_hmc_bc
 }
 
-#' @description Get cached bgmCompare fit with main_difference_selection = TRUE + Blume-Capel (1 chain)
+#' @description Get cached bgmCompare fit with
+#' main_difference_selection = TRUE +
+#' Blume-Capel (1 chain)
 #' Crosses Blume-Capel with difference_selection (Bernoulli prior)
 get_bgmcompare_fit_main_selection = function() {
   if(is.null(.test_cache$bgmcompare_fit_main_sel)) {
@@ -257,7 +265,9 @@ get_bgmcompare_fit_main_selection = function() {
   .test_cache$bgmcompare_fit_main_sel
 }
 
-#' @description Get cached bgmCompare fit with Beta-Bernoulli difference prior + ordinal (1 chain)
+#' @description Get cached bgmCompare fit with
+#' Beta-Bernoulli difference prior +
+#' ordinal (1 chain)
 #' Crosses Beta-Bernoulli prior with ordinal variables
 get_bgmcompare_fit_beta_bernoulli = function() {
   if(is.null(.test_cache$bgmcompare_fit_bb)) {
@@ -296,7 +306,8 @@ get_bgms_fit_beta_bernoulli = function() {
   .test_cache$bgms_fit_bb
 }
 
-#' @description Get cached bgms fit with Stochastic-Block Model edge prior (2 chains)
+#' @description Get cached bgms fit with
+#' Stochastic-Block Model edge prior (2 chains)
 get_bgms_fit_sbm = function() {
   if(is.null(.test_cache$bgms_fit_sbm)) {
     data("ADHD", package = "bgms")
@@ -329,7 +340,8 @@ get_bgms_fit_hmc = function() {
   .test_cache$bgms_fit_hmc
 }
 
-#' @description Get cached bgms fit with adaptive-metropolis + Blume-Capel (1 chain)
+#' @description Get cached bgms fit with
+#' adaptive-metropolis + Blume-Capel (1 chain)
 get_bgms_fit_am_blumecapel = function() {
   if(is.null(.test_cache$bgms_fit_am_bc)) {
     data("Wenchuan", package = "bgms")
@@ -400,7 +412,9 @@ get_bgmcompare_fit_blumecapel = function() {
   .test_cache$bgmcompare_fit_bc
 }
 
-#' @description Get cached bgmCompare fit with adaptive-metropolis + Blume-Capel (1 chain)
+#' @description Get cached bgmCompare fit
+#' with adaptive-metropolis + Blume-Capel
+#' (1 chain)
 get_bgmcompare_fit_am_blumecapel = function() {
   if(is.null(.test_cache$bgmcompare_fit_am_bc)) {
     data("Boredom", package = "bgms")
@@ -441,7 +455,9 @@ get_bgmcompare_fit_impute = function() {
   .test_cache$bgmcompare_fit_impute
 }
 
-#' @description Get cached bgmCompare fit with Blume-Capel + missing data imputation (1 chain)
+#' @description Get cached bgmCompare fit
+#' with Blume-Capel + missing data
+#' imputation (1 chain)
 get_bgmcompare_fit_blumecapel_impute = function() {
   if(is.null(.test_cache$bgmcompare_fit_bc_impute)) {
     data("Boredom", package = "bgms")
@@ -483,7 +499,9 @@ get_bgmcompare_fit_standardize = function() {
   .test_cache$bgmcompare_fit_std
 }
 
-#' @description Get cached bgms fit for GGM with edge selection (4 continuous variables, 1 chain)
+#' @description Get cached bgms fit for GGM
+#' with edge selection
+#' (4 continuous variables, 1 chain)
 get_bgms_fit_ggm = function() {
   if(is.null(.test_cache$bgms_fit_ggm)) {
     set.seed(42)
@@ -501,7 +519,9 @@ get_bgms_fit_ggm = function() {
   .test_cache$bgms_fit_ggm
 }
 
-#' @description Get cached bgms fit for GGM without edge selection (4 continuous variables, 1 chain)
+#' @description Get cached bgms fit for GGM
+#' without edge selection
+#' (4 continuous variables, 1 chain)
 get_bgms_fit_ggm_no_es = function() {
   if(is.null(.test_cache$bgms_fit_ggm_no_es)) {
     set.seed(42)
@@ -533,8 +553,10 @@ get_bgms_fit_mixed_mrf = function() {
     colnames(x) = c("d1", "c1", "d2", "c2", "d3")
     .test_cache$bgms_fit_mixed_mrf = bgm(
       x = x,
-      variable_type = c("ordinal", "continuous", "ordinal",
-                        "continuous", "ordinal"),
+      variable_type = c(
+        "ordinal", "continuous", "ordinal",
+        "continuous", "ordinal"
+      ),
       edge_selection = TRUE,
       iter = 50, warmup = 100, chains = 1,
       seed = 77771,
@@ -558,8 +580,10 @@ get_bgms_fit_mixed_mrf_no_es = function() {
     colnames(x) = c("d1", "c1", "d2", "c2", "d3")
     .test_cache$bgms_fit_mixed_mrf_no_es = bgm(
       x = x,
-      variable_type = c("ordinal", "continuous", "ordinal",
-                        "continuous", "ordinal"),
+      variable_type = c(
+        "ordinal", "continuous", "ordinal",
+        "continuous", "ordinal"
+      ),
       edge_selection = FALSE,
       iter = 50, warmup = 100, chains = 1,
       seed = 77772,
@@ -583,8 +607,10 @@ get_bgms_fit_mixed_mrf_marginal = function() {
     colnames(x) = c("d1", "c1", "d2", "c2", "d3")
     .test_cache$bgms_fit_mixed_mrf_marginal = bgm(
       x = x,
-      variable_type = c("ordinal", "continuous", "ordinal",
-                        "continuous", "ordinal"),
+      variable_type = c(
+        "ordinal", "continuous", "ordinal",
+        "continuous", "ordinal"
+      ),
       edge_selection = FALSE,
       pseudolikelihood = "marginal",
       iter = 50, warmup = 100, chains = 1,
@@ -716,7 +742,8 @@ upper_vals = function(M) {
   M[upper.tri(M)]
 }
 
-#' Check that named summary entries match matrix positions (ordering consistency)
+#' Check that named summary entries match
+#' matrix positions (ordering consistency)
 #'
 #' For each row of summary_df (named "Vi-Vj"), verify that summary_df$mean[k]
 #' equals matrix_val[Vi, Vj]. Returns a logical vector (TRUE = match).
@@ -725,15 +752,20 @@ check_summary_matrix_consistency = function(summary_df, matrix_val) {
   matches = logical(nrow(summary_df))
   for(k in seq_len(nrow(summary_df))) {
     parts = strsplit(rownames(summary_df)[k], "-")[[1]]
-    matches[k] = abs(summary_df$mean[k] - matrix_val[parts[1], parts[2]]) < 1e-10
+    matches[k] = abs(
+      summary_df$mean[k] -
+        matrix_val[parts[1], parts[2]]
+    ) < 1e-10
   }
   matches
 }
 
-#' Check that extractor column means match matrix positions (ordering consistency)
+#' Check that extractor column means match
+#' matrix positions (ordering consistency)
 #'
 #' For each named element of extracted_means (named "Vi-Vj"), verify that
-#' the value matches matrix_val[Vi, Vj]. Returns a logical vector (TRUE = match).
+#' the value matches matrix_val[Vi, Vj].
+#' Returns a logical vector (TRUE = match).
 check_extractor_matrix_consistency = function(extracted_means, matrix_val) {
   matches = logical(length(extracted_means))
   for(k in seq_along(extracted_means)) {
@@ -760,7 +792,10 @@ expect_extractor_structure = function(obj, type, expected_dim = NULL,
   # Type check
   expect_true(
     inherits(obj, type),
-    info = sprintf("Expected class %s, got %s", type, paste(class(obj), collapse = ", "))
+    info = sprintf(
+      "Expected class %s, got %s",
+      type, paste(class(obj), collapse = ", ")
+    )
   )
 
   # Dimension check

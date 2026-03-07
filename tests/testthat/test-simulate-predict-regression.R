@@ -103,7 +103,8 @@ get_bgmcompare_fixtures = function() {
       var_type = "ordinal"
     ),
     list(
-      label = "adaptive-metropolis", get_fit = get_bgmcompare_fit_adaptive_metropolis,
+      label = "adaptive-metropolis",
+      get_fit = get_bgmcompare_fit_adaptive_metropolis,
       get_prediction_data = get_prediction_data_bgmcompare_binary,
       var_type = "binary"
     ),
@@ -133,7 +134,8 @@ get_bgmcompare_fixtures = function() {
       var_type = "ordinal"
     ),
     list(
-      label = "blume-capel-impute", get_fit = get_bgmcompare_fit_blumecapel_impute,
+      label = "blume-capel-impute",
+      get_fit = get_bgmcompare_fit_blumecapel_impute,
       get_prediction_data = get_prediction_data_bgmcompare_blumecapel,
       var_type = "blume-capel"
     ),
@@ -205,9 +207,11 @@ test_that("bgms $arguments contains all fields needed by simulate/predict", {
           info = sprintf("%s: missing arguments$%s", ctx, field)
         )
       }
-      for(field in c("is_mixed", "discrete_indices", "continuous_indices",
-                      "num_discrete", "num_continuous", "is_ordinal",
-                      "data_columnnames_discrete", "data_columnnames_continuous")) {
+      for(field in c(
+        "is_mixed", "discrete_indices", "continuous_indices",
+        "num_discrete", "num_continuous", "is_ordinal",
+        "data_columnnames_discrete", "data_columnnames_continuous"
+      )) {
         expect_true(
           field %in% names(args),
           info = sprintf("%s: missing mixed arguments$%s", ctx, field)
@@ -228,7 +232,10 @@ test_that("bgms $arguments contains all fields needed by simulate/predict", {
   }
 })
 
-test_that("bgmCompare $arguments contains all fields needed by simulate/predict", {
+test_that(paste(
+  "bgmCompare $arguments contains all fields",
+  "needed by simulate/predict"
+), {
   for(spec in get_bgmcompare_fixtures()) {
     ctx = sprintf("[bgmCompare %s]", spec$label)
     fit = spec$get_fit()
@@ -318,7 +325,8 @@ test_that("bgms fit objects have raw_samples for posterior-sample method", {
 # ==============================================================================
 # For each golden fixture, construct a bgm_spec from the frozen inputs and
 # verify that build_arguments() produces the same simulate/predict-critical
-# values (num_categories, baseline_category, variable_type / is_ordinal_variable,
+# values (num_categories, baseline_category,
+# variable_type / is_ordinal_variable,
 # is_continuous) as the old pipeline's check_model + reformat_data output.
 #
 # This is fast: bgm_spec() + build_arguments() does no MCMC.
@@ -501,14 +509,22 @@ test_that("simulate → predict roundtrip works for all bgms fixtures", {
     expect_true(is.matrix(simulated), info = paste(ctx, "simulate"))
     expect_equal(nrow(simulated), n_sim, info = paste(ctx, "nrow"))
     expect_equal(ncol(simulated), args$num_variables, info = paste(ctx, "ncol"))
-    expect_equal(colnames(simulated), args$data_columnnames, info = paste(ctx, "colnames"))
+    expect_equal(
+      colnames(simulated), args$data_columnnames,
+      info = paste(ctx, "colnames")
+    )
 
     if(isTRUE(args$is_continuous)) {
       # GGM: predict returns list of mean/sd matrices
       colnames(simulated) = args$data_columnnames
       pred = predict(fit, newdata = simulated)
-      expect_true(is.list(pred), info = paste(ctx, "predict type"))
-      expect_equal(length(pred), args$num_variables, info = paste(ctx, "predict length"))
+      expect_true(is.list(pred),
+        info = paste(ctx, "predict type")
+      )
+      expect_equal(
+        length(pred), args$num_variables,
+        info = paste(ctx, "predict length")
+      )
       for(j in seq_along(pred)) {
         expect_equal(nrow(pred[[j]]), n_sim,
           info = sprintf("%s predict var %d nrow", ctx, j)
@@ -518,10 +534,20 @@ test_that("simulate → predict roundtrip works for all bgms fixtures", {
         )
       }
     } else if(isTRUE(spec$is_mixed)) {
-      # Mixed MRF: predict returns list with discrete (probs) and continuous (mean/sd)
-      probs = predict(fit, newdata = simulated, type = "probabilities")
-      expect_true(is.list(probs), info = paste(ctx, "predict type"))
-      expect_equal(length(probs), args$num_variables, info = paste(ctx, "predict length"))
+      # Mixed MRF: predict returns list with
+      # discrete (probs) and continuous (mean/sd)
+      probs = predict(
+        fit,
+        newdata = simulated,
+        type = "probabilities"
+      )
+      expect_true(is.list(probs),
+        info = paste(ctx, "predict type")
+      )
+      expect_equal(
+        length(probs), args$num_variables,
+        info = paste(ctx, "predict length")
+      )
 
       for(j in seq_len(args$num_variables)) {
         vname = args$data_columnnames[j]
@@ -555,9 +581,18 @@ test_that("simulate → predict roundtrip works for all bgms fixtures", {
       )
     } else {
       # OMRF: predict returns list of probability matrices
-      probs = predict(fit, newdata = simulated, type = "probabilities")
-      expect_true(is.list(probs), info = paste(ctx, "predict type"))
-      expect_equal(length(probs), args$num_variables, info = paste(ctx, "predict length"))
+      probs = predict(
+        fit,
+        newdata = simulated,
+        type = "probabilities"
+      )
+      expect_true(is.list(probs),
+        info = paste(ctx, "predict type")
+      )
+      expect_equal(
+        length(probs), args$num_variables,
+        info = paste(ctx, "predict length")
+      )
       for(j in seq_along(probs)) {
         expect_equal(nrow(probs[[j]]), n_sim,
           info = sprintf("%s predict var %d nrow", ctx, j)
@@ -605,7 +640,10 @@ test_that("simulate → predict roundtrip works for all bgmCompare fixtures", {
 
       expect_true(is.matrix(simulated), info = paste(g_ctx, "simulate"))
       expect_equal(nrow(simulated), n_sim, info = paste(g_ctx, "nrow"))
-      expect_equal(ncol(simulated), args$num_variables, info = paste(g_ctx, "ncol"))
+      expect_equal(
+        ncol(simulated), args$num_variables,
+        info = paste(g_ctx, "ncol")
+      )
       expect_equal(colnames(simulated), args$data_columnnames,
         info = paste(g_ctx, "colnames")
       )
@@ -619,7 +657,11 @@ test_that("simulate → predict roundtrip works for all bgmCompare fixtures", {
       )
 
       # Predict
-      probs = predict(fit, newdata = simulated, group = g, type = "probabilities")
+      probs = predict(
+        fit,
+        newdata = simulated,
+        group = g, type = "probabilities"
+      )
       expect_true(is.list(probs), info = paste(g_ctx, "predict type"))
       expect_equal(length(probs), args$num_variables,
         info = paste(g_ctx, "predict length")
@@ -727,7 +769,9 @@ test_that("bgms $arguments field types are correct for simulate/predict", {
     args = extract_arguments(fit)
     p = args$num_variables
 
-    expect_true(is.numeric(args$num_variables) && length(args$num_variables) == 1,
+    expect_true(
+      is.numeric(args$num_variables) &&
+        length(args$num_variables) == 1,
       info = paste(ctx, "num_variables")
     )
     expect_true(args$num_variables >= 1,
@@ -737,23 +781,31 @@ test_that("bgms $arguments field types are correct for simulate/predict", {
     expect_true(is.character(args$variable_type),
       info = paste(ctx, "variable_type character")
     )
-    expect_true(all(args$variable_type %in% c("ordinal", "blume-capel", "continuous")),
+    expect_true(
+      all(args$variable_type %in%
+        c("ordinal", "blume-capel", "continuous")),
       info = paste(ctx, "variable_type values")
     )
 
-    expect_true(is.character(args$data_columnnames) && length(args$data_columnnames) == p,
+    expect_true(
+      is.character(args$data_columnnames) &&
+        length(args$data_columnnames) == p,
       info = paste(ctx, "data_columnnames length")
     )
 
     if(!isTRUE(spec$is_continuous) && !isTRUE(spec$is_mixed)) {
       # OMRF-only fields
-      expect_true(is.numeric(args$num_categories) && length(args$num_categories) == p,
+      expect_true(
+        is.numeric(args$num_categories) &&
+          length(args$num_categories) == p,
         info = paste(ctx, "num_categories length")
       )
       expect_true(all(args$num_categories >= 1),
         info = paste(ctx, "num_categories >= 1")
       )
-      expect_true(is.numeric(args$baseline_category) && length(args$baseline_category) == p,
+      expect_true(
+        is.numeric(args$baseline_category) &&
+          length(args$baseline_category) == p,
         info = paste(ctx, "baseline_category length")
       )
     }
@@ -761,28 +813,46 @@ test_that("bgms $arguments field types are correct for simulate/predict", {
     if(isTRUE(spec$is_mixed)) {
       pd = args$num_discrete
       qc = args$num_continuous
-      expect_equal(pd + qc, p, info = paste(ctx, "num_discrete + num_continuous == p"))
-      expect_true(
-        is.numeric(args$num_categories) && length(args$num_categories) == pd,
-        info = paste(ctx, "mixed num_categories length == num_discrete")
+      expect_equal(
+        pd + qc, p,
+        info = paste(
+          ctx, "num_discrete + num_continuous == p"
+        )
       )
       expect_true(
-        is.numeric(args$baseline_category) && length(args$baseline_category) == pd,
-        info = paste(ctx, "mixed baseline_category length == num_discrete")
+        is.numeric(args$num_categories) &&
+          length(args$num_categories) == pd,
+        info = paste(
+          ctx,
+          "mixed num_categories length == num_discrete"
+        )
       )
       expect_true(
-        is.numeric(args$discrete_indices) && length(args$discrete_indices) == pd,
+        is.numeric(args$baseline_category) &&
+          length(args$baseline_category) == pd,
+        info = paste(
+          ctx,
+          "mixed baseline_category length == num_discrete"
+        )
+      )
+      expect_true(
+        is.numeric(args$discrete_indices) &&
+          length(args$discrete_indices) == pd,
         info = paste(ctx, "discrete_indices length")
       )
       expect_true(
-        is.numeric(args$continuous_indices) && length(args$continuous_indices) == qc,
+        is.numeric(args$continuous_indices) &&
+          length(args$continuous_indices) == qc,
         info = paste(ctx, "continuous_indices length")
       )
     }
   }
 })
 
-test_that("bgmCompare $arguments field types are correct for simulate/predict", {
+test_that(paste(
+  "bgmCompare $arguments field types",
+  "are correct for simulate/predict"
+), {
   for(spec in get_bgmcompare_fixtures()) {
     ctx = sprintf("[bgmCompare %s]", spec$label)
     fit = spec$get_fit()
@@ -797,15 +867,21 @@ test_that("bgmCompare $arguments field types are correct for simulate/predict", 
       info = paste(ctx, "num_variables")
     )
 
-    expect_true(is.numeric(args$num_categories) && length(args$num_categories) == p,
+    expect_true(
+      is.numeric(args$num_categories) &&
+        length(args$num_categories) == p,
       info = paste(ctx, "num_categories length")
     )
 
-    expect_true(is.logical(args$is_ordinal_variable) && length(args$is_ordinal_variable) == p,
+    expect_true(
+      is.logical(args$is_ordinal_variable) &&
+        length(args$is_ordinal_variable) == p,
       info = paste(ctx, "is_ordinal_variable")
     )
 
-    expect_true(is.character(args$data_columnnames) && length(args$data_columnnames) == p,
+    expect_true(
+      is.character(args$data_columnnames) &&
+        length(args$data_columnnames) == p,
       info = paste(ctx, "data_columnnames")
     )
 

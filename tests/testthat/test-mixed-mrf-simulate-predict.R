@@ -22,7 +22,9 @@
 # ==============================================================================
 
 test_that("sample_mixed_mrf_gibbs returns correct dimensions", {
-  p = 2; q = 2; n = 100
+  p = 2
+  q = 2
+  n = 100
   nc = c(2L, 2L)
   mux = matrix(c(0, 0.5, -0.3, 0, -0.2, 0.1), nrow = p, ncol = 3, byrow = TRUE)
   Kxx = matrix(c(0, 0.3, 0.3, 0), p, p)
@@ -43,8 +45,10 @@ test_that("sample_mixed_mrf_gibbs returns correct dimensions", {
 })
 
 test_that("sample_mixed_mrf_gibbs: discrete values in valid range", {
-  p = 3; q = 1; n = 500
-  nc = c(2L, 3L, 1L)  # categories 0-2, 0-3, 0-1 (binary)
+  p = 3
+  q = 1
+  n = 500
+  nc = c(2L, 3L, 1L) # categories 0-2, 0-3, 0-1 (binary)
   mux = matrix(0, p, 4)
   Kxx = matrix(0, p, p)
   muy = 0
@@ -70,7 +74,9 @@ test_that("sample_mixed_mrf_gibbs: discrete values in valid range", {
 
 test_that("sample_mixed_mrf_gibbs: continuous marginal SD matches precision", {
   # Independent model: Kxx = 0, Kxy = 0, so y ~ N(muy, Kyy^{-1})
-  p = 1; q = 2; n = 2000
+  p = 1
+  q = 2
+  n = 2000
   nc = c(2L)
   mux = matrix(0, p, 3)
   Kxx = matrix(0)
@@ -92,17 +98,24 @@ test_that("sample_mixed_mrf_gibbs: continuous marginal SD matches precision", {
     # Loose check: within 30% of expected
     expect_true(
       abs(empirical_sd - expected_sd) / expected_sd < 0.3,
-      info = sprintf("y%d SD: expected %.3f, got %.3f", j, expected_sd, empirical_sd)
+      info = sprintf(
+        "y%d SD: expected %.3f, got %.3f",
+        j, expected_sd, empirical_sd
+      )
     )
   }
 })
 
 test_that("sample_mixed_mrf_gibbs: seed reproducibility", {
-  p = 2; q = 1; n = 50
+  p = 2
+  q = 1
+  n = 50
   nc = c(2L, 2L)
   mux = matrix(c(0, 0.5, -0.3, 0, -0.2, 0.1), nrow = p, ncol = 3, byrow = TRUE)
   Kxx = matrix(c(0, 0.3, 0.3, 0), p, p)
-  muy = 0; Kyy = matrix(1); Kxy = matrix(c(0.1, 0.2), p, q)
+  muy = 0
+  Kyy = matrix(1)
+  Kxy = matrix(c(0.1, 0.2), p, q)
 
   args = list(
     num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
@@ -119,16 +132,20 @@ test_that("sample_mixed_mrf_gibbs: seed reproducibility", {
 })
 
 test_that("sample_mixed_mrf_gibbs: Blume-Capel variable works", {
-  p = 2; q = 1; n = 200
+  p = 2
+  q = 1
+  n = 200
   nc = c(2L, 4L)
   # ordinal: mux has num_categories entries; BC: 2 entries (alpha, beta)
   max_cols = max(nc[1], 2)
   mux = matrix(0, p, max_cols)
-  mux[2, 1] = 0.5   # alpha
-  mux[2, 2] = -0.3   # beta (penalizes distance from reference)
+  mux[2, 1] = 0.5 # alpha
+  mux[2, 2] = -0.3 # beta (penalizes distance from reference)
 
   Kxx = matrix(c(0, 0.2, 0.2, 0), p, p)
-  muy = 0; Kyy = matrix(1.5); Kxy = matrix(c(0.1, -0.1), p, q)
+  muy = 0
+  Kyy = matrix(1.5)
+  Kxy = matrix(c(0.1, -0.1), p, q)
 
   result = sample_mixed_mrf_gibbs(
     num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
@@ -148,10 +165,13 @@ test_that("sample_mixed_mrf_gibbs: Blume-Capel variable works", {
 # ==============================================================================
 
 test_that("run_mixed_simulation_parallel returns correct structure", {
-  p = 2L; q = 1L; ndraws_total = 3L
+  p = 2L
+  q = 1L
+  ndraws_total = 3L
   nc = c(2L, 2L)
   mux_s = matrix(rep(c(0, 0.5, -0.3, 0, -0.2, 0.1), each = ndraws_total),
-                 nrow = ndraws_total)
+    nrow = ndraws_total
+  )
   kxx_s = matrix(0.3, nrow = ndraws_total, ncol = 1)
   muy_s = matrix(0, nrow = ndraws_total, ncol = 1)
   kyy_s = matrix(1.5, nrow = ndraws_total, ncol = 1)
@@ -185,14 +205,19 @@ test_that("run_mixed_simulation_parallel returns correct structure", {
 # ==============================================================================
 
 test_that("compute_conditional_mixed: discrete probs sum to 1", {
-  p = 2; q = 1; n = 5
+  p = 2
+  q = 1
+  n = 5
   nc = c(2L, 2L)
   mux = matrix(c(0, 0.5, -0.3, 0, -0.2, 0.1), nrow = p, ncol = 3, byrow = TRUE)
   Kxx = matrix(c(0, 0.3, 0.3, 0), p, p)
-  muy = 0; Kyy = matrix(1.5); Kxy = matrix(c(0.1, 0.2), p, q)
+  muy = 0
+  Kyy = matrix(1.5)
+  Kxy = matrix(c(0.1, 0.2), p, q)
 
   x_obs = matrix(c(0L, 1L, 2L, 0L, 1L, 1L, 2L, 0L, 1L, 2L),
-                 nrow = n, ncol = p)
+    nrow = n, ncol = p
+  )
   y_obs = matrix(rnorm(n), nrow = n, ncol = q)
 
   # Predict first discrete variable (0-based index 0)
@@ -206,7 +231,7 @@ test_that("compute_conditional_mixed: discrete probs sum to 1", {
 
   expect_equal(length(preds), 1)
   expect_equal(nrow(preds[[1]]), n)
-  expect_equal(ncol(preds[[1]]), nc[1] + 1)  # 3 categories
+  expect_equal(ncol(preds[[1]]), nc[1] + 1) # 3 categories
 
   row_sums = rowSums(preds[[1]])
   expect_true(all(abs(row_sums - 1) < 1e-8))
@@ -214,10 +239,13 @@ test_that("compute_conditional_mixed: discrete probs sum to 1", {
 })
 
 test_that("compute_conditional_mixed: continuous returns mean and sd", {
-  p = 1; q = 2; n = 5
+  p = 1
+  q = 2
+  n = 5
   nc = c(2L)
   mux = matrix(c(0, 0.5, -0.3), nrow = 1, ncol = 3)
-  Kxx = matrix(0); muy = c(1.0, -0.5)
+  Kxx = matrix(0)
+  muy = c(1.0, -0.5)
   Kyy = matrix(c(2, 0.3, 0.3, 1.5), q, q)
   Kxy = matrix(c(0.1, -0.1), 1, q)
 
@@ -234,16 +262,19 @@ test_that("compute_conditional_mixed: continuous returns mean and sd", {
 
   expect_equal(length(preds), 1)
   expect_equal(nrow(preds[[1]]), n)
-  expect_equal(ncol(preds[[1]]), 2)  # mean, sd
-  expect_true(all(preds[[1]][, 2] > 0))  # sd > 0
+  expect_equal(ncol(preds[[1]]), 2) # mean, sd
+  expect_true(all(preds[[1]][, 2] > 0)) # sd > 0
 })
 
 test_that("compute_conditional_mixed: mixed prediction variables", {
-  p = 2; q = 2; n = 5
+  p = 2
+  q = 2
+  n = 5
   nc = c(2L, 2L)
   mux = matrix(0, p, 3)
   Kxx = matrix(c(0, 0.3, 0.3, 0), p, p)
-  muy = c(0.5, -0.2); Kyy = diag(c(1.5, 1.8))
+  muy = c(0.5, -0.2)
+  Kyy = diag(c(1.5, 1.8))
   Kxy = matrix(0.1, p, q)
 
   x_obs = matrix(sample(0:2, n * p, replace = TRUE), n, p)
@@ -288,7 +319,10 @@ test_that("simulate.bgms works for mixed MRF with posterior-mean", {
   for(di in args$discrete_indices) {
     vals = result[, di]
     expect_true(all(vals >= 0), info = sprintf("col %d negative", di))
-    expect_true(all(vals == round(vals)), info = sprintf("col %d not integer", di))
+    expect_true(
+      all(vals == round(vals)),
+      info = sprintf("col %d not integer", di)
+    )
   }
 })
 

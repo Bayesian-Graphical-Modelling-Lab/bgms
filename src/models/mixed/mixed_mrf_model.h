@@ -206,115 +206,110 @@ private:
     // Counts and dimensions
     // =========================================================================
 
-    size_t n_;                          // Number of observations
-    size_t p_;                          // Number of discrete variables
-    size_t q_;                          // Number of continuous variables
-    size_t num_main_;                   // Total main-effect params (Σ C_s for ord + 2 per BC)
-    size_t num_pairwise_xx_;            // p(p-1)/2
-    size_t num_pairwise_yy_;            // q(q-1)/2
-    size_t num_cross_;                  // p * q
+    size_t n_;                          ///< Number of observations
+    size_t p_;                          ///< Number of discrete variables
+    size_t q_;                          ///< Number of continuous variables
+    size_t num_main_;                   ///< Total main-effect params (sum C_s for ord + 2 per BC)
+    size_t num_pairwise_xx_;            ///< p(p-1)/2
+    size_t num_pairwise_yy_;            ///< q(q-1)/2
+    size_t num_cross_;                  ///< p * q
 
     // =========================================================================
     // Data
     // =========================================================================
 
-    arma::imat discrete_observations_;   // Discrete observations (n × p)
-                                        //   BC columns centered at baseline_category_ in ctor.
-    arma::mat discrete_observations_dbl_; // Double version (post-centering)
-    arma::mat continuous_observations_;  // Continuous observations (n × q)
-    arma::ivec num_categories_;         // Categories per discrete variable (p-vector)
-    int max_cats_;                      // max(num_categories)
-    arma::uvec is_ordinal_variable_;    // 1 = ordinal, 0 = Blume-Capel (p-vector)
-    arma::ivec baseline_category_;      // Reference category per discrete variable (p-vector)
+    arma::imat discrete_observations_;   ///< Discrete observations (n x p), BC columns centered
+    arma::mat discrete_observations_dbl_; ///< Double version (post-centering)
+    arma::mat continuous_observations_;  ///< Continuous observations (n x q)
+    arma::ivec num_categories_;         ///< Categories per discrete variable (p-vector)
+    int max_cats_;                      ///< max(num_categories)
+    arma::uvec is_ordinal_variable_;    ///< 1 = ordinal, 0 = Blume-Capel (p-vector)
+    arma::ivec baseline_category_;      ///< Reference category per discrete variable (p-vector)
 
     // =========================================================================
     // Sufficient statistics
     // =========================================================================
 
-    arma::imat counts_per_category_;    // (max_cats+1) × p  category counts (ordinal only)
-    arma::imat blume_capel_stats_;      // 2 × p  linear/quadratic sums (BC only)
+    arma::imat counts_per_category_;    ///< (max_cats+1) x p category counts (ordinal only)
+    arma::imat blume_capel_stats_;      ///< 2 x p linear/quadratic sums (BC only)
 
     // =========================================================================
     // Parameters
     // =========================================================================
 
-    arma::mat mux_;                     // p × max_cats  main effects
-                                        //   Ordinal: mux_(s,c) = threshold for category c+1;
-                                        //     category 0 is reference (fixed at 0).
-                                        //   Blume-Capel: mux_(s,0) = linear α_s,
-                                        //     mux_(s,1) = quadratic β_s.
-    arma::vec muy_;                     // q-vector  continuous means
-    arma::mat Kxx_;                     // p × p  discrete interactions (symmetric, zero diag)
-    arma::mat Kyy_;                     // q × q  SPD precision matrix
-    arma::mat Kxy_;                     // p × q  cross-type interactions
+    arma::mat mux_;                     ///< p x max_cats main effects (thresholds or alpha/beta)
+    arma::vec muy_;                     ///< q-vector continuous means
+    arma::mat Kxx_;                     ///< p x p discrete interactions (symmetric, zero diag)
+    arma::mat Kyy_;                     ///< q x q SPD precision matrix
+    arma::mat Kxy_;                     ///< p x q cross-type interactions
 
     // =========================================================================
     // Edge indicators
     // =========================================================================
 
-    // Combined (p+q) × (p+q) indicator matrix:
-    //   Gxx block : rows [0,p),    cols [0,p)    — symmetric, zero diag
-    //   Gyy block : rows [p,p+q),  cols [p,p+q)  — symmetric, zero diag
-    //   Gxy block : rows [0,p),    cols [p,p+q)   — full p×q rectangle
+    /// Combined (p+q) x (p+q) indicator matrix.
+    /// Gxx block: rows [0,p), cols [0,p) -- symmetric, zero diag.
+    /// Gyy block: rows [p,p+q), cols [p,p+q) -- symmetric, zero diag.
+    /// Gxy block: rows [0,p), cols [p,p+q) -- full p x q rectangle.
     arma::imat edge_indicators_;
-    arma::mat inclusion_probability_;
-    bool edge_selection_;
-    bool edge_selection_active_;
+    arma::mat inclusion_probability_;   ///< Prior inclusion probabilities
+    bool edge_selection_;               ///< Enable edge selection
+    bool edge_selection_active_;        ///< Currently in edge selection phase
 
     // =========================================================================
     // Priors
     // =========================================================================
 
-    double main_alpha_;                 // Beta prior α for main effects
-    double main_beta_;                  // Beta prior β for main effects
-    double pairwise_scale_;             // Cauchy scale for interaction priors
+    double main_alpha_;                 ///< Beta prior alpha for main effects
+    double main_beta_;                  ///< Beta prior beta for main effects
+    double pairwise_scale_;             ///< Cauchy scale for interaction priors
 
     // =========================================================================
     // Proposal SDs (Robbins-Monro adapted)
     // =========================================================================
 
-    arma::mat prop_sd_mux_;             // p × max_cats
-    arma::vec prop_sd_muy_;             // q-vector
-    arma::mat prop_sd_Kxx_;             // p × p
-    arma::mat prop_sd_Kyy_;             // q × q
-    arma::mat prop_sd_Kxy_;             // p × q
-    int total_warmup_ = 0;              // stored by init_metropolis_adaptation
+    arma::mat prop_sd_mux_;             ///< p x max_cats
+    arma::vec prop_sd_muy_;             ///< q-vector
+    arma::mat prop_sd_Kxx_;             ///< p x p
+    arma::mat prop_sd_Kyy_;             ///< q x q
+    arma::mat prop_sd_Kxy_;             ///< p x q
+    int total_warmup_ = 0;              ///< Stored by init_metropolis_adaptation
 
     // =========================================================================
     // Cached quantities
     // =========================================================================
 
-    arma::mat Kyy_chol_;                // q × q  upper Cholesky of Kyy (Kyy = R'R)
-    arma::mat inv_cholesky_yy_;         // q × q  R^{-1} (upper triangular)
-    arma::mat covariance_yy_;           // q × q  Kyy^{-1} = R^{-1} R^{-T}
-    double Kyy_log_det_;                // log|Kyy|
-    arma::mat Theta_;                   // p × p  Kxx + 2 Kxy covariance_yy_ Kxy' (marginal PL only)
-    arma::mat conditional_mean_;        // n × q  μ_y' + 2 discrete_obs Kxy covariance_yy_
+    arma::mat Kyy_chol_;                ///< q x q upper Cholesky of Kyy (Kyy = R'R)
+    arma::mat inv_cholesky_yy_;         ///< q x q R^{-1} (upper triangular)
+    arma::mat covariance_yy_;           ///< q x q Kyy^{-1} = R^{-1} R^{-T}
+    double Kyy_log_det_;                ///< log|Kyy|
+    arma::mat Theta_;                   ///< p x p Kxx + 2 Kxy covariance_yy_ Kxy' (marginal PL)
+    arma::mat conditional_mean_;        ///< n x q mu_y' + 2 discrete_obs Kxy covariance_yy_
 
     // Rank-1 Cholesky update workspace
-    std::array<double, 6> kyy_constants_{};  // reparameterization constants
-    arma::mat precision_yy_proposal_;        // q × q scratch for proposed Kyy
-    arma::vec kyy_v1_ = {0, -1};             // rank-2 decomposition helpers
-    arma::vec kyy_v2_ = {0, 0};
-    arma::vec kyy_vf1_;                      // q-vectors, zeroed between uses
-    arma::vec kyy_vf2_;
-    arma::vec kyy_u1_;
-    arma::vec kyy_u2_;
+    std::array<double, 6> kyy_constants_{};  ///< Reparameterization constants
+    arma::mat precision_yy_proposal_;        ///< q x q scratch for proposed Kyy
+    arma::vec kyy_v1_ = {0, -1};             ///< Rank-2 decomposition helper 1
+    arma::vec kyy_v2_ = {0, 0};              ///< Rank-2 decomposition helper 2
+    arma::vec kyy_vf1_;                      ///< q-vector, zeroed between uses
+    arma::vec kyy_vf2_;                      ///< q-vector, zeroed between uses
+    arma::vec kyy_u1_;                       ///< q-vector workspace
+    arma::vec kyy_u2_;                       ///< q-vector workspace
 
     // =========================================================================
     // Configuration
     // =========================================================================
 
-    bool use_marginal_pl_;              // true = marginal, false = conditional
+    bool use_marginal_pl_;              ///< true = marginal, false = conditional
 
     // =========================================================================
     // RNG and edge-update order
     // =========================================================================
 
-    SafeRNG rng_;
-    arma::uvec edge_order_xx_;          // Shuffled xx-edge pair indices
-    arma::uvec edge_order_yy_;          // Shuffled yy-edge pair indices
-    arma::uvec edge_order_xy_;          // Shuffled xy-edge pair indices
+    SafeRNG rng_;                       ///< Per-chain random number generator
+    arma::uvec edge_order_xx_;          ///< Shuffled xx-edge pair indices
+    arma::uvec edge_order_yy_;          ///< Shuffled yy-edge pair indices
+    arma::uvec edge_order_xy_;          ///< Shuffled xy-edge pair indices
 
     // =========================================================================
     // Private helpers

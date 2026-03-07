@@ -652,11 +652,13 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
   # Missing data — not supported for mixed MRF (Phase H)
   if(na_action == "impute") {
     stop("Missing data imputation is not yet supported for mixed models.",
-         call. = FALSE)
+      call. = FALSE
+    )
   }
   if(anyNA(x)) {
     stop("Missing data detected. Mixed models do not yet support missing data handling.",
-         call. = FALSE)
+      call. = FALSE
+    )
   }
 
   # Ordinal recoding (reformat discrete data)
@@ -685,17 +687,17 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
   new_bgm_spec(
     model_type = "mixed_mrf",
     data = list(
-      x_discrete       = x_disc_recoded,
-      x_continuous     = x_cont,
+      x_discrete = x_disc_recoded,
+      x_continuous = x_cont,
       data_columnnames = data_columnnames,
-      data_columnnames_discrete   = data_columnnames[disc_idx],
+      data_columnnames_discrete = data_columnnames[disc_idx],
       data_columnnames_continuous = data_columnnames[cont_idx],
-      num_variables    = as.integer(num_variables),
-      num_discrete     = as.integer(p),
-      num_continuous   = as.integer(q),
-      num_cases        = as.integer(nrow(x)),
-      num_categories   = as.integer(num_categories),
-      discrete_indices   = disc_idx,
+      num_variables = as.integer(num_variables),
+      num_discrete = as.integer(p),
+      num_continuous = as.integer(q),
+      num_cases = as.integer(nrow(x)),
+      num_categories = as.integer(num_categories),
+      discrete_indices = disc_idx,
       continuous_indices = cont_idx
     ),
     variables = list(

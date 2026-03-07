@@ -392,9 +392,11 @@ build_output_mixed_mrf = function(spec, raw) {
   kyy_offdiag_abs = kyy_start - 1L + kyy_offdiag_within
 
   # Main indices: mux + muy + Kyy diagonal
-  main_idx = c(seq(mux_start, mux_end),
-               seq(muy_start, muy_end),
-               kyy_diag_abs)
+  main_idx = c(
+    seq(mux_start, mux_end),
+    seq(muy_start, muy_end),
+    kyy_diag_abs
+  )
 
   # Pairwise indices: Kxx + Kyy off-diag + Kxy
   pairwise_idx = c(
@@ -434,9 +436,11 @@ build_output_mixed_mrf = function(spec, raw) {
       cats = seq_len(num_categories[si])
       names_main = c(names_main, paste0(disc_names[si], " (", cats, ")"))
     } else {
-      names_main = c(names_main,
+      names_main = c(
+        names_main,
         paste0(disc_names[si], " (linear)"),
-        paste0(disc_names[si], " (quadratic)"))
+        paste0(disc_names[si], " (quadratic)")
+      )
     }
   }
   for(ji in seq_len(q)) {
@@ -457,8 +461,10 @@ build_output_mixed_mrf = function(spec, raw) {
   if(p > 1) {
     for(i in seq_len(p - 1)) {
       for(j in seq(i + 1, p)) {
-        edge_names = c(edge_names,
-          paste0(disc_names[i], "-", disc_names[j]))
+        edge_names = c(
+          edge_names,
+          paste0(disc_names[i], "-", disc_names[j])
+        )
       }
     }
   }
@@ -466,8 +472,10 @@ build_output_mixed_mrf = function(spec, raw) {
   if(q > 1) {
     for(i in seq_len(q - 1)) {
       for(j in seq(i + 1, q)) {
-        edge_names = c(edge_names,
-          paste0(cont_names[i], "-", cont_names[j]))
+        edge_names = c(
+          edge_names,
+          paste0(cont_names[i], "-", cont_names[j])
+        )
       }
     }
   }
@@ -475,8 +483,10 @@ build_output_mixed_mrf = function(spec, raw) {
   if(p > 0 && q > 0) {
     for(i in seq_len(p)) {
       for(j in seq_len(q)) {
-        edge_names = c(edge_names,
-          paste0(disc_names[i], "-", cont_names[j]))
+        edge_names = c(
+          edge_names,
+          paste0(disc_names[i], "-", cont_names[j])
+        )
       }
     }
   }
@@ -550,8 +560,10 @@ build_output_mixed_mrf = function(spec, raw) {
 
   # --- Posterior mean: pairwise as (p+q) × (p+q) matrix -----------------------
   # Map from internal block indices to original column positions
-  pmat = matrix(0, nrow = num_variables, ncol = num_variables,
-    dimnames = list(data_columnnames, data_columnnames))
+  pmat = matrix(0,
+    nrow = num_variables, ncol = num_variables,
+    dimnames = list(data_columnnames, data_columnnames)
+  )
 
   pw_means = pairwise_summary$mean
   idx = 0L
@@ -600,8 +612,10 @@ build_output_mixed_mrf = function(spec, raw) {
   # --- Posterior mean: indicator -----------------------------------------------
   if(edge_selection) {
     ind_means = indicator_summary$mean
-    imat = matrix(0, nrow = num_variables, ncol = num_variables,
-      dimnames = list(data_columnnames, data_columnnames))
+    imat = matrix(0,
+      nrow = num_variables, ncol = num_variables,
+      dimnames = list(data_columnnames, data_columnnames)
+    )
 
     idx = 0L
     if(p > 1) {

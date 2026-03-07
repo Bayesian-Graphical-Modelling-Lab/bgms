@@ -16,13 +16,21 @@
  */
 class DualAveraging {
 public:
+  /// Current log step size.
   double log_step_size;
+  /// Smoothed log step size (final estimate).
   double log_step_size_avg;
+  /// Running error statistic.
   double hbar;
+  /// Bias term: log(10 * initial_step_size).
   double mu;
+  /// Shrinkage parameter (default 0.05).
   double gamma;
+  /// Stabilisation offset (default 10).
   double t0;
+  /// Decay exponent for averaging weights (default 0.75).
   double kappa;
+  /// Iteration counter.
   int t;
 
   DualAveraging(double initial_step_size)
@@ -68,8 +76,11 @@ public:
  */
 class DiagMassMatrixAccumulator {
 public:
+  /// Number of samples accumulated.
   int count;
+  /// Running mean of parameter samples.
   arma::vec mean;
+  /// Running sum of squared deviations (Welford M2 statistic).
   arma::vec m2;
 
   DiagMassMatrixAccumulator(int dim)
