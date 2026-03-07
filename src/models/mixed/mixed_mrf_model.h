@@ -109,6 +109,12 @@ public:
     void do_one_metropolis_step(int iteration = -1) override;
 
     /**
+     * Update only Kyy parameters via Metropolis (used by hybrid NUTS+MH).
+     * @param iteration  Current iteration (for Robbins-Monro adaptation)
+     */
+    void do_kyy_metropolis_step(int iteration = -1);
+
+    /**
      * Initialize Metropolis adaptation controllers for proposal-SD tuning.
      * Called before warmup begins.
      */
