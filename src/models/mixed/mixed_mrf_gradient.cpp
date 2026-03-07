@@ -213,6 +213,12 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
 
     double logp = 0.0;
 
+    // For marginal PL: precompute Kxy Σyy (used in cross-contributions)
+    arma::mat KxySyy;  // p x q
+    if(use_marginal_pl_) {
+        KxySyy = temp_Kxy * covariance_yy_;
+    }
+
     // =========================================================================
     // Part 1: OMRF conditionals
     // =========================================================================
@@ -280,69 +286,52 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
                 // So Kxx gradient from Theta rest scores is already handled above.
 
                 // Kxy gradient from marginal OMRF (through Theta):
-                // E_s[c^2] per observation
+                // ∂Theta_{st}/∂Kxy_{a,j} has two terms:
+                //   = 2 [Σyy Kxy_t']_j δ_{as} + 2 [Kxy_s Σyy]_j δ_{at}
+                // Self-contribution (a=s): from rest_s → Kxy_s
+                // Cross-contribution (a=t): from rest_s → Kxy_t for each t≠s
+
                 arma::vec weights_sq = arma::square(weights);
                 arma::vec E_sq = result.probs.cols(1, C_s) * weights_sq;
 
-                // Through Theta rest scores: for each (s, t!=s):
-                //   ∂Theta_{st}/∂Kxy_{a,j} = 2 Σyy_{j,:} Kxy_{t,:}' δ_{as}
-                //                           + 2 Kxy_{s,:} Σyy_{:,j} δ_{at}  -- but a=s here
-                // The contribution is: sum_i x_{it} * (x_{is}+1 - E_s)
-                //   times ∂Theta_{st}/∂Kxy_{s,j} = 2 [Σyy Kxy_t']_j
-                // Summed over t!=s: this equals 2 * sum_t!=s pw_grad(t) * [Σyy Kxy_t']
-                // Plus the diagonal term: Theta_ss gives
-                //   ∂/∂Kxy_{s,j} of Theta_ss = 4 [Σyy Kxy_s']_j
-                //   contribution: -sum_i E_sq * 4 [Σyy Kxy_s']_j
-                // Actually let's use the vector form:
-
-                // Off-diagonal Theta contribution to Kxy_s gradient:
-                // For variable s, the rest score R_s uses Theta_{st} for t!=s
-                // ∂R_{is}/∂Kxy_{s,j} = sum_{t!=s} x_{it} ∂Theta_{st}/∂Kxy_{s,j}
-                //                     = 2 sum_{t!=s} x_{it} [Σyy Kxy_t']_j
-                //                     = 2 [X_{-s} Kxy_{-s} Σyy]_{i,j}
-                // Gradient = sum_i (x_{is}+1 - E_s(i)) * ∂R_{is}/∂Kxy_{s,j}
-                //          = sum_i (obs_s - E_s) * 2 [X_{-s} Kxy_{-s} Σyy]_{i,j}
-                // But X_{-s} means "all columns except s" — complex indexing.
-                //
-                // Simpler: ∂/∂Kxy_{s,:} of the Theta-based omrf for variable s:
-                //   ∂Θ_{st}/∂Kxy_{s,:} = 2 Σyy Kxy_t'  for each t (including t=s)
-                //   Full rest-score chain rule:
-                //     ∂l_s/∂Kxy_{s,:} = sum_{t!=s} (obs_stat_{st} - exp_stat_{st})
-                //                       * 2 Σyy Kxy_t'
-                //                     + (obs_sq_s - exp_sq_s) * 2 Σyy Kxy_s'
-                //   where obs_stat_{st} = sum_i x_{it} x_{is}
-                //                exp_stat_{st} = sum_i x_{it} E_s
-                //                obs_sq_s = sum_i x_{is}^2
-                //                exp_sq_s = sum_i E_sq
-
-                // obs_minus_E for the pairwise statistics: already pw_grad = X' E
-                // obs_stat_{st} = sum_i x_{it}*x_{is} (cached in grad_obs for Kxx edges)
-                // So: obs - exp for the pairwise is exactly pw_grad subtracted from obs.
-                // But we already computed that as a vector over all t.
-
-                // Vector form for Kxy_s gradient from Theta:
-                // diff_t = X'(x_s - E)  (p-vector, where element t = sum_i x_it(x_is - E_s))
                 arma::vec diff_pw = discrete_observations_dbl_t_ *
                     (discrete_observations_dbl_.col(s) - E);
-                diff_pw(s) = 0.0;  // exclude self-interaction from rest score
+                diff_pw(s) = 0.0;
 
-                // diff_diag = sum_i (x_is^2 - E_sq)
                 double diff_diag = arma::dot(
                     discrete_observations_dbl_.col(s),
                     discrete_observations_dbl_.col(s)) - arma::accu(E_sq);
 
-                // ∂l_s/∂Kxy_{s,:} from Theta = 2 (sum_{t!=s} diff_pw(t) * Kxy_t + diff_diag * Kxy_s) Σyy
-                arma::rowvec kxy_contrib = 2.0 * (diff_pw.t() * temp_Kxy + diff_diag * temp_Kxy.row(s)) * covariance_yy_;
+                double sum_obs_minus_E = arma::accu(discrete_observations_dbl_.col(s)) - arma::accu(E);
+
+                // Self-contribution: a = s
+                // Off-diagonal Theta: ∂Θ_{st}/∂Kxy_{s,j} = 2 [Σyy Kxy_t']_j
+                // Diagonal Theta: ∂Θ_{ss}/∂Kxy_{s,j} = 4 [Σyy Kxy_s']_j
+                // Rest-score bias: ∂(2 Kxy_s μy)/∂Kxy_{s,j} = 2 μy_j
+                arma::rowvec kxy_self = 2.0 * (diff_pw.t() * temp_Kxy) * covariance_yy_
+                                      + 4.0 * diff_diag * KxySyy.row(s)
+                                      + 2.0 * sum_obs_minus_E * temp_muy.t();
 
                 for(size_t j = 0; j < q_; ++j) {
                     if(edge_indicators_(s, p_ + j) == 0) continue;
                     int loc = kxy_index_cache_(s, j);
-                    grad(loc) += kxy_contrib(j);
+                    grad(loc) += kxy_self(j);
+                }
+
+                // Cross-contribution: a = t, for each t ≠ s
+                // ∂l_s/∂Kxy_{t,:} = diff_pw(t) * 2 * Kxy_s * Σyy
+                arma::rowvec V_s = 2.0 * KxySyy.row(s);  // 2 * Kxy_s * Σyy
+                for(size_t t = 0; t < p_; ++t) {
+                    if(t == s || std::abs(diff_pw(t)) < 1e-300) continue;
+                    for(size_t j = 0; j < q_; ++j) {
+                        if(edge_indicators_(t, p_ + j) == 0) continue;
+                        int loc = kxy_index_cache_(t, j);
+                        grad(loc) += diff_pw(t) * V_s(j);
+                    }
                 }
 
                 // muy gradient from marginal OMRF:
                 // ∂l_s/∂muy_j = 2 Kxy_{sj} * sum_i (x_{is} - E_s)
-                double sum_obs_minus_E = arma::accu(discrete_observations_dbl_.col(s)) - arma::accu(E);
                 for(size_t j = 0; j < q_; ++j) {
                     grad(muy_grad_offset_ + j) += 2.0 * temp_Kxy(s, j) * sum_obs_minus_E;
                 }
@@ -409,16 +398,31 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
                     discrete_observations_dbl_.col(s),
                     discrete_observations_dbl_.col(s)) - arma::accu(E_sq);
 
-                arma::rowvec kxy_contrib = 2.0 * (diff_pw.t() * temp_Kxy + diff_diag * temp_Kxy.row(s)) * covariance_yy_;
+                double sum_obs_minus_E = arma::accu(discrete_observations_dbl_.col(s)) - arma::accu(E);
+
+                // Self-contribution: a = s
+                arma::rowvec kxy_self = 2.0 * (diff_pw.t() * temp_Kxy) * covariance_yy_
+                                      + 4.0 * diff_diag * KxySyy.row(s)
+                                      + 2.0 * sum_obs_minus_E * temp_muy.t();
 
                 for(size_t j = 0; j < q_; ++j) {
                     if(edge_indicators_(s, p_ + j) == 0) continue;
                     int loc = kxy_index_cache_(s, j);
-                    grad(loc) += kxy_contrib(j);
+                    grad(loc) += kxy_self(j);
+                }
+
+                // Cross-contribution: a = t, for each t ≠ s
+                arma::rowvec V_s = 2.0 * KxySyy.row(s);
+                for(size_t t = 0; t < p_; ++t) {
+                    if(t == s || std::abs(diff_pw(t)) < 1e-300) continue;
+                    for(size_t j = 0; j < q_; ++j) {
+                        if(edge_indicators_(t, p_ + j) == 0) continue;
+                        int loc = kxy_index_cache_(t, j);
+                        grad(loc) += diff_pw(t) * V_s(j);
+                    }
                 }
 
                 // muy gradient from marginal OMRF
-                double sum_obs_minus_E = arma::accu(discrete_observations_dbl_.col(s)) - arma::accu(E);
                 for(size_t j = 0; j < q_; ++j) {
                     grad(muy_grad_offset_ + j) += 2.0 * temp_Kxy(s, j) * sum_obs_minus_E;
                 }
