@@ -74,8 +74,8 @@ public:
     // Capability queries
     // =========================================================================
 
-    /** @return false (MixedMRFModel is Metropolis-only, no gradient). */
-    bool has_gradient() const override { return false; }
+    /** @return true (MixedMRFModel supports NUTS gradient for the unconstrained block). */
+    bool has_gradient() const override { return true; }
     /** @return true (supports adaptive Metropolis via Robbins-Monro). */
     bool has_adaptive_metropolis() const override { return true; }
     /** @return true when edge selection is enabled. */
@@ -134,28 +134,40 @@ public:
     // =========================================================================
 
     /**
-     * Dimensionality of the active parameter space.
+     * Dimensionality of the active NUTS parameter space (excludes Kyy).
      * When edge selection is active, excludes parameters for inactive edges.
      */
     size_t parameter_dimension() const override;
 
     /**
-     * Full parameter dimension (all parameters, regardless of edge state).
-     * Used for fixed-size sample storage.
+     * Full NUTS-block dimension (all NUTS params, regardless of edge state).
+     * Excludes Kyy. Used for mass-matrix sizing and adaptation.
      */
     size_t full_parameter_dimension() const override;
 
-    /** Get active parameters as a flat vector. */
+    /**
+     * Storage dimension (all parameters including Kyy, regardless of edge state).
+     * Used for fixed-size sample storage.
+     */
+    size_t storage_dimension() const override;
+
+    /** Get active NUTS parameters as a flat vector (excludes Kyy). */
     arma::vec get_vectorized_parameters() const override;
 
-    /** Get all parameters as a flat vector (inactive edges are 0). */
+    /** Get all NUTS parameters (inactive edges are 0, excludes Kyy). */
     arma::vec get_full_vectorized_parameters() const override;
 
-    /** Set parameters from a flat vector. */
+    /** Get all parameters including Kyy for sample storage. */
+    arma::vec get_storage_vectorized_parameters() const override;
+
+    /** Set NUTS parameters from a flat vector (does not touch Kyy). */
     void set_vectorized_parameters(const arma::vec& params) override;
 
     /** Get vectorized edge indicators (Gxx upper-tri, Gyy upper-tri, Gxy full). */
     arma::ivec get_vectorized_indicator_parameters() override;
+
+    /** Get active subset of inverse mass diagonal (NUTS params only, excludes Kyy). */
+    arma::vec get_active_inv_mass() const override;
 
     // =========================================================================
     // Infrastructure

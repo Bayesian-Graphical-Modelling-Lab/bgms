@@ -91,7 +91,7 @@ void run_mcmc_chain(
                 }
             }
 
-            chain_result.store_sample(sample_index, model.get_full_vectorized_parameters());
+            chain_result.store_sample(sample_index, model.get_storage_vectorized_parameters());
 
             if (chain_result.has_indicators) {
                 chain_result.store_indicators(sample_index, model.get_vectorized_indicator_parameters());
@@ -145,7 +145,7 @@ std::vector<ChainResult> run_mcmc_sampler(
 
     std::vector<ChainResult> results(no_chains);
     for (int c = 0; c < no_chains; ++c) {
-        results[c].reserve(model.full_parameter_dimension(), config.no_iter);
+        results[c].reserve(model.storage_dimension(), config.no_iter);
 
         if (config.edge_selection) {
             size_t n_edges = model.get_vectorized_indicator_parameters().n_elem;

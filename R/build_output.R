@@ -325,7 +325,7 @@ build_output_bgm = function(spec, raw) {
 # ==============================================================================
 #
 # Handles the mixed discrete + continuous parameter layout:
-#   C++ flat vector: [mux | Kxx_ut | muy | Kyy_ut | Kxy]
+#   C++ flat vector: [mux | Kxx_ut | muy | Kxy | Kyy_ut]
 #   C++ indicators:  [Gxx_ut | Gyy_ut | Gxy]
 #
 # Splits into main (mux, muy, Kyy_diag) and pairwise (Kxx, Kyy_offdiag, Kxy),
@@ -365,10 +365,10 @@ build_output_mixed_mrf = function(spec, raw) {
   kxx_end = nt + nxx
   muy_start = nt + nxx + 1L
   muy_end = nt + nxx + q
-  kyy_start = nt + nxx + q + 1L
-  kyy_end = nt + nxx + q + nyy_total
-  kxy_start = nt + nxx + q + nyy_total + 1L
-  kxy_end = nt + nxx + q + nyy_total + nxy
+  kxy_start = nt + nxx + q + 1L
+  kxy_end = nt + nxx + q + nxy
+  kyy_start = nt + nxx + q + nxy + 1L
+  kyy_end = nt + nxx + q + nxy + nyy_total
 
   # Kyy diagonal indices within the Kyy block
   kyy_diag_within = integer(q)

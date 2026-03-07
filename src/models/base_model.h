@@ -153,7 +153,11 @@ public:
     /**
      * @return Full parameter dimension (fixed size, includes inactive parameters).
      *
-     * Used for fixed-size sample storage. Defaults to parameter_dimension().
+     * Used by GradientSamplerBase for mass-matrix sizing and adaptation.
+     * For most models this equals the storage dimension. For models where
+     * some parameters are not sampled by NUTS (e.g., MixedMRFModel's Kyy),
+     * this returns the NUTS-block dimension.
+     * Defaults to parameter_dimension().
      */
     virtual size_t full_parameter_dimension() const {
         return parameter_dimension();
@@ -162,13 +166,34 @@ public:
     /**
      * @return All parameters in a fixed-size vector (inactive edges are 0).
      *
-     * Used for sample storage to avoid dimension changes when edges are
-     * toggled on/off.
+     * Used by GradientSamplerBase for adaptation (online covariance).
+     * Dimension must match full_parameter_dimension().
      */
     virtual arma::vec get_full_vectorized_parameters() const = 0;
 
     /** @return Dimensionality of the active parameter space. Pure virtual. */
     virtual size_t parameter_dimension() const = 0;
+
+    /**
+     * @return Dimension for sample storage (includes all parameters).
+     *
+     * For most models this equals full_parameter_dimension(). Override
+     * when storage needs more entries than the NUTS block (e.g., Kyy
+     * parameters in MixedMRFModel).
+     */
+    virtual size_t storage_dimension() const {
+        return full_parameter_dimension();
+    }
+
+    /**
+     * @return All parameters in a fixed-size vector for sample storage.
+     *
+     * Dimension must match storage_dimension(). Default delegates to
+     * get_full_vectorized_parameters().
+     */
+    virtual arma::vec get_storage_vectorized_parameters() const {
+        return get_full_vectorized_parameters();
+    }
 
     // =========================================================================
     // Infrastructure

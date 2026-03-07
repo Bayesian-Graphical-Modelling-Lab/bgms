@@ -241,32 +241,27 @@ void MixedMRFModel::recompute_Theta() {
 // Parameter vectorization
 // =============================================================================
 
-// Vectorization order (free parameters):
+// NUTS vectorization order (excludes Kyy — sampled by MH separately):
 //   1. mux_: per-variable (ordinal: C_s thresholds; BC: 2 coefficients)
 //   2. Kxx_: upper-triangular, row-major  — p(p-1)/2
 //   3. muy_: all q means
-//   4. Kyy_: upper-triangle including diagonal — q(q+1)/2
-//   5. Kxy_: all p*q entries, row-major
+//   4. Kxy_: all p*q entries, row-major
+//
+// Storage vectorization order (includes Kyy):
+//   1–4. Same as NUTS order
+//   5. Kyy_: upper-triangle including diagonal — q(q+1)/2
 
 size_t MixedMRFModel::parameter_dimension() const {
     if(!edge_selection_active_) {
         return full_parameter_dimension();
     }
-    // Count active parameters only
+    // Count active NUTS parameters only (no Kyy)
     size_t dim = num_main_ + q_;  // mux + muy always active
 
     // Active Kxx edges
     for(size_t i = 0; i < p_ - 1; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
             if(gxx(i, j)) dim++;
-        }
-    }
-
-    // Kyy diagonal always active; off-diagonal gated by edge indicators
-    dim += q_;  // diagonal
-    for(size_t i = 0; i < q_ - 1; ++i) {
-        for(size_t j = i + 1; j < q_; ++j) {
-            if(gyy(i, j)) dim++;
         }
     }
 
@@ -281,12 +276,61 @@ size_t MixedMRFModel::parameter_dimension() const {
 }
 
 size_t MixedMRFModel::full_parameter_dimension() const {
-    // mux + Kxx upper-tri + muy + Kyy upper-tri-with-diag + Kxy full
+    // NUTS block: mux + Kxx upper-tri + muy + Kxy full (no Kyy)
+    return num_main_ + num_pairwise_xx_ + q_ + num_cross_;
+}
+
+size_t MixedMRFModel::storage_dimension() const {
+    // All parameters including Kyy
     return num_main_ + num_pairwise_xx_ + q_ +
            (q_ * (q_ + 1)) / 2 + num_cross_;
 }
 
 arma::vec MixedMRFModel::get_vectorized_parameters() const {
+    // Active NUTS parameters only (excludes Kyy, excludes inactive edges)
+    arma::vec out(parameter_dimension());
+    size_t idx = 0;
+
+    // 1. mux_
+    for(size_t s = 0; s < p_; ++s) {
+        if(is_ordinal_variable_(s)) {
+            for(int c = 0; c < num_categories_(s); ++c) {
+                out(idx++) = mux_(s, c);
+            }
+        } else {
+            out(idx++) = mux_(s, 0);
+            out(idx++) = mux_(s, 1);
+        }
+    }
+
+    // 2. Kxx_ upper-triangular (active edges only when selection is active)
+    for(size_t i = 0; i < p_ - 1; ++i) {
+        for(size_t j = i + 1; j < p_; ++j) {
+            if(!edge_selection_active_ || gxx(i, j) == 1) {
+                out(idx++) = Kxx_(i, j);
+            }
+        }
+    }
+
+    // 3. muy_
+    for(size_t j = 0; j < q_; ++j) {
+        out(idx++) = muy_(j);
+    }
+
+    // 4. Kxy_ row-major (active edges only when selection is active)
+    for(size_t i = 0; i < p_; ++i) {
+        for(size_t j = 0; j < q_; ++j) {
+            if(!edge_selection_active_ || gxy(i, j) == 1) {
+                out(idx++) = Kxy_(i, j);
+            }
+        }
+    }
+
+    return out;
+}
+
+arma::vec MixedMRFModel::get_full_vectorized_parameters() const {
+    // All NUTS parameters, fixed size (inactive edges are 0, no Kyy)
     arma::vec out(full_parameter_dimension(), arma::fill::zeros);
     size_t idx = 0;
 
@@ -297,8 +341,47 @@ arma::vec MixedMRFModel::get_vectorized_parameters() const {
                 out(idx++) = mux_(s, c);
             }
         } else {
-            out(idx++) = mux_(s, 0);  // linear α
-            out(idx++) = mux_(s, 1);  // quadratic β
+            out(idx++) = mux_(s, 0);
+            out(idx++) = mux_(s, 1);
+        }
+    }
+
+    // 2. Kxx_ upper-triangular (all entries, zeros for inactive)
+    for(size_t i = 0; i < p_ - 1; ++i) {
+        for(size_t j = i + 1; j < p_; ++j) {
+            out(idx++) = Kxx_(i, j);
+        }
+    }
+
+    // 3. muy_
+    for(size_t j = 0; j < q_; ++j) {
+        out(idx++) = muy_(j);
+    }
+
+    // 4. Kxy_ row-major (all entries, zeros for inactive)
+    for(size_t i = 0; i < p_; ++i) {
+        for(size_t j = 0; j < q_; ++j) {
+            out(idx++) = Kxy_(i, j);
+        }
+    }
+
+    return out;
+}
+
+arma::vec MixedMRFModel::get_storage_vectorized_parameters() const {
+    // All parameters including Kyy, fixed size
+    arma::vec out(storage_dimension(), arma::fill::zeros);
+    size_t idx = 0;
+
+    // 1. mux_
+    for(size_t s = 0; s < p_; ++s) {
+        if(is_ordinal_variable_(s)) {
+            for(int c = 0; c < num_categories_(s); ++c) {
+                out(idx++) = mux_(s, c);
+            }
+        } else {
+            out(idx++) = mux_(s, 0);
+            out(idx++) = mux_(s, 1);
         }
     }
 
@@ -314,28 +397,25 @@ arma::vec MixedMRFModel::get_vectorized_parameters() const {
         out(idx++) = muy_(j);
     }
 
-    // 4. Kyy_ upper-triangle including diagonal
-    for(size_t i = 0; i < q_; ++i) {
-        for(size_t j = i; j < q_; ++j) {
-            out(idx++) = Kyy_(i, j);
-        }
-    }
-
-    // 5. Kxy_ row-major
+    // 4. Kxy_ row-major
     for(size_t i = 0; i < p_; ++i) {
         for(size_t j = 0; j < q_; ++j) {
             out(idx++) = Kxy_(i, j);
         }
     }
 
+    // 5. Kyy_ upper-triangle including diagonal
+    for(size_t i = 0; i < q_; ++i) {
+        for(size_t j = i; j < q_; ++j) {
+            out(idx++) = Kyy_(i, j);
+        }
+    }
+
     return out;
 }
 
-arma::vec MixedMRFModel::get_full_vectorized_parameters() const {
-    return get_vectorized_parameters();
-}
-
 void MixedMRFModel::set_vectorized_parameters(const arma::vec& params) {
+    // Unpack NUTS block only (no Kyy)
     size_t idx = 0;
 
     // 1. mux_
@@ -350,12 +430,14 @@ void MixedMRFModel::set_vectorized_parameters(const arma::vec& params) {
         }
     }
 
-    // 2. Kxx_ upper-triangular (mirror to lower)
+    // 2. Kxx_ upper-triangular (active edges only when selection is active)
     for(size_t i = 0; i < p_ - 1; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
-            Kxx_(i, j) = params(idx);
-            Kxx_(j, i) = params(idx);
-            idx++;
+            if(!edge_selection_active_ || gxx(i, j) == 1) {
+                Kxx_(i, j) = params(idx);
+                Kxx_(j, i) = params(idx);
+                idx++;
+            }
         }
     }
 
@@ -364,28 +446,60 @@ void MixedMRFModel::set_vectorized_parameters(const arma::vec& params) {
         muy_(j) = params(idx++);
     }
 
-    // 4. Kyy_ upper-triangle including diagonal (mirror off-diag)
-    for(size_t i = 0; i < q_; ++i) {
-        for(size_t j = i; j < q_; ++j) {
-            Kyy_(i, j) = params(idx);
-            if(i != j) Kyy_(j, i) = params(idx);
-            idx++;
-        }
-    }
-
-    // 5. Kxy_ row-major
+    // 4. Kxy_ row-major (active edges only when selection is active)
     for(size_t i = 0; i < p_; ++i) {
         for(size_t j = 0; j < q_; ++j) {
-            Kxy_(i, j) = params(idx++);
+            if(!edge_selection_active_ || gxy(i, j) == 1) {
+                Kxy_(i, j) = params(idx++);
+            }
         }
     }
 
-    // Refresh all caches
-    recompute_Kyy_decomposition();
+    // Refresh caches (Kyy unchanged, so no Kyy decomposition update needed)
     recompute_conditional_mean();
     if(use_marginal_pl_) {
         recompute_Theta();
     }
+}
+
+arma::vec MixedMRFModel::get_active_inv_mass() const {
+    if(!edge_selection_active_) {
+        return inv_mass_;
+    }
+
+    arma::vec active(parameter_dimension());
+    // Main effects: always active
+    active.head(num_main_) = inv_mass_.head(num_main_);
+
+    size_t offset_full = num_main_;
+    size_t offset_active = num_main_;
+
+    // Kxx active edges
+    for(size_t i = 0; i < p_ - 1; ++i) {
+        for(size_t j = i + 1; j < p_; ++j) {
+            if(gxx(i, j) == 1) {
+                active(offset_active++) = inv_mass_(offset_full);
+            }
+            offset_full++;
+        }
+    }
+
+    // muy: always active
+    for(size_t j = 0; j < q_; ++j) {
+        active(offset_active++) = inv_mass_(offset_full++);
+    }
+
+    // Kxy active edges
+    for(size_t i = 0; i < p_; ++i) {
+        for(size_t j = 0; j < q_; ++j) {
+            if(gxy(i, j) == 1) {
+                active(offset_active++) = inv_mass_(offset_full);
+            }
+            offset_full++;
+        }
+    }
+
+    return active;
 }
 
 arma::ivec MixedMRFModel::get_vectorized_indicator_parameters() {
