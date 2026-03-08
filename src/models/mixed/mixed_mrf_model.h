@@ -80,8 +80,8 @@ public:
     bool has_adaptive_metropolis() const override { return true; }
     /** @return true when edge selection is enabled. */
     bool has_edge_selection() const override { return edge_selection_; }
-    /** @return false (missing data not yet supported). */
-    bool has_missing_data() const override { return false; }
+    /** @return true when missing-data imputation is active. */
+    bool has_missing_data() const override { return has_missing_; }
 
     // =========================================================================
     // Core sampling methods
@@ -227,11 +227,20 @@ public:
     }
 
     // =========================================================================
-    // Missing data (not yet supported)
+    // Missing data
     // =========================================================================
 
-    /** No-op: missing data not supported in this PR. */
-    void impute_missing() override {}
+    /** Impute missing entries from full-conditional distributions. */
+    void impute_missing() override;
+
+    /**
+     * Register missing-data locations for discrete and continuous sub-matrices.
+     *
+     * @param missing_discrete  M_d x 2 matrix of 0-based (row, col) indices into discrete_observations_
+     * @param missing_continuous M_c x 2 matrix of 0-based (row, col) indices into continuous_observations_
+     */
+    void set_missing_data(const arma::imat& missing_discrete,
+                          const arma::imat& missing_continuous);
 
 private:
 
@@ -258,6 +267,14 @@ private:
     int max_cats_;                      ///< max(num_categories)
     arma::uvec is_ordinal_variable_;    ///< 1 = ordinal, 0 = Blume-Capel (p-vector)
     arma::ivec baseline_category_;      ///< Reference category per discrete variable (p-vector)
+
+    // =========================================================================
+    // Missing data
+    // =========================================================================
+
+    arma::imat missing_index_discrete_;   ///< M_d x 2 (row, col) for missing discrete entries
+    arma::imat missing_index_continuous_; ///< M_c x 2 (row, col) for missing continuous entries
+    bool has_missing_ = false;            ///< Whether imputation is active
 
     // =========================================================================
     // Sufficient statistics

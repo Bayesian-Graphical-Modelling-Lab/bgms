@@ -46,6 +46,9 @@
 // @param target_acceptance       Target acceptance rate for gradient-based samplers
 // @param max_tree_depth          Maximum tree depth for NUTS
 // @param num_leapfrogs           Number of leapfrog steps for HMC
+// @param na_impute               Whether to impute missing data
+// @param missing_index_discrete  Matrix of missing discrete indices (n_miss x 2, 0-based)
+// @param missing_index_continuous Matrix of missing continuous indices (n_miss x 2, 0-based)
 //
 // @return List with per-chain results including samples and diagnostics
 // [[Rcpp::export]]
@@ -70,7 +73,10 @@ Rcpp::List sample_mixed_mrf(
     const std::string& sampler_type = "mh",
     const double target_acceptance = 0.80,
     const int max_tree_depth = 10,
-    const int num_leapfrogs = 100
+    const int num_leapfrogs = 100,
+    const bool na_impute = false,
+    const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_discrete_nullable = R_NilValue,
+    const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_continuous_nullable = R_NilValue
 ) {
     // Extract model inputs from R list
     arma::imat discrete_obs = Rcpp::as<arma::imat>(inputFromR["discrete_observations"]);
@@ -93,6 +99,20 @@ Rcpp::List sample_mixed_mrf(
         seed
     );
 
+    // Set up missing data imputation
+    if(na_impute) {
+        arma::imat missing_disc, missing_cont;
+        if(missing_index_discrete_nullable.isNotNull()) {
+            missing_disc = Rcpp::as<arma::imat>(
+                Rcpp::IntegerMatrix(missing_index_discrete_nullable.get()));
+        }
+        if(missing_index_continuous_nullable.isNotNull()) {
+            missing_cont = Rcpp::as<arma::imat>(
+                Rcpp::IntegerMatrix(missing_index_continuous_nullable.get()));
+        }
+        model.set_missing_data(missing_disc, missing_cont);
+    }
+
     // Create edge prior
     EdgePrior edge_prior_enum = edge_prior_from_string(edge_prior);
     auto edge_prior_obj = create_edge_prior(
@@ -109,7 +129,7 @@ Rcpp::List sample_mixed_mrf(
     config.no_warmup = no_warmup;
     config.edge_selection = edge_selection;
     config.seed = seed;
-    config.na_impute = false;
+    config.na_impute = na_impute;
     config.target_acceptance = target_acceptance;
     config.max_tree_depth = max_tree_depth;
     config.num_leapfrogs = num_leapfrogs;

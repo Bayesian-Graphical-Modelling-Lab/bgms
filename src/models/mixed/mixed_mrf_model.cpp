@@ -126,6 +126,9 @@ MixedMRFModel::MixedMRFModel(const MixedMRFModel& other)
       max_cats_(other.max_cats_),
       is_ordinal_variable_(other.is_ordinal_variable_),
       baseline_category_(other.baseline_category_),
+      missing_index_discrete_(other.missing_index_discrete_),
+      missing_index_continuous_(other.missing_index_continuous_),
+      has_missing_(other.has_missing_),
       counts_per_category_(other.counts_per_category_),
       blume_capel_stats_(other.blume_capel_stats_),
       mux_(other.mux_),
@@ -543,6 +546,133 @@ void MixedMRFModel::set_seed(int seed) {
 
 std::unique_ptr<BaseModel> MixedMRFModel::clone() const {
     return std::make_unique<MixedMRFModel>(*this);
+}
+
+
+// =============================================================================
+// Missing data imputation
+// =============================================================================
+
+void MixedMRFModel::set_missing_data(const arma::imat& missing_discrete,
+                                      const arma::imat& missing_continuous) {
+    missing_index_discrete_ = missing_discrete;
+    missing_index_continuous_ = missing_continuous;
+    has_missing_ = (missing_index_discrete_.n_rows > 0 ||
+                    missing_index_continuous_.n_rows > 0);
+}
+
+void MixedMRFModel::impute_missing() {
+    if(!has_missing_) return;
+
+    // --- Phase 1: Impute discrete entries ---
+    const int num_disc_missing = missing_index_discrete_.n_rows;
+    if(num_disc_missing > 0) {
+        arma::vec category_probabilities(max_cats_ + 1);
+
+        for(int miss = 0; miss < num_disc_missing; miss++) {
+            const int person = missing_index_discrete_(miss, 0);
+            const int variable = missing_index_discrete_(miss, 1);
+            const int num_cats = num_categories_(variable);
+
+            // Rest score: sum_t x_vt * Kxx(t,s) + 2 * sum_j y_vj * Kxy(s,j)
+            // Kxx diagonal is zero, so no self-interaction subtraction needed
+            double rest_v = 0.0;
+            for(size_t t = 0; t < p_; t++) {
+                rest_v += discrete_observations_dbl_(person, t) * Kxx_(t, variable);
+            }
+            for(size_t j = 0; j < q_; j++) {
+                rest_v += 2.0 * continuous_observations_(person, j) * Kxy_(variable, j);
+            }
+
+            double cumsum = 0.0;
+
+            if(is_ordinal_variable_(variable)) {
+                // P(x=0) = 1, P(x=c) ∝ exp(c * rest + mux(s, c-1))
+                cumsum = 1.0;
+                category_probabilities(0) = cumsum;
+                for(int c = 1; c <= num_cats; c++) {
+                    double exponent = static_cast<double>(c) * rest_v +
+                                      mux_(variable, c - 1);
+                    cumsum += std::exp(exponent);
+                    category_probabilities(c) = cumsum;
+                }
+            } else {
+                // Blume-Capel: categories centered at baseline
+                const int ref = baseline_category_(variable);
+                double alpha = mux_(variable, 0);
+                double beta = mux_(variable, 1);
+                cumsum = 0.0;
+                for(int cat = 0; cat <= num_cats; cat++) {
+                    const int score = cat - ref;
+                    double exponent = alpha * score +
+                                      beta * score * score +
+                                      score * rest_v;
+                    cumsum += std::exp(exponent);
+                    category_probabilities(cat) = cumsum;
+                }
+            }
+
+            // Sample via inverse-transform
+            double u = runif(rng_) * cumsum;
+            int sampled = 0;
+            while(u > category_probabilities(sampled)) {
+                sampled++;
+            }
+
+            int new_value = sampled;
+            if(!is_ordinal_variable_(variable)) {
+                new_value -= baseline_category_(variable);
+            }
+            const int old_value = discrete_observations_(person, variable);
+
+            if(new_value != old_value) {
+                discrete_observations_(person, variable) = new_value;
+                discrete_observations_dbl_(person, variable) =
+                    static_cast<double>(new_value);
+
+                if(is_ordinal_variable_(variable)) {
+                    counts_per_category_(old_value, variable)--;
+                    counts_per_category_(new_value, variable)++;
+                } else {
+                    blume_capel_stats_(0, variable) += (new_value - old_value);
+                    blume_capel_stats_(1, variable) +=
+                        (new_value * new_value - old_value * old_value);
+                }
+            }
+        }
+    }
+
+    // --- Phase 2: Refresh conditional_mean_ (depends on discrete data) ---
+    if(num_disc_missing > 0 && missing_index_continuous_.n_rows > 0) {
+        recompute_conditional_mean();
+    }
+
+    // --- Phase 3: Impute continuous entries ---
+    const int num_cont_missing = missing_index_continuous_.n_rows;
+    if(num_cont_missing > 0) {
+        for(int miss = 0; miss < num_cont_missing; miss++) {
+            const int person = missing_index_continuous_(miss, 0);
+            const int variable = missing_index_continuous_(miss, 1);
+
+            // Conditional: y_vj | y_{v,-j}, x ~ N(mu*, 1/Kyy_jj)
+            // mu* = M_vj - (1/Kyy_jj) * sum_{k!=j} Kyy_jk * (y_vk - M_vk)
+            double cond_mean = conditional_mean_(person, variable);
+            for(size_t k = 0; k < q_; k++) {
+                if(k != static_cast<size_t>(variable)) {
+                    cond_mean -= (Kyy_(variable, k) / Kyy_(variable, variable)) *
+                        (continuous_observations_(person, k) -
+                         conditional_mean_(person, k));
+                }
+            }
+            double cond_sd = std::sqrt(1.0 / Kyy_(variable, variable));
+
+            continuous_observations_(person, variable) =
+                rnorm(rng_, cond_mean, cond_sd);
+        }
+    }
+
+    // Invalidate gradient cache (observations changed)
+    invalidate_gradient_cache();
 }
 
 

@@ -154,6 +154,7 @@ run_sampler_omrf = function(spec) {
 run_sampler_mixed_mrf = function(spec) {
   d = spec$data
   v = spec$variables
+  m = spec$missing
   p = spec$prior
   s = spec$sampler
 
@@ -205,7 +206,10 @@ run_sampler_mixed_mrf = function(spec) {
     sampler_type = s$update_method,
     target_acceptance = s$target_accept,
     max_tree_depth = s$nuts_max_depth,
-    num_leapfrogs = s$hmc_num_leapfrogs
+    num_leapfrogs = s$hmc_num_leapfrogs,
+    na_impute = m$na_impute,
+    missing_index_discrete_nullable = m$missing_index_discrete,
+    missing_index_continuous_nullable = m$missing_index_continuous
   )
 
   out_raw

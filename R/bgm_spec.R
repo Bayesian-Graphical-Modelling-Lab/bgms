@@ -79,6 +79,13 @@ new_bgm_spec = function(model_type, data, variables, missing, prior,
   if(!is.null(missing$missing_index)) {
     stopifnot(is.matrix(missing$missing_index))
   }
+  # mixed MRF uses separate indices for discrete and continuous
+  if(!is.null(missing$missing_index_discrete)) {
+    stopifnot(is.matrix(missing$missing_index_discrete))
+  }
+  if(!is.null(missing$missing_index_continuous)) {
+    stopifnot(is.matrix(missing$missing_index_continuous))
+  }
 
   # --- prior sub-list ---
   stopifnot(is.list(prior))
@@ -658,16 +665,45 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
     variable_bool = is_ordinal_disc
   )
 
-  # Missing data — not supported for mixed MRF (Phase H)
-  if(na_action == "impute") {
-    stop("Missing data imputation is not yet supported for mixed models.",
-      call. = FALSE
-    )
-  }
-  if(anyNA(x)) {
-    stop("Missing data detected. Mixed models do not yet support missing data handling.",
-      call. = FALSE
-    )
+  # Missing data handling
+  na_impute = FALSE
+  missing_index_discrete = NULL
+  missing_index_continuous = NULL
+
+  if(na_action == "listwise") {
+    missing_rows = apply(x_disc, 1, anyNA) | apply(x_cont, 1, anyNA)
+    if(all(missing_rows)) {
+      stop(paste0(
+        "All rows in x contain at least one missing response.\n",
+        "You could try option na_action = \"impute\"."
+      ))
+    }
+    n_removed = sum(missing_rows)
+    if(n_removed > 0 && isTRUE(getOption("bgms.verbose", TRUE))) {
+      n_remaining = nrow(x_disc) - n_removed
+      message(
+        n_removed, " row", if(n_removed > 1) "s" else "",
+        " with missing values excluded (n = ", n_remaining, " remaining).\n",
+        "To impute missing values instead, use na_action = \"impute\"."
+      )
+    }
+    x_disc = x_disc[!missing_rows, , drop = FALSE]
+    x_cont = x_cont[!missing_rows, , drop = FALSE]
+    if(nrow(x_disc) < 2) {
+      stop(paste0(
+        "After removing missing observations from the input matrix x,\n",
+        "there were less than two rows left in x."
+      ))
+    }
+  } else {
+    # Impute path: handle discrete and continuous sub-matrices separately
+    md_disc = handle_impute(x_disc)
+    md_cont = handle_impute(x_cont)
+    x_disc = md_disc$x
+    x_cont = md_cont$x
+    na_impute = md_disc$na_impute || md_cont$na_impute
+    if(md_disc$na_impute) missing_index_discrete = md_disc$missing_index
+    if(md_cont$na_impute) missing_index_continuous = md_cont$missing_index
   }
 
   # Ordinal recoding (reformat discrete data)
@@ -718,8 +754,9 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
     ),
     missing = list(
       na_action     = na_action,
-      na_impute     = FALSE,
-      missing_index = NULL
+      na_impute     = na_impute,
+      missing_index_discrete = missing_index_discrete,
+      missing_index_continuous = missing_index_continuous
     ),
     prior = list(
       pairwise_scale = pairwise_scale,

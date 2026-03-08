@@ -314,7 +314,14 @@ add the new Rcpp export to `src/RcppExports.cpp`, `R/RcppExports.R`, and
 | **D** | Edge selection: 3 RJ sweeps | B+ | Structure recovery test passes | ✅ |
 | **E** | R interface: `bgm()` dispatch, output formatting | B+ | End-to-end `bgm(mixed_data)` works | ✅ |
 | **F** | Warmup schedule, adaptation, diagnostics | E | Full warmup pipeline | ✅ |
-| **G** | Simulation and prediction | E | `simulate.bgms` and `predict.bgms` for mixed |
+| **G** | Simulation and prediction | E | `simulate.bgms` and `predict.bgms` for mixed | ✅ |
+| **H** | Stochastic block model edge prior | G | SBM prior wired into mixed MRF | ✅ |
+| **I** | Missing data imputation | G | `na_action = "impute"` for mixed data | ✅ |
+| **J** | Performance profiling | G | Benchmark report, hotspot fixes |
+| **K** | Code deduplication audit | G | Shared helpers extracted, dead code removed |
+| **L** | Model output R code inspection | G | Output format verified, bugs fixed |
+| **M** | Test suite cleanup and completion | G | 4 new test files, promoted dev tests, full T1–T30 coverage |
+| **N** | Alternative proposals for GGM edge updates | G | New proposal mechanisms for GGM edges |
 
 ---
 
@@ -1492,77 +1499,88 @@ Test files:
 
 ---
 
-## Phase H — Stochastic block model edge prior (future)
+## Phase H — Stochastic block model edge prior ✅
 
 The SBM edge prior is already implemented for GGM and OMRF models
 (`src/priors/sbm_edge_prior.h`, `sbm_edge_prior_interface.cpp`).
-Extending it to the mixed MRF requires wiring the existing prior
-into the mixed MRF edge-selection machinery.
+The unified `BaseEdgePrior` / `ChainRunner` architecture means
+the mixed MRF required **no additional code** — all five scope
+items were already satisfied:
 
-### Scope
+1. ✅ `bgm_spec()` and `build_spec_mixed_mrf()` forward
+   `edge_prior` / SBM hyperparameters (6 params).
+2. ✅ `run_sampler_mixed_mrf()` passes them to `sample_mixed_mrf()`.
+3. ✅ `sample_mixed.cpp` creates the edge prior via
+   `create_edge_prior()` and passes it to `run_mcmc_sampler()`.
+4. ✅ `ChainRunner` calls `edge_prior.update()` after each
+   edge-indicator sweep, modifying `inclusion_probability_` in
+   place via `MixedMRFModel::get_inclusion_probability()`.
+   Allocation samples are stored automatically.
+5. ✅ `build_output_mixed_mrf()` extracts allocations,
+   co-clustering matrix, posterior mean/mode allocations,
+   and block-count summaries.
 
-1. Pass `edge_prior` and `block_count` arguments through to
-   `MixedMRFModel` and the Rcpp interface in `sample_mixed.cpp`.
-2. In `update_edge_indicator_{Kxx,Kyy,Kxy}`: use the SBM
-   inclusion probability instead of the flat Bernoulli prior
-   when `edge_prior == "Stochastic-Block"`.
-3. Add allocation sampling for the mixed MRF (port from the
-   GGM/OMRF pattern: one SBM prior object shared across
-   all three edge blocks Kxx, Kyy, Kxy).
-4. Wire SBM posterior allocations into `build_output_mixed_mrf()`.
-5. Validation: add an SBM edge-detection scenario to the
-   group 5 validation tests and a separate group 8 for
-   community-structure recovery.
-
-### Files affected
-
-| File | Change |
-|------|--------|
-| `R/bgm_spec.R` | Forward `edge_prior` / `block_count` to mixed args |
-| `src/sample_mixed.cpp` | Accept and pass SBM arguments to model |
-| `src/models/mixed/mixed_mrf_model.h` | Store `SBMEdgePrior` member |
-| `src/models/mixed/mixed_mrf_metropolis.cpp` | Use SBM prior in edge updates |
-| `R/build_output.R` | Extract SBM allocations for mixed MRF |
-| `dev/tests/validation/group5_edge_detection.R` | Add SBM scenario |
+Verified with a smoke test: `bgm(mixed_data, edge_prior = "Stochastic-Block")`
+produces correct allocation, co-clustering, and block-count outputs
+across 4 chains.
 
 ---
 
-## Phase I — Missing data imputation (future)
+## Phase I — Missing data imputation ✅
 
-Missing data imputation for GGM and OMRF models is handled via
-Gibbs imputation inside the MCMC loop (`impute_missing()` override).
-The mixed MRF stub is currently a no-op.
+Missing data imputation wires the existing `BaseModel` virtual interface
+(`has_missing_data()`, `impute_missing()`) into the mixed MRF model,
+mirroring the GGM and OMRF implementations.
 
-### Scope
+### Implementation
 
-1. **Detection**: In the R interface, detect `NA` entries in both
-   discrete and continuous columns. Build missing-data masks:
-   `missing_discrete` (n × p logical) and `missing_continuous`
-   (n × q logical).
-2. **Imputation step**: Override `impute_missing()` in
-   `MixedMRFModel` to cycle through missing entries:
-   - Discrete: sample from full conditional $f(x_s \mid x_{-s}, y)$
-     using the same ordinal/BC probability helpers as the Gibbs
-     generator.
-   - Continuous: sample from $f(y_j \mid y_{-j}, x)$ using the
-     conditional Normal from the precision matrix $K_{yy}$.
-3. **Integration**: `ChainRunner` already calls `impute_missing()`
-   each iteration when `has_missing_data()` returns `true`. Flip
-   the flag once imputation is implemented.
-4. **Validation**: Test on data with MCAR missingness at 5%, 15%,
-   and 30%. Compare parameter recovery with and without missing
-   data. Verify that imputed values have plausible distributions.
+Four layers were connected:
 
-### Files affected
+1. **R spec** (`bgm_spec.R`): Removed the `stop()` guards that rejected
+   `NA` entries for mixed data. Added listwise-deletion and imputation
+   handling that processes discrete and continuous sub-matrices
+   separately via `handle_impute()`. The spec stores
+   `missing_index_discrete` and `missing_index_continuous` (0-based
+   row/col index matrices).
+2. **R sampler** (`run_sampler.R`): Passes `na_impute`,
+   `missing_index_discrete`, and `missing_index_continuous` to the C++
+   entry point.
+3. **C++ entry** (`sample_mixed.cpp`): Accepts the three new
+   parameters, calls `model.set_missing_data()`, and sets
+   `config.na_impute`.
+4. **C++ model** (`mixed_mrf_model.h/.cpp`):
+   - `has_missing_data()` returns the stored flag (was hardcoded
+     `false`).
+   - `set_missing_data()` stores the index matrices and sets the flag.
+   - `impute_missing()` performs Gibbs imputation in three phases:
+     - Phase 1 — Discrete: samples each missing entry from its full
+       conditional using rest scores and category probabilities
+       (ordinal or Blume-Capel). Updates sufficient statistics
+       (`counts_per_category_` or `blume_capel_stats_`).
+     - Phase 2 — Refreshes `conditional_mean_` when both discrete
+       and continuous entries are missing.
+     - Phase 3 — Continuous: samples each missing entry from the
+       conditional Normal $N(\mu^*, 1/K_{yy,jj})$. Invalidates the
+       gradient cache.
+
+`ChainRunner` already calls `impute_missing()` each iteration when
+`config.na_impute && model.has_missing_data()`.
+
+The `RcppExports` were regenerated, which also fixed a pre-existing
+bug where the R wrapper for `sample_mixed_mrf` had only 17 parameters
+while the C++ function expected 21.
+
+### Files changed
 
 | File | Change |
 |------|--------|
-| `R/validate_data.R` | Allow `NA` for mixed MRF; build masks |
-| `src/sample_mixed.cpp` | Pass masks to model constructor |
-| `src/models/mixed/mixed_mrf_model.h` | Store masks; override `has_missing_data` |
-| `src/models/mixed/mixed_mrf_model.cpp` | Implement `impute_missing()` |
-| `dev/tests/validation/` | New group for missing-data validation |
-
+| `R/bgm_spec.R` | Removed `stop()` guards; added listwise/impute handling for mixed data |
+| `R/run_sampler.R` | Passes missing-data indices and `na_impute` flag to C++ |
+| `R/RcppExports.R` | Regenerated (also fixed stale 17-param wrapper) |
+| `src/sample_mixed.cpp` | Three new parameters; wires missing data to model |
+| `src/models/mixed/mixed_mrf_model.h` | New data members, `set_missing_data()`, `impute_missing()` declaration |
+| `src/models/mixed/mixed_mrf_model.cpp` | `impute_missing()` implementation, copy constructor updated |
+| `src/RcppExports.cpp` | Regenerated |
 ---
 
 ## Phase J — Performance profiling
@@ -1706,7 +1724,355 @@ that may be fragile or inconsistent with the GGM/OMRF paths.
 
 ---
 
+## Phase M — Test suite cleanup and completion
+
+The planned test structure (§4 file layout, commit strategy) envisioned
+four dedicated test files in `tests/testthat/`:
+
+```
+test-mixed-mrf-skeleton.R     # T4, T5 (dimension, vectorization round-trip)
+test-mixed-mrf-likelihood.R   # T1–T3, T7–T12 (likelihood unit tests)
+test-mixed-mrf-sampling.R     # T13–T14, T16–T18 (recovery, reproducibility)
+test-mixed-mrf-edge-sel.R     # T15, T26–T27 (edge selection, BC combos)
+```
+
+What actually shipped is different: the scaffolding test helpers were
+removed in commit `04b9562`, the likelihood tests were removed with
+them, and the remaining coverage landed in two files plus scattered
+additions to existing files. This phase reconciles the plan with
+reality, fills coverage gaps, and consolidates test organization.
+
+### M.1 Current state audit
+
+**`tests/testthat/` (run by `R CMD check`):**
+
+| File | Mixed-MRF `test_that` blocks | Covers |
+|------|:---:|---|
+| `test-mixed-mrf-simulate-predict.R` | 15 | Gibbs generator, simulate, predict, p=1/q=1 edge cases |
+| `test-bgm.R` (mixed section) | 8 | End-to-end `bgm()`, output dimensions, symmetry, marginal PL |
+| `test-validate-variable-types.R` | 13 | Type validation (not model-specific) |
+
+**`dev/tests/` (manual only, not run by `R CMD check`):**
+
+| File | Blocks | Covers |
+|------|:---:|---|
+| `test-numerical-gradient.R` | 4 | Finite-diff vs analytical gradient (cond + marg, ord + BC) |
+| `test-simulation-recovery.R` | 1 mixed | Mixed MRF sim-recovery cycle |
+| `compare_bgms_mixedgm_cycle.R` | 0 | Script, no assertions — bgms vs mixedGM comparison |
+| `validation/group1–7` | 0 | PDF-generating scripts, no programmatic assertions |
+
+### M.2 Gap analysis against plan's test matrix
+
+#### Covered (have a `test_that` block in `tests/testthat/`)
+
+| Test | Description | Covered by |
+|------|-------------|------------|
+| T17 | Reproducibility (same seed) | `test-bgm.R` "bgm mixed MRF is reproducible" |
+| T19 | End-to-end `bgm()` | `test-bgm.R` (8 blocks) |
+| T22 | Degenerate p=1 | `test-mixed-mrf-simulate-predict.R` "single discrete variable" |
+| T23 | Degenerate q=1 | `test-mixed-mrf-simulate-predict.R` "single continuous variable" |
+| T25 | Gibbs generator sanity | `test-mixed-mrf-simulate-predict.R` (dimension, range, SD, seed) |
+| R1 | GGM regression | Existing `test-bgm.R` GGM section |
+| R2 | OMRF regression | Existing `test-bgm.R` OMRF sections |
+| R3 | bgmCompare regression | `test-bgmCompare.R` |
+
+#### Covered in `dev/tests/` only (not run by `R CMD check`)
+
+| Test | Description | Covered by |
+|------|-------------|------------|
+| T1 | `log_conditional_omrf(s)` | Was in scaffolding tests (removed); partially in `validation/group4` |
+| T2 | `log_conditional_ggm()` | Same |
+| T3 | `log_marginal_omrf(s)` | Same |
+| T13 | Conditional PL recovery | `validation/group1`, `test-simulation-recovery.R` |
+| T14 | Marginal PL recovery | `validation/group1` |
+| T15 | Edge selection recovery | `validation/group5` |
+| T16 | Cond vs marginal agreement | `validation/group3` |
+
+#### Covered in `dev/tests/` only (gradient-specific)
+
+| Test | Description | Covered by |
+|------|-------------|------------|
+| NUTS-7.1 | Numerical gradient check | `test-numerical-gradient.R` (4 blocks) |
+| NUTS-7.2 | Posterior equivalence MH vs NUTS | `validation/group2` |
+| NUTS-7.3 | ESS comparison | `validation/group6` |
+| NUTS-7.4 | Edge selection with hybrid | `validation/group5` |
+
+#### Not covered anywhere
+
+| Test | Description | Status |
+|------|-------------|--------|
+| T4 | `parameter_dimension()` | Was in scaffolding tests, removed |
+| T5 | Vectorization round-trip | Was in scaffolding tests, removed |
+| T6 | Cholesky permutation involution | Superseded by B+ (permutation removed) |
+| T7 | Analytic Gaussian ($K_{xy}=0$) | Was in scaffolding tests, removed |
+| T8 | Fixture replay (bit-for-bit) | Never implemented |
+| T9 | Cache freshness after parameter tweak | Never implemented |
+| T10 | BC conditional OMRF vs standalone OMRF | Never implemented |
+| T11 | BC marginal OMRF vs standalone OMRF | Never implemented |
+| T12 | BC observation centering consistency | Never implemented |
+| T18 | Multi-chain (4 chains, R-hat < 1.1) | Not in `tests/testthat/` |
+| T20 | Kyy PD invariant under stress | Never implemented |
+| T21 | Cache consistency under RJ | Never implemented |
+| T24 | Binary-only ordinal matches logistic | Never implemented |
+| T26 | Mixed ordinal + BC recovery | Never implemented |
+| T27 | BC-only discrete recovery + edge selection | Never implemented |
+| T28 | `log_ggm_ratio_edge` agreement | Was in scaffolding tests, removed |
+| T29 | Cholesky update fidelity | Was in scaffolding tests, removed |
+| T30 | Rank-2 quadratic shortcut | Never implemented (B+.10 not implemented) |
+
+#### Additional gaps not in original matrix
+
+| Gap | Description |
+|-----|-------------|
+| G1 | No `bgm_spec()` test for `mixed_mrf` model type |
+| G2 | No `test-spec-wiring.R` coverage for mixed pipeline |
+| G3 | No `test-methods.R` coverage (`coef`, `print`, `summary` for mixed fixture) |
+| G4 | No `predict.bgms` posterior-draw-path test (only posterior-mean tested) |
+| G5 | No multi-chain test for mixed MRF (chain-combining logic) |
+| G6 | No `na_action = "listwise"` test for mixed data |
+| G7 | No Blume-Capel + continuous combo end-to-end test |
+| G8 | `compare_bgms_mixedgm_cycle.R` is unstructured script (no `test_that`) |
+| G9 | Validation scripts (group1–7) have no programmatic pass/fail |
+| G10 | `test-numerical-gradient.R` and `test-simulation-recovery.R` use `<-` assignment (style violation) |
+
+### M.3 Reorganization plan
+
+#### Target file structure
+
+Consolidate mixed-MRF tests into four files matching the original plan,
+plus keep the simulate/predict file which has grown organically:
+
+```
+tests/testthat/
+  test-mixed-mrf-skeleton.R         # T4, T5 (dimension, round-trip)
+  test-mixed-mrf-likelihood.R       # T1–T3, T7, T10–T12 (likelihood unit)
+  test-mixed-mrf-sampling.R         # T13, T14, T16–T18, T26, T27 (recovery)
+  test-mixed-mrf-edge-selection.R   # T15, T20, T21 (edge selection, PD, cache)
+  test-mixed-mrf-simulate-predict.R # (existing — keep as-is)
+  test-mixed-mrf-gradient.R         # Numerical gradient (promote from dev/)
+```
+
+Mixed-MRF blocks currently in `test-bgm.R` stay there — they test the
+`bgm()` interface, not the model internals. Add a mixed-MRF fixture to
+`test-methods.R` and `test-bgm-spec.R`.
+
+#### What to promote from `dev/tests/` to `tests/testthat/`
+
+| Source | Target | Notes |
+|--------|--------|-------|
+| `test-numerical-gradient.R` (4 blocks) | `test-mixed-mrf-gradient.R` | Wrap in `skip_on_cran()`. Fix `<-` to `=`. |
+| `test-simulation-recovery.R` (mixed block) | `test-mixed-mrf-sampling.R` | Merge into recovery section. Fix `<-` to `=`. |
+
+The validation suite (`dev/tests/validation/`) stays in `dev/`. These
+are long-running visual diagnostics, not `R CMD check` tests. No
+changes needed except documenting their role.
+
+`compare_bgms_mixedgm_cycle.R` stays in `dev/` as a manual diagnostic
+script. Add a header comment clarifying it is not a testthat test.
+
+#### What to add (new tests)
+
+**Tier 1 — essential for correctness (add in this phase):**
+
+| File | Tests | What |
+|------|-------|------|
+| `test-mixed-mrf-skeleton.R` | T4, T5 | Parameter count for known (p,q, mixed ord+BC); vectorization round-trip |
+| `test-mixed-mrf-likelihood.R` | T1, T2, T3, T7 | Likelihood values vs R reference at known params; analytic Gaussian check |
+| `test-mixed-mrf-likelihood.R` | T10, T11, T12 | BC likelihood vs standalone OMRF; BC observation centering |
+| `test-mixed-mrf-sampling.R` | T18 | Multi-chain (2 chains, R-hat < 1.2; `skip_on_cran()`) |
+| `test-mixed-mrf-sampling.R` | T26, T27 | Mixed ord+BC recovery; BC-only recovery (`skip_on_cran()`) |
+| `test-mixed-mrf-edge-selection.R` | T15 | Structure recovery on sparse graph (`skip_on_cran()`) |
+| `test-bgm-spec.R` | G1 | Spec builder produces `mixed_mrf` for `c("ordinal","continuous")` input |
+| `test-methods.R` | G3 | `coef`, `print`, `summary` on mixed fixture |
+
+**Tier 2 — defensive (add if time permits):**
+
+| File | Tests | What |
+|------|-------|------|
+| `test-mixed-mrf-likelihood.R` | T9 | Cache freshness: tweak one param, verify cache matches recompute |
+| `test-mixed-mrf-edge-selection.R` | T20 | Kyy PD invariant under 500 iters with wide proposals |
+| `test-mixed-mrf-edge-selection.R` | T21 | Cache consistency after RJ birth/death |
+| `test-mixed-mrf-sampling.R` | T24 | Binary-only ordinal vs logistic rest-scores |
+| `test-mixed-mrf-sampling.R` | G4 | Predict with posterior draws (not just posterior-mean) |
+| `test-mixed-mrf-sampling.R` | G5 | Multi-chain output combining |
+| `test-bgm.R` | G7 | `bgm()` with Blume-Capel + continuous data |
+
+**Dropped (superseded or not applicable):**
+
+| Test | Reason |
+|------|--------|
+| T6 | Cholesky permutation removed in Phase B+; rank-1 approach has no permutation |
+| T8 | Fixture replay requires stable binary fixtures; deferred to future maintenance |
+| T28, T29 | Rank-1 log-ratio and Cholesky fidelity: internal C++ state not easily testable from R without scaffolding exports. Cover implicitly via T13/T14 recovery. |
+| T30 | B+.10 quadratic shortcut not implemented |
+
+### M.4 Style fixes
+
+Apply to all promoted and new test files:
+
+1. Replace `<-` with `=` for assignment (except inside `expect_*()`
+   calls where the result must be captured:
+   `expect_message(result <- foo(), "pat")`).
+2. Remove `#'` roxygen-style comments; use plain `#` comments.
+3. Use `if(` not `if (`.
+4. Run `styler::style_file()` with `bgms_style` on each file.
+
+### M.5 Deliverables
+
+| # | Commit message | What ships |
+|:-:|----------------|------------|
+| 1 | `test: add mixed MRF skeleton and likelihood tests` | `test-mixed-mrf-skeleton.R` (T4, T5), `test-mixed-mrf-likelihood.R` (T1–T3, T7, T10–T12) |
+| 2 | `test: add mixed MRF sampling recovery tests` | `test-mixed-mrf-sampling.R` (T13, T14, T16–T18, T26, T27) |
+| 3 | `test: add mixed MRF edge selection tests` | `test-mixed-mrf-edge-selection.R` (T15) |
+| 4 | `test: promote gradient tests to testthat` | `test-mixed-mrf-gradient.R` (from `dev/tests/`); style fixes |
+| 5 | `test: add mixed MRF coverage to spec and methods tests` | `test-bgm-spec.R` (G1), `test-methods.R` (G3) |
+| 6 | `test: defensive tests (tier 2)` | T9, T20, T21, T24, G4, G5, G7 |
+
+### M.6 Reference implementation for likelihood tests
+
+Likelihood tests (T1–T3, T10–T12) need R-level reference values.
+The scaffolding test helpers that originally provided these were
+Rcpp-exported functions in `test_mixed_mrf.cpp` (deleted in
+commit `04b9562`). Two options:
+
+**(a) Pure-R reference functions.** Write compact R functions that
+compute `log_conditional_omrf(s)`, `log_conditional_ggm()`, and
+`log_marginal_omrf(s)` using base-R matrix operations. These are
+10–20 lines each and serve as the gold standard. Place in
+`tests/testthat/helper-mixed-mrf-reference.R`.
+
+**(b) Cross-validate against mixedGM.** Call
+`mixedGM::rcpp_log_pl_conditional_omrf()` etc. from the test. Requires
+`mixedGM` as a `Suggests` dependency or a `skip_if_not_installed()`
+guard.
+
+Option (a) is preferred: no external dependency, self-contained, and
+exercises a different code path than the C++ implementation.
+
+---
+
+## Phase N — Alternative proposals for GGM edge updates
+
+The current edge birth/death proposals for the continuous part of the
+mixed MRF (and the standalone GGM) use an adaptive random-walk
+Metropolis-Hastings scheme: the birth move draws
+$\epsilon \sim \mathcal{N}(0,\sigma_{ij})$ on a reparameterized scale,
+and the death move proposes setting the off-diagonal to zero. Proposal
+standard deviations $\sigma_{ij}$ are tuned via Robbins-Monro during
+warmup.
+
+Van den Bergh, Clyde, Raftery, and Marsman (in preparation) show that
+the MoMS (mixtures of mutually singular distributions) framework used in
+bgms is equivalent to RJMCMC in terms of the Metropolis-Hastings
+acceptance probability. However, the paper also demonstrates that
+RJMCMC can achieve higher effective sample size (ESS) per iteration
+in practice, because it allows more flexible proposal distributions
+that better match the target. In principle, the MoMS framework admits
+any proposal mechanism — the current random-walk proposal is a
+convenience, not a requirement.
+
+This phase investigates alternative proposal distributions for the
+conditional GGM edge updates ($K_{yy}$) and cross-type edge updates
+($K_{xy}$), with the goal of improving edge-indicator mixing and ESS.
+The same ideas apply to the standalone `GGMModel`.
+
+### N.1 Current proposal anatomy
+
+Both `GGMModel` and `MixedMRFModel` use the same proposal pattern
+for $K_{yy}$ edges:
+
+**Birth** ($\gamma_{ij}: 0 \to 1$):
+1. Draw $\epsilon \sim \mathcal{N}(0, \sigma_{ij})$.
+2. Set $\omega_{ij}^* = C_3 \cdot \epsilon$ (reparameterized via
+   Cholesky constants).
+3. Constrain $\omega_{jj}^*$ to maintain positive definiteness.
+4. Accept with MH ratio combining likelihood ratio, Cauchy slab
+   prior, and $\mathcal{N}(0, \sigma_{ij})$ proposal density.
+
+**Death** ($\gamma_{ij}: 1 \to 0$):
+1. Set $\omega_{ij}^* = 0$.
+2. Constrain $\omega_{jj}^*$.
+3. Accept with the reverse MH ratio.
+
+The proposal is symmetric on the $\epsilon$ scale. The
+Robbins-Monro adaptation targets acceptance rate 0.44.
+
+### N.2 Candidate alternatives
+
+#### (a) Posterior-informed birth proposals
+
+Instead of drawing from $\mathcal{N}(0, \sigma_{ij})$, use a
+proposal centered on a point estimate of $\omega_{ij}$ conditional
+on the current state:
+
+$$\epsilon \sim \mathcal{N}\!\left(\hat{\omega}_{ij}^{\text{cond}},\,\sigma_{ij}\right)$$
+
+where $\hat{\omega}_{ij}^{\text{cond}}$ is derived from the
+conditional posterior mode. For the Gaussian likelihood with
+Cauchy slab, the conditional mode given the sufficient statistics
+$S = X^\top X$ and the rest of $\Omega$ can be computed in
+closed form as a function of $S_{ij}$, $\Sigma_{ij}^{(-ij)}$,
+and $n$. This turns the birth proposal into a near-optimal
+independent proposal.
+
+The death proposal remains deterministic (set to zero), so
+the MH ratio adjusts by replacing the reverse-proposal
+$q(\omega_{ij} \mid 0)$ with
+$\mathcal{N}(\omega_{ij} \mid \hat{\omega}_{ij}^{\text{cond}}, \sigma_{ij})$.
+
+#### (b) Exchange-type proposals
+
+For the within-model parameter update (when $\gamma_{ij} = 1$),
+replace the random-walk proposal with a Gibbs draw from the
+conditional posterior of $\omega_{ij}$ given the rest of $\Omega$.
+Under the Gaussian likelihood with a Cauchy slab, this conditional
+posterior is not available in closed form, but a single Newton step
+or a Laplace approximation to the conditional can serve as a
+high-quality proposal.
+
+#### (c) Block proposals for $K_{xy}$
+
+The current $K_{xy}$ birth/death proposals update one element at a
+time. Because each $K_{xy}$ change affects the conditional mean
+$\mu_y + 2\,K_{xy}^\top x$, nearby $K_{xy}$ elements can be
+strongly correlated in the posterior. A block proposal that updates
+an entire row $K_{xy,i\cdot}$ simultaneously may improve mixing.
+The NUTS sampler already handles $K_{xy}$ as part of the
+gradient-based block, so this mainly benefits the Metropolis path.
+
+### N.3 Evaluation plan
+
+1. **Baseline ESS.** Run the current sampler on three benchmark
+   problems (p=4/q=3, p=8/q=6, p=4/q=6) with 50,000 iterations
+   after warmup. Record per-parameter ESS, per-edge-indicator ESS,
+   and bulk/tail ESS.
+2. **Implement candidate (a).** Add `update_edge_indicator_Kyy_informed()`
+   as an alternative to `update_edge_indicator_Kyy()`. Selection via
+   a compile-time or constructor flag (`proposal_type`).
+3. **Comparison.** Run the same benchmarks with the informed proposal.
+   Compare ESS, ESS/second, and acceptance rates. Focus on the
+   edge-indicator ESS (the primary bottleneck).
+4. **Evaluate (b) and (c)** if (a) shows improvement. Otherwise,
+   document findings and close the phase.
+5. **Apply to standalone GGM.** If the improved proposal works for
+   the mixed MRF $K_{yy}$, port it to `GGMModel` which uses the
+   same Cholesky reparameterization.
+
+### N.4 Deliverables
+
+| File | Content |
+|------|---------|
+| `dev/mixedmrf/proposal_study.md` | Design notes, derivation of informed proposal |
+| `dev/tests/validation/group10_proposal_comparison.R` | Benchmark script |
+| `dev/tests/validation/output/group10_proposal_comparison.pdf` | ESS comparison plots |
+| `src/models/mixed/mixed_mrf_metropolis.cpp` | New proposal function(s) if adopted |
+| `src/models/ggm/ggm_model.cpp` | Port to standalone GGM if adopted |
+
+---
+
 ## Testing strategy
+
+
 
 ### Existing test infrastructure (from mixedGM)
 
