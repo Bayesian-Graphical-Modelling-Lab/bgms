@@ -5,11 +5,14 @@
 #include "mcmc/samplers/nuts_sampler.h"
 #include "mcmc/samplers/hmc_sampler.h"
 #include "mcmc/samplers/metropolis_sampler.h"
+#include "mcmc/samplers/hybrid_nuts_sampler.h"
 
 
 std::unique_ptr<SamplerBase> create_sampler(const SamplerConfig& config, WarmupSchedule& schedule) {
     if (config.sampler_type == "nuts") {
         return std::make_unique<NUTSSampler>(config, schedule);
+    } else if (config.sampler_type == "hybrid-nuts") {
+        return std::make_unique<HybridNUTSSampler>(config, schedule);
     } else if (config.sampler_type == "hmc" || config.sampler_type == "hamiltonian-mc") {
         return std::make_unique<HMCSampler>(config, schedule);
     } else if (config.sampler_type == "mh" || config.sampler_type == "adaptive-metropolis") {
@@ -32,6 +35,7 @@ void run_mcmc_chain(
 
     // Construct warmup schedule (shared by runner and sampler)
     const bool learn_sd = (config.sampler_type == "nuts" ||
+                           config.sampler_type == "hybrid-nuts" ||
                            config.sampler_type == "hmc" ||
                            config.sampler_type == "hamiltonian-mc");
     WarmupSchedule schedule(config.no_warmup, config.edge_selection, learn_sd);
@@ -91,7 +95,7 @@ void run_mcmc_chain(
                 }
             }
 
-            chain_result.store_sample(sample_index, model.get_full_vectorized_parameters());
+            chain_result.store_sample(sample_index, model.get_storage_vectorized_parameters());
 
             if (chain_result.has_indicators) {
                 chain_result.store_indicators(sample_index, model.get_vectorized_indicator_parameters());
@@ -139,13 +143,14 @@ std::vector<ChainResult> run_mcmc_sampler(
     const int no_threads,
     ProgressManager& pm
 ) {
-    const bool has_nuts_diag = (config.sampler_type == "nuts");
+    const bool has_nuts_diag = (config.sampler_type == "nuts" ||
+                                config.sampler_type == "hybrid-nuts");
     const bool has_sbm_alloc = edge_prior.has_allocations() ||
         (config.edge_selection && dynamic_cast<StochasticBlockEdgePrior*>(&edge_prior) != nullptr);
 
     std::vector<ChainResult> results(no_chains);
     for (int c = 0; c < no_chains; ++c) {
-        results[c].reserve(model.full_parameter_dimension(), config.no_iter);
+        results[c].reserve(model.storage_dimension(), config.no_iter);
 
         if (config.edge_selection) {
             size_t n_edges = model.get_vectorized_indicator_parameters().n_elem;

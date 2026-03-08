@@ -25,6 +25,10 @@ compute_conditional_probs <- function(observations, predict_vars, pairwise, main
     .Call(`_bgms_compute_conditional_probs`, observations, predict_vars, pairwise, main, num_categories, variable_type, baseline_category)
 }
 
+compute_conditional_mixed <- function(x_observations, y_observations, predict_vars, Kxx, Kxy, Kyy, mux, muy, num_categories, variable_type, baseline_category) {
+    .Call(`_bgms_compute_conditional_mixed`, x_observations, y_observations, predict_vars, Kxx, Kxy, Kyy, mux, muy, num_categories, variable_type, baseline_category)
+}
+
 sample_omrf_gibbs <- function(num_states, num_variables, num_categories, pairwise, main, iter, seed) {
     .Call(`_bgms_sample_omrf_gibbs`, num_states, num_variables, num_categories, pairwise, main, iter, seed)
 }
@@ -45,8 +49,20 @@ run_ggm_simulation_parallel <- function(pairwise_samples, main_samples, draw_ind
     .Call(`_bgms_run_ggm_simulation_parallel`, pairwise_samples, main_samples, draw_indices, num_states, num_variables, means, nThreads, seed, progress_type)
 }
 
+sample_mixed_mrf_gibbs <- function(num_states, Kxx_r, Kxy_r, Kyy_r, mux_r, muy_r, num_categories_r, variable_type_r, baseline_category_r, iter, seed) {
+    .Call(`_bgms_sample_mixed_mrf_gibbs`, num_states, Kxx_r, Kxy_r, Kyy_r, mux_r, muy_r, num_categories_r, variable_type_r, baseline_category_r, iter, seed)
+}
+
+run_mixed_simulation_parallel <- function(mux_samples, kxx_samples, muy_samples, kyy_samples, kxy_samples, draw_indices, num_states, p, q, num_categories, variable_type_r, baseline_category, iter, nThreads, seed, progress_type) {
+    .Call(`_bgms_run_mixed_simulation_parallel`, mux_samples, kxx_samples, muy_samples, kyy_samples, kxy_samples, draw_indices, num_states, p, q, num_categories, variable_type_r, baseline_category, iter, nThreads, seed, progress_type)
+}
+
 sample_ggm <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, na_impute = FALSE, missing_index_nullable = NULL) {
     .Call(`_bgms_sample_ggm`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, na_impute, missing_index_nullable)
+}
+
+sample_mixed_mrf <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, sampler_type = "mh", target_acceptance = 0.80, max_tree_depth = 10L, num_leapfrogs = 100L) {
+    .Call(`_bgms_sample_mixed_mrf`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, sampler_type, target_acceptance, max_tree_depth, num_leapfrogs)
 }
 
 sample_omrf <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, edge_prior = "Bernoulli", na_impute = FALSE, missing_index_nullable = NULL, beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, target_acceptance = 0.8, max_tree_depth = 10L, num_leapfrogs = 10L, pairwise_scaling_factors_nullable = NULL) {

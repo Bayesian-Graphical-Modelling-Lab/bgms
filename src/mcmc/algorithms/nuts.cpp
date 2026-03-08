@@ -8,26 +8,22 @@
 #include "rng/rng_utils.h"
 
 
-/**
- * The generalized U-turn criterion used here is described in Betancourt (2017).
- * The implementation follows the approach in STAN's base_nuts.hpp (BSD-3-Clause license).
- *
- * References:
- *   Betancourt, M. (2017). A Conceptual Introduction to Hamiltonian Monte Carlo.
- *     arXiv preprint arXiv:1701.02434.
- *   Stan Development Team. base_nuts.hpp.
- *     https://github.com/stan-dev/stan/blob/develop/src/stan/mcmc/hmc/nuts/base_nuts.hpp
- */
+// The generalized U-turn criterion used here is described in Betancourt (2017).
+// The implementation follows the approach in STAN's base_nuts.hpp (BSD-3-Clause license).
+//
+// References:
+//   Betancourt, M. (2017). A Conceptual Introduction to Hamiltonian Monte Carlo.
+//     arXiv preprint arXiv:1701.02434.
+//   Stan Development Team. base_nuts.hpp.
+//     https://github.com/stan-dev/stan/blob/develop/src/stan/mcmc/hmc/nuts/base_nuts.hpp
 
 
-/**
- * Computes the generalized U-turn criterion for the NUTS algorithm
- *
- * @param p_sharp_minus  Sharp momentum (M^{-1} p) at backward end
- * @param p_sharp_plus   Sharp momentum (M^{-1} p) at forward end
- * @param rho            Sum of momenta along the trajectory
- * @return true if criterion satisfied (continue), false if U-turn detected (stop)
- */
+// Computes the generalized U-turn criterion for the NUTS algorithm
+//
+// @param p_sharp_minus  Sharp momentum (M^{-1} p) at backward end
+// @param p_sharp_plus   Sharp momentum (M^{-1} p) at forward end
+// @param rho            Sum of momenta along the trajectory
+// @return true if criterion satisfied (continue), false if U-turn detected (stop)
 bool compute_criterion(const arma::vec& p_sharp_minus,
                        const arma::vec& p_sharp_plus,
                        const arma::vec& rho) {
@@ -36,25 +32,23 @@ bool compute_criterion(const arma::vec& p_sharp_minus,
 
 
 
-/**
- * Recursively builds a binary tree of leapfrog steps in the NUTS algorithm
- *
- * Explores forward or backward in time, evaluating trajectory termination
- * criteria. Based on Algorithm 6 in Hoffman & Gelman (2014).
- *
- * @param theta      Current position at the base of the tree
- * @param r          Current momentum at the base of the tree
- * @param log_u      Log slice variable for accept/reject decision
- * @param v          Direction of expansion (-1 backward, +1 forward)
- * @param j          Current tree depth
- * @param step_size  Step size used in leapfrog integration
- * @param theta_0    Initial position at the start of sampling
- * @param r0         Initial momentum at the start of sampling
- * @param logp0      Log posterior at initial position
- * @param kin0       Kinetic energy at initial momentum
- * @param memo       Memoizer object for caching evaluations
- * @return BuildTreeResult with updated endpoints, candidate sample, and diagnostics
- */
+// Recursively builds a binary tree of leapfrog steps in the NUTS algorithm
+//
+// Explores forward or backward in time, evaluating trajectory termination
+// criteria. Based on Algorithm 6 in Hoffman & Gelman (2014).
+//
+// @param theta      Current position at the base of the tree
+// @param r          Current momentum at the base of the tree
+// @param log_u      Log slice variable for accept/reject decision
+// @param v          Direction of expansion (-1 backward, +1 forward)
+// @param j          Current tree depth
+// @param step_size  Step size used in leapfrog integration
+// @param theta_0    Initial position at the start of sampling
+// @param r0         Initial momentum at the start of sampling
+// @param logp0      Log posterior at initial position
+// @param kin0       Kinetic energy at initial momentum
+// @param memo       Memoizer object for caching evaluations
+// @return BuildTreeResult with updated endpoints, candidate sample, and diagnostics
 BuildTreeResult build_tree(
     const arma::vec& theta,
     const arma::vec& r,

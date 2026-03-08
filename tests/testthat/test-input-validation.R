@@ -84,14 +84,21 @@ test_that("GGM rejects NUTS and HMC update methods", {
   )
 })
 
-test_that("Mixed continuous and ordinal variable types are rejected", {
+test_that("Mixed continuous and ordinal variable types are accepted for bgm", {
   set.seed(42)
-  x = matrix(rnorm(200), nrow = 50, ncol = 4)
-
-  expect_error(
-    bgm(x = x, variable_type = c("continuous", "ordinal", "ordinal", "ordinal")),
-    "all variables must be of type"
+  x = data.frame(
+    ord1 = sample(0:2, 50, replace = TRUE),
+    ord2 = sample(0:2, 50, replace = TRUE),
+    cont1 = rnorm(50),
+    cont2 = rnorm(50)
   )
+  spec = bgm_spec(
+    x = x,
+    variable_type = c("ordinal", "ordinal", "continuous", "continuous")
+  )
+  expect_equal(spec$model_type, "mixed_mrf")
+  expect_equal(spec$data$num_discrete, 2L)
+  expect_equal(spec$data$num_continuous, 2L)
 })
 
 

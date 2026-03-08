@@ -12,10 +12,11 @@
 #' Simulate Observations from a Markov Random Field
 #'
 #' @description
-#' `simulate_mrf()` generates observations from a Markov Random Field using
-#' user-specified parameters. For ordinal and Blume-Capel variables, observations
-#' are generated via Gibbs sampling. For continuous variables (Gaussian graphical
-#' model), observations are drawn directly from the multivariate normal
+#' `simulate_mrf()` generates observations from a Markov Random
+#' Field using user-specified parameters. For ordinal and
+#' Blume-Capel variables, observations are generated via Gibbs
+#' sampling. For continuous variables (Gaussian graphical model),
+#' observations are drawn directly from the multivariate normal
 #' distribution implied by the precision matrix.
 #'
 #' @details
@@ -41,7 +42,8 @@
 #' have a special type of baseline_category category, such as the neutral
 #' category in a Likert scale. The Blume-Capel model specifies the following
 #' quadratic model for the threshold parameters:
-#' \deqn{\mu_{\text{c}} = \alpha \times (\text{c} - \text{r}) + \beta \times (\text{c} - \text{r})^2,}{{\mu_{\text{c}} = \alpha \times (\text{c} - \text{r}) + \beta \times (\text{c} - \text{r})^2,}}
+#' \deqn{\mu_{\text{c}} = \alpha (\text{c} - \text{r})
+#'   + \beta (\text{c} - \text{r})^2}
 #' where \eqn{\mu_{\text{c}}}{\mu_{\text{c}}} is the threshold for category c
 #' (which now includes zero), \eqn{\alpha}{\alpha} offers a linear trend
 #' across categories (increasing threshold values if
@@ -55,15 +57,18 @@
 #'
 #' @param num_variables The number of variables in the MRF.
 #'
-#' @param num_categories Either a positive integer or a vector of positive
-#' integers of length \code{num_variables}. The number of response categories on top
-#' of the base category: \code{num_categories = 1} generates binary states.
+#' @param num_categories Either a positive integer or a vector
+#' of positive integers of length \code{num_variables}. The
+#' number of response categories on top of the base category:
+#' \code{num_categories = 1} generates binary states.
 #' Only used for ordinal and Blume-Capel variables; ignored when
 #' \code{variable_type = "continuous"}.
 #'
-#' @param pairwise A symmetric \code{num_variables} by \code{num_variables} matrix.
-#' For ordinal and Blume-Capel variables, this contains the pairwise interaction
-#' parameters; only the off-diagonal elements are used. For continuous variables,
+#' @param pairwise A symmetric \code{num_variables} by
+#' \code{num_variables} matrix. For ordinal and Blume-Capel
+#' variables, this contains the pairwise interaction parameters;
+#' only the off-diagonal elements are used. For continuous
+#' variables,
 #' this is the precision matrix \eqn{\Omega}{Omega} (including diagonal) and
 #' must be positive definite.
 #'
@@ -71,7 +76,8 @@
 #' \code{num_variables} by \code{max(num_categories)} matrix of category
 #' thresholds. The elements in row \code{i} indicate the thresholds of
 #' variable \code{i}. If \code{num_categories} is a vector, only the first
-#' \code{num_categories[i]} elements are used in row \code{i}. If the Blume-Capel
+#' \code{num_categories[i]} elements are used in row \code{i}.
+#' If the Blume-Capel
 #' model is used for the category thresholds for variable \code{i}, then row
 #' \code{i} requires two values (details below); the first is
 #' \eqn{\alpha}{\alpha}, the linear contribution of the Blume-Capel model and
@@ -91,8 +97,10 @@
 #' from a Gaussian graphical model.
 #' Defaults to \code{variable_type = "ordinal"}.
 #'
-#' @param baseline_category An integer vector of length \code{num_variables} specifying the
-#' baseline_category category that is used for the Blume-Capel model (details below).
+#' @param baseline_category An integer vector of length
+#' \code{num_variables} specifying the baseline_category
+#' category that is used for the Blume-Capel model
+#' (details below).
 #' Can be any integer value between \code{0} and \code{num_categories} (or
 #' \code{num_categories[i]}).
 #'
@@ -182,7 +190,7 @@ simulate_mrf = function(num_states,
                         baseline_category,
                         iter = 1e3,
                         seed = NULL) {
-  # Check num_states, num_variables ---------------------------------------------
+  # Check num_states, num_variables ------
   check_positive_integer(num_states, "num_states")
   check_positive_integer(num_variables, "num_variables")
 
@@ -201,7 +209,8 @@ simulate_mrf = function(num_states,
     bc_binary = variable_type == "blume-capel" & num_categories < 2
     if(any(bc_binary)) {
       stop(paste0(
-        "The Blume-Capel model only works for ordinal variables with more than two \n",
+        "The Blume-Capel model only works for ordinal ",
+        "variables with more than two \n",
         "response options. But variables ",
         paste(which(bc_binary), collapse = ", "),
         " are binary variables."
@@ -223,7 +232,10 @@ simulate_mrf = function(num_states,
       stop("The matrix 'pairwise' needs to be symmetric.")
     }
     if(nrow(pairwise) != num_variables) {
-      stop("The matrix 'pairwise' needs to have 'num_variables' rows and columns.")
+      stop(
+        "The matrix 'pairwise' needs to have ",
+        "'num_variables' rows and columns."
+      )
     }
     if(any(diag(pairwise) <= 0)) {
       stop("The diagonal of the precision matrix 'pairwise' must be positive.")
@@ -266,19 +278,24 @@ simulate_mrf = function(num_states,
   # ===========================================================================
   check_positive_integer(iter, "iter")
 
-  # Check num_categories --------------------------------------------------------
+  # Check num_categories ------
   if(length(num_categories) == 1) {
-    if(num_categories <= 0 ||
-      abs(num_categories - round(num_categories)) > .Machine$double.eps) {
+    not_pos_int = num_categories <= 0 ||
+      abs(num_categories - round(num_categories)) > .Machine$double.eps
+    if(not_pos_int) {
       stop("``num_categories'' needs be a (vector of) positive integer(s).")
     }
     num_categories = rep(num_categories, num_variables)
   } else {
     for(variable in 1:num_variables) {
-      if(num_categories[variable] <= 0 ||
-        abs(num_categories[variable] - round(num_categories[variable])) >
-          .Machine$double.eps) {
-        stop(paste("For variable", variable, "``num_categories'' was not a positive integer."))
+      nc = num_categories[variable]
+      not_pos_int = nc <= 0 || abs(nc - round(nc)) > .Machine$double.eps
+      if(not_pos_int) {
+        stop(paste(
+          "For variable", variable,
+          "``num_categories'' was not a",
+          "positive integer."
+        ))
       }
     }
   }
@@ -288,7 +305,10 @@ simulate_mrf = function(num_states,
     if(length(baseline_category) == 1) {
       baseline_category = rep(baseline_category, num_variables)
     }
-    if(any(baseline_category < 0) || any(abs(baseline_category - round(baseline_category)) > .Machine$double.eps)) {
+    bc_diff = abs(baseline_category - round(baseline_category))
+    not_valid = any(baseline_category < 0) ||
+      any(bc_diff > .Machine$double.eps)
+    if(not_valid) {
       stop(paste0(
         "For variables ",
         which(baseline_category < 0),
@@ -299,7 +319,8 @@ simulate_mrf = function(num_states,
       stop(paste0(
         "For variables ",
         which(baseline_category - num_categories > 0),
-        " the ``baseline_category'' category was larger than the maximum category value."
+        " the ``baseline_category'' category was larger",
+        " than the maximum category value."
       ))
     }
   }
@@ -312,7 +333,10 @@ simulate_mrf = function(num_states,
     stop("The matrix ``pairwise'' needs to be symmetric.")
   }
   if(nrow(pairwise) != num_variables) {
-    stop("The matrix ``pairwise'' needs to have ``num_variables'' rows and columns.")
+    stop(
+      "The matrix ``pairwise'' needs to have",
+      " ``num_variables'' rows and columns."
+    )
   }
 
   # Check the threshold values -------------------------------------------------
@@ -341,16 +365,13 @@ simulate_mrf = function(num_states,
   for(variable in 1:num_variables) {
     if(variable_type[variable] != "blume-capel") {
       if(anyNA(main[variable, 1:num_categories[variable]])) {
-        tmp = which(is.na(main[variable, 1:num_categories[variable]]))
-
-        string = paste(tmp, sep = ",")
-
+        na_cats = which(is.na(main[variable, 1:num_categories[variable]]))
         stop(paste0(
           "The matrix ``main'' contains NA(s) for variable ",
           variable,
           " in category \n",
           "(categories) ",
-          paste(which(is.na(main[variable, 1:num_categories[variable]])), collapse = ", "),
+          paste(na_cats, collapse = ", "),
           ", where a numeric value is needed."
         ))
       }
@@ -370,24 +391,31 @@ simulate_mrf = function(num_states,
     } else {
       if(anyNA(main[variable, 1:2])) {
         stop(paste0(
-          "The Blume-Capel model is chosen for the category thresholds of variable ",
+          "The Blume-Capel model is chosen for the ",
+          "category thresholds of variable ",
           variable,
           ". \n",
-          "This model has two parameters that need to be placed in columns 1 and 2, row \n",
+          "This model has two parameters that need ",
+          "to be placed in columns 1 and 2, row \n",
           variable,
-          ", of the ``main'' input matrix. Currently, there are NA(s) in these \n",
+          ", of the ``main'' input matrix. ",
+          "Currently, there are NA(s) in these \n",
           "entries, where a numeric value is needed."
         ))
       }
       if(ncol(main) > 2) {
         if(!anyNA(main[variable, 3:ncol(main)])) {
           warning(paste0(
-            "The Blume-Capel model is chosen for the category thresholds of variable ",
+            "The Blume-Capel model is chosen for ",
+            "the category thresholds of variable ",
             variable,
             ". \n",
-            "This model has two parameters that need to be placed in columns 1 and 2, row \n",
+            "This model has two parameters that ",
+            "need to be placed in columns 1 and ",
+            "2, row \n",
             variable,
-            ", of the ``main'' input matrix. However, there are numeric values \n",
+            ", of the ``main'' input matrix. ",
+            "However, there are numeric values \n",
             "in higher categories. These values will be ignored."
           ))
         }
@@ -510,7 +538,8 @@ mrfSampler = function(num_states,
 #'
 #' @description
 #' Generates new observations from the Markov Random Field model using the
-#' estimated parameters from a fitted \code{bgms} object.
+#' estimated parameters from a fitted \code{bgms} object. Supports ordinal,
+#' Blume-Capel, continuous (GGM), and mixed MRF models.
 #'
 #' @param object An object of class \code{bgms}.
 #' @param nsim Number of observations to simulate. Default: \code{500}.
@@ -524,7 +553,8 @@ mrfSampler = function(num_states,
 #'       uses parallel processing when \code{cores > 1}.}
 #'   }
 #' @param ndraws Number of posterior draws to use when
-#'   \code{method = "posterior-sample"}. If \code{NULL}, uses all available draws.
+#'   \code{method = "posterior-sample"}. If \code{NULL},
+#'   uses all available draws.
 #' @param iter Number of Gibbs iterations for equilibration before collecting
 #'   samples. Default: \code{1000}.
 #' @param cores Number of CPU cores for parallel execution when
@@ -542,9 +572,14 @@ mrfSampler = function(num_states,
 #' If \code{method = "posterior-sample"}: A list of matrices, one per posterior
 #' draw, each with \code{nsim} rows and \code{p} columns.
 #'
+#' For mixed MRF models, discrete columns contain non-negative integers and
+#' continuous columns contain real-valued observations, ordered as in the
+#' original data.
+#'
 #' @details
-#' This function uses the estimated interaction and threshold parameters to
-#' generate new data via Gibbs sampling. When \code{method = "posterior-sample"},
+#' This function uses the estimated interaction and threshold
+#' parameters to generate new data via Gibbs sampling. When
+#' \code{method = "posterior-sample"}, parameter uncertainty is
 #' parameter uncertainty is propagated to the simulated data by using different
 #' posterior draws. Parallel processing is available for this method via the
 #' \code{cores} argument.
@@ -562,7 +597,11 @@ mrfSampler = function(num_states,
 #' new_data = simulate(fit, nsim = 100)
 #'
 #' # Simulate with parameter uncertainty (10 datasets)
-#' new_data_list = simulate(fit, nsim = 100, method = "posterior-sample", ndraws = 10)
+#' new_data_list = simulate(
+#'   fit,
+#'   nsim = 100,
+#'   method = "posterior-sample", ndraws = 10
+#' )
 #'
 #' # Use parallel processing for faster simulation
 #' new_data_list = simulate(fit,
@@ -624,6 +663,23 @@ simulate.bgms = function(object,
       ndraws = ndraws,
       num_variables = num_variables,
       data_columnnames = data_columnnames,
+      cores = cores,
+      progress_type = progress_type
+    ))
+  }
+
+  # ============================================================================
+  #   Mixed MRF (discrete + continuous) path
+  # ============================================================================
+  if(isTRUE(arguments$is_mixed)) {
+    return(simulate_bgms_mixed(
+      object = object,
+      nsim = nsim,
+      seed = seed,
+      method = method,
+      ndraws = ndraws,
+      arguments = arguments,
+      iter = iter,
       cores = cores,
       progress_type = progress_type
     ))
@@ -696,9 +752,9 @@ simulate.bgms = function(object,
 }
 
 
-# ==============================================================================
-#   simulate.bgmCompare() - S3 Method for Simulating from Group-Comparison Models
-# ==============================================================================
+# ============================================================
+#   simulate.bgmCompare() - S3 Method for Group-Comparison
+# ============================================================
 
 #' Simulate Data from a Fitted bgmCompare Model
 #'
@@ -762,15 +818,23 @@ simulate.bgmCompare = function(object,
 
   # Validate group argument
   if(missing(group)) {
-    stop("Argument 'group' is required. Specify which group to simulate from (1 to num_groups).")
+    stop(
+      "Argument 'group' is required. ",
+      "Specify which group to simulate from ",
+      "(1 to num_groups)."
+    )
   }
 
   arguments = extract_arguments(object)
   num_groups = arguments$num_groups
 
-  if(!is.numeric(group) || length(group) != 1 || is.na(group) ||
-    group < 1 || group > num_groups) {
-    stop(sprintf("Argument 'group' must be an integer between 1 and %d.", num_groups))
+  invalid_group = !is.numeric(group) || length(group) != 1 ||
+    is.na(group) || group < 1 || group > num_groups
+  if(invalid_group) {
+    stop(sprintf(
+      "Argument 'group' must be an integer between 1 and %d.",
+      num_groups
+    ))
   }
   group = as.integer(group)
 
@@ -782,7 +846,6 @@ simulate.bgmCompare = function(object,
   num_categories = arguments$num_categories
   is_ordinal = arguments$is_ordinal_variable
   data_columnnames = arguments$data_columnnames
-  projection = arguments$projection # [num_groups x (num_groups-1)]
 
   # Determine variable_type from is_ordinal
   variable_type = ifelse(is_ordinal, "ordinal", "blume-capel")
@@ -851,7 +914,8 @@ simulate.bgmCompare = function(object,
 #'
 #' @description
 #' Computes conditional probability distributions for one or more variables
-#' given the observed values of other variables in the data.
+#' given the observed values of other variables in the data. Supports ordinal,
+#' Blume-Capel, continuous (GGM), and mixed MRF models.
 #'
 #' @param object An object of class \code{bgms}.
 #' @param newdata A matrix or data frame with \code{n} rows and \code{p} columns
@@ -873,10 +937,12 @@ simulate.bgmCompare = function(object,
 #' @param method Character string specifying which parameter estimates to use:
 #'   \describe{
 #'     \item{\code{"posterior-mean"}}{Use posterior mean parameters.}
-#'     \item{\code{"posterior-sample"}}{Average predictions over posterior draws.}
+#'     \item{\code{"posterior-sample"}}{Average predictions
+#'       over posterior draws.}
 #'   }
 #' @param ndraws Number of posterior draws to use when
-#'   \code{method = "posterior-sample"}. If \code{NULL}, uses all available draws.
+#'   \code{method = "posterior-sample"}. If \code{NULL},
+#'   uses all available draws.
 #' @param seed Optional random seed for reproducibility when
 #'   \code{method = "posterior-sample"}.
 #' @param ... Additional arguments (currently ignored).
@@ -886,8 +952,9 @@ simulate.bgmCompare = function(object,
 #'
 #' For \code{type = "probabilities"}: A named list with one element per
 #' predicted variable. Each element is a matrix with \code{n} rows and
-#' \code{num_categories + 1} columns containing \eqn{P(X_j = c | X_{-j})}{P(X_j = c | X_-j)} for each
-#' observation and category.
+#' \code{num_categories + 1} columns containing
+#' \eqn{P(X_j = c | X_{-j})}{P(X_j = c | X_-j)}
+#' for each observation and category.
 #'
 #' For \code{type = "response"}: A matrix with \code{n} rows and
 #' \code{length(variables)} columns containing predicted categories.
@@ -910,6 +977,13 @@ simulate.bgmCompare = function(object,
 #' When \code{method = "posterior-sample"}, conditional parameters are
 #' averaged over posterior draws, and an attribute \code{"sd"} is included.
 #'
+#' \strong{Mixed MRF models:}
+#'
+#' For mixed models, the return list contains elements for both discrete and
+#' continuous predicted variables. Discrete variables return probability
+#' matrices (as in ordinal models); continuous variables return conditional
+#' mean and SD matrices (as in GGM models).
+#'
 #' @details
 #' For each observation, the function computes the conditional distribution
 #' of the target variable(s) given the observed values of all other variables.
@@ -918,7 +992,8 @@ simulate.bgmCompare = function(object,
 #'
 #' For GGM (continuous) models, the conditional distribution of
 #' \eqn{X_j | X_{-j}}{X_j | X_{-j}} is Gaussian with mean
-#' \eqn{-\omega_{jj}^{-1} \sum_{k \neq j} \omega_{jk} x_k}{-omega_jj^{-1} sum_{k != j} omega_jk x_k}
+#' \eqn{-\omega_{jj}^{-1} \sum_{k \neq j}
+#' \omega_{jk} x_k}{-omega_jj^{-1} sum_{k != j} omega_jk x_k}
 #' and variance \eqn{\omega_{jj}^{-1}}{omega_jj^{-1}}, where \eqn{\Omega}{Omega}
 #' is the precision matrix.
 #'
@@ -961,7 +1036,11 @@ predict.bgms = function(object,
 
   # Validate newdata
   if(missing(newdata)) {
-    stop("Argument 'newdata' is required. Provide the data for which to compute predictions.")
+    stop(
+      "Argument 'newdata' is required. ",
+      "Provide the data for which to ",
+      "compute predictions."
+    )
   }
 
   if(!inherits(newdata, "matrix") && !inherits(newdata, "data.frame")) {
@@ -983,7 +1062,8 @@ predict.bgms = function(object,
 
   if(ncol(newdata) != num_variables) {
     stop(paste0(
-      "'newdata' must have ", num_variables, " columns (same as fitted model), ",
+      "'newdata' must have ", num_variables,
+      " columns (same as fitted model), ",
       "but has ", ncol(newdata), "."
     ))
   }
@@ -1008,7 +1088,13 @@ predict.bgms = function(object,
   } else if(is.character(variables)) {
     predict_vars = match(variables, data_columnnames)
     if(anyNA(predict_vars)) {
-      stop("Variable names not found: ", paste(variables[is.na(predict_vars)], collapse = ", "))
+      stop(
+        "Variable names not found: ",
+        paste(
+          variables[is.na(predict_vars)],
+          collapse = ", "
+        )
+      )
     }
   } else {
     predict_vars = as.integer(variables)
@@ -1034,11 +1120,28 @@ predict.bgms = function(object,
   }
 
   # ============================================================================
+  #   Mixed MRF (discrete + continuous) path
+  # ============================================================================
+  if(isTRUE(arguments$is_mixed)) {
+    return(predict_bgms_mixed(
+      object = object,
+      newdata = newdata,
+      predict_vars = predict_vars,
+      arguments = arguments,
+      type = type,
+      method = method,
+      ndraws = ndraws
+    ))
+  }
+
+  # ============================================================================
   #   OMRF (ordinal) path
   # ============================================================================
 
   # Recode data to 0-based integers (matching what bgm() does)
-  newdata_recoded = recode_data_for_prediction(newdata, num_categories, is_ordinal)
+  newdata_recoded = recode_data_for_prediction(
+    newdata, num_categories, is_ordinal
+  )
 
   if(method == "posterior-mean") {
     # Use posterior mean parameters
@@ -1183,9 +1286,10 @@ predict.bgms = function(object,
 #' @param ... Additional arguments (currently ignored).
 #'
 #' @return
-#' For \code{type = "probabilities"}: A named list with one element per
-#' predicted variable. Each element is a matrix with \code{n} rows and
-#' \code{num_categories + 1} columns containing \eqn{P(X_j = c | X_{-j})}{P(X_j = c | X_-j)}
+#' For \code{type = "probabilities"}: A named list with one
+#' element per predicted variable. Each element is a matrix with
+#' \code{n} rows and \code{num_categories + 1} columns containing
+#' \eqn{P(X_j = c | X_{-j})}{P(X_j = c | X_-j)}
 #' for each observation and category.
 #'
 #' For \code{type = "response"}: A matrix with \code{n} rows and
@@ -1197,8 +1301,10 @@ predict.bgms = function(object,
 #' The function then computes the conditional distribution of target variables
 #' given the observed values of all other variables.
 #'
-#' @seealso \code{\link{predict.bgms}} for predicting from single-group models,
-#'   \code{\link{simulate.bgmCompare}} for simulating from group-comparison models.
+#' @seealso \code{\link{predict.bgms}} for predicting
+#'   from single-group models,
+#'   \code{\link{simulate.bgmCompare}} for simulating
+#'   from group-comparison models.
 #' @family prediction
 #'
 #' @examples
@@ -1228,21 +1334,33 @@ predict.bgmCompare = function(object,
 
   # Validate group argument
   if(missing(group)) {
-    stop("Argument 'group' is required. Specify which group's parameters to use (1 to num_groups).")
+    stop(
+      "Argument 'group' is required. ",
+      "Specify which group's parameters ",
+      "to use (1 to num_groups)."
+    )
   }
 
   arguments = extract_arguments(object)
   num_groups = arguments$num_groups
 
-  if(!is.numeric(group) || length(group) != 1 || is.na(group) ||
-    group < 1 || group > num_groups) {
-    stop(sprintf("Argument 'group' must be an integer between 1 and %d.", num_groups))
+  invalid_group = !is.numeric(group) || length(group) != 1 ||
+    is.na(group) || group < 1 || group > num_groups
+  if(invalid_group) {
+    stop(sprintf(
+      "Argument 'group' must be an integer between 1 and %d.",
+      num_groups
+    ))
   }
   group = as.integer(group)
 
   # Validate newdata
   if(missing(newdata)) {
-    stop("Argument 'newdata' is required. Provide the data for which to compute predictions.")
+    stop(
+      "Argument 'newdata' is required. ",
+      "Provide the data for which to ",
+      "compute predictions."
+    )
   }
 
   if(!inherits(newdata, "matrix") && !inherits(newdata, "data.frame")) {
@@ -1258,12 +1376,12 @@ predict.bgmCompare = function(object,
   num_categories = arguments$num_categories
   is_ordinal = arguments$is_ordinal_variable
   data_columnnames = arguments$data_columnnames
-  projection = arguments$projection
 
   # Validate dimensions
   if(ncol(newdata) != num_variables) {
     stop(paste0(
-      "'newdata' must have ", num_variables, " columns (same as fitted model), ",
+      "'newdata' must have ", num_variables,
+      " columns (same as fitted model), ",
       "but has ", ncol(newdata), "."
     ))
   }
@@ -1283,7 +1401,13 @@ predict.bgmCompare = function(object,
   } else if(is.character(variables)) {
     predict_vars = match(variables, data_columnnames)
     if(anyNA(predict_vars)) {
-      stop("Variable names not found: ", paste(variables[is.na(predict_vars)], collapse = ", "))
+      stop(
+        "Variable names not found: ",
+        paste(
+          variables[is.na(predict_vars)],
+          collapse = ", "
+        )
+      )
     }
   } else {
     predict_vars = as.integer(variables)
@@ -1293,7 +1417,9 @@ predict.bgmCompare = function(object,
   }
 
   # Recode data to 0-based integers
-  newdata_recoded = recode_data_for_prediction(newdata, num_categories, is_ordinal)
+  newdata_recoded = recode_data_for_prediction(
+    newdata, num_categories, is_ordinal
+  )
 
   if(method == "posterior-mean") {
     # Extract group-specific parameters using projection
@@ -1364,7 +1490,9 @@ predict.bgmCompare = function(object,
 # ==============================================================================
 
 # Helper function to reconstruct threshold matrix from flat vector
-reconstruct_main = function(main_vec, num_variables, num_categories, variable_type) {
+reconstruct_main = function(main_vec, num_variables,
+                            num_categories,
+                            variable_type) {
   if(length(variable_type) == 1) {
     variable_type = rep(variable_type, num_variables)
   }
@@ -1437,7 +1565,7 @@ reconstruct_precision = function(posterior_mean_pairwise, posterior_mean_main) {
 # @param p Number of variables.
 #
 # @return p x p precision matrix (Omega).
-reconstruct_precision_from_draw = function(pairwise_vec, main_vec, p) {
+build_precision_from_draw = function(pairwise_vec, main_vec, p) {
   omega = matrix(0, nrow = p, ncol = p)
   omega[lower.tri(omega)] = pairwise_vec
   omega = omega + t(omega)
@@ -1482,7 +1610,9 @@ predict_bgms_ggm = function(object, newdata, predict_vars, data_columnnames,
     names(result) = data_columnnames[predict_vars]
     for(v in seq_along(result)) {
       colnames(result[[v]]) = c("mean", "sd")
-      result[[v]][, "mean"] = result[[v]][, "mean"] + newdata_means[predict_vars[v]]
+      result[[v]][, "mean"] =
+        result[[v]][, "mean"] +
+        newdata_means[predict_vars[v]]
     }
   } else {
     # Use posterior samples
@@ -1503,7 +1633,7 @@ predict_bgms_ggm = function(object, newdata, predict_vars, data_columnnames,
     for(i in seq_len(ndraws)) {
       idx = draw_indices[i]
 
-      omega = reconstruct_precision_from_draw(
+      omega = build_precision_from_draw(
         pairwise_vec = pairwise_samples[idx, ],
         main_vec = main_samples[idx, ],
         p = num_variables
@@ -1634,4 +1764,562 @@ simulate_bgms_ggm = function(object, nsim, seed, method, ndraws,
 
     return(results)
   }
+}
+
+
+# ==============================================================================
+#   Mixed MRF Simulation Helper
+# ==============================================================================
+
+# ------------------------------------------------------------------
+# simulate_bgms_mixed
+# ------------------------------------------------------------------
+# Simulation implementation for mixed MRF models (called from simulate.bgms).
+#
+# @param object     Fitted bgms object (mixed MRF).
+# @param nsim       Number of observations to simulate.
+# @param seed       Random seed.
+# @param method     "posterior-mean" or "posterior-sample".
+# @param ndraws     Number of posterior draws (for posterior-sample).
+# @param arguments  Output of extract_arguments().
+# @param iter       Gibbs burn-in iterations.
+# @param cores      Number of threads.
+# @param progress_type  Progress bar type.
+#
+# Returns: matrix (posterior-mean) or list of matrices (posterior-sample).
+# ------------------------------------------------------------------
+simulate_bgms_mixed = function(object, nsim, seed, method, ndraws,
+                               arguments, iter, cores, progress_type) {
+  p = arguments$num_discrete
+  q = arguments$num_continuous
+  data_columnnames = arguments$data_columnnames
+  disc_idx = arguments$discrete_indices
+  cont_idx = arguments$continuous_indices
+  num_categories = arguments$num_categories
+  is_ordinal = arguments$is_ordinal
+  baseline_category_disc = arguments$baseline_category
+
+  disc_variable_type = ifelse(is_ordinal, "ordinal", "blume-capel")
+
+  bc = integer(p)
+  for(s in seq_len(p)) {
+    if(is_ordinal[s]) {
+      bc[s] = 0L
+    } else {
+      bc[s] = as.integer(baseline_category_disc[s])
+    }
+  }
+
+  if(method == "posterior-mean") {
+    params = build_mixed_params_mean(object, arguments)
+
+    seed = check_seed(seed)
+
+    result = sample_mixed_mrf_gibbs(
+      num_states = as.integer(nsim),
+      Kxx_r = params$Kxx,
+      Kxy_r = params$Kxy,
+      Kyy_r = params$Kyy,
+      mux_r = params$mux,
+      muy_r = params$muy,
+      num_categories_r = as.integer(num_categories),
+      variable_type_r = disc_variable_type,
+      baseline_category_r = as.integer(bc),
+      iter = as.integer(iter),
+      seed = seed
+    )
+
+    out = combine_mixed_result(result, disc_idx, cont_idx, data_columnnames)
+    return(out)
+  } else {
+    sample_info = split_mixed_raw_samples(object, arguments)
+
+    total_draws = sample_info$total_draws
+    if(is.null(ndraws)) ndraws = total_draws
+    ndraws = min(ndraws, total_draws)
+
+    if(!is.null(seed)) set.seed(seed)
+    draw_indices = sample.int(total_draws, ndraws)
+
+    results = run_mixed_simulation_parallel(
+      mux_samples = sample_info$mux_samples,
+      kxx_samples = sample_info$kxx_samples,
+      muy_samples = sample_info$muy_samples,
+      kyy_samples = sample_info$kyy_samples,
+      kxy_samples = sample_info$kxy_samples,
+      draw_indices = as.integer(draw_indices),
+      num_states = as.integer(nsim),
+      p = as.integer(p),
+      q = as.integer(q),
+      num_categories = as.integer(num_categories),
+      variable_type_r = disc_variable_type,
+      baseline_category = as.integer(bc),
+      iter = as.integer(iter),
+      nThreads = cores,
+      seed = check_seed(seed),
+      progress_type = progress_type
+    )
+
+    for(i in seq_along(results)) {
+      results[[i]] = combine_mixed_result(
+        results[[i]], disc_idx, cont_idx, data_columnnames
+      )
+    }
+
+    return(results)
+  }
+}
+
+
+# ==============================================================================
+#   Mixed MRF Prediction Helper
+# ==============================================================================
+
+# ------------------------------------------------------------------
+# predict_bgms_mixed
+# ------------------------------------------------------------------
+# Prediction implementation for mixed MRF models (called from predict.bgms).
+#
+# @param object       Fitted bgms object (mixed MRF).
+# @param newdata      n x (p+q) matrix of observed data.
+# @param predict_vars 1-based indices into the combined variable list.
+# @param arguments    Output of extract_arguments().
+# @param type         "probabilities" or "response".
+# @param method       "posterior-mean" or "posterior-sample".
+# @param ndraws       Number of posterior draws (for posterior-sample).
+#
+# Returns: Named list of prediction matrices.
+# ------------------------------------------------------------------
+predict_bgms_mixed = function(object, newdata, predict_vars, arguments,
+                              type, method, ndraws) {
+  p = arguments$num_discrete
+  q = arguments$num_continuous
+  data_columnnames = arguments$data_columnnames
+  disc_idx = arguments$discrete_indices
+  cont_idx = arguments$continuous_indices
+  num_categories = arguments$num_categories
+  is_ordinal = arguments$is_ordinal
+  baseline_category_disc = arguments$baseline_category
+
+  disc_variable_type = ifelse(is_ordinal, "ordinal", "blume-capel")
+
+  bc = integer(p)
+  for(s in seq_len(p)) {
+    if(is_ordinal[s]) {
+      bc[s] = 0L
+    } else {
+      bc[s] = as.integer(baseline_category_disc[s])
+    }
+  }
+
+  # Split newdata into discrete and continuous parts
+  x_data = as.matrix(newdata[, disc_idx, drop = FALSE])
+  storage.mode(x_data) = "integer"
+  y_data = as.matrix(newdata[, cont_idx, drop = FALSE])
+  storage.mode(y_data) = "double"
+
+  # Map user predict_vars (1-based, original order) to internal 0-based indices
+  # Internal layout: [discrete_0..p-1, continuous_p..p+q-1]
+  internal_predict_vars = integer(length(predict_vars))
+  for(k in seq_along(predict_vars)) {
+    orig_col = predict_vars[k]
+    disc_match = match(orig_col, disc_idx)
+    cont_match = match(orig_col, cont_idx)
+    if(!is.na(disc_match)) {
+      internal_predict_vars[k] = disc_match - 1L
+    } else if(!is.na(cont_match)) {
+      internal_predict_vars[k] = p + cont_match - 1L
+    } else {
+      stop(
+        "Variable index ", orig_col,
+        " not found in discrete or continuous indices."
+      )
+    }
+  }
+
+  compute_one_draw = function(Kxx, Kxy, Kyy, mux, muy) {
+    compute_conditional_mixed(
+      x_observations = x_data,
+      y_observations = y_data,
+      predict_vars = as.integer(internal_predict_vars),
+      Kxx = Kxx,
+      Kxy = Kxy,
+      Kyy = Kyy,
+      mux = mux,
+      muy = muy,
+      num_categories = as.integer(num_categories),
+      variable_type = disc_variable_type,
+      baseline_category = as.integer(bc)
+    )
+  }
+
+  if(method == "posterior-mean") {
+    params = build_mixed_params_mean(object, arguments)
+    raw_result = compute_one_draw(
+      params$Kxx, params$Kxy, params$Kyy, params$mux, params$muy
+    )
+
+    probs = format_mixed_predictions(
+      raw_result, predict_vars, internal_predict_vars,
+      p, num_categories, data_columnnames
+    )
+  } else {
+    sample_info = split_mixed_raw_samples(object, arguments)
+    total_draws = sample_info$total_draws
+    if(is.null(ndraws)) ndraws = total_draws
+    ndraws = min(ndraws, total_draws)
+
+    draw_indices = sample.int(total_draws, ndraws)
+
+    all_results = vector("list", ndraws)
+    for(i in seq_len(ndraws)) {
+      params_i = build_mixed_params_row(
+        sample_info, draw_indices[i], p, q, num_categories, is_ordinal
+      )
+      all_results[[i]] = compute_one_draw(
+        params_i$Kxx, params_i$Kxy, params_i$Kyy, params_i$mux, params_i$muy
+      )
+    }
+
+    # Average predictions across draws
+    num_pv = length(predict_vars)
+    probs = vector("list", num_pv)
+    probs_sd = vector("list", num_pv)
+    names(probs) = data_columnnames[predict_vars]
+    names(probs_sd) = data_columnnames[predict_vars]
+
+    for(k in seq_len(num_pv)) {
+      # Stack all draws into an array: n x ncol x ndraws
+      var_preds = lapply(all_results, `[[`, k)
+      pred_array = array(unlist(var_preds),
+        dim = c(nrow(var_preds[[1]]), ncol(var_preds[[1]]), ndraws)
+      )
+
+      probs[[k]] = apply(pred_array, c(1, 2), mean)
+      probs_sd[[k]] = apply(pred_array, c(1, 2), sd)
+    }
+
+    probs = format_mixed_predictions(
+      probs, predict_vars, internal_predict_vars,
+      p, num_categories, data_columnnames
+    )
+    names(probs_sd) = names(probs)
+    attr(probs, "sd") = probs_sd
+  }
+
+  if(type == "response") {
+    return(format_mixed_response(
+      probs, predict_vars, internal_predict_vars,
+      p, data_columnnames
+    ))
+  }
+
+  return(probs)
+}
+
+
+# ==============================================================================
+#   Mixed MRF Internal Helpers
+# ==============================================================================
+
+# ------------------------------------------------------------------
+# build_mixed_params_mean
+# ------------------------------------------------------------------
+# Reconstruct Kxx, Kxy, Kyy, mux, muy from posterior mean summaries.
+#
+# @param object     Fitted bgms object (mixed MRF).
+# @param arguments  Output of extract_arguments().
+#
+# Returns: list with Kxx, Kxy, Kyy, mux, muy.
+# ------------------------------------------------------------------
+build_mixed_params_mean = function(object, arguments) {
+  p = arguments$num_discrete
+  q = arguments$num_continuous
+  disc_idx = arguments$discrete_indices
+  cont_idx = arguments$continuous_indices
+
+  pmat = object$posterior_mean_pairwise
+
+  Kxx = matrix(0, p, p)
+  for(i in seq_len(p)) {
+    for(j in seq_len(p)) {
+      if(i != j) Kxx[i, j] = pmat[disc_idx[i], disc_idx[j]]
+    }
+  }
+
+  Kxy = matrix(0, p, q)
+  for(i in seq_len(p)) {
+    for(j in seq_len(q)) {
+      Kxy[i, j] = pmat[disc_idx[i], cont_idx[j]]
+    }
+  }
+
+  Kyy = matrix(0, q, q)
+  for(i in seq_len(q)) {
+    for(j in seq_len(q)) {
+      if(i != j) Kyy[i, j] = pmat[cont_idx[i], cont_idx[j]]
+    }
+  }
+  for(j in seq_len(q)) {
+    Kyy[j, j] = object$posterior_mean_main$continuous[j, "precision"]
+  }
+
+  mux = object$posterior_mean_main$discrete
+  mux[is.na(mux)] = 0
+
+  muy = object$posterior_mean_main$continuous[, "mean"]
+
+  list(Kxx = Kxx, Kxy = Kxy, Kyy = Kyy, mux = mux, muy = muy)
+}
+
+
+# ------------------------------------------------------------------
+# split_mixed_raw_samples
+# ------------------------------------------------------------------
+# Split raw main and pairwise sample matrices into separate component
+# matrices for the C++ parallel simulation worker.
+#
+# @param object     Fitted bgms object (mixed MRF).
+# @param arguments  Output of extract_arguments().
+#
+# Returns: list with mux_samples, kxx_samples, muy_samples,
+#   kyy_samples, kxy_samples, total_draws.
+# ------------------------------------------------------------------
+split_mixed_raw_samples = function(object, arguments) {
+  p = arguments$num_discrete
+  q = arguments$num_continuous
+  num_categories = arguments$num_categories
+  is_ordinal = arguments$is_ordinal
+
+  main_all = do.call(rbind, object$raw_samples$main)
+  pairwise_all = do.call(rbind, object$raw_samples$pairwise)
+  total_draws = nrow(main_all)
+
+  # Main layout: [mux_flat | muy | kyy_diag]
+  num_mux = sum(ifelse(is_ordinal, num_categories, 2L))
+  mux_cols = seq_len(num_mux)
+  muy_cols = num_mux + seq_len(q)
+  kyy_diag_cols = num_mux + q + seq_len(q)
+
+  mux_samples = main_all[, mux_cols, drop = FALSE]
+  muy_samples = main_all[, muy_cols, drop = FALSE]
+  kyy_diag_values = main_all[, kyy_diag_cols, drop = FALSE]
+
+  # Pairwise layout: [kxx_ut | kyy_offdiag | kxy]
+  nxx = as.integer(p * (p - 1) / 2)
+  nyy_offdiag = as.integer(q * (q - 1) / 2)
+  nxy = as.integer(p * q)
+
+  kyy_off_end = nxx + nyy_offdiag
+  kxy_end = kyy_off_end + nxy
+
+  kxx_samples = if(nxx > 0) {
+    pairwise_all[, seq_len(nxx), drop = FALSE]
+  } else {
+    matrix(0, nrow = total_draws, ncol = 0)
+  }
+
+  kyy_offdiag_values = if(nyy_offdiag > 0) {
+    pairwise_all[, (nxx + 1):kyy_off_end, drop = FALSE]
+  } else {
+    matrix(0, nrow = total_draws, ncol = 0)
+  }
+
+  kxy_samples = if(nxy > 0) {
+    pairwise_all[, (kyy_off_end + 1):kxy_end, drop = FALSE]
+  } else {
+    matrix(0, nrow = total_draws, ncol = 0)
+  }
+
+  # Combine Kyy diagonal and off-diagonal into upper-triangle format
+  # C++ expects column-major upper-triangle including diagonal
+  nyy_total = as.integer(q * (q + 1) / 2)
+  kyy_samples = matrix(0, nrow = total_draws, ncol = nyy_total)
+  diag_pos = 0L
+  offdiag_pos = 0L
+  out_pos = 0L
+  for(col in seq_len(q)) {
+    for(row in col:q) {
+      out_pos = out_pos + 1L
+      if(row == col) {
+        diag_pos = diag_pos + 1L
+        kyy_samples[, out_pos] = kyy_diag_values[, diag_pos]
+      } else {
+        offdiag_pos = offdiag_pos + 1L
+        kyy_samples[, out_pos] = kyy_offdiag_values[, offdiag_pos]
+      }
+    }
+  }
+
+  list(
+    mux_samples = mux_samples,
+    kxx_samples = kxx_samples,
+    muy_samples = muy_samples,
+    kyy_samples = kyy_samples,
+    kxy_samples = kxy_samples,
+    total_draws = total_draws
+  )
+}
+
+
+# ------------------------------------------------------------------
+# build_mixed_params_row
+# ------------------------------------------------------------------
+# Reconstruct Kxx, Kxy, Kyy, mux, muy from a single row of split
+# sample matrices (used by predict posterior-sample).
+#
+# @param sample_info  Output of split_mixed_raw_samples().
+# @param row_idx      1-based row index.
+# @param p            Number of discrete variables.
+# @param q            Number of continuous variables.
+# @param num_categories  Categories per discrete variable.
+# @param is_ordinal   Logical vector.
+#
+# Returns: list with Kxx, Kxy, Kyy, mux, muy.
+# ------------------------------------------------------------------
+build_mixed_params_row = function(sample_info, row_idx,
+                                  p, q, num_categories,
+                                  is_ordinal) {
+  mux_vec = sample_info$mux_samples[row_idx, ]
+  num_params_disc = ifelse(is_ordinal, num_categories, 2L)
+  max_cats = max(num_params_disc)
+  mux = matrix(0, nrow = p, ncol = max_cats)
+  pos = 1L
+  for(s in seq_len(p)) {
+    nc = num_params_disc[s]
+    mux[s, seq_len(nc)] = mux_vec[pos:(pos + nc - 1L)]
+    pos = pos + nc
+  }
+
+  Kxx = matrix(0, p, p)
+  if(p > 1) {
+    kxx_vec = sample_info$kxx_samples[row_idx, ]
+    idx = 0L
+    for(col in seq_len(p - 1)) {
+      for(row in (col + 1):p) {
+        idx = idx + 1L
+        Kxx[row, col] = kxx_vec[idx]
+        Kxx[col, row] = kxx_vec[idx]
+      }
+    }
+  }
+
+  muy = sample_info$muy_samples[row_idx, ]
+
+  kyy_vec = sample_info$kyy_samples[row_idx, ]
+  Kyy = matrix(0, q, q)
+  idx = 0L
+  for(col in seq_len(q)) {
+    for(row in col:q) {
+      idx = idx + 1L
+      Kyy[row, col] = kyy_vec[idx]
+      if(row != col) Kyy[col, row] = kyy_vec[idx]
+    }
+  }
+
+  Kxy = matrix(0, p, q)
+  if(p > 0 && q > 0) {
+    kxy_vec = sample_info$kxy_samples[row_idx, ]
+    idx = 0L
+    for(s in seq_len(p)) {
+      for(j in seq_len(q)) {
+        idx = idx + 1L
+        Kxy[s, j] = kxy_vec[idx]
+      }
+    }
+  }
+
+  list(Kxx = Kxx, Kxy = Kxy, Kyy = Kyy, mux = mux, muy = muy)
+}
+
+
+# ------------------------------------------------------------------
+# combine_mixed_result
+# ------------------------------------------------------------------
+# Combine $x (n x p integer) and $y (n x q double) into a single
+# n x (p+q) matrix in the original column order.
+#
+# @param result    List with $x and $y matrices.
+# @param disc_idx  Original column indices for discrete variables.
+# @param cont_idx  Original column indices for continuous variables.
+# @param colnames  Original data column names.
+#
+# Returns: n x (p+q) numeric matrix.
+# ------------------------------------------------------------------
+combine_mixed_result = function(result, disc_idx, cont_idx, colnames) {
+  n = nrow(result$x)
+  num_vars = length(disc_idx) + length(cont_idx)
+  out = matrix(NA_real_, nrow = n, ncol = num_vars)
+  out[, disc_idx] = result$x
+  out[, cont_idx] = result$y
+  colnames(out) = colnames
+  out
+}
+
+
+# ------------------------------------------------------------------
+# format_mixed_predictions
+# ------------------------------------------------------------------
+# Add names and column labels to C++ prediction output.
+#
+# @param raw_result         List from C++ compute_conditional_mixed.
+# @param predict_vars       1-based user-facing variable indices.
+# @param internal_predict_vars  0-based internal indices.
+# @param p                  Number of discrete variables.
+# @param num_categories     Categories per discrete variable.
+# @param data_columnnames   Original data column names.
+#
+# Returns: Named list of prediction matrices.
+# ------------------------------------------------------------------
+format_mixed_predictions = function(raw_result, predict_vars,
+                                    internal_predict_vars, p,
+                                    num_categories, data_columnnames) {
+  probs = raw_result
+  names(probs) = data_columnnames[predict_vars]
+
+  for(k in seq_along(predict_vars)) {
+    int_idx = internal_predict_vars[k]
+    if(int_idx < p) {
+      s = int_idx + 1L
+      n_cats = num_categories[s] + 1
+      colnames(probs[[k]]) = paste0("cat_", 0:(n_cats - 1))
+    } else {
+      colnames(probs[[k]]) = c("mean", "sd")
+    }
+  }
+
+  probs
+}
+
+
+# ------------------------------------------------------------------
+# format_mixed_response
+# ------------------------------------------------------------------
+# Convert probability predictions to point predictions for mixed models.
+#
+# @param probs              Named list of prediction matrices.
+# @param predict_vars       1-based user-facing variable indices.
+# @param internal_predict_vars  0-based internal indices.
+# @param p                  Number of discrete variables.
+# @param data_columnnames   Original data column names.
+#
+# Returns: n x length(predict_vars) matrix of predicted values.
+# ------------------------------------------------------------------
+format_mixed_response = function(probs, predict_vars,
+                                 internal_predict_vars, p,
+                                 data_columnnames) {
+  n = nrow(probs[[1]])
+  out = matrix(NA_real_, nrow = n, ncol = length(predict_vars))
+  colnames(out) = data_columnnames[predict_vars]
+
+  for(k in seq_along(predict_vars)) {
+    int_idx = internal_predict_vars[k]
+    if(int_idx < p) {
+      out[, k] = apply(probs[[k]], 1, which.max) - 1L
+    } else {
+      out[, k] = probs[[k]][, 1]
+    }
+  }
+
+  out
 }

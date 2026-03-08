@@ -33,7 +33,8 @@
 }}
 
 \item{ndraws}{Number of posterior draws to use when
-\code{method = "posterior-sample"}. If \code{NULL}, uses all available draws.}
+\code{method = "posterior-sample"}. If \code{NULL},
+uses all available draws.}
 
 \item{iter}{Number of Gibbs iterations for equilibration before collecting
 samples. Default: \code{1000}.}
@@ -54,14 +55,20 @@ If \code{method = "posterior-mean"}: A matrix with \code{nsim} rows and
 
 If \code{method = "posterior-sample"}: A list of matrices, one per posterior
 draw, each with \code{nsim} rows and \code{p} columns.
+
+For mixed MRF models, discrete columns contain non-negative integers and
+continuous columns contain real-valued observations, ordered as in the
+original data.
 }
 \description{
 Generates new observations from the Markov Random Field model using the
-estimated parameters from a fitted \code{bgms} object.
+estimated parameters from a fitted \code{bgms} object. Supports ordinal,
+Blume-Capel, continuous (GGM), and mixed MRF models.
 }
 \details{
-This function uses the estimated interaction and threshold parameters to
-generate new data via Gibbs sampling. When \code{method = "posterior-sample"},
+This function uses the estimated interaction and threshold
+parameters to generate new data via Gibbs sampling. When
+\code{method = "posterior-sample"}, parameter uncertainty is
 parameter uncertainty is propagated to the simulated data by using different
 posterior draws. Parallel processing is available for this method via the
 \code{cores} argument.
@@ -75,7 +82,11 @@ fit = bgm(x = Wenchuan[, 1:5], chains = 2)
 new_data = simulate(fit, nsim = 100)
 
 # Simulate with parameter uncertainty (10 datasets)
-new_data_list = simulate(fit, nsim = 100, method = "posterior-sample", ndraws = 10)
+new_data_list = simulate(
+  fit,
+  nsim = 100,
+  method = "posterior-sample", ndraws = 10
+)
 
 # Use parallel processing for faster simulation
 new_data_list = simulate(fit,

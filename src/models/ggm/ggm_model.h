@@ -3,6 +3,7 @@
 #include <array>
 #include <memory>
 #include "models/base_model.h"
+#include "math/cholesky_helpers.h"
 #include "rng/rng_utils.h"
 
 
@@ -388,17 +389,7 @@ private:
      */
     void get_constants(size_t i, size_t j);
 
-    /**
-     * Compute the (ii, jj) entry of the Schur complement of A with
-     * row/column i eliminated.
-     *
-     * @param A   Symmetric matrix
-     * @param i   Index of the eliminated row/column
-     * @param ii  Row index of the desired entry
-     * @param jj  Column index of the desired entry
-     * @return    A(ii,jj) - A(ii,i) * A(jj,i) / A(i,i)
-     */
-    double compute_inv_submatrix_i(const arma::mat& A, const size_t i, const size_t ii, const size_t jj) const;
+
 
     /**
      * Return the diagonal value omega_jj required to keep the precision
@@ -434,12 +425,7 @@ private:
      */
     double log_density_impl_diag(size_t j) const;
 
-    /**
-     * Compute log-determinant from a triangular matrix: 2 * sum(log(diag)).
-     *
-     * @param triangular_A  Upper-triangular Cholesky factor
-     */
-    double get_log_det(arma::mat triangular_A) const;
+
 
     /**
      * Update the Cholesky factor after changing an off-diagonal element.

@@ -17,51 +17,49 @@
 
 
 
-/**
- * Imputes missing observations for the bgmCompare model.
- *
- * This function performs single imputation of missing values during Gibbs sampling.
- * Each missing entry is resampled from its conditional distribution given:
- *   - the current main and pairwise effect parameters,
- *   - the observed data for that individual,
- *   - group-specific sufficient statistics.
- *
- * Workflow:
- *  1. For each missing entry, identify its (person, variable, group).
- *  2. Compute group-specific main and pairwise effects via projections.
- *  3. Calculate unnormalized probabilities for all categories of the variable:
- *     - Ordinal: softmax using category-specific thresholds.
- *     - Blume–Capel: quadratic + linear score with baseline centering.
- *  4. Sample a new category with inverse transform sampling.
- *  5. If the imputed value differs from the old one, update:
- *       - `observations` (raw data matrix),
- *       - `counts_per_category` or `blume_capel_stats` (main-effect sufficient stats),
- *       - `pairwise_stats` (pairwise sufficient stats).
- *
- * Inputs:
- *  - main_effects, pairwise_effects: Current parameter matrices.
- *  - main_effect_indices, pairwise_effect_indices: Lookup tables for variable/pair rows.
- *  - inclusion_indicator: Indicates which differences/pairs are included.
- *  - projection: Group projection matrix.
- *  - observations: Data matrix [persons × variables]; updated in place.
- *  - num_groups: Number of groups.
- *  - group_membership: Group assignment for each person.
- *  - group_indices: Row ranges [start,end] for each group.
- *  - counts_per_category: Group-level sufficient statistics for ordinal variables.
- *  - blume_capel_stats: Group-level sufficient statistics for Blume–Capel variables.
- *  - pairwise_stats: Group-level sufficient statistics for pairwise interactions.
- *  - num_categories: Number of categories for each variable in each group.
- *  - missing_data_indices: Matrix of (person, variable) pairs with missing values.
- *  - is_ordinal_variable: Indicator vector (1 = ordinal, 0 = Blume–Capel).
- *  - baseline_category: Reference categories for Blume–Capel variables.
- *  - rng: Random number generator.
- *
- * Notes:
- *  - The function updates both raw data and sufficient statistics in-place.
- *  - Group-specific pairwise effects are recomputed per missing entry.
- *  - For efficiency, you may consider incremental updates to `pairwise_stats`
- *    instead of full recomputation (`obs.t() * obs`) after each change.
- */
+// Imputes missing observations for the bgmCompare model.
+//
+// This function performs single imputation of missing values during Gibbs sampling.
+// Each missing entry is resampled from its conditional distribution given:
+//   - the current main and pairwise effect parameters,
+//   - the observed data for that individual,
+//   - group-specific sufficient statistics.
+//
+// Workflow:
+//  1. For each missing entry, identify its (person, variable, group).
+//  2. Compute group-specific main and pairwise effects via projections.
+//  3. Calculate unnormalized probabilities for all categories of the variable:
+//     - Ordinal: softmax using category-specific thresholds.
+//     - Blume–Capel: quadratic + linear score with baseline centering.
+//  4. Sample a new category with inverse transform sampling.
+//  5. If the imputed value differs from the old one, update:
+//       - `observations` (raw data matrix),
+//       - `counts_per_category` or `blume_capel_stats` (main-effect sufficient stats),
+//       - `pairwise_stats` (pairwise sufficient stats).
+//
+// Inputs:
+//  - main_effects, pairwise_effects: Current parameter matrices.
+//  - main_effect_indices, pairwise_effect_indices: Lookup tables for variable/pair rows.
+//  - inclusion_indicator: Indicates which differences/pairs are included.
+//  - projection: Group projection matrix.
+//  - observations: Data matrix [persons × variables]; updated in place.
+//  - num_groups: Number of groups.
+//  - group_membership: Group assignment for each person.
+//  - group_indices: Row ranges [start,end] for each group.
+//  - counts_per_category: Group-level sufficient statistics for ordinal variables.
+//  - blume_capel_stats: Group-level sufficient statistics for Blume–Capel variables.
+//  - pairwise_stats: Group-level sufficient statistics for pairwise interactions.
+//  - num_categories: Number of categories for each variable in each group.
+//  - missing_data_indices: Matrix of (person, variable) pairs with missing values.
+//  - is_ordinal_variable: Indicator vector (1 = ordinal, 0 = Blume–Capel).
+//  - baseline_category: Reference categories for Blume–Capel variables.
+//  - rng: Random number generator.
+//
+// Notes:
+//  - The function updates both raw data and sufficient statistics in-place.
+//  - Group-specific pairwise effects are recomputed per missing entry.
+//  - For efficiency, you may consider incremental updates to `pairwise_stats`
+//    instead of full recomputation (`obs.t() * obs`) after each change.
 void impute_missing_bgmcompare(
     const arma::mat& main_effects,
     const arma::mat& pairwise_effects,
@@ -188,58 +186,56 @@ void impute_missing_bgmcompare(
 
 
 
-/**
- * Updates main effect parameters in bgmCompare using a random-walk Metropolis step.
- *
- * For each variable, the function proposes new parameter values for either:
- *   - all categories (ordinal variables), or
- *   - two parameters (linear and quadratic, Blume–Capel variables).
- *
- * If group-specific differences are enabled (`inclusion_indicator(v,v) == 1`),
- * additional parameters (one per group contrast) are also updated.
- *
- * Each proposed parameter is evaluated via
- * `log_pseudoposterior_main_component()`, and accepted/rejected using
- * the Metropolis–Hastings rule. Proposal standard deviations are adapted
- * online with `MetropolisAdaptationController`.
- *
- * Workflow:
- *  1. Iterate over all variables.
- *  2. For each category (ordinal) or parameter (Blume–Capel):
- *      - Update the "overall" effect (h=0).
- *      - Optionally update group-difference effects (h=1..G-1).
- *  3. Record acceptance probabilities and update adaptation statistics.
- *
- * Inputs:
- *  - main_effects: Matrix of main effect parameters [rows = effects, cols = groups];
- *                  updated in place.
- *  - pairwise_effects: Current pairwise effects (passed through to log posterior).
- *  - main_effect_indices: Row index ranges for each variable’s main effects.
- *  - pairwise_effect_indices: Index map for pairwise effects.
- *  - inclusion_indicator: Indicator matrix; diagonal entries control group differences.
- *  - projection: Group projection matrix.
- *  - num_categories: Number of categories for each variable.
- *  - observations: Data matrix [persons × variables].
- *  - num_groups: Number of groups (G).
- *  - group_indices: Row ranges per group in `observations`.
- *  - counts_per_category, blume_capel_stats: Group-specific sufficient statistics.
- *  - is_ordinal_variable: Indicator for ordinal vs. Blume–Capel.
- *  - baseline_category: Reference categories (Blume–Capel only).
- *  - difference_scale: Scale parameter for group difference priors.
- *  - main_alpha, main_beta: Parameters for the Beta prior on main effects.
- *  - iteration: Current iteration index (for adaptation).
- *  - rwm_adapt: Adaptation controller for proposal SDs.
- *  - rng: Random number generator.
- *  - proposal_sd_main: Proposal standard deviations [same shape as `main_effects`];
- *                      updated in place.
- *
- * Notes:
- *  - Acceptance probabilities are stored per parameter and fed to `metropolis_adapt.update()`.
- *  - This function does not alter pairwise effects, but passes them into
- *    the posterior for likelihood consistency.
- *  - The helper lambda `do_update` encapsulates the proposal/accept/revert loop
- *    for a single parameter, improving readability.
- */
+// Updates main effect parameters in bgmCompare using a random-walk Metropolis step.
+//
+// For each variable, the function proposes new parameter values for either:
+//   - all categories (ordinal variables), or
+//   - two parameters (linear and quadratic, Blume–Capel variables).
+//
+// If group-specific differences are enabled (`inclusion_indicator(v,v) == 1`),
+// additional parameters (one per group contrast) are also updated.
+//
+// Each proposed parameter is evaluated via
+// `log_pseudoposterior_main_component()`, and accepted/rejected using
+// the Metropolis–Hastings rule. Proposal standard deviations are adapted
+// online with `MetropolisAdaptationController`.
+//
+// Workflow:
+//  1. Iterate over all variables.
+//  2. For each category (ordinal) or parameter (Blume–Capel):
+//      - Update the "overall" effect (h=0).
+//      - Optionally update group-difference effects (h=1..G-1).
+//  3. Record acceptance probabilities and update adaptation statistics.
+//
+// Inputs:
+//  - main_effects: Matrix of main effect parameters [rows = effects, cols = groups];
+//                  updated in place.
+//  - pairwise_effects: Current pairwise effects (passed through to log posterior).
+//  - main_effect_indices: Row index ranges for each variable’s main effects.
+//  - pairwise_effect_indices: Index map for pairwise effects.
+//  - inclusion_indicator: Indicator matrix; diagonal entries control group differences.
+//  - projection: Group projection matrix.
+//  - num_categories: Number of categories for each variable.
+//  - observations: Data matrix [persons × variables].
+//  - num_groups: Number of groups (G).
+//  - group_indices: Row ranges per group in `observations`.
+//  - counts_per_category, blume_capel_stats: Group-specific sufficient statistics.
+//  - is_ordinal_variable: Indicator for ordinal vs. Blume–Capel.
+//  - baseline_category: Reference categories (Blume–Capel only).
+//  - difference_scale: Scale parameter for group difference priors.
+//  - main_alpha, main_beta: Parameters for the Beta prior on main effects.
+//  - iteration: Current iteration index (for adaptation).
+//  - rwm_adapt: Adaptation controller for proposal SDs.
+//  - rng: Random number generator.
+//  - proposal_sd_main: Proposal standard deviations [same shape as `main_effects`];
+//                      updated in place.
+//
+// Notes:
+//  - Acceptance probabilities are stored per parameter and fed to `metropolis_adapt.update()`.
+//  - This function does not alter pairwise effects, but passes them into
+//    the posterior for likelihood consistency.
+//  - The helper lambda `do_update` encapsulates the proposal/accept/revert loop
+//    for a single parameter, improving readability.
 void update_main_effects_metropolis_bgmcompare (
     arma::mat& main_effects,
     arma::mat& pairwise_effects,
@@ -324,57 +320,55 @@ void update_main_effects_metropolis_bgmcompare (
 
 
 
-/**
- * Updates pairwise interaction parameters in bgmCompare using a random-walk
- * Metropolis step.
- *
- * For each variable pair (var1,var2), the function proposes new parameter
- * values for:
- *   - the overall interaction (h=0), and
- *   - optionally group-difference effects (h=1..G-1) if enabled in
- *     `inclusion_indicator`.
- *
- * Each proposed parameter is evaluated via
- * `log_pseudoposterior_pair_component()`, and accepted/rejected using the
- * Metropolis–Hastings rule. Proposal standard deviations are adapted online
- * through `MetropolisAdaptationController`.
- *
- * Workflow:
- *  1. Iterate over all unique pairs of variables.
- *  2. For each pair, update the overall effect (h=0).
- *  3. If group differences are active, update group-specific difference
- *     effects (h=1..G-1).
- *  4. Record acceptance probabilities and update proposal SDs via `rwm_adapt`.
- *
- * Inputs:
- *  - main_effects: Matrix of main effect parameters (passed through to log posterior).
- *  - pairwise_effects: Matrix of pairwise interaction parameters [rows = pairs, cols = groups];
- *                      updated in place.
- *  - main_effect_indices: Index map for main effects (per variable).
- *  - pairwise_effect_indices: Row index map for pairwise effects (per var1,var2).
- *  - inclusion_indicator: Indicator matrix; off-diagonal entries control group differences.
- *  - projection: Group projection matrix.
- *  - num_categories: Number of categories per variable.
- *  - observations: Data matrix [persons × variables].
- *  - num_groups: Number of groups (G).
- *  - group_indices: Row ranges per group in `observations`.
- *  - pairwise_stats: Group-specific sufficient statistics for pairwise effects.
- *  - is_ordinal_variable: Indicator for ordinal vs. Blume–Capel variables.
- *  - baseline_category: Reference categories (Blume–Capel only).
- *  - pairwise_scale: Scale parameter for overall interaction prior.
- *  - difference_scale: Scale parameter for group difference priors.
- *  - iteration: Current iteration index (for adaptation).
- *  - rwm_adapt: Adaptation controller for proposal SDs.
- *  - rng: Random number generator.
- *  - proposal_sd_pair: Proposal standard deviations [same shape as `pairwise_effects`];
- *                      updated in place.
- *
- * Notes:
- *  - Acceptance probabilities are tracked per parameter and fed to
- *    `metropolis_adapt.update()`.
- *  - The helper lambda `do_update` encapsulates the proposal/accept/reject
- *    logic for a single parameter.
- */
+// Updates pairwise interaction parameters in bgmCompare using a random-walk
+// Metropolis step.
+//
+// For each variable pair (var1,var2), the function proposes new parameter
+// values for:
+//   - the overall interaction (h=0), and
+//   - optionally group-difference effects (h=1..G-1) if enabled in
+//     `inclusion_indicator`.
+//
+// Each proposed parameter is evaluated via
+// `log_pseudoposterior_pair_component()`, and accepted/rejected using the
+// Metropolis–Hastings rule. Proposal standard deviations are adapted online
+// through `MetropolisAdaptationController`.
+//
+// Workflow:
+//  1. Iterate over all unique pairs of variables.
+//  2. For each pair, update the overall effect (h=0).
+//  3. If group differences are active, update group-specific difference
+//     effects (h=1..G-1).
+//  4. Record acceptance probabilities and update proposal SDs via `rwm_adapt`.
+//
+// Inputs:
+//  - main_effects: Matrix of main effect parameters (passed through to log posterior).
+//  - pairwise_effects: Matrix of pairwise interaction parameters [rows = pairs, cols = groups];
+//                      updated in place.
+//  - main_effect_indices: Index map for main effects (per variable).
+//  - pairwise_effect_indices: Row index map for pairwise effects (per var1,var2).
+//  - inclusion_indicator: Indicator matrix; off-diagonal entries control group differences.
+//  - projection: Group projection matrix.
+//  - num_categories: Number of categories per variable.
+//  - observations: Data matrix [persons × variables].
+//  - num_groups: Number of groups (G).
+//  - group_indices: Row ranges per group in `observations`.
+//  - pairwise_stats: Group-specific sufficient statistics for pairwise effects.
+//  - is_ordinal_variable: Indicator for ordinal vs. Blume–Capel variables.
+//  - baseline_category: Reference categories (Blume–Capel only).
+//  - pairwise_scale: Scale parameter for overall interaction prior.
+//  - difference_scale: Scale parameter for group difference priors.
+//  - iteration: Current iteration index (for adaptation).
+//  - rwm_adapt: Adaptation controller for proposal SDs.
+//  - rng: Random number generator.
+//  - proposal_sd_pair: Proposal standard deviations [same shape as `pairwise_effects`];
+//                      updated in place.
+//
+// Notes:
+//  - Acceptance probabilities are tracked per parameter and fed to
+//    `metropolis_adapt.update()`.
+//  - The helper lambda `do_update` encapsulates the proposal/accept/reject
+//    logic for a single parameter.
 void update_pairwise_effects_metropolis_bgmcompare (
     arma::mat& main_effects,
     arma::mat& pairwise_effects,
@@ -489,54 +483,52 @@ void update_pairwise_effects_metropolis_bgmcompare (
 
 
 
-/**
- * Heuristically determine an initial HMC/NUTS step size for bgmCompare.
- *
- * This function vectorizes the current model parameters, then repeatedly
- * simulates short HMC trajectories to calibrate a stable starting step size
- * that achieves a target acceptance rate.
- *
- * Workflow:
- *  1. Vectorize current parameters into a single state vector.
- *  2. Define closures for log-posterior evaluation and gradient computation:
- *     - `log_post`: unpacks parameters and evaluates the log pseudoposterior.
- *     - `grad`: unpacks parameters and evaluates the gradient of the
- *       pseudoposterior.
- *  3. Pass these to `heuristic_initial_step_size`, which runs the heuristic
- *     tuning loop.
- *
- * Inputs:
- *  - main_effects: Matrix of main-effect parameters [n_main_rows × G].
- *  - pairwise_effects: Matrix of pairwise interaction parameters [n_pairs × G].
- *  - main_effect_indices: Row index ranges for each variable’s main effects.
- *  - pairwise_effect_indices: Row index map for pairwise effects.
- *  - inclusion_indicator: Matrix marking which main and pairwise differences
- *                         are active.
- *  - projection: Group projection matrix (encodes contrasts).
- *  - num_categories: Number of categories per variable [V].
- *  - observations: Data matrix [persons × variables].
- *  - num_groups: Number of groups (G).
- *  - group_indices: Row ranges per group in `observations`.
- *  - counts_per_category: Per-group sufficient statistics for ordinal variables.
- *  - blume_capel_stats: Per-group sufficient statistics for Blume–Capel variables.
- *  - pairwise_stats: Per-group sufficient statistics for pairwise effects.
- *  - is_ordinal_variable: Indicator for ordinal vs. Blume–Capel variables [V].
- *  - baseline_category: Reference categories for Blume–Capel variables [V].
- *  - pairwise_scale: Scale parameter for overall pairwise priors.
- *  - difference_scale: Scale parameter for group difference priors.
- *  - main_alpha, main_beta: Hyperparameters for Beta prior on main effects.
- *  - target_acceptance: Desired acceptance probability (e.g. 0.8).
- *  - rng: Random number generator.
- *
- * Returns:
- *  - A double value for the initial HMC/NUTS step size.
- *
- * Notes:
- *  - This routine is only used during warmup to initialize
- *    `HMCAdaptationController`.
- *  - Correct indexing of parameters relies on `build_index_maps` to ensure
- *    consistency between vectorization and gradient computation.
- */
+// Heuristically determine an initial HMC/NUTS step size for bgmCompare.
+//
+// This function vectorizes the current model parameters, then repeatedly
+// simulates short HMC trajectories to calibrate a stable starting step size
+// that achieves a target acceptance rate.
+//
+// Workflow:
+//  1. Vectorize current parameters into a single state vector.
+//  2. Define closures for log-posterior evaluation and gradient computation:
+//     - `log_post`: unpacks parameters and evaluates the log pseudoposterior.
+//     - `grad`: unpacks parameters and evaluates the gradient of the
+//       pseudoposterior.
+//  3. Pass these to `heuristic_initial_step_size`, which runs the heuristic
+//     tuning loop.
+//
+// Inputs:
+//  - main_effects: Matrix of main-effect parameters [n_main_rows × G].
+//  - pairwise_effects: Matrix of pairwise interaction parameters [n_pairs × G].
+//  - main_effect_indices: Row index ranges for each variable’s main effects.
+//  - pairwise_effect_indices: Row index map for pairwise effects.
+//  - inclusion_indicator: Matrix marking which main and pairwise differences
+//                         are active.
+//  - projection: Group projection matrix (encodes contrasts).
+//  - num_categories: Number of categories per variable [V].
+//  - observations: Data matrix [persons × variables].
+//  - num_groups: Number of groups (G).
+//  - group_indices: Row ranges per group in `observations`.
+//  - counts_per_category: Per-group sufficient statistics for ordinal variables.
+//  - blume_capel_stats: Per-group sufficient statistics for Blume–Capel variables.
+//  - pairwise_stats: Per-group sufficient statistics for pairwise effects.
+//  - is_ordinal_variable: Indicator for ordinal vs. Blume–Capel variables [V].
+//  - baseline_category: Reference categories for Blume–Capel variables [V].
+//  - pairwise_scale: Scale parameter for overall pairwise priors.
+//  - difference_scale: Scale parameter for group difference priors.
+//  - main_alpha, main_beta: Hyperparameters for Beta prior on main effects.
+//  - target_acceptance: Desired acceptance probability (e.g. 0.8).
+//  - rng: Random number generator.
+//
+// Returns:
+//  - A double value for the initial HMC/NUTS step size.
+//
+// Notes:
+//  - This routine is only used during warmup to initialize
+//    `HMCAdaptationController`.
+//  - Correct indexing of parameters relies on `build_index_maps` to ensure
+//    consistency between vectorization and gradient computation.
 double find_initial_stepsize_bgmcompare(
     arma::mat& main_effects,
     arma::mat& pairwise_effects,
@@ -629,52 +621,50 @@ double find_initial_stepsize_bgmcompare(
 
 
 
-/**
- * Perform one Hamiltonian Monte Carlo (HMC) update step for the bgmCompare model.
- *
- * The function:
- *  1. Vectorizes the current parameter state (main + pairwise effects).
- *  2. Defines closures for log-posterior evaluation and gradient calculation.
- *  3. Applies HMC with fixed leapfrog steps to propose a new state.
- *  4. Unpacks the accepted state back into main and pairwise matrices.
- *  5. Updates the adaptation controller with acceptance information.
- *
- * Inputs:
- *  - main_effects, pairwise_effects: Current parameter matrices, updated in place.
- *  - main_effect_indices, pairwise_effect_indices: Index maps for parameters.
- *  - inclusion_indicator: Indicates active main and pairwise differences.
- *  - projection: Group projection matrix for contrasts.
- *  - num_categories: Number of categories per variable [V].
- *  - observations: Data matrix [N × V].
- *  - num_groups: Number of groups.
- *  - group_indices: Row ranges for each group in `observations`.
- *  - counts_per_category, blume_capel_stats: Per-group sufficient statistics.
- *  - pairwise_stats: Per-group pairwise sufficient statistics.
- *  - is_ordinal_variable: Marks ordinal vs. Blume–Capel variables.
- *  - baseline_category: Reference categories for Blume–Capel variables.
- *  - pairwise_scale: Scale of overall pairwise prior.
- *  - difference_scale: Scale of group-difference prior.
- *  - main_alpha, main_beta: Hyperparameters for main-effect priors.
- *  - num_leapfrogs: Number of leapfrog steps in the HMC trajectory.
- *  - iteration: Current sampler iteration (for adaptation scheduling).
- *  - hmc_adapt: Adaptation controller for step size and mass matrix.
- *  - learn_mass_matrix: Whether to adapt the mass matrix.
- *  - selection: If true, restrict mass matrix to active parameters only.
- *  - rng: Random number generator.
- *
- * Side effects:
- *  - Updates `main_effects` and `pairwise_effects` with the new state.
- *  - Updates `hmc_adapt` with acceptance probability and diagnostics.
- *
- * Returns:
- *  - None directly; state is updated in place.
- *
- * Notes:
- *  - This variant is specific to bgmCompare, where parameters are stored in
- *    row-wise structures with possible group-difference columns.
- *  - Consistency between vectorization, unvectorization, and gradient
- *    indexing is enforced via `build_index_maps`.
- */
+// Perform one Hamiltonian Monte Carlo (HMC) update step for the bgmCompare model.
+//
+// The function:
+//  1. Vectorizes the current parameter state (main + pairwise effects).
+//  2. Defines closures for log-posterior evaluation and gradient calculation.
+//  3. Applies HMC with fixed leapfrog steps to propose a new state.
+//  4. Unpacks the accepted state back into main and pairwise matrices.
+//  5. Updates the adaptation controller with acceptance information.
+//
+// Inputs:
+//  - main_effects, pairwise_effects: Current parameter matrices, updated in place.
+//  - main_effect_indices, pairwise_effect_indices: Index maps for parameters.
+//  - inclusion_indicator: Indicates active main and pairwise differences.
+//  - projection: Group projection matrix for contrasts.
+//  - num_categories: Number of categories per variable [V].
+//  - observations: Data matrix [N × V].
+//  - num_groups: Number of groups.
+//  - group_indices: Row ranges for each group in `observations`.
+//  - counts_per_category, blume_capel_stats: Per-group sufficient statistics.
+//  - pairwise_stats: Per-group pairwise sufficient statistics.
+//  - is_ordinal_variable: Marks ordinal vs. Blume–Capel variables.
+//  - baseline_category: Reference categories for Blume–Capel variables.
+//  - pairwise_scale: Scale of overall pairwise prior.
+//  - difference_scale: Scale of group-difference prior.
+//  - main_alpha, main_beta: Hyperparameters for main-effect priors.
+//  - num_leapfrogs: Number of leapfrog steps in the HMC trajectory.
+//  - iteration: Current sampler iteration (for adaptation scheduling).
+//  - hmc_adapt: Adaptation controller for step size and mass matrix.
+//  - learn_mass_matrix: Whether to adapt the mass matrix.
+//  - selection: If true, restrict mass matrix to active parameters only.
+//  - rng: Random number generator.
+//
+// Side effects:
+//  - Updates `main_effects` and `pairwise_effects` with the new state.
+//  - Updates `hmc_adapt` with acceptance probability and diagnostics.
+//
+// Returns:
+//  - None directly; state is updated in place.
+//
+// Notes:
+//  - This variant is specific to bgmCompare, where parameters are stored in
+//    row-wise structures with possible group-difference columns.
+//  - Consistency between vectorization, unvectorization, and gradient
+//    indexing is enforced via `build_index_maps`.
 void update_hmc_bgmcompare(
     arma::mat& main_effects,
     arma::mat& pairwise_effects,
@@ -809,51 +799,49 @@ void update_hmc_bgmcompare(
 
 
 
-/**
- * Perform one No-U-Turn Sampler (NUTS) update step for the bgmCompare model.
- *
- * The function:
- *  1. Vectorizes the current parameter state (main + pairwise effects).
- *  2. Defines closures for log-posterior evaluation and gradient calculation.
- *  3. Runs a NUTS trajectory (adaptive tree-based extension of HMC).
- *  4. Unpacks the accepted state back into main and pairwise matrices.
- *  5. Updates the adaptation controller with acceptance probability.
- *
- * Inputs:
- *  - main_effects, pairwise_effects: Current parameter matrices, updated in place.
- *  - main_effect_indices, pairwise_effect_indices: Index maps for parameters.
- *  - inclusion_indicator: Indicates active main and pairwise differences.
- *  - projection: Group projection matrix for contrasts.
- *  - num_categories: Number of categories per variable [V].
- *  - observations: Data matrix [N × V].
- *  - num_groups: Number of groups.
- *  - group_indices: Row ranges for each group in `observations`.
- *  - counts_per_category, blume_capel_stats: Per-group sufficient statistics.
- *  - pairwise_stats: Per-group pairwise sufficient statistics.
- *  - is_ordinal_variable: Marks ordinal vs. Blume–Capel variables.
- *  - baseline_category: Reference categories for Blume–Capel variables.
- *  - pairwise_scale: Scale of overall pairwise prior.
- *  - difference_scale: Scale of group-difference prior.
- *  - main_alpha, main_beta: Hyperparameters for main-effect priors.
- *  - nuts_max_depth: Maximum tree depth for NUTS doubling procedure.
- *  - iteration: Current sampler iteration (for adaptation scheduling).
- *  - hmc_adapt: Adaptation controller for step size and mass matrix.
- *  - learn_mass_matrix: Whether to adapt the mass matrix (unused inside NUTS but relevant to controller).
- *  - selection: If true, restrict mass matrix to active parameters only.
- *  - rng: Random number generator.
- *
- * Returns:
- *  - A `StepResult` containing the accepted state and diagnostics
- *    (e.g. tree depth, divergences, energy).
- *
- * Notes:
- *  - This variant is specific to bgmCompare, where parameters are stored in
- *    row-wise structures with group-difference columns.
- *  - Consistency between vectorization, unvectorization, and gradient
- *    indexing is enforced via `build_index_maps`.
- *  - Diagnostics from the returned `StepResult` can be used to monitor
- *    sampler stability (e.g. divergences, tree depth).
- */
+// Perform one No-U-Turn Sampler (NUTS) update step for the bgmCompare model.
+//
+// The function:
+//  1. Vectorizes the current parameter state (main + pairwise effects).
+//  2. Defines closures for log-posterior evaluation and gradient calculation.
+//  3. Runs a NUTS trajectory (adaptive tree-based extension of HMC).
+//  4. Unpacks the accepted state back into main and pairwise matrices.
+//  5. Updates the adaptation controller with acceptance probability.
+//
+// Inputs:
+//  - main_effects, pairwise_effects: Current parameter matrices, updated in place.
+//  - main_effect_indices, pairwise_effect_indices: Index maps for parameters.
+//  - inclusion_indicator: Indicates active main and pairwise differences.
+//  - projection: Group projection matrix for contrasts.
+//  - num_categories: Number of categories per variable [V].
+//  - observations: Data matrix [N × V].
+//  - num_groups: Number of groups.
+//  - group_indices: Row ranges for each group in `observations`.
+//  - counts_per_category, blume_capel_stats: Per-group sufficient statistics.
+//  - pairwise_stats: Per-group pairwise sufficient statistics.
+//  - is_ordinal_variable: Marks ordinal vs. Blume–Capel variables.
+//  - baseline_category: Reference categories for Blume–Capel variables.
+//  - pairwise_scale: Scale of overall pairwise prior.
+//  - difference_scale: Scale of group-difference prior.
+//  - main_alpha, main_beta: Hyperparameters for main-effect priors.
+//  - nuts_max_depth: Maximum tree depth for NUTS doubling procedure.
+//  - iteration: Current sampler iteration (for adaptation scheduling).
+//  - hmc_adapt: Adaptation controller for step size and mass matrix.
+//  - learn_mass_matrix: Whether to adapt the mass matrix (unused inside NUTS but relevant to controller).
+//  - selection: If true, restrict mass matrix to active parameters only.
+//  - rng: Random number generator.
+//
+// Returns:
+//  - A `StepResult` containing the accepted state and diagnostics
+//    (e.g. tree depth, divergences, energy).
+//
+// Notes:
+//  - This variant is specific to bgmCompare, where parameters are stored in
+//    row-wise structures with group-difference columns.
+//  - Consistency between vectorization, unvectorization, and gradient
+//    indexing is enforced via `build_index_maps`.
+//  - Diagnostics from the returned `StepResult` can be used to monitor
+//    sampler stability (e.g. divergences, tree depth).
 StepResult update_nuts_bgmcompare(
     arma::mat& main_effects,
     arma::mat& pairwise_effects,
@@ -990,55 +978,53 @@ StepResult update_nuts_bgmcompare(
 
 
 
-/**
- * Adapt proposal standard deviations (SDs) for main and pairwise effects
- * during the warmup phase of the bgmCompare sampler.
- *
- * This function uses a Robbins–Monro stochastic approximation scheme to
- * adjust proposal SDs toward a target acceptance rate. Adaptation occurs
- * only when permitted by the current warmup schedule.
- *
- * Workflow:
- *  1. For each main effect parameter (ordinal or Blume–Capel), run one
- *     random-walk Metropolis (RWM) step, update the parameter, and adjust
- *     the proposal SD.
- *  2. For each pairwise effect parameter (overall and group differences),
- *     do the same.
- *  3. Proposal SDs are updated symmetrically across group columns if
- *     differences are included.
- *
- * Inputs:
- *  - proposal_sd_main_effects: Current SDs for main effects, updated in place.
- *  - proposal_sd_pairwise_effects: Current SDs for pairwise effects, updated in place.
- *  - main_effects, pairwise_effects: Parameter matrices, updated in place.
- *  - main_effect_indices, pairwise_effect_indices: Index maps for main/pairwise parameters.
- *  - inclusion_indicator: Marks which group differences are active.
- *  - projection: Group projection matrix.
- *  - num_categories: Categories per variable.
- *  - observations: Data matrix [N × V].
- *  - num_groups: Number of groups.
- *  - group_indices: Row ranges per group in `observations`.
- *  - counts_per_category, blume_capel_stats: Per-group sufficient statistics for main effects.
- *  - pairwise_stats: Per-group sufficient statistics for pairwise effects.
- *  - is_ordinal_variable: Marks ordinal vs. Blume–Capel variables.
- *  - baseline_category: Reference category for Blume–Capel variables.
- *  - pairwise_scale: Scale of Cauchy prior for pairwise effects.
- *  - difference_scale: Scale of Cauchy prior for group differences.
- *  - main_alpha, main_beta: Hyperparameters for Beta prior on main effects.
- *  - iteration: Current iteration (to check schedule stage).
- *  - rng: Random number generator.
- *  - sched: Warmup schedule controlling when adaptation is active.
- *  - target_accept: Desired acceptance probability (default 0.44).
- *  - rm_decay: Robbins–Monro decay rate (default 0.75).
- *
- * Side effects:
- *  - Updates `main_effects` and `pairwise_effects` with new parameter values.
- *  - Updates `proposal_sd_main_effects` and `proposal_sd_pairwise_effects`.
- *
- * Notes:
- *  - Adapts only when `sched.adapt_proposal_sd(iteration)` is true.
- *  - Helps stabilize RWM acceptance rates before switching to sampling.
- */
+// Adapt proposal standard deviations (SDs) for main and pairwise effects
+// during the warmup phase of the bgmCompare sampler.
+//
+// This function uses a Robbins–Monro stochastic approximation scheme to
+// adjust proposal SDs toward a target acceptance rate. Adaptation occurs
+// only when permitted by the current warmup schedule.
+//
+// Workflow:
+//  1. For each main effect parameter (ordinal or Blume–Capel), run one
+//     random-walk Metropolis (RWM) step, update the parameter, and adjust
+//     the proposal SD.
+//  2. For each pairwise effect parameter (overall and group differences),
+//     do the same.
+//  3. Proposal SDs are updated symmetrically across group columns if
+//     differences are included.
+//
+// Inputs:
+//  - proposal_sd_main_effects: Current SDs for main effects, updated in place.
+//  - proposal_sd_pairwise_effects: Current SDs for pairwise effects, updated in place.
+//  - main_effects, pairwise_effects: Parameter matrices, updated in place.
+//  - main_effect_indices, pairwise_effect_indices: Index maps for main/pairwise parameters.
+//  - inclusion_indicator: Marks which group differences are active.
+//  - projection: Group projection matrix.
+//  - num_categories: Categories per variable.
+//  - observations: Data matrix [N × V].
+//  - num_groups: Number of groups.
+//  - group_indices: Row ranges per group in `observations`.
+//  - counts_per_category, blume_capel_stats: Per-group sufficient statistics for main effects.
+//  - pairwise_stats: Per-group sufficient statistics for pairwise effects.
+//  - is_ordinal_variable: Marks ordinal vs. Blume–Capel variables.
+//  - baseline_category: Reference category for Blume–Capel variables.
+//  - pairwise_scale: Scale of Cauchy prior for pairwise effects.
+//  - difference_scale: Scale of Cauchy prior for group differences.
+//  - main_alpha, main_beta: Hyperparameters for Beta prior on main effects.
+//  - iteration: Current iteration (to check schedule stage).
+//  - rng: Random number generator.
+//  - sched: Warmup schedule controlling when adaptation is active.
+//  - target_accept: Desired acceptance probability (default 0.44).
+//  - rm_decay: Robbins–Monro decay rate (default 0.75).
+//
+// Side effects:
+//  - Updates `main_effects` and `pairwise_effects` with new parameter values.
+//  - Updates `proposal_sd_main_effects` and `proposal_sd_pairwise_effects`.
+//
+// Notes:
+//  - Adapts only when `sched.adapt_proposal_sd(iteration)` is true.
+//  - Helps stabilize RWM acceptance rates before switching to sampling.
 void tune_proposal_sd_bgmcompare(
     arma::mat& proposal_sd_main_effects,
     arma::mat& proposal_sd_pairwise_effects,
@@ -1220,55 +1206,53 @@ void tune_proposal_sd_bgmcompare(
 
 
 
-/**
- * Metropolis–Hastings updates for difference-inclusion indicators in bgmCompare.
- *
- * This function toggles whether group-level differences are included for
- * main effects (diagonal entries of `inclusion_indicator`) and pairwise
- * effects (off-diagonal entries). Each update proposes either:
- *  - Turning a currently excluded difference “on” by drawing a new non-zero
- *    value from a Gaussian proposal, or
- *  - Turning an included difference “off” by setting its value(s) to zero.
- *
- * The acceptance probability combines:
- *  - Pseudolikelihood ratio (data contribution),
- *  - Prior ratio on inclusion indicators,
- *  - Prior ratio on parameter values (Cauchy vs. point-mass-at-zero),
- *  - Proposal density correction.
- *
- * Inputs:
- *  - inclusion_probability_difference: Prior inclusion probabilities for
- *    group differences [V × V].
- *  - index: Matrix mapping pairwise interactions to variable indices.
- *  - main_effects, pairwise_effects: Parameter matrices, updated in place.
- *  - main_effect_indices, pairwise_effect_indices: Index maps for parameters.
- *  - projection: Group projection matrix.
- *  - observations: Data matrix [N × V].
- *  - num_groups: Number of groups.
- *  - group_indices: Row ranges per group in `observations`.
- *  - num_categories: Categories per variable [V × G].
- *  - inclusion_indicator: Indicator matrix for differences, updated in place.
- *  - is_ordinal_variable: Marks ordinal vs. Blume–Capel variables [V].
- *  - baseline_category: Reference category for Blume–Capel variables [V].
- *  - proposal_sd_main, proposal_sd_pairwise: Proposal SD matrices for main
- *    and pairwise effects.
- *  - difference_scale: Scale of Cauchy prior for group differences.
- *  - counts_per_category, blume_capel_stats: Per-group sufficient statistics
- *    for main effects.
- *  - pairwise_stats: Per-group sufficient statistics for pairwise effects.
- *  - rng: Random number generator.
- *
- * Side effects:
- *  - Updates `inclusion_indicator` entries for main/pairwise differences.
- *  - Updates corresponding slices of `main_effects` and `pairwise_effects`.
- *
- * Notes:
- *  - For main effects, differences correspond to columns 1..G-1 of the
- *    parameter matrix.
- *  - For pairwise effects, differences correspond to columns 1..G-1 of the
- *    pairwise-effect matrix rows.
- *  - Ensures symmetry of `inclusion_indicator` for pairwise updates.
- */
+// Metropolis–Hastings updates for difference-inclusion indicators in bgmCompare.
+//
+// This function toggles whether group-level differences are included for
+// main effects (diagonal entries of `inclusion_indicator`) and pairwise
+// effects (off-diagonal entries). Each update proposes either:
+//  - Turning a currently excluded difference “on” by drawing a new non-zero
+//    value from a Gaussian proposal, or
+//  - Turning an included difference “off” by setting its value(s) to zero.
+//
+// The acceptance probability combines:
+//  - Pseudolikelihood ratio (data contribution),
+//  - Prior ratio on inclusion indicators,
+//  - Prior ratio on parameter values (Cauchy vs. point-mass-at-zero),
+//  - Proposal density correction.
+//
+// Inputs:
+//  - inclusion_probability_difference: Prior inclusion probabilities for
+//    group differences [V × V].
+//  - index: Matrix mapping pairwise interactions to variable indices.
+//  - main_effects, pairwise_effects: Parameter matrices, updated in place.
+//  - main_effect_indices, pairwise_effect_indices: Index maps for parameters.
+//  - projection: Group projection matrix.
+//  - observations: Data matrix [N × V].
+//  - num_groups: Number of groups.
+//  - group_indices: Row ranges per group in `observations`.
+//  - num_categories: Categories per variable [V × G].
+//  - inclusion_indicator: Indicator matrix for differences, updated in place.
+//  - is_ordinal_variable: Marks ordinal vs. Blume–Capel variables [V].
+//  - baseline_category: Reference category for Blume–Capel variables [V].
+//  - proposal_sd_main, proposal_sd_pairwise: Proposal SD matrices for main
+//    and pairwise effects.
+//  - difference_scale: Scale of Cauchy prior for group differences.
+//  - counts_per_category, blume_capel_stats: Per-group sufficient statistics
+//    for main effects.
+//  - pairwise_stats: Per-group sufficient statistics for pairwise effects.
+//  - rng: Random number generator.
+//
+// Side effects:
+//  - Updates `inclusion_indicator` entries for main/pairwise differences.
+//  - Updates corresponding slices of `main_effects` and `pairwise_effects`.
+//
+// Notes:
+//  - For main effects, differences correspond to columns 1..G-1 of the
+//    parameter matrix.
+//  - For pairwise effects, differences correspond to columns 1..G-1 of the
+//    pairwise-effect matrix rows.
+//  - Ensures symmetry of `inclusion_indicator` for pairwise updates.
 void update_indicator_differences_metropolis_bgmcompare (
     const arma::mat& inclusion_probability_difference,
     const arma::imat& index,
@@ -1464,65 +1448,63 @@ void update_indicator_differences_metropolis_bgmcompare (
 
 
 
-/**
- * Perform one Gibbs update step for the bgmCompare model.
- *
- * This function executes a single iteration of the Gibbs sampler, including:
- *
- *  Step 0: (optional) Initialize graph structure if difference selection
- *          is enabled and the current iteration marks the start of Stage 3c.
- *
- *  Step 1: (optional) Update inclusion indicators for group differences
- *          (main and pairwise effects) via Metropolis–Hastings proposals.
- *
- *  Step 2: Update model parameters according to the selected update method:
- *    - "adaptive-metropolis": Update main and pairwise effects individually
- *      with random-walk Metropolis and adaptive proposal SDs.
- *    - "hamiltonian-mc": Update the full parameter vector using HMC.
- *    - "nuts": Update the full parameter vector using the No-U-Turn Sampler.
- *      If past burn-in, store NUTS diagnostics (tree depth, divergences, energy).
- *
- *  Step 3: (Stage 3b only) Adapt proposal SDs for Metropolis updates using
- *          Robbins–Monro tuning.
- *
- * Inputs:
- *  - observations: Data matrix [N × V].
- *  - num_categories: Number of categories per variable [V].
- *  - pairwise_scale, difference_scale: Prior scale parameters.
- *  - counts_per_category, blume_capel_stats: Sufficient statistics per group.
- *  - main_alpha, main_beta: Hyperparameters for Beta prior on main effects.
- *  - inclusion_indicator: Matrix of active group differences [V × V], updated in place.
- *  - main_effects, pairwise_effects: Parameter matrices, updated in place.
- *  - is_ordinal_variable: Marks ordinal vs. Blume–Capel variables.
- *  - baseline_category: Reference categories for Blume–Capel variables.
- *  - iteration: Current iteration index.
- *  - pairwise_effect_indices, main_effect_indices: Index maps for parameters.
- *  - pairwise_stats: Per-group pairwise sufficient statistics.
- *  - nuts_max_depth: Maximum tree depth for NUTS.
- *  - hmc_adapt: Adaptation controller for HMC/NUTS.
- *  - metropolis_adapt_main, metropolis_adapt_pair: Adaptation controllers for RWM updates.
- *  - learn_mass_matrix: Whether to adapt the mass matrix in HMC/NUTS.
- *  - schedule: Warmup schedule, controls adaptation and selection phases.
- *  - treedepth_samples, divergent_samples, energy_samples: Buffers for NUTS diagnostics.
- *  - projection: Group projection matrix.
- *  - num_groups: Number of groups.
- *  - group_indices: Row ranges per group in `observations`.
- *  - rng: Random number generator.
- *  - inclusion_probability: Prior probabilities for including differences.
- *  - hmc_nuts_leapfrogs: Number of leapfrog steps for HMC updates.
- *  - update_method: Update strategy ("adaptive-metropolis", "hamiltonian-mc", "nuts").
- *  - proposal_sd_main, proposal_sd_pair: Proposal SD matrices for Metropolis updates.
- *  - index: Index table for pairwise differences.
- *
- * Side effects:
- *  - Updates parameters, inclusion indicators, and sufficient statistics.
- *  - Updates adaptation controllers and (if NUTS) diagnostic buffers.
- *
- * Notes:
- *  - This function encapsulates all update logic for bgmCompare.
- *  - Choice of `update_method` governs whether updates are local (RWM) or
- *    global (HMC/NUTS).
- */
+// Perform one Gibbs update step for the bgmCompare model.
+//
+// This function executes a single iteration of the Gibbs sampler, including:
+//
+//  Step 0: (optional) Initialize graph structure if difference selection
+//          is enabled and the current iteration marks the start of Stage 3c.
+//
+//  Step 1: (optional) Update inclusion indicators for group differences
+//          (main and pairwise effects) via Metropolis–Hastings proposals.
+//
+//  Step 2: Update model parameters according to the selected update method:
+//    - "adaptive-metropolis": Update main and pairwise effects individually
+//      with random-walk Metropolis and adaptive proposal SDs.
+//    - "hamiltonian-mc": Update the full parameter vector using HMC.
+//    - "nuts": Update the full parameter vector using the No-U-Turn Sampler.
+//      If past burn-in, store NUTS diagnostics (tree depth, divergences, energy).
+//
+//  Step 3: (Stage 3b only) Adapt proposal SDs for Metropolis updates using
+//          Robbins–Monro tuning.
+//
+// Inputs:
+//  - observations: Data matrix [N × V].
+//  - num_categories: Number of categories per variable [V].
+//  - pairwise_scale, difference_scale: Prior scale parameters.
+//  - counts_per_category, blume_capel_stats: Sufficient statistics per group.
+//  - main_alpha, main_beta: Hyperparameters for Beta prior on main effects.
+//  - inclusion_indicator: Matrix of active group differences [V × V], updated in place.
+//  - main_effects, pairwise_effects: Parameter matrices, updated in place.
+//  - is_ordinal_variable: Marks ordinal vs. Blume–Capel variables.
+//  - baseline_category: Reference categories for Blume–Capel variables.
+//  - iteration: Current iteration index.
+//  - pairwise_effect_indices, main_effect_indices: Index maps for parameters.
+//  - pairwise_stats: Per-group pairwise sufficient statistics.
+//  - nuts_max_depth: Maximum tree depth for NUTS.
+//  - hmc_adapt: Adaptation controller for HMC/NUTS.
+//  - metropolis_adapt_main, metropolis_adapt_pair: Adaptation controllers for RWM updates.
+//  - learn_mass_matrix: Whether to adapt the mass matrix in HMC/NUTS.
+//  - schedule: Warmup schedule, controls adaptation and selection phases.
+//  - treedepth_samples, divergent_samples, energy_samples: Buffers for NUTS diagnostics.
+//  - projection: Group projection matrix.
+//  - num_groups: Number of groups.
+//  - group_indices: Row ranges per group in `observations`.
+//  - rng: Random number generator.
+//  - inclusion_probability: Prior probabilities for including differences.
+//  - hmc_nuts_leapfrogs: Number of leapfrog steps for HMC updates.
+//  - update_method: Update strategy ("adaptive-metropolis", "hamiltonian-mc", "nuts").
+//  - proposal_sd_main, proposal_sd_pair: Proposal SD matrices for Metropolis updates.
+//  - index: Index table for pairwise differences.
+//
+// Side effects:
+//  - Updates parameters, inclusion indicators, and sufficient statistics.
+//  - Updates adaptation controllers and (if NUTS) diagnostic buffers.
+//
+// Notes:
+//  - This function encapsulates all update logic for bgmCompare.
+//  - Choice of `update_method` governs whether updates are local (RWM) or
+//    global (HMC/NUTS).
 void gibbs_update_step_bgmcompare (
     const arma::imat& observations,
     const arma::ivec& num_categories,
@@ -1647,72 +1629,70 @@ void gibbs_update_step_bgmcompare (
 
 
 
-/**
- * Run a full Gibbs sampler for the bgmCompare model.
- *
- * This function controls the full MCMC lifecycle for a single chain:
- *  - Initializes parameter matrices, proposal SDs, and adaptation controllers.
- *  - Optionally imputes missing data at each iteration.
- *  - Executes Gibbs updates for main and pairwise effects, including
- *    difference-selection if enabled.
- *  - Adapts step size, mass matrix, and proposal SDs during warmup.
- *  - Updates inclusion probabilities under the chosen prior
- *    (e.g. Beta–Bernoulli).
- *  - Collects posterior samples and diagnostics into a `SamplerOutput` struct.
- *
- * Inputs:
- *  - chain_id: Identifier for this chain (1-based).
- *  - observations: Data matrix [N × V].
- *  - num_groups: Number of groups (G).
- *  - counts_per_category: Per-group sufficient statistics (ordinal variables).
- *  - blume_capel_stats: Per-group sufficient statistics (Blume–Capel variables).
- *  - pairwise_stats: Per-group sufficient statistics for pairwise effects.
- *  - num_categories: Number of categories per variable [V].
- *  - main_alpha, main_beta: Hyperparameters for Beta prior on main effects.
- *  - pairwise_scale: Scale parameter for overall pairwise priors.
- *  - difference_scale: Scale parameter for group-difference priors.
- *  - difference_selection_alpha, difference_selection_beta: Hyperparameters
- *    for difference-selection prior.
- *  - difference_prior: Prior type for difference-selection ("Beta-Bernoulli", ...).
- *  - iter: Number of post–burn-in sampling iterations.
- *  - warmup: Number of warmup iterations.
- *  - na_impute: If true, impute missing observations at each iteration.
- *  - missing_data_indices: Matrix of [person, variable] indices of missings.
- *  - is_ordinal_variable: Marks ordinal vs. Blume–Capel variables.
- *  - baseline_category: Reference categories for Blume–Capel variables.
- *  - difference_selection: If true, include MH updates for group-difference indicators.
- *  - main_effect_indices, pairwise_effect_indices: Index maps for parameter rows.
- *  - target_accept: Target acceptance probability (HMC/NUTS).
- *  - nuts_max_depth: Maximum tree depth for NUTS.
- *  - learn_mass_matrix: Whether to adapt the mass matrix (HMC/NUTS).
- *  - projection: Group projection matrix for contrasts.
- *  - group_membership: Mapping of persons to groups.
- *  - group_indices: Row ranges per group in `observations`.
- *  - interaction_index_matrix: Index map for pairwise interactions.
- *  - inclusion_probability: Matrix of prior inclusion probabilities, updated in place.
- *  - rng: Random number generator.
- *  - update_method: Update strategy ("adaptive-metropolis", "hamiltonian-mc", "nuts").
- *  - hmc_num_leapfrogs: Number of leapfrog steps for HMC.
- *
- * Returns:
- *  - A `SamplerOutput` struct containing:
- *      - main_samples: MCMC samples for main effects.
- *      - pairwise_samples: MCMC samples for pairwise effects.
- *      - indicator_samples: (optional) Inclusion indicator samples if
- *        difference-selection is enabled.
- *      - treedepth_samples, divergent_samples, energy_samples:
- *        Diagnostics (for NUTS).
- *      - chain_id: Identifier for this chain.
- *
- * Notes:
- *  - Warmup is orchestrated via `WarmupSchedule`, which controls adaptation
- *    phases and difference-selection activation.
- *  - Proposal SDs are tuned via Robbins–Monro during Stage 3b.
- *  - Difference-selection updates toggle inclusion indicators and adjust
- *    associated parameters with MH proposals.
- *  - This function runs entirely in C++ and is wrapped for parallel execution
- *    via `GibbsCompareChainRunner`.
- */
+// Run a full Gibbs sampler for the bgmCompare model.
+//
+// This function controls the full MCMC lifecycle for a single chain:
+//  - Initializes parameter matrices, proposal SDs, and adaptation controllers.
+//  - Optionally imputes missing data at each iteration.
+//  - Executes Gibbs updates for main and pairwise effects, including
+//    difference-selection if enabled.
+//  - Adapts step size, mass matrix, and proposal SDs during warmup.
+//  - Updates inclusion probabilities under the chosen prior
+//    (e.g. Beta–Bernoulli).
+//  - Collects posterior samples and diagnostics into a `SamplerOutput` struct.
+//
+// Inputs:
+//  - chain_id: Identifier for this chain (1-based).
+//  - observations: Data matrix [N × V].
+//  - num_groups: Number of groups (G).
+//  - counts_per_category: Per-group sufficient statistics (ordinal variables).
+//  - blume_capel_stats: Per-group sufficient statistics (Blume–Capel variables).
+//  - pairwise_stats: Per-group sufficient statistics for pairwise effects.
+//  - num_categories: Number of categories per variable [V].
+//  - main_alpha, main_beta: Hyperparameters for Beta prior on main effects.
+//  - pairwise_scale: Scale parameter for overall pairwise priors.
+//  - difference_scale: Scale parameter for group-difference priors.
+//  - difference_selection_alpha, difference_selection_beta: Hyperparameters
+//    for difference-selection prior.
+//  - difference_prior: Prior type for difference-selection ("Beta-Bernoulli", ...).
+//  - iter: Number of post–burn-in sampling iterations.
+//  - warmup: Number of warmup iterations.
+//  - na_impute: If true, impute missing observations at each iteration.
+//  - missing_data_indices: Matrix of [person, variable] indices of missings.
+//  - is_ordinal_variable: Marks ordinal vs. Blume–Capel variables.
+//  - baseline_category: Reference categories for Blume–Capel variables.
+//  - difference_selection: If true, include MH updates for group-difference indicators.
+//  - main_effect_indices, pairwise_effect_indices: Index maps for parameter rows.
+//  - target_accept: Target acceptance probability (HMC/NUTS).
+//  - nuts_max_depth: Maximum tree depth for NUTS.
+//  - learn_mass_matrix: Whether to adapt the mass matrix (HMC/NUTS).
+//  - projection: Group projection matrix for contrasts.
+//  - group_membership: Mapping of persons to groups.
+//  - group_indices: Row ranges per group in `observations`.
+//  - interaction_index_matrix: Index map for pairwise interactions.
+//  - inclusion_probability: Matrix of prior inclusion probabilities, updated in place.
+//  - rng: Random number generator.
+//  - update_method: Update strategy ("adaptive-metropolis", "hamiltonian-mc", "nuts").
+//  - hmc_num_leapfrogs: Number of leapfrog steps for HMC.
+//
+// Returns:
+//  - A `SamplerOutput` struct containing:
+//      - main_samples: MCMC samples for main effects.
+//      - pairwise_samples: MCMC samples for pairwise effects.
+//      - indicator_samples: (optional) Inclusion indicator samples if
+//        difference-selection is enabled.
+//      - treedepth_samples, divergent_samples, energy_samples:
+//        Diagnostics (for NUTS).
+//      - chain_id: Identifier for this chain.
+//
+// Notes:
+//  - Warmup is orchestrated via `WarmupSchedule`, which controls adaptation
+//    phases and difference-selection activation.
+//  - Proposal SDs are tuned via Robbins–Monro during Stage 3b.
+//  - Difference-selection updates toggle inclusion indicators and adjust
+//    associated parameters with MH proposals.
+//  - This function runs entirely in C++ and is wrapped for parallel execution
+//    via `GibbsCompareChainRunner`.
 bgmCompareOutput run_gibbs_sampler_bgmCompare(
     int chain_id,
     arma::imat observations,

@@ -14,29 +14,36 @@ class ChainResult {
 public:
     ChainResult() = default;
 
-    // Error handling
+    /// True if the chain terminated with an error.
     bool        error = false;
+    /// True if the chain was interrupted by the user.
     bool        userInterrupt = false;
+    /// Error message (empty if none).
     std::string error_msg;
 
-    // Chain identifier
+    /// Integer identifier for the chain (1-based).
     int         chain_id = 0;
 
-    // Parameter samples (param_dim × n_iter)
+    /// Parameter samples (param_dim x n_iter).
     arma::mat   samples;
 
-    // Edge indicator samples (n_edges × n_iter), only if edge_selection = true
+    /// Edge indicator samples (n_edges x n_iter), only if edge_selection = true.
     arma::imat  indicator_samples;
+    /// Whether indicator samples are stored.
     bool        has_indicators = false;
 
-    // SBM allocation samples (n_variables × n_iter), only if SBM edge prior
+    /// SBM allocation samples (n_variables x n_iter), only if SBM edge prior.
     arma::imat  allocation_samples;
+    /// Whether allocation samples are stored.
     bool        has_allocations = false;
 
-    // NUTS/HMC diagnostics (n_iter), only if using NUTS/HMC
+    /// NUTS/HMC tree depth diagnostics (n_iter).
     arma::ivec  treedepth_samples;
+    /// NUTS/HMC divergent transition flags (n_iter).
     arma::ivec  divergent_samples;
+    /// NUTS/HMC energy diagnostic (n_iter).
     arma::vec   energy_samples;
+    /// Whether NUTS/HMC diagnostics are stored.
     bool        has_nuts_diagnostics = false;
 
     /**

@@ -16,6 +16,11 @@
 
 # GitHub / CI
 ^\.github$
+^CONTRIBUTING\.md$
+
+# Hidden config files (development only)
+^\.lintr$
+^\.editorconfig$
 
 # R CMD build artifacts
 ^doc$

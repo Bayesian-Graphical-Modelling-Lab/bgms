@@ -172,8 +172,11 @@
 #'   Blume–Capel variables, all categories are retained.
 #'
 #' @param variable_type Character or character vector. Specifies the type of
-#'   each variable in \code{x}. Allowed values: \code{"ordinal"} or
-#'   \code{"blume-capel"}. Binary variables are automatically treated as
+#'   each variable in \code{x}. Allowed values: \code{"ordinal"},
+#'   \code{"blume-capel"}, or \code{"continuous"}. A single string applies
+#'   to all variables. A per-variable vector that mixes discrete
+#'   (\code{"ordinal"} / \code{"blume-capel"}) and \code{"continuous"}
+#'   types fits a mixed MRF. Binary variables are automatically treated as
 #'   \code{"ordinal"}. Default: \code{"ordinal"}.
 #'
 #' @param baseline_category Integer or vector. Baseline category used in
@@ -211,6 +214,22 @@
 #'   raw score endpoints \eqn{(0, m)} and Blume-Capel variables use centered
 #'   score endpoints \eqn{(-b, m-b)}.
 #'   Default: \code{FALSE}.
+#'
+#' @param pseudolikelihood Character. Specifies the pseudo-likelihood
+#'   approximation used for mixed MRF models (ignored for pure ordinal or
+#'   pure continuous data). Options:
+#'   \describe{
+#'     \item{\code{"conditional"}}{Conditions on the observed continuous
+#'       variables when computing the discrete full conditionals. Faster
+#'       because the discrete pseudo-likelihood does not depend on the
+#'       continuous precision matrix.}
+#'     \item{\code{"marginal"}}{Integrates out the continuous variables,
+#'       giving discrete full conditionals that account for induced
+#'       interactions through the continuous block. More expensive per
+#'       iteration but can improve estimation when discrete--continuous
+#'       coupling is strong.}
+#'   }
+#'   Default: \code{"conditional"}.
 #'
 #' @param main_alpha,main_beta Double. Shape parameters of the
 #'   beta-prime prior for threshold parameters. Must be positive. If equal,
@@ -409,6 +428,7 @@ bgm = function(
   display_progress = c("per-chain", "total", "none"),
   seed = NULL,
   standardize = FALSE,
+  pseudolikelihood = c("conditional", "marginal"),
   verbose = getOption("bgms.verbose", TRUE),
   interaction_scale,
   burnin,
@@ -481,7 +501,8 @@ bgm = function(
     cores = cores,
     seed = seed,
     display_progress = display_progress,
-    verbose = verbose
+    verbose = verbose,
+    pseudolikelihood = pseudolikelihood
   )
 
   raw = run_sampler(spec)

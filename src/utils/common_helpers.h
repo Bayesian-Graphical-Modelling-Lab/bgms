@@ -26,8 +26,19 @@ inline int count_num_main_effects(const arma::ivec& num_categories,
   return n_params;
 }
 
-enum UpdateMethod { adaptive_metropolis, hamiltonian_mc, nuts };
+/// MCMC update method.
+enum UpdateMethod {
+  adaptive_metropolis, ///< Robbins-Monro adaptive Metropolis-Hastings
+  hamiltonian_mc,      ///< Fixed-trajectory Hamiltonian Monte Carlo
+  nuts                 ///< No-U-Turn Sampler
+};
 
+/**
+ * Convert a string identifier to an UpdateMethod enum value.
+ *
+ * @param update_method  One of "adaptive-metropolis", "hamiltonian-mc", "nuts".
+ * @return Corresponding UpdateMethod value.
+ */
 inline UpdateMethod update_method_from_string(const std::string& update_method) {
   if (update_method == "adaptive-metropolis")
     return adaptive_metropolis;
@@ -41,8 +52,21 @@ inline UpdateMethod update_method_from_string(const std::string& update_method) 
   throw std::invalid_argument("Invalid update_method: " + update_method);
 }
 
-enum EdgePrior { Stochastic_Block, Beta_Bernoulli, Bernoulli, Not_Applicable };
+/// Edge inclusion prior type.
+enum EdgePrior {
+  Stochastic_Block, ///< MFM Stochastic Block Model
+  Beta_Bernoulli,   ///< Shared Beta-Bernoulli prior
+  Bernoulli,        ///< Fixed Bernoulli prior
+  Not_Applicable    ///< No edge prior (all edges included)
+};
 
+/**
+ * Convert a string identifier to an EdgePrior enum value.
+ *
+ * @param edge_prior  One of "Stochastic-Block", "Beta-Bernoulli",
+ *                    "Bernoulli", "Not Applicable".
+ * @return Corresponding EdgePrior value.
+ */
 inline EdgePrior edge_prior_from_string(const std::string& edge_prior) {
   if (edge_prior == "Stochastic-Block")
     return Stochastic_Block;

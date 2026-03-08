@@ -266,68 +266,68 @@ private:
     // =========================================================================
 
     // Data
-    size_t n_;                          // Number of observations
-    size_t p_;                          // Number of variables
-    arma::imat observations_;           // Categorical observations (n × p)
-    arma::mat observations_double_;     // Observations as double (for efficient matrix ops)
-    arma::mat observations_double_t_;   // Transposed observations (for BLAS pairwise gradient)
-    arma::ivec num_categories_;         // Categories per variable
-    arma::uvec is_ordinal_variable_;    // 1 = ordinal, 0 = Blume-Capel
-    arma::ivec baseline_category_;      // Reference category for Blume-Capel
+    size_t n_;                          ///< Number of observations
+    size_t p_;                          ///< Number of variables
+    arma::imat observations_;           ///< Categorical observations (n x p)
+    arma::mat observations_double_;     ///< Observations as double (for efficient matrix ops)
+    arma::mat observations_double_t_;   ///< Transposed observations (for BLAS pairwise gradient)
+    arma::ivec num_categories_;         ///< Categories per variable
+    arma::uvec is_ordinal_variable_;    ///< 1 = ordinal, 0 = Blume-Capel
+    arma::ivec baseline_category_;      ///< Reference category for Blume-Capel
 
     // Sufficient statistics
-    arma::imat counts_per_category_;    // Category counts (max_cats+1 × p)
-    arma::imat blume_capel_stats_;      // [linear_sum, quadratic_sum] for BC vars (2 × p)
-    arma::imat pairwise_stats_;         // X^T X
-    arma::mat residual_matrix_;         // X * pairwise_effects (n × p)
+    arma::imat counts_per_category_;    ///< Category counts (max_cats+1 x p)
+    arma::imat blume_capel_stats_;      ///< [linear_sum, quadratic_sum] for BC vars (2 x p)
+    arma::imat pairwise_stats_;         ///< X^T X
+    arma::mat residual_matrix_;         ///< X * pairwise_effects (n x p)
 
     // Parameters
-    arma::mat main_effects_;            // Main effect parameters (p × max_cats)
-    arma::mat pairwise_effects_;        // Pairwise interaction strengths (p × p, symmetric)
-    arma::imat edge_indicators_;        // Edge inclusion indicators (p × p, symmetric binary)
+    arma::mat main_effects_;            ///< Main effect parameters (p x max_cats)
+    arma::mat pairwise_effects_;        ///< Pairwise interaction strengths (p x p, symmetric)
+    arma::imat edge_indicators_;        ///< Edge inclusion indicators (p x p, symmetric binary)
 
     // Priors
-    arma::mat inclusion_probability_;   // Prior inclusion probabilities
-    double main_alpha_;                 // Beta prior α
-    double main_beta_;                  // Beta prior β
-    double pairwise_scale_;             // Cauchy scale for pairwise effects
-    arma::mat pairwise_scaling_factors_; // Per-pair scaling factors for Cauchy prior
+    arma::mat inclusion_probability_;   ///< Prior inclusion probabilities
+    double main_alpha_;                 ///< Beta prior alpha
+    double main_beta_;                  ///< Beta prior beta
+    double pairwise_scale_;             ///< Cauchy scale for pairwise effects
+    arma::mat pairwise_scaling_factors_; ///< Per-pair scaling factors for Cauchy prior
 
     // Model configuration
-    bool edge_selection_;               // Enable edge selection
-    bool edge_selection_active_;        // Currently in edge selection phase
+    bool edge_selection_;               ///< Enable edge selection
+    bool edge_selection_active_;        ///< Currently in edge selection phase
 
     // Dimension tracking
-    size_t num_main_;                   // Total number of main effect parameters
-    size_t num_pairwise_;               // Number of possible pairwise effects
+    size_t num_main_;                   ///< Total number of main effect parameters
+    size_t num_pairwise_;               ///< Number of possible pairwise effects
 
     // Proposal SDs (adapted by MetropolisAdaptationController during warmup)
-    arma::mat proposal_sd_main_;
-    arma::mat proposal_sd_pairwise_;
+    arma::mat proposal_sd_main_;        ///< Proposal SD for main effects
+    arma::mat proposal_sd_pairwise_;    ///< Proposal SD for pairwise effects
 
     // Metropolis adaptation controllers (created by init_metropolis_adaptation)
-    std::unique_ptr<MetropolisAdaptationController> metropolis_main_adapter_;
-    std::unique_ptr<MetropolisAdaptationController> metropolis_pairwise_adapter_;
+    std::unique_ptr<MetropolisAdaptationController> metropolis_main_adapter_;      ///< Main-effect adapter
+    std::unique_ptr<MetropolisAdaptationController> metropolis_pairwise_adapter_;  ///< Pairwise-effect adapter
 
     // RNG
-    SafeRNG rng_;
+    SafeRNG rng_;                       ///< Per-chain random number generator
 
     // NUTS/HMC settings
-    double step_size_;
-    arma::vec inv_mass_;
+    double step_size_;                  ///< Current step size for gradient-based samplers
+    arma::vec inv_mass_;                ///< Inverse mass diagonal
 
     // Missing data handling
-    bool has_missing_;
-    arma::imat missing_index_;
+    bool has_missing_;                  ///< Whether the data contains missing values
+    arma::imat missing_index_;          ///< (row, col) indices of missing entries
 
     // Cached gradient components
-    arma::vec grad_obs_cache_;
-    arma::imat index_matrix_cache_;
-    bool gradient_cache_valid_;
+    arma::vec grad_obs_cache_;          ///< Cached observed-data gradient
+    arma::imat index_matrix_cache_;     ///< Cached parameter index map
+    bool gradient_cache_valid_;         ///< Whether the gradient cache is current
 
     // Interaction indexing (for edge updates)
-    arma::imat interaction_index_;
-    arma::uvec shuffled_edge_order_;  // Pre-shuffled order (set in prepare_iteration)
+    arma::imat interaction_index_;      ///< Maps edge pair to index
+    arma::uvec shuffled_edge_order_;    ///< Pre-shuffled order (set in prepare_iteration)
 
     // =========================================================================
     // Private helper methods

@@ -30,21 +30,23 @@ stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://
 **Bayesian analysis of graphical models**
 
 The **bgms** package implements Bayesian estimation and model comparison
-for graphical models of binary, ordinal, and continuous variables
+for graphical models of binary, ordinal, continuous, and mixed variables
 (<span class="nocase">Marsman, van den Bergh, et al.</span>, 2025). It
-supports **ordinal Markov random fields (MRFs)** for discrete data and
-**Gaussian graphical models (GGMs)** for continuous data. The likelihood
-is approximated with a pseudolikelihood, and Markov chain Monte Carlo
-(MCMC) methods are used to sample from the corresponding pseudoposterior
-distribution of the model parameters.
+supports **ordinal Markov random fields (MRFs)** for discrete data,
+**Gaussian graphical models (GGMs)** for continuous data, and **mixed
+MRFs** that combine discrete and continuous variables in a single
+network. The likelihood is approximated with a pseudolikelihood, and
+Markov chain Monte Carlo (MCMC) methods are used to sample from the
+corresponding pseudoposterior distribution of the model parameters.
 
 ## Main functions
 
 The package has two main entry points:
 
 - `bgm()` – estimates a single network in a one-sample design. Use
-  `variable_type = "continuous"` for a GGM, or `"ordinal"` (default) for
-  an MRF.
+  `variable_type = "ordinal"` for an MRF, `"continuous"` for a GGM, or a
+  per-variable vector mixing `"ordinal"`, `"blume-capel"`, and
+  `"continuous"` for a mixed MRF.
 - `bgmCompare()` – compares networks between groups in an
   independent-sample design.
 

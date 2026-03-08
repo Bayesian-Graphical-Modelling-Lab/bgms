@@ -4,18 +4,26 @@
 \name{bgms-package}
 \alias{bgms}
 \alias{bgms-package}
-\title{bgms: Bayesian Analysis of Networks of Binary and/or Ordinal Variables}
+\title{bgms: Bayesian Analysis of Graphical Models}
 \description{
 The \code{R} package \strong{bgms} provides tools for Bayesian analysis of
-the ordinal Markov random field (MRF), a graphical model describing networks
-of binary and/or ordinal variables \insertCite{MarsmanVandenBerghHaslbeck_2025}{bgms}.
-The likelihood is approximated via a pseudolikelihood, and Markov chain Monte
-Carlo (MCMC) methods are used to sample from the corresponding pseudoposterior
-distribution of model parameters.
+graphical models describing networks of binary, ordinal, continuous, and
+mixed variables
+\insertCite{MarsmanVandenBerghHaslbeck_2025}{bgms}.
+Supported model families include ordinal Markov random fields (MRFs),
+Gaussian graphical models (GGMs), and mixed MRFs that combine discrete
+and continuous variables in a single network. The likelihood is approximated
+via a pseudolikelihood, and Markov chain Monte Carlo (MCMC) methods are used
+to sample from the corresponding pseudoposterior distribution of model
+parameters.
 
 The main entry points are:
 \itemize{
   \item \strong{bgm}: estimation in a one-sample design.
+        Use \code{variable_type = "ordinal"} for an MRF,
+        \code{"continuous"} for a GGM, or a per-variable vector
+        mixing \code{"ordinal"}, \code{"blume-capel"}, and
+        \code{"continuous"} for a mixed MRF.
   \item \strong{bgmCompare}: estimation and group comparison in an
         independent-sample design.
 }

@@ -15,21 +15,19 @@ using namespace RcppParallel;
 
 
 
-/**
- * Container for the result of a single MCMC chain (bgmCompare model).
- *
- * Fields:
- *  - error: True if the chain terminated with an error, false otherwise.
- *  - error_msg: Error message if an error occurred (empty if none).
- *  - chain_id: Integer identifier for the chain (1-based).
- *  - result: bgmCompareOutput object containing chain results
- *    (samples, diagnostics, metadata).
- *
- * Usage:
- *  - Used in parallel execution to collect results from each chain.
- *  - Checked after execution to propagate errors or assemble outputs
- *    into an R-accessible list.
- */
+// Container for the result of a single MCMC chain (bgmCompare model).
+//
+// Fields:
+//  - error: True if the chain terminated with an error, false otherwise.
+//  - error_msg: Error message if an error occurred (empty if none).
+//  - chain_id: Integer identifier for the chain (1-based).
+//  - result: bgmCompareOutput object containing chain results
+//    (samples, diagnostics, metadata).
+//
+// Usage:
+//  - Used in parallel execution to collect results from each chain.
+//  - Checked after execution to propagate errors or assemble outputs
+//    into an R-accessible list.
 struct bgmCompareChainResult {
   bool error;
   std::string error_msg;
@@ -39,60 +37,58 @@ struct bgmCompareChainResult {
 
 
 
-/**
- * Parallel worker for running a single Gibbs sampling chain (bgmCompare model).
- *
- * This struct wraps all inputs needed for one chain and provides an
- * `operator()` so that multiple chains can be launched in parallel with TBB.
- *
- * Workflow per chain:
- *  - Construct a chain-specific RNG from `chain_rngs`.
- *  - Copy master statistics and observation data into per-chain buffers.
- *  - Call `run_gibbs_sampler_bgmCompare()` to execute the full chain.
- *  - Catch and record any errors (sets `error = true` and stores `error_msg`).
- *  - Store results into the shared `results` vector at the chain index.
- *
- * Inputs (stored as const references or values):
- *  - observations_master: Input observation matrix (persons × variables).
- *  - num_groups: Number of groups.
- *  - counts_per_category_master: Group-level category counts.
- *  - blume_capel_stats_master: Group-level Blume–Capel sufficient statistics.
- *  - pairwise_stats_master: Group-level pairwise sufficient statistics.
- *  - num_categories: Number of categories per variable.
- *  - main_alpha, main_beta: Hyperparameters for Beta priors on main effects.
- *  - pairwise_scale: Scale for Cauchy prior on baseline pairwise effects.
- *  - difference_scale: Scale for Cauchy prior on group differences.
- *  - difference_selection_alpha, difference_selection_beta: Hyperparameters for difference-selection prior.
- *  - difference_prior: Choice of prior distribution for group differences.
- *  - iter, warmup: Iteration counts.
- *  - na_impute: If true, perform missing data imputation.
- *  - missing_data_indices: Indices of missing observations.
- *  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
- *  - baseline_category: Reference categories for Blume–Capel variables.
- *  - difference_selection: If true, perform difference selection updates.
- *  - main_effect_indices: Index ranges for main effects.
- *  - pairwise_effect_indices: Index ranges for pairwise effects.
- *  - target_accept: Target acceptance rate for adaptive methods.
- *  - nuts_max_depth: Maximum tree depth for NUTS.
- *  - learn_mass_matrix: If true, adapt mass matrix during warmup.
- *  - projection: Group projection matrix.
- *  - group_membership: Group assignment for each observation.
- *  - group_indices: Row ranges [start,end] for each group in observations.
- *  - interaction_index_matrix: Lookup table of variable pairs.
- *  - inclusion_probability_master: Prior inclusion probabilities for pairwise effects.
- *  - chain_rngs: Pre-initialized RNG engines (one per chain).
- *  - update_method: Sampler type ("adaptive-metropolis", "hamiltonian-mc", "nuts").
- *  - hmc_num_leapfrogs: Number of leapfrog steps (HMC).
- *
- * Output:
- *  - results: Vector of `bgmCompareChainResult` objects, one per chain, filled in place.
- *
- * Notes:
- *  - Each worker instance is shared across threads but invoked with different
- *    [begin,end) ranges, corresponding to chain indices.
- *  - Per-chain copies of statistics and observations prevent cross-thread mutation.
- *  - Errors are caught locally so one failing chain does not crash the entire run.
- */
+// Parallel worker for running a single Gibbs sampling chain (bgmCompare model).
+//
+// This struct wraps all inputs needed for one chain and provides an
+// `operator()` so that multiple chains can be launched in parallel with TBB.
+//
+// Workflow per chain:
+//  - Construct a chain-specific RNG from `chain_rngs`.
+//  - Copy master statistics and observation data into per-chain buffers.
+//  - Call `run_gibbs_sampler_bgmCompare()` to execute the full chain.
+//  - Catch and record any errors (sets `error = true` and stores `error_msg`).
+//  - Store results into the shared `results` vector at the chain index.
+//
+// Inputs (stored as const references or values):
+//  - observations_master: Input observation matrix (persons × variables).
+//  - num_groups: Number of groups.
+//  - counts_per_category_master: Group-level category counts.
+//  - blume_capel_stats_master: Group-level Blume–Capel sufficient statistics.
+//  - pairwise_stats_master: Group-level pairwise sufficient statistics.
+//  - num_categories: Number of categories per variable.
+//  - main_alpha, main_beta: Hyperparameters for Beta priors on main effects.
+//  - pairwise_scale: Scale for Cauchy prior on baseline pairwise effects.
+//  - difference_scale: Scale for Cauchy prior on group differences.
+//  - difference_selection_alpha, difference_selection_beta: Hyperparameters for difference-selection prior.
+//  - difference_prior: Choice of prior distribution for group differences.
+//  - iter, warmup: Iteration counts.
+//  - na_impute: If true, perform missing data imputation.
+//  - missing_data_indices: Indices of missing observations.
+//  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
+//  - baseline_category: Reference categories for Blume–Capel variables.
+//  - difference_selection: If true, perform difference selection updates.
+//  - main_effect_indices: Index ranges for main effects.
+//  - pairwise_effect_indices: Index ranges for pairwise effects.
+//  - target_accept: Target acceptance rate for adaptive methods.
+//  - nuts_max_depth: Maximum tree depth for NUTS.
+//  - learn_mass_matrix: If true, adapt mass matrix during warmup.
+//  - projection: Group projection matrix.
+//  - group_membership: Group assignment for each observation.
+//  - group_indices: Row ranges [start,end] for each group in observations.
+//  - interaction_index_matrix: Lookup table of variable pairs.
+//  - inclusion_probability_master: Prior inclusion probabilities for pairwise effects.
+//  - chain_rngs: Pre-initialized RNG engines (one per chain).
+//  - update_method: Sampler type ("adaptive-metropolis", "hamiltonian-mc", "nuts").
+//  - hmc_num_leapfrogs: Number of leapfrog steps (HMC).
+//
+// Output:
+//  - results: Vector of `bgmCompareChainResult` objects, one per chain, filled in place.
+//
+// Notes:
+//  - Each worker instance is shared across threads but invoked with different
+//    [begin,end) ranges, corresponding to chain indices.
+//  - Per-chain copies of statistics and observations prevent cross-thread mutation.
+//  - Errors are caught locally so one failing chain does not crash the entire run.
 struct GibbsCompareChainRunner : public Worker {
   const arma::imat& observations_master;
   const int num_groups;
@@ -287,69 +283,67 @@ struct GibbsCompareChainRunner : public Worker {
 
 
 
-/**
- * Runs multiple parallel Gibbs sampling chains for the bgmCompare model.
- *
- * This function is the main entry point from R into the C++ backend for bgmCompare.
- * It launches `num_chains` independent chains in parallel using TBB,
- * each managed by `GibbsCompareChainRunner`.
- *
- * Workflow:
- *  - Initialize a per-chain RNG from the global seed.
- *  - Construct a `GibbsCompareChainRunner` worker with all shared inputs.
- *  - Launch the worker across chains using `parallelFor`.
- *  - Collect results from all chains into an Rcpp::List.
- *
- * Inputs:
- *  - observations: Observation matrix (persons × variables).
- *  - num_groups: Number of groups.
- *  - counts_per_category: Group-level category counts (for ordinal variables).
- *  - blume_capel_stats: Group-level sufficient statistics (for Blume–Capel variables).
- *  - pairwise_stats: Group-level pairwise sufficient statistics.
- *  - num_categories: Number of categories per variable.
- *  - main_alpha, main_beta: Hyperparameters for Beta priors on main effects.
- *  - pairwise_scale: Scale for Cauchy prior on baseline pairwise effects.
- *  - difference_scale: Scale for Cauchy prior on group differences.
- *  - difference_selection_alpha, difference_selection_beta: Hyperparameters for difference-selection prior.
- *  - difference_prior: Choice of prior distribution for group differences.
- *  - iter: Number of post-warmup iterations to draw.
- *  - warmup: Number of warmup iterations.
- *  - na_impute: If true, perform missing data imputation during sampling.
- *  - missing_data_indices: Indices of missing entries in observations.
- *  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
- *  - baseline_category: Reference categories for Blume–Capel variables.
- *  - difference_selection: If true, perform difference selection updates.
- *  - main_effect_indices: Index ranges [row_start,row_end] for each variable.
- *  - pairwise_effect_indices: Lookup table mapping (var1,var2) → row in pairwise_effects.
- *  - target_accept: Target acceptance rate for adaptive samplers.
- *  - nuts_max_depth: Maximum tree depth for NUTS.
- *  - learn_mass_matrix: If true, adapt the mass matrix during warmup.
- *  - projection: Group projection matrix (num_groups × (num_groups − 1)).
- *  - group_membership: Group assignment for each observation.
- *  - group_indices: Row ranges [start,end] for each group in observations.
- *  - interaction_index_matrix: Lookup table of variable pairs.
- *  - inclusion_probability: Prior inclusion probabilities for pairwise effects.
- *  - num_chains: Number of chains to run.
- *  - nThreads: Maximum number of threads for parallel execution.
- *  - seed: Base random seed (incremented per chain).
- *  - update_method: Sampler type ("adaptive-metropolis", "hamiltonian-mc", "nuts").
- *  - hmc_num_leapfrogs: Number of leapfrog steps for HMC.
- *
- * Returns:
- *  - Rcpp::List of length `num_chains`, where each element is either:
- *    * An error record (fields: "error", "chain_id"), if the chain failed.
- *    * A result list containing:
- *        - "main_samples": Posterior samples of main effects.
- *        - "pairwise_samples": Posterior samples of pairwise effects.
- *        - "treedepth__", "divergent__", "energy__": NUTS diagnostics.
- *        - "indicator_samples": Inclusion indicators (if selection was enabled).
- *        - "chain_id": Identifier of the chain.
- *
- * Notes:
- *  - Parallel execution is controlled by TBB; `nThreads` limits concurrency.
- *  - Each chain gets its own RNG stream, initialized as `seed + chain_id`.
- *  - This function is called by the exported R function `bgmCompare()`.
- */
+// Runs multiple parallel Gibbs sampling chains for the bgmCompare model.
+//
+// This function is the main entry point from R into the C++ backend for bgmCompare.
+// It launches `num_chains` independent chains in parallel using TBB,
+// each managed by `GibbsCompareChainRunner`.
+//
+// Workflow:
+//  - Initialize a per-chain RNG from the global seed.
+//  - Construct a `GibbsCompareChainRunner` worker with all shared inputs.
+//  - Launch the worker across chains using `parallelFor`.
+//  - Collect results from all chains into an Rcpp::List.
+//
+// Inputs:
+//  - observations: Observation matrix (persons × variables).
+//  - num_groups: Number of groups.
+//  - counts_per_category: Group-level category counts (for ordinal variables).
+//  - blume_capel_stats: Group-level sufficient statistics (for Blume–Capel variables).
+//  - pairwise_stats: Group-level pairwise sufficient statistics.
+//  - num_categories: Number of categories per variable.
+//  - main_alpha, main_beta: Hyperparameters for Beta priors on main effects.
+//  - pairwise_scale: Scale for Cauchy prior on baseline pairwise effects.
+//  - difference_scale: Scale for Cauchy prior on group differences.
+//  - difference_selection_alpha, difference_selection_beta: Hyperparameters for difference-selection prior.
+//  - difference_prior: Choice of prior distribution for group differences.
+//  - iter: Number of post-warmup iterations to draw.
+//  - warmup: Number of warmup iterations.
+//  - na_impute: If true, perform missing data imputation during sampling.
+//  - missing_data_indices: Indices of missing entries in observations.
+//  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
+//  - baseline_category: Reference categories for Blume–Capel variables.
+//  - difference_selection: If true, perform difference selection updates.
+//  - main_effect_indices: Index ranges [row_start,row_end] for each variable.
+//  - pairwise_effect_indices: Lookup table mapping (var1,var2) → row in pairwise_effects.
+//  - target_accept: Target acceptance rate for adaptive samplers.
+//  - nuts_max_depth: Maximum tree depth for NUTS.
+//  - learn_mass_matrix: If true, adapt the mass matrix during warmup.
+//  - projection: Group projection matrix (num_groups × (num_groups − 1)).
+//  - group_membership: Group assignment for each observation.
+//  - group_indices: Row ranges [start,end] for each group in observations.
+//  - interaction_index_matrix: Lookup table of variable pairs.
+//  - inclusion_probability: Prior inclusion probabilities for pairwise effects.
+//  - num_chains: Number of chains to run.
+//  - nThreads: Maximum number of threads for parallel execution.
+//  - seed: Base random seed (incremented per chain).
+//  - update_method: Sampler type ("adaptive-metropolis", "hamiltonian-mc", "nuts").
+//  - hmc_num_leapfrogs: Number of leapfrog steps for HMC.
+//
+// Returns:
+//  - Rcpp::List of length `num_chains`, where each element is either:
+//    * An error record (fields: "error", "chain_id"), if the chain failed.
+//    * A result list containing:
+//        - "main_samples": Posterior samples of main effects.
+//        - "pairwise_samples": Posterior samples of pairwise effects.
+//        - "treedepth__", "divergent__", "energy__": NUTS diagnostics.
+//        - "indicator_samples": Inclusion indicators (if selection was enabled).
+//        - "chain_id": Identifier of the chain.
+//
+// Notes:
+//  - Parallel execution is controlled by TBB; `nThreads` limits concurrency.
+//  - Each chain gets its own RNG stream, initialized as `seed + chain_id`.
+//  - This function is called by the exported R function `bgmCompare()`.
 // [[Rcpp::export]]
 Rcpp::List run_bgmCompare_parallel(
     const arma::imat& observations,

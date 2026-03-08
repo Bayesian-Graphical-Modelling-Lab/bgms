@@ -1,9 +1,7 @@
-/**
- * sample_omrf.cpp - R interface for OMRF model sampling
- *
- * Uses the unified MCMC runner infrastructure to sample from OMRF models.
- * Supports MH, NUTS, and HMC samplers with optional edge selection.
- */
+// sample_omrf.cpp - R interface for OMRF model sampling
+//
+// Uses the unified MCMC runner infrastructure to sample from OMRF models.
+// Supports MH, NUTS, and HMC samplers with optional edge selection.
 #include <vector>
 #include <memory>
 #include <RcppArmadillo.h>
@@ -16,35 +14,33 @@
 #include "mcmc/execution/chain_runner.h"
 #include "mcmc/execution/sampler_config.h"
 
-/**
- * R-exported function to sample from an OMRF model
- *
- * @param inputFromR          List with model specification
- * @param prior_inclusion_prob Prior inclusion probabilities (p x p matrix)
- * @param initial_edge_indicators Initial edge indicators (p x p integer matrix)
- * @param no_iter             Number of post-warmup iterations
- * @param no_warmup           Number of warmup iterations
- * @param no_chains           Number of parallel chains
- * @param edge_selection      Whether to do edge selection (spike-and-slab)
- * @param sampler_type        "mh", "nuts", or "hmc"
- * @param seed                Random seed
- * @param no_threads          Number of threads for parallel execution
- * @param progress_type       Progress bar type
- * @param edge_prior          Edge prior type: "Bernoulli", "Beta-Bernoulli", "Stochastic-Block"
- * @param na_impute           Whether to impute missing data
- * @param missing_index       Matrix of missing data indices (n_missing x 2, 0-based)
- * @param beta_bernoulli_alpha     Beta-Bernoulli alpha hyperparameter
- * @param beta_bernoulli_beta      Beta-Bernoulli beta hyperparameter
- * @param beta_bernoulli_alpha_between SBM between-cluster alpha
- * @param beta_bernoulli_beta_between  SBM between-cluster beta
- * @param dirichlet_alpha     Dirichlet alpha for SBM
- * @param lambda              Lambda for SBM
- * @param target_acceptance   Target acceptance rate for NUTS/HMC (default: 0.8)
- * @param max_tree_depth      Maximum tree depth for NUTS (default: 10)
- * @param num_leapfrogs       Number of leapfrog steps for HMC (default: 10)
- *
- * @return List with per-chain results including samples and diagnostics
- */
+// R-exported function to sample from an OMRF model
+//
+// @param inputFromR          List with model specification
+// @param prior_inclusion_prob Prior inclusion probabilities (p x p matrix)
+// @param initial_edge_indicators Initial edge indicators (p x p integer matrix)
+// @param no_iter             Number of post-warmup iterations
+// @param no_warmup           Number of warmup iterations
+// @param no_chains           Number of parallel chains
+// @param edge_selection      Whether to do edge selection (spike-and-slab)
+// @param sampler_type        "mh", "nuts", or "hmc"
+// @param seed                Random seed
+// @param no_threads          Number of threads for parallel execution
+// @param progress_type       Progress bar type
+// @param edge_prior          Edge prior type: "Bernoulli", "Beta-Bernoulli", "Stochastic-Block"
+// @param na_impute           Whether to impute missing data
+// @param missing_index       Matrix of missing data indices (n_missing x 2, 0-based)
+// @param beta_bernoulli_alpha     Beta-Bernoulli alpha hyperparameter
+// @param beta_bernoulli_beta      Beta-Bernoulli beta hyperparameter
+// @param beta_bernoulli_alpha_between SBM between-cluster alpha
+// @param beta_bernoulli_beta_between  SBM between-cluster beta
+// @param dirichlet_alpha     Dirichlet alpha for SBM
+// @param lambda              Lambda for SBM
+// @param target_acceptance   Target acceptance rate for NUTS/HMC (default: 0.8)
+// @param max_tree_depth      Maximum tree depth for NUTS (default: 10)
+// @param num_leapfrogs       Number of leapfrog steps for HMC (default: 10)
+//
+// @return List with per-chain results including samples and diagnostics
 // [[Rcpp::export]]
 Rcpp::List sample_omrf(
     const Rcpp::List& inputFromR,
