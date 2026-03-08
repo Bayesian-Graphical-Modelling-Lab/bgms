@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-25 (updated 2026-03-04; review amendments 2026-03-04;
 Blume-Capel + PL consistency 2026-03-05; commit strategy 2026-03-05;
-consistency review 2026-03-05)
+consistency review 2026-03-05; phases J-L added 2026-03-08)
 **Branch:** `ggm_mixed` (PR #78)
 **Goal:** Build a monolithic `MixedMRFModel` in C++ that supports both
 conditional and marginal pseudo-likelihood, with and without edge selection.
@@ -1489,6 +1489,220 @@ Test files:
 | `dev/tests/test-simulation-recovery.R` | `run_simrec_test_mixed()` + Boredom cycle test |
 | `dev/tests/plot_cycle_scatterplots.R` | Scatterplots for conditional and marginal PL cycle tests |
 | `dev/tests/compare_bgms_mixedgm_cycle.R` | Cross-package comparison (bgms vs mixedGM) |
+
+---
+
+## Phase H — Stochastic block model edge prior (future)
+
+The SBM edge prior is already implemented for GGM and OMRF models
+(`src/priors/sbm_edge_prior.h`, `sbm_edge_prior_interface.cpp`).
+Extending it to the mixed MRF requires wiring the existing prior
+into the mixed MRF edge-selection machinery.
+
+### Scope
+
+1. Pass `edge_prior` and `block_count` arguments through to
+   `MixedMRFModel` and the Rcpp interface in `sample_mixed.cpp`.
+2. In `update_edge_indicator_{Kxx,Kyy,Kxy}`: use the SBM
+   inclusion probability instead of the flat Bernoulli prior
+   when `edge_prior == "Stochastic-Block"`.
+3. Add allocation sampling for the mixed MRF (port from the
+   GGM/OMRF pattern: one SBM prior object shared across
+   all three edge blocks Kxx, Kyy, Kxy).
+4. Wire SBM posterior allocations into `build_output_mixed_mrf()`.
+5. Validation: add an SBM edge-detection scenario to the
+   group 5 validation tests and a separate group 8 for
+   community-structure recovery.
+
+### Files affected
+
+| File | Change |
+|------|--------|
+| `R/bgm_spec.R` | Forward `edge_prior` / `block_count` to mixed args |
+| `src/sample_mixed.cpp` | Accept and pass SBM arguments to model |
+| `src/models/mixed/mixed_mrf_model.h` | Store `SBMEdgePrior` member |
+| `src/models/mixed/mixed_mrf_metropolis.cpp` | Use SBM prior in edge updates |
+| `R/build_output.R` | Extract SBM allocations for mixed MRF |
+| `dev/tests/validation/group5_edge_detection.R` | Add SBM scenario |
+
+---
+
+## Phase I — Missing data imputation (future)
+
+Missing data imputation for GGM and OMRF models is handled via
+Gibbs imputation inside the MCMC loop (`impute_missing()` override).
+The mixed MRF stub is currently a no-op.
+
+### Scope
+
+1. **Detection**: In the R interface, detect `NA` entries in both
+   discrete and continuous columns. Build missing-data masks:
+   `missing_discrete` (n × p logical) and `missing_continuous`
+   (n × q logical).
+2. **Imputation step**: Override `impute_missing()` in
+   `MixedMRFModel` to cycle through missing entries:
+   - Discrete: sample from full conditional $f(x_s \mid x_{-s}, y)$
+     using the same ordinal/BC probability helpers as the Gibbs
+     generator.
+   - Continuous: sample from $f(y_j \mid y_{-j}, x)$ using the
+     conditional Normal from the precision matrix $K_{yy}$.
+3. **Integration**: `ChainRunner` already calls `impute_missing()`
+   each iteration when `has_missing_data()` returns `true`. Flip
+   the flag once imputation is implemented.
+4. **Validation**: Test on data with MCAR missingness at 5%, 15%,
+   and 30%. Compare parameter recovery with and without missing
+   data. Verify that imputed values have plausible distributions.
+
+### Files affected
+
+| File | Change |
+|------|--------|
+| `R/validate_data.R` | Allow `NA` for mixed MRF; build masks |
+| `src/sample_mixed.cpp` | Pass masks to model constructor |
+| `src/models/mixed/mixed_mrf_model.h` | Store masks; override `has_missing_data` |
+| `src/models/mixed/mixed_mrf_model.cpp` | Implement `impute_missing()` |
+| `dev/tests/validation/` | New group for missing-data validation |
+
+---
+
+## Phase J — Performance profiling
+
+Profile the mixed MRF sampler to identify bottlenecks and verify
+that the rank-1 Cholesky optimizations (Phase B+) deliver the
+expected speedup over naive recomputation.
+
+### Scope
+
+1. **Wall-clock benchmarks.** Time full `bgm()` runs at several
+   network sizes (p = 4/8/16, q = 3/6/12) with fixed iteration
+   counts. Record total time, per-iteration time, and breakdown
+   by update type (Kxx, Kyy, Kxy, Kxy, main effects, edge
+   selection when active). Compare MH vs NUTS.
+2. **Cache-hit verification.** Under a profiler (or instrumented
+   C++ timers), confirm that the Cholesky rank-1 update path
+   dominates over any fallback full-recompute path. Quantify
+   the fraction of iterations that hit the fast path.
+3. **Scaling curves.** Plot per-iteration cost against q (fixing
+   p) and against p (fixing q) to confirm empirical $O(q^2)$
+   and $O(p)$ scaling respectively.
+4. **Marginal vs conditional PL cost.** Conditional PL evaluates
+   one OMRF term per discrete variable per move; marginal PL
+   evaluates all $p$ terms for mean/precision moves. Benchmark
+   both and document the crossover point.
+5. **Comparison with OMRF and GGM.** Run the same-sized pure
+   ordinal and pure continuous models and compare iteration cost
+   to the mixed MRF.
+
+### Deliverables
+
+| File | Content |
+|------|---------|
+| `dev/tests/validation/group9_profiling.R` | Benchmark script |
+| `dev/tests/validation/output/group9_profiling.pdf` | Scaling curves and timing tables |
+| `dev/ggm_speed.md` or `dev/ggm_performance.md` | Updated with mixed MRF results |
+
+---
+
+## Phase K — Code deduplication audit
+
+Review the mixed MRF implementation and the rest of the package for
+repeated code patterns that could be shared. The goal is to reduce
+maintenance burden without over-abstracting.
+
+### Known candidates
+
+1. **Matrix assembly pattern in `build_output.R`.**
+   `build_output_mixed_mrf()` contains four near-identical nested
+   loops that fill an (p+q) × (p+q) matrix from offset-indexed
+   flat vectors (discrete main effects, continuous main effects,
+   pairwise matrix, indicator matrix). Extract a shared helper.
+2. **SBM summarization computed twice.**
+   `summarize_alloc_pairs()` is called identically for the summary
+   table and the co-clustering matrix. Cache the result and reuse.
+3. **Raw-samples list assembly.**
+   `build_output_bgm()` and `build_output_mixed_mrf()` construct
+   `results$raw_samples` with identical structure. Extract to a
+   shared helper.
+4. **Parameter index computation.**
+   The 50-line block in `build_output_mixed_mrf()` that computes
+   mux/Kxx/muy/Kxy/Kyy offsets is inline and hard to audit.
+   Extract to a named function so it can be unit-tested.
+5. **Cholesky header location.**
+   `cholupdate.h` / `cholupdate.cpp` live in `src/models/ggm/`
+   but are included by the mixed MRF model. Evaluate moving to
+   `src/utils/` for discoverability.
+6. **Metropolis step skeleton.**
+   GGM, OMRF, and Mixed MRF each implement Robbins-Monro
+   adaptation with target acceptance 0.234 / 0.44. The adaptation
+   arithmetic is short and varies per model, so duplication is
+   low, but verify no copy-paste drift has occurred.
+
+### Scope
+
+- Audit, not refactor. This phase produces a ranked list of
+  deduplication opportunities with effort estimates. Actual
+  refactoring happens in follow-up commits.
+- For each candidate, determine: lines saved, risk of introducing
+  bugs, and whether a shared helper already exists in the codebase.
+
+### Deliverables
+
+| File | Content |
+|------|---------|
+| `dev/mixedmrf/deduplication_audit.md` | Ranked list of candidates with code pointers |
+
+---
+
+## Phase L — Model output R code inspection
+
+Systematic review of the R code that assembles, summarises, and
+exposes the mixed MRF model output. The mixed MRF builder was
+written alongside the C++ port and has accumulated inline logic
+that may be fragile or inconsistent with the GGM/OMRF paths.
+
+### Inspection points
+
+1. **`build_output_mixed_mrf()` correctness.**
+   - Verify that the flat-to-matrix index mapping for mux, Kxx,
+     muy, Kxy, Kyy matches the C++ parameter ordering exactly.
+   - Trace the NUTS diagnostic column naming (`__` suffix
+     convention) and confirm it matches `build_output_bgm()`.
+   - Check that posterior_mean_main for BC variables correctly
+     stores alpha/beta in columns 1:2 with the rest NA.
+   - Confirm that `posterior_mean_pairwise` symmetry and sign
+     conventions match GGM/OMRF output.
+2. **Posterior mean type consistency.**
+   Mixed MRF returns `posterior_mean_main` as a list with
+   `$discrete` and `$continuous` sub-elements, while GGM and
+   OMRF return a matrix. Determine whether this inconsistency
+   causes problems downstream (in `coef.bgms()`, print methods,
+   user code) and propose a resolution.
+3. **`coef.bgms()` with mixed MRF.**
+   Verify that `coef()` on a mixed fit returns a structure that
+   users can work with. Check edge cases: all-ordinal mixed MRF
+   (q=0 should not occur but the code path should be guarded),
+   all-BC discrete variables, single variable of each type.
+4. **`simulate.bgms()` with mixed MRF.**
+   Confirm that simulation from posterior means and from posterior
+   samples both produce correctly ordered data frames (original
+   column order, not internal discrete-first order).
+5. **`predict.bgms()` with mixed MRF.**
+   Confirm that conditional prediction handles mixed types and
+   that the reordering from internal to user column order is
+   correct.
+6. **NUTS diagnostic wiring.**
+   The `update_method` string in the mixed MRF path is
+   `"hybrid-nuts"` while GGM uses `"nuts"`. Verify that
+   downstream code (Rhat computation, ESS, trace extraction)
+   handles both strings correctly.
+7. **`summary.bgms()` and `print.bgms()`.**
+   Confirm these methods produce sensible output for a mixed fit.
+
+### Deliverables
+
+| File | Content |
+|------|---------|
+| `dev/mixedmrf/output_inspection.md` | Findings, bugs found, and fix list |
 
 ---
 
