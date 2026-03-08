@@ -73,7 +73,3 @@ compute_Vn_mfm_sbm <- function(num_variables, dirichlet_alpha, t_max, lambda) {
     .Call(`_bgms_compute_Vn_mfm_sbm`, num_variables, dirichlet_alpha, t_max, lambda)
 }
 
-test_mixed_gradient <- function(inputFromR, theta, edge_selection = FALSE) {
-    .Call(`_bgms_test_mixed_gradient`, inputFromR, theta, edge_selection)
-}
-

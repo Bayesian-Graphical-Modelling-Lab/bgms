@@ -1167,6 +1167,7 @@ build_arguments_mixed_mrf = function(spec) {
     version                      = packageVersion("bgms"),
     update_method                = spec$sampler$update_method,
     target_accept                = spec$sampler$target_accept,
+    nuts_max_depth               = spec$sampler$nuts_max_depth,
     num_chains                   = spec$sampler$chains,
     num_categories               = spec$data$num_categories,
     data_columnnames             = spec$data$data_columnnames,

@@ -388,19 +388,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// test_mixed_gradient
-Rcpp::List test_mixed_gradient(const Rcpp::List& inputFromR, const arma::vec& theta, const bool edge_selection);
-RcppExport SEXP _bgms_test_mixed_gradient(SEXP inputFromRSEXP, SEXP thetaSEXP, SEXP edge_selectionSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type inputFromR(inputFromRSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type theta(thetaSEXP);
-    Rcpp::traits::input_parameter< const bool >::type edge_selection(edge_selectionSEXP);
-    rcpp_result_gen = Rcpp::wrap(test_mixed_gradient(inputFromR, theta, edge_selection));
-    return rcpp_result_gen;
-END_RCPP
-}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_bgms_run_bgmCompare_parallel", (DL_FUNC) &_bgms_run_bgmCompare_parallel, 38},
@@ -421,7 +408,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sample_mixed_mrf", (DL_FUNC) &_bgms_sample_mixed_mrf, 21},
     {"_bgms_sample_omrf", (DL_FUNC) &_bgms_sample_omrf, 24},
     {"_bgms_compute_Vn_mfm_sbm", (DL_FUNC) &_bgms_compute_Vn_mfm_sbm, 4},
-    {"_bgms_test_mixed_gradient", (DL_FUNC) &_bgms_test_mixed_gradient, 3},
     {NULL, NULL, 0}
 };
 

@@ -242,8 +242,6 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
                  + 2.0 * continuous_observations_ * temp_Kxy.row(s).t();
         }
 
-        arma::vec bound = static_cast<double>(C_s) * rest;
-
         if(is_ordinal_variable_(s)) {
             arma::vec main_param = temp_mux.row(s).cols(0, C_s - 1).t();
 
@@ -254,6 +252,13 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
                     main_param(c) += static_cast<double>((c + 1) * (c + 1)) * theta_ss;
                 }
             }
+
+            // bound = per-observation upper bound on log-scores for numerical
+            // stability. Must cover max_c(main_param(c) + (c+1)*rest(i)).
+            // The highest-category term main_param(C_s-1) + C_s*rest dominates
+            // when rest > 0; category 0 (score = 0) dominates when rest << 0.
+            arma::vec bound = main_param(C_s - 1) + static_cast<double>(C_s) * rest;
+            bound = arma::max(bound, arma::zeros<arma::vec>(bound.n_elem));
 
             LogZAndProbs result = compute_logZ_and_probs_ordinal(
                 main_param, rest, bound, C_s
@@ -362,8 +367,9 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
                 effective_quad += temp_Theta(s, s);
             }
 
+            arma::vec bc_bound;
             LogZAndProbs result = compute_logZ_and_probs_blume_capel(
-                rest, lin_eff, effective_quad, ref, C_s, bound
+                rest, lin_eff, effective_quad, ref, C_s, bc_bound
             );
 
             logp -= arma::accu(result.log_Z);

@@ -143,7 +143,8 @@ std::vector<ChainResult> run_mcmc_sampler(
     const int no_threads,
     ProgressManager& pm
 ) {
-    const bool has_nuts_diag = (config.sampler_type == "nuts");
+    const bool has_nuts_diag = (config.sampler_type == "nuts" ||
+                                config.sampler_type == "hybrid-nuts");
     const bool has_sbm_alloc = edge_prior.has_allocations() ||
         (config.edge_selection && dynamic_cast<StochasticBlockEdgePrior*>(&edge_prior) != nullptr);
 

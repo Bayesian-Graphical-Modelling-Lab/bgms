@@ -359,6 +359,13 @@ LogZAndProbs compute_logZ_and_probs_ordinal(
 
   const arma::vec eM = ARMA_MY_EXP(main_param);
 
+  // The fast block computes eM[c] * pow % eB where the intermediate
+  // eM[c] * pow = exp(main_param(c) + (c+1)*rest) can overflow even when
+  // the final product exp(main_param(c) + (c+1)*rest - bound) is finite.
+  // Reduce the fast-block threshold by max(|main_param|) to prevent this.
+  const double max_abs_main = arma::max(arma::abs(main_param));
+  const double FAST_LIM = std::max(0.0, EXP_BOUND - max_abs_main);
+
   auto do_fast_block = [&](arma::uword i0, arma::uword i1) {
     auto P = result.probs.rows(i0, i1).cols(1, num_cats);
     arma::vec r = residual_score.rows(i0, i1);
@@ -396,10 +403,10 @@ LogZAndProbs compute_logZ_and_probs_ordinal(
   const double* bp = bound.memptr();
   arma::uword i = 0;
   while (i < N) {
-    const bool fast = !(bp[i] < -EXP_BOUND || bp[i] > EXP_BOUND);
+    const bool fast = !(bp[i] < -FAST_LIM || bp[i] > FAST_LIM);
     arma::uword j = i + 1;
     while (j < N) {
-      const bool fast_j = !(bp[j] < -EXP_BOUND || bp[j] > EXP_BOUND);
+      const bool fast_j = !(bp[j] < -FAST_LIM || bp[j] > FAST_LIM);
       if (fast_j != fast) break;
       j++;
     }
@@ -488,14 +495,19 @@ LogZAndProbs compute_logZ_and_probs_blume_capel(
     result.log_Z.rows(i0, i1) = bb + ARMA_MY_LOG(denom);
   };
 
+  // Same intermediate overflow guard as the ordinal function:
+  // exp_theta[c] * pow can overflow before the implicit cancellation with b.
+  const double max_abs_theta = arma::max(arma::abs(theta));
+  const double THETA_LIM = std::max(0.0, EXP_BOUND - max_abs_theta);
+
   const double* bp = b.memptr();
   const double* pp = pow_bound.memptr();
   arma::uword i = 0;
   while (i < N) {
-    const bool fast_i = (std::abs(bp[i]) <= EXP_BOUND) && (std::abs(pp[i]) <= EXP_BOUND);
+    const bool fast_i = (std::abs(bp[i]) <= EXP_BOUND) && (std::abs(pp[i]) <= THETA_LIM);
     arma::uword j = i + 1;
     while (j < N) {
-      const bool fast_j = (std::abs(bp[j]) <= EXP_BOUND) && (std::abs(pp[j]) <= EXP_BOUND);
+      const bool fast_j = (std::abs(bp[j]) <= EXP_BOUND) && (std::abs(pp[j]) <= THETA_LIM);
       if (fast_j != fast_i) break;
       j++;
     }
