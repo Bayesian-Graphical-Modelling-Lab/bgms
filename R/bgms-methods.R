@@ -38,8 +38,8 @@ print.bgms = function(x, ...) {
   mt = arguments$model_type
   if(!is.null(mt)) {
     mt_label = switch(mt,
-      ggm       = "GGM (Gaussian Graphical Model)",
-      omrf      = "OMRF (Ordinal Markov Random Field)",
+      ggm = "GGM (Gaussian Graphical Model)",
+      omrf = "OMRF (Ordinal Markov Random Field)",
       mixed_mrf = sprintf(
         "Mixed MRF (%d discrete, %d continuous)",
         arguments$num_discrete, arguments$num_continuous

@@ -38,7 +38,8 @@ fill_mixed_symmetric = function(values, p, q, disc_idx, cont_idx, dimnames) {
     for(i in seq_len(p - 1)) {
       for(j in seq(i + 1, p)) {
         idx = idx + 1L
-        oi = disc_idx[i]; oj = disc_idx[j]
+        oi = disc_idx[i]
+        oj = disc_idx[j]
         mat[oi, oj] = values[idx]
         mat[oj, oi] = values[idx]
       }
@@ -50,7 +51,8 @@ fill_mixed_symmetric = function(values, p, q, disc_idx, cont_idx, dimnames) {
     for(i in seq_len(q - 1)) {
       for(j in seq(i + 1, q)) {
         idx = idx + 1L
-        oi = cont_idx[i]; oj = cont_idx[j]
+        oi = cont_idx[i]
+        oj = cont_idx[j]
         mat[oi, oj] = values[idx]
         mat[oj, oi] = values[idx]
       }
@@ -62,7 +64,8 @@ fill_mixed_symmetric = function(values, p, q, disc_idx, cont_idx, dimnames) {
     for(i in seq_len(p)) {
       for(j in seq_len(q)) {
         idx = idx + 1L
-        oi = disc_idx[i]; oj = cont_idx[j]
+        oi = disc_idx[i]
+        oj = cont_idx[j]
         mat[oi, oj] = values[idx]
         mat[oj, oi] = values[idx]
       }

@@ -20,8 +20,11 @@
 # Returns: Character vector of length num_variables.
 # ------------------------------------------------------------------
 expand_variable_type = function(variable_type, num_variables) {
-  if(length(variable_type) == 1) rep(variable_type, num_variables)
-  else variable_type
+  if(length(variable_type) == 1) {
+    rep(variable_type, num_variables)
+  } else {
+    variable_type
+  }
 }
 
 

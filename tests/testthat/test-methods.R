@@ -53,8 +53,10 @@ test_that("get_bgmcompare_fixtures covers all required labels", {
 test_that("get_extractor_fixtures covers all model families", {
   specs = get_extractor_fixtures()
   labels = vapply(specs, `[[`, character(1), "label")
-  required = c("bgms_binary", "bgms_ggm", "bgms_mixed",
-               "bgmCompare_binary", "bgmCompare_ordinal")
+  required = c(
+    "bgms_binary", "bgms_ggm", "bgms_mixed",
+    "bgmCompare_binary", "bgmCompare_ordinal"
+  )
   for(r in required) {
     expect_true(r %in% labels, info = sprintf("missing required label '%s'", r))
   }

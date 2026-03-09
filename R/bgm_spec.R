@@ -753,8 +753,8 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
       baseline_category = as.integer(bc_final)
     ),
     missing = list(
-      na_action     = na_action,
-      na_impute     = na_impute,
+      na_action = na_action,
+      na_impute = na_impute,
       missing_index_discrete = missing_index_discrete,
       missing_index_continuous = missing_index_continuous
     ),
