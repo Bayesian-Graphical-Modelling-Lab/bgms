@@ -70,6 +70,21 @@
 #    mismatch was a regression introduced and fixed within PR #78; it was
 #    never in a CRAN release.
 #
+# 7. Intermediate-overflow guard in compute_logZ_and_probs_ordinal and
+#    compute_logZ_and_probs_blume_capel (ACCEPTED — not a bug):
+#    Commit 04b9562 tightened the fast/slow block threshold from EXP_BOUND
+#    (709) to FAST_LIM = max(0, EXP_BOUND - max_abs_main) to prevent
+#    intermediate overflow in exp(main_param(c) + (c+1)*rest) before the
+#    cancellation with exp(-bound). Both code paths are mathematically
+#    identical but differ at floating-point level. During HMC leapfrog
+#    integration, parameters can temporarily reach extreme values where
+#    max_abs_main is large enough that FAST_LIM < EXP_BOUND, reclassifying
+#    some observations between the fast (vectorized) and slow (per-element)
+#    paths. The resulting floating-point perturbation cascades through the
+#    fixed-step leapfrog integrator. This is needed for mixed MRF models
+#    where Theta_ss is absorbed into main_param. The affected configs use
+#    structure-only comparison against CRAN fixtures.
+#
 # ==============================================================================
 
 library(bgms)
@@ -425,11 +440,13 @@ na_bugfix_ids = c(
 )
 
 # Configs excluded from bitwise comparison due to confirmed algorithm changes
-# (see header note 5). Checked for structural match only.
+# (see header notes 5 and 7). Checked for structural match only.
 structure_only_ids = c(
-  "bgm_wenchuan_nuts_blumecapel_impute",  # Blume-Capel imputation bug fix
-  "bgm_wenchuan_nuts_sbm",                # SBM lazy init changes RNG order (not a bug)
-  "bgm_adhd_nuts_sbm"                     # SBM lazy init changes RNG order (not a bug)
+  "bgm_wenchuan_nuts_blumecapel_impute",  # Blume-Capel imputation bug fix (note 5c)
+  "bgm_wenchuan_nuts_sbm",                # SBM lazy init changes RNG order (note 4)
+  "bgm_adhd_nuts_sbm",                    # SBM lazy init changes RNG order (note 4)
+  "bgm_boredom_hmc_bernoulli",            # overflow guard reclassifies fast/slow (note 7)
+  "cmp_wenchuan_hmc_bernoulli"            # overflow guard reclassifies fast/slow (note 7)
 )
 
 compare_fields = function(expected, actual, type, id) {

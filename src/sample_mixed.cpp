@@ -135,7 +135,7 @@ Rcpp::List sample_mixed_mrf(
     config.num_leapfrogs = num_leapfrogs;
 
     // Set up progress manager
-    ProgressManager pm(no_chains, no_iter, no_warmup, 1, progress_type);
+    ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type);
 
     // Run MCMC using unified infrastructure
     std::vector<ChainResult> results = run_mcmc_sampler(
