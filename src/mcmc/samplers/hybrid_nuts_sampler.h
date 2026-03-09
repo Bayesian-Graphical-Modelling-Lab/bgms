@@ -54,7 +54,7 @@ protected:
 
         // --- Phase 2: Kyy Metropolis step ---
         auto& mixed = static_cast<MixedMRFModel&>(model);
-        mixed.do_kyy_metropolis_step(current_iteration_);
+        mixed.do_pairwise_continuous_metropolis_step(current_iteration_);
 
         return result;
     }

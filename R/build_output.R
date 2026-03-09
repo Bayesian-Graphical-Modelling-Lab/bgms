@@ -325,10 +325,11 @@ build_output_bgm = function(spec, raw) {
 # ==============================================================================
 #
 # Handles the mixed discrete + continuous parameter layout:
-#   C++ flat vector: [mux | Kxx_ut | muy | Kxy | Kyy_ut]
+#   C++ flat vector: [main_discrete | pairwise_discrete_ut | main_continuous | pairwise_cross | pairwise_continuous_ut]
 #   C++ indicators:  [Gxx_ut | Gyy_ut | Gxy]
 #
-# Splits into main (mux, muy, Kyy_diag) and pairwise (Kxx, Kyy_offdiag, Kxy),
+# Splits into main (discrete thresholds, continuous means, precision diagonal)
+# and pairwise (discrete, precision off-diag, cross),
 # builds (p+q)×(p+q) interaction and indicator matrices, and maps internal
 # variable order (discrete first, continuous second) back to original column
 # order from the user's data.
@@ -359,20 +360,20 @@ build_output_mixed_mrf = function(spec, raw) {
   nxy = as.integer(p * q)
 
   # Offsets in the flat vector (1-based)
-  mux_start = 1L
-  mux_end = nt
-  kxx_start = nt + 1L
-  kxx_end = nt + nxx
-  muy_start = nt + nxx + 1L
-  muy_end = nt + nxx + q
-  kxy_start = nt + nxx + q + 1L
-  kxy_end = nt + nxx + q + nxy
-  kyy_start = nt + nxx + q + nxy + 1L
-  kyy_end = nt + nxx + q + nxy + nyy_total
+  main_discrete_start = 1L
+  main_discrete_end = nt
+  pairwise_discrete_start = nt + 1L
+  pairwise_discrete_end = nt + nxx
+  main_continuous_start = nt + nxx + 1L
+  main_continuous_end = nt + nxx + q
+  pairwise_cross_start = nt + nxx + q + 1L
+  pairwise_cross_end = nt + nxx + q + nxy
+  pairwise_continuous_start = nt + nxx + q + nxy + 1L
+  pairwise_continuous_end = nt + nxx + q + nxy + nyy_total
 
-  # Kyy diagonal indices within the Kyy block
-  kyy_diag_within = integer(q)
-  kyy_offdiag_within = integer(nyy_offdiag)
+  # Precision diagonal indices within the pairwise_continuous block
+  precision_diag_within = integer(q)
+  precision_offdiag_within = integer(nyy_offdiag)
   k_diag = 0L
   k_off = 0L
   pos = 0L
@@ -381,34 +382,34 @@ build_output_mixed_mrf = function(spec, raw) {
       pos = pos + 1L
       if(i == j) {
         k_diag = k_diag + 1L
-        kyy_diag_within[k_diag] = pos
+        precision_diag_within[k_diag] = pos
       } else {
         k_off = k_off + 1L
-        kyy_offdiag_within[k_off] = pos
+        precision_offdiag_within[k_off] = pos
       }
     }
   }
-  kyy_diag_abs = kyy_start - 1L + kyy_diag_within
-  kyy_offdiag_abs = kyy_start - 1L + kyy_offdiag_within
+  precision_diag_abs = pairwise_continuous_start - 1L + precision_diag_within
+  precision_offdiag_abs = pairwise_continuous_start - 1L + precision_offdiag_within
 
-  # Main indices: mux + muy + Kyy diagonal
+  # Main indices: discrete thresholds + continuous means + precision diagonal
   main_idx = c(
-    seq(mux_start, mux_end),
-    seq(muy_start, muy_end),
-    kyy_diag_abs
+    seq(main_discrete_start, main_discrete_end),
+    seq(main_continuous_start, main_continuous_end),
+    precision_diag_abs
   )
 
-  # Pairwise indices: Kxx + Kyy off-diag + Kxy
+  # Pairwise indices: discrete + precision off-diag + cross
   pairwise_idx = c(
-    if(nxx > 0) seq(kxx_start, kxx_end) else integer(0),
-    kyy_offdiag_abs,
-    if(nxy > 0) seq(kxy_start, kxy_end) else integer(0)
+    if(nxx > 0) seq(pairwise_discrete_start, pairwise_discrete_end) else integer(0),
+    precision_offdiag_abs,
+    if(nxy > 0) seq(pairwise_cross_start, pairwise_cross_end) else integer(0)
   )
 
   # --- Indicator index layout -------------------------------------------------
   # C++ indicator vector: [Gxx_ut | Gyy_ut | Gxy]
   # All are pairwise, so indicator_samples maps directly to pairwise order:
-  # Kxx edges, Kyy edges, Kxy edges — same order as pairwise_idx above.
+  # Discrete, continuous, cross edges — same order as pairwise_idx above.
 
   # --- Normalize raw output per chain -----------------------------------------
   raw = lapply(raw, function(chain) {
@@ -460,7 +461,7 @@ build_output_mixed_mrf = function(spec, raw) {
   all_internal_names = c(disc_names, cont_names)
 
   edge_names = character()
-  # Kxx edges (discrete-discrete)
+  # Discrete-discrete edges
   if(p > 1) {
     for(i in seq_len(p - 1)) {
       for(j in seq(i + 1, p)) {
@@ -471,7 +472,7 @@ build_output_mixed_mrf = function(spec, raw) {
       }
     }
   }
-  # Kyy edges (continuous-continuous, off-diagonal)
+  # Continuous-continuous edges (off-diagonal)
   if(q > 1) {
     for(i in seq_len(q - 1)) {
       for(j in seq(i + 1, q)) {
@@ -482,7 +483,7 @@ build_output_mixed_mrf = function(spec, raw) {
       }
     }
   }
-  # Kxy edges (discrete-continuous)
+  # Cross edges (discrete-continuous)
   if(p > 0 && q > 0) {
     for(i in seq_len(p)) {
       for(j in seq_len(q)) {
@@ -549,9 +550,9 @@ build_output_mixed_mrf = function(spec, raw) {
 
   # Continuous main effects: q × 2 matrix (mean, precision)
   pmm_cont = matrix(NA, nrow = q, ncol = 2)
-  muy_means = main_summary$mean[nt + seq_len(q)]
+  continuous_means = main_summary$mean[nt + seq_len(q)]
   kyy_diag_means = main_summary$mean[nt + q + seq_len(q)]
-  pmm_cont[, 1] = muy_means
+  pmm_cont[, 1] = continuous_means
   pmm_cont[, 2] = kyy_diag_means
   rownames(pmm_cont) = cont_names
   colnames(pmm_cont) = c("mean", "precision")
@@ -571,7 +572,7 @@ build_output_mixed_mrf = function(spec, raw) {
   pw_means = pairwise_summary$mean
   idx = 0L
 
-  # Kxx block
+  # Discrete-discrete block
   if(p > 1) {
     for(i in seq_len(p - 1)) {
       for(j in seq(i + 1, p)) {
@@ -584,7 +585,7 @@ build_output_mixed_mrf = function(spec, raw) {
     }
   }
 
-  # Kyy off-diagonal block
+  # Continuous-continuous off-diagonal block
   if(q > 1) {
     for(i in seq_len(q - 1)) {
       for(j in seq(i + 1, q)) {
@@ -597,7 +598,7 @@ build_output_mixed_mrf = function(spec, raw) {
     }
   }
 
-  # Kxy block
+  # Cross block
   if(p > 0 && q > 0) {
     for(i in seq_len(p)) {
       for(j in seq_len(q)) {

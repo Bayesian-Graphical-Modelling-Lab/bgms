@@ -109,10 +109,10 @@ public:
     void do_one_metropolis_step(int iteration = -1) override;
 
     /**
-     * Update only Kyy parameters via Metropolis (used by hybrid NUTS+MH).
+     * Update only continuous precision parameters via Metropolis (hybrid NUTS+MH).
      * @param iteration  Current iteration (for Robbins-Monro adaptation)
      */
-    void do_kyy_metropolis_step(int iteration = -1);
+    void do_pairwise_continuous_metropolis_step(int iteration = -1);
 
     /**
      * Initialize Metropolis adaptation controllers for proposal-SD tuning.
@@ -155,39 +155,39 @@ public:
     // =========================================================================
 
     /**
-     * Dimensionality of the active NUTS parameter space (excludes Kyy).
+     * Dimensionality of the active NUTS parameter space (excludes precision).
      * When edge selection is active, excludes parameters for inactive edges.
      */
     size_t parameter_dimension() const override;
 
     /**
      * Full NUTS-block dimension (all NUTS params, regardless of edge state).
-     * Excludes Kyy. Used for mass-matrix sizing and adaptation.
+     * Excludes continuous precision. Used for mass-matrix sizing and adaptation.
      */
     size_t full_parameter_dimension() const override;
 
     /**
-     * Storage dimension (all parameters including Kyy, regardless of edge state).
-     * Used for fixed-size sample storage.
+     * Storage dimension (all parameters including continuous precision,
+     * regardless of edge state). Used for fixed-size sample storage.
      */
     size_t storage_dimension() const override;
 
-    /** Get active NUTS parameters as a flat vector (excludes Kyy). */
+    /** Get active NUTS parameters as a flat vector (excludes precision). */
     arma::vec get_vectorized_parameters() const override;
 
-    /** Get all NUTS parameters (inactive edges are 0, excludes Kyy). */
+    /** Get all NUTS parameters (inactive edges zeroed, excludes precision). */
     arma::vec get_full_vectorized_parameters() const override;
 
-    /** Get all parameters including Kyy for sample storage. */
+    /** Get all parameters including continuous precision for sample storage. */
     arma::vec get_storage_vectorized_parameters() const override;
 
-    /** Set NUTS parameters from a flat vector (does not touch Kyy). */
+    /** Set NUTS parameters from a flat vector (does not touch precision). */
     void set_vectorized_parameters(const arma::vec& params) override;
 
     /** Get vectorized edge indicators (Gxx upper-tri, Gyy upper-tri, Gxy full). */
     arma::ivec get_vectorized_indicator_parameters() override;
 
-    /** Get active subset of inverse mass diagonal (NUTS params only, excludes Kyy). */
+    /** Get active subset of inverse mass diagonal (NUTS params only, excludes precision). */
     arma::vec get_active_inv_mass() const override;
 
     // =========================================================================
@@ -287,11 +287,11 @@ private:
     // Parameters
     // =========================================================================
 
-    arma::mat mux_;                     ///< p x max_cats main effects (thresholds or alpha/beta)
-    arma::vec muy_;                     ///< q-vector continuous means
-    arma::mat Kxx_;                     ///< p x p discrete interactions (symmetric, zero diag)
-    arma::mat Kyy_;                     ///< q x q SPD precision matrix
-    arma::mat Kxy_;                     ///< p x q cross-type interactions
+    arma::mat main_effects_discrete_;                     ///< p x max_cats main effects (thresholds or alpha/beta)
+    arma::vec main_effects_continuous_;                     ///< q-vector continuous means
+    arma::mat pairwise_effects_discrete_;                     ///< p x p discrete interactions (symmetric, zero diag)
+    arma::mat pairwise_effects_continuous_;                     ///< q x q SPD precision matrix
+    arma::mat pairwise_effects_cross_;                     ///< p x q cross-type interactions
 
     // =========================================================================
     // Edge indicators
@@ -318,27 +318,27 @@ private:
     // Proposal SDs (Robbins-Monro adapted)
     // =========================================================================
 
-    arma::mat prop_sd_mux_;             ///< p x max_cats
-    arma::vec prop_sd_muy_;             ///< q-vector
-    arma::mat prop_sd_Kxx_;             ///< p x p
-    arma::mat prop_sd_Kyy_;             ///< q x q
-    arma::mat prop_sd_Kxy_;             ///< p x q
+    arma::mat proposal_sd_main_discrete_;             ///< p x max_cats
+    arma::vec proposal_sd_main_continuous_;             ///< q-vector
+    arma::mat proposal_sd_pairwise_discrete_;             ///< p x p
+    arma::mat proposal_sd_pairwise_continuous_;             ///< q x q
+    arma::mat proposal_sd_pairwise_cross_;             ///< p x q
     int total_warmup_ = 0;              ///< Stored by init_metropolis_adaptation
 
     // =========================================================================
     // Cached quantities
     // =========================================================================
 
-    arma::mat Kyy_chol_;                ///< q x q upper Cholesky of Kyy (Kyy = R'R)
-    arma::mat inv_cholesky_yy_;         ///< q x q R^{-1} (upper triangular)
-    arma::mat covariance_yy_;           ///< q x q Kyy^{-1} = R^{-1} R^{-T}
-    double Kyy_log_det_;                ///< log|Kyy|
-    arma::mat Theta_;                   ///< p x p Kxx + 2 Kxy covariance_yy_ Kxy' (marginal PL)
-    arma::mat conditional_mean_;        ///< n x q mu_y' + 2 discrete_obs Kxy covariance_yy_
+    arma::mat cholesky_of_precision_;       ///< q x q upper Cholesky R (K_yy = R'R)
+    arma::mat inv_cholesky_of_precision_;   ///< q x q R^{-1} (upper triangular)
+    arma::mat covariance_continuous_;       ///< q x q K_yy^{-1} = R^{-1} R^{-T}
+    double log_det_precision_;              ///< log|K_yy|
+    arma::mat Theta_;                       ///< p x p marginal PL interaction matrix
+    arma::mat conditional_mean_;            ///< n x q conditional mean mu_y + 2 X K_xy Sigma_yy
 
     // Rank-1 Cholesky update workspace
     std::array<double, 6> kyy_constants_{};  ///< Reparameterization constants
-    arma::mat precision_yy_proposal_;        ///< q x q scratch for proposed Kyy
+    arma::mat precision_proposal_;        ///< q x q scratch for proposed precision
     arma::vec kyy_v1_ = {0, -1};             ///< Rank-2 decomposition helper 1
     arma::vec kyy_v2_ = {0, 0};              ///< Rank-2 decomposition helper 2
     arma::vec kyy_vf1_;                      ///< q-vector, zeroed between uses
@@ -354,7 +354,7 @@ private:
     arma::vec grad_obs_cache_;          ///< Cached observed-data gradient component
     arma::imat kxx_index_cache_;        ///< p x p map from (i,j) to gradient index
     arma::imat kxy_index_cache_;        ///< p x q map from (i,j) to gradient index
-    int muy_grad_offset_ = 0;           ///< Offset of muy block in gradient vector
+    int main_effects_continuous_grad_offset_ = 0;           ///< Offset of main_effects_continuous block in gradient vector
     bool gradient_cache_valid_ = false; ///< Whether gradient cache is current
 
     // =========================================================================
@@ -382,13 +382,13 @@ private:
     /** Compute category counts and BC sufficient statistics from discrete_observations_. */
     void compute_sufficient_statistics();
 
-    /** Recompute conditional_mean_ from muy_, Kxy_, covariance_yy_. */
+    /** Recompute conditional_mean_ from main_effects_continuous_, pairwise_effects_cross_, covariance_continuous_. */
     void recompute_conditional_mean();
 
-    /** Recompute Kyy_chol_, inv_cholesky_yy_, covariance_yy_, Kyy_log_det_ from Kyy_. */
-    void recompute_Kyy_decomposition();
+    /** Recompute cholesky_of_precision_, inv_cholesky_of_precision_, covariance_continuous_, log_det_precision_ from pairwise_effects_continuous_. */
+    void recompute_pairwise_effects_continuous_decomposition();
 
-    /** Recompute Theta_ from Kxx_, Kxy_, covariance_yy_ (marginal PL only). */
+    /** Recompute Theta_ from pairwise_effects_discrete_, pairwise_effects_cross_, covariance_continuous_ (marginal PL only). */
     void recompute_Theta();
 
     // =========================================================================
@@ -404,10 +404,10 @@ private:
     /** Unpack NUTS-vector into temporary parameter matrices (no model mutation). */
     void unvectorize_nuts_to_temps(
         const arma::vec& params,
-        arma::mat& temp_mux,
-        arma::mat& temp_Kxx,
-        arma::vec& temp_muy,
-        arma::mat& temp_Kxy
+        arma::mat& temp_main_discrete,
+        arma::mat& temp_pairwise_discrete,
+        arma::vec& temp_main_continuous,
+        arma::mat& temp_pairwise_cross
     ) const;
 
     // =========================================================================
@@ -427,59 +427,59 @@ private:
     // MH update functions (implemented in mixed_mrf_metropolis.cpp)
     // =========================================================================
 
-    // --- Rank-1 Kyy proposal helpers (permutation-free) ---
+    // --- Rank-1 precision proposal helpers (permutation-free) ---
 
-    // Extract reparameterization constants for the (i,j) off-diagonal Kyy update.
-    // Populates kyy_constants_[0..5] from Kyy_chol_ and covariance_yy_.
-    void get_kyy_constants(int i, int j);
+    // Extract reparameterization constants for the (i,j) off-diagonal precision update.
+    // Populates kyy_constants_[0..5] from cholesky_of_precision_ and covariance_continuous_.
+    void get_precision_constants(int i, int j);
 
-    // Constrained diagonal value for a proposed off-diagonal Kyy element.
-    double kyy_constrained_diagonal(double x) const;
+    // Constrained diagonal value for a proposed off-diagonal precision element.
+    double precision_constrained_diagonal(double x) const;
 
-    // Log-likelihood ratio for a proposed off-diagonal Kyy change (rank-2).
-    // Assumes precision_yy_proposal_ is already filled by the caller.
+    // Log-likelihood ratio for a proposed off-diagonal precision change (rank-2).
+    // Assumes precision_proposal_ is already filled by the caller.
     double log_ggm_ratio_edge(int i, int j) const;
 
-    // Log-likelihood ratio for a proposed diagonal Kyy change (rank-1).
-    // Assumes precision_yy_proposal_ is already filled by the caller.
+    // Log-likelihood ratio for a proposed diagonal precision change (rank-1).
+    // Assumes precision_proposal_ is already filled by the caller.
     double log_ggm_ratio_diag(int i) const;
 
-    // Rank-1 Cholesky update after accepting an off-diagonal Kyy change.
-    void cholesky_update_after_kyy_edge(double old_ij, double old_jj, int i, int j);
+    // Rank-1 Cholesky update after accepting an off-diagonal precision change.
+    void cholesky_update_after_precision_edge(double old_ij, double old_jj, int i, int j);
 
-    // Rank-1 Cholesky update after accepting a diagonal Kyy change.
-    void cholesky_update_after_kyy_diag(double old_ii, int i);
+    // Rank-1 Cholesky update after accepting a diagonal precision change.
+    void cholesky_update_after_precision_diag(double old_ii, int i);
 
     // --- Parameter update sweeps ---
 
-    /** Update one main-effect: mux_(s, c). Ordinal threshold or BC α/β. */
+    /** Update one main-effect: main_effects_discrete_(s, c). Ordinal threshold or BC α/β. */
     void update_main_effect(int s, int c, int iteration);
 
-    /** Update one continuous mean: muy_(j). */
+    /** Update one continuous mean: main_effects_continuous_(j). */
     void update_continuous_mean(int j, int iteration);
 
-    /** Update one discrete interaction: Kxx_(i, j). Symmetric. */
-    void update_Kxx(int i, int j, int iteration);
+    /** Update one discrete interaction: pairwise_effects_discrete_(i, j). Symmetric. */
+    void update_pairwise_discrete(int i, int j, int iteration);
 
-    /** Update one off-diagonal precision element: Kyy_(i, j). Cholesky-based. */
-    void update_Kyy_offdiag(int i, int j, int iteration);
+    /** Update one off-diagonal precision element. Cholesky-based. */
+    void update_pairwise_effects_continuous_offdiag(int i, int j, int iteration);
 
-    /** Update one diagonal precision element: Kyy_(i, i). Log-scale Cholesky. */
-    void update_Kyy_diag(int i, int iteration);
+    /** Update one diagonal precision element. Log-scale Cholesky. */
+    void update_pairwise_effects_continuous_diag(int i, int iteration);
 
-    /** Update one cross interaction: Kxy_(i, j). */
-    void update_Kxy(int i, int j, int iteration);
+    /** Update one cross interaction: pairwise_effects_cross_(i, j). */
+    void update_pairwise_cross(int i, int j, int iteration);
 
     // --- Edge-indicator update sweeps (Phase D) ---
 
-    /** Reversible-jump birth/death for one Kxx edge (discrete-discrete). */
-    void update_edge_indicator_Kxx(int i, int j);
+    /** Reversible-jump birth/death for one discrete-discrete edge. */
+    void update_edge_indicator_discrete(int i, int j);
 
-    /** Reversible-jump birth/death for one Kyy edge (continuous-continuous). */
-    void update_edge_indicator_Kyy(int i, int j);
+    /** Reversible-jump birth/death for one continuous-continuous edge. */
+    void update_edge_indicator_continuous(int i, int j);
 
-    /** Reversible-jump birth/death for one Kxy edge (cross-type). */
-    void update_edge_indicator_Kxy(int i, int j);
+    /** Reversible-jump birth/death for one cross-type edge. */
+    void update_edge_indicator_cross(int i, int j);
 
     // =========================================================================
     // Edge-indicator accessor helpers

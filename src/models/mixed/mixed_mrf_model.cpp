@@ -1,5 +1,6 @@
 #include <RcppArmadillo.h>
 #include "models/mixed/mixed_mrf_model.h"
+#include "math/explog_macros.h"
 #include "rng/rng_utils.h"
 #include "mcmc/execution/warmup_schedule.h"
 
@@ -63,38 +64,38 @@ MixedMRFModel::MixedMRFModel(
     compute_sufficient_statistics();
 
     // Initialize parameters to zero
-    mux_ = arma::zeros<arma::mat>(p_, max_cats_);
-    muy_ = arma::zeros<arma::vec>(q_);
-    Kxx_ = arma::zeros<arma::mat>(p_, p_);
-    Kyy_ = arma::eye<arma::mat>(q_, q_);
-    Kxy_ = arma::zeros<arma::mat>(p_, q_);
+    main_effects_discrete_ = arma::zeros<arma::mat>(p_, max_cats_);
+    main_effects_continuous_ = arma::zeros<arma::vec>(q_);
+    pairwise_effects_discrete_ = arma::zeros<arma::mat>(p_, p_);
+    pairwise_effects_continuous_ = arma::eye<arma::mat>(q_, q_);
+    pairwise_effects_cross_ = arma::zeros<arma::mat>(p_, q_);
 
     // Initialize proposal SDs
-    prop_sd_mux_ = arma::ones<arma::mat>(p_, max_cats_);
-    prop_sd_muy_ = arma::ones<arma::vec>(q_);
-    prop_sd_Kxx_ = arma::ones<arma::mat>(p_, p_);
-    prop_sd_Kyy_ = arma::ones<arma::mat>(q_, q_);
-    prop_sd_Kxy_ = arma::ones<arma::mat>(p_, q_);
+    proposal_sd_main_discrete_ = arma::ones<arma::mat>(p_, max_cats_);
+    proposal_sd_main_continuous_ = arma::ones<arma::vec>(q_);
+    proposal_sd_pairwise_discrete_ = arma::ones<arma::mat>(p_, p_);
+    proposal_sd_pairwise_continuous_ = arma::ones<arma::mat>(q_, q_);
+    proposal_sd_pairwise_cross_ = arma::ones<arma::mat>(p_, q_);
 
-    // Initialize Kyy caches (Kyy starts as identity)
-    Kyy_chol_ = arma::eye<arma::mat>(q_, q_);
-    inv_cholesky_yy_ = arma::eye<arma::mat>(q_, q_);
-    covariance_yy_ = arma::eye<arma::mat>(q_, q_);
-    Kyy_log_det_ = 0.0;
+    // Initialize precision caches (K_yy starts as identity)
+    cholesky_of_precision_ = arma::eye<arma::mat>(q_, q_);
+    inv_cholesky_of_precision_ = arma::eye<arma::mat>(q_, q_);
+    covariance_continuous_ = arma::eye<arma::mat>(q_, q_);
+    log_det_precision_ = 0.0;
 
     // Rank-1 Cholesky update workspace
-    precision_yy_proposal_ = arma::mat(q_, q_, arma::fill::none);
+    precision_proposal_ = arma::mat(q_, q_, arma::fill::none);
     kyy_vf1_ = arma::zeros<arma::vec>(q_);
     kyy_vf2_ = arma::zeros<arma::vec>(q_);
     kyy_u1_ = arma::zeros<arma::vec>(q_);
     kyy_u2_ = arma::zeros<arma::vec>(q_);
 
-    // Initialize conditional mean: μ_y' + 2 x Kxy Kyy_inv
-    //   With Kxy = 0 and Kyy = I, this is just 1 * μ_y' = 0.
+    // Initialize conditional mean: M = μ_y' + 2 X K_xy Σ_yy
+    //   With K_xy = 0 and K_yy = I, this reduces to μ_y' = 0.
     conditional_mean_ = arma::zeros<arma::mat>(n_, q_);
 
-    // Initialize Theta (marginal PL only): Kxx + 2 Kxy Kyy_inv Kxy'
-    //   With Kxy = 0, Theta = Kxx = 0.
+    // Initialize Theta (marginal PL only): Θ = K_xx + 2 K_xy Σ_yy K_xy'
+    //   With K_xy = 0, Θ = K_xx = 0.
     if(use_marginal_pl_) {
         Theta_ = arma::zeros<arma::mat>(p_, p_);
     }
@@ -131,11 +132,11 @@ MixedMRFModel::MixedMRFModel(const MixedMRFModel& other)
       has_missing_(other.has_missing_),
       counts_per_category_(other.counts_per_category_),
       blume_capel_stats_(other.blume_capel_stats_),
-      mux_(other.mux_),
-      muy_(other.muy_),
-      Kxx_(other.Kxx_),
-      Kyy_(other.Kyy_),
-      Kxy_(other.Kxy_),
+      main_effects_discrete_(other.main_effects_discrete_),
+      main_effects_continuous_(other.main_effects_continuous_),
+      pairwise_effects_discrete_(other.pairwise_effects_discrete_),
+      pairwise_effects_continuous_(other.pairwise_effects_continuous_),
+      pairwise_effects_cross_(other.pairwise_effects_cross_),
       edge_indicators_(other.edge_indicators_),
       inclusion_probability_(other.inclusion_probability_),
       edge_selection_(other.edge_selection_),
@@ -143,20 +144,20 @@ MixedMRFModel::MixedMRFModel(const MixedMRFModel& other)
       main_alpha_(other.main_alpha_),
       main_beta_(other.main_beta_),
       pairwise_scale_(other.pairwise_scale_),
-      prop_sd_mux_(other.prop_sd_mux_),
-      prop_sd_muy_(other.prop_sd_muy_),
-      prop_sd_Kxx_(other.prop_sd_Kxx_),
-      prop_sd_Kyy_(other.prop_sd_Kyy_),
-      prop_sd_Kxy_(other.prop_sd_Kxy_),
+      proposal_sd_main_discrete_(other.proposal_sd_main_discrete_),
+      proposal_sd_main_continuous_(other.proposal_sd_main_continuous_),
+      proposal_sd_pairwise_discrete_(other.proposal_sd_pairwise_discrete_),
+      proposal_sd_pairwise_continuous_(other.proposal_sd_pairwise_continuous_),
+      proposal_sd_pairwise_cross_(other.proposal_sd_pairwise_cross_),
       total_warmup_(other.total_warmup_),
-      Kyy_chol_(other.Kyy_chol_),
-      inv_cholesky_yy_(other.inv_cholesky_yy_),
-      covariance_yy_(other.covariance_yy_),
-      Kyy_log_det_(other.Kyy_log_det_),
+      cholesky_of_precision_(other.cholesky_of_precision_),
+      inv_cholesky_of_precision_(other.inv_cholesky_of_precision_),
+      covariance_continuous_(other.covariance_continuous_),
+      log_det_precision_(other.log_det_precision_),
       Theta_(other.Theta_),
       conditional_mean_(other.conditional_mean_),
       kyy_constants_(other.kyy_constants_),
-      precision_yy_proposal_(other.precision_yy_proposal_),
+      precision_proposal_(other.precision_proposal_),
       kyy_v1_(other.kyy_v1_),
       kyy_v2_(other.kyy_v2_),
       kyy_vf1_(other.kyy_vf1_),
@@ -223,21 +224,21 @@ size_t MixedMRFModel::count_num_main_effects() const {
 // =============================================================================
 
 void MixedMRFModel::recompute_conditional_mean() {
-    // conditional_mean_ = 1*μ_y' + 2 * discrete_obs * Kxy * covariance_yy_
-    conditional_mean_ = arma::repmat(muy_.t(), n_, 1) +
-                        2.0 * discrete_observations_dbl_ * Kxy_ * covariance_yy_;
+    // M = μ_y' + 2 X K_xy Σ_yy
+    conditional_mean_ = arma::repmat(main_effects_continuous_.t(), n_, 1) +
+                        2.0 * discrete_observations_dbl_ * pairwise_effects_cross_ * covariance_continuous_;
 }
 
-void MixedMRFModel::recompute_Kyy_decomposition() {
-    Kyy_chol_ = arma::chol(Kyy_);                // upper Cholesky: Kyy = R'R
-    arma::inv(inv_cholesky_yy_, arma::trimatu(Kyy_chol_));
-    covariance_yy_ = inv_cholesky_yy_ * inv_cholesky_yy_.t();
-    Kyy_log_det_ = cholesky_helpers::get_log_det(Kyy_chol_);
+void MixedMRFModel::recompute_pairwise_effects_continuous_decomposition() {
+    cholesky_of_precision_ = arma::chol(pairwise_effects_continuous_);                // upper Cholesky: K_yy = R'R
+    arma::inv(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_));
+    covariance_continuous_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
+    log_det_precision_ = cholesky_helpers::get_log_det(cholesky_of_precision_);
 }
 
 void MixedMRFModel::recompute_Theta() {
-    // Θ = Kxx + 2 Kxy covariance_yy_ Kxy'
-    Theta_ = Kxx_ + 2.0 * Kxy_ * covariance_yy_ * Kxy_.t();
+    // Θ = K_xx + 2 K_xy Σ_yy K_xy'
+    Theta_ = pairwise_effects_discrete_ + 2.0 * pairwise_effects_cross_ * covariance_continuous_ * pairwise_effects_cross_.t();
 }
 
 
@@ -245,31 +246,31 @@ void MixedMRFModel::recompute_Theta() {
 // Parameter vectorization
 // =============================================================================
 
-// NUTS vectorization order (excludes Kyy — sampled by MH separately):
-//   1. mux_: per-variable (ordinal: C_s thresholds; BC: 2 coefficients)
-//   2. Kxx_: upper-triangular, row-major  — p(p-1)/2
-//   3. muy_: all q means
-//   4. Kxy_: all p*q entries, row-major
+// NUTS vectorization order (excludes pairwise_effects_continuous_ — sampled by MH separately):
+//   1. main_effects_discrete_: per-variable (ordinal: C_s thresholds; BC: 2 coefficients)
+//   2. pairwise_effects_discrete_: upper-triangular, row-major  — p(p-1)/2
+//   3. main_effects_continuous_: all q means
+//   4. pairwise_effects_cross_: all p*q entries, row-major
 //
-// Storage vectorization order (includes Kyy):
+// Storage vectorization order (includes pairwise_effects_continuous_):
 //   1–4. Same as NUTS order
-//   5. Kyy_: upper-triangle including diagonal — q(q+1)/2
+//   5. pairwise_effects_continuous_: upper-triangle including diagonal — q(q+1)/2
 
 size_t MixedMRFModel::parameter_dimension() const {
     if(!edge_selection_active_) {
         return full_parameter_dimension();
     }
-    // Count active NUTS parameters only (no Kyy)
-    size_t dim = num_main_ + q_;  // mux + muy always active
+    // Count active NUTS parameters only (no pairwise_effects_continuous_)
+    size_t dim = num_main_ + q_;  // main effects always active
 
-    // Active Kxx edges
+    // Active pairwise_effects_discrete_ edges
     for(size_t i = 0; i < p_ - 1; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
             if(gxx(i, j)) dim++;
         }
     }
 
-    // Active Kxy edges
+    // Active pairwise_effects_cross_ edges
     for(size_t i = 0; i < p_; ++i) {
         for(size_t j = 0; j < q_; ++j) {
             if(gxy(i, j)) dim++;
@@ -280,52 +281,52 @@ size_t MixedMRFModel::parameter_dimension() const {
 }
 
 size_t MixedMRFModel::full_parameter_dimension() const {
-    // NUTS block: mux + Kxx upper-tri + muy + Kxy full (no Kyy)
+    // NUTS block: main + pairwise_discrete upper-tri + means + pairwise_cross (no precision)
     return num_main_ + num_pairwise_xx_ + q_ + num_cross_;
 }
 
 size_t MixedMRFModel::storage_dimension() const {
-    // All parameters including Kyy
+    // All parameters including pairwise_effects_continuous_
     return num_main_ + num_pairwise_xx_ + q_ +
            (q_ * (q_ + 1)) / 2 + num_cross_;
 }
 
 arma::vec MixedMRFModel::get_vectorized_parameters() const {
-    // Active NUTS parameters only (excludes Kyy, excludes inactive edges)
+    // Active NUTS parameters only (excludes precision, excludes inactive edges)
     arma::vec out(parameter_dimension());
     size_t idx = 0;
 
-    // 1. mux_
+    // 1. main_effects_discrete_
     for(size_t s = 0; s < p_; ++s) {
         if(is_ordinal_variable_(s)) {
             for(int c = 0; c < num_categories_(s); ++c) {
-                out(idx++) = mux_(s, c);
+                out(idx++) = main_effects_discrete_(s, c);
             }
         } else {
-            out(idx++) = mux_(s, 0);
-            out(idx++) = mux_(s, 1);
+            out(idx++) = main_effects_discrete_(s, 0);
+            out(idx++) = main_effects_discrete_(s, 1);
         }
     }
 
-    // 2. Kxx_ upper-triangular (active edges only when selection is active)
+    // 2. pairwise_effects_discrete_ upper-triangular (active edges only when selection is active)
     for(size_t i = 0; i < p_ - 1; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
             if(!edge_selection_active_ || gxx(i, j) == 1) {
-                out(idx++) = Kxx_(i, j);
+                out(idx++) = pairwise_effects_discrete_(i, j);
             }
         }
     }
 
-    // 3. muy_
+    // 3. main_effects_continuous_
     for(size_t j = 0; j < q_; ++j) {
-        out(idx++) = muy_(j);
+        out(idx++) = main_effects_continuous_(j);
     }
 
-    // 4. Kxy_ row-major (active edges only when selection is active)
+    // 4. pairwise_effects_cross_ row-major (active edges only when selection is active)
     for(size_t i = 0; i < p_; ++i) {
         for(size_t j = 0; j < q_; ++j) {
             if(!edge_selection_active_ || gxy(i, j) == 1) {
-                out(idx++) = Kxy_(i, j);
+                out(idx++) = pairwise_effects_cross_(i, j);
             }
         }
     }
@@ -334,38 +335,38 @@ arma::vec MixedMRFModel::get_vectorized_parameters() const {
 }
 
 arma::vec MixedMRFModel::get_full_vectorized_parameters() const {
-    // All NUTS parameters, fixed size (inactive edges are 0, no Kyy)
+    // All NUTS parameters, fixed size (inactive edges are 0, no precision)
     arma::vec out(full_parameter_dimension(), arma::fill::zeros);
     size_t idx = 0;
 
-    // 1. mux_
+    // 1. main_effects_discrete_
     for(size_t s = 0; s < p_; ++s) {
         if(is_ordinal_variable_(s)) {
             for(int c = 0; c < num_categories_(s); ++c) {
-                out(idx++) = mux_(s, c);
+                out(idx++) = main_effects_discrete_(s, c);
             }
         } else {
-            out(idx++) = mux_(s, 0);
-            out(idx++) = mux_(s, 1);
+            out(idx++) = main_effects_discrete_(s, 0);
+            out(idx++) = main_effects_discrete_(s, 1);
         }
     }
 
-    // 2. Kxx_ upper-triangular (all entries, zeros for inactive)
+    // 2. pairwise_effects_discrete_ upper-triangular (all entries, zeros for inactive)
     for(size_t i = 0; i < p_ - 1; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
-            out(idx++) = Kxx_(i, j);
+            out(idx++) = pairwise_effects_discrete_(i, j);
         }
     }
 
-    // 3. muy_
+    // 3. main_effects_continuous_
     for(size_t j = 0; j < q_; ++j) {
-        out(idx++) = muy_(j);
+        out(idx++) = main_effects_continuous_(j);
     }
 
-    // 4. Kxy_ row-major (all entries, zeros for inactive)
+    // 4. pairwise_effects_cross_ row-major (all entries, zeros for inactive)
     for(size_t i = 0; i < p_; ++i) {
         for(size_t j = 0; j < q_; ++j) {
-            out(idx++) = Kxy_(i, j);
+            out(idx++) = pairwise_effects_cross_(i, j);
         }
     }
 
@@ -373,45 +374,45 @@ arma::vec MixedMRFModel::get_full_vectorized_parameters() const {
 }
 
 arma::vec MixedMRFModel::get_storage_vectorized_parameters() const {
-    // All parameters including Kyy, fixed size
+    // All parameters including pairwise_effects_continuous_, fixed size
     arma::vec out(storage_dimension(), arma::fill::zeros);
     size_t idx = 0;
 
-    // 1. mux_
+    // 1. main_effects_discrete_
     for(size_t s = 0; s < p_; ++s) {
         if(is_ordinal_variable_(s)) {
             for(int c = 0; c < num_categories_(s); ++c) {
-                out(idx++) = mux_(s, c);
+                out(idx++) = main_effects_discrete_(s, c);
             }
         } else {
-            out(idx++) = mux_(s, 0);
-            out(idx++) = mux_(s, 1);
+            out(idx++) = main_effects_discrete_(s, 0);
+            out(idx++) = main_effects_discrete_(s, 1);
         }
     }
 
-    // 2. Kxx_ upper-triangular
+    // 2. pairwise_effects_discrete_ upper-triangular
     for(size_t i = 0; i < p_ - 1; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
-            out(idx++) = Kxx_(i, j);
+            out(idx++) = pairwise_effects_discrete_(i, j);
         }
     }
 
-    // 3. muy_
+    // 3. main_effects_continuous_
     for(size_t j = 0; j < q_; ++j) {
-        out(idx++) = muy_(j);
+        out(idx++) = main_effects_continuous_(j);
     }
 
-    // 4. Kxy_ row-major
+    // 4. pairwise_effects_cross_ row-major
     for(size_t i = 0; i < p_; ++i) {
         for(size_t j = 0; j < q_; ++j) {
-            out(idx++) = Kxy_(i, j);
+            out(idx++) = pairwise_effects_cross_(i, j);
         }
     }
 
-    // 5. Kyy_ upper-triangle including diagonal
+    // 5. pairwise_effects_continuous_ upper-triangle including diagonal
     for(size_t i = 0; i < q_; ++i) {
         for(size_t j = i; j < q_; ++j) {
-            out(idx++) = Kyy_(i, j);
+            out(idx++) = pairwise_effects_continuous_(i, j);
         }
     }
 
@@ -419,47 +420,47 @@ arma::vec MixedMRFModel::get_storage_vectorized_parameters() const {
 }
 
 void MixedMRFModel::set_vectorized_parameters(const arma::vec& params) {
-    // Unpack NUTS block only (no Kyy)
+    // Unpack NUTS block only (no pairwise_effects_continuous_)
     size_t idx = 0;
 
-    // 1. mux_
+    // 1. main_effects_discrete_
     for(size_t s = 0; s < p_; ++s) {
         if(is_ordinal_variable_(s)) {
             for(int c = 0; c < num_categories_(s); ++c) {
-                mux_(s, c) = params(idx++);
+                main_effects_discrete_(s, c) = params(idx++);
             }
         } else {
-            mux_(s, 0) = params(idx++);
-            mux_(s, 1) = params(idx++);
+            main_effects_discrete_(s, 0) = params(idx++);
+            main_effects_discrete_(s, 1) = params(idx++);
         }
     }
 
-    // 2. Kxx_ upper-triangular (active edges only when selection is active)
+    // 2. pairwise_effects_discrete_ upper-triangular (active edges only when selection is active)
     for(size_t i = 0; i < p_ - 1; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
             if(!edge_selection_active_ || gxx(i, j) == 1) {
-                Kxx_(i, j) = params(idx);
-                Kxx_(j, i) = params(idx);
+                pairwise_effects_discrete_(i, j) = params(idx);
+                pairwise_effects_discrete_(j, i) = params(idx);
                 idx++;
             }
         }
     }
 
-    // 3. muy_
+    // 3. main_effects_continuous_
     for(size_t j = 0; j < q_; ++j) {
-        muy_(j) = params(idx++);
+        main_effects_continuous_(j) = params(idx++);
     }
 
-    // 4. Kxy_ row-major (active edges only when selection is active)
+    // 4. pairwise_effects_cross_ row-major (active edges only when selection is active)
     for(size_t i = 0; i < p_; ++i) {
         for(size_t j = 0; j < q_; ++j) {
             if(!edge_selection_active_ || gxy(i, j) == 1) {
-                Kxy_(i, j) = params(idx++);
+                pairwise_effects_cross_(i, j) = params(idx++);
             }
         }
     }
 
-    // Refresh caches (Kyy unchanged, so no Kyy decomposition update needed)
+    // Refresh caches (precision unchanged, so no decomposition update needed)
     recompute_conditional_mean();
     if(use_marginal_pl_) {
         recompute_Theta();
@@ -478,7 +479,7 @@ arma::vec MixedMRFModel::get_active_inv_mass() const {
     size_t offset_full = num_main_;
     size_t offset_active = num_main_;
 
-    // Kxx active edges
+    // pairwise_effects_discrete_ active edges
     for(size_t i = 0; i < p_ - 1; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
             if(gxx(i, j) == 1) {
@@ -488,12 +489,12 @@ arma::vec MixedMRFModel::get_active_inv_mass() const {
         }
     }
 
-    // muy: always active
+    // main_effects_continuous_: always active
     for(size_t j = 0; j < q_; ++j) {
         active(offset_active++) = inv_mass_(offset_full++);
     }
 
-    // Kxy active edges
+    // pairwise_effects_cross_ active edges
     for(size_t i = 0; i < p_; ++i) {
         for(size_t j = 0; j < q_; ++j) {
             if(gxy(i, j) == 1) {
@@ -574,40 +575,40 @@ void MixedMRFModel::impute_missing() {
             const int variable = missing_index_discrete_(miss, 1);
             const int num_cats = num_categories_(variable);
 
-            // Rest score: sum_t x_vt * Kxx(t,s) + 2 * sum_j y_vj * Kxy(s,j)
-            // Kxx diagonal is zero, so no self-interaction subtraction needed
+            // Rest score: sum_t x_vt K_xx(t,s) + 2 sum_j y_vj K_xy(s,j)
+            // K_xx diagonal is zero, so no self-interaction subtraction needed
             double rest_v = 0.0;
             for(size_t t = 0; t < p_; t++) {
-                rest_v += discrete_observations_dbl_(person, t) * Kxx_(t, variable);
+                rest_v += discrete_observations_dbl_(person, t) * pairwise_effects_discrete_(t, variable);
             }
             for(size_t j = 0; j < q_; j++) {
-                rest_v += 2.0 * continuous_observations_(person, j) * Kxy_(variable, j);
+                rest_v += 2.0 * continuous_observations_(person, j) * pairwise_effects_cross_(variable, j);
             }
 
             double cumsum = 0.0;
 
             if(is_ordinal_variable_(variable)) {
-                // P(x=0) = 1, P(x=c) ∝ exp(c * rest + mux(s, c-1))
+                // P(x=0) = 1, P(x=c) ∝ exp(c · rest + μ_x(s, c-1))
                 cumsum = 1.0;
                 category_probabilities(0) = cumsum;
                 for(int c = 1; c <= num_cats; c++) {
                     double exponent = static_cast<double>(c) * rest_v +
-                                      mux_(variable, c - 1);
-                    cumsum += std::exp(exponent);
+                                      main_effects_discrete_(variable, c - 1);
+                    cumsum += MY_EXP(exponent);
                     category_probabilities(c) = cumsum;
                 }
             } else {
                 // Blume-Capel: categories centered at baseline
                 const int ref = baseline_category_(variable);
-                double alpha = mux_(variable, 0);
-                double beta = mux_(variable, 1);
+                double alpha = main_effects_discrete_(variable, 0);
+                double beta = main_effects_discrete_(variable, 1);
                 cumsum = 0.0;
                 for(int cat = 0; cat <= num_cats; cat++) {
                     const int score = cat - ref;
                     double exponent = alpha * score +
                                       beta * score * score +
                                       score * rest_v;
-                    cumsum += std::exp(exponent);
+                    cumsum += MY_EXP(exponent);
                     category_probabilities(cat) = cumsum;
                 }
             }
@@ -654,17 +655,17 @@ void MixedMRFModel::impute_missing() {
             const int person = missing_index_continuous_(miss, 0);
             const int variable = missing_index_continuous_(miss, 1);
 
-            // Conditional: y_vj | y_{v,-j}, x ~ N(mu*, 1/Kyy_jj)
-            // mu* = M_vj - (1/Kyy_jj) * sum_{k!=j} Kyy_jk * (y_vk - M_vk)
+            // Conditional: y_vj | y_{v,-j}, x ~ N(mu*, 1/pairwise_effects_continuous_jj)
+            // mu* = M_vj - (1/pairwise_effects_continuous_jj) * sum_{k!=j} pairwise_effects_continuous_jk * (y_vk - M_vk)
             double cond_mean = conditional_mean_(person, variable);
             for(size_t k = 0; k < q_; k++) {
                 if(k != static_cast<size_t>(variable)) {
-                    cond_mean -= (Kyy_(variable, k) / Kyy_(variable, variable)) *
+                    cond_mean -= (pairwise_effects_continuous_(variable, k) / pairwise_effects_continuous_(variable, variable)) *
                         (continuous_observations_(person, k) -
                          conditional_mean_(person, k));
                 }
             }
-            double cond_sd = std::sqrt(1.0 / Kyy_(variable, variable));
+            double cond_sd = std::sqrt(1.0 / pairwise_effects_continuous_(variable, variable));
 
             continuous_observations_(person, variable) =
                 rnorm(rng_, cond_mean, cond_sd);
@@ -696,43 +697,43 @@ void MixedMRFModel::do_one_metropolis_step(int iteration) {
     for(size_t j = 0; j < q_; ++j)
         update_continuous_mean(j, iteration);
 
-    // Step 3: Update Kxx (upper triangle, edge-gated)
+    // Step 3: Update pairwise_effects_discrete_ (upper triangle, edge-gated)
     for(size_t i = 0; i < p_ - 1; ++i)
         for(size_t j = i + 1; j < p_; ++j)
             if(!edge_selection_active_ || gxx(i, j) == 1)
-                update_Kxx(i, j, iteration);
+                update_pairwise_discrete(i, j, iteration);
 
-    // Step 4: Update Kyy (off-diag + diagonal, edge-gated)
+    // Step 4: Update pairwise_effects_continuous_ (off-diag + diagonal, edge-gated)
     if(q_ >= 2) {
         for(size_t i = 0; i < q_ - 1; ++i)
             for(size_t j = i + 1; j < q_; ++j)
                 if(!edge_selection_active_ || gyy(i, j) == 1)
-                    update_Kyy_offdiag(i, j, iteration);
+                    update_pairwise_effects_continuous_offdiag(i, j, iteration);
     }
     for(size_t i = 0; i < q_; ++i)
-        update_Kyy_diag(i, iteration);
+        update_pairwise_effects_continuous_diag(i, iteration);
 
-    // Step 5: Update Kxy (edge-gated)
+    // Step 5: Update pairwise_effects_cross_ (edge-gated)
     for(size_t i = 0; i < p_; ++i)
         for(size_t j = 0; j < q_; ++j)
             if(!edge_selection_active_ || gxy(i, j) == 1)
-                update_Kxy(i, j, iteration);
+                update_pairwise_cross(i, j, iteration);
 
     // Edge-indicator updates are handled by ChainRunner, not here.
     // (Matches the OMRF pattern; avoids double-counting indicator proposals.)
 }
 
-void MixedMRFModel::do_kyy_metropolis_step(int iteration) {
-    // Off-diagonal Kyy (edge-gated)
+void MixedMRFModel::do_pairwise_continuous_metropolis_step(int iteration) {
+    // Off-diagonal precision (edge-gated)
     if(q_ >= 2) {
         for(size_t i = 0; i < q_ - 1; ++i)
             for(size_t j = i + 1; j < q_; ++j)
                 if(!edge_selection_active_ || gyy(i, j) == 1)
-                    update_Kyy_offdiag(i, j, iteration);
+                    update_pairwise_effects_continuous_offdiag(i, j, iteration);
     }
-    // Diagonal Kyy (always updated)
+    // Diagonal precision (always updated)
     for(size_t i = 0; i < q_; ++i)
-        update_Kyy_diag(i, iteration);
+        update_pairwise_effects_continuous_diag(i, iteration);
 }
 
 void MixedMRFModel::update_edge_indicators() {
@@ -754,7 +755,7 @@ void MixedMRFModel::update_edge_indicators() {
             }
             count += row_len;
         }
-        update_edge_indicator_Kxx(i, j);
+        update_edge_indicator_discrete(i, j);
     }
 
     // Continuous-continuous edges (shuffled order)
@@ -770,7 +771,7 @@ void MixedMRFModel::update_edge_indicators() {
             }
             count += row_len;
         }
-        update_edge_indicator_Kyy(i, j);
+        update_edge_indicator_continuous(i, j);
     }
 
     // Cross edges (shuffled order)
@@ -778,7 +779,7 @@ void MixedMRFModel::update_edge_indicators() {
         size_t idx = edge_order_xy_(e);
         size_t i = idx / q_;
         size_t j = idx % q_;
-        update_edge_indicator_Kxy(i, j);
+        update_edge_indicator_cross(i, j);
     }
 }
 
@@ -789,8 +790,8 @@ void MixedMRFModel::initialize_graph() {
         for(size_t j = i + 1; j < p_; ++j) {
             if(runif(rng_) >= inclusion_probability_(i, j)) {
                 set_gxx(i, j, 0);
-                Kxx_(i, j) = 0.0;
-                Kxx_(j, i) = 0.0;
+                pairwise_effects_discrete_(i, j) = 0.0;
+                pairwise_effects_discrete_(j, i) = 0.0;
             }
         }
     }
@@ -799,20 +800,20 @@ void MixedMRFModel::initialize_graph() {
         for(size_t j = i + 1; j < q_; ++j) {
             if(runif(rng_) >= inclusion_probability_(p_ + i, p_ + j)) {
                 set_gyy(i, j, 0);
-                Kyy_(i, j) = 0.0;
-                Kyy_(j, i) = 0.0;
+                pairwise_effects_continuous_(i, j) = 0.0;
+                pairwise_effects_continuous_(j, i) = 0.0;
             }
         }
     }
-    // Recompute Kyy decomposition after potential zeroing
-    recompute_Kyy_decomposition();
+    // Recompute precision decomposition after potential zeroing
+    recompute_pairwise_effects_continuous_decomposition();
     recompute_conditional_mean();
 
     for(size_t i = 0; i < p_; ++i) {
         for(size_t j = 0; j < q_; ++j) {
             if(runif(rng_) >= inclusion_probability_(i, p_ + j)) {
                 set_gxy(i, j, 0);
-                Kxy_(i, j) = 0.0;
+                pairwise_effects_cross_(i, j) = 0.0;
             }
         }
     }
