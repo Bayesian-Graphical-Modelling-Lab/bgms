@@ -4,11 +4,64 @@
 #include "math/explog_macros.h"
 #include "rng/rng_utils.h"
 #include "utils/progress_manager.h"
+#include <atomic>
+#include <thread>
 #include <vector>
 #include <string>
 
 using namespace Rcpp;
 using namespace RcppParallel;
+
+
+// ============================================================================
+//   Polling helper: run parallelFor in a background thread while the
+//   main thread handles progress updates and user-interrupt checks.
+//   R API calls (Rcpp::Rcout, R_CheckUserInterrupt) are only safe on
+//   the main thread; TBB workers must never touch them.
+// ============================================================================
+template<typename Worker>
+void run_parallel_with_progress(
+    int ndraws,
+    int nThreads,
+    Worker& worker,
+    std::atomic<int>& draws_completed,
+    std::atomic<bool>& should_exit,
+    ProgressManager& pm) {
+
+  std::atomic<bool> work_done(false);
+
+  std::thread worker_thread([&]() {
+    tbb::global_control control(
+      tbb::global_control::max_allowed_parallelism, nThreads);
+    parallelFor(0, ndraws, worker);
+    work_done.store(true, std::memory_order_release);
+  });
+
+  // Main thread: poll progress and check for user interrupts
+  int last_reported = 0;
+  while (!work_done.load(std::memory_order_acquire)) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    int current = draws_completed.load(std::memory_order_relaxed);
+    for (int i = last_reported; i < current; i++) {
+      pm.update(0);
+    }
+    last_reported = current;
+
+    if (pm.shouldExit()) {
+      should_exit.store(true, std::memory_order_relaxed);
+    }
+  }
+
+  // Drain any remaining ticks
+  int final_count = draws_completed.load(std::memory_order_relaxed);
+  for (int i = last_reported; i < final_count; i++) {
+    pm.update(0);
+  }
+
+  worker_thread.join();
+  pm.finish();
+}
 
 
 // ============================================================================
@@ -330,7 +383,6 @@ struct SimulationResult {
 // Worker class for parallel simulation across posterior draws
 class SimulationWorker : public RcppParallel::Worker {
 public:
-  // Input data
   const arma::mat& pairwise_samples;
   const arma::mat& main_samples;
   const arma::ivec& draw_indices;
@@ -341,14 +393,9 @@ public:
   const arma::ivec& baseline_category;
   const int iter;
   const arma::ivec& main_param_counts;
-
-  // RNGs
   const std::vector<SafeRNG>& draw_rngs;
-
-  // Progress
-  ProgressManager& pm;
-
-  // Output
+  std::atomic<int>& draws_completed;
+  std::atomic<bool>& should_exit;
   std::vector<SimulationResult>& results;
 
   SimulationWorker(
@@ -363,7 +410,8 @@ public:
     int iter,
     const arma::ivec& main_param_counts,
     const std::vector<SafeRNG>& draw_rngs,
-    ProgressManager& pm,
+    std::atomic<int>& draws_completed,
+    std::atomic<bool>& should_exit,
     std::vector<SimulationResult>& results
   ) :
     pairwise_samples(pairwise_samples),
@@ -377,18 +425,20 @@ public:
     iter(iter),
     main_param_counts(main_param_counts),
     draw_rngs(draw_rngs),
-    pm(pm),
+    draws_completed(draws_completed),
+    should_exit(should_exit),
     results(results)
   {}
 
   void operator()(std::size_t begin, std::size_t end) {
     for (std::size_t i = begin; i < end; ++i) {
+      if (should_exit.load(std::memory_order_relaxed)) return;
+
       SimulationResult result;
       result.draw_index = draw_indices[i];
       result.error = false;
 
       try {
-        // Get RNG for this draw
         SafeRNG rng = draw_rngs[i];
 
         // Reconstruct pairwise matrix from flat vector
@@ -413,7 +463,6 @@ public:
           }
         }
 
-        // Simulate observations via Gibbs sampling
         result.observations = simulate_mrf(
           num_states,
           num_variables,
@@ -435,9 +484,7 @@ public:
       }
 
       results[i] = result;
-
-      // Update progress - treating each draw as a "chain" for progress display
-      pm.update(0);
+      draws_completed.fetch_add(1, std::memory_order_relaxed);
     }
   }
 };
@@ -507,10 +554,10 @@ Rcpp::List run_simulation_parallel(
   // Prepare results storage
   std::vector<SimulationResult> results(ndraws);
 
-  // Single-chain progress (we report across all draws as one unit)
   ProgressManager pm(1, ndraws, 0, 50, progress_type);
+  std::atomic<int> draws_completed(0);
+  std::atomic<bool> should_exit(false);
 
-  // Create worker
   SimulationWorker worker(
     pairwise_samples,
     main_samples,
@@ -523,17 +570,13 @@ Rcpp::List run_simulation_parallel(
     iter,
     main_param_counts,
     draw_rngs,
-    pm,
+    draws_completed,
+    should_exit,
     results
   );
 
-  // Run in parallel
-  {
-    tbb::global_control control(tbb::global_control::max_allowed_parallelism, nThreads);
-    parallelFor(0, ndraws, worker);
-  }
-
-  pm.finish();
+  run_parallel_with_progress(
+    ndraws, nThreads, worker, draws_completed, should_exit, pm);
 
   // Convert results to R list
   Rcpp::List output(ndraws);
@@ -565,14 +608,15 @@ struct GGMSimulationResult {
 // Worker class for parallel GGM simulation across posterior draws
 class GGMSimulationWorker : public RcppParallel::Worker {
 public:
-  const arma::mat& pairwise_samples;  // ndraws x p*(p-1)/2
-  const arma::mat& main_samples;      // ndraws x p (diagonal precisions)
+  const arma::mat& pairwise_samples;
+  const arma::mat& main_samples;
   const arma::ivec& draw_indices;
   const int num_states;
   const int num_variables;
   const arma::vec& means;
   const std::vector<SafeRNG>& draw_rngs;
-  ProgressManager& pm;
+  std::atomic<int>& draws_completed;
+  std::atomic<bool>& should_exit;
   std::vector<GGMSimulationResult>& results;
 
   GGMSimulationWorker(
@@ -583,7 +627,8 @@ public:
     int num_variables,
     const arma::vec& means,
     const std::vector<SafeRNG>& draw_rngs,
-    ProgressManager& pm,
+    std::atomic<int>& draws_completed,
+    std::atomic<bool>& should_exit,
     std::vector<GGMSimulationResult>& results
   ) :
     pairwise_samples(pairwise_samples),
@@ -593,12 +638,15 @@ public:
     num_variables(num_variables),
     means(means),
     draw_rngs(draw_rngs),
-    pm(pm),
+    draws_completed(draws_completed),
+    should_exit(should_exit),
     results(results)
   {}
 
   void operator()(std::size_t begin, std::size_t end) {
     for (std::size_t i = begin; i < end; ++i) {
+      if (should_exit.load(std::memory_order_relaxed)) return;
+
       GGMSimulationResult result;
       result.draw_index = draw_indices[i];
       result.error = false;
@@ -616,7 +664,6 @@ public:
             idx++;
           }
         }
-        // Diagonal
         for (int v = 0; v < num_variables; v++) {
           precision(v, v) = main_samples(draw_indices[i] - 1, v);
         }
@@ -637,7 +684,7 @@ public:
       }
 
       results[i] = result;
-      pm.update(0);
+      draws_completed.fetch_add(1, std::memory_order_relaxed);
     }
   }
 };
@@ -678,6 +725,8 @@ Rcpp::List run_ggm_simulation_parallel(
 
   std::vector<GGMSimulationResult> results(ndraws);
   ProgressManager pm(1, ndraws, 0, 50, progress_type);
+  std::atomic<int> draws_completed(0);
+  std::atomic<bool> should_exit(false);
 
   GGMSimulationWorker worker(
     pairwise_samples,
@@ -687,16 +736,13 @@ Rcpp::List run_ggm_simulation_parallel(
     num_variables,
     means,
     draw_rngs,
-    pm,
+    draws_completed,
+    should_exit,
     results
   );
 
-  {
-    tbb::global_control control(tbb::global_control::max_allowed_parallelism, nThreads);
-    parallelFor(0, ndraws, worker);
-  }
-
-  pm.finish();
+  run_parallel_with_progress(
+    ndraws, nThreads, worker, draws_completed, should_exit, pm);
 
   Rcpp::List output(ndraws);
   for (int i = 0; i < ndraws; i++) {
@@ -969,7 +1015,8 @@ public:
   const arma::ivec& mux_param_counts;
 
   const std::vector<SafeRNG>& draw_rngs;
-  ProgressManager& pm;
+  std::atomic<int>& draws_completed;
+  std::atomic<bool>& should_exit;
   std::vector<MixedSimulationResult>& results;
 
   MixedSimulationWorker(
@@ -987,7 +1034,8 @@ public:
     int iter,
     const arma::ivec& mux_param_counts,
     const std::vector<SafeRNG>& draw_rngs,
-    ProgressManager& pm,
+    std::atomic<int>& draws_completed,
+    std::atomic<bool>& should_exit,
     std::vector<MixedSimulationResult>& results
   ) :
     mux_samples(mux_samples),
@@ -1004,12 +1052,15 @@ public:
     iter(iter),
     mux_param_counts(mux_param_counts),
     draw_rngs(draw_rngs),
-    pm(pm),
+    draws_completed(draws_completed),
+    should_exit(should_exit),
     results(results)
   {}
 
   void operator()(std::size_t begin, std::size_t end) {
     for (std::size_t i = begin; i < end; i++) {
+      if (should_exit.load(std::memory_order_relaxed)) return;
+
       MixedSimulationResult result;
       result.draw_index = draw_indices[i];
       result.error = false;
@@ -1091,7 +1142,7 @@ public:
       }
 
       results[i] = result;
-      pm.update(0);
+      draws_completed.fetch_add(1, std::memory_order_relaxed);
     }
   }
 };
@@ -1167,20 +1218,18 @@ Rcpp::List run_mixed_simulation_parallel(
 
   std::vector<MixedSimulationResult> results(ndraws);
   ProgressManager pm(1, ndraws, 0, 50, progress_type);
+  std::atomic<int> draws_completed(0);
+  std::atomic<bool> should_exit(false);
 
   MixedSimulationWorker worker(
     mux_samples, kxx_samples, muy_samples, kyy_samples, kxy_samples,
     draw_indices, num_states, p, q,
     num_categories, variable_type, baseline_category_safe,
-    iter, mux_param_counts, draw_rngs, pm, results
+    iter, mux_param_counts, draw_rngs, draws_completed, should_exit, results
   );
 
-  {
-    tbb::global_control control(tbb::global_control::max_allowed_parallelism, nThreads);
-    parallelFor(0, ndraws, worker);
-  }
-
-  pm.finish();
+  run_parallel_with_progress(
+    ndraws, nThreads, worker, draws_completed, should_exit, pm);
 
   Rcpp::List output(ndraws);
   for (int i = 0; i < ndraws; i++) {
