@@ -11,6 +11,189 @@
 # ==============================================================================
 
 
+# ------------------------------------------------------------------
+# fill_mixed_symmetric
+# ------------------------------------------------------------------
+# Fills a symmetric (p+q)×(p+q) matrix from a flat vector of edge
+# values stored in discrete-discrete / continuous-continuous / cross
+# block order. Used for both pairwise means and indicator means in
+# the mixed MRF output builder.
+#
+# @param values     Flat numeric vector of edge values.
+# @param p          Number of discrete variables.
+# @param q          Number of continuous variables.
+# @param disc_idx   Integer vector mapping discrete 1:p to original columns.
+# @param cont_idx   Integer vector mapping continuous 1:q to original columns.
+# @param dimnames   List of row/colnames for the result matrix.
+#
+# Returns: Symmetric matrix with values placed in original-column order.
+# ------------------------------------------------------------------
+fill_mixed_symmetric = function(values, p, q, disc_idx, cont_idx, dimnames) {
+  n = length(dimnames[[1]])
+  mat = matrix(0, nrow = n, ncol = n, dimnames = dimnames)
+  idx = 0L
+
+  # Discrete-discrete block (upper triangle)
+  if(p > 1) {
+    for(i in seq_len(p - 1)) {
+      for(j in seq(i + 1, p)) {
+        idx = idx + 1L
+        oi = disc_idx[i]; oj = disc_idx[j]
+        mat[oi, oj] = values[idx]
+        mat[oj, oi] = values[idx]
+      }
+    }
+  }
+
+  # Continuous-continuous block (upper triangle)
+  if(q > 1) {
+    for(i in seq_len(q - 1)) {
+      for(j in seq(i + 1, q)) {
+        idx = idx + 1L
+        oi = cont_idx[i]; oj = cont_idx[j]
+        mat[oi, oj] = values[idx]
+        mat[oj, oi] = values[idx]
+      }
+    }
+  }
+
+  # Cross block (all p × q pairs)
+  if(p > 0 && q > 0) {
+    for(i in seq_len(p)) {
+      for(j in seq_len(q)) {
+        idx = idx + 1L
+        oi = disc_idx[i]; oj = cont_idx[j]
+        mat[oi, oj] = values[idx]
+        mat[oj, oi] = values[idx]
+      }
+    }
+  }
+
+  mat
+}
+
+
+# ------------------------------------------------------------------
+# compute_mixed_parameter_indices
+# ------------------------------------------------------------------
+# Computes slice indices for the mixed MRF flat parameter vector.
+# Separates main-effect indices (discrete thresholds, continuous
+# means, precision diagonal) from pairwise indices (discrete edges,
+# precision off-diagonal, cross edges).
+#
+# @param num_thresholds  Total number of discrete threshold parameters.
+# @param p               Number of discrete variables.
+# @param q               Number of continuous variables.
+#
+# Returns: List with components num_thresholds, main_idx, pairwise_idx.
+# ------------------------------------------------------------------
+compute_mixed_parameter_indices = function(num_thresholds, p, q) {
+  nt = num_thresholds
+  nxx = as.integer(p * (p - 1) / 2)
+  nyy_total = as.integer(q * (q + 1) / 2)
+  nyy_offdiag = as.integer(q * (q - 1) / 2)
+  nxy = as.integer(p * q)
+
+  # Offsets in the flat vector (1-based)
+  main_discrete_start = 1L
+  main_discrete_end = nt
+  pairwise_discrete_start = nt + 1L
+  pairwise_discrete_end = nt + nxx
+  main_continuous_start = nt + nxx + 1L
+  main_continuous_end = nt + nxx + q
+  pairwise_cross_start = nt + nxx + q + 1L
+  pairwise_cross_end = nt + nxx + q + nxy
+  pairwise_continuous_start = nt + nxx + q + nxy + 1L
+
+  # Precision diagonal vs off-diagonal within the continuous block
+  precision_diag_within = integer(q)
+  precision_offdiag_within = integer(nyy_offdiag)
+  k_diag = 0L
+  k_off = 0L
+  pos = 0L
+  for(i in seq_len(q)) {
+    for(j in i:q) {
+      pos = pos + 1L
+      if(i == j) {
+        k_diag = k_diag + 1L
+        precision_diag_within[k_diag] = pos
+      } else {
+        k_off = k_off + 1L
+        precision_offdiag_within[k_off] = pos
+      }
+    }
+  }
+  precision_diag_abs = pairwise_continuous_start - 1L + precision_diag_within
+  precision_offdiag_abs = pairwise_continuous_start - 1L + precision_offdiag_within
+
+  # Main: discrete thresholds + continuous means + precision diagonal
+  main_idx = c(
+    seq(main_discrete_start, main_discrete_end),
+    seq(main_continuous_start, main_continuous_end),
+    precision_diag_abs
+  )
+
+  # Pairwise: discrete + precision off-diagonal + cross
+  pairwise_idx = c(
+    if(nxx > 0) seq(pairwise_discrete_start, pairwise_discrete_end) else integer(0),
+    precision_offdiag_abs,
+    if(nxy > 0) seq(pairwise_cross_start, pairwise_cross_end) else integer(0)
+  )
+
+  list(
+    num_thresholds = nt,
+    main_idx = main_idx,
+    pairwise_idx = pairwise_idx
+  )
+}
+
+
+# ------------------------------------------------------------------
+# build_raw_samples_list
+# ------------------------------------------------------------------
+# Assembles the $raw_samples list shared by all output builders.
+#
+# @param raw              Per-chain list (normalized).
+# @param edge_selection   Logical.
+# @param edge_prior       Character string naming the edge prior.
+# @param names_main       Character vector of main-effect parameter names.
+# @param edge_names       Character vector of edge parameter names.
+# @param allocation_names Optional character vector; when non-NULL, added
+#                         to $parameter_names$allocations.
+#
+# Returns: List with main, pairwise, indicator, allocations, nchains,
+#          niter, parameter_names.
+# ------------------------------------------------------------------
+build_raw_samples_list = function(raw, edge_selection, edge_prior,
+                                  names_main, edge_names,
+                                  allocation_names = NULL) {
+  list(
+    main = lapply(raw, function(chain) chain$main_samples),
+    pairwise = lapply(raw, function(chain) chain$pairwise_samples),
+    indicator = if(edge_selection) {
+      lapply(raw, function(chain) chain$indicator_samples)
+    } else {
+      NULL
+    },
+    allocations = if(edge_selection &&
+      identical(edge_prior, "Stochastic-Block") &&
+      "allocations" %in% names(raw[[1]])) {
+      lapply(raw, `[[`, "allocations")
+    } else {
+      NULL
+    },
+    nchains = length(raw),
+    niter = nrow(raw[[1]]$main_samples),
+    parameter_names = list(
+      main = names_main,
+      pairwise = edge_names,
+      indicator = if(edge_selection) edge_names else NULL,
+      allocations = allocation_names
+    )
+  )
+}
+
+
 # ==============================================================================
 # build_output()  — dispatcher
 # ==============================================================================
@@ -181,6 +364,7 @@ build_output_bgm = function(spec, raw) {
         node_names  = data_columnnames
       )
       results$posterior_summary_pairwise_allocations = sbm_convergence$sbm_summary
+      co_occur_matrix = sbm_convergence$co_occur_matrix
     }
   }
 
@@ -240,11 +424,7 @@ build_output_bgm = function(spec, raw) {
       t(results$posterior_mean_indicator)
 
     if(has_sbm) {
-      sbm_convergence2 = summarize_alloc_pairs(
-        allocations = lapply(raw, `[[`, "allocations"),
-        node_names  = data_columnnames
-      )
-      results$posterior_mean_coclustering_matrix = sbm_convergence2$co_occur_matrix
+      results$posterior_mean_coclustering_matrix = co_occur_matrix
 
       arguments = build_arguments(spec)
       sbm_summary = posterior_summary_SBM(
@@ -262,33 +442,13 @@ build_output_bgm = function(spec, raw) {
   class(results) = "bgms"
 
   # --- raw_samples ------------------------------------------------------------
-  results$raw_samples = list(
-    main = lapply(raw, function(chain) chain$main_samples),
-    pairwise = lapply(raw, function(chain) chain$pairwise_samples),
-    indicator = if(edge_selection) {
-      lapply(raw, function(chain) chain$indicator_samples)
-    } else {
-      NULL
-    },
-    allocations = if(edge_selection &&
-      identical(edge_prior, "Stochastic-Block") &&
-      "allocations" %in% names(raw[[1]])) {
-      lapply(raw, `[[`, "allocations")
-    } else {
-      NULL
-    },
-    nchains = length(raw),
-    niter = nrow(raw[[1]]$main_samples),
-    parameter_names = list(
-      main = names_main,
-      pairwise = edge_names,
-      indicator = if(edge_selection) edge_names else NULL,
-      allocations = if(identical(edge_prior, "Stochastic-Block")) {
-        if(is_continuous) data_columnnames else edge_names
-      } else {
-        NULL
-      }
-    )
+  alloc_names = if(identical(edge_prior, "Stochastic-Block")) {
+    if(is_continuous) data_columnnames else edge_names
+  } else {
+    NULL
+  }
+  results$raw_samples = build_raw_samples_list(
+    raw, edge_selection, edge_prior, names_main, edge_names, alloc_names
   )
 
   # --- easybgm compat shim (OMRF only) ---------------------------------------
@@ -353,58 +513,14 @@ build_output_mixed_mrf = function(spec, raw) {
   edge_selection = pr$edge_selection
 
   # --- Compute index layout in flat parameter vector --------------------------
-  nt = spec$precomputed$num_thresholds
-  nxx = as.integer(p * (p - 1) / 2)
-  nyy_total = as.integer(q * (q + 1) / 2)
-  nyy_offdiag = as.integer(q * (q - 1) / 2)
-  nxy = as.integer(p * q)
-
-  # Offsets in the flat vector (1-based)
-  main_discrete_start = 1L
-  main_discrete_end = nt
-  pairwise_discrete_start = nt + 1L
-  pairwise_discrete_end = nt + nxx
-  main_continuous_start = nt + nxx + 1L
-  main_continuous_end = nt + nxx + q
-  pairwise_cross_start = nt + nxx + q + 1L
-  pairwise_cross_end = nt + nxx + q + nxy
-  pairwise_continuous_start = nt + nxx + q + nxy + 1L
-  pairwise_continuous_end = nt + nxx + q + nxy + nyy_total
-
-  # Precision diagonal indices within the pairwise_continuous block
-  precision_diag_within = integer(q)
-  precision_offdiag_within = integer(nyy_offdiag)
-  k_diag = 0L
-  k_off = 0L
-  pos = 0L
-  for(i in seq_len(q)) {
-    for(j in i:q) {
-      pos = pos + 1L
-      if(i == j) {
-        k_diag = k_diag + 1L
-        precision_diag_within[k_diag] = pos
-      } else {
-        k_off = k_off + 1L
-        precision_offdiag_within[k_off] = pos
-      }
-    }
-  }
-  precision_diag_abs = pairwise_continuous_start - 1L + precision_diag_within
-  precision_offdiag_abs = pairwise_continuous_start - 1L + precision_offdiag_within
-
-  # Main indices: discrete thresholds + continuous means + precision diagonal
-  main_idx = c(
-    seq(main_discrete_start, main_discrete_end),
-    seq(main_continuous_start, main_continuous_end),
-    precision_diag_abs
+  layout = compute_mixed_parameter_indices(
+    num_thresholds = spec$precomputed$num_thresholds,
+    p = p,
+    q = q
   )
-
-  # Pairwise indices: discrete + precision off-diag + cross
-  pairwise_idx = c(
-    if(nxx > 0) seq(pairwise_discrete_start, pairwise_discrete_end) else integer(0),
-    precision_offdiag_abs,
-    if(nxy > 0) seq(pairwise_cross_start, pairwise_cross_end) else integer(0)
-  )
+  nt = layout$num_thresholds
+  main_idx = layout$main_idx
+  pairwise_idx = layout$pairwise_idx
 
   # --- Indicator index layout -------------------------------------------------
   # C++ indicator vector: [Gxx_ut | Gyy_ut | Gxy]
@@ -524,6 +640,7 @@ build_output_mixed_mrf = function(spec, raw) {
         node_names  = all_internal_names
       )
       results$posterior_summary_pairwise_allocations = sbm_convergence$sbm_summary
+      co_occur_matrix = sbm_convergence$co_occur_matrix
     }
   }
 
@@ -563,106 +680,19 @@ build_output_mixed_mrf = function(spec, raw) {
   )
 
   # --- Posterior mean: pairwise as (p+q) × (p+q) matrix -----------------------
-  # Map from internal block indices to original column positions
-  pmat = matrix(0,
-    nrow = num_variables, ncol = num_variables,
-    dimnames = list(data_columnnames, data_columnnames)
+  dn = list(data_columnnames, data_columnnames)
+  results$posterior_mean_pairwise = fill_mixed_symmetric(
+    pairwise_summary$mean, p, q, disc_idx, cont_idx, dn
   )
-
-  pw_means = pairwise_summary$mean
-  idx = 0L
-
-  # Discrete-discrete block
-  if(p > 1) {
-    for(i in seq_len(p - 1)) {
-      for(j in seq(i + 1, p)) {
-        idx = idx + 1L
-        oi = disc_idx[i]
-        oj = disc_idx[j]
-        pmat[oi, oj] = pw_means[idx]
-        pmat[oj, oi] = pw_means[idx]
-      }
-    }
-  }
-
-  # Continuous-continuous off-diagonal block
-  if(q > 1) {
-    for(i in seq_len(q - 1)) {
-      for(j in seq(i + 1, q)) {
-        idx = idx + 1L
-        oi = cont_idx[i]
-        oj = cont_idx[j]
-        pmat[oi, oj] = pw_means[idx]
-        pmat[oj, oi] = pw_means[idx]
-      }
-    }
-  }
-
-  # Cross block
-  if(p > 0 && q > 0) {
-    for(i in seq_len(p)) {
-      for(j in seq_len(q)) {
-        idx = idx + 1L
-        oi = disc_idx[i]
-        oj = cont_idx[j]
-        pmat[oi, oj] = pw_means[idx]
-        pmat[oj, oi] = pw_means[idx]
-      }
-    }
-  }
-
-  results$posterior_mean_pairwise = pmat
 
   # --- Posterior mean: indicator -----------------------------------------------
   if(edge_selection) {
-    ind_means = indicator_summary$mean
-    imat = matrix(0,
-      nrow = num_variables, ncol = num_variables,
-      dimnames = list(data_columnnames, data_columnnames)
+    results$posterior_mean_indicator = fill_mixed_symmetric(
+      indicator_summary$mean, p, q, disc_idx, cont_idx, dn
     )
 
-    idx = 0L
-    if(p > 1) {
-      for(i in seq_len(p - 1)) {
-        for(j in seq(i + 1, p)) {
-          idx = idx + 1L
-          oi = disc_idx[i]
-          oj = disc_idx[j]
-          imat[oi, oj] = ind_means[idx]
-          imat[oj, oi] = ind_means[idx]
-        }
-      }
-    }
-    if(q > 1) {
-      for(i in seq_len(q - 1)) {
-        for(j in seq(i + 1, q)) {
-          idx = idx + 1L
-          oi = cont_idx[i]
-          oj = cont_idx[j]
-          imat[oi, oj] = ind_means[idx]
-          imat[oj, oi] = ind_means[idx]
-        }
-      }
-    }
-    if(p > 0 && q > 0) {
-      for(i in seq_len(p)) {
-        for(j in seq_len(q)) {
-          idx = idx + 1L
-          oi = disc_idx[i]
-          oj = cont_idx[j]
-          imat[oi, oj] = ind_means[idx]
-          imat[oj, oi] = ind_means[idx]
-        }
-      }
-    }
-    results$posterior_mean_indicator = imat
-
     if(has_sbm) {
-      sbm_convergence2 = summarize_alloc_pairs(
-        allocations = lapply(raw, `[[`, "allocations"),
-        node_names  = all_internal_names
-      )
-      results$posterior_mean_coclustering_matrix = sbm_convergence2$co_occur_matrix
+      results$posterior_mean_coclustering_matrix = co_occur_matrix
 
       arguments = build_arguments(spec)
       sbm_summary = posterior_summary_SBM(
@@ -680,28 +710,8 @@ build_output_mixed_mrf = function(spec, raw) {
   class(results) = "bgms"
 
   # --- raw_samples ------------------------------------------------------------
-  results$raw_samples = list(
-    main = lapply(raw, function(chain) chain$main_samples),
-    pairwise = lapply(raw, function(chain) chain$pairwise_samples),
-    indicator = if(edge_selection) {
-      lapply(raw, function(chain) chain$indicator_samples)
-    } else {
-      NULL
-    },
-    allocations = if(edge_selection &&
-      identical(edge_prior, "Stochastic-Block") &&
-      "allocations" %in% names(raw[[1]])) {
-      lapply(raw, `[[`, "allocations")
-    } else {
-      NULL
-    },
-    nchains = length(raw),
-    niter = nrow(raw[[1]]$main_samples),
-    parameter_names = list(
-      main = names_main,
-      pairwise = edge_names,
-      indicator = if(edge_selection) edge_names else NULL
-    )
+  results$raw_samples = build_raw_samples_list(
+    raw, edge_selection, edge_prior, names_main, edge_names
   )
 
   # --- NUTS diagnostics -------------------------------------------------------

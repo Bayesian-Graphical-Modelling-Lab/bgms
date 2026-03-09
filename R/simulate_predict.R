@@ -9,6 +9,22 @@
 # ==============================================================================
 
 
+# ------------------------------------------------------------------
+# expand_variable_type
+# ------------------------------------------------------------------
+# Recycles a scalar variable_type to length num_variables.
+#
+# @param variable_type  Character vector (possibly length 1).
+# @param num_variables  Target length.
+#
+# Returns: Character vector of length num_variables.
+# ------------------------------------------------------------------
+expand_variable_type = function(variable_type, num_variables) {
+  if(length(variable_type) == 1) rep(variable_type, num_variables)
+  else variable_type
+}
+
+
 #' Simulate Observations from a Markov Random Field
 #'
 #' @description
@@ -640,10 +656,7 @@ simulate.bgms = function(object,
   data_columnnames = arguments$data_columnnames
 
   # Handle variable_type
-
-  if(length(variable_type) == 1) {
-    variable_type = rep(variable_type, num_variables)
-  }
+  variable_type = expand_variable_type(variable_type, num_variables)
 
   # Get baseline_category (for Blume-Capel variables)
   baseline_category = arguments$baseline_category
@@ -1069,9 +1082,7 @@ predict.bgms = function(object,
   }
 
   # Handle variable_type
-  if(length(variable_type) == 1) {
-    variable_type = rep(variable_type, num_variables)
-  }
+  variable_type = expand_variable_type(variable_type, num_variables)
 
   # Get baseline_category
   baseline_category = arguments$baseline_category
@@ -1493,10 +1504,6 @@ predict.bgmCompare = function(object,
 reconstruct_main = function(main_vec, num_variables,
                             num_categories,
                             variable_type) {
-  if(length(variable_type) == 1) {
-    variable_type = rep(variable_type, num_variables)
-  }
-
   max_cats = max(num_categories)
   main = matrix(NA, nrow = num_variables, ncol = max_cats)
 

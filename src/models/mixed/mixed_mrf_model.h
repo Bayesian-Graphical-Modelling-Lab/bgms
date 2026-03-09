@@ -4,7 +4,7 @@
 #include <memory>
 #include "models/base_model.h"
 #include "math/cholesky_helpers.h"
-#include "models/ggm/cholupdate.h"
+#include "math/cholupdate.h"
 #include "rng/rng_utils.h"
 
 /**

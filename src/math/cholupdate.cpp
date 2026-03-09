@@ -1,4 +1,4 @@
-#include "models/ggm/cholupdate.h"
+#include "math/cholupdate.h"
 
 extern "C" {
 

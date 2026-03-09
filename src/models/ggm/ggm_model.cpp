@@ -1,7 +1,7 @@
 #include "models/ggm/ggm_model.h"
 #include "rng/rng_utils.h"
 #include "math/explog_macros.h"
-#include "models/ggm/cholupdate.h"
+#include "math/cholupdate.h"
 #include "mcmc/execution/step_result.h"
 #include "mcmc/execution/warmup_schedule.h"
 

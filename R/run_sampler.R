@@ -7,6 +7,20 @@
 # ==============================================================================
 
 
+# ------------------------------------------------------------------
+# bb_between_default
+# ------------------------------------------------------------------
+# Maps NULL to -1.0 (C++ sentinel for "no between-cluster prior").
+#
+# @param value  Scalar or NULL from the prior spec.
+#
+# Returns: value unchanged, or -1.0 when NULL.
+# ------------------------------------------------------------------
+bb_between_default = function(value) {
+  if(is.null(value)) -1.0 else value
+}
+
+
 # ==============================================================================
 # run_sampler()  — main dispatcher
 # ==============================================================================
@@ -41,17 +55,8 @@ run_sampler_ggm = function(spec) {
   s = spec$sampler
   m = spec$missing
 
-  # C++ expects -1 for "no between-cluster prior"
-  bb_alpha_between = if(is.null(p$beta_bernoulli_alpha_between)) {
-    -1.0
-  } else {
-    p$beta_bernoulli_alpha_between
-  }
-  bb_beta_between = if(is.null(p$beta_bernoulli_beta_between)) {
-    -1.0
-  } else {
-    p$beta_bernoulli_beta_between
-  }
+  bb_alpha_between = bb_between_default(p$beta_bernoulli_alpha_between)
+  bb_beta_between = bb_between_default(p$beta_bernoulli_beta_between)
 
   out_raw = sample_ggm(
     inputFromR = list(X = d$x),
@@ -92,17 +97,8 @@ run_sampler_omrf = function(spec) {
   p = spec$prior
   s = spec$sampler
 
-  # C++ expects -1 for "no between-cluster prior"
-  bb_alpha_between = if(is.null(p$beta_bernoulli_alpha_between)) {
-    -1.0
-  } else {
-    p$beta_bernoulli_alpha_between
-  }
-  bb_beta_between = if(is.null(p$beta_bernoulli_beta_between)) {
-    -1.0
-  } else {
-    p$beta_bernoulli_beta_between
-  }
+  bb_alpha_between = bb_between_default(p$beta_bernoulli_alpha_between)
+  bb_beta_between = bb_between_default(p$beta_bernoulli_beta_between)
 
   input_list = list(
     observations        = d$x,
@@ -158,17 +154,8 @@ run_sampler_mixed_mrf = function(spec) {
   p = spec$prior
   s = spec$sampler
 
-  # C++ expects -1 for "no between-cluster prior"
-  bb_alpha_between = if(is.null(p$beta_bernoulli_alpha_between)) {
-    -1.0
-  } else {
-    p$beta_bernoulli_alpha_between
-  }
-  bb_beta_between = if(is.null(p$beta_bernoulli_beta_between)) {
-    -1.0
-  } else {
-    p$beta_bernoulli_beta_between
-  }
+  bb_alpha_between = bb_between_default(p$beta_bernoulli_alpha_between)
+  bb_beta_between = bb_between_default(p$beta_bernoulli_beta_between)
 
   input_list = list(
     discrete_observations   = d$x_discrete,
