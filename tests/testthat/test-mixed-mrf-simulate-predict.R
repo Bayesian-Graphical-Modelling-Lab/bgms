@@ -429,3 +429,287 @@ test_that("sample_mixed_mrf_gibbs: single continuous variable (p=2, q=1)", {
   expect_equal(dim(result$x), c(50, 2))
   expect_equal(dim(result$y), c(50, 1))
 })
+
+test_that("sample_mixed_mrf_gibbs: minimal mixed MRF (p=1, q=1)", {
+  p = 1L
+  q = 1L
+  n = 200L
+  nc = 2L
+
+  Kxx = matrix(0, p, p)
+  Kxy = matrix(0.3, p, q)
+  Kyy = matrix(1.5, q, q)
+  mux = matrix(c(0, 0.5, -0.3), p, nc + 1)
+  muy = 0.2
+
+  result = sample_mixed_mrf_gibbs(
+    num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
+    mux_r = mux, muy_r = muy, num_categories_r = nc,
+    variable_type_r = "ordinal",
+    baseline_category_r = 0L, iter = 200L, seed = 77L
+  )
+
+  expect_equal(dim(result$x), c(n, p))
+  expect_equal(dim(result$y), c(n, q))
+  expect_true(all(result$x >= 0 & result$x <= nc))
+  expect_true(all(is.finite(result$y)))
+
+  # With non-zero Kxy, discrete and continuous should be associated
+  group_means = tapply(result$y[, 1], result$x[, 1], mean)
+  expect_true(length(group_means) >= 2,
+    info = "at least 2 discrete categories observed"
+  )
+})
+
+
+# ==============================================================================
+# 7. Edge cases (ported from mixedGM::test-edge-cases.R)
+# ==============================================================================
+# Structural smoke tests for boundary configurations: many categories,
+# large p / small q, small p / large q, near-singular Kyy, and
+# end-to-end bgm() fitting with edge-case data.
+# ==============================================================================
+
+# ---- many categories ---------------------------------------------------------
+test_that("sample_mixed_mrf_gibbs handles many categories (4+)", {
+  p = 2L
+  q = 1L
+  n = 200L
+  nc = c(4L, 3L)
+
+  Kxx = matrix(c(0, 0.15, 0.15, 0), p, p)
+  Kxy = matrix(c(0.2, 0.15), p, q)
+  Kyy = matrix(1.5, q, q)
+  mux = matrix(0, p, max(nc))
+  mux[1, 1:4] = c(-0.5, 0, 0.3, 0.8)
+  mux[2, 1:3] = c(-0.3, 0.2, 0.6)
+  muy = 0
+
+  result = sample_mixed_mrf_gibbs(
+    num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
+    mux_r = mux, muy_r = muy, num_categories_r = nc,
+    variable_type_r = c("ordinal", "ordinal"),
+    baseline_category_r = c(0L, 0L), iter = 200L, seed = 33L
+  )
+
+  expect_equal(dim(result$x), c(n, p))
+  expect_equal(dim(result$y), c(n, q))
+
+  # Discrete values in valid ranges
+  expect_true(all(result$x[, 1] >= 0 & result$x[, 1] <= nc[1]))
+  expect_true(all(result$x[, 2] >= 0 & result$x[, 2] <= nc[2]))
+
+  # All categories should be observed with enough samples
+  expect_true(length(unique(result$x[, 1])) >= 3,
+    info = "variable 1: at least 3 of 5 categories observed"
+  )
+})
+
+# ---- large p, small q -------------------------------------------------------
+test_that("sample_mixed_mrf_gibbs handles large p, small q (p=10, q=1)", {
+  p = 10L
+  q = 1L
+  n = 300L
+  nc = as.integer(rep(1, p))
+
+  # Sparse Kxx
+  Kxx = matrix(0, p, p)
+  Kxx[1, 2] = Kxx[2, 1] = 0.2
+  Kxx[3, 4] = Kxx[4, 3] = 0.15
+
+  # Sparse Kxy
+  Kxy = matrix(0, p, q)
+  Kxy[1, 1] = 0.25
+  Kxy[5, 1] = 0.2
+
+  Kyy = matrix(1.5, q, q)
+  mux = matrix(0, p, max(nc))
+  muy = 0
+
+  result = sample_mixed_mrf_gibbs(
+    num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
+    mux_r = mux, muy_r = muy, num_categories_r = nc,
+    variable_type_r = rep("ordinal", p),
+    baseline_category_r = rep(0L, p), iter = 200L, seed = 44L
+  )
+
+  expect_equal(dim(result$x), c(n, p))
+  expect_equal(dim(result$y), c(n, q))
+  expect_true(all(is.finite(result$x)))
+  expect_true(all(is.finite(result$y)))
+  expect_true(all(result$x >= 0 & result$x <= 1))
+})
+
+# ---- small p, large q -------------------------------------------------------
+test_that("sample_mixed_mrf_gibbs handles small p, large q (p=1, q=5)", {
+  p = 1L
+  q = 5L
+  n = 300L
+  nc = 1L
+
+  Kxx = matrix(0, p, p)
+  Kxy = matrix(c(0.2, 0.15, 0.1, 0.05, 0.25), p, q)
+
+  # Sparse Kyy
+  Kyy = diag(1.5, q)
+  Kyy[1, 2] = Kyy[2, 1] = 0.2
+  Kyy[3, 4] = Kyy[4, 3] = 0.15
+
+  mux = matrix(0, p, 1)
+  muy = rep(0, q)
+
+  result = sample_mixed_mrf_gibbs(
+    num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
+    mux_r = mux, muy_r = muy, num_categories_r = nc,
+    variable_type_r = "ordinal",
+    baseline_category_r = 0L, iter = 300L, seed = 55L
+  )
+
+  expect_equal(dim(result$x), c(n, p))
+  expect_equal(dim(result$y), c(n, q))
+  expect_true(all(is.finite(result$y)))
+
+  # Kyy diagonal sets marginal variances (when Kxy ~ 0): var_j approx 1/Kyy_jj
+  for(j in 1:q) {
+    expected_sd = 1 / sqrt(Kyy[j, j])
+    empirical_sd = sd(result$y[, j])
+    expect_true(
+      abs(empirical_sd - expected_sd) / expected_sd < 0.4,
+      info = sprintf("y%d SD: expected %.3f, got %.3f", j, expected_sd, empirical_sd)
+    )
+  }
+})
+
+# ---- near-singular Kyy ------------------------------------------------------
+test_that("sample_mixed_mrf_gibbs handles correlated Kyy", {
+  p = 1L
+  q = 2L
+  n = 200L
+  nc = 1L
+
+  Kxx = matrix(0, p, p)
+  Kxy = matrix(c(0.2, 0.15), p, q)
+
+  # Correlated Kyy with notable off-diagonal
+  Kyy = matrix(c(1.5, 0.5, 0.5, 1.5), q, q)
+
+  mux = matrix(0, p, 1)
+  muy = c(0, 0)
+
+  result = sample_mixed_mrf_gibbs(
+    num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
+    mux_r = mux, muy_r = muy, num_categories_r = nc,
+    variable_type_r = "ordinal",
+    baseline_category_r = 0L, iter = 300L, seed = 66L
+  )
+
+  expect_equal(dim(result$y), c(n, q))
+  expect_true(all(is.finite(result$y)))
+
+  # With positive off-diagonal precision, y1 and y2 should be negatively correlated
+  r = cor(result$y[, 1], result$y[, 2])
+  expect_true(r < 0.1, info = sprintf("expected negative or near-zero cor, got %.3f", r))
+})
+
+# ---- bgm() end-to-end with many categories ----------------------------------
+test_that("bgm() fits mixed MRF with many categories", {
+  skip_on_cran()
+  p = 2L
+  q = 1L
+  n = 150L
+  nc = c(4L, 3L)
+
+  Kxx = matrix(c(0, 0.15, 0.15, 0), p, p)
+  Kxy = matrix(c(0.2, 0.15), p, q)
+  Kyy = matrix(1.5, q, q)
+  mux = matrix(0, p, max(nc))
+  mux[1, 1:4] = c(-0.5, 0, 0.3, 0.8)
+  mux[2, 1:3] = c(-0.3, 0.2, 0.6)
+
+  generated = sample_mixed_mrf_gibbs(
+    num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
+    mux_r = mux, muy_r = 0, num_categories_r = nc,
+    variable_type_r = c("ordinal", "ordinal"),
+    baseline_category_r = c(0L, 0L), iter = 500L, seed = 77L
+  )
+
+  dat = data.frame(generated$x, generated$y)
+  vt = c("ordinal", "ordinal", "continuous")
+
+  fit = bgm(dat,
+    variable_type = vt, iter = 500, warmup = 250,
+    edge_selection = FALSE, verbose = FALSE
+  )
+
+  expect_s3_class(fit, "bgms")
+  pw = fit$posterior_mean_pairwise
+  expect_equal(dim(pw), c(p + q, p + q))
+  expect_true(all(is.finite(pw)))
+})
+
+# ---- bgm() end-to-end with large p, small q ---------------------------------
+test_that("bgm() fits mixed MRF with large p, small q", {
+  skip_on_cran()
+  p = 6L
+  q = 1L
+  n = 200L
+  nc = as.integer(rep(1, p))
+
+  Kxx = matrix(0, p, p)
+  Kxx[1, 2] = Kxx[2, 1] = 0.2
+  Kxy = matrix(0, p, q)
+  Kxy[1, 1] = 0.15
+  Kyy = matrix(1.5, q, q)
+  mux = matrix(0, p, max(nc))
+
+  generated = sample_mixed_mrf_gibbs(
+    num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
+    mux_r = mux, muy_r = 0, num_categories_r = nc,
+    variable_type_r = rep("ordinal", p),
+    baseline_category_r = rep(0L, p), iter = 500L, seed = 88L
+  )
+
+  dat = data.frame(generated$x, generated$y)
+  vt = c(rep("ordinal", p), "continuous")
+
+  fit = bgm(dat,
+    variable_type = vt, iter = 500, warmup = 250,
+    edge_selection = FALSE, verbose = FALSE
+  )
+
+  expect_s3_class(fit, "bgms")
+  expect_equal(nrow(fit$posterior_mean_pairwise), p + q)
+})
+
+# ---- bgm() end-to-end with small p, large q ---------------------------------
+test_that("bgm() fits mixed MRF with small p, large q", {
+  skip_on_cran()
+  p = 1L
+  q = 4L
+  n = 200L
+  nc = 1L
+
+  Kxx = matrix(0, p, p)
+  Kxy = matrix(c(0.2, 0.1, 0.05, 0.15), p, q)
+  Kyy = diag(1.5, q)
+  Kyy[1, 2] = Kyy[2, 1] = 0.2
+  mux = matrix(0, p, 1)
+
+  generated = sample_mixed_mrf_gibbs(
+    num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
+    mux_r = mux, muy_r = rep(0, q), num_categories_r = nc,
+    variable_type_r = "ordinal",
+    baseline_category_r = 0L, iter = 500L, seed = 99L
+  )
+
+  dat = data.frame(generated$x, generated$y)
+  vt = c("ordinal", rep("continuous", q))
+
+  fit = bgm(dat,
+    variable_type = vt, iter = 500, warmup = 250,
+    edge_selection = FALSE, verbose = FALSE
+  )
+
+  expect_s3_class(fit, "bgms")
+  expect_equal(nrow(fit$posterior_mean_pairwise), p + q)
+})

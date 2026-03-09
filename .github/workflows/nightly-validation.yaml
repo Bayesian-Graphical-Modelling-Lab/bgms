@@ -1,0 +1,44 @@
+name: nightly-validation
+on:
+  schedule:
+    - cron: '0 3 * * 1,4'  # Monday and Thursday at 3 AM UTC
+  workflow_dispatch: {}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+      BGMS_RUN_SLOW_TESTS: true
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::devtools
+
+      - name: Run full test suite (including slow tests)
+        run: Rscript -e 'devtools::test()'
+
+      - name: Run validation scripts
+        run: |
+          FAIL=0
+          for f in dev/tests/validation/group{1,2,3,5,6,7}*.R; do
+            echo "=== Running $f ==="
+            Rscript "$f" || FAIL=1
+          done
+          exit $FAIL
+
+      - name: Upload validation output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-output
+          path: dev/tests/validation/output/

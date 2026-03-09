@@ -127,6 +127,37 @@ test_that("bgmCompare errors on mismatched group_indicator length", {
   )
 })
 
+test_that("bgmCompare rejects continuous variable type", {
+  x = matrix(rnorm(100), nrow = 50, ncol = 2)
+  group_ind = rep(1:2, each = 25)
+
+  expect_error(
+    bgmCompare(
+      x = x, group_indicator = group_ind,
+      variable_type = "continuous"
+    ),
+    regexp = "not of type continuous"
+  )
+})
+
+test_that("bgmCompare rejects mixed ordinal + continuous variable types", {
+  x = data.frame(
+    ord1 = sample(0:2, 50, replace = TRUE),
+    cont1 = rnorm(50)
+  )
+  group_ind = rep(1:2, each = 25)
+
+  # allow_continuous = FALSE fires before the mixed check, so the error
+  # message is the same as for pure continuous input.
+  expect_error(
+    bgmCompare(
+      x = x, group_indicator = group_ind,
+      variable_type = c("ordinal", "continuous")
+    ),
+    regexp = "not of type continuous"
+  )
+})
+
 
 # ------------------------------------------------------------------------------
 # simulate_mrf() Input Validation

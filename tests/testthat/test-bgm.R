@@ -829,6 +829,120 @@ test_that("bgm mixed MRF marginal pseudolikelihood runs", {
   expect_true(all(is.finite(fit$posterior_mean_pairwise)))
 })
 
+test_that("bgm mixed MRF output has correct parameter ordering", {
+  skip_on_cran()
+
+  # 5 interleaved variables: d1, c1, d2, c2, d3 (p=3 discrete, q=2 continuous)
+  # Internal C++ order: d1, d2, d3, c1, c2
+  #
+  # For a 5x5 upper triangle, position 2 differs between orderings:
+  #   Row-major position 2 = (1,4) = d1-c2
+  #   Col-major position 2 = (2,3) = c1-d2
+  # Strategic zeros make any swap detectable.
+  p = 3L
+  q = 2L
+  n = 500L
+
+  # Parameters in internal (dd/cc/dc block) order
+  Kxx = matrix(c(
+    0,   -0.4,  0.2,
+    -0.4,  0,    0.0,
+    0.2,   0.0,  0
+  ), p, p, byrow = TRUE)
+
+  Kxy = matrix(c(
+    0.3,  0.0,   # d1-c1 = 0.3, d1-c2 = 0.0 (swap sentinel)
+    0.5,  0.3,   # d2-c1 = 0.5 (swap sentinel), d2-c2 = 0.3
+    -0.3, 0.15   # d3-c1 = -0.3, d3-c2 = 0.15
+  ), p, q, byrow = TRUE)
+
+  Kyy = diag(c(1.5, 2.0))
+  Kyy[1, 2] = Kyy[2, 1] = 0.0  # c1-c2 = 0 (swap sentinel)
+
+  nc = c(2L, 2L, 2L)
+  mux = matrix(0, p, max(nc) + 1)
+  muy = rep(0, q)
+
+  result = sample_mixed_mrf_gibbs(
+    num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
+    mux_r = mux, muy_r = muy, num_categories_r = nc,
+    variable_type_r = rep("ordinal", p),
+    baseline_category_r = rep(0L, p), iter = 500L, seed = 42L
+  )
+
+  # Reassemble in user (interleaved) order: d1, c1, d2, c2, d3
+  x = data.frame(
+    d1 = result$x[, 1],
+    c1 = result$y[, 1],
+    d2 = result$x[, 2],
+    c2 = result$y[, 2],
+    d3 = result$x[, 3]
+  )
+
+  fit = bgm(
+    x,
+    variable_type = c("ordinal", "continuous", "ordinal",
+                       "continuous", "ordinal"),
+    iter = 1000, warmup = 500, chains = 1,
+    edge_selection = FALSE, seed = 42,
+    display_progress = "none"
+  )
+
+  # Extractor column means -> matrix positions
+  pw_means = colMeans(extract_pairwise_interactions(fit))
+  expect_true(
+    all(check_extractor_matrix_consistency(
+      pw_means, fit$posterior_mean_pairwise
+    )),
+    info = paste(
+      "Mixed MRF extract_pairwise_interactions()",
+      "names do not match matrix positions"
+    )
+  )
+
+  # Truth-based swap checks (user-order variable names):
+  # d1-c2 (true = 0.0) should be near zero, not ~0.5 (d2-c1's value)
+  expect_true(
+    abs(fit$posterior_mean_pairwise["d1", "c2"]) < 0.2,
+    info = sprintf(
+      "d1-c2 should be ~0 but is %.3f (possible swap with c1-d2)",
+      fit$posterior_mean_pairwise["d1", "c2"]
+    )
+  )
+  # c1-d2 (true = 0.5) should be clearly positive, not ~0 (d1-c2's value)
+  expect_true(
+    fit$posterior_mean_pairwise["c1", "d2"] > 0.15,
+    info = sprintf(
+      "c1-d2 should be ~0.5 but is %.3f (possible swap with d1-c2)",
+      fit$posterior_mean_pairwise["c1", "d2"]
+    )
+  )
+  # c1-c2 (true = 0.0) should be near zero, not ~0.3 (d2-c2's value)
+  expect_true(
+    abs(fit$posterior_mean_pairwise["c1", "c2"]) < 0.2,
+    info = sprintf(
+      "c1-c2 should be ~0 but is %.3f (possible swap with d2-c2)",
+      fit$posterior_mean_pairwise["c1", "c2"]
+    )
+  )
+  # d2-d3 (true = 0.0) should be near zero
+  expect_true(
+    abs(fit$posterior_mean_pairwise["d2", "d3"]) < 0.2,
+    info = sprintf(
+      "d2-d3 should be ~0 but is %.3f",
+      fit$posterior_mean_pairwise["d2", "d3"]
+    )
+  )
+  # d1-d2 (true = -0.4) should be negative
+  expect_true(
+    fit$posterior_mean_pairwise["d1", "d2"] < -0.15,
+    info = sprintf(
+      "d1-d2 should be ~-0.4 but is %.3f",
+      fit$posterior_mean_pairwise["d1", "d2"]
+    )
+  )
+})
+
 
 test_that("bgm GGM implied regression matches OLS for large n", {
   skip_on_cran()
@@ -883,4 +997,90 @@ test_that("bgm GGM implied regression matches OLS for large n", {
       )
     )
   }
+})
+
+
+# ==============================================================================
+# Estimate-Simulate-Re-estimate Cycle Tests
+# ==============================================================================
+# Verify self-consistency: fit -> simulate -> re-fit -> compare.
+# Posterior mean parameters from the re-fit should correlate with the original.
+
+test_that("estimate-simulate-re-estimate cycle recovers parameters (OMRF)", {
+  skip_on_cran()
+
+  data("Wenchuan", package = "bgms")
+  fit1 = bgm(Wenchuan[1:100, 1:4],
+    iter = 2000, warmup = 500,
+    edge_selection = FALSE, chains = 1, display_progress = "none"
+  )
+  sim = simulate(fit1, nsim = 200, method = "posterior-mean")
+  fit2 = bgm(sim,
+    iter = 2000, warmup = 500,
+    edge_selection = FALSE, chains = 1, display_progress = "none"
+  )
+
+  cor_pw = cor(
+    as.numeric(fit1$posterior_mean_pairwise),
+    as.numeric(fit2$posterior_mean_pairwise)
+  )
+  expect_gt(cor_pw, 0.7)
+})
+
+test_that("estimate-simulate-re-estimate cycle recovers parameters (GGM)", {
+  skip_on_cran()
+
+  set.seed(42)
+  x = matrix(rnorm(400), nrow = 100, ncol = 4)
+  colnames(x) = paste0("V", 1:4)
+
+  fit1 = bgm(x,
+    variable_type = "continuous",
+    edge_selection = FALSE, iter = 2000, warmup = 500,
+    chains = 1, display_progress = "none"
+  )
+  sim = simulate(fit1, nsim = 200, method = "posterior-mean")
+  fit2 = bgm(sim,
+    variable_type = "continuous",
+    edge_selection = FALSE, iter = 2000, warmup = 500,
+    chains = 1, display_progress = "none"
+  )
+
+  cor_pw = cor(
+    as.numeric(fit1$posterior_mean_pairwise),
+    as.numeric(fit2$posterior_mean_pairwise)
+  )
+  expect_gt(cor_pw, 0.7)
+})
+
+test_that("estimate-simulate-re-estimate cycle recovers parameters (mixed MRF)", {
+  skip_on_cran()
+
+  set.seed(99)
+  n = 100
+  x = data.frame(
+    d1 = sample(0:2, n, replace = TRUE),
+    c1 = rnorm(n),
+    d2 = sample(0:2, n, replace = TRUE),
+    c2 = rnorm(n)
+  )
+  vtypes = c("ordinal", "continuous", "ordinal", "continuous")
+
+  fit1 = bgm(x,
+    variable_type = vtypes,
+    edge_selection = FALSE, iter = 2000, warmup = 500,
+    chains = 1, display_progress = "none"
+  )
+  sim = simulate(fit1, nsim = 200, method = "posterior-mean")
+  fit2 = bgm(sim,
+    variable_type = vtypes,
+    edge_selection = FALSE, iter = 2000, warmup = 500,
+    chains = 1, display_progress = "none"
+  )
+
+  cor_pw = cor(
+    as.numeric(fit1$posterior_mean_pairwise),
+    as.numeric(fit2$posterior_mean_pairwise)
+  )
+  expect_gt(cor_pw, 0.7)
 })

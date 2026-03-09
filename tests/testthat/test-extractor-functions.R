@@ -103,13 +103,20 @@ test_that("extract_main_effects returns valid output for all fit types", {
 
     main = extract_main_effects(fit)
 
-    if(isTRUE(args$is_mixed)) {
+    if(isTRUE(args$is_continuous)) {
+      # GGM: no main effects; returns NULL with a message
+      expect_message(
+        main_msg <- extract_main_effects(fit),
+        "no main effects"
+      )
+      expect_null(main_msg, info = paste(ctx, "GGM should return NULL"))
+    } else if(isTRUE(args$is_mixed)) {
       # Mixed MRF returns a list
       expect_true(is.list(main), info = paste(ctx, "should be list for mixed"))
       expect_true(is.matrix(main$discrete), info = paste(ctx, "$discrete should be matrix"))
       expect_true(is.matrix(main$continuous), info = paste(ctx, "$continuous should be matrix"))
     } else {
-      # GGM / OMRF return matrix
+      # OMRF / Blume-Capel return matrix
       expect_true(is.matrix(main), info = paste(ctx, "should be matrix"))
       vals = main[!is.na(main)]
       expect_true(all(is.finite(vals)), info = paste(ctx, "non-NA values should be finite"))
