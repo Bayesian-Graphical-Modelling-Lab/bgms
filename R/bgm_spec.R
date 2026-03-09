@@ -1130,7 +1130,8 @@ build_arguments_ggm = function(spec) {
     num_chains                   = spec$sampler$chains,
     data_columnnames             = spec$data$data_columnnames,
     no_variables                 = spec$data$num_variables,
-    is_continuous                = TRUE
+    is_continuous                = TRUE,
+    model_type                   = "ggm"
   )
 }
 
@@ -1172,7 +1173,8 @@ build_arguments_omrf = function(spec) {
     data_columnnames             = spec$data$data_columnnames,
     baseline_category            = spec$variables$baseline_category,
     pairwise_scaling_factors     = spec$prior$pairwise_scaling_factors,
-    no_variables                 = spec$data$num_variables
+    no_variables                 = spec$data$num_variables,
+    model_type                   = "omrf"
   )
 }
 
@@ -1215,7 +1217,8 @@ build_arguments_mixed_mrf = function(spec) {
     baseline_category            = spec$variables$baseline_category,
     is_ordinal                   = spec$variables$is_ordinal,
     no_variables                 = spec$data$num_variables,
-    is_mixed                     = TRUE
+    is_mixed                     = TRUE,
+    model_type                   = "mixed_mrf"
   )
 }
 
@@ -1248,7 +1251,8 @@ build_arguments_compare = function(spec) {
     num_categories               = spec$data$num_categories,
     is_ordinal_variable          = spec$variables$is_ordinal,
     group                        = sort(spec$data$group),
-    pairwise_scaling_factors     = spec$prior$pairwise_scaling_factors
+    pairwise_scaling_factors     = spec$prior$pairwise_scaling_factors,
+    model_type                   = "compare"
   )
 }
 

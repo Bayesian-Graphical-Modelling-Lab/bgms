@@ -2,7 +2,7 @@
 % Please edit documentation in R/extractor_functions.R
 \name{extract_pairwise_thresholds}
 \alias{extract_pairwise_thresholds}
-\title{Deprecated: Use extract_category_thresholds instead}
+\title{Deprecated: Use extract_main_effects instead}
 \usage{
 extract_pairwise_thresholds(bgms_object)
 }
@@ -10,6 +10,6 @@ extract_pairwise_thresholds(bgms_object)
 \item{bgms_object}{A bgms or bgmCompare object.}
 }
 \description{
-Deprecated: Use extract_category_thresholds instead
+Deprecated: Use extract_main_effects instead
 }
 \keyword{internal}

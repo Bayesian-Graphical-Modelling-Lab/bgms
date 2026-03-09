@@ -21,7 +21,7 @@
 print.bgms = function(x, ...) {
   arguments = extract_arguments(x)
 
-  # Model type
+  # Estimation method
   if(isTRUE(arguments$edge_selection)) {
     prior_msg = switch(arguments$edge_prior,
       "Bernoulli" = "Bayesian Edge Selection using a Bernoulli prior on edge inclusion",
@@ -32,6 +32,21 @@ print.bgms = function(x, ...) {
     cat(prior_msg, "\n")
   } else {
     cat("Bayesian Estimation\n")
+  }
+
+  # Model type
+  mt = arguments$model_type
+  if(!is.null(mt)) {
+    mt_label = switch(mt,
+      ggm       = "GGM (Gaussian Graphical Model)",
+      omrf      = "OMRF (Ordinal Markov Random Field)",
+      mixed_mrf = sprintf(
+        "Mixed MRF (%d discrete, %d continuous)",
+        arguments$num_discrete, arguments$num_continuous
+      ),
+      mt
+    )
+    cat(paste0(" Model: ", mt_label, "\n"))
   }
 
   # Dataset info
@@ -84,10 +99,18 @@ summary.bgms = function(object, ...) {
   arguments = extract_arguments(object)
 
   if(!is.null(object$posterior_summary_main) && !is.null(object$posterior_summary_pairwise)) {
+    mt = arguments$model_type
+    main_label = switch(mt,
+      ggm       = "Precision diagonal (quadratic effects):",
+      omrf      = "Category thresholds:",
+      mixed_mrf = "Main effects (discrete thresholds and continuous means/precisions):",
+      "Main effects:"
+    )
     out = list(
       main = object$posterior_summary_main,
       pairwise = object$posterior_summary_pairwise
     )
+    attr(out, "main_label") = main_label
 
     if(!is.null(object$posterior_summary_indicator)) {
       out$indicator = object$posterior_summary_indicator
@@ -118,7 +141,8 @@ print.summary.bgms = function(x, digits = 3, ...) {
   cat("Posterior summaries from Bayesian estimation:\n\n")
 
   if(!is.null(x$main)) {
-    cat("Category thresholds:\n")
+    main_label = attr(x, "main_label") %||% "Main effects:"
+    cat(main_label, "\n")
     print(round(head(x$main, 6), digits = digits))
     if(nrow(x$main) > 6) cat("... (use `summary(fit)$main` to see full output)\n")
     cat("\n")
@@ -179,14 +203,19 @@ print.summary.bgms = function(x, digits = 3, ...) {
 
 #' @title Extract Coefficients from a bgms Object
 #' @name coef.bgms
-#' @description Returns the posterior mean thresholds, pairwise effects, and edge inclusion indicators from a \code{bgms} model fit.
+#' @description Returns the posterior mean main effects, pairwise effects, and edge inclusion indicators from a \code{bgms} model fit.
 #'
 #' @param object An object of class \code{bgms}.
 #' @param ... Ignored.
 #'
 #' @return A list with the following components:
 #' \describe{
-#'   \item{main}{Posterior mean of the category threshold parameters.}
+#'   \item{main}{Posterior mean of the main-effect parameters. For GGM models
+#'     this contains the precision matrix diagonal (quadratic effects, not main
+#'     effects). For OMRF models this is a numeric matrix (p x max_categories)
+#'     of category thresholds. For mixed MRF models this is a list with
+#'     `$discrete` (p x max_categories matrix) and `$continuous` (q x 2 matrix
+#'     with columns "mean" and "precision").}
 #'   \item{pairwise}{Posterior mean of the pairwise interaction matrix.}
 #'   \item{indicator}{Posterior mean of the edge inclusion indicators (if available).}
 #' }

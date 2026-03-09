@@ -34,6 +34,7 @@ Other extractors:
 \code{\link{extract_ess}()},
 \code{\link{extract_group_params}()},
 \code{\link{extract_indicator_priors}()},
+\code{\link{extract_main_effects}()},
 \code{\link{extract_pairwise_interactions}()},
 \code{\link{extract_posterior_inclusion_probabilities}()},
 \code{\link{extract_rhat}()},

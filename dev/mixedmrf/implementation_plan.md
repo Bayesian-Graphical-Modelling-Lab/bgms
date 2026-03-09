@@ -317,8 +317,8 @@ add the new Rcpp export to `src/RcppExports.cpp`, `R/RcppExports.R`, and
 | **G** | Simulation and prediction | E | `simulate.bgms` and `predict.bgms` for mixed | ✅ |
 | **H** | Stochastic block model edge prior | G | SBM prior wired into mixed MRF | ✅ |
 | **I** | Missing data imputation | G | `na_action = "impute"` for mixed data | ✅ |
-| **J** | Performance profiling | G | Benchmark report, hotspot fixes |
-| **K** | Code deduplication audit | G | Shared helpers extracted, dead code removed |
+| **J** | Performance profiling | G | Benchmark report, hotspot fixes | partial |
+| **K** | Code deduplication audit | G | Shared helpers extracted, dead code removed | ✅ |
 | **L** | Model output R code inspection | G | Output format verified, bugs fixed |
 | **M** | Test suite cleanup and completion | G | 4 new test files, promoted dev tests, full T1–T30 coverage |
 | **N** | Alternative proposals for GGM edge updates | G | New proposal mechanisms for GGM edges |
@@ -1583,11 +1583,23 @@ while the C++ function expected 21.
 | `src/RcppExports.cpp` | Regenerated |
 ---
 
-## Phase J — Performance profiling
+## Phase J — Performance profiling (partial)
 
 Profile the mixed MRF sampler to identify bottlenecks and verify
 that the rank-1 Cholesky optimizations (Phase B+) deliver the
 expected speedup over naive recomputation.
+
+### Completed
+
+- `MY_LOG`/`MY_EXP` macros applied across GGM and OMRF models
+  (commit `cad3426`).
+- Benchmark baseline saved (`dev/fixtures/benchmark_baseline.rds`);
+  rounds 1–3 saved. Optimization rounds 1–8 stashed (`stash@{0}`).
+
+### Remaining
+
+- Formal scaling-curve plots and profiling report not yet produced.
+- Marginal vs conditional PL cost comparison not yet documented.
 
 ### Scope
 
@@ -1621,11 +1633,24 @@ expected speedup over naive recomputation.
 
 ---
 
-## Phase K — Code deduplication audit
+## Phase K — Code deduplication audit ✅
 
 Review the mixed MRF implementation and the rest of the package for
 repeated code patterns that could be shared. The goal is to reduce
 maintenance burden without over-abstracting.
+
+### Completed
+
+- **Part 1** (`676b49f`): Renamed all MixedMRF member variables to
+  match GGM/OMRF naming conventions (`mux_` → `main_effects_discrete_`,
+  `Kxx_` → `pairwise_effects_discrete_`, etc.). Replaced 6 `std::log`
+  calls with `MY_LOG` in `mixed_mrf_metropolis.cpp`.
+- **Part 2** (`d58848b`): Moved `cholupdate.h`/`.cpp` from
+  `src/models/ggm/` to `src/math/`. Deduplicated R output-builder
+  code in `build_output.R` and `run_sampler.R`.
+- **Part 3** (`b944cd4`): Documented overflow-guard bitwise break,
+  regenerated HMC fixtures, restored progress interval.
+- Full audit in `dev/mixedmrf/deduplication_audit.md`.
 
 ### Known candidates
 

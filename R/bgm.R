@@ -326,14 +326,21 @@
 #' Main components include:
 #' \itemize{
 #'   \item \code{posterior_summary_main}: Data frame with posterior summaries
-#'     (mean, sd, MCSE, ESS, Rhat) for category threshold parameters.
+#'     (mean, sd, MCSE, ESS, Rhat) for main-effect parameters.
+#'     For OMRF models these are category thresholds; for GGM models
+#'     these are precision matrix diagonal entries (quadratic effects);
+#'     for mixed MRF models these include both discrete thresholds and
+#'     continuous means and precisions.
 #'   \item \code{posterior_summary_pairwise}: Data frame with posterior
 #'     summaries for pairwise interaction parameters.
 #'   \item \code{posterior_summary_indicator}: Data frame with posterior
 #'     summaries for edge inclusion indicators (if \code{edge_selection = TRUE}).
 #'
-#'   \item \code{posterior_mean_main}: Matrix of posterior mean thresholds
-#'     (rows = variables, cols = categories or parameters).
+#'   \item \code{posterior_mean_main}: Posterior mean of per-variable
+#'     parameters. For OMRF: a matrix (p x max_categories) of category
+#'     thresholds. For GGM: a (p x 1) matrix of precision diagonal entries
+#'     (quadratic effects, not main effects). For mixed MRF: a list with
+#'     \code{$discrete} and \code{$continuous} components.
 #'   \item \code{posterior_mean_pairwise}: Symmetric matrix of posterior mean
 #'     pairwise interaction strengths.
 #'   \item \code{posterior_mean_indicator}: Symmetric matrix of posterior mean

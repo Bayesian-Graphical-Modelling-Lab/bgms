@@ -20,7 +20,7 @@ parameters and group differences from a model fitted with [bgmCompare()].
 }
 \seealso{
 [bgmCompare()], [extract_pairwise_interactions()],
-  [extract_category_thresholds()]
+  [extract_main_effects()]
 
 Other extractors: 
 \code{\link{extract_arguments}()},
@@ -28,6 +28,7 @@ Other extractors:
 \code{\link{extract_ess}()},
 \code{\link{extract_indicator_priors}()},
 \code{\link{extract_indicators}()},
+\code{\link{extract_main_effects}()},
 \code{\link{extract_pairwise_interactions}()},
 \code{\link{extract_posterior_inclusion_probabilities}()},
 \code{\link{extract_rhat}()},

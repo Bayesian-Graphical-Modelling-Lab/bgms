@@ -11,19 +11,20 @@ extract_category_thresholds(bgms_object)
 or `bgmCompare` (from [bgmCompare()]).}
 }
 \value{
-\describe{
-    \item{bgms}{A matrix with one row per variable and one column per
-      category threshold, containing posterior means.}
-    \item{bgmCompare}{A matrix with one row per post-warmup iteration,
-      containing posterior samples of baseline threshold parameters.}
-  }
+See [extract_main_effects()] for details.
 }
 \description{
-Retrieves category threshold parameters from a model fitted with
-[bgm()] or [bgmCompare()].
+`r lifecycle::badge("deprecated")`
+
+`extract_category_thresholds()` was renamed to [extract_main_effects()] to
+reflect that main effects include continuous means and precisions
+(mixed MRF), not only category thresholds.
+}
+\details{
+Extract Category Threshold Estimates
 }
 \seealso{
-[bgm()], [bgmCompare()], [extract_pairwise_interactions()]
+[extract_main_effects()]
 
 Other extractors: 
 \code{\link{extract_arguments}()},
@@ -31,6 +32,7 @@ Other extractors:
 \code{\link{extract_group_params}()},
 \code{\link{extract_indicator_priors}()},
 \code{\link{extract_indicators}()},
+\code{\link{extract_main_effects}()},
 \code{\link{extract_pairwise_interactions}()},
 \code{\link{extract_posterior_inclusion_probabilities}()},
 \code{\link{extract_rhat}()},

@@ -14,13 +14,18 @@
 \value{
 A list with the following components:
 \describe{
-  \item{main}{Posterior mean of the category threshold parameters.}
+  \item{main}{Posterior mean of the main-effect parameters. For GGM models
+    this contains the precision matrix diagonal (quadratic effects, not main
+    effects). For OMRF models this is a numeric matrix (p x max_categories)
+    of category thresholds. For mixed MRF models this is a list with
+    `$discrete` (p x max_categories matrix) and `$continuous` (q x 2 matrix
+    with columns "mean" and "precision").}
   \item{pairwise}{Posterior mean of the pairwise interaction matrix.}
   \item{indicator}{Posterior mean of the edge inclusion indicators (if available).}
 }
 }
 \description{
-Returns the posterior mean thresholds, pairwise effects, and edge inclusion indicators from a \code{bgms} model fit.
+Returns the posterior mean main effects, pairwise effects, and edge inclusion indicators from a \code{bgms} model fit.
 }
 \examples{
 \donttest{

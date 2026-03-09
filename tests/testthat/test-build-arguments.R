@@ -98,7 +98,8 @@ test_that("GGM build_arguments: all expected field names present", {
     "beta_bernoulli_alpha_between", "beta_bernoulli_beta_between",
     "dirichlet_alpha", "lambda", "na_action", "version",
     "update_method", "target_accept", "num_chains",
-    "data_columnnames", "no_variables", "is_continuous"
+    "data_columnnames", "no_variables", "is_continuous",
+    "model_type"
   )
   expect_true(all(expected %in% names(a)),
     info = paste("Missing:", paste(setdiff(expected, names(a)),
@@ -162,7 +163,8 @@ test_that("OMRF build_arguments: all expected field names present", {
     "nuts_max_depth", "learn_mass_matrix",
     "num_chains", "num_categories",
     "data_columnnames", "baseline_category",
-    "pairwise_scaling_factors", "no_variables"
+    "pairwise_scaling_factors", "no_variables",
+    "model_type"
   )
   expect_true(all(expected %in% names(a)),
     info = paste("Missing:", paste(setdiff(expected, names(a)),
@@ -222,7 +224,8 @@ test_that("Compare build_arguments: all expected field names present", {
     "num_chains", "num_groups",
     "data_columnnames", "projection",
     "num_categories", "is_ordinal_variable",
-    "group", "pairwise_scaling_factors"
+    "group", "pairwise_scaling_factors",
+    "model_type"
   )
   expect_true(all(expected %in% names(a)),
     info = paste("Missing:", paste(setdiff(expected, names(a)),

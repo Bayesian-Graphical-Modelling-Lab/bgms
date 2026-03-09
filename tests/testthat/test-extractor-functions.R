@@ -125,10 +125,10 @@ test_that("extract_pairwise_interactions returns valid matrix for all fit types"
 
 
 # ------------------------------------------------------------------------------
-# extract_category_thresholds() Tests (parameterized)
+# extract_main_effects() Tests (parameterized)
 # ------------------------------------------------------------------------------
 
-test_that("extract_category_thresholds returns valid output for all fit types", {
+test_that("extract_main_effects returns valid output for all fit types", {
   fixtures = get_all_fixtures()
 
   for(spec in fixtures) {
@@ -136,15 +136,28 @@ test_that("extract_category_thresholds returns valid output for all fit types", 
     fit = spec$get_fit()
     args = extract_arguments(fit)
 
-    thresholds = extract_category_thresholds(fit)
+    main = extract_main_effects(fit)
 
-    # Structure checks
-    expect_true(is.matrix(thresholds), info = paste(ctx, "should be matrix"))
-
-    # Values finite where not NA
-    vals = thresholds[!is.na(thresholds)]
-    expect_true(all(is.finite(vals)), info = paste(ctx, "non-NA values should be finite"))
+    if(isTRUE(args$is_mixed)) {
+      # Mixed MRF returns a list
+      expect_true(is.list(main), info = paste(ctx, "should be list for mixed"))
+      expect_true(is.matrix(main$discrete), info = paste(ctx, "$discrete should be matrix"))
+      expect_true(is.matrix(main$continuous), info = paste(ctx, "$continuous should be matrix"))
+    } else {
+      # GGM / OMRF return matrix
+      expect_true(is.matrix(main), info = paste(ctx, "should be matrix"))
+      vals = main[!is.na(main)]
+      expect_true(all(is.finite(vals)), info = paste(ctx, "non-NA values should be finite"))
+    }
   }
+})
+
+test_that("extract_category_thresholds emits deprecation warning", {
+  fit = get_bgms_fit()
+  expect_warning(
+    extract_category_thresholds(fit),
+    "extract_main_effects"
+  )
 })
 
 
@@ -390,7 +403,7 @@ test_that("extractor outputs are dimensionally consistent", {
     pairwise = extract_pairwise_interactions(fit)
     expect_equal(ncol(pairwise), n_edges, info = paste(ctx, "pairwise cols"))
 
-    thresholds = extract_category_thresholds(fit)
+    thresholds = suppressWarnings(extract_category_thresholds(fit))
     expect_equal(nrow(thresholds), p, info = paste(ctx, "threshold rows"))
   }
 })
@@ -888,7 +901,7 @@ test_that("pre-0.1.4 bgm formats emit deprecation warnings for pairwise/threshol
     expect_warning(extract_pairwise_interactions(fit), "deprecated",
       info = paste(spec$label, "extract_pairwise should warn")
     )
-    expect_warning(extract_category_thresholds(fit), "deprecated",
+    expect_warning(extract_category_thresholds(fit), "extract_main_effects",
       info = paste(spec$label, "extract_thresholds should warn")
     )
   }
@@ -910,7 +923,7 @@ test_that("0.1.4-0.1.5 formats emit deprecation warnings", {
     expect_warning(extract_pairwise_interactions(fit), "deprecated",
       info = paste(spec$label, "extract_pairwise should warn")
     )
-    expect_warning(extract_category_thresholds(fit), "deprecated",
+    expect_warning(extract_category_thresholds(fit), "extract_main_effects",
       info = paste(spec$label, "extract_thresholds should warn")
     )
 
@@ -934,7 +947,8 @@ test_that("0.1.6+ formats work without deprecation warnings", {
     expect_no_warning(extract_indicators(fit))
     expect_no_warning(extract_posterior_inclusion_probabilities(fit))
     expect_no_warning(extract_pairwise_interactions(fit))
-    expect_no_warning(extract_category_thresholds(fit))
+    expect_warning(extract_category_thresholds(fit), "extract_main_effects")
+    expect_no_warning(extract_main_effects(fit))
   }
 })
 

@@ -24,7 +24,7 @@ Retrieves posterior samples of pairwise interaction parameters from a
 model fitted with [bgm()] or [bgmCompare()].
 }
 \seealso{
-[bgm()], [bgmCompare()], [extract_category_thresholds()]
+[bgm()], [bgmCompare()], [extract_main_effects()]
 
 Other extractors: 
 \code{\link{extract_arguments}()},
@@ -33,6 +33,7 @@ Other extractors:
 \code{\link{extract_group_params}()},
 \code{\link{extract_indicator_priors}()},
 \code{\link{extract_indicators}()},
+\code{\link{extract_main_effects}()},
 \code{\link{extract_posterior_inclusion_probabilities}()},
 \code{\link{extract_rhat}()},
 \code{\link{extract_sbm}()}

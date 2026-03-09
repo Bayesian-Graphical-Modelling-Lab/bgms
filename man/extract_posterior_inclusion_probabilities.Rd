@@ -35,6 +35,7 @@ Other extractors:
 \code{\link{extract_group_params}()},
 \code{\link{extract_indicator_priors}()},
 \code{\link{extract_indicators}()},
+\code{\link{extract_main_effects}()},
 \code{\link{extract_pairwise_interactions}()},
 \code{\link{extract_rhat}()},
 \code{\link{extract_sbm}()}

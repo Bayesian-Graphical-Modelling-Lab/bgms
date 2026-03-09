@@ -464,7 +464,7 @@ build_output_bgm = function(spec, raw) {
         results$indicator = extract_indicators(results)
       }
       results$interactions = extract_pairwise_interactions(results)
-      results$thresholds = extract_category_thresholds(results)
+      results$thresholds = extract_main_effects(results)
     }
   }
 
@@ -710,8 +710,13 @@ build_output_mixed_mrf = function(spec, raw) {
   class(results) = "bgms"
 
   # --- raw_samples ------------------------------------------------------------
+  alloc_names = if(identical(edge_prior, "Stochastic-Block")) {
+    all_internal_names
+  } else {
+    NULL
+  }
   results$raw_samples = build_raw_samples_list(
-    raw, edge_selection, edge_prior, names_main, edge_names
+    raw, edge_selection, edge_prior, names_main, edge_names, alloc_names
   )
 
   # --- NUTS diagnostics -------------------------------------------------------

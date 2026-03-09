@@ -407,7 +407,7 @@ extract_indicator_priors.bgmCompare = function(bgms_object) {
 #'       interaction parameters.}
 #'   }
 #'
-#' @seealso [bgm()], [bgmCompare()], [extract_category_thresholds()]
+#' @seealso [bgm()], [bgmCompare()], [extract_main_effects()]
 #' @family extractors
 #' @export
 extract_pairwise_interactions = function(bgms_object) {
@@ -428,10 +428,17 @@ extract_pairwise_interactions.bgms = function(bgms_object) {
     mats = bgms_object$raw_samples$pairwise
     mat = do.call(rbind, mats)
 
-    edge_names = character()
-    for(i in 1:(num_vars - 1)) {
-      for(j in (i + 1):num_vars) {
-        edge_names = c(edge_names, paste0(var_names[i], "-", var_names[j]))
+    # Use stored parameter names when available (correct for all model types
+    # including mixed MRF where block order differs from upper-triangle order)
+    stored_names = bgms_object$raw_samples$parameter_names$pairwise
+    if(!is.null(stored_names)) {
+      edge_names = stored_names
+    } else {
+      edge_names = character()
+      for(i in 1:(num_vars - 1)) {
+        for(j in (i + 1):num_vars) {
+          edge_names = c(edge_names, paste0(var_names[i], "-", var_names[j]))
+        }
       }
     }
 
@@ -492,46 +499,84 @@ extract_pairwise_interactions.bgmCompare = function(bgms_object) {
   stop("No pairwise interaction samples found in fit object.")
 }
 
-#' Extract Category Threshold Estimates
+#' Extract Main Effect Estimates
+#'
+#' @title Extract Main Effect Estimates
 #'
 #' @description
-#' Retrieves category threshold parameters from a model fitted with
-#' [bgm()] or [bgmCompare()].
+#' Retrieves posterior mean main-effect parameters from a model fitted with
+#' [bgm()] or [bgmCompare()]. For OMRF models these are category thresholds;
+#' for mixed MRF models these include both discrete thresholds and continuous
+#' means and precisions. GGM models have no main effects (the precision
+#' diagonal represents quadratic effects) and return `NULL`.
 #'
 #' @param bgms_object A fitted model object of class `bgms` (from [bgm()])
 #'   or `bgmCompare` (from [bgmCompare()]).
 #'
-#' @return
+#' @return The structure depends on the model type:
 #'   \describe{
-#'     \item{bgms}{A matrix with one row per variable and one column per
-#'       category threshold, containing posterior means.}
+#'     \item{GGM (bgms)}{`NULL` (invisibly). GGM models have no main effects;
+#'       the precision matrix diagonal contains quadratic effects, accessible
+#'       via `$posterior_mean_main`.}
+#'     \item{OMRF (bgms)}{A numeric matrix with one row per variable and one
+#'       column per category threshold, containing posterior means. Columns
+#'       beyond the number of categories for a variable are `NA`.}
+#'     \item{Mixed MRF (bgms)}{A list with two elements:
+#'       \describe{
+#'         \item{discrete}{A numeric matrix (p rows x max_categories columns)
+#'           of posterior mean thresholds for discrete variables.}
+#'         \item{continuous}{A numeric matrix (q rows x 2 columns) with
+#'           columns `"mean"` and `"precision"` for continuous variables.}
+#'       }}
 #'     \item{bgmCompare}{A matrix with one row per post-warmup iteration,
-#'       containing posterior samples of baseline threshold parameters.}
+#'       containing posterior samples of baseline main-effect parameters.}
 #'   }
 #'
-#' @seealso [bgm()], [bgmCompare()], [extract_pairwise_interactions()]
+#' @examples
+#' \donttest{
+#' fit = bgm(x = Wenchuan[, 1:3])
+#' extract_main_effects(fit)
+#' }
+#'
+#' @seealso [bgm()], [bgmCompare()], [extract_pairwise_interactions()],
+#'   [extract_category_thresholds()]
 #' @family extractors
 #' @export
-extract_category_thresholds = function(bgms_object) {
-  UseMethod("extract_category_thresholds")
+extract_main_effects = function(bgms_object) {
+  UseMethod("extract_main_effects")
 }
 
-#' @inheritParams extract_category_thresholds
+#' @inheritParams extract_main_effects
 #' @exportS3Method
 #' @noRd
-extract_category_thresholds.bgms = function(bgms_object) {
+extract_main_effects.bgms = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
-  var_names = arguments$data_columnnames
+
+  # GGM: no main effects (precision diagonal entries are quadratic, not main)
+  if(isTRUE(arguments$is_continuous)) {
+    message(
+      "GGM models have no main effects. The precision matrix diagonal ",
+      "(quadratic effects) is available via $posterior_mean_main."
+    )
+    return(invisible(NULL))
+  }
+
+  # Mixed MRF: return pre-built list from posterior_mean_main
+  if(isTRUE(arguments$is_mixed)) {
+    return(bgms_object$posterior_mean_main)
+  }
 
   # Current format (0.1.6.0+)
   if(!is.null(bgms_object$posterior_summary_main)) {
     vec = bgms_object$posterior_summary_main[, "mean"]
-    # Handle legacy field name (no_variables → num_variables in 0.1.6.0)
+    var_names = arguments$data_columnnames
     num_vars = arguments$num_variables %||% arguments$no_variables
     variable_type = arguments$variable_type
     if(length(variable_type) == 1) {
       variable_type = rep(variable_type, num_vars)
     }
+
+    # OMRF: threshold matrix
     num_cats = arguments$num_categories
     max_cats = max(num_cats)
     mat = matrix(NA_real_, nrow = num_vars, ncol = max_cats)
@@ -556,8 +601,8 @@ extract_category_thresholds.bgms = function(bgms_object) {
       "0.1.6.0",
       I("The '$thresholds' field is deprecated; please refit with bgms >= 0.1.6.0")
     )
+    var_names = arguments$data_columnnames
     means = colMeans(bgms_object$thresholds)
-    # For binary variables in 0.1.4.x, there's 1 threshold per variable
     mat = matrix(means, nrow = length(means), ncol = 1)
     rownames(mat) = var_names
     return(mat)
@@ -570,10 +615,10 @@ extract_category_thresholds.bgms = function(bgms_object) {
   )
 }
 
-#' @inheritParams extract_category_thresholds
+#' @inheritParams extract_main_effects
 #' @exportS3Method
 #' @noRd
-extract_category_thresholds.bgmCompare = function(bgms_object) {
+extract_main_effects.bgmCompare = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
 
   # Current format (0.1.6.0+)
@@ -604,11 +649,39 @@ extract_category_thresholds.bgmCompare = function(bgms_object) {
       "0.1.6.0",
       I("The '$thresholds_gr*' fields are deprecated; please refit with bgms >= 0.1.6.0")
     )
-    # Combine the two groups' thresholds
     return(cbind(bgms_object$thresholds_gr1, bgms_object$thresholds_gr2))
   }
 
-  stop("No category threshold samples found in fit object.")
+  stop("No main effect samples found in fit object.")
+}
+
+
+#' Extract Category Threshold Estimates
+#'
+#' @title Extract Category Threshold Estimates
+#'
+#' @description
+#' `r lifecycle::badge("deprecated")`
+#'
+#' `extract_category_thresholds()` was renamed to [extract_main_effects()] to
+#' reflect that main effects include continuous means and precisions
+#' (mixed MRF), not only category thresholds.
+#'
+#' @param bgms_object A fitted model object of class `bgms` (from [bgm()])
+#'   or `bgmCompare` (from [bgmCompare()]).
+#'
+#' @return See [extract_main_effects()] for details.
+#'
+#' @seealso [extract_main_effects()]
+#' @family extractors
+#' @export
+extract_category_thresholds = function(bgms_object) {
+  lifecycle::deprecate_warn(
+    "0.2.1.0",
+    "extract_category_thresholds()",
+    "extract_main_effects()"
+  )
+  extract_main_effects(bgms_object)
 }
 
 #' Extract Group-Specific Parameters
@@ -624,7 +697,7 @@ extract_category_thresholds.bgmCompare = function(bgms_object) {
 #'   group) and `pairwise_effects_groups` (pairwise effects per group).
 #'
 #' @seealso [bgmCompare()], [extract_pairwise_interactions()],
-#'   [extract_category_thresholds()]
+#'   [extract_main_effects()]
 #' @family extractors
 #' @export
 extract_group_params = function(bgms_object) {
@@ -842,13 +915,13 @@ extract_edge_indicators = function(bgms_object) {
   extract_indicators(bgms_object)
 }
 
-#' Deprecated: Use extract_category_thresholds instead
+#' Deprecated: Use extract_main_effects instead
 #' @param bgms_object A bgms or bgmCompare object.
 #' @keywords internal
 #' @export
 extract_pairwise_thresholds = function(bgms_object) {
-  lifecycle::deprecate_warn("0.1.4.2", "extract_pairwise_thresholds()", "extract_category_thresholds()")
-  extract_category_thresholds(bgms_object)
+  lifecycle::deprecate_warn("0.1.4.2", "extract_pairwise_thresholds()", "extract_main_effects()")
+  extract_main_effects(bgms_object)
 }
 
 
