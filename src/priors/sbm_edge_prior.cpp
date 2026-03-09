@@ -128,8 +128,6 @@ double log_marginal_mfm_sbm(arma::uvec cluster_assign,
                             arma::umat indicator,
                             arma::uword node,
                             arma::uword no_variables,
-                            double beta_bernoulli_alpha,
-                            double beta_bernoulli_beta,
                             double beta_bernoulli_alpha_between,
                             double beta_bernoulli_beta_between) {
 
@@ -257,8 +255,6 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
                                          indicator,
                                          node,
                                          no_variables,
-                                         beta_bernoulli_alpha,
-                                         beta_bernoulli_beta,
                                          beta_bernoulli_alpha_between,
                                          beta_bernoulli_beta_between);
 
@@ -311,8 +307,6 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
                                          indicator,
                                          node,
                                          no_variables,
-                                         beta_bernoulli_alpha,
-                                         beta_bernoulli_beta,
                                          beta_bernoulli_alpha_between,
                                          beta_bernoulli_beta_between);
 
