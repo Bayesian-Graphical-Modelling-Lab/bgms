@@ -150,13 +150,7 @@ double log_marginal_mfm_sbm(arma::uvec cluster_assign,
       double sumG = arma::accu(gamma_node(which_variables_cluster_i)); // sum the indicator variables between node and those variables
       double sumN = static_cast<double>(which_variables_cluster_i.n_elem); // take the size of the group as maximum number of relations
 
-      // Determine if this is within-cluster or between-cluster
-      bool is_within_cluster = (i == node_cluster);
-
-      double alpha = is_within_cluster ? beta_bernoulli_alpha : beta_bernoulli_alpha_between;
-      double beta = is_within_cluster ? beta_bernoulli_beta : beta_bernoulli_beta_between;
-
-      output += R::lbeta(sumG + alpha, sumN - sumG + beta) - R::lbeta(alpha, beta); // calculate log-density for cluster i and sum it to the marginal log-likelihood
+      output += R::lbeta(sumG + beta_bernoulli_alpha_between, sumN - sumG + beta_bernoulli_beta_between) - R::lbeta(beta_bernoulli_alpha_between, beta_bernoulli_beta_between); // calculate log-density for cluster i and sum it to the marginal log-likelihood
     }
   }
   return output;
