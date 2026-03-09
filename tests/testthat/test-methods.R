@@ -16,161 +16,52 @@
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
-# Fixture Specifications
+# Fixture Specifications — defined in helper-fixtures.R
+# get_bgms_fixtures(), get_bgmcompare_fixtures()
 # ------------------------------------------------------------------------------
 
-get_bgms_fixtures = function() {
-  list(
-    list(
-      label = "binary",
-      get_fit = get_bgms_fit,
-      get_prediction_data = get_prediction_data_binary,
-      var_type = "binary",
-      is_continuous = FALSE
-    ),
-    list(
-      label = "ordinal",
-      get_fit = get_bgms_fit_ordinal,
-      get_prediction_data = get_prediction_data_ordinal,
-      var_type = "ordinal",
-      is_continuous = FALSE
-    ),
-    list(
-      label = "single-chain",
-      get_fit = get_bgms_fit_single_chain,
-      get_prediction_data = get_prediction_data_binary,
-      var_type = "binary",
-      is_continuous = FALSE
-    ),
-    list(
-      label = "blume-capel",
-      get_fit = get_bgms_fit_blumecapel,
-      get_prediction_data = get_prediction_data_ordinal,
-      var_type = "blume-capel",
-      is_continuous = FALSE
-    ),
-    list(
-      label = "adaptive-metropolis",
-      get_fit = get_bgms_fit_adaptive_metropolis,
-      get_prediction_data = get_prediction_data_binary,
-      var_type = "binary",
-      is_continuous = FALSE
-    ),
-    list(
-      label = "hmc",
-      get_fit = get_bgms_fit_hmc,
-      get_prediction_data = get_prediction_data_ordinal,
-      var_type = "ordinal",
-      is_continuous = FALSE
-    ),
-    list(
-      label = "am-blumecapel",
-      get_fit = get_bgms_fit_am_blumecapel,
-      get_prediction_data = get_prediction_data_ordinal,
-      var_type = "blume-capel",
-      is_continuous = FALSE
-    ),
-    list(
-      label = "impute",
-      get_fit = get_bgms_fit_impute,
-      get_prediction_data = get_prediction_data_ordinal,
-      var_type = "ordinal",
-      is_continuous = FALSE
-    ),
-    list(
-      label = "standardize",
-      get_fit = get_bgms_fit_standardize,
-      get_prediction_data = get_prediction_data_ordinal,
-      var_type = "ordinal",
-      is_continuous = FALSE
-    ),
-    list(
-      label = "ggm",
-      get_fit = get_bgms_fit_ggm,
-      get_prediction_data = get_prediction_data_ggm,
-      var_type = "continuous",
-      is_continuous = TRUE
-    ),
-    list(
-      label = "ggm-no-es",
-      get_fit = get_bgms_fit_ggm_no_es,
-      get_prediction_data = get_prediction_data_ggm,
-      var_type = "continuous",
-      is_continuous = TRUE
-    )
-  )
-}
 
-get_bgmcompare_fixtures = function() {
-  list(
-    list(
-      label = "binary",
-      get_fit = get_bgmcompare_fit,
-      get_prediction_data = get_prediction_data_bgmcompare_binary,
-      var_type = "binary"
-    ),
-    list(
-      label = "ordinal",
-      get_fit = get_bgmcompare_fit_ordinal,
-      get_prediction_data = get_prediction_data_bgmcompare_ordinal,
-      var_type = "ordinal"
-    ),
-    list(
-      label = "adaptive-metropolis",
-      get_fit = get_bgmcompare_fit_adaptive_metropolis,
-      get_prediction_data = get_prediction_data_bgmcompare_binary,
-      var_type = "binary"
-    ),
-    list(
-      label = "hmc",
-      get_fit = get_bgmcompare_fit_hmc,
-      get_prediction_data = get_prediction_data_bgmcompare_binary,
-      var_type = "binary"
-    ),
-    list(
-      label = "hmc-blume-capel",
-      get_fit = get_bgmcompare_fit_hmc_blumecapel,
-      get_prediction_data = get_prediction_data_bgmcompare_blumecapel,
-      var_type = "blume-capel"
-    ),
-    list(
-      label = "blume-capel",
-      get_fit = get_bgmcompare_fit_blumecapel,
-      get_prediction_data = get_prediction_data_bgmcompare_blumecapel,
-      var_type = "blume-capel"
-    ),
-    list(
-      label = "am-blume-capel",
-      get_fit = get_bgmcompare_fit_am_blumecapel,
-      get_prediction_data = get_prediction_data_bgmcompare_blumecapel,
-      var_type = "blume-capel"
-    ),
-    list(
-      label = "impute",
-      get_fit = get_bgmcompare_fit_impute,
-      get_prediction_data = get_prediction_data_bgmcompare_ordinal,
-      var_type = "ordinal"
-    ),
-    list(
-      label = "blume-capel-impute",
-      get_fit = get_bgmcompare_fit_blumecapel_impute,
-      get_prediction_data = get_prediction_data_bgmcompare_blumecapel,
-      var_type = "blume-capel"
-    ),
-    list(
-      label = "beta-bernoulli",
-      get_fit = get_bgmcompare_fit_beta_bernoulli,
-      get_prediction_data = get_prediction_data_bgmcompare_ordinal,
-      var_type = "ordinal"
-    ),
-    list(
-      label = "standardize",
-      get_fit = get_bgmcompare_fit_standardize,
-      get_prediction_data = get_prediction_data_bgmcompare_ordinal,
-      var_type = "ordinal"
-    )
+# ==============================================================================
+# Fixture Coverage Guards
+# ==============================================================================
+# Fail fast when a fixture list drifts from the expected coverage.
+
+test_that("get_bgms_fixtures covers all required labels", {
+  specs = get_bgms_fixtures()
+  labels = vapply(specs, `[[`, character(1), "label")
+  required = c("binary", "ordinal", "ggm", "mixed-mrf", "blume-capel")
+  for(r in required) {
+    expect_true(r %in% labels, info = sprintf("missing required label '%s'", r))
+  }
+  expect_equal(length(specs), 16L,
+    info = "bgms fixture count changed — update this guard if intentional"
   )
-}
+})
+
+test_that("get_bgmcompare_fixtures covers all required labels", {
+  specs = get_bgmcompare_fixtures()
+  labels = vapply(specs, `[[`, character(1), "label")
+  required = c("binary", "ordinal", "blume-capel")
+  for(r in required) {
+    expect_true(r %in% labels, info = sprintf("missing required label '%s'", r))
+  }
+  expect_equal(length(specs), 13L,
+    info = "bgmcompare fixture count changed — update this guard if intentional"
+  )
+})
+
+test_that("get_extractor_fixtures covers all model families", {
+  specs = get_extractor_fixtures()
+  labels = vapply(specs, `[[`, character(1), "label")
+  required = c("bgms_binary", "bgms_ggm", "bgms_mixed",
+               "bgmCompare_binary", "bgmCompare_ordinal")
+  for(r in required) {
+    expect_true(r %in% labels, info = sprintf("missing required label '%s'", r))
+  }
+  expect_equal(length(specs), 9L,
+    info = "extractor fixture count changed — update this guard if intentional"
+  )
+})
 
 
 # ==============================================================================
@@ -322,6 +213,7 @@ test_that("coef.bgmCompare returns group-specific effects for all fixture types"
 test_that("simulate.bgms returns matrix of correct size for ordinal fixtures", {
   for(spec in get_bgms_fixtures()) {
     if(isTRUE(spec$is_continuous)) next
+    if(isTRUE(spec$is_mixed)) next
 
     ctx = sprintf("[bgms %s]", spec$label)
     fit = spec$get_fit()
@@ -368,6 +260,37 @@ test_that("simulate.bgms returns matrix of correct size for GGM fixtures", {
     # Values should be real-valued (not restricted to integers)
     expect_true(is.numeric(simulated), info = paste(ctx, "not numeric"))
     expect_true(all(is.finite(simulated)), info = paste(ctx, "non-finite values"))
+  }
+})
+
+test_that("simulate.bgms returns matrix of correct size for mixed-mrf fixtures", {
+  for(spec in get_bgms_fixtures()) {
+    if(!isTRUE(spec$is_mixed)) next
+
+    ctx = sprintf("[bgms %s]", spec$label)
+    fit = spec$get_fit()
+    args = extract_arguments(fit)
+
+    n_sim = 30
+    simulated = simulate(fit, nsim = n_sim, method = "posterior-mean", seed = 123)
+
+    expect_true(is.matrix(simulated), info = ctx)
+    expect_equal(nrow(simulated), n_sim, info = paste(ctx, "wrong nrow"))
+    expect_equal(ncol(simulated), args$num_variables, info = paste(ctx, "wrong ncol"))
+    expect_equal(colnames(simulated), args$data_columnnames, info = ctx)
+    expect_true(all(is.finite(simulated)), info = paste(ctx, "non-finite values"))
+
+    # Ordinal columns should be non-negative integers
+    for(j in seq_len(args$num_variables)) {
+      if(args$variable_type[j] != "continuous") {
+        expect_true(all(simulated[, j] == round(simulated[, j])),
+          info = sprintf("%s variable %d should be integer", ctx, j)
+        )
+        expect_true(all(simulated[, j] >= 0),
+          info = sprintf("%s variable %d has negative values", ctx, j)
+        )
+      }
+    }
   }
 })
 
@@ -466,6 +389,7 @@ test_that("simulate.bgms GGM posterior-sample returns list of numeric matrices",
 test_that("predict.bgms returns valid probabilities for ordinal fixtures", {
   for(spec in get_bgms_fixtures()) {
     if(isTRUE(spec$is_continuous)) next
+    if(isTRUE(spec$is_mixed)) next
 
     ctx = sprintf("[bgms %s]", spec$label)
     fit = spec$get_fit()
@@ -530,6 +454,51 @@ test_that("predict.bgms returns valid conditional moments for GGM fixtures", {
     expect_true(is.matrix(pred_response), info = ctx)
     expect_equal(nrow(pred_response), nrow(newdata), info = ctx)
     expect_equal(ncol(pred_response), args$num_variables, info = ctx)
+  }
+})
+
+test_that("predict.bgms returns valid predictions for mixed-mrf fixtures", {
+  for(spec in get_bgms_fixtures()) {
+    if(!isTRUE(spec$is_mixed)) next
+
+    ctx = sprintf("[bgms %s]", spec$label)
+    fit = spec$get_fit()
+    args = extract_arguments(fit)
+
+    newdata = spec$get_prediction_data(n = 5)
+    probs = predict(fit, newdata = newdata, type = "probabilities")
+
+    expect_true(is.list(probs), info = ctx)
+    expect_equal(length(probs), args$num_variables, info = ctx)
+
+    for(j in seq_len(args$num_variables)) {
+      vname = args$data_columnnames[j]
+      expect_equal(nrow(probs[[j]]), nrow(newdata),
+        info = sprintf("%s %s nrow", ctx, vname)
+      )
+      expect_false(anyNA(probs[[j]]),
+        info = sprintf("%s %s has NAs", ctx, vname)
+      )
+
+      if(args$variable_type[j] %in% c("ordinal", "blume-capel")) {
+        # Discrete variables: probability rows sum to 1
+        row_sums = rowSums(probs[[j]])
+        expect_true(
+          all(abs(row_sums - 1) < 1e-6),
+          info = sprintf("%s %s probs don't sum to 1", ctx, vname)
+        )
+      } else {
+        # Continuous variables: 2-column (mean, sd) matrix
+        expect_equal(ncol(probs[[j]]), 2,
+          info = sprintf("%s %s ncol", ctx, vname)
+        )
+      }
+    }
+
+    # type = "response" returns a matrix
+    resp = predict(fit, newdata = newdata, type = "response")
+    expect_true(is.matrix(resp), info = ctx)
+    expect_equal(dim(resp), c(nrow(newdata), args$num_variables), info = ctx)
   }
 })
 

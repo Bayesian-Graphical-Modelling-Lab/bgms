@@ -867,3 +867,299 @@ moderate_mcmc_args = function() {
     display_progress = "none"
   )
 }
+
+
+# ==============================================================================
+# 6. Consolidated Fixture Spec Lists (single source of truth)
+# ==============================================================================
+# These are used by test-methods.R, test-simulate-predict-regression.R,
+# and test-extractor-functions.R. Each entry is a named list describing one
+# fixture: label, get_fit, var_type, and boolean flags (is_continuous, is_mixed).
+# Entries used by simulate/predict also carry get_prediction_data.
+
+# ------------------------------------------------------------------
+# get_bgms_fixtures
+# ------------------------------------------------------------------
+# All bgms fit variants for parameterized testing.
+# Entries carry get_prediction_data for simulate/predict loops.
+#
+# Returns: list of fixture spec lists.
+# ------------------------------------------------------------------
+get_bgms_fixtures = function() {
+  list(
+    list(
+      label = "binary",
+      get_fit = get_bgms_fit,
+      get_prediction_data = get_prediction_data_binary,
+      var_type = "binary",
+      is_continuous = FALSE
+    ),
+    list(
+      label = "ordinal",
+      get_fit = get_bgms_fit_ordinal,
+      get_prediction_data = get_prediction_data_ordinal,
+      var_type = "ordinal",
+      is_continuous = FALSE
+    ),
+    list(
+      label = "single-chain",
+      get_fit = get_bgms_fit_single_chain,
+      get_prediction_data = get_prediction_data_binary,
+      var_type = "binary",
+      is_continuous = FALSE
+    ),
+    list(
+      label = "blume-capel",
+      get_fit = get_bgms_fit_blumecapel,
+      get_prediction_data = get_prediction_data_ordinal,
+      var_type = "blume-capel",
+      is_continuous = FALSE
+    ),
+    list(
+      label = "adaptive-metropolis",
+      get_fit = get_bgms_fit_adaptive_metropolis,
+      get_prediction_data = get_prediction_data_binary,
+      var_type = "binary",
+      is_continuous = FALSE
+    ),
+    list(
+      label = "hmc",
+      get_fit = get_bgms_fit_hmc,
+      get_prediction_data = get_prediction_data_ordinal,
+      var_type = "ordinal",
+      is_continuous = FALSE
+    ),
+    list(
+      label = "am-blumecapel",
+      get_fit = get_bgms_fit_am_blumecapel,
+      get_prediction_data = get_prediction_data_ordinal,
+      var_type = "blume-capel",
+      is_continuous = FALSE
+    ),
+    list(
+      label = "impute",
+      get_fit = get_bgms_fit_impute,
+      get_prediction_data = get_prediction_data_ordinal,
+      var_type = "ordinal",
+      is_continuous = FALSE
+    ),
+    list(
+      label = "standardize",
+      get_fit = get_bgms_fit_standardize,
+      get_prediction_data = get_prediction_data_ordinal,
+      var_type = "ordinal",
+      is_continuous = FALSE
+    ),
+    list(
+      label = "beta-bernoulli",
+      get_fit = get_bgms_fit_beta_bernoulli,
+      get_prediction_data = get_prediction_data_binary,
+      var_type = "binary",
+      is_continuous = FALSE
+    ),
+    list(
+      label = "sbm",
+      get_fit = get_bgms_fit_sbm,
+      get_prediction_data = get_prediction_data_binary,
+      var_type = "binary",
+      is_continuous = FALSE
+    ),
+    list(
+      label = "ggm",
+      get_fit = get_bgms_fit_ggm,
+      get_prediction_data = get_prediction_data_ggm,
+      var_type = "continuous",
+      is_continuous = TRUE
+    ),
+    list(
+      label = "ggm-no-es",
+      get_fit = get_bgms_fit_ggm_no_es,
+      get_prediction_data = get_prediction_data_ggm,
+      var_type = "continuous",
+      is_continuous = TRUE
+    ),
+    list(
+      label = "mixed-mrf",
+      get_fit = get_bgms_fit_mixed_mrf,
+      get_prediction_data = get_prediction_data_mixed,
+      var_type = "mixed",
+      is_continuous = FALSE,
+      is_mixed = TRUE
+    ),
+    list(
+      label = "mixed-mrf-no-es",
+      get_fit = get_bgms_fit_mixed_mrf_no_es,
+      get_prediction_data = get_prediction_data_mixed,
+      var_type = "mixed",
+      is_continuous = FALSE,
+      is_mixed = TRUE
+    ),
+    list(
+      label = "mixed-mrf-marginal",
+      get_fit = get_bgms_fit_mixed_mrf_marginal,
+      get_prediction_data = get_prediction_data_mixed,
+      var_type = "mixed",
+      is_continuous = FALSE,
+      is_mixed = TRUE
+    )
+  )
+}
+
+# ------------------------------------------------------------------
+# get_bgmcompare_fixtures
+# ------------------------------------------------------------------
+# All bgmCompare fit variants for parameterized testing.
+#
+# Returns: list of fixture spec lists.
+# ------------------------------------------------------------------
+get_bgmcompare_fixtures = function() {
+  list(
+    list(
+      label = "binary",
+      get_fit = get_bgmcompare_fit,
+      get_prediction_data = get_prediction_data_bgmcompare_binary,
+      var_type = "binary"
+    ),
+    list(
+      label = "ordinal",
+      get_fit = get_bgmcompare_fit_ordinal,
+      get_prediction_data = get_prediction_data_bgmcompare_ordinal,
+      var_type = "ordinal"
+    ),
+    list(
+      label = "adaptive-metropolis",
+      get_fit = get_bgmcompare_fit_adaptive_metropolis,
+      get_prediction_data = get_prediction_data_bgmcompare_binary,
+      var_type = "binary"
+    ),
+    list(
+      label = "hmc",
+      get_fit = get_bgmcompare_fit_hmc,
+      get_prediction_data = get_prediction_data_bgmcompare_binary,
+      var_type = "binary"
+    ),
+    list(
+      label = "hmc-blume-capel",
+      get_fit = get_bgmcompare_fit_hmc_blumecapel,
+      get_prediction_data = get_prediction_data_bgmcompare_blumecapel,
+      var_type = "blume-capel"
+    ),
+    list(
+      label = "blume-capel",
+      get_fit = get_bgmcompare_fit_blumecapel,
+      get_prediction_data = get_prediction_data_bgmcompare_blumecapel,
+      var_type = "blume-capel"
+    ),
+    list(
+      label = "am-blume-capel",
+      get_fit = get_bgmcompare_fit_am_blumecapel,
+      get_prediction_data = get_prediction_data_bgmcompare_blumecapel,
+      var_type = "blume-capel"
+    ),
+    list(
+      label = "impute",
+      get_fit = get_bgmcompare_fit_impute,
+      get_prediction_data = get_prediction_data_bgmcompare_ordinal,
+      var_type = "ordinal"
+    ),
+    list(
+      label = "blume-capel-impute",
+      get_fit = get_bgmcompare_fit_blumecapel_impute,
+      get_prediction_data = get_prediction_data_bgmcompare_blumecapel,
+      var_type = "blume-capel"
+    ),
+    list(
+      label = "beta-bernoulli",
+      get_fit = get_bgmcompare_fit_beta_bernoulli,
+      get_prediction_data = get_prediction_data_bgmcompare_ordinal,
+      var_type = "ordinal"
+    ),
+    list(
+      label = "standardize",
+      get_fit = get_bgmcompare_fit_standardize,
+      get_prediction_data = get_prediction_data_bgmcompare_ordinal,
+      var_type = "ordinal"
+    ),
+    list(
+      label = "xy",
+      get_fit = get_bgmcompare_fit_xy,
+      get_prediction_data = get_prediction_data_bgmcompare_ordinal,
+      var_type = "ordinal"
+    ),
+    list(
+      label = "main-selection",
+      get_fit = get_bgmcompare_fit_main_selection,
+      get_prediction_data = get_prediction_data_bgmcompare_blumecapel,
+      var_type = "blume-capel"
+    )
+  )
+}
+
+# ------------------------------------------------------------------
+# get_extractor_fixtures
+# ------------------------------------------------------------------
+# Representative subset for extractor-function contract tests.
+# Covers all model families (OMRF, GGM, mixed) and both object classes.
+#
+# Returns: list of fixture spec lists.
+# ------------------------------------------------------------------
+get_extractor_fixtures = function() {
+  list(
+    list(
+      label = "bgms_binary",
+      get_fit = get_bgms_fit,
+      type = "bgms",
+      var_type = "binary"
+    ),
+    list(
+      label = "bgms_ordinal",
+      get_fit = get_bgms_fit_ordinal,
+      type = "bgms",
+      var_type = "ordinal"
+    ),
+    list(
+      label = "bgms_blumecapel",
+      get_fit = get_bgms_fit_blumecapel,
+      type = "bgms",
+      var_type = "blume-capel"
+    ),
+    list(
+      label = "bgms_ggm",
+      get_fit = get_bgms_fit_ggm,
+      type = "bgms",
+      var_type = "continuous",
+      is_continuous = TRUE
+    ),
+    list(
+      label = "bgms_mixed",
+      get_fit = get_bgms_fit_mixed_mrf,
+      type = "bgms",
+      var_type = "mixed",
+      is_mixed = TRUE
+    ),
+    list(
+      label = "bgmCompare_binary",
+      get_fit = get_bgmcompare_fit,
+      type = "bgmCompare",
+      var_type = "binary"
+    ),
+    list(
+      label = "bgmCompare_ordinal",
+      get_fit = get_bgmcompare_fit_ordinal,
+      type = "bgmCompare",
+      var_type = "ordinal"
+    ),
+    list(
+      label = "bgmCompare_blumecapel",
+      get_fit = get_bgmcompare_fit_blumecapel,
+      type = "bgmCompare",
+      var_type = "blume-capel"
+    ),
+    list(
+      label = "bgmCompare_main_sel",
+      get_fit = get_bgmcompare_fit_main_selection,
+      type = "bgmCompare",
+      var_type = "blume-capel"
+    )
+  )
+}

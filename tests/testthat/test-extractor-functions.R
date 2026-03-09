@@ -12,44 +12,9 @@
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
-# Fixture Specifications
+# Fixture Specifications — defined in helper-fixtures.R
+# get_extractor_fixtures()
 # ------------------------------------------------------------------------------
-# Define all fixtures to test against, with their properties
-
-get_all_fixtures = function() {
-  list(
-    list(
-      label = "bgms_binary",
-      get_fit = get_bgms_fit,
-      type = "bgms",
-      var_type = "binary"
-    ),
-    list(
-      label = "bgms_ordinal",
-      get_fit = get_bgms_fit_ordinal,
-      type = "bgms",
-      var_type = "ordinal"
-    ),
-    list(
-      label = "bgms_blumecapel",
-      get_fit = get_bgms_fit_blumecapel,
-      type = "bgms",
-      var_type = "blume-capel"
-    ),
-    list(
-      label = "bgmCompare_binary",
-      get_fit = get_bgmcompare_fit,
-      type = "bgmCompare",
-      var_type = "binary"
-    ),
-    list(
-      label = "bgmCompare_ordinal",
-      get_fit = get_bgmcompare_fit_ordinal,
-      type = "bgmCompare",
-      var_type = "ordinal"
-    )
-  )
-}
 
 
 # ------------------------------------------------------------------------------
@@ -57,7 +22,7 @@ get_all_fixtures = function() {
 # ------------------------------------------------------------------------------
 
 test_that("extract_arguments returns complete argument list for all fit types", {
-  fixtures = get_all_fixtures()
+  fixtures = get_extractor_fixtures()
 
   for(spec in fixtures) {
     ctx = sprintf("[%s]", spec$label)
@@ -97,7 +62,7 @@ test_that("extract_arguments errors on non-bgms objects", {
 # ------------------------------------------------------------------------------
 
 test_that("extract_pairwise_interactions returns valid matrix for all fit types", {
-  fixtures = get_all_fixtures()
+  fixtures = get_extractor_fixtures()
 
   for(spec in fixtures) {
     ctx = sprintf("[%s]", spec$label)
@@ -129,7 +94,7 @@ test_that("extract_pairwise_interactions returns valid matrix for all fit types"
 # ------------------------------------------------------------------------------
 
 test_that("extract_main_effects returns valid output for all fit types", {
-  fixtures = get_all_fixtures()
+  fixtures = get_extractor_fixtures()
 
   for(spec in fixtures) {
     ctx = sprintf("[%s]", spec$label)
@@ -247,7 +212,7 @@ test_that("extract_indicators errors when edge_selection = FALSE", {
 # ------------------------------------------------------------------------------
 
 test_that("extract_rhat returns valid diagnostics for all fit types", {
-  fixtures = get_all_fixtures()
+  fixtures = get_extractor_fixtures()
 
   for(spec in fixtures) {
     ctx = sprintf("[%s]", spec$label)
@@ -273,7 +238,7 @@ test_that("extract_rhat returns valid diagnostics for all fit types", {
 })
 
 test_that("extract_ess returns valid diagnostics for all fit types", {
-  fixtures = get_all_fixtures()
+  fixtures = get_extractor_fixtures()
 
   for(spec in fixtures) {
     ctx = sprintf("[%s]", spec$label)
@@ -736,7 +701,7 @@ test_that("extract_indicator_priors returns Stochastic-Block parameters", {
 #
 # Tests skip on CRAN since fixtures aren't available in installed package.
 #
-# PATTERN: Unified fixture specs for both bgm and bgmCompare, mirroring get_all_fixtures()
+# PATTERN: Unified fixture specs for both bgm and bgmCompare, mirroring get_extractor_fixtures()
 # ==============================================================================
 # Legacy Format Compatibility Tests
 # ==============================================================================
@@ -816,7 +781,7 @@ categorize_version = function(version, type = "bgm") {
 }
 
 # Build legacy fixture specs from available files
-# Returns list of specs like get_all_fixtures(), with:
+# Returns list of specs like get_extractor_fixtures(), with:
 #   label, version, type (bgm/bgmCompare), era, get_fit
 get_legacy_fixture_specs = function() {
   legacy_dir = get_legacy_dir()
