@@ -80,9 +80,9 @@ fill_mixed_symmetric = function(values, p, q, disc_idx, cont_idx, dimnames) {
 # compute_mixed_parameter_indices
 # ------------------------------------------------------------------
 # Computes slice indices for the mixed MRF flat parameter vector.
-# Separates main-effect indices (discrete thresholds, continuous
-# means, precision diagonal) from pairwise indices (discrete edges,
-# precision off-diagonal, cross edges).
+# Groups main-effect indices (discrete thresholds, continuous means),
+# quadratic-effect indices (precision diagonal), and pairwise indices
+# (discrete edges, precision off-diagonal, cross edges).
 #
 # @param num_thresholds  Total number of discrete threshold parameters.
 # @param p               Number of discrete variables.
@@ -129,7 +129,8 @@ compute_mixed_parameter_indices = function(num_thresholds, p, q) {
   precision_diag_abs = pairwise_continuous_start - 1L + precision_diag_within
   precision_offdiag_abs = pairwise_continuous_start - 1L + precision_offdiag_within
 
-  # Main: discrete thresholds + continuous means + precision diagonal
+  # Main: discrete thresholds + continuous means
+  # Quadratic: precision diagonal (not a main effect)
   main_idx = c(
     seq(main_discrete_start, main_discrete_end),
     seq(main_continuous_start, main_continuous_end),
@@ -145,6 +146,7 @@ compute_mixed_parameter_indices = function(num_thresholds, p, q) {
 
   list(
     num_thresholds = nt,
+    num_quadratic = q,
     main_idx = main_idx,
     pairwise_idx = pairwise_idx
   )
@@ -348,7 +350,14 @@ build_output_bgm = function(spec, raw) {
   rownames(pairwise_summary) = edge_names
 
   results = list()
-  results$posterior_summary_main = main_summary
+
+  if(is_continuous) {
+    # GGM has no main effects; the precision diagonal is quadratic
+    results$posterior_summary_main = NULL
+    results$posterior_summary_quadratic = main_summary
+  } else {
+    results$posterior_summary_main = main_summary
+  }
   results$posterior_summary_pairwise = pairwise_summary
 
   # --- Edge selection summaries -----------------------------------------------
@@ -373,13 +382,8 @@ build_output_bgm = function(spec, raw) {
 
   # --- Posterior mean: main ---------------------------------------------------
   if(is_continuous) {
-    # GGM: p × 1 matrix
-    results$posterior_mean_main = matrix(
-      main_summary$mean,
-      nrow     = num_variables,
-      ncol     = 1,
-      dimnames = list(data_columnnames, "precision_diag")
-    )
+    # GGM has no main effects
+    results$posterior_mean_main = NULL
   } else {
     # OMRF: p × max_categories matrix
     num_params = ifelse(is_ordinal_variable, num_categories, 2L)
@@ -413,6 +417,11 @@ build_output_bgm = function(spec, raw) {
     pairwise_summary$mean
   results$posterior_mean_pairwise = results$posterior_mean_pairwise +
     t(results$posterior_mean_pairwise)
+
+  # --- Precision diagonal on the pairwise matrix (GGM) -----------------------
+  if(is_continuous) {
+    diag(results$posterior_mean_pairwise) = main_summary$mean
+  }
 
   # --- Posterior mean: indicator + SBM ----------------------------------------
   if(edge_selection) {
@@ -491,11 +500,10 @@ build_output_bgm = function(spec, raw) {
 #   C++ flat vector: [main_discrete | pairwise_discrete_ut | main_continuous | pairwise_cross | pairwise_continuous_ut]
 #   C++ indicators:  [Gxx_ut | Gyy_ut | Gxy]
 #
-# Splits into main (discrete thresholds, continuous means, precision diagonal)
-# and pairwise (discrete, precision off-diag, cross),
-# builds (p+q)×(p+q) interaction and indicator matrices, and maps internal
-# variable order (discrete first, continuous second) back to original column
-# order from the user's data.
+# Splits into main (discrete thresholds, continuous means),
+# quadratic (precision diagonal), and pairwise (discrete, precision
+# off-diag, cross). The precision diagonal is placed on the diagonal
+# of the pairwise interaction matrix, not under main effects.
 # ==============================================================================
 build_output_mixed_mrf = function(spec, raw) {
   d = spec$data
@@ -622,8 +630,15 @@ build_output_mixed_mrf = function(spec, raw) {
   rownames(main_summary) = names_main
   rownames(pairwise_summary) = edge_names
 
+  # Split main_summary into true main effects and quadratic (precision diagonal)
+  n_main = nt + q                     # thresholds + continuous means
+  n_quad = layout$num_quadratic       # precision diagonal entries
+  main_rows = seq_len(n_main)
+  quad_rows = n_main + seq_len(n_quad)
+
   results = list()
-  results$posterior_summary_main = main_summary
+  results$posterior_summary_main = main_summary[main_rows, , drop = FALSE]
+  results$posterior_summary_quadratic = main_summary[quad_rows, , drop = FALSE]
   results$posterior_summary_pairwise = pairwise_summary
 
   # --- Edge selection summaries -----------------------------------------------
@@ -668,14 +683,11 @@ build_output_mixed_mrf = function(spec, raw) {
   rownames(pmm_disc) = disc_names
   colnames(pmm_disc) = paste0("cat (", seq_len(max_num_cats), ")")
 
-  # Continuous main effects: q × 2 matrix (mean, precision)
-  pmm_cont = matrix(NA, nrow = q, ncol = 2)
-  continuous_means = main_summary$mean[nt + seq_len(q)]
-  kyy_diag_means = main_summary$mean[nt + q + seq_len(q)]
-  pmm_cont[, 1] = continuous_means
-  pmm_cont[, 2] = kyy_diag_means
-  rownames(pmm_cont) = cont_names
-  colnames(pmm_cont) = c("mean", "precision")
+  # Continuous main effects: q × 1 matrix (means only)
+  pmm_cont = matrix(main_summary$mean[nt + seq_len(q)],
+    nrow = q, ncol = 1,
+    dimnames = list(cont_names, "mean")
+  )
 
   results$posterior_mean_main = list(
     discrete = pmm_disc,
@@ -687,6 +699,12 @@ build_output_mixed_mrf = function(spec, raw) {
   results$posterior_mean_pairwise = fill_mixed_symmetric(
     pairwise_summary$mean, p, q, disc_idx, cont_idx, dn
   )
+
+  # --- Precision diagonal on the pairwise matrix (continuous block) -----------
+  kyy_diag_means = main_summary$mean[nt + q + seq_len(q)]
+  for(j in seq_len(q)) {
+    results$posterior_mean_pairwise[cont_idx[j], cont_idx[j]] = kyy_diag_means[j]
+  }
 
   # --- Posterior mean: indicator -----------------------------------------------
   if(edge_selection) {

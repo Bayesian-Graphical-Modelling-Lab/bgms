@@ -84,9 +84,19 @@ test_that("bgm GGM output has correct dimensions", {
   args = extract_arguments(fit)
   p = args$num_variables
 
-  # main: p diagonal precision elements
-  expect_equal(nrow(fit$posterior_summary_main), p)
-  expect_equal(nrow(fit$posterior_mean_main), p)
+  # GGM has no main effects; precision diagonal is in quadratic
+  expect_null(fit$posterior_summary_main)
+  expect_null(fit$posterior_mean_main)
+  expect_equal(nrow(fit$posterior_summary_quadratic), p)
+
+  # pairwise: p*(p-1)/2 off-diagonal elements
+  n_edges = p * (p - 1) / 2
+  expect_equal(nrow(fit$posterior_summary_pairwise), n_edges)
+  expect_equal(nrow(fit$posterior_mean_pairwise), p)
+  expect_equal(ncol(fit$posterior_mean_pairwise), p)
+
+  # precision diagonal lives on the pairwise matrix diagonal
+  expect_true(all(diag(fit$posterior_mean_pairwise) > 0))
 
   # pairwise: p*(p-1)/2 off-diagonal elements
   n_edges = p * (p - 1) / 2
@@ -116,7 +126,7 @@ test_that("bgm GGM without edge selection omits indicators", {
 test_that("bgm GGM posterior precision diagonals are positive", {
   fit = get_bgms_fit_ggm_no_es()
 
-  expect_true(all(fit$posterior_summary_main$mean > 0))
+  expect_true(all(fit$posterior_summary_quadratic$mean > 0))
 })
 
 # ==============================================================================
@@ -326,12 +336,12 @@ test_that("bgm GGM multi-chain produces valid Rhat", {
   )
 
   # All Rhat values should be below 1.1 for converged chains
-  rhat_main = fit$posterior_summary_main$Rhat
+  rhat_quad = fit$posterior_summary_quadratic$Rhat
   rhat_pair = fit$posterior_summary_pairwise$Rhat
 
   expect_true(
-    all(rhat_main < 1.1),
-    info = sprintf("Max main Rhat = %.3f (expected < 1.1)", max(rhat_main))
+    all(rhat_quad < 1.1),
+    info = sprintf("Max quadratic Rhat = %.3f (expected < 1.1)", max(rhat_quad))
   )
   expect_true(
     all(rhat_pair < 1.1),
@@ -372,7 +382,6 @@ test_that("bgm GGM posterior mean approaches MLE for large n", {
 
   # Reconstruct posterior mean precision
   omega_hat = fit$posterior_mean_pairwise
-  diag(omega_hat) = as.numeric(fit$posterior_mean_main)
 
   # Posterior mean should correlate highly with MLE (likelihood dominates)
   cor_offdiag = cor(
@@ -626,17 +635,17 @@ test_that("bgm GGM with p = 15 produces valid output", {
 
   # All precision diagonals should be positive
   expect_true(
-    all(fit$posterior_summary_main$mean > 0),
+    all(fit$posterior_summary_quadratic$mean > 0),
     info = "Some diagonal precision elements are non-positive"
   )
 
   # All values should be finite
-  expect_true(all(is.finite(fit$posterior_summary_main$mean)))
+  expect_true(all(is.finite(fit$posterior_summary_quadratic$mean)))
   expect_true(all(is.finite(fit$posterior_summary_pairwise$mean)))
 
   # Correct dimensions
   n_edges = p * (p - 1) / 2
-  expect_equal(nrow(fit$posterior_summary_main), p)
+  expect_equal(nrow(fit$posterior_summary_quadratic), p)
   expect_equal(nrow(fit$posterior_summary_pairwise), n_edges)
 })
 
@@ -767,7 +776,7 @@ test_that("bgm mixed MRF output has correct dimensions", {
   expect_true(is.list(fit$posterior_mean_main))
   expect_equal(nrow(fit$posterior_mean_main$discrete), p)
   expect_equal(nrow(fit$posterior_mean_main$continuous), q)
-  expect_equal(ncol(fit$posterior_mean_main$continuous), 2) # mean + precision
+  expect_equal(ncol(fit$posterior_mean_main$continuous), 1) # mean only
 
   # raw samples
   expect_equal(ncol(fit$raw_samples$pairwise[[1]]), n_edges)
@@ -819,7 +828,9 @@ test_that("bgm mixed MRF summary-matrix consistency", {
 
 test_that("bgm mixed MRF posterior precision diagonals are positive", {
   fit = get_bgms_fit_mixed_mrf_no_es()
-  expect_true(all(fit$posterior_mean_main$continuous[, "precision"] > 0))
+  args = extract_arguments(fit)
+  cont_idx = args$continuous_indices
+  expect_true(all(diag(fit$posterior_mean_pairwise)[cont_idx] > 0))
 })
 
 test_that("bgm mixed MRF marginal pseudolikelihood runs", {
@@ -971,7 +982,6 @@ test_that("bgm GGM implied regression matches OLS for large n", {
 
   # Reconstruct posterior mean precision matrix
   omega_hat = fit$posterior_mean_pairwise
-  diag(omega_hat) = as.numeric(fit$posterior_mean_main)
 
   # For each variable j, the implied regression coefficients are:
   #   beta_j = -omega_{j,-j} / omega_{jj}

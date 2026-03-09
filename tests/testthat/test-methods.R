@@ -103,7 +103,8 @@ test_that("summary.bgms returns correct structure for all fixture types", {
     summ = summary(fit)
 
     expect_s3_class(summ, "summary.bgms")
-    expect_true("main" %in% names(summ) || "pairwise" %in% names(summ), info = ctx)
+    has_content = !is.null(summ$main) || !is.null(summ$quadratic) || !is.null(summ$pairwise)
+    expect_true(has_content, info = ctx)
   }
 })
 
@@ -623,7 +624,6 @@ test_that("predict.bgms GGM conditional mean matches analytic formula", {
 
   # Reconstruct the posterior mean precision matrix
   omega_hat = fit$posterior_mean_pairwise
-  diag(omega_hat) = as.numeric(fit$posterior_mean_main)
   p = args$num_variables
 
   # Center newdata by its own means (predict does the same internally)

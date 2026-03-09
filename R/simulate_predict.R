@@ -1553,16 +1553,14 @@ recode_data_for_prediction = function(x, num_categories, is_ordinal) {
 # Reconstruct the full precision matrix from posterior mean components.
 #
 # @param posterior_mean_pairwise p x p symmetric matrix with off-diagonal
-#   precision elements (diagonal is zero).
-# @param posterior_mean_main p x 1 matrix with diagonal precision elements
-#   (column named "precision_diag").
+#   precision elements. For GGM and mixed MRF models the precision matrix
+#   diagonal is already included on the matrix diagonal.
 #
 # @return p x p precision matrix (Omega).
-reconstruct_precision = function(posterior_mean_pairwise, posterior_mean_main) {
+reconstruct_precision = function(posterior_mean_pairwise) {
   omega = posterior_mean_pairwise
   # Excluded edges (NA) have zero precision
   omega[is.na(omega)] = 0
-  diag(omega) = as.numeric(posterior_mean_main)
   return(omega)
 }
 
@@ -1606,8 +1604,7 @@ predict_bgms_ggm = function(object, newdata, predict_vars, data_columnnames,
   if(method == "posterior-mean") {
     # Reconstruct precision matrix from posterior means
     omega = reconstruct_precision(
-      object$posterior_mean_pairwise,
-      object$posterior_mean_main
+      object$posterior_mean_pairwise
     )
 
     result = compute_conditional_ggm(
@@ -1721,10 +1718,9 @@ simulate_bgms_ggm = function(object, nsim, seed, method, ndraws,
                              num_variables, data_columnnames,
                              cores, progress_type) {
   if(method == "posterior-mean") {
-    # Reconstruct precision matrix: inject diagonal from posterior_mean_main
+    # Reconstruct precision matrix: diagonal is already on posterior_mean_pairwise
     precision = reconstruct_precision(
-      object$posterior_mean_pairwise,
-      object$posterior_mean_main
+      object$posterior_mean_pairwise
     )
 
     # Call simulate_mrf with variable_type = "continuous"
@@ -2067,17 +2063,14 @@ build_mixed_params_mean = function(object, arguments) {
   Kyy = matrix(0, q, q)
   for(i in seq_len(q)) {
     for(j in seq_len(q)) {
-      if(i != j) Kyy[i, j] = pmat[cont_idx[i], cont_idx[j]]
+      Kyy[i, j] = pmat[cont_idx[i], cont_idx[j]]
     }
-  }
-  for(j in seq_len(q)) {
-    Kyy[j, j] = object$posterior_mean_main$continuous[j, "precision"]
   }
 
   mux = object$posterior_mean_main$discrete
   mux[is.na(mux)] = 0
 
-  muy = object$posterior_mean_main$continuous[, "mean"]
+  muy = as.numeric(object$posterior_mean_main$continuous[, "mean"])
 
   list(Kxx = Kxx, Kxy = Kxy, Kyy = Kyy, mux = mux, muy = muy)
 }

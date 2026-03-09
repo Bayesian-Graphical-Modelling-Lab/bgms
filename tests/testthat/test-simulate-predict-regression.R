@@ -137,9 +137,6 @@ test_that("bgms fit objects have posterior_mean fields for simulate/predict", {
     expect_false(is.null(fit$posterior_mean_pairwise),
       info = paste(ctx, "missing posterior_mean_pairwise")
     )
-    expect_false(is.null(fit$posterior_mean_main),
-      info = paste(ctx, "missing posterior_mean_main")
-    )
     expect_true(is.matrix(fit$posterior_mean_pairwise),
       info = paste(ctx, "posterior_mean_pairwise not a matrix")
     )
@@ -150,7 +147,15 @@ test_that("bgms fit objects have posterior_mean fields for simulate/predict", {
       info = paste(ctx, "posterior_mean_pairwise wrong ncol")
     )
 
-    if(isTRUE(spec$is_mixed)) {
+    if(isTRUE(args$is_continuous)) {
+      # GGM: no main effects; precision diagonal is on pairwise matrix
+      expect_null(fit$posterior_mean_main,
+        info = paste(ctx, "GGM posterior_mean_main should be NULL")
+      )
+      expect_true(all(diag(fit$posterior_mean_pairwise) > 0),
+        info = paste(ctx, "GGM pairwise diagonal should be positive")
+      )
+    } else if(isTRUE(spec$is_mixed)) {
       expect_true(is.list(fit$posterior_mean_main),
         info = paste(ctx, "mixed posterior_mean_main should be a list")
       )
@@ -159,6 +164,10 @@ test_that("bgms fit objects have posterior_mean fields for simulate/predict", {
       )
       expect_false(is.null(fit$posterior_mean_main$continuous),
         info = paste(ctx, "missing posterior_mean_main$continuous")
+      )
+    } else {
+      expect_false(is.null(fit$posterior_mean_main),
+        info = paste(ctx, "missing posterior_mean_main")
       )
     }
   }

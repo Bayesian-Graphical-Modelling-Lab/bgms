@@ -98,16 +98,21 @@ print.bgms = function(x, ...) {
 summary.bgms = function(object, ...) {
   arguments = extract_arguments(object)
 
-  if(!is.null(object$posterior_summary_main) && !is.null(object$posterior_summary_pairwise)) {
+  has_main = !is.null(object$posterior_summary_main)
+  has_quad = !is.null(object$posterior_summary_quadratic)
+  has_pair = !is.null(object$posterior_summary_pairwise)
+
+  if((has_main || has_quad) && has_pair) {
     mt = arguments$model_type
     main_label = switch(mt,
-      ggm       = "Precision diagonal (quadratic effects):",
+      ggm       = NULL,
       omrf      = "Category thresholds:",
-      mixed_mrf = "Main effects (discrete thresholds and continuous means/precisions):",
+      mixed_mrf = "Main effects (discrete thresholds and continuous means):",
       "Main effects:"
     )
     out = list(
       main = object$posterior_summary_main,
+      quadratic = object$posterior_summary_quadratic,
       pairwise = object$posterior_summary_pairwise
     )
     attr(out, "main_label") = main_label
@@ -145,6 +150,13 @@ print.summary.bgms = function(x, digits = 3, ...) {
     cat(main_label, "\n")
     print(round(head(x$main, 6), digits = digits))
     if(nrow(x$main) > 6) cat("... (use `summary(fit)$main` to see full output)\n")
+    cat("\n")
+  }
+
+  if(!is.null(x$quadratic)) {
+    cat("Precision matrix diagonal:\n")
+    print(round(head(x$quadratic, 6), digits = digits))
+    if(nrow(x$quadratic) > 6) cat("... (use `summary(fit)$quadratic` to see full output)\n")
     cat("\n")
   }
 
@@ -210,13 +222,14 @@ print.summary.bgms = function(x, digits = 3, ...) {
 #'
 #' @return A list with the following components:
 #' \describe{
-#'   \item{main}{Posterior mean of the main-effect parameters. For GGM models
-#'     this contains the precision matrix diagonal (quadratic effects, not main
-#'     effects). For OMRF models this is a numeric matrix (p x max_categories)
-#'     of category thresholds. For mixed MRF models this is a list with
-#'     `$discrete` (p x max_categories matrix) and `$continuous` (q x 2 matrix
-#'     with columns "mean" and "precision").}
-#'   \item{pairwise}{Posterior mean of the pairwise interaction matrix.}
+#'   \item{main}{Posterior mean of the main-effect parameters. \code{NULL} for
+#'     GGM models (no main effects). For OMRF models this is a numeric matrix
+#'     (p x max_categories) of category thresholds. For mixed MRF models this
+#'     is a list with \code{$discrete} (p x max_categories matrix) and
+#'     \code{$continuous} (q x 1 matrix of means).}
+#'   \item{pairwise}{Posterior mean of the pairwise interaction matrix. For GGM
+#'     and mixed MRF models the precision matrix diagonal is included on the
+#'     matrix diagonal.}
 #'   \item{indicator}{Posterior mean of the edge inclusion indicators (if available).}
 #' }
 #'

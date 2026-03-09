@@ -506,9 +506,8 @@ extract_pairwise_interactions.bgmCompare = function(bgms_object) {
 #' @description
 #' Retrieves posterior mean main-effect parameters from a model fitted with
 #' [bgm()] or [bgmCompare()]. For OMRF models these are category thresholds;
-#' for mixed MRF models these include both discrete thresholds and continuous
-#' means and precisions. GGM models have no main effects (the precision
-#' diagonal represents quadratic effects) and return `NULL`.
+#' for mixed MRF models these include discrete thresholds and continuous
+#' means. GGM models have no main effects and return `NULL`.
 #'
 #' @param bgms_object A fitted model object of class `bgms` (from [bgm()])
 #'   or `bgmCompare` (from [bgmCompare()]).
@@ -516,8 +515,7 @@ extract_pairwise_interactions.bgmCompare = function(bgms_object) {
 #' @return The structure depends on the model type:
 #'   \describe{
 #'     \item{GGM (bgms)}{`NULL` (invisibly). GGM models have no main effects;
-#'       the precision matrix diagonal contains quadratic effects, accessible
-#'       via `$posterior_mean_main`.}
+#'       the precision matrix diagonal is on `coef(fit)$pairwise`.}
 #'     \item{OMRF (bgms)}{A numeric matrix with one row per variable and one
 #'       column per category threshold, containing posterior means. Columns
 #'       beyond the number of categories for a variable are `NA`.}
@@ -525,8 +523,8 @@ extract_pairwise_interactions.bgmCompare = function(bgms_object) {
 #'       \describe{
 #'         \item{discrete}{A numeric matrix (p rows x max_categories columns)
 #'           of posterior mean thresholds for discrete variables.}
-#'         \item{continuous}{A numeric matrix (q rows x 2 columns) with
-#'           columns `"mean"` and `"precision"` for continuous variables.}
+#'         \item{continuous}{A numeric matrix (q rows x 1 column) of
+#'           posterior mean continuous variable means.}
 #'       }}
 #'     \item{bgmCompare}{A matrix with one row per post-warmup iteration,
 #'       containing posterior samples of baseline main-effect parameters.}
@@ -552,12 +550,8 @@ extract_main_effects = function(bgms_object) {
 extract_main_effects.bgms = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
 
-  # GGM: no main effects (precision diagonal entries are quadratic, not main)
+  # GGM: no main effects; precision diagonal is on the pairwise matrix
   if(isTRUE(arguments$is_continuous)) {
-    message(
-      "GGM models have no main effects. The precision matrix diagonal ",
-      "(quadratic effects) is available via $posterior_mean_main."
-    )
     return(invisible(NULL))
   }
 
@@ -960,6 +954,12 @@ extract_rhat.bgms = function(bgms_object) {
     names(result$main) = rownames(bgms_object$posterior_summary_main)
   }
 
+  # Precision diagonal (quadratic) Rhat
+  if(!is.null(bgms_object$posterior_summary_quadratic)) {
+    result$quadratic = bgms_object$posterior_summary_quadratic$Rhat
+    names(result$quadratic) = rownames(bgms_object$posterior_summary_quadratic)
+  }
+
   # Pairwise interaction Rhat
   if(!is.null(bgms_object$posterior_summary_pairwise)) {
     result$pairwise = bgms_object$posterior_summary_pairwise$Rhat
@@ -1056,6 +1056,12 @@ extract_ess.bgms = function(bgms_object) {
   if(!is.null(bgms_object$posterior_summary_main)) {
     result$main = bgms_object$posterior_summary_main$n_eff
     names(result$main) = rownames(bgms_object$posterior_summary_main)
+  }
+
+  # Precision diagonal (quadratic) ESS
+  if(!is.null(bgms_object$posterior_summary_quadratic)) {
+    result$quadratic = bgms_object$posterior_summary_quadratic$n_eff
+    names(result$quadratic) = rownames(bgms_object$posterior_summary_quadratic)
   }
 
   # Pairwise interaction ESS

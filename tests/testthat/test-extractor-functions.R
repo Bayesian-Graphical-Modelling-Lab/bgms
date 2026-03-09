@@ -104,12 +104,9 @@ test_that("extract_main_effects returns valid output for all fit types", {
     main = extract_main_effects(fit)
 
     if(isTRUE(args$is_continuous)) {
-      # GGM: no main effects; returns NULL with a message
-      expect_message(
-        main_msg <- extract_main_effects(fit),
-        "no main effects"
-      )
-      expect_null(main_msg, info = paste(ctx, "GGM should return NULL"))
+      # GGM: no main effects; returns NULL silently
+      main_null = extract_main_effects(fit)
+      expect_null(main_null, info = paste(ctx, "GGM should return NULL"))
     } else if(isTRUE(args$is_mixed)) {
       # Mixed MRF returns a list
       expect_true(is.list(main), info = paste(ctx, "should be list for mixed"))
