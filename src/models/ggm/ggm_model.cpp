@@ -1,5 +1,6 @@
 #include "models/ggm/ggm_model.h"
 #include "rng/rng_utils.h"
+#include "math/explog_macros.h"
 #include "models/ggm/cholupdate.h"
 #include "mcmc/execution/step_result.h"
 #include "mcmc/execution/warmup_schedule.h"
@@ -8,16 +9,16 @@ void GGMModel::get_constants(size_t i, size_t j) {
 
     double logdet_omega = cholesky_helpers::get_log_det(cholesky_of_precision_);
 
-    double log_adj_omega_ii = logdet_omega + std::log(std::abs(covariance_matrix_(i, i)));
-    double log_adj_omega_ij = logdet_omega + std::log(std::abs(covariance_matrix_(i, j)));
-    double log_adj_omega_jj = logdet_omega + std::log(std::abs(covariance_matrix_(j, j)));
+    double log_adj_omega_ii = logdet_omega + MY_LOG(std::abs(covariance_matrix_(i, i)));
+    double log_adj_omega_ij = logdet_omega + MY_LOG(std::abs(covariance_matrix_(i, j)));
+    double log_adj_omega_jj = logdet_omega + MY_LOG(std::abs(covariance_matrix_(j, j)));
 
     double inv_omega_sub_j1j1 = cholesky_helpers::compute_inv_submatrix_i(covariance_matrix_, i, j, j);
-    double log_abs_inv_omega_sub_jj = log_adj_omega_ii + std::log(std::abs(inv_omega_sub_j1j1));
-    double Phi_q1q  = (2 * std::signbit(covariance_matrix_(i, j)) - 1) * std::exp(
+    double log_abs_inv_omega_sub_jj = log_adj_omega_ii + MY_LOG(std::abs(inv_omega_sub_j1j1));
+    double Phi_q1q  = (2 * std::signbit(covariance_matrix_(i, j)) - 1) * MY_EXP(
         (log_adj_omega_ij - (log_adj_omega_jj + log_abs_inv_omega_sub_jj) / 2)
     );
-    double Phi_q1q1 = std::exp((log_adj_omega_jj - log_abs_inv_omega_sub_jj) / 2);
+    double Phi_q1q1 = MY_EXP((log_adj_omega_jj - log_abs_inv_omega_sub_jj) / 2);
 
     constants_[0] = Phi_q1q;
     constants_[1] = Phi_q1q1;
@@ -41,7 +42,7 @@ double GGMModel::log_density_impl(const arma::mat& omega, const arma::mat& phi) 
     double logdet_omega = cholesky_helpers::get_log_det(phi);
     double trace_prod = arma::accu(omega % suf_stat_);
 
-    double log_likelihood = n_ * (p_ * log(2 * arma::datum::pi) / 2 + logdet_omega / 2) - trace_prod / 2;
+    double log_likelihood = n_ * (p_ * MY_LOG(2 * arma::datum::pi) / 2 + logdet_omega / 2) - trace_prod / 2;
 
     return log_likelihood;
 }
@@ -57,7 +58,7 @@ double GGMModel::log_density_impl_edge(size_t i, size_t j) const {
     double cc12 = 1 - (covariance_matrix_(i, j) * Ui2 + covariance_matrix_(j, j) * Uj2);
     double cc22 = 0 + Ui2 * Ui2 * covariance_matrix_(i, i) + 2 * Ui2 * Uj2 * covariance_matrix_(i, j) + Uj2 * Uj2 * covariance_matrix_(j, j);
 
-    double logdet = std::log(std::abs(cc11 * cc22 - cc12 * cc12));
+    double logdet = MY_LOG(std::abs(cc11 * cc22 - cc12 * cc12));
     // logdet - (logdet(aOmega_prop) - logdet(aOmega))
 
     double trace_prod = -2 * (suf_stat_(j, j) * Uj2 + suf_stat_(i, j) * Ui2);
@@ -75,7 +76,7 @@ double GGMModel::log_density_impl_diag(size_t j) const {
     double cc12 = 1 - covariance_matrix_(j, j) * Uj2;
     double cc22 = 0 + Uj2 * Uj2 * covariance_matrix_(j, j);
 
-    double logdet = std::log(std::abs(cc11 * cc22 - cc12 * cc12));
+    double logdet = MY_LOG(std::abs(cc11 * cc22 - cc12 * cc12));
     double trace_prod = -2 * suf_stat_(j, j) * Uj2;
 
     double log_likelihood_ratio = (n_ * logdet - trace_prod) / 2;
@@ -111,7 +112,7 @@ void GGMModel::update_edge_parameter(size_t i, size_t j, int iteration) {
     ln_alpha += R::dcauchy(precision_proposal_(i, j), 0.0, pairwise_scale_, true);
     ln_alpha -= R::dcauchy(precision_matrix_(i, j), 0.0, pairwise_scale_, true);
 
-    if (std::log(runif(rng_)) < ln_alpha) {
+    if (MY_LOG(runif(rng_)) < ln_alpha) {
         double omega_ij_old = precision_matrix_(i, j);
         double omega_jj_old = precision_matrix_(j, j);
 
@@ -165,7 +166,7 @@ void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_o
 
 void GGMModel::update_diagonal_parameter(size_t i, int iteration) {
     double logdet_omega = cholesky_helpers::get_log_det(cholesky_of_precision_);
-    double logdet_omega_sub_ii = logdet_omega + std::log(covariance_matrix_(i, i));
+    double logdet_omega_sub_ii = logdet_omega + MY_LOG(covariance_matrix_(i, i));
 
     size_t e = i * (i + 3) / 2; // parameter index in vectorized form (column-major upper triangle, i==j)
     double proposal_sd = proposal_sds_(e);
@@ -174,15 +175,15 @@ void GGMModel::update_diagonal_parameter(size_t i, int iteration) {
     double theta_prop = rnorm(rng_, theta_curr, proposal_sd);
 
     precision_proposal_ = precision_matrix_;
-    precision_proposal_(i, i) = precision_matrix_(i, i) - std::exp(theta_curr) * std::exp(theta_curr) + std::exp(theta_prop) * std::exp(theta_prop);
+    precision_proposal_(i, i) = precision_matrix_(i, i) - MY_EXP(theta_curr) * MY_EXP(theta_curr) + MY_EXP(theta_prop) * MY_EXP(theta_prop);
 
     double ln_alpha = log_density_impl_diag(i);
 
-    ln_alpha += R::dgamma(exp(theta_prop), 1.0, 1.0, true);
-    ln_alpha -= R::dgamma(exp(theta_curr), 1.0, 1.0, true);
+    ln_alpha += R::dgamma(MY_EXP(theta_prop), 1.0, 1.0, true);
+    ln_alpha -= R::dgamma(MY_EXP(theta_curr), 1.0, 1.0, true);
     ln_alpha += theta_prop - theta_curr; // Jacobian adjustment
 
-    if (std::log(runif(rng_)) < ln_alpha) {
+    if (MY_LOG(runif(rng_)) < ln_alpha) {
         double omega_ii = precision_matrix_(i, i);
         precision_matrix_(i, i) = precision_proposal_(i, i);
         cholesky_update_after_diag(omega_ii, i);
@@ -246,12 +247,12 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         // }
 
 
-        ln_alpha += std::log(1.0 - inclusion_probability_(i, j)) - std::log(inclusion_probability_(i, j));
+        ln_alpha += MY_LOG(1.0 - inclusion_probability_(i, j)) - MY_LOG(inclusion_probability_(i, j));
 
-        ln_alpha += R::dnorm(precision_matrix_(i, j) / constants_[3], 0.0, proposal_sd, true) - std::log(constants_[3]);
+        ln_alpha += R::dnorm(precision_matrix_(i, j) / constants_[3], 0.0, proposal_sd, true) - MY_LOG(constants_[3]);
         ln_alpha -= R::dcauchy(precision_matrix_(i, j), 0.0, pairwise_scale_, true);
 
-        if (std::log(runif(rng_)) < ln_alpha) {
+        if (MY_LOG(runif(rng_)) < ln_alpha) {
 
             // Store old values for Cholesky update
             double omega_ij_old = precision_matrix_(i, j);
@@ -295,15 +296,15 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         //         Rcpp::Rcout << "ln_alpha: " << ln_alpha << ", ln_alpha_ref: " << ln_alpha_ref << std::endl;
         //     }
         // }
-        ln_alpha += std::log(inclusion_probability_(i, j)) - std::log(1.0 - inclusion_probability_(i, j));
+        ln_alpha += MY_LOG(inclusion_probability_(i, j)) - MY_LOG(1.0 - inclusion_probability_(i, j));
 
         // Prior change: add slab (Cauchy prior)
         ln_alpha += R::dcauchy(omega_prop_ij, 0.0, pairwise_scale_, true);
 
         // Proposal term: proposed edge value given it was generated from truncated normal
-        ln_alpha -= R::dnorm(omega_prop_ij / constants_[3], 0.0, proposal_sd, true) - std::log(constants_[3]);
+        ln_alpha -= R::dnorm(omega_prop_ij / constants_[3], 0.0, proposal_sd, true) - MY_LOG(constants_[3]);
 
-        if (std::log(runif(rng_)) < ln_alpha) {
+        if (MY_LOG(runif(rng_)) < ln_alpha) {
             // Accept: turn ON the edge
             // Store old values for Cholesky update
             double omega_ij_old = precision_matrix_(i, j);

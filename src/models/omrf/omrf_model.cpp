@@ -586,7 +586,7 @@ double OMRFModel::log_pseudoposterior_with_state(
     double log_post = 0.0;
 
     auto log_beta_prior = [this](double x) {
-        return x * main_alpha_ - std::log1p(std::exp(x)) * (main_alpha_ + main_beta_);
+        return x * main_alpha_ - std::log1p(MY_EXP(x)) * (main_alpha_ + main_beta_);
     };
 
     // Main effect contributions (priors and sufficient statistics)
