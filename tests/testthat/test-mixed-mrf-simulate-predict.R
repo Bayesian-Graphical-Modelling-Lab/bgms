@@ -638,7 +638,7 @@ test_that("bgm() fits mixed MRF with many categories", {
 
   fit = bgm(dat,
     variable_type = vt, iter = 500, warmup = 250,
-    edge_selection = FALSE, verbose = FALSE
+    edge_selection = FALSE, verbose = FALSE, display_progress = "none"
   )
 
   expect_s3_class(fit, "bgms")
@@ -674,7 +674,7 @@ test_that("bgm() fits mixed MRF with large p, small q", {
 
   fit = bgm(dat,
     variable_type = vt, iter = 500, warmup = 250,
-    edge_selection = FALSE, verbose = FALSE
+    edge_selection = FALSE, verbose = FALSE, display_progress = "none"
   )
 
   expect_s3_class(fit, "bgms")
@@ -707,7 +707,7 @@ test_that("bgm() fits mixed MRF with small p, large q", {
 
   fit = bgm(dat,
     variable_type = vt, iter = 500, warmup = 250,
-    edge_selection = FALSE, verbose = FALSE
+    edge_selection = FALSE, verbose = FALSE, display_progress = "none"
   )
 
   expect_s3_class(fit, "bgms")
