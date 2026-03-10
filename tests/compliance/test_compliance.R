@@ -108,8 +108,8 @@ data(ADHD)
 data(Boredom)
 
 wenchuan_small = Wenchuan[, 1:6]
-adhd_small     = ADHD[, 2:7]
-boredom_small  = Boredom[, 2:7]
+adhd_small = ADHD[, 2:7]
+boredom_small = Boredom[, 2:7]
 
 wenchuan_na = wenchuan_small
 set.seed(999)
@@ -394,36 +394,39 @@ resolve_args = function(args) {
 
 extract_bgm_actual = function(fit) {
   list(
-    posterior_summary_main      = fit$posterior_summary_main,
-    posterior_summary_pairwise  = fit$posterior_summary_pairwise,
+    posterior_summary_main = fit$posterior_summary_main,
+    posterior_summary_pairwise = fit$posterior_summary_pairwise,
     posterior_summary_indicator = fit$posterior_summary_indicator,
-    posterior_mean_main      = fit$posterior_mean_main,
-    posterior_mean_pairwise  = fit$posterior_mean_pairwise,
+    posterior_mean_main = fit$posterior_mean_main,
+    posterior_mean_pairwise = fit$posterior_mean_pairwise,
     posterior_mean_indicator = fit$posterior_mean_indicator,
-    raw_main_chain1      = fit$raw_samples$main[[1]],
-    raw_pairwise_chain1  = fit$raw_samples$pairwise[[1]],
-    raw_indicator_chain1 = if(!is.null(fit$raw_samples$indicator))
-      fit$raw_samples$indicator[[1]] else NULL,
+    raw_main_chain1 = fit$raw_samples$main[[1]],
+    raw_pairwise_chain1 = fit$raw_samples$pairwise[[1]],
+    raw_indicator_chain1 = if(!is.null(fit$raw_samples$indicator)) {
+      fit$raw_samples$indicator[[1]]
+    } else {
+      NULL
+    },
     nuts_diag = fit$nuts_diag,
     posterior_coclustering_matrix = fit$posterior_coclustering_matrix,
-    posterior_mean_allocations    = fit$posterior_mean_allocations
+    posterior_mean_allocations = fit$posterior_mean_allocations
   )
 }
 
 extract_compare_actual = function(fit) {
   list(
-    posterior_summary_main_baseline        = fit$posterior_summary_main_baseline,
-    posterior_summary_pairwise_baseline    = fit$posterior_summary_pairwise_baseline,
-    posterior_summary_main_differences     = fit$posterior_summary_main_differences,
+    posterior_summary_main_baseline = fit$posterior_summary_main_baseline,
+    posterior_summary_pairwise_baseline = fit$posterior_summary_pairwise_baseline,
+    posterior_summary_main_differences = fit$posterior_summary_main_differences,
     posterior_summary_pairwise_differences = fit$posterior_summary_pairwise_differences,
-    posterior_summary_indicator            = fit$posterior_summary_indicator,
-    posterior_mean_main_baseline        = fit$posterior_mean_main_baseline,
-    posterior_mean_pairwise_baseline    = fit$posterior_mean_pairwise_baseline,
-    posterior_mean_main_differences     = fit$posterior_mean_main_differences,
+    posterior_summary_indicator = fit$posterior_summary_indicator,
+    posterior_mean_main_baseline = fit$posterior_mean_main_baseline,
+    posterior_mean_pairwise_baseline = fit$posterior_mean_pairwise_baseline,
+    posterior_mean_main_differences = fit$posterior_mean_main_differences,
     posterior_mean_pairwise_differences = fit$posterior_mean_pairwise_differences,
-    posterior_mean_indicator            = fit$posterior_mean_indicator,
+    posterior_mean_indicator = fit$posterior_mean_indicator,
     raw_samples = fit$raw_samples,
-    nuts_diag   = fit$nuts_diag
+    nuts_diag = fit$nuts_diag
   )
 }
 
@@ -442,11 +445,11 @@ na_bugfix_ids = c(
 # Configs excluded from bitwise comparison due to confirmed algorithm changes
 # (see header notes 5 and 7). Checked for structural match only.
 structure_only_ids = c(
-  "bgm_wenchuan_nuts_blumecapel_impute",  # Blume-Capel imputation bug fix (note 5c)
-  "bgm_wenchuan_nuts_sbm",                # SBM lazy init changes RNG order (note 4)
-  "bgm_adhd_nuts_sbm",                    # SBM lazy init changes RNG order (note 4)
-  "bgm_boredom_hmc_bernoulli",            # overflow guard reclassifies fast/slow (note 7)
-  "cmp_wenchuan_hmc_bernoulli"            # overflow guard reclassifies fast/slow (note 7)
+  "bgm_wenchuan_nuts_blumecapel_impute", # Blume-Capel imputation bug fix (note 5c)
+  "bgm_wenchuan_nuts_sbm", # SBM lazy init changes RNG order (note 4)
+  "bgm_adhd_nuts_sbm", # SBM lazy init changes RNG order (note 4)
+  "bgm_boredom_hmc_bernoulli", # overflow guard reclassifies fast/slow (note 7)
+  "cmp_wenchuan_hmc_bernoulli" # overflow guard reclassifies fast/slow (note 7)
 )
 
 compare_fields = function(expected, actual, type, id) {
@@ -495,7 +498,7 @@ compare_fields = function(expected, actual, type, id) {
     # code computes values. Compare only cells that are non-NA in the fixture.
     is_posterior = grepl("^posterior_summary|^posterior_mean", field)
     if(allow_na_skip && is_posterior &&
-       (is.data.frame(exp_val) || is.matrix(exp_val))) {
+      (is.data.frame(exp_val) || is.matrix(exp_val))) {
       exp_m = as.matrix(exp_val)
       act_m = as.matrix(act_val)
       non_na = !is.na(exp_m)
@@ -572,13 +575,17 @@ check_structure = function(expected, actual, type) {
       next
     }
     if(!identical(class(exp_val), class(act_val))) {
-      mismatches = c(mismatches, sprintf("  %s: class mismatch (%s vs %s)",
-        field, paste(class(exp_val), collapse = "/"), paste(class(act_val), collapse = "/")))
+      mismatches = c(mismatches, sprintf(
+        "  %s: class mismatch (%s vs %s)",
+        field, paste(class(exp_val), collapse = "/"), paste(class(act_val), collapse = "/")
+      ))
       next
     }
     if(!identical(dim(exp_val), dim(act_val)) && !identical(length(exp_val), length(act_val))) {
-      mismatches = c(mismatches, sprintf("  %s: dim mismatch (%s vs %s)",
-        field, paste(dim(exp_val), collapse = "x"), paste(dim(act_val), collapse = "x")))
+      mismatches = c(mismatches, sprintf(
+        "  %s: dim mismatch (%s vs %s)",
+        field, paste(dim(exp_val), collapse = "x"), paste(dim(act_val), collapse = "x")
+      ))
     }
   }
   mismatches
@@ -618,16 +625,19 @@ for(entry in manifest) {
 
   # Run current build
   set.seed(args$seed)
-  fit = tryCatch({
-    if(type == "bgm") {
-      do.call(bgm, args)
-    } else {
-      do.call(bgmCompare, args)
+  fit = tryCatch(
+    {
+      if(type == "bgm") {
+        do.call(bgm, args)
+      } else {
+        do.call(bgmCompare, args)
+      }
+    },
+    error = function(e) {
+      cat(sprintf("ERROR: %s\n", conditionMessage(e)))
+      NULL
     }
-  }, error = function(e) {
-    cat(sprintf("ERROR: %s\n", conditionMessage(e)))
-    NULL
-  })
+  )
 
   if(is.null(fit)) {
     error_count = error_count + 1

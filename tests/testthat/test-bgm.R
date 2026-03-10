@@ -856,19 +856,19 @@ test_that("bgm mixed MRF output has correct parameter ordering", {
 
   # Parameters in internal (dd/cc/dc block) order
   Kxx = matrix(c(
-    0,   -0.4,  0.2,
-    -0.4,  0,    0.0,
-    0.2,   0.0,  0
+    0, -0.4, 0.2,
+    -0.4, 0, 0.0,
+    0.2, 0.0, 0
   ), p, p, byrow = TRUE)
 
   Kxy = matrix(c(
-    0.3,  0.0,   # d1-c1 = 0.3, d1-c2 = 0.0 (swap sentinel)
-    0.5,  0.3,   # d2-c1 = 0.5 (swap sentinel), d2-c2 = 0.3
-    -0.3, 0.15   # d3-c1 = -0.3, d3-c2 = 0.15
+    0.3,  0.0, # d1-c1 = 0.3, d1-c2 = 0.0 (swap sentinel)
+    0.5,  0.3, # d2-c1 = 0.5 (swap sentinel), d2-c2 = 0.3
+    -0.3, 0.15 # d3-c1 = -0.3, d3-c2 = 0.15
   ), p, q, byrow = TRUE)
 
   Kyy = diag(c(1.5, 2.0))
-  Kyy[1, 2] = Kyy[2, 1] = 0.0  # c1-c2 = 0 (swap sentinel)
+  Kyy[1, 2] = Kyy[2, 1] = 0.0 # c1-c2 = 0 (swap sentinel)
 
   nc = c(2L, 2L, 2L)
   mux = matrix(0, p, max(nc) + 1)
@@ -892,8 +892,10 @@ test_that("bgm mixed MRF output has correct parameter ordering", {
 
   fit = bgm(
     x,
-    variable_type = c("ordinal", "continuous", "ordinal",
-                       "continuous", "ordinal"),
+    variable_type = c(
+      "ordinal", "continuous", "ordinal",
+      "continuous", "ordinal"
+    ),
     iter = 1000, warmup = 500, chains = 1,
     edge_selection = FALSE, seed = 42,
     display_progress = "none"

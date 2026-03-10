@@ -46,7 +46,7 @@ installed_version = callr::r(
 )
 cat("Installed version:", installed_version, "\n")
 
-if (installed_version != "0.1.6.3") {
+if(installed_version != "0.1.6.3") {
   cat("WARNING: Expected 0.1.6.3, got", installed_version, "\n")
   cat("Fixtures will be tagged with the actual version.\n")
 }
@@ -68,9 +68,7 @@ if (installed_version != "0.1.6.3") {
 # ==============================================================================
 
 bgm_configs = list(
-
   # --- Wenchuan ordinal ---
-
   list(
     id = "bgm_wenchuan_nuts_bernoulli",
     desc = "bgm: Wenchuan 6v, NUTS, Bernoulli, edge_sel",
@@ -306,9 +304,7 @@ bgm_configs = list(
 # ==============================================================================
 
 compare_configs = list(
-
   # --- Wenchuan ordinal (split into two groups) ---
-
   list(
     id = "cmp_wenchuan_nuts_bernoulli",
     desc = "bgmCompare: Wenchuan, NUTS, Bernoulli, diff_sel",
@@ -480,8 +476,8 @@ prepare_datasets = function() {
   data(Boredom, package = "bgms", envir = environment())
 
   wenchuan_small = Wenchuan[, 1:6]
-  adhd_small     = ADHD[, 2:7]
-  boredom_small  = Boredom[, 2:7]
+  adhd_small = ADHD[, 2:7]
+  boredom_small = Boredom[, 2:7]
 
   # Wenchuan with NAs (deterministic injection)
   wenchuan_na = wenchuan_small
@@ -534,41 +530,44 @@ prepare_datasets = function() {
 
 extract_bgm_fixture = function(fit, config) {
   list(
-    id   = config$id,
+    id = config$id,
     desc = config$desc,
-    posterior_summary_main      = fit$posterior_summary_main,
-    posterior_summary_pairwise  = fit$posterior_summary_pairwise,
+    posterior_summary_main = fit$posterior_summary_main,
+    posterior_summary_pairwise = fit$posterior_summary_pairwise,
     posterior_summary_indicator = fit$posterior_summary_indicator,
-    posterior_mean_main      = fit$posterior_mean_main,
-    posterior_mean_pairwise  = fit$posterior_mean_pairwise,
+    posterior_mean_main = fit$posterior_mean_main,
+    posterior_mean_pairwise = fit$posterior_mean_pairwise,
     posterior_mean_indicator = fit$posterior_mean_indicator,
-    raw_main_chain1      = fit$raw_samples$main[[1]],
-    raw_pairwise_chain1  = fit$raw_samples$pairwise[[1]],
-    raw_indicator_chain1 = if (!is.null(fit$raw_samples$indicator))
-      fit$raw_samples$indicator[[1]] else NULL,
+    raw_main_chain1 = fit$raw_samples$main[[1]],
+    raw_pairwise_chain1 = fit$raw_samples$pairwise[[1]],
+    raw_indicator_chain1 = if(!is.null(fit$raw_samples$indicator)) {
+      fit$raw_samples$indicator[[1]]
+    } else {
+      NULL
+    },
     nuts_diag = fit$nuts_diag,
     posterior_coclustering_matrix = fit$posterior_coclustering_matrix,
-    posterior_mean_allocations    = fit$posterior_mean_allocations,
+    posterior_mean_allocations = fit$posterior_mean_allocations,
     bgms_version = as.character(packageVersion("bgms"))
   )
 }
 
 extract_compare_fixture = function(fit, config) {
   list(
-    id   = config$id,
+    id = config$id,
     desc = config$desc,
-    posterior_summary_main_baseline        = fit$posterior_summary_main_baseline,
-    posterior_summary_pairwise_baseline    = fit$posterior_summary_pairwise_baseline,
-    posterior_summary_main_differences     = fit$posterior_summary_main_differences,
+    posterior_summary_main_baseline = fit$posterior_summary_main_baseline,
+    posterior_summary_pairwise_baseline = fit$posterior_summary_pairwise_baseline,
+    posterior_summary_main_differences = fit$posterior_summary_main_differences,
     posterior_summary_pairwise_differences = fit$posterior_summary_pairwise_differences,
-    posterior_summary_indicator            = fit$posterior_summary_indicator,
-    posterior_mean_main_baseline        = fit$posterior_mean_main_baseline,
-    posterior_mean_pairwise_baseline    = fit$posterior_mean_pairwise_baseline,
-    posterior_mean_main_differences     = fit$posterior_mean_main_differences,
+    posterior_summary_indicator = fit$posterior_summary_indicator,
+    posterior_mean_main_baseline = fit$posterior_mean_main_baseline,
+    posterior_mean_pairwise_baseline = fit$posterior_mean_pairwise_baseline,
+    posterior_mean_main_differences = fit$posterior_mean_main_differences,
     posterior_mean_pairwise_differences = fit$posterior_mean_pairwise_differences,
-    posterior_mean_indicator            = fit$posterior_mean_indicator,
+    posterior_mean_indicator = fit$posterior_mean_indicator,
     raw_samples = fit$raw_samples,
-    nuts_diag   = fit$nuts_diag,
+    nuts_diag = fit$nuts_diag,
     bgms_version = as.character(packageVersion("bgms"))
   )
 }
@@ -579,8 +578,8 @@ extract_compare_fixture = function(fit, config) {
 
 resolve_args = function(args, datasets) {
   resolved = args
-  for (nm in names(resolved)) {
-    if (is.character(resolved[[nm]]) && resolved[[nm]] %in% names(datasets)) {
+  for(nm in names(resolved)) {
+    if(is.character(resolved[[nm]]) && resolved[[nm]] %in% names(datasets)) {
       resolved[[nm]] = datasets[[resolved[[nm]]]]
     }
   }
@@ -594,28 +593,31 @@ datasets = prepare_datasets()
 cat(sprintf("\nGenerating %d bgm fixtures...\n", length(bgm_configs)))
 bgm_manifest = list()
 
-for (config in bgm_configs) {
+for(config in bgm_configs) {
   cat(sprintf("  [%s] %s ... ", config$id, config$desc))
   resolved = resolve_args(config$args, datasets)
 
-  result = tryCatch({
-    callr::r(
-      function(args, lib_path, extract_fn) {
-        .libPaths(c(lib_path, .libPaths()))
-        library(bgms, lib.loc = lib_path)
-        set.seed(args$seed)
-        fit = do.call(bgm, args)
-        extract_fn(fit, list(id = "tmp", desc = "tmp"))
-      },
-      args = list(args = resolved, lib_path = cran_lib, extract_fn = extract_bgm_fixture),
-      show = FALSE
-    )
-  }, error = function(e) {
-    cat(sprintf("ERROR: %s\n", conditionMessage(e)))
-    NULL
-  })
+  result = tryCatch(
+    {
+      callr::r(
+        function(args, lib_path, extract_fn) {
+          .libPaths(c(lib_path, .libPaths()))
+          library(bgms, lib.loc = lib_path)
+          set.seed(args$seed)
+          fit = do.call(bgm, args)
+          extract_fn(fit, list(id = "tmp", desc = "tmp"))
+        },
+        args = list(args = resolved, lib_path = cran_lib, extract_fn = extract_bgm_fixture),
+        show = FALSE
+      )
+    },
+    error = function(e) {
+      cat(sprintf("ERROR: %s\n", conditionMessage(e)))
+      NULL
+    }
+  )
 
-  if (!is.null(result)) {
+  if(!is.null(result)) {
     result$id = config$id
     result$desc = config$desc
     result$bgms_version = installed_version
@@ -634,28 +636,31 @@ for (config in bgm_configs) {
 cat(sprintf("\nGenerating %d bgmCompare fixtures...\n", length(compare_configs)))
 compare_manifest = list()
 
-for (config in compare_configs) {
+for(config in compare_configs) {
   cat(sprintf("  [%s] %s ... ", config$id, config$desc))
   resolved = resolve_args(config$args, datasets)
 
-  result = tryCatch({
-    callr::r(
-      function(args, lib_path, extract_fn) {
-        .libPaths(c(lib_path, .libPaths()))
-        library(bgms, lib.loc = lib_path)
-        set.seed(args$seed)
-        fit = do.call(bgmCompare, args)
-        extract_fn(fit, list(id = "tmp", desc = "tmp"))
-      },
-      args = list(args = resolved, lib_path = cran_lib, extract_fn = extract_compare_fixture),
-      show = FALSE
-    )
-  }, error = function(e) {
-    cat(sprintf("ERROR: %s\n", conditionMessage(e)))
-    NULL
-  })
+  result = tryCatch(
+    {
+      callr::r(
+        function(args, lib_path, extract_fn) {
+          .libPaths(c(lib_path, .libPaths()))
+          library(bgms, lib.loc = lib_path)
+          set.seed(args$seed)
+          fit = do.call(bgmCompare, args)
+          extract_fn(fit, list(id = "tmp", desc = "tmp"))
+        },
+        args = list(args = resolved, lib_path = cran_lib, extract_fn = extract_compare_fixture),
+        show = FALSE
+      )
+    },
+    error = function(e) {
+      cat(sprintf("ERROR: %s\n", conditionMessage(e)))
+      NULL
+    }
+  )
 
-  if (!is.null(result)) {
+  if(!is.null(result)) {
     result$id = config$id
     result$desc = config$desc
     result$bgms_version = installed_version

@@ -9,13 +9,7 @@ Rules for AI agents (Copilot, Claude, etc.) working on this codebase.
   be captured, use `<-`. With `=` R treats it as a named argument.
   Example: `expect_message(result <- foo(), "pattern")`.
 - No space between `if`/`for`/`while` and `(`: write `if(`, not `if (`.
-- Enforced by `inst/styler/bgms_style.R`. Run before committing:
-  ```r
-  source("inst/styler/bgms_style.R")
-  styler::style_pkg(style = bgms_style)
-  ```
-  After running, check test files for `expect_*(result = ...)` and
-  revert those to `result <- ...`.
+- Enforced by `inst/styler/bgms_style.R` (see Pre-commit checks).
 
 ## Exported R functions (Tier 1)
 
@@ -79,6 +73,40 @@ Rules for AI agents (Copilot, Claude, etc.) working on this codebase.
 - When modifying a function signature, update its documentation in
   the same commit.
 - When adding a new exported function, add it to `_pkgdown.yml`.
+
+## Pre-commit checks
+
+Before every commit that touches R code, run these checks and fix
+any issues they report:
+
+1. **Style** — enforce the project code style:
+   ```r
+   source("inst/styler/bgms_style.R")
+   styler::style_pkg(style = bgms_style)
+   ```
+   After running, check test files for `expect_*(result = ...)` and
+   revert those to `result <- ...`.
+
+2. **Lint** — catch issues the CI lint workflow will flag:
+   ```r
+   lintr::lint_package()
+   ```
+   The `.lintr` config enables `T_and_F_symbol_linter()` and
+   `seq_linter()` (among defaults). Fix all findings before
+   committing.
+
+3. **Roxygen** — regenerate Rd files if any roxygen comment changed:
+   ```r
+   roxygen2::roxygenise()
+   ```
+   Stage the regenerated `man/*.Rd` files in the same commit.
+
+4. **R CMD check** — if the change is non-trivial, run:
+   ```r
+   rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran"))
+   ```
+   CI uses `error-on = "warning"`, so warnings are treated as
+   failures.
 
 ## Do not
 

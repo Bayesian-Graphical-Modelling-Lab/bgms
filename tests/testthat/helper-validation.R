@@ -50,8 +50,8 @@ make_network = function(p, q, n_cat, variable_type = rep("ordinal", p),
   mux = matrix(NA_real_, nrow = p, ncol = mux_cols)
   for(i in seq_len(p)) {
     if(variable_type[i] == "blume-capel") {
-      mux[i, 1] = round(runif(1, -0.3, 0.3), 2)   # alpha
-      mux[i, 2] = round(runif(1, -0.4, -0.05), 2)  # beta (negative = peaked)
+      mux[i, 1] = round(runif(1, -0.3, 0.3), 2) # alpha
+      mux[i, 2] = round(runif(1, -0.4, -0.05), 2) # beta (negative = peaked)
     } else {
       vals = sort(round(seq(-0.5, 0.5, length.out = n_cat[i]), 2))
       if(n_cat[i] == 1) vals = round(runif(1, -0.3, 0.3), 2)
@@ -127,7 +127,6 @@ generate_data = function(net, n, source = "bgms", iter = 1000L, seed = 1) {
     df = as.data.frame(cbind(sim$x, sim$y))
     names(df) = c(paste0("X", seq_len(net$p)), paste0("Y", seq_len(net$q)))
     df
-
   } else if(source == "mixedGM") {
     sim = mixedGM::mixed_gibbs_generate(
       n = n,
@@ -154,12 +153,13 @@ generate_data = function(net, n, source = "bgms", iter = 1000L, seed = 1) {
 # ------------------------------------------------------------------
 extract_bgms_blocks = function(fit, net) {
   pm = coef(fit)
-  mux = pm$main$discrete                            # p x max_cat
-  muy_vec = pm$main$continuous[, "mean"]             # length q
-  Kyy_diag = pm$main$continuous[, "precision"]       # length q
+  mux = pm$main$discrete # p x max_cat
+  muy_vec = pm$main$continuous[, "mean"] # length q
+  Kyy_diag = pm$main$continuous[, "precision"] # length q
 
-  pw = pm$pairwise                                   # (p+q) x (p+q)
-  p = net$p; q = net$q
+  pw = pm$pairwise # (p+q) x (p+q)
+  p = net$p
+  q = net$q
   Kxx = pw[seq_len(p), seq_len(p)]
   Kxy = pw[seq_len(p), p + seq_len(q)]
   Kyy_off = pw[p + seq_len(q), p + seq_len(q)]
@@ -249,9 +249,12 @@ recovery_table = function(true_blocks, est_blocks, label = "estimate") {
 
   # Determine block membership
   block = ifelse(grepl("^mux", names(true_flat)), "mux",
-          ifelse(grepl("^muy", names(true_flat)), "muy",
-          ifelse(grepl("^Kxx", names(true_flat)), "Kxx",
-          ifelse(grepl("^Kxy", names(true_flat)), "Kxy", "Kyy"))))
+    ifelse(grepl("^muy", names(true_flat)), "muy",
+      ifelse(grepl("^Kxx", names(true_flat)), "Kxx",
+        ifelse(grepl("^Kxy", names(true_flat)), "Kxy", "Kyy")
+      )
+    )
+  )
 
   data.frame(
     parameter = names(true_flat),
@@ -274,27 +277,34 @@ recovery_table = function(true_blocks, est_blocks, label = "estimate") {
 # @param main   Plot title.
 # ------------------------------------------------------------------
 recovery_scatter = function(tab, main = "Parameter recovery") {
-  block_cols = c(mux = "#E41A1C", muy = "#377EB8", Kxx = "#4DAF4A",
-                 Kxy = "#984EA3", Kyy = "#FF7F00")
+  block_cols = c(
+    mux = "#E41A1C", muy = "#377EB8", Kxx = "#4DAF4A",
+    Kxy = "#984EA3", Kyy = "#FF7F00"
+  )
   rng = range(c(tab$true, tab$estimate), na.rm = TRUE)
   rng = rng + diff(rng) * c(-0.05, 0.05)
 
-  plot(tab$true, tab$estimate, pch = 19, cex = 0.9,
-       col = adjustcolor(block_cols[tab$block], 0.7),
-       xlim = rng, ylim = rng, asp = 1,
-       xlab = "True value", ylab = "Posterior mean",
-       main = main)
+  plot(tab$true, tab$estimate,
+    pch = 19, cex = 0.9,
+    col = adjustcolor(block_cols[tab$block], 0.7),
+    xlim = rng, ylim = rng, asp = 1,
+    xlab = "True value", ylab = "Posterior mean",
+    main = main
+  )
   abline(0, 1, lty = 2, col = "grey40")
 
   r = cor(tab$true, tab$estimate)
   rmse = sqrt(mean(tab$diff^2))
   legend("topleft",
-         legend = c(names(block_cols),
-                    sprintf("r = %.3f", r),
-                    sprintf("RMSE = %.3f", rmse)),
-         col = c(block_cols, NA, NA),
-         pch = c(rep(19, 5), NA, NA),
-         bty = "n", cex = 0.8)
+    legend = c(
+      names(block_cols),
+      sprintf("r = %.3f", r),
+      sprintf("RMSE = %.3f", rmse)
+    ),
+    col = c(block_cols, NA, NA),
+    pch = c(rep(19, 5), NA, NA),
+    bty = "n", cex = 0.8
+  )
 }
 
 # ------------------------------------------------------------------
@@ -312,15 +322,20 @@ summarise_recovery = function(tab, label = "") {
   bias = mean(tab$diff)
   rmse = sqrt(mean(tab$diff^2))
   max_diff = max(abs(tab$diff))
-  cat(sprintf("[%s] r = %.4f | bias = %.4f | RMSE = %.4f | max|diff| = %.4f\n",
-              label, r, bias, rmse, max_diff))
+  cat(sprintf(
+    "[%s] r = %.4f | bias = %.4f | RMSE = %.4f | max|diff| = %.4f\n",
+    label, r, bias, rmse, max_diff
+  ))
 
   # Per-block summary
   blocks = unique(tab$block)
   block_summary = do.call(rbind, lapply(blocks, function(b) {
     sub = tab[tab$block == b, ]
-    r_val = if(nrow(sub) >= 3 && sd(sub$true) > 0 && sd(sub$estimate) > 0)
-      cor(sub$true, sub$estimate) else NA_real_
+    r_val = if(nrow(sub) >= 3 && sd(sub$true) > 0 && sd(sub$estimate) > 0) {
+      cor(sub$true, sub$estimate)
+    } else {
+      NA_real_
+    }
     data.frame(
       block = b,
       n = nrow(sub),
@@ -349,26 +364,33 @@ summarise_recovery = function(tab, label = "") {
 # ------------------------------------------------------------------
 agreement_scatter = function(tab_a, tab_b, label_a = "Method A",
                              label_b = "Method B", main = "Agreement") {
-  block_cols = c(mux = "#E41A1C", muy = "#377EB8", Kxx = "#4DAF4A",
-                 Kxy = "#984EA3", Kyy = "#FF7F00")
+  block_cols = c(
+    mux = "#E41A1C", muy = "#377EB8", Kxx = "#4DAF4A",
+    Kxy = "#984EA3", Kyy = "#FF7F00"
+  )
   rng = range(c(tab_a$estimate, tab_b$estimate), na.rm = TRUE)
   rng = rng + diff(rng) * c(-0.05, 0.05)
 
-  plot(tab_a$estimate, tab_b$estimate, pch = 19, cex = 0.9,
-       col = adjustcolor(block_cols[tab_a$block], 0.7),
-       xlim = rng, ylim = rng, asp = 1,
-       xlab = label_a, ylab = label_b, main = main)
+  plot(tab_a$estimate, tab_b$estimate,
+    pch = 19, cex = 0.9,
+    col = adjustcolor(block_cols[tab_a$block], 0.7),
+    xlim = rng, ylim = rng, asp = 1,
+    xlab = label_a, ylab = label_b, main = main
+  )
   abline(0, 1, lty = 2, col = "grey40")
 
   r = cor(tab_a$estimate, tab_b$estimate)
   rmse = sqrt(mean((tab_a$estimate - tab_b$estimate)^2))
   legend("topleft",
-         legend = c(names(block_cols),
-                    sprintf("r = %.3f", r),
-                    sprintf("RMSE = %.3f", rmse)),
-         col = c(block_cols, NA, NA),
-         pch = c(rep(19, 5), NA, NA),
-         bty = "n", cex = 0.8)
+    legend = c(
+      names(block_cols),
+      sprintf("r = %.3f", r),
+      sprintf("RMSE = %.3f", rmse)
+    ),
+    col = c(block_cols, NA, NA),
+    pch = c(rep(19, 5), NA, NA),
+    bty = "n", cex = 0.8
+  )
 }
 
 # ------------------------------------------------------------------
@@ -388,8 +410,10 @@ trace_panel = function(samples, names = NULL, true_vals = NULL, main = "") {
   for(nm in names) {
     vals = samples[, nm]
     # Trace
-    plot(vals, type = "l", col = adjustcolor("grey30", 0.5),
-         main = paste(nm, "trace"), xlab = "Iteration", ylab = nm, cex.main = 0.9)
+    plot(vals,
+      type = "l", col = adjustcolor("grey30", 0.5),
+      main = paste(nm, "trace"), xlab = "Iteration", ylab = nm, cex.main = 0.9
+    )
     if(!is.null(true_vals) && nm %in% names(true_vals)) {
       abline(h = true_vals[nm], col = "red", lwd = 2)
     }

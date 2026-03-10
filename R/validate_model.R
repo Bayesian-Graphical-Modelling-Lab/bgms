@@ -78,10 +78,10 @@ validate_variable_types = function(variable_type,
     if(has_continuous && !has_discrete) {
       invalid_if_cont = setdiff(unique(variable_type), "continuous")
       if(length(invalid_if_cont) > 0) {
-      stop(paste0(
-        "When using continuous variables, all variables must be of type ",
-        "'continuous' or mixed with ordinal/blume-capel variables."
-      ))
+        stop(paste0(
+          "When using continuous variables, all variables must be of type ",
+          "'continuous' or mixed with ordinal/blume-capel variables."
+        ))
       }
     }
 

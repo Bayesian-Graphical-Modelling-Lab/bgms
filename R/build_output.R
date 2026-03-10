@@ -631,8 +631,8 @@ build_output_mixed_mrf = function(spec, raw) {
   rownames(pairwise_summary) = edge_names
 
   # Split main_summary into true main effects and quadratic (precision diagonal)
-  n_main = nt + q                     # thresholds + continuous means
-  n_quad = layout$num_quadratic       # precision diagonal entries
+  n_main = nt + q # thresholds + continuous means
+  n_quad = layout$num_quadratic # precision diagonal entries
   main_rows = seq_len(n_main)
   quad_rows = n_main + seq_len(n_quad)
 
