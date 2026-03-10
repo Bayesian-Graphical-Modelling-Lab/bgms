@@ -840,6 +840,145 @@ test_that("bgm mixed MRF marginal pseudolikelihood runs", {
   expect_true(all(is.finite(fit$posterior_mean_pairwise)))
 })
 
+test_that("bgm mixed MRF marginal PL with edge selection runs", {
+  fit = get_bgms_fit_mixed_mrf_marginal_es()
+  expect_s3_class(fit, "bgms")
+  expect_equal(nrow(fit$posterior_mean_pairwise), 5)
+  expect_equal(ncol(fit$posterior_mean_pairwise), 5)
+  expect_true(all(is.finite(fit$posterior_mean_pairwise)))
+  # Edge selection produces indicator matrix
+  expect_false(is.null(fit$posterior_mean_indicator))
+  expect_equal(nrow(fit$posterior_mean_indicator), 5)
+  expect_true(all(fit$posterior_mean_indicator >= 0 &
+    fit$posterior_mean_indicator <= 1))
+})
+
+test_that("bgm mixed MRF hybrid-NUTS runs", {
+  fit = get_bgms_fit_mixed_mrf_nuts()
+  expect_s3_class(fit, "bgms")
+  expect_equal(nrow(fit$posterior_mean_pairwise), 5)
+  expect_equal(ncol(fit$posterior_mean_pairwise), 5)
+  expect_true(all(is.finite(fit$posterior_mean_pairwise)))
+  # Edge selection active
+  expect_false(is.null(fit$posterior_mean_indicator))
+})
+
+test_that("bgm mixed MRF hybrid-NUTS output dimensions", {
+  fit = get_bgms_fit_mixed_mrf_nuts()
+  args = extract_arguments(fit)
+  p_total = args$num_variables
+  n_edges = p_total * (p_total - 1) / 2
+
+  expect_equal(nrow(fit$posterior_summary_pairwise), n_edges)
+  expect_equal(nrow(fit$posterior_mean_pairwise), p_total)
+  expect_equal(ncol(fit$posterior_mean_pairwise), p_total)
+  expect_equal(nrow(fit$posterior_summary_indicator), n_edges)
+  expect_equal(ncol(fit$raw_samples$pairwise[[1]]), n_edges)
+  expect_equal(nrow(fit$raw_samples$main[[1]]), args$iter)
+})
+
+test_that("bgm mixed MRF hybrid-NUTS is reproducible", {
+  fit1 = get_bgms_fit_mixed_mrf_nuts()
+
+  set.seed(99)
+  n = 80
+  x = cbind(
+    sample(0:2, n, replace = TRUE),
+    rnorm(n),
+    sample(0:2, n, replace = TRUE),
+    rnorm(n),
+    sample(0:2, n, replace = TRUE)
+  )
+  colnames(x) = c("d1", "c1", "d2", "c2", "d3")
+
+  fit2 = bgm(
+    x = x,
+    variable_type = c(
+      "ordinal", "continuous", "ordinal",
+      "continuous", "ordinal"
+    ),
+    edge_selection = TRUE,
+    update_method = "nuts",
+    iter = 50, warmup = 100, chains = 1,
+    seed = 77775,
+    display_progress = "none"
+  )
+
+  expect_equal(fit1$raw_samples$main, fit2$raw_samples$main)
+  expect_equal(fit1$raw_samples$pairwise, fit2$raw_samples$pairwise)
+})
+
+test_that("bgm mixed MRF hybrid-NUTS without edge selection runs", {
+  fit = get_bgms_fit_mixed_mrf_nuts_no_es()
+  expect_s3_class(fit, "bgms")
+  expect_equal(nrow(fit$posterior_mean_pairwise), 5)
+  expect_true(all(is.finite(fit$posterior_mean_pairwise)))
+  expect_null(fit$posterior_summary_indicator)
+  expect_null(fit$posterior_mean_indicator)
+})
+
+test_that("bgm mixed MRF Beta-Bernoulli prior runs", {
+  fit = get_bgms_fit_mixed_mrf_beta_bernoulli()
+  expect_s3_class(fit, "bgms")
+  expect_equal(nrow(fit$posterior_mean_pairwise), 5)
+  expect_true(all(is.finite(fit$posterior_mean_pairwise)))
+  expect_false(is.null(fit$posterior_mean_indicator))
+  expect_true(all(fit$posterior_mean_indicator >= 0 &
+    fit$posterior_mean_indicator <= 1))
+})
+
+test_that("bgm mixed MRF Stochastic-Block prior runs", {
+  fit = get_bgms_fit_mixed_mrf_sbm()
+  expect_s3_class(fit, "bgms")
+  expect_equal(nrow(fit$posterior_mean_pairwise), 5)
+  expect_true(all(is.finite(fit$posterior_mean_pairwise)))
+  expect_false(is.null(fit$posterior_mean_indicator))
+  expect_true(all(fit$posterior_mean_indicator >= 0 &
+    fit$posterior_mean_indicator <= 1))
+})
+
+test_that("bgm mixed MRF Blume-Capel + continuous runs", {
+  fit = get_bgms_fit_mixed_mrf_bc()
+  expect_s3_class(fit, "bgms")
+  p_total = 4 # bc1, c1, bc2, c2
+  expect_equal(nrow(fit$posterior_mean_pairwise), p_total)
+  expect_equal(ncol(fit$posterior_mean_pairwise), p_total)
+  expect_true(all(is.finite(fit$posterior_mean_pairwise)))
+  expect_false(is.null(fit$posterior_mean_indicator))
+
+  # Blume-Capel main effects: quadratic structure (linear + quadratic terms)
+  expect_true(is.list(fit$posterior_mean_main))
+  expect_true("discrete" %in% names(fit$posterior_mean_main))
+  expect_true("continuous" %in% names(fit$posterior_mean_main))
+})
+
+test_that("bgm mixed MRF imputation runs", {
+  fit = get_bgms_fit_mixed_mrf_impute()
+  expect_s3_class(fit, "bgms")
+  expect_equal(nrow(fit$posterior_mean_pairwise), 5)
+  expect_true(all(is.finite(fit$posterior_mean_pairwise)))
+  expect_false(is.null(fit$posterior_mean_indicator))
+})
+
+test_that("bgm mixed MRF multi-chain R-hat and ESS", {
+  fit = get_bgms_fit_mixed_mrf_multichain()
+  expect_s3_class(fit, "bgms")
+  expect_equal(nrow(fit$posterior_mean_pairwise), 5)
+  expect_true(all(is.finite(fit$posterior_mean_pairwise)))
+
+  # Multi-chain produces multiple raw sample chains
+  expect_equal(length(fit$raw_samples$pairwise), 2)
+  expect_equal(length(fit$raw_samples$main), 2)
+
+  # R-hat and ESS should be computable
+  rhat = extract_rhat(fit)
+  expect_true(is.numeric(rhat$pairwise))
+  expect_true(all(is.na(rhat$pairwise) | rhat$pairwise > 0))
+  ess = extract_ess(fit)
+  expect_true(is.numeric(ess$pairwise))
+  expect_true(all(is.na(ess$pairwise) | ess$pairwise > 0))
+})
+
 test_that("bgm mixed MRF output has correct parameter ordering", {
   skip_on_cran()
 

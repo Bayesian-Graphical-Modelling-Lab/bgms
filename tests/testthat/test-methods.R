@@ -33,7 +33,7 @@ test_that("get_bgms_fixtures covers all required labels", {
   for(r in required) {
     expect_true(r %in% labels, info = sprintf("missing required label '%s'", r))
   }
-  expect_equal(length(specs), 16L,
+  expect_equal(length(specs), 24L,
     info = "bgms fixture count changed — update this guard if intentional"
   )
 })

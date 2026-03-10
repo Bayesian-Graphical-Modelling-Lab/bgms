@@ -621,6 +621,231 @@ get_bgms_fit_mixed_mrf_marginal = function() {
   .test_cache$bgms_fit_mixed_mrf_marginal
 }
 
+get_bgms_fit_mixed_mrf_marginal_es = function() {
+  if(is.null(.test_cache$bgms_fit_mixed_mrf_marginal_es)) {
+    set.seed(99)
+    n = 80
+    x = cbind(
+      sample(0:2, n, replace = TRUE),
+      rnorm(n),
+      sample(0:2, n, replace = TRUE),
+      rnorm(n),
+      sample(0:2, n, replace = TRUE)
+    )
+    colnames(x) = c("d1", "c1", "d2", "c2", "d3")
+    .test_cache$bgms_fit_mixed_mrf_marginal_es = bgm(
+      x = x,
+      variable_type = c(
+        "ordinal", "continuous", "ordinal",
+        "continuous", "ordinal"
+      ),
+      edge_selection = TRUE,
+      pseudolikelihood = "marginal",
+      iter = 50, warmup = 100, chains = 1,
+      seed = 77774,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit_mixed_mrf_marginal_es
+}
+
+get_bgms_fit_mixed_mrf_nuts = function() {
+  if(is.null(.test_cache$bgms_fit_mixed_mrf_nuts)) {
+    set.seed(99)
+    n = 80
+    x = cbind(
+      sample(0:2, n, replace = TRUE),
+      rnorm(n),
+      sample(0:2, n, replace = TRUE),
+      rnorm(n),
+      sample(0:2, n, replace = TRUE)
+    )
+    colnames(x) = c("d1", "c1", "d2", "c2", "d3")
+    .test_cache$bgms_fit_mixed_mrf_nuts = bgm(
+      x = x,
+      variable_type = c(
+        "ordinal", "continuous", "ordinal",
+        "continuous", "ordinal"
+      ),
+      edge_selection = TRUE,
+      update_method = "nuts",
+      iter = 50, warmup = 100, chains = 1,
+      seed = 77775,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit_mixed_mrf_nuts
+}
+
+get_bgms_fit_mixed_mrf_nuts_no_es = function() {
+  if(is.null(.test_cache$bgms_fit_mixed_mrf_nuts_no_es)) {
+    set.seed(99)
+    n = 80
+    x = cbind(
+      sample(0:2, n, replace = TRUE),
+      rnorm(n),
+      sample(0:2, n, replace = TRUE),
+      rnorm(n),
+      sample(0:2, n, replace = TRUE)
+    )
+    colnames(x) = c("d1", "c1", "d2", "c2", "d3")
+    .test_cache$bgms_fit_mixed_mrf_nuts_no_es = bgm(
+      x = x,
+      variable_type = c(
+        "ordinal", "continuous", "ordinal",
+        "continuous", "ordinal"
+      ),
+      edge_selection = FALSE,
+      update_method = "nuts",
+      iter = 50, warmup = 100, chains = 1,
+      seed = 77776,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit_mixed_mrf_nuts_no_es
+}
+
+get_bgms_fit_mixed_mrf_beta_bernoulli = function() {
+  if(is.null(.test_cache$bgms_fit_mixed_mrf_beta_bernoulli)) {
+    set.seed(99)
+    n = 80
+    x = cbind(
+      sample(0:2, n, replace = TRUE),
+      rnorm(n),
+      sample(0:2, n, replace = TRUE),
+      rnorm(n),
+      sample(0:2, n, replace = TRUE)
+    )
+    colnames(x) = c("d1", "c1", "d2", "c2", "d3")
+    .test_cache$bgms_fit_mixed_mrf_beta_bernoulli = bgm(
+      x = x,
+      variable_type = c(
+        "ordinal", "continuous", "ordinal",
+        "continuous", "ordinal"
+      ),
+      edge_selection = TRUE,
+      edge_prior = "Beta-Bernoulli",
+      iter = 50, warmup = 100, chains = 1,
+      seed = 77777,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit_mixed_mrf_beta_bernoulli
+}
+
+get_bgms_fit_mixed_mrf_sbm = function() {
+  if(is.null(.test_cache$bgms_fit_mixed_mrf_sbm)) {
+    set.seed(99)
+    n = 80
+    x = cbind(
+      sample(0:2, n, replace = TRUE),
+      rnorm(n),
+      sample(0:2, n, replace = TRUE),
+      rnorm(n),
+      sample(0:2, n, replace = TRUE)
+    )
+    colnames(x) = c("d1", "c1", "d2", "c2", "d3")
+    .test_cache$bgms_fit_mixed_mrf_sbm = bgm(
+      x = x,
+      variable_type = c(
+        "ordinal", "continuous", "ordinal",
+        "continuous", "ordinal"
+      ),
+      edge_selection = TRUE,
+      edge_prior = "Stochastic-Block",
+      iter = 50, warmup = 100, chains = 1,
+      seed = 77778,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit_mixed_mrf_sbm
+}
+
+get_bgms_fit_mixed_mrf_bc = function() {
+  if(is.null(.test_cache$bgms_fit_mixed_mrf_bc)) {
+    set.seed(99)
+    n = 80
+    x = cbind(
+      sample(0:4, n, replace = TRUE),
+      rnorm(n),
+      sample(0:4, n, replace = TRUE),
+      rnorm(n)
+    )
+    colnames(x) = c("bc1", "c1", "bc2", "c2")
+    .test_cache$bgms_fit_mixed_mrf_bc = bgm(
+      x = x,
+      variable_type = c(
+        "blume-capel", "continuous",
+        "blume-capel", "continuous"
+      ),
+      baseline_category = 2L,
+      edge_selection = TRUE,
+      iter = 50, warmup = 100, chains = 1,
+      seed = 77779,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit_mixed_mrf_bc
+}
+
+get_bgms_fit_mixed_mrf_impute = function() {
+  if(is.null(.test_cache$bgms_fit_mixed_mrf_impute)) {
+    set.seed(99)
+    n = 80
+    x = cbind(
+      sample(0:2, n, replace = TRUE),
+      rnorm(n),
+      sample(0:2, n, replace = TRUE),
+      rnorm(n),
+      sample(0:2, n, replace = TRUE)
+    )
+    colnames(x) = c("d1", "c1", "d2", "c2", "d3")
+    # Insert NAs in both discrete and continuous columns
+    x[1, 1] = NA
+    x[2, 2] = NA
+    .test_cache$bgms_fit_mixed_mrf_impute = bgm(
+      x = x,
+      variable_type = c(
+        "ordinal", "continuous", "ordinal",
+        "continuous", "ordinal"
+      ),
+      edge_selection = TRUE,
+      na_action = "impute",
+      iter = 50, warmup = 100, chains = 1,
+      seed = 77780,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit_mixed_mrf_impute
+}
+
+get_bgms_fit_mixed_mrf_multichain = function() {
+  if(is.null(.test_cache$bgms_fit_mixed_mrf_multichain)) {
+    set.seed(99)
+    n = 80
+    x = cbind(
+      sample(0:2, n, replace = TRUE),
+      rnorm(n),
+      sample(0:2, n, replace = TRUE),
+      rnorm(n),
+      sample(0:2, n, replace = TRUE)
+    )
+    colnames(x) = c("d1", "c1", "d2", "c2", "d3")
+    .test_cache$bgms_fit_mixed_mrf_multichain = bgm(
+      x = x,
+      variable_type = c(
+        "ordinal", "continuous", "ordinal",
+        "continuous", "ordinal"
+      ),
+      edge_selection = TRUE,
+      iter = 50, warmup = 100, chains = 2,
+      seed = 77781,
+      display_progress = "none"
+    )
+  }
+  .test_cache$bgms_fit_mixed_mrf_multichain
+}
+
 # ------------------------------------------------------------------------------
 # 2. Prediction Data Helpers
 # ------------------------------------------------------------------------------
@@ -676,6 +901,21 @@ get_prediction_data_mixed = function(n = 10) {
     sample(0:2, n, replace = TRUE)
   )
   colnames(x) = c("d1", "c1", "d2", "c2", "d3")
+  x
+}
+
+#' Get prediction data matching the mixed MRF Blume-Capel bgms fixture
+#' Columns: bc1 (ordinal 0-4), c1 (continuous), bc2 (ordinal 0-4),
+#'          c2 (continuous)
+get_prediction_data_mixed_bc = function(n = 10) {
+  set.seed(299)
+  x = cbind(
+    sample(0:4, n, replace = TRUE),
+    rnorm(n),
+    sample(0:4, n, replace = TRUE),
+    rnorm(n)
+  )
+  colnames(x) = c("bc1", "c1", "bc2", "c2")
   x
 }
 
@@ -997,6 +1237,70 @@ get_bgms_fixtures = function() {
     list(
       label = "mixed-mrf-marginal",
       get_fit = get_bgms_fit_mixed_mrf_marginal,
+      get_prediction_data = get_prediction_data_mixed,
+      var_type = "mixed",
+      is_continuous = FALSE,
+      is_mixed = TRUE
+    ),
+    list(
+      label = "mixed-mrf-marginal-es",
+      get_fit = get_bgms_fit_mixed_mrf_marginal_es,
+      get_prediction_data = get_prediction_data_mixed,
+      var_type = "mixed",
+      is_continuous = FALSE,
+      is_mixed = TRUE
+    ),
+    list(
+      label = "mixed-mrf-nuts",
+      get_fit = get_bgms_fit_mixed_mrf_nuts,
+      get_prediction_data = get_prediction_data_mixed,
+      var_type = "mixed",
+      is_continuous = FALSE,
+      is_mixed = TRUE
+    ),
+    list(
+      label = "mixed-mrf-nuts-no-es",
+      get_fit = get_bgms_fit_mixed_mrf_nuts_no_es,
+      get_prediction_data = get_prediction_data_mixed,
+      var_type = "mixed",
+      is_continuous = FALSE,
+      is_mixed = TRUE
+    ),
+    list(
+      label = "mixed-mrf-beta-bernoulli",
+      get_fit = get_bgms_fit_mixed_mrf_beta_bernoulli,
+      get_prediction_data = get_prediction_data_mixed,
+      var_type = "mixed",
+      is_continuous = FALSE,
+      is_mixed = TRUE
+    ),
+    list(
+      label = "mixed-mrf-sbm",
+      get_fit = get_bgms_fit_mixed_mrf_sbm,
+      get_prediction_data = get_prediction_data_mixed,
+      var_type = "mixed",
+      is_continuous = FALSE,
+      is_mixed = TRUE
+    ),
+    list(
+      label = "mixed-mrf-bc",
+      get_fit = get_bgms_fit_mixed_mrf_bc,
+      get_prediction_data = get_prediction_data_mixed_bc,
+      var_type = "mixed",
+      is_continuous = FALSE,
+      is_mixed = TRUE
+    ),
+    list(
+      label = "mixed-mrf-impute",
+      get_fit = get_bgms_fit_mixed_mrf_impute,
+      get_prediction_data = get_prediction_data_mixed,
+      var_type = "mixed",
+      is_continuous = FALSE,
+      is_mixed = TRUE
+    ),
+    list(
+      label = "mixed-mrf-multichain",
+      get_fit = get_bgms_fit_mixed_mrf_multichain,
       get_prediction_data = get_prediction_data_mixed,
       var_type = "mixed",
       is_continuous = FALSE,
