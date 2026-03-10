@@ -671,7 +671,7 @@ extract_main_effects.bgmCompare = function(bgms_object) {
 #' @export
 extract_category_thresholds = function(bgms_object) {
   lifecycle::deprecate_warn(
-    "0.2.1.0",
+    "0.1.6.4",
     "extract_category_thresholds()",
     "extract_main_effects()"
   )
