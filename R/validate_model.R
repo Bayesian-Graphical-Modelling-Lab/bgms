@@ -75,11 +75,14 @@ validate_variable_types = function(variable_type,
     has_discrete = any(variable_type %in% c("ordinal", "blume-capel"))
     is_mixed = has_continuous && has_discrete
 
-    if(has_continuous && !has_discrete && !all(variable_type == "continuous")) {
+    if(has_continuous && !has_discrete) {
+      invalid_if_cont = setdiff(unique(variable_type), "continuous")
+      if(length(invalid_if_cont) > 0) {
       stop(paste0(
         "When using continuous variables, all variables must be of type ",
         "'continuous' or mixed with ordinal/blume-capel variables."
       ))
+      }
     }
 
     if(has_continuous && !allow_continuous) {
@@ -117,7 +120,7 @@ validate_variable_types = function(variable_type,
       }
 
       variable_type = variable_type_checked
-      # variable_bool: TRUE = ordinal (for discrete variables); continuous = NA
+      # variable_bool: TRUE = ordinal; FALSE = blume-capel/continuous
       variable_bool = (variable_type == "ordinal")
       is_continuous = FALSE
     } else if(has_continuous) {
