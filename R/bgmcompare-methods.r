@@ -243,9 +243,9 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
 #' @return A list with components:
 #' \describe{
 #'   \item{main_effects_raw}{Posterior means of the raw main-effect parameters
-#'   (variables x [baseline + differences]).}
+#'   (variables x (baseline + differences)).}
 #'   \item{pairwise_effects_raw}{Posterior means of the raw pairwise-effect parameters
-#'   (pairs x [baseline + differences]).}
+#'   (pairs x (baseline + differences)).}
 #'   \item{main_effects_groups}{Posterior means of group-specific main effects
 #'   (variables x groups), computed as baseline plus projected differences.}
 #'   \item{pairwise_effects_groups}{Posterior means of group-specific pairwise effects

@@ -181,8 +181,7 @@ continuous precision matrix.}
 \item{\code{"marginal"}}{Integrates out the continuous variables,
 giving discrete full conditionals that account for induced
 interactions through the continuous block. More expensive per
-iteration but can improve estimation when discrete--continuous
-coupling is strong.}
+iteration.}
 }
 Default: \code{"conditional"}.}
 
@@ -271,16 +270,18 @@ NUTS diagnostics (tree depth, divergences, energy, E-BFMI) are included
 in \code{fit$nuts_diag} if \code{update_method = "nuts"}.
 }
 \description{
-The \code{bgm} function estimates the pseudoposterior distribution of
-category thresholds (main effects) and pairwise interaction parameters of a
-Markov Random Field (MRF) model for binary and/or ordinal variables.
-Optionally, it performs Bayesian edge selection using spike-and-slab
-priors to infer the network structure.
+The \code{bgm} function estimates the pseudoposterior distribution of the
+parameters of a Markov Random Field (MRF) for binary, ordinal, continuous,
+or mixed (discrete and continuous) variables. Depending on the variable
+types, the model is an ordinal MRF, a Gaussian graphical model (GGM), or a
+mixed MRF. Optionally, it performs Bayesian edge selection using
+spike-and-slab priors to infer the network structure.
 }
 \details{
-This function models the joint distribution of binary and ordinal variables
-using a Markov Random Field, with support for edge selection through Bayesian
-variable selection. The statistical foundation of the model is described in
+This function models the joint distribution of binary, ordinal, continuous,
+or mixed variables using a Markov Random Field, with support for edge
+selection through Bayesian variable selection. The statistical foundation
+of the model is described in
 \insertCite{MarsmanVandenBerghHaslbeck_2025;textual}{bgms}, where the ordinal
 MRF model and its Bayesian estimation procedure were first introduced. While
 the implementation in \pkg{bgms} has since been extended and updated (e.g.,
