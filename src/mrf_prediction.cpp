@@ -205,9 +205,6 @@ Rcpp::List compute_conditional_mixed(
   int q = y_observations.n_cols;
   int num_predict_vars = predict_vars.n_elem;
 
-  // Precompute Kyy inverse for continuous conditionals
-  arma::mat Kyy_inv = arma::inv_sympd(Kyy);
-
   // Convert discrete to double (centered for rest-score computation)
   arma::mat x_dbl = arma::conv_to<arma::mat>::from(x_observations);
 

@@ -21,4 +21,3 @@ inline tbb::mutex& get_print_mutex() {
 }
 
 #endif // PRINT_MUTEX_H
-// }
