@@ -564,9 +564,9 @@ void MixedMRFModel::update_pairwise_cross(int i, int j, int iteration) {
 // =============================================================================
 // update_edge_indicator_discrete
 // =============================================================================
-// Reversible-jump birth/death for a discrete-discrete edge (i, j).
-//   Birth (G=0→1): propose k ~ N(0, σ), accept with slab + Hastings.
-//   Death (G=1→0): set k = 0, accept with reverse terms.
+// Metropolis-Hastings add-delete move for a discrete-discrete edge (i, j).
+//   Add (G=0→1): propose k ~ N(0, σ), accept with slab + Hastings.
+//   Delete (G=1→0): set k = 0, accept with reverse terms.
 // =============================================================================
 
 void MixedMRFModel::update_edge_indicator_discrete(int i, int j) {
@@ -578,7 +578,7 @@ void MixedMRFModel::update_edge_indicator_discrete(int i, int j) {
 
     double k_prop;
     if(g_prop == 1) {
-        k_prop = rnorm(rng_, k_curr, prop_sd);  // k_curr = 0 on a true birth
+        k_prop = rnorm(rng_, k_curr, prop_sd);  // k_curr = 0 on a true add
     } else {
         k_prop = 0.0;
     }
@@ -614,13 +614,13 @@ void MixedMRFModel::update_edge_indicator_discrete(int i, int j) {
     double ln_alpha = ll_prop - ll_curr;
 
     if(g_prop == 1) {
-        // Birth: add slab prior, subtract proposal density, inclusion prior
+        // Add: slab prior, subtract proposal density, inclusion prior
         ln_alpha += R::dcauchy(k_prop, 0.0, pairwise_scale_, true);
         ln_alpha -= R::dnorm(k_prop, k_curr, prop_sd, true);
         ln_alpha += MY_LOG(inclusion_probability_(i, j))
                   - MY_LOG(1.0 - inclusion_probability_(i, j));
     } else {
-        // Death: subtract slab prior, add reverse proposal density, inclusion prior
+        // Delete: subtract slab prior, add reverse proposal density, inclusion prior
         ln_alpha -= R::dcauchy(k_curr, 0.0, pairwise_scale_, true);
         ln_alpha += R::dnorm(k_curr, k_prop, prop_sd, true);
         ln_alpha -= MY_LOG(inclusion_probability_(i, j))
@@ -639,10 +639,10 @@ void MixedMRFModel::update_edge_indicator_discrete(int i, int j) {
 // =============================================================================
 // update_edge_indicator_continuous
 // =============================================================================
-// Reversible-jump birth/death for a continuous-continuous edge (i, j).
+// Metropolis-Hastings add-delete move for a continuous-continuous edge (i, j).
 // Uses Cholesky reparameterization (permute-free constants extraction).
-//   Birth (G=0→1): propose ε ~ N(0, σ), k = C[2]*ε, constrain diagonal.
-//   Death (G=1→0): set off-diag = 0, constrain diagonal.
+//   Add (G=0→1): propose ε ~ N(0, σ), k = C[2]*ε, constrain diagonal.
+//   Delete (G=1→0): set off-diag = 0, constrain diagonal.
 // =============================================================================
 
 void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
@@ -654,12 +654,12 @@ void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
     double omega_prop_ij, omega_prop_jj;
 
     if(g_prop == 1) {
-        // Birth: propose from N(0, σ) on reparameterized scale
+        // Add: propose from N(0, σ) on reparameterized scale
         double epsilon = rnorm(rng_, 0.0, proposal_sd_pairwise_continuous_(i, j));
         omega_prop_ij = kyy_constants_[3] * epsilon;
         omega_prop_jj = precision_constrained_diagonal(omega_prop_ij);
     } else {
-        // Death: set off-diagonal to 0
+        // Delete: set off-diagonal to 0
         omega_prop_ij = 0.0;
         omega_prop_jj = precision_constrained_diagonal(0.0);
     }
@@ -689,7 +689,7 @@ void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
 
     // --- Spike-and-slab terms ---
     if(g_prop == 1) {
-        // Birth: add slab prior on proposed off-diag
+        // Add: slab prior on proposed off-diag
         ln_alpha += R::dcauchy(omega_prop_ij, 0.0, pairwise_scale_, true);
         // Subtract proposal density: dnorm(k_prop / C[2], 0, σ) / C[2]
         // = dnorm(epsilon, 0, σ) / C[2]
@@ -700,7 +700,7 @@ void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
         ln_alpha += MY_LOG(inclusion_probability_(p_ + i, p_ + j))
                   - MY_LOG(1.0 - inclusion_probability_(p_ + i, p_ + j));
     } else {
-        // Death: subtract slab prior on current off-diag
+        // Delete: subtract slab prior on current off-diag
         ln_alpha -= R::dcauchy(pairwise_effects_continuous_(i, j), 0.0, pairwise_scale_, true);
         // Add reverse proposal density: dnorm(k_curr / C[2], 0, σ) / C[2]
         ln_alpha += R::dnorm(pairwise_effects_continuous_(i, j) / kyy_constants_[3], 0.0,
@@ -730,9 +730,9 @@ void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
 // =============================================================================
 // update_edge_indicator_cross
 // =============================================================================
-// Reversible-jump birth/death for a cross-type edge (i, j).
-//   Birth (G=0→1): propose k ~ N(0, σ).
-//   Death (G=1→0): set k = 0.
+// Metropolis-Hastings add-delete move for a cross-type edge (i, j).
+//   Add (G=0→1): propose k ~ N(0, σ).
+//   Delete (G=1→0): set k = 0.
 // =============================================================================
 
 void MixedMRFModel::update_edge_indicator_cross(int i, int j) {
@@ -744,7 +744,7 @@ void MixedMRFModel::update_edge_indicator_cross(int i, int j) {
 
     double k_prop;
     if(g_prop == 1) {
-        k_prop = rnorm(rng_, k_curr, prop_sd);  // k_curr = 0 on a true birth
+        k_prop = rnorm(rng_, k_curr, prop_sd);  // k_curr = 0 on a true add
     } else {
         k_prop = 0.0;
     }
@@ -787,13 +787,13 @@ void MixedMRFModel::update_edge_indicator_cross(int i, int j) {
     double ln_alpha = ll_prop - ll_curr;
 
     if(g_prop == 1) {
-        // Birth
+        // Add
         ln_alpha += R::dcauchy(k_prop, 0.0, pairwise_scale_, true);
         ln_alpha -= R::dnorm(k_prop, k_curr, prop_sd, true);
         ln_alpha += MY_LOG(inclusion_probability_(i, p_ + j))
                   - MY_LOG(1.0 - inclusion_probability_(i, p_ + j));
     } else {
-        // Death
+        // Delete
         ln_alpha -= R::dcauchy(k_curr, 0.0, pairwise_scale_, true);
         ln_alpha += R::dnorm(k_curr, k_prop, prop_sd, true);
         ln_alpha -= MY_LOG(inclusion_probability_(i, p_ + j))

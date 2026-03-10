@@ -125,7 +125,7 @@ public:
     // =========================================================================
 
     /**
-     * Update edge indicators via Metropolis-Hastings birth/death moves.
+     * Update edge indicators via Metropolis-Hastings add-delete moves.
      *
      * Only meaningful when has_edge_selection() returns true. GGMModel
      * handles this inside do_one_metropolis_step() instead.
@@ -245,7 +245,7 @@ public:
 
     /**
      * Enable or disable edge-selection proposals.
-     * @param active  true to enable edge birth/death moves
+     * @param active  true to enable edge add-delete moves
      */
     virtual void set_edge_selection_active(bool active) {
         (void)active;

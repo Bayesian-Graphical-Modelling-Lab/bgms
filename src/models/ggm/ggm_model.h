@@ -154,7 +154,7 @@ public:
 
     /**
      * Enable or disable edge-selection proposals.
-     * @param active  true to enable edge birth/death moves
+     * @param active  true to enable edge add-delete moves
      */
     void set_edge_selection_active(bool active) override {
         edge_selection_active_ = active;
@@ -180,7 +180,7 @@ public:
      * Perform one full Metropolis sweep.
      *
      * Iterates over all off-diagonal entries (edge updates), all diagonal
-     * entries, and (when active) all edge indicator birth/death moves.
+     * entries, and (when active) all edge indicator add-delete moves.
      *
      * @param iteration  Current iteration index (for Robbins-Monro adaptation)
      */
@@ -276,7 +276,7 @@ private:
     arma::mat inclusion_probability_;
     /// Whether the model was constructed with edge selection.
     bool edge_selection_;
-    /// Whether edge birth/death proposals are currently active.
+    /// Whether edge add-delete proposals are currently active.
     bool edge_selection_active_ = false;
     /// Scale parameter of the Cauchy slab prior on off-diagonal elements.
     double pairwise_scale_;
@@ -365,7 +365,7 @@ private:
     void update_diagonal_parameter(size_t i, int iteration);
 
     /**
-     * Reversible-jump birth/death move for an edge indicator.
+     * Metropolis-Hastings add-delete move for an edge indicator.
      *
      * If the edge is on, proposes deletion; if off, proposes a new value
      * from a scaled normal. Acceptance combines the likelihood ratio,

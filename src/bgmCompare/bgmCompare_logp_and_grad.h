@@ -254,7 +254,7 @@ double log_pseudoposterior_pair_component(
  *
  * Compares proposed vs. current main-effect parameters across all groups,
  * combining sufficient-statistic differences with normalizing-constant ratios.
- * Used by the reversible-jump indicator update for main effects.
+ * Used by the Metropolis-Hastings indicator update for main effects.
  *
  * @param current_main_effects   Current main-effect matrix
  * @param proposed_main_effects  Proposed main-effect matrix
@@ -285,7 +285,7 @@ double log_pseudolikelihood_ratio_main(
  *
  * Compares proposed vs. current pairwise-effect parameters for a single edge,
  * summing the data contribution and normalizing-constant ratios for both
- * endpoint variables. Used by the reversible-jump indicator update.
+ * endpoint variables. Used by the Metropolis-Hastings indicator update.
  *
  * @param current_pairwise_effects   Current pairwise-effect matrix
  * @param proposed_pairwise_effects  Proposed pairwise-effect matrix

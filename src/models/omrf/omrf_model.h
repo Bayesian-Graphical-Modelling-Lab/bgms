@@ -254,7 +254,7 @@ public:
 
     /**
      * Enable or disable edge-selection proposals.
-     * @param active  true to enable edge birth/death moves
+     * @param active  true to enable edge add-delete moves
      */
     void set_edge_selection_active(bool active) override { edge_selection_active_ = active; }
     /** @return true when edge-selection proposals are currently active. */

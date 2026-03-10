@@ -136,7 +136,7 @@ public:
     // Edge selection
     // =========================================================================
 
-    /** Perform one sweep of reversible-jump edge birth/death moves. */
+    /** Perform one sweep of Metropolis-Hastings edge add-delete moves. */
     void update_edge_indicators() override;
 
     /** Initialize a random graph structure for starting edge selection. */
@@ -144,7 +144,7 @@ public:
 
     /**
      * Enable or disable edge-selection proposals.
-     * @param active  true to enable edge birth/death moves
+     * @param active  true to enable edge add-delete moves
      */
     void set_edge_selection_active(bool active) override {
         edge_selection_active_ = active;
@@ -472,13 +472,13 @@ private:
 
     // --- Edge-indicator update sweeps ---
 
-    /** Reversible-jump birth/death for one discrete-discrete edge. */
+    /** Metropolis-Hastings add-delete move for one discrete-discrete edge. */
     void update_edge_indicator_discrete(int i, int j);
 
-    /** Reversible-jump birth/death for one continuous-continuous edge. */
+    /** Metropolis-Hastings add-delete move for one continuous-continuous edge. */
     void update_edge_indicator_continuous(int i, int j);
 
-    /** Reversible-jump birth/death for one cross-type edge. */
+    /** Metropolis-Hastings add-delete move for one cross-type edge. */
     void update_edge_indicator_cross(int i, int j);
 
     // =========================================================================
