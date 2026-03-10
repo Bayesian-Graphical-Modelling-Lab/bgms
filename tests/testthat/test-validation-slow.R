@@ -2,8 +2,8 @@
 # Gated slow validation tests
 # ==============================================================================
 #
-# Environment-gated wrappers around the key assertions from the validation
-# scripts in dev/tests/validation/. These run in nightly CI (where
+# Environment-gated wrappers around mixed MRF validation assertions. These run
+# in nightly CI (where
 # BGMS_RUN_SLOW_TESTS=true) and are skipped during local devtools::test()
 # and CRAN checks.
 #
@@ -11,15 +11,14 @@
 # produce meaningful posterior estimates, then checks a quantitative
 # recovery or agreement criterion.
 #
-# Source scripts: group1_parameter_recovery.R, group2_mh_vs_nuts.R,
-#   group3_cond_vs_marg.R. Helpers in dev/tests/validation/helpers.R.
+# Shared helper functions live in tests/testthat/helper-validation.R.
 # ==============================================================================
 
 # Load shared helpers once per file
-helpers_path = file.path("dev", "tests", "validation", "helpers.R")
+helpers_path = file.path("tests", "testthat", "helper-validation.R")
 if(!file.exists(helpers_path)) {
   # When running from testthat, the working directory is tests/testthat/
-  helpers_path = file.path("..", "..", "dev", "tests", "validation", "helpers.R")
+  helpers_path = file.path("helper-validation.R")
 }
 helpers_available = file.exists(helpers_path)
 

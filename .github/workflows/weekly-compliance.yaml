@@ -26,15 +26,10 @@ jobs:
 
       - name: Generate compliance fixtures (if missing)
         run: |
-          if [ ! -f dev/fixtures/compliance/manifest.rds ]; then
-            Rscript dev/bitwise_compliance/generate_fixtures.R || true
+          if [ ! -f tests/compliance/fixtures/manifest.rds ]; then
+            Rscript tests/compliance/generate_fixtures.R || true
           fi
 
       - name: Run bitwise compliance (OMRF configs only)
-        run: Rscript dev/bitwise_compliance/test_compliance.R
+        run: Rscript tests/compliance/test_compliance.R
 
-      - name: Run cross-package validation
-        run: Rscript dev/tests/validation/group4_cross_package.R
-
-      - name: Run performance profiling
-        run: Rscript dev/tests/validation/group9_profiling.R

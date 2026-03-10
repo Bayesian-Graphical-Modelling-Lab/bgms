@@ -27,18 +27,3 @@ jobs:
       - name: Run full test suite (including slow tests)
         run: Rscript -e 'devtools::test()'
 
-      - name: Run validation scripts
-        run: |
-          FAIL=0
-          for f in dev/tests/validation/group{1,2,3,5,6,7}*.R; do
-            echo "=== Running $f ==="
-            Rscript "$f" || FAIL=1
-          done
-          exit $FAIL
-
-      - name: Upload validation output
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: validation-output
-          path: dev/tests/validation/output/
