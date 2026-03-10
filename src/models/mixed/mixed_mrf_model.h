@@ -470,7 +470,7 @@ private:
     /** Update one cross interaction: pairwise_effects_cross_(i, j). */
     void update_pairwise_cross(int i, int j, int iteration);
 
-    // --- Edge-indicator update sweeps (Phase D) ---
+    // --- Edge-indicator update sweeps ---
 
     /** Reversible-jump birth/death for one discrete-discrete edge. */
     void update_edge_indicator_discrete(int i, int j);

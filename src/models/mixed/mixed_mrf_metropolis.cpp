@@ -200,7 +200,7 @@ double MixedMRFModel::precision_constrained_diagonal(double x) const {
 // matrix determinant lemma for the log-det part and Woodbury for the
 // quadratic-form part.  Assumes precision_proposal_ is filled.
 //
-// B+.10 will replace the O(npq + nq²) quadratic-form computation with
+// TODO: replace the O(npq + nq²) quadratic-form computation with
 // an O(nq) rank-2 shortcut.
 // =============================================================================
 
@@ -567,7 +567,6 @@ void MixedMRFModel::update_pairwise_cross(int i, int j, int iteration) {
 // Reversible-jump birth/death for a discrete-discrete edge (i, j).
 //   Birth (G=0→1): propose k ~ N(0, σ), accept with slab + Hastings.
 //   Death (G=1→0): set k = 0, accept with reverse terms.
-// Follows cond_omrf_update_association_indicator_pair in mixedGM.
 // =============================================================================
 
 void MixedMRFModel::update_edge_indicator_discrete(int i, int j) {
@@ -644,7 +643,6 @@ void MixedMRFModel::update_edge_indicator_discrete(int i, int j) {
 // Uses Cholesky reparameterization (permute-free constants extraction).
 //   Birth (G=0→1): propose ε ~ N(0, σ), k = C[2]*ε, constrain diagonal.
 //   Death (G=1→0): set off-diag = 0, constrain diagonal.
-// Follows cond_ggm_update_precision_indicator_pair in mixedGM.
 // =============================================================================
 
 void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
@@ -735,7 +733,6 @@ void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
 // Reversible-jump birth/death for a cross-type edge (i, j).
 //   Birth (G=0→1): propose k ~ N(0, σ).
 //   Death (G=1→0): set k = 0.
-// Follows cond_omrf_update_cross_association_indicator_pair in mixedGM.
 // =============================================================================
 
 void MixedMRFModel::update_edge_indicator_cross(int i, int j) {
