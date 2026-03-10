@@ -7,20 +7,20 @@
 extract_group_params(bgms_object)
 }
 \arguments{
-\item{bgms_object}{A fitted model object of class `bgmCompare`
-(from [bgmCompare()]).}
+\item{bgms_object}{A fitted model object of class \code{bgmCompare}
+(from \code{\link[=bgmCompare]{bgmCompare()}}).}
 }
 \value{
-A list with elements `main_effects_groups` (main effects per
-  group) and `pairwise_effects_groups` (pairwise effects per group).
+A list with elements \code{main_effects_groups} (main effects per
+group) and \code{pairwise_effects_groups} (pairwise effects per group).
 }
 \description{
 Computes group-specific parameter estimates by combining baseline
-parameters and group differences from a model fitted with [bgmCompare()].
+parameters and group differences from a model fitted with \code{\link[=bgmCompare]{bgmCompare()}}.
 }
 \seealso{
-[bgmCompare()], [extract_pairwise_interactions()],
-  [extract_main_effects()]
+\code{\link[=bgmCompare]{bgmCompare()}}, \code{\link[=extract_pairwise_interactions]{extract_pairwise_interactions()}},
+\code{\link[=extract_main_effects]{extract_main_effects()}}
 
 Other extractors: 
 \code{\link{extract_arguments}()},

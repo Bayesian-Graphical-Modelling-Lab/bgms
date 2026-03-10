@@ -7,21 +7,21 @@
 extract_sbm(bgms_object)
 }
 \arguments{
-\item{bgms_object}{A fitted model object of class `bgms` (from [bgm()]).}
+\item{bgms_object}{A fitted model object of class \code{bgms} (from \code{\link[=bgm]{bgm()}}).}
 }
 \value{
-A list with elements `posterior_num_blocks`,
-  `posterior_mean_allocations`, `posterior_mode_allocations`, and
-  `posterior_mean_coclustering_matrix`. Requires `edge_selection = TRUE`
-  and `edge_prior = "Stochastic-Block"`.
+A list with elements \code{posterior_num_blocks},
+\code{posterior_mean_allocations}, \code{posterior_mode_allocations}, and
+\code{posterior_mean_coclustering_matrix}. Requires \code{edge_selection = TRUE}
+and \code{edge_prior = "Stochastic-Block"}.
 }
 \description{
-Retrieves posterior summaries from a model fitted with [bgm()] using
+Retrieves posterior summaries from a model fitted with \code{\link[=bgm]{bgm()}} using
 the Stochastic Block prior on edge inclusion.
 }
 \seealso{
-[bgm()], [extract_indicators()],
-  [extract_posterior_inclusion_probabilities()]
+\code{\link[=bgm]{bgm()}}, \code{\link[=extract_indicators]{extract_indicators()}},
+\code{\link[=extract_posterior_inclusion_probabilities]{extract_posterior_inclusion_probabilities()}}
 
 Other extractors: 
 \code{\link{extract_arguments}()},

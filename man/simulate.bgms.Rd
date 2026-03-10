@@ -25,11 +25,11 @@
 
 \item{method}{Character string specifying which parameter estimates to use:
 \describe{
-  \item{\code{"posterior-mean"}}{Use posterior mean parameters (faster,
-    single simulation).}
-  \item{\code{"posterior-sample"}}{Sample from posterior draws, producing
-    one dataset per draw (accounts for parameter uncertainty). This method
-    uses parallel processing when \code{cores > 1}.}
+\item{\code{"posterior-mean"}}{Use posterior mean parameters (faster,
+single simulation).}
+\item{\code{"posterior-sample"}}{Sample from posterior draws, producing
+one dataset per draw (accounts for parameter uncertainty). This method
+uses parallel processing when \code{cores > 1}.}
 }}
 
 \item{ndraws}{Number of posterior draws to use when
@@ -98,7 +98,7 @@ new_data_list = simulate(fit,
 }
 \seealso{
 \code{\link{predict.bgms}} for computing conditional probabilities,
-  \code{\link{simulate_mrf}} for simulation with user-specified parameters.
+\code{\link{simulate_mrf}} for simulation with user-specified parameters.
 
 Other prediction: 
 \code{\link{predict.bgmCompare}()},

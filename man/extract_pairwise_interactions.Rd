@@ -7,24 +7,24 @@
 extract_pairwise_interactions(bgms_object)
 }
 \arguments{
-\item{bgms_object}{A fitted model object of class `bgms` (from [bgm()])
-or `bgmCompare` (from [bgmCompare()]).}
+\item{bgms_object}{A fitted model object of class \code{bgms} (from \code{\link[=bgm]{bgm()}})
+or \code{bgmCompare} (from \code{\link[=bgmCompare]{bgmCompare()}}).}
 }
 \value{
 A matrix with one row per post-warmup iteration and one column per
-  edge, containing posterior samples of interaction strengths.
-  \describe{
-    \item{bgms}{Columns correspond to all unique variable pairs.}
-    \item{bgmCompare}{Columns correspond to the baseline pairwise
-      interaction parameters.}
-  }
+edge, containing posterior samples of interaction strengths.
+\describe{
+\item{bgms}{Columns correspond to all unique variable pairs.}
+\item{bgmCompare}{Columns correspond to the baseline pairwise
+interaction parameters.}
+}
 }
 \description{
 Retrieves posterior samples of pairwise interaction parameters from a
-model fitted with [bgm()] or [bgmCompare()].
+model fitted with \code{\link[=bgm]{bgm()}} or \code{\link[=bgmCompare]{bgmCompare()}}.
 }
 \seealso{
-[bgm()], [bgmCompare()], [extract_main_effects()]
+\code{\link[=bgm]{bgm()}}, \code{\link[=bgmCompare]{bgmCompare()}}, \code{\link[=extract_main_effects]{extract_main_effects()}}
 
 Other extractors: 
 \code{\link{extract_arguments}()},

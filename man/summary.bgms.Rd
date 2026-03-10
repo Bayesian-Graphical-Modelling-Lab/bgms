@@ -2,20 +2,20 @@
 % Please edit documentation in R/bgms-methods.R
 \name{summary.bgms}
 \alias{summary.bgms}
-\title{Summary method for `bgms` objects}
+\title{Summary method for \code{bgms} objects}
 \usage{
 \method{summary}{bgms}(object, ...)
 }
 \arguments{
-\item{object}{An object of class `bgms`.}
+\item{object}{An object of class \code{bgms}.}
 
 \item{...}{Currently ignored.}
 }
 \value{
-An object of class `summary.bgms` with posterior summaries.
+An object of class \code{summary.bgms} with posterior summaries.
 }
 \description{
-Returns posterior summaries and diagnostics for a fitted `bgms` model.
+Returns posterior summaries and diagnostics for a fitted \code{bgms} model.
 }
 \examples{
 \donttest{
@@ -25,7 +25,7 @@ summary(fit)
 
 }
 \seealso{
-[bgm()], [print.bgms()], [coef.bgms()]
+\code{\link[=bgm]{bgm()}}, \code{\link[=print.bgms]{print.bgms()}}, \code{\link[=coef.bgms]{coef.bgms()}}
 
 Other posterior-methods: 
 \code{\link{coef.bgmCompare}()},

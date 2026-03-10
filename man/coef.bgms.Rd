@@ -14,14 +14,15 @@
 \value{
 A list with the following components:
 \describe{
-  \item{main}{Posterior mean of the main-effect parameters. For GGM models
-    this contains the precision matrix diagonal (quadratic effects, not main
-    effects). For OMRF models this is a numeric matrix (p x max_categories)
-    of category thresholds. For mixed MRF models this is a list with
-    `$discrete` (p x max_categories matrix) and `$continuous` (q x 2 matrix
-    with columns "mean" and "precision").}
-  \item{pairwise}{Posterior mean of the pairwise interaction matrix.}
-  \item{indicator}{Posterior mean of the edge inclusion indicators (if available).}
+\item{main}{Posterior mean of the main-effect parameters. \code{NULL} for
+GGM models (no main effects). For OMRF models this is a numeric matrix
+(p x max_categories) of category thresholds. For mixed MRF models this
+is a list with \code{$discrete} (p x max_categories matrix) and
+\code{$continuous} (q x 1 matrix of means).}
+\item{pairwise}{Posterior mean of the pairwise interaction matrix. For GGM
+and mixed MRF models the precision matrix diagonal is included on the
+matrix diagonal.}
+\item{indicator}{Posterior mean of the edge inclusion indicators (if available).}
 }
 }
 \description{
@@ -35,7 +36,7 @@ coef(fit)
 
 }
 \seealso{
-[bgm()], [print.bgms()], [summary.bgms()]
+\code{\link[=bgm]{bgm()}}, \code{\link[=print.bgms]{print.bgms()}}, \code{\link[=summary.bgms]{summary.bgms()}}
 
 Other posterior-methods: 
 \code{\link{coef.bgmCompare}()},

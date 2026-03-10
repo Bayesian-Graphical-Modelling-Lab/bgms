@@ -7,26 +7,26 @@
 extract_posterior_inclusion_probabilities(bgms_object)
 }
 \arguments{
-\item{bgms_object}{A fitted model object of class `bgms` (from [bgm()])
-or `bgmCompare` (from [bgmCompare()]).}
+\item{bgms_object}{A fitted model object of class \code{bgms} (from \code{\link[=bgm]{bgm()}})
+or \code{bgmCompare} (from \code{\link[=bgmCompare]{bgmCompare()}}).}
 }
 \value{
 A symmetric p x p matrix of posterior inclusion probabilities,
-  with variable names as row and column names.
-  \describe{
-    \item{bgms}{Off-diagonal entries are edge inclusion probabilities.
-      Requires `edge_selection = TRUE`.}
-    \item{bgmCompare}{Diagonal entries are main-effect inclusion
-      probabilities; off-diagonal entries are pairwise difference
-      inclusion probabilities. Requires `difference_selection = TRUE`.}
-  }
+with variable names as row and column names.
+\describe{
+\item{bgms}{Off-diagonal entries are edge inclusion probabilities.
+Requires \code{edge_selection = TRUE}.}
+\item{bgmCompare}{Diagonal entries are main-effect inclusion
+probabilities; off-diagonal entries are pairwise difference
+inclusion probabilities. Requires \code{difference_selection = TRUE}.}
+}
 }
 \description{
 Computes posterior inclusion probabilities from a model fitted with
-[bgm()] (edge inclusion) or [bgmCompare()] (difference inclusion).
+\code{\link[=bgm]{bgm()}} (edge inclusion) or \code{\link[=bgmCompare]{bgmCompare()}} (difference inclusion).
 }
 \seealso{
-[bgm()], [bgmCompare()], [extract_indicators()]
+\code{\link[=bgm]{bgm()}}, \code{\link[=bgmCompare]{bgmCompare()}}, \code{\link[=extract_indicators]{extract_indicators()}}
 
 Other extractors: 
 \code{\link{extract_arguments}()},

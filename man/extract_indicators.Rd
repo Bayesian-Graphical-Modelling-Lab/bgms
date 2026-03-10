@@ -7,26 +7,26 @@
 extract_indicators(bgms_object)
 }
 \arguments{
-\item{bgms_object}{A fitted model object of class `bgms` (from [bgm()])
-or `bgmCompare` (from [bgmCompare()]).}
+\item{bgms_object}{A fitted model object of class \code{bgms} (from \code{\link[=bgm]{bgm()}})
+or \code{bgmCompare} (from \code{\link[=bgmCompare]{bgmCompare()}}).}
 }
 \value{
 A matrix with one row per post-warmup iteration and one column per
-  indicator, containing binary (0/1) samples.
-  \describe{
-    \item{bgms}{One column per edge. Requires `edge_selection = TRUE`.}
-    \item{bgmCompare}{Columns for main-effect and pairwise difference
-      indicators. Requires `difference_selection = TRUE`.}
-  }
+indicator, containing binary (0/1) samples.
+\describe{
+\item{bgms}{One column per edge. Requires \code{edge_selection = TRUE}.}
+\item{bgmCompare}{Columns for main-effect and pairwise difference
+indicators. Requires \code{difference_selection = TRUE}.}
+}
 }
 \description{
 Retrieves posterior samples of inclusion indicators from a model fitted
-with [bgm()] (edge inclusion indicators) or [bgmCompare()] (difference
+with \code{\link[=bgm]{bgm()}} (edge inclusion indicators) or \code{\link[=bgmCompare]{bgmCompare()}} (difference
 indicators).
 }
 \seealso{
-[bgm()], [bgmCompare()],
-  [extract_posterior_inclusion_probabilities()]
+\code{\link[=bgm]{bgm()}}, \code{\link[=bgmCompare]{bgmCompare()}},
+\code{\link[=extract_posterior_inclusion_probabilities]{extract_posterior_inclusion_probabilities()}}
 
 Other extractors: 
 \code{\link{extract_arguments}()},

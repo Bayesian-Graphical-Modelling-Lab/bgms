@@ -7,16 +7,16 @@
 extract_category_thresholds(bgms_object)
 }
 \arguments{
-\item{bgms_object}{A fitted model object of class `bgms` (from [bgm()])
-or `bgmCompare` (from [bgmCompare()]).}
+\item{bgms_object}{A fitted model object of class \code{bgms} (from \code{\link[=bgm]{bgm()}})
+or \code{bgmCompare} (from \code{\link[=bgmCompare]{bgmCompare()}}).}
 }
 \value{
-See [extract_main_effects()] for details.
+See \code{\link[=extract_main_effects]{extract_main_effects()}} for details.
 }
 \description{
-`r lifecycle::badge("deprecated")`
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}}
 
-`extract_category_thresholds()` was renamed to [extract_main_effects()] to
+\code{extract_category_thresholds()} was renamed to \code{\link[=extract_main_effects]{extract_main_effects()}} to
 reflect that main effects include continuous means and precisions
 (mixed MRF), not only category thresholds.
 }
@@ -24,7 +24,7 @@ reflect that main effects include continuous means and precisions
 Extract Category Threshold Estimates
 }
 \seealso{
-[extract_main_effects()]
+\code{\link[=extract_main_effects]{extract_main_effects()}}
 
 Other extractors: 
 \code{\link{extract_arguments}()},

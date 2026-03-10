@@ -24,24 +24,24 @@ the original data used to fit the model.}
 
 \item{variables}{Which variables to predict. Can be:
 \itemize{
-  \item A character vector of variable names
-  \item An integer vector of column indices
-  \item \code{NULL} (default) to predict all variables
+\item A character vector of variable names
+\item An integer vector of column indices
+\item \code{NULL} (default) to predict all variables
 }}
 
 \item{type}{Character string specifying the type of prediction:
 \describe{
-  \item{\code{"probabilities"}}{Return the full conditional probability
-    distribution for each variable and observation.}
-  \item{\code{"response"}}{Return the predicted category (mode of the
-    conditional distribution).}
+\item{\code{"probabilities"}}{Return the full conditional probability
+distribution for each variable and observation.}
+\item{\code{"response"}}{Return the predicted category (mode of the
+conditional distribution).}
 }}
 
 \item{method}{Character string specifying which parameter estimates to use:
 \describe{
-  \item{\code{"posterior-mean"}}{Use posterior mean parameters.}
-  \item{\code{"posterior-sample"}}{Average predictions
-    over posterior draws.}
+\item{\code{"posterior-mean"}}{Use posterior mean parameters.}
+\item{\code{"posterior-sample"}}{Average predictions
+over posterior draws.}
 }}
 
 \item{ndraws}{Number of posterior draws to use when

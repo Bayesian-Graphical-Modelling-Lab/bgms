@@ -2,20 +2,20 @@
 % Please edit documentation in R/bgms-methods.R
 \name{print.bgms}
 \alias{print.bgms}
-\title{Print method for `bgms` objects}
+\title{Print method for \code{bgms} objects}
 \usage{
 \method{print}{bgms}(x, ...)
 }
 \arguments{
-\item{x}{An object of class `bgms`.}
+\item{x}{An object of class \code{bgms}.}
 
 \item{...}{Ignored.}
 }
 \value{
-Invisibly returns `x`.
+Invisibly returns \code{x}.
 }
 \description{
-Minimal console output for `bgms` fit objects.
+Minimal console output for \code{bgms} fit objects.
 }
 \examples{
 \donttest{
@@ -25,7 +25,7 @@ print(fit)
 
 }
 \seealso{
-[bgm()], [summary.bgms()], [coef.bgms()]
+\code{\link[=bgm]{bgm()}}, \code{\link[=summary.bgms]{summary.bgms()}}, \code{\link[=coef.bgms]{coef.bgms()}}
 
 Other posterior-methods: 
 \code{\link{coef.bgmCompare}()},

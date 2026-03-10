@@ -2,20 +2,20 @@
 % Please edit documentation in R/bgmcompare-methods.r
 \name{summary.bgmCompare}
 \alias{summary.bgmCompare}
-\title{Summary method for `bgmCompare` objects}
+\title{Summary method for \code{bgmCompare} objects}
 \usage{
 \method{summary}{bgmCompare}(object, ...)
 }
 \arguments{
-\item{object}{An object of class `bgmCompare`.}
+\item{object}{An object of class \code{bgmCompare}.}
 
 \item{...}{Currently ignored.}
 }
 \value{
-An object of class `summary.bgmCompare` with posterior summaries.
+An object of class \code{summary.bgmCompare} with posterior summaries.
 }
 \description{
-Returns posterior summaries and diagnostics for a fitted `bgmCompare` model.
+Returns posterior summaries and diagnostics for a fitted \code{bgmCompare} model.
 }
 \examples{
 \donttest{
@@ -24,7 +24,7 @@ Returns posterior summaries and diagnostics for a fitted `bgmCompare` model.
 
 }
 \seealso{
-[bgmCompare()], [print.bgmCompare()], [coef.bgmCompare()]
+\code{\link[=bgmCompare]{bgmCompare()}}, \code{\link[=print.bgmCompare]{print.bgmCompare()}}, \code{\link[=coef.bgmCompare]{coef.bgmCompare()}}
 
 Other posterior-methods: 
 \code{\link{coef.bgmCompare}()},

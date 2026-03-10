@@ -7,35 +7,33 @@
 extract_main_effects(bgms_object)
 }
 \arguments{
-\item{bgms_object}{A fitted model object of class `bgms` (from [bgm()])
-or `bgmCompare` (from [bgmCompare()]).}
+\item{bgms_object}{A fitted model object of class \code{bgms} (from \code{\link[=bgm]{bgm()}})
+or \code{bgmCompare} (from \code{\link[=bgmCompare]{bgmCompare()}}).}
 }
 \value{
 The structure depends on the model type:
-  \describe{
-    \item{GGM (bgms)}{`NULL` (invisibly). GGM models have no main effects;
-      the precision matrix diagonal contains quadratic effects, accessible
-      via `$posterior_mean_main`.}
-    \item{OMRF (bgms)}{A numeric matrix with one row per variable and one
-      column per category threshold, containing posterior means. Columns
-      beyond the number of categories for a variable are `NA`.}
-    \item{Mixed MRF (bgms)}{A list with two elements:
-      \describe{
-        \item{discrete}{A numeric matrix (p rows x max_categories columns)
-          of posterior mean thresholds for discrete variables.}
-        \item{continuous}{A numeric matrix (q rows x 2 columns) with
-          columns `"mean"` and `"precision"` for continuous variables.}
-      }}
-    \item{bgmCompare}{A matrix with one row per post-warmup iteration,
-      containing posterior samples of baseline main-effect parameters.}
-  }
+\describe{
+\item{GGM (bgms)}{\code{NULL} (invisibly). GGM models have no main effects;
+the precision matrix diagonal is on \code{coef(fit)$pairwise}.}
+\item{OMRF (bgms)}{A numeric matrix with one row per variable and one
+column per category threshold, containing posterior means. Columns
+beyond the number of categories for a variable are \code{NA}.}
+\item{Mixed MRF (bgms)}{A list with two elements:
+\describe{
+\item{discrete}{A numeric matrix (p rows x max_categories columns)
+of posterior mean thresholds for discrete variables.}
+\item{continuous}{A numeric matrix (q rows x 1 column) of
+posterior mean continuous variable means.}
+}}
+\item{bgmCompare}{A matrix with one row per post-warmup iteration,
+containing posterior samples of baseline main-effect parameters.}
+}
 }
 \description{
 Retrieves posterior mean main-effect parameters from a model fitted with
-[bgm()] or [bgmCompare()]. For OMRF models these are category thresholds;
-for mixed MRF models these include both discrete thresholds and continuous
-means and precisions. GGM models have no main effects (the precision
-diagonal represents quadratic effects) and return `NULL`.
+\code{\link[=bgm]{bgm()}} or \code{\link[=bgmCompare]{bgmCompare()}}. For OMRF models these are category thresholds;
+for mixed MRF models these include discrete thresholds and continuous
+means. GGM models have no main effects and return \code{NULL}.
 }
 \details{
 Extract Main Effect Estimates
@@ -48,8 +46,8 @@ extract_main_effects(fit)
 
 }
 \seealso{
-[bgm()], [bgmCompare()], [extract_pairwise_interactions()],
-  [extract_category_thresholds()]
+\code{\link[=bgm]{bgm()}}, \code{\link[=bgmCompare]{bgmCompare()}}, \code{\link[=extract_pairwise_interactions]{extract_pairwise_interactions()}},
+\code{\link[=extract_category_thresholds]{extract_category_thresholds()}}
 
 Other extractors: 
 \code{\link{extract_arguments}()},

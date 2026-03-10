@@ -53,9 +53,7 @@ if not supplied or if all values are zero.}
 \item{variable_type}{What kind of variables are simulated? Can be a single
 character string specifying the variable type of all \code{p} variables at
 once or a vector of character strings of length \code{p} specifying the type
-for each variable separately. Currently, bgm supports ``ordinal'',
-``blume-capel'', and ``continuous''. Binary variables are automatically
-treated as ``ordinal''. Ordinal and Blume-Capel variables can be mixed
+for each variable separately. Currently, bgm supports \verb{ordinal'', }blume-capel'', and \verb{continuous''. Binary variables are automatically treated as }ordinal''. Ordinal and Blume-Capel variables can be mixed
 freely, but continuous variables cannot be mixed with ordinal or Blume-Capel
 variables. When \code{variable_type = "continuous"}, the function simulates
 from a Gaussian graphical model.
@@ -83,7 +81,7 @@ observations. For ordinal/Blume-Capel variables, entries are non-negative
 integers. For continuous variables, entries are real-valued.
 }
 \description{
-`simulate_mrf()` generates observations from a Markov Random
+\code{simulate_mrf()} generates observations from a Markov Random
 Field using user-specified parameters. For ordinal and
 Blume-Capel variables, observations are generated via Gibbs
 sampling. For continuous variables (Gaussian graphical model),
@@ -99,8 +97,8 @@ conditional distribution given the other variable states.
 \strong{Continuous variables (GGM):}
 Observations are drawn from \eqn{N(\mu, \Omega^{-1})}{N(mu, Omega^{-1})}
 where \eqn{\Omega}{Omega} is the precision matrix specified via
-`pairwise` and \eqn{\mu}{mu} is the means vector specified via `main`.
-No Gibbs sampling is needed; `iter` is ignored.
+\code{pairwise} and \eqn{\mu}{mu} is the means vector specified via \code{main}.
+No Gibbs sampling is needed; \code{iter} is ignored.
 
 There are two modeling options for the category thresholds. The default
 option assumes that the category thresholds are free, except that the first

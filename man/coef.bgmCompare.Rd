@@ -14,16 +14,16 @@
 \value{
 A list with components:
 \describe{
-  \item{main_effects_raw}{Posterior means of the raw main-effect parameters
-  (variables x [baseline + differences]).}
-  \item{pairwise_effects_raw}{Posterior means of the raw pairwise-effect parameters
-  (pairs x [baseline + differences]).}
-  \item{main_effects_groups}{Posterior means of group-specific main effects
-  (variables x groups), computed as baseline plus projected differences.}
-  \item{pairwise_effects_groups}{Posterior means of group-specific pairwise effects
-  (pairs x groups), computed as baseline plus projected differences.}
-  \item{indicators}{Posterior mean inclusion probabilities as a symmetric matrix,
-  with diagonals corresponding to main effects and off-diagonals to pairwise effects.}
+\item{main_effects_raw}{Posterior means of the raw main-effect parameters
+(variables x \link{baseline + differences}).}
+\item{pairwise_effects_raw}{Posterior means of the raw pairwise-effect parameters
+(pairs x \link{baseline + differences}).}
+\item{main_effects_groups}{Posterior means of group-specific main effects
+(variables x groups), computed as baseline plus projected differences.}
+\item{pairwise_effects_groups}{Posterior means of group-specific pairwise effects
+(pairs x groups), computed as baseline plus projected differences.}
+\item{indicators}{Posterior mean inclusion probabilities as a symmetric matrix,
+with diagonals corresponding to main effects and off-diagonals to pairwise effects.}
 }
 }
 \description{
@@ -37,7 +37,7 @@ and group-specific effects from a \code{bgmCompare} fit, as well as inclusion in
 
 }
 \seealso{
-[bgmCompare()], [print.bgmCompare()], [summary.bgmCompare()]
+\code{\link[=bgmCompare]{bgmCompare()}}, \code{\link[=print.bgmCompare]{print.bgmCompare()}}, \code{\link[=summary.bgmCompare]{summary.bgmCompare()}}
 
 Other posterior-methods: 
 \code{\link{coef.bgms}()},

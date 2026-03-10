@@ -7,27 +7,27 @@
 extract_indicator_priors(bgms_object)
 }
 \arguments{
-\item{bgms_object}{A fitted model object of class `bgms` (from [bgm()])
-or `bgmCompare` (from [bgmCompare()]).}
+\item{bgms_object}{A fitted model object of class \code{bgms} (from \code{\link[=bgm]{bgm()}})
+or \code{bgmCompare} (from \code{\link[=bgmCompare]{bgmCompare()}}).}
 }
 \value{
 A named list describing the prior structure, including the prior
-  type and any hyperparameters.
-  \describe{
-    \item{bgms}{Requires `edge_selection = TRUE`. Returns a list with the
-      prior type (`"Bernoulli"`, `"Beta-Bernoulli"`, or
-      `"Stochastic-Block"`) and associated hyperparameters.}
-    \item{bgmCompare}{Requires `difference_selection = TRUE`. Returns the
-      difference prior specification.}
-  }
+type and any hyperparameters.
+\describe{
+\item{bgms}{Requires \code{edge_selection = TRUE}. Returns a list with the
+prior type (\code{"Bernoulli"}, \code{"Beta-Bernoulli"}, or
+\code{"Stochastic-Block"}) and associated hyperparameters.}
+\item{bgmCompare}{Requires \code{difference_selection = TRUE}. Returns the
+difference prior specification.}
+}
 }
 \description{
 Retrieves the prior specification used for inclusion indicators in a
-model fitted with [bgm()] (edge indicators) or [bgmCompare()]
+model fitted with \code{\link[=bgm]{bgm()}} (edge indicators) or \code{\link[=bgmCompare]{bgmCompare()}}
 (difference indicators).
 }
 \seealso{
-[bgm()], [bgmCompare()], [extract_indicators()]
+\code{\link[=bgm]{bgm()}}, \code{\link[=bgmCompare]{bgmCompare()}}, \code{\link[=extract_indicators]{extract_indicators()}}
 
 Other extractors: 
 \code{\link{extract_arguments}()},

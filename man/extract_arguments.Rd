@@ -7,20 +7,20 @@
 extract_arguments(bgms_object)
 }
 \arguments{
-\item{bgms_object}{A fitted model object of class `bgms` (from [bgm()])
-or `bgmCompare` (from [bgmCompare()]).}
+\item{bgms_object}{A fitted model object of class \code{bgms} (from \code{\link[=bgm]{bgm()}})
+or \code{bgmCompare} (from \code{\link[=bgmCompare]{bgmCompare()}}).}
 }
 \value{
 A named list containing all arguments passed to the fitting
-  function, including data dimensions, prior settings, and MCMC
-  configuration.
+function, including data dimensions, prior settings, and MCMC
+configuration.
 }
 \description{
-Retrieves the arguments used when fitting a model with [bgm()] or
-[bgmCompare()].
+Retrieves the arguments used when fitting a model with \code{\link[=bgm]{bgm()}} or
+\code{\link[=bgmCompare]{bgmCompare()}}.
 }
 \seealso{
-[bgm()], [bgmCompare()], [summary.bgms()], [summary.bgmCompare()]
+\code{\link[=bgm]{bgm()}}, \code{\link[=bgmCompare]{bgmCompare()}}, \code{\link[=summary.bgms]{summary.bgms()}}, \code{\link[=summary.bgmCompare]{summary.bgmCompare()}}
 
 Other extractors: 
 \code{\link{extract_category_thresholds}()},

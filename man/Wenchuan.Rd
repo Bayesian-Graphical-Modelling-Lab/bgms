@@ -7,33 +7,33 @@
 \format{
 A matrix with 362 rows and 17 columns. Each row represents a participant.
 \describe{
-  \item{intrusion}{Repeated, disturbing memories, thoughts, or images of a
-  stressful experience from the past?}
-  \item{dreams}{Repeated, disturbing dreams of a stressful experience from
-  the past?}
-  \item{flash}{Suddenly acting or feeling as if a stressful experience were
-  happening again (as if you were reliving it)?}
-  \item{upset}{Feeling very upset when something reminded you of a stressful
-  experience from the past?}
-  \item{physior}{Having physical reactions (e.g., heart pounding, trouble
-  breathing, sweating) when something reminded you of a stressful experience
-  from the past?}
-  \item{avoidth}{Avoiding thinking about or talking about a stressful
-  experience from the past or avoiding having feelings related to it?}
-  \item{avoidact}{Avoiding activities or situations because they reminded you
-  of a stressful experience from the past?}
-  \item{amnesia}{Trouble remembering important parts of a stressful
-  experience from the past?}
-  \item{lossint}{Loss of interest in activities that you used to enjoy?}
-  \item{distant}{Feeling distant or cut off from other people?}
-  \item{numb}{Feeling emotionally numb or being unable to have loving
-  feelings for those close to you?}
-  \item{future}{Feeling as if your future will somehow be cut short?}
-  \item{sleep}{Trouble falling or staying asleep?}
-  \item{anger}{Feeling irritable or having angry outbursts?}
-  \item{concen}{Having difficulty concentrating?}
-  \item{hyper}{Being "super-alert" or watchful or on guard?}
-  \item{startle}{Feeling jumpy or easily startled?}
+\item{intrusion}{Repeated, disturbing memories, thoughts, or images of a
+stressful experience from the past?}
+\item{dreams}{Repeated, disturbing dreams of a stressful experience from
+the past?}
+\item{flash}{Suddenly acting or feeling as if a stressful experience were
+happening again (as if you were reliving it)?}
+\item{upset}{Feeling very upset when something reminded you of a stressful
+experience from the past?}
+\item{physior}{Having physical reactions (e.g., heart pounding, trouble
+breathing, sweating) when something reminded you of a stressful experience
+from the past?}
+\item{avoidth}{Avoiding thinking about or talking about a stressful
+experience from the past or avoiding having feelings related to it?}
+\item{avoidact}{Avoiding activities or situations because they reminded you
+of a stressful experience from the past?}
+\item{amnesia}{Trouble remembering important parts of a stressful
+experience from the past?}
+\item{lossint}{Loss of interest in activities that you used to enjoy?}
+\item{distant}{Feeling distant or cut off from other people?}
+\item{numb}{Feeling emotionally numb or being unable to have loving
+feelings for those close to you?}
+\item{future}{Feeling as if your future will somehow be cut short?}
+\item{sleep}{Trouble falling or staying asleep?}
+\item{anger}{Feeling irritable or having angry outbursts?}
+\item{concen}{Having difficulty concentrating?}
+\item{hyper}{Being "super-alert" or watchful or on guard?}
+\item{startle}{Feeling jumpy or easily startled?}
 }
 }
 \source{

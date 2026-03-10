@@ -112,12 +112,12 @@ number of clusters in the Stochastic Block Model. Default: \code{1}.}
 \item{update_method}{Character. Specifies how the MCMC sampler updates
 the model parameters:
 \describe{
-  \item{"adaptive-metropolis"}{Componentwise adaptive Metropolis–Hastings
-    with Robbins–Monro proposal adaptation.}
-  \item{"hamiltonian-mc"}{Hamiltonian Monte Carlo with fixed path length
-    (number of leapfrog steps set by \code{hmc_num_leapfrogs}).}
-  \item{"nuts"}{The No-U-Turn Sampler, an adaptive form of HMC with
-    dynamically chosen trajectory lengths.}
+\item{"adaptive-metropolis"}{Componentwise adaptive Metropolis–Hastings
+with Robbins–Monro proposal adaptation.}
+\item{"hamiltonian-mc"}{Hamiltonian Monte Carlo with fixed path length
+(number of leapfrog steps set by \code{hmc_num_leapfrogs}).}
+\item{"nuts"}{The No-U-Turn Sampler, an adaptive form of HMC with
+dynamically chosen trajectory lengths.}
 }
 Default: \code{"nuts"}.}
 
@@ -174,15 +174,15 @@ Default: \code{FALSE}.}
 approximation used for mixed MRF models (ignored for pure ordinal or
 pure continuous data). Options:
 \describe{
-  \item{\code{"conditional"}}{Conditions on the observed continuous
-    variables when computing the discrete full conditionals. Faster
-    because the discrete pseudo-likelihood does not depend on the
-    continuous precision matrix.}
-  \item{\code{"marginal"}}{Integrates out the continuous variables,
-    giving discrete full conditionals that account for induced
-    interactions through the continuous block. More expensive per
-    iteration but can improve estimation when discrete--continuous
-    coupling is strong.}
+\item{\code{"conditional"}}{Conditions on the observed continuous
+variables when computing the discrete full conditionals. Faster
+because the discrete pseudo-likelihood does not depend on the
+continuous precision matrix.}
+\item{\code{"marginal"}}{Integrates out the continuous variables,
+giving discrete full conditionals that account for induced
+interactions through the continuous block. More expensive per
+iteration but can improve estimation when discrete--continuous
+coupling is strong.}
 }
 Default: \code{"conditional"}.}
 
@@ -191,9 +191,9 @@ during data processing (e.g., missing data handling, variable recoding).
 Defaults to \code{getOption("bgms.verbose", TRUE)}. Set
 \code{options(bgms.verbose = FALSE)} to suppress messages globally.}
 
-\item{interaction_scale, burnin, save, threshold_alpha, threshold_beta}{`r lifecycle::badge("deprecated")`
+\item{interaction_scale, burnin, save, threshold_alpha, threshold_beta}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}}
 Deprecated arguments as of \strong{bgms 0.1.6.0}.
-Use `pairwise_scale`, `warmup`, `main_alpha`, and `main_beta` instead.}
+Use \code{pairwise_scale}, \code{warmup}, \code{main_alpha}, and \code{main_beta} instead.}
 }
 \value{
 A list of class \code{"bgms"} with posterior summaries, posterior mean
@@ -202,63 +202,66 @@ matrices, and access to raw MCMC draws. The object can be passed to
 
 Main components include:
 \itemize{
-  \item \code{posterior_summary_main}: Data frame with posterior summaries
-    (mean, sd, MCSE, ESS, Rhat) for main-effect parameters.
-    For OMRF models these are category thresholds; for GGM models
-    these are precision matrix diagonal entries (quadratic effects);
-    for mixed MRF models these include both discrete thresholds and
-    continuous means and precisions.
-  \item \code{posterior_summary_pairwise}: Data frame with posterior
-    summaries for pairwise interaction parameters.
-  \item \code{posterior_summary_indicator}: Data frame with posterior
-    summaries for edge inclusion indicators (if \code{edge_selection = TRUE}).
+\item \code{posterior_summary_main}: Data frame with posterior summaries
+(mean, sd, MCSE, ESS, Rhat) for main-effect parameters.
+For OMRF models these are category thresholds;
+for mixed MRF models these are discrete thresholds and
+continuous means. \code{NULL} for GGM models (no main effects).
+\item \code{posterior_summary_quadratic}: Data frame with posterior
+summaries for the precision matrix diagonal. Present for GGM and
+mixed MRF models; \code{NULL} for OMRF models.
+\item \code{posterior_summary_pairwise}: Data frame with posterior
+summaries for pairwise interaction parameters.
+\item \code{posterior_summary_indicator}: Data frame with posterior
+summaries for edge inclusion indicators (if \code{edge_selection = TRUE}).
 
-  \item \code{posterior_mean_main}: Posterior mean of per-variable
-    parameters. For OMRF: a matrix (p x max_categories) of category
-    thresholds. For GGM: a (p x 1) matrix of precision diagonal entries
-    (quadratic effects, not main effects). For mixed MRF: a list with
-    \code{$discrete} and \code{$continuous} components.
-  \item \code{posterior_mean_pairwise}: Symmetric matrix of posterior mean
-    pairwise interaction strengths.
-  \item \code{posterior_mean_indicator}: Symmetric matrix of posterior mean
-    inclusion probabilities (if edge selection was enabled).
+\item \code{posterior_mean_main}: Posterior mean of main-effect
+parameters. \code{NULL} for GGM models. For OMRF: a matrix
+(p x max_categories) of category thresholds. For mixed MRF: a list
+with \code{$discrete} (threshold matrix) and \code{$continuous}
+(q x 1 matrix of means).
+\item \code{posterior_mean_pairwise}: Symmetric matrix of posterior mean
+pairwise interaction strengths. For GGM and mixed MRF models the
+precision matrix diagonal is included on the matrix diagonal.
+\item \code{posterior_mean_indicator}: Symmetric matrix of posterior mean
+inclusion probabilities (if edge selection was enabled).
 
-  \item  Additional summaries returned when
-    \code{edge_prior = "Stochastic-Block"}. For more details about this prior
-    see \insertCite{SekulovskiEtAl_2025;textual}{bgms}.
-   \itemize{
-      \item \code{posterior_summary_pairwise_allocations}: Data frame with
-      posterior summaries (mean, sd, MCSE, ESS, Rhat) for the pairwise
-      cluster co-occurrence of the nodes. This serves to indicate
-      whether the estimated posterior allocations,co-clustering matrix
-      and posterior cluster probabilities (see blow) have converged.
-      \item \code{posterior_coclustering_matrix}: a symmetric matrix of
-      pairwise proportions of occurrence of every variable. This matrix
-      can be plotted to visually inspect the estimated number of clusters
-      and visually inspect nodes that tend to switch clusters.
-      \item \code{posterior_mean_allocations}: A vector with the posterior mean
-      of the cluster allocations of the nodes. This is calculated using the method
-      proposed in \insertCite{Dahl2009;textual}{bgms}.
-      \item \code{posterior_mode_allocations}: A vector with the posterior
-       mode of the cluster allocations of the nodes.
-      \item \code{posterior_num_blocks}: A data frame with the estimated
-      posterior inclusion probabilities for all the possible number of clusters.
-      }
-  \item \code{raw_samples}: A list of raw MCMC draws per chain:
-    \describe{
-      \item{\code{main}}{List of main effect samples.}
-      \item{\code{pairwise}}{List of pairwise effect samples.}
-      \item{\code{indicator}}{List of indicator samples
-        (if edge selection enabled).}
-      \item{\code{allocations}}{List of cluster allocations
-        (if SBM prior used).}
-      \item{\code{nchains}}{Number of chains.}
-      \item{\code{niter}}{Number of post–warmup iterations per chain.}
-      \item{\code{parameter_names}}{Named lists of parameter labels.}
-    }
+\item  Additional summaries returned when
+\code{edge_prior = "Stochastic-Block"}. For more details about this prior
+see \insertCite{SekulovskiEtAl_2025;textual}{bgms}.
+\itemize{
+\item \code{posterior_summary_pairwise_allocations}: Data frame with
+posterior summaries (mean, sd, MCSE, ESS, Rhat) for the pairwise
+cluster co-occurrence of the nodes. This serves to indicate
+whether the estimated posterior allocations,co-clustering matrix
+and posterior cluster probabilities (see blow) have converged.
+\item \code{posterior_coclustering_matrix}: a symmetric matrix of
+pairwise proportions of occurrence of every variable. This matrix
+can be plotted to visually inspect the estimated number of clusters
+and visually inspect nodes that tend to switch clusters.
+\item \code{posterior_mean_allocations}: A vector with the posterior mean
+of the cluster allocations of the nodes. This is calculated using the method
+proposed in \insertCite{Dahl2009;textual}{bgms}.
+\item \code{posterior_mode_allocations}: A vector with the posterior
+mode of the cluster allocations of the nodes.
+\item \code{posterior_num_blocks}: A data frame with the estimated
+posterior inclusion probabilities for all the possible number of clusters.
+}
+\item \code{raw_samples}: A list of raw MCMC draws per chain:
+\describe{
+\item{\code{main}}{List of main effect samples.}
+\item{\code{pairwise}}{List of pairwise effect samples.}
+\item{\code{indicator}}{List of indicator samples
+(if edge selection enabled).}
+\item{\code{allocations}}{List of cluster allocations
+(if SBM prior used).}
+\item{\code{nchains}}{Number of chains.}
+\item{\code{niter}}{Number of post–warmup iterations per chain.}
+\item{\code{parameter_names}}{Named lists of parameter labels.}
+}
 
-  \item \code{arguments}: A list of function call arguments and metadata
-    (e.g., number of variables, warmup, sampler settings, package version).
+\item \code{arguments}: A list of function call arguments and metadata
+(e.g., number of variables, warmup, sampler settings, package version).
 }
 
 The \code{summary()} method prints formatted posterior summaries, and
@@ -303,16 +306,16 @@ by distance from this baseline. Category thresholds are modeled as:
 
 where:
 \itemize{
-  \item \eqn{\mu_{c}}: category threshold for category \eqn{c}
-  \item \eqn{\alpha}: linear trend across categories
-  \item \eqn{\beta}: preference toward or away from the baseline
-   \itemize{
-     \item If \eqn{\beta < 0}, the model favors responses near the baseline
-     category;
-     \item if \eqn{\beta > 0}, it favors responses farther away (i.e.,
-     extremes).
-   }
-  \item \eqn{b}: baseline category
+\item \eqn{\mu_{c}}: category threshold for category \eqn{c}
+\item \eqn{\alpha}: linear trend across categories
+\item \eqn{\beta}: preference toward or away from the baseline
+\itemize{
+\item If \eqn{\beta < 0}, the model favors responses near the baseline
+category;
+\item if \eqn{\beta > 0}, it favors responses farther away (i.e.,
+extremes).
+}
+\item \eqn{b}: baseline category
 }
 Accordingly, pairwise interactions between Blume-Capel variables are modeled
 in terms of \eqn{c-b} scores.
@@ -326,11 +329,11 @@ spike-and-slab priors.
 
 Supported priors for edge inclusion:
 \itemize{
-  \item \strong{Bernoulli}: Fixed inclusion probability across edges.
-  \item \strong{Beta-Bernoulli}: Inclusion probability is assigned a Beta
-  prior distribution.
-  \item \strong{Stochastic-Block}: Cluster-based edge priors with Beta,
-  Dirichlet, and Poisson hyperpriors.
+\item \strong{Bernoulli}: Fixed inclusion probability across edges.
+\item \strong{Beta-Bernoulli}: Inclusion probability is assigned a Beta
+prior distribution.
+\item \strong{Stochastic-Block}: Cluster-based edge priors with Beta,
+Dirichlet, and Poisson hyperpriors.
 }
 
 All priors operate via binary indicator variables controlling the inclusion
@@ -341,11 +344,11 @@ or exclusion of each edge in the MRF.
 
 
 \itemize{
-  \item \strong{Pairwise effects}: Modeled with a Cauchy (slab) prior.
-  \item \strong{Main effects}: Modeled using a beta-prime
-  distribution.
-  \item \strong{Edge indicators}: Use either a Bernoulli, Beta-Bernoulli, or
-  Stochastic-Block prior (as above).
+\item \strong{Pairwise effects}: Modeled with a Cauchy (slab) prior.
+\item \strong{Main effects}: Modeled using a beta-prime
+distribution.
+\item \strong{Edge indicators}: Use either a Bernoulli, Beta-Bernoulli, or
+Stochastic-Block prior (as above).
 }
 }
 
@@ -355,20 +358,20 @@ or exclusion of each edge in the MRF.
 Parameters are updated within a Gibbs framework, but the conditional
 updates can be carried out using different algorithms:
 \itemize{
-  \item \strong{Adaptive Metropolis–Hastings}: Componentwise random–walk
-    updates for main effects and pairwise effects. Proposal standard
-    deviations are adapted during burn–in via Robbins–Monro updates
-    toward a target acceptance rate.
+\item \strong{Adaptive Metropolis–Hastings}: Componentwise random–walk
+updates for main effects and pairwise effects. Proposal standard
+deviations are adapted during burn–in via Robbins–Monro updates
+toward a target acceptance rate.
 
-  \item \strong{Hamiltonian Monte Carlo (HMC)}: Joint updates of all
-    parameters using fixed–length leapfrog trajectories. Step size is
-    tuned during warmup via dual–averaging; the diagonal mass matrix can
-    also be adapted if \code{learn_mass_matrix = TRUE}.
+\item \strong{Hamiltonian Monte Carlo (HMC)}: Joint updates of all
+parameters using fixed–length leapfrog trajectories. Step size is
+tuned during warmup via dual–averaging; the diagonal mass matrix can
+also be adapted if \code{learn_mass_matrix = TRUE}.
 
-  \item \strong{No–U–Turn Sampler (NUTS)}: An adaptive extension of HMC
-    that dynamically chooses trajectory lengths. Warmup uses a staged
-    adaptation schedule (fast–slow–fast) to stabilize step size and, if
-    enabled, the mass matrix.
+\item \strong{No–U–Turn Sampler (NUTS)}: An adaptive extension of HMC
+that dynamically chooses trajectory lengths. Warmup uses a staged
+adaptation schedule (fast–slow–fast) to stabilize step size and, if
+enabled, the mass matrix.
 }
 
 When \code{edge_selection = TRUE}, updates of edge–inclusion indicators
@@ -389,28 +392,28 @@ schedule \insertCite{stan-manual}{bgms}. Warmup iterations are
 split into several phases:
 
 \itemize{
-  \item \strong{Stage 1 (fast adaptation)}: A short initial interval
-    where only step size (for HMC/NUTS) is adapted, allowing the chain
-    to move quickly toward the typical set.
+\item \strong{Stage 1 (fast adaptation)}: A short initial interval
+where only step size (for HMC/NUTS) is adapted, allowing the chain
+to move quickly toward the typical set.
 
-  \item \strong{Stage 2 (slow windows)}: A sequence of expanding,
-    memoryless windows where both step size and, if
-    \code{learn_mass_matrix = TRUE}, the diagonal mass matrix are
-    adapted. Each window ends with a reset of the dual–averaging scheme
-    for improved stability.
+\item \strong{Stage 2 (slow windows)}: A sequence of expanding,
+memoryless windows where both step size and, if
+\code{learn_mass_matrix = TRUE}, the diagonal mass matrix are
+adapted. Each window ends with a reset of the dual–averaging scheme
+for improved stability.
 
-  \item \strong{Stage 3a (final fast interval)}: A short interval at the
-    end of the core warmup where the step size is adapted one final time.
+\item \strong{Stage 3a (final fast interval)}: A short interval at the
+end of the core warmup where the step size is adapted one final time.
 
-  \item \strong{Stage 3b (proposal–SD tuning)}: Only active when
-    \code{edge_selection = TRUE} under HMC/NUTS. In this phase,
-    Robbins–Monro adaptation of proposal standard deviations is
-    performed for the Metropolis steps used in edge–selection moves.
+\item \strong{Stage 3b (proposal–SD tuning)}: Only active when
+\code{edge_selection = TRUE} under HMC/NUTS. In this phase,
+Robbins–Monro adaptation of proposal standard deviations is
+performed for the Metropolis steps used in edge–selection moves.
 
-  \item \strong{Stage 3c (graph selection warmup)}: Also only relevant
-    when \code{edge_selection = TRUE}. At the start of this phase, a
-    random graph structure is initialized, and Metropolis–Hastings
-    updates for edge inclusion indicators are switched on.
+\item \strong{Stage 3c (graph selection warmup)}: Also only relevant
+when \code{edge_selection = TRUE}. At the start of this phase, a
+random graph structure is initialized, and Metropolis–Hastings
+updates for edge inclusion indicators are switched on.
 }
 
 When \code{edge_selection = FALSE}, the total number of warmup iterations

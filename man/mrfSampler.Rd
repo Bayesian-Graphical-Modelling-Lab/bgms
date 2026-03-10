@@ -53,9 +53,7 @@ if not supplied or if all values are zero.}
 \item{variable_type}{What kind of variables are simulated? Can be a single
 character string specifying the variable type of all \code{p} variables at
 once or a vector of character strings of length \code{p} specifying the type
-for each variable separately. Currently, bgm supports ``ordinal'',
-``blume-capel'', and ``continuous''. Binary variables are automatically
-treated as ``ordinal''. Ordinal and Blume-Capel variables can be mixed
+for each variable separately. Currently, bgm supports \verb{ordinal'', }blume-capel'', and \verb{continuous''. Binary variables are automatically treated as }ordinal''. Ordinal and Blume-Capel variables can be mixed
 freely, but continuous variables cannot be mixed with ordinal or Blume-Capel
 variables. When \code{variable_type = "continuous"}, the function simulates
 from a Gaussian graphical model.
@@ -78,15 +76,15 @@ a seed is generated from R's random number generator (so \code{set.seed()}
 can be used before calling this function).}
 }
 \value{
-A matrix of simulated observations (see [simulate_mrf()]).
+A matrix of simulated observations (see \code{\link[=simulate_mrf]{simulate_mrf()}}).
 }
 \description{
-`r lifecycle::badge("deprecated")`
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}}
 
-`mrfSampler()` was renamed to [simulate_mrf()] as of bgms 0.1.6.3 to
+\code{mrfSampler()} was renamed to \code{\link[=simulate_mrf]{simulate_mrf()}} as of bgms 0.1.6.3 to
 follow the package's naming conventions.
 }
 \seealso{
-[simulate_mrf()] for the current function.
+\code{\link[=simulate_mrf]{simulate_mrf()}} for the current function.
 }
 \keyword{internal}

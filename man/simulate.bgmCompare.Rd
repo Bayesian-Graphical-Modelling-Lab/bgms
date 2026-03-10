@@ -26,8 +26,8 @@ number of groups). Required argument.}
 
 \item{method}{Character string specifying which parameter estimates to use:
 \describe{
-  \item{\code{"posterior-mean"}}{Use posterior mean parameters (faster,
-    single simulation).}
+\item{\code{"posterior-mean"}}{Use posterior mean parameters (faster,
+single simulation).}
 }}
 
 \item{iter}{Number of Gibbs iterations for equilibration before collecting
@@ -37,7 +37,7 @@ samples. Default: \code{1000}.}
 }
 \value{
 A matrix with \code{nsim} rows and \code{p} columns containing
-  simulated observations for the specified group.
+simulated observations for the specified group.
 }
 \description{
 Generates new observations from the Markov Random Field model for a
@@ -69,7 +69,7 @@ new_data_g2 = simulate(fit, nsim = 100, group = 2)
 }
 \seealso{
 \code{\link{simulate.bgms}} for simulating from single-group models,
-  \code{\link{predict.bgmCompare}} for computing conditional probabilities.
+\code{\link{predict.bgmCompare}} for computing conditional probabilities.
 
 Other prediction: 
 \code{\link{predict.bgmCompare}()},

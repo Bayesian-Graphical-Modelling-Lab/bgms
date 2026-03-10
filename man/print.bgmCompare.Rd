@@ -2,20 +2,20 @@
 % Please edit documentation in R/bgmcompare-methods.r
 \name{print.bgmCompare}
 \alias{print.bgmCompare}
-\title{Print method for `bgmCompare` objects}
+\title{Print method for \code{bgmCompare} objects}
 \usage{
 \method{print}{bgmCompare}(x, ...)
 }
 \arguments{
-\item{x}{An object of class `bgmCompare`.}
+\item{x}{An object of class \code{bgmCompare}.}
 
 \item{...}{Ignored.}
 }
 \value{
-Invisibly returns `x`.
+Invisibly returns \code{x}.
 }
 \description{
-Minimal console output for `bgmCompare` fit objects.
+Minimal console output for \code{bgmCompare} fit objects.
 }
 \examples{
 \donttest{
@@ -24,7 +24,7 @@ Minimal console output for `bgmCompare` fit objects.
 
 }
 \seealso{
-[bgmCompare()], [summary.bgmCompare()], [coef.bgmCompare()]
+\code{\link[=bgmCompare]{bgmCompare()}}, \code{\link[=summary.bgmCompare]{summary.bgmCompare()}}, \code{\link[=coef.bgmCompare]{coef.bgmCompare()}}
 
 Other posterior-methods: 
 \code{\link{coef.bgmCompare}()},

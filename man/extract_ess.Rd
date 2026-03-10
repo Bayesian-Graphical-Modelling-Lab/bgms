@@ -7,19 +7,19 @@
 extract_ess(bgms_object)
 }
 \arguments{
-\item{bgms_object}{A fitted model object of class `bgms` (from [bgm()])
-or `bgmCompare` (from [bgmCompare()]).}
+\item{bgms_object}{A fitted model object of class \code{bgms} (from \code{\link[=bgm]{bgm()}})
+or \code{bgmCompare} (from \code{\link[=bgmCompare]{bgmCompare()}}).}
 }
 \value{
 A named list with ESS values for each parameter type present in
-  the model (e.g., `main`, `pairwise`, `indicator`).
+the model (e.g., \code{main}, \code{pairwise}, \code{indicator}).
 }
 \description{
 Retrieves effective sample size estimates for all parameters from a
-model fitted with [bgm()] or [bgmCompare()].
+model fitted with \code{\link[=bgm]{bgm()}} or \code{\link[=bgmCompare]{bgmCompare()}}.
 }
 \seealso{
-[bgm()], [bgmCompare()], [extract_rhat()]
+\code{\link[=bgm]{bgm()}}, \code{\link[=bgmCompare]{bgmCompare()}}, \code{\link[=extract_rhat]{extract_rhat()}}
 
 Other extractors: 
 \code{\link{extract_arguments}()},

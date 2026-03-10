@@ -7,19 +7,19 @@
 \format{
 A matrix with 986 rows and 9 columns. Each row corresponds to a respondent.
 \describe{
-  \item{language}{Language in which the SBPS was administered: "en" = English, "fr" = French}
-  \item{loose_ends}{I often find myself at “loose ends,” not knowing what to
-  do.}
-  \item{entertain}{I find it hard to entertain myself.}
-  \item{repetitive}{Many things I have to do are repetitive and monotonous.}
-  \item{stimulation}{It takes more stimulation to get me going than most
-  people.}
-  \item{motivated}{I don't feel motivated by most things that I do.}
-  \item{keep_interest}{In most situations, it is hard for me to find
-  something to do or see to keep me interested.}
-  \item{sit_around}{Much of the time, I just sit around doing nothing.}
-  \item{half_dead_dull}{Unless I am doing something exciting, even dangerous,
-  I feel half-dead and dull.}
+\item{language}{Language in which the SBPS was administered: "en" = English, "fr" = French}
+\item{loose_ends}{I often find myself at “loose ends,” not knowing what to
+do.}
+\item{entertain}{I find it hard to entertain myself.}
+\item{repetitive}{Many things I have to do are repetitive and monotonous.}
+\item{stimulation}{It takes more stimulation to get me going than most
+people.}
+\item{motivated}{I don't feel motivated by most things that I do.}
+\item{keep_interest}{In most situations, it is hard for me to find
+something to do or see to keep me interested.}
+\item{sit_around}{Much of the time, I just sit around doing nothing.}
+\item{half_dead_dull}{Unless I am doing something exciting, even dangerous,
+I feel half-dead and dull.}
 }
 }
 \source{
