@@ -228,8 +228,7 @@
 #'     \item{\code{"marginal"}}{Integrates out the continuous variables,
 #'       giving discrete full conditionals that account for induced
 #'       interactions through the continuous block. More expensive per
-#'       iteration but can improve estimation when discrete--continuous
-#'       coupling is strong.}
+#'       iteration.}
 #'   }
 #'   Default: \code{"conditional"}.
 #'
