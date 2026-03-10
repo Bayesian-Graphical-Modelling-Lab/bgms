@@ -138,6 +138,8 @@ generate_data = function(net, n, source = "bgms", iter = 1000L, seed = 1) {
     df = as.data.frame(cbind(sim$x, sim$y))
     names(df) = c(paste0("X", seq_len(net$p)), paste0("Y", seq_len(net$q)))
     df
+  } else {
+    stop('generate_data(): source must be "bgms" or "mixedGM", not "', source, '".')
   }
 }
 
