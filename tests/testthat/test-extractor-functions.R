@@ -870,12 +870,14 @@ test_that("pre-0.1.4 bgm formats emit deprecation warnings for pairwise/threshol
     expect_warning(extract_pairwise_interactions(fit), "deprecated",
       info = paste(spec$label, "extract_pairwise should warn")
     )
-    expect_warning(
-      expect_warning(extract_category_thresholds(fit), "extract_main_effects",
-        info = paste(spec$label, "extract_thresholds should warn")
-      ),
-      "deprecated",
-      info = paste(spec$label, "extract_thresholds inner deprecation")
+    threshold_warnings = capture_warnings(extract_category_thresholds(fit))
+    expect_true(
+      any(grepl("extract_main_effects", threshold_warnings)),
+      info = paste(spec$label, "extract_thresholds should warn about rename")
+    )
+    expect_true(
+      any(grepl("deprecated", threshold_warnings)),
+      info = paste(spec$label, "extract_thresholds should warn about legacy format")
     )
   }
 })
@@ -896,12 +898,14 @@ test_that("0.1.4-0.1.5 formats emit deprecation warnings", {
     expect_warning(extract_pairwise_interactions(fit), "deprecated",
       info = paste(spec$label, "extract_pairwise should warn")
     )
-    expect_warning(
-      expect_warning(extract_category_thresholds(fit), "extract_main_effects",
-        info = paste(spec$label, "extract_thresholds should warn")
-      ),
-      "deprecated",
-      info = paste(spec$label, "extract_thresholds inner deprecation")
+    threshold_warnings = capture_warnings(extract_category_thresholds(fit))
+    expect_true(
+      any(grepl("extract_main_effects", threshold_warnings)),
+      info = paste(spec$label, "extract_thresholds should warn about rename")
+    )
+    expect_true(
+      any(grepl("deprecated", threshold_warnings)),
+      info = paste(spec$label, "extract_thresholds should warn about legacy format")
     )
 
     # bgmCompare also has extract_group_params
