@@ -108,9 +108,9 @@ expand_variable_type = function(variable_type, num_variables) {
 #' @param variable_type What kind of variables are simulated? Can be a single
 #' character string specifying the variable type of all \code{p} variables at
 #' once or a vector of character strings of length \code{p} specifying the type
-#' for each variable separately. Currently, bgm supports ``ordinal'',
-#' ``blume-capel'', and ``continuous''. Binary variables are automatically
-#' treated as ``ordinal''. Ordinal and Blume-Capel variables can be mixed
+#' for each variable separately. Currently, bgm supports \code{"ordinal"},
+#' \code{"blume-capel"}, and \code{"continuous"}. Binary variables are automatically
+#' treated as \code{"ordinal"}. Ordinal and Blume-Capel variables can be mixed
 #' freely, but continuous variables cannot be mixed with ordinal or Blume-Capel
 #' variables. When \code{variable_type = "continuous"}, the function simulates
 #' from a Gaussian graphical model.
