@@ -363,7 +363,7 @@ build_output_bgm = function(spec, raw) {
   # --- Edge selection summaries -----------------------------------------------
   has_sbm = FALSE
   if(edge_selection) {
-    indicator_summary = summarize_indicator(raw, param_names = edge_names)[, -1]
+    indicator_summary = summary_list$indicator[, -1]
     rownames(indicator_summary) = edge_names
     results$posterior_summary_indicator = indicator_summary
 
@@ -645,7 +645,7 @@ build_output_mixed_mrf = function(spec, raw) {
   edge_prior = pr$edge_prior
   has_sbm = FALSE
   if(edge_selection) {
-    indicator_summary = summarize_indicator(raw, param_names = edge_names)[, -1]
+    indicator_summary = summary_list$indicator[, -1]
     rownames(indicator_summary) = edge_names
     results$posterior_summary_indicator = indicator_summary
 

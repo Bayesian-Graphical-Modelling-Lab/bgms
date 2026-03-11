@@ -34,9 +34,9 @@ compute_rhat_ess = function(draws) {
 }
 
 # Basic summarizer for continuous parameters
-summarize_manual = function(fit, component = c("main_samples", "pairwise_samples"), param_names = NULL) {
+summarize_manual = function(fit, component = c("main_samples", "pairwise_samples"), param_names = NULL, array3d = NULL) {
   component = match.arg(component) # Add options later
-  array3d = combine_chains(fit, component)
+  if(is.null(array3d)) array3d = combine_chains(fit, component)
   nparam = dim(array3d)[3]
 
   result = matrix(NA, nparam, 5)
@@ -61,9 +61,9 @@ summarize_manual = function(fit, component = c("main_samples", "pairwise_samples
 }
 
 # Summarize binary indicator variables
-summarize_indicator = function(fit, component = c("indicator_samples"), param_names = NULL) {
+summarize_indicator = function(fit, component = c("indicator_samples"), param_names = NULL, array3d = NULL) {
   component = match.arg(component) # Add options later
-  array3d = combine_chains(fit, component)
+  if(is.null(array3d)) array3d = combine_chains(fit, component)
 
   nparam = dim(array3d)[3]
   nchains = dim(array3d)[2]
@@ -112,9 +112,9 @@ summarize_indicator = function(fit, component = c("indicator_samples"), param_na
 }
 
 # Summarize slab values where indicators are 1
-summarize_slab = function(fit, component = c("pairwise_samples"), param_names = NULL) {
+summarize_slab = function(fit, component = c("pairwise_samples"), param_names = NULL, array3d = NULL) {
   component = match.arg(component) # Add options later
-  array3d = combine_chains(fit, component)
+  if(is.null(array3d)) array3d = combine_chains(fit, component)
   nparam = dim(array3d)[3]
   result = matrix(NA, nparam, 5)
   colnames(result) = c("mean", "sd", "mcse", "n_eff", "Rhat")
@@ -151,12 +151,18 @@ summarize_slab = function(fit, component = c("pairwise_samples"), param_names = 
 summarize_pair = function(fit,
                           indicator_component = c("indicator_samples"),
                           slab_component = c("pairwise_samples"),
-                          param_names = NULL) {
+                          param_names = NULL,
+                          summ_ind = NULL,
+                          summ_slab = NULL,
+                          array3d_id = NULL,
+                          array3d_pw = NULL) {
   indicator_component = match.arg(indicator_component) # Add options later
   slab_component = match.arg(slab_component) # Add options later
 
-  summ_ind = summarize_indicator(fit, component = indicator_component)
-  summ_slab = summarize_slab(fit, component = slab_component)
+  if(is.null(array3d_id)) array3d_id = combine_chains(fit, indicator_component)
+  if(is.null(array3d_pw)) array3d_pw = combine_chains(fit, slab_component)
+  if(is.null(summ_ind)) summ_ind = summarize_indicator(fit, component = indicator_component, array3d = array3d_id)
+  if(is.null(summ_slab)) summ_slab = summarize_slab(fit, component = slab_component, array3d = array3d_pw)
   nparam = nrow(summ_ind)
 
   # EAP = indicator_mean * slab_mean.
@@ -170,8 +176,6 @@ summarize_pair = function(fit,
   n_eff = v / mcse2
 
   rhat = rep(NA_real_, nparam)
-  array3d_pw = combine_chains(fit, slab_component)
-  array3d_id = combine_chains(fit, indicator_component)
   nchains = dim(array3d_pw)[2]
   n_total = prod(dim(array3d_pw)[1:2])
 
@@ -223,32 +227,41 @@ summarize_fit = function(fit, edge_selection = FALSE) {
 
   if(!edge_selection) {
     pair_summary = summarize_manual(fit, component = "pairwise_samples")
-  } else {
-    # Get indicators and slab draws
-    ind_summary = summarize_indicator(fit, component = "indicator_samples")
-    slab_summary = summarize_slab(fit, component = "pairwise_samples")
-
-    all_selected = ind_summary$mean == 1
-
-    # Replace NA with FALSE, so only definite TRUEs are considered
-    all_selected[is.na(all_selected)] = FALSE
-
-    # Use summarize_pair only where not always selected
-    full_summary = summarize_pair(fit,
-      indicator_component = "indicator_samples",
-      slab_component = "pairwise_samples"
-    )
-    manual_summary = summarize_manual(fit, component = "pairwise_samples")
-
-    # Replace rows in full_summary with manual results for fully selected entries
-    if(any(all_selected)) {
-      full_summary[all_selected, ] = manual_summary[all_selected, ]
-    }
-
-    pair_summary = full_summary
+    return(list(main = main_summary, pairwise = pair_summary))
   }
 
-  list(main = main_summary, pairwise = pair_summary)
+  # Build 3D arrays once; reused by all summary functions below
+  array3d_ind = combine_chains(fit, "indicator_samples")
+  array3d_pw = combine_chains(fit, "pairwise_samples")
+
+  # Compute indicator and slab summaries once
+  ind_summary = summarize_indicator(fit, component = "indicator_samples", array3d = array3d_ind)
+  slab_summary = summarize_slab(fit, component = "pairwise_samples", array3d = array3d_pw)
+
+  all_selected = ind_summary$mean == 1
+
+  # Replace NA with FALSE, so only definite TRUEs are considered
+  all_selected[is.na(all_selected)] = FALSE
+
+  # Pass pre-computed summaries and arrays to avoid recomputation
+  full_summary = summarize_pair(fit,
+    indicator_component = "indicator_samples",
+    slab_component = "pairwise_samples",
+    summ_ind = ind_summary,
+    summ_slab = slab_summary,
+    array3d_id = array3d_ind,
+    array3d_pw = array3d_pw
+  )
+  manual_summary = summarize_manual(fit, component = "pairwise_samples", array3d = array3d_pw)
+
+  # Replace rows in full_summary with manual results for fully selected entries
+  if(any(all_selected)) {
+    full_summary[all_selected, ] = manual_summary[all_selected, ]
+  }
+
+  pair_summary = full_summary
+
+  list(main = main_summary, pairwise = pair_summary, indicator = ind_summary)
 }
 
 
