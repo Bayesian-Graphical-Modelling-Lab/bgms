@@ -1,7 +1,7 @@
 # Simulate Observations from a Markov Random Field
 
-\`simulate_mrf()\` generates observations from a Markov Random Field
-using user-specified parameters. For ordinal and Blume-Capel variables,
+`simulate_mrf()` generates observations from a Markov Random Field using
+user-specified parameters. For ordinal and Blume-Capel variables,
 observations are generated via Gibbs sampling. For continuous variables
 (Gaussian graphical model), observations are drawn directly from the
 multivariate normal distribution implied by the precision matrix.
@@ -67,13 +67,13 @@ simulate_mrf(
   What kind of variables are simulated? Can be a single character string
   specifying the variable type of all `p` variables at once or a vector
   of character strings of length `p` specifying the type for each
-  variable separately. Currently, bgm supports “ordinal”, “blume-capel”,
-  and “continuous”. Binary variables are automatically treated as
-  “ordinal”. Ordinal and Blume-Capel variables can be mixed freely, but
-  continuous variables cannot be mixed with ordinal or Blume-Capel
-  variables. When `variable_type = "continuous"`, the function simulates
-  from a Gaussian graphical model. Defaults to
-  `variable_type = "ordinal"`.
+  variable separately. Currently, bgm supports `"ordinal"`,
+  `"blume-capel"`, and `"continuous"`. Binary variables are
+  automatically treated as `"ordinal"`. Ordinal and Blume-Capel
+  variables can be mixed freely, but continuous variables cannot be
+  mixed with ordinal or Blume-Capel variables. When
+  `variable_type = "continuous"`, the function simulates from a Gaussian
+  graphical model. Defaults to `variable_type = "ordinal"`.
 
 - baseline_category:
 
@@ -111,8 +111,8 @@ distribution given the other variable states.
 
 **Continuous variables (GGM):** Observations are drawn from \\N(\mu,
 \Omega^{-1})\\ where \\\Omega\\ is the precision matrix specified via
-\`pairwise\` and \\\mu\\ is the means vector specified via \`main\`. No
-Gibbs sampling is needed; \`iter\` is ignored.
+`pairwise` and \\\mu\\ is the means vector specified via `main`. No
+Gibbs sampling is needed; `iter` is ignored.
 
 There are two modeling options for the category thresholds. The default
 option assumes that the category thresholds are free, except that the
@@ -125,14 +125,14 @@ The Blume-Capel option is specifically designed for ordinal variables
 that have a special type of baseline_category category, such as the
 neutral category in a Likert scale. The Blume-Capel model specifies the
 following quadratic model for the threshold parameters:
-\$\$\mu\_{\text{c}} = \alpha \times (\text{c} - \text{r}) + \beta \times
-(\text{c} - \text{r})^2,\$\$ where \\\mu\_{\text{c}}\\ is the threshold
-for category c (which now includes zero), \\\alpha\\ offers a linear
-trend across categories (increasing threshold values if \\\alpha \> 0\\
-and decreasing threshold values if \\\alpha \<0\\), if \\\beta \< 0\\,
-it offers an increasing penalty for responding in a category further
-away from the baseline_category category r, while \\\beta \> 0\\
-suggests a preference for responding in the baseline_category category.
+\$\$\mu\_{\text{c}} = \alpha (\text{c} - \text{r}) + \beta (\text{c} -
+\text{r})^2\$\$ where \\\mu\_{\text{c}}\\ is the threshold for category
+c (which now includes zero), \\\alpha\\ offers a linear trend across
+categories (increasing threshold values if \\\alpha \> 0\\ and
+decreasing threshold values if \\\alpha \<0\\), if \\\beta \< 0\\, it
+offers an increasing penalty for responding in a category further away
+from the baseline_category category r, while \\\beta \> 0\\ suggests a
+preference for responding in the baseline_category category.
 
 ## See also
 
@@ -165,17 +165,11 @@ x = simulate_mrf(
   pairwise = Pairwise,
   main = Main
 )
-#> Warning: The matrix ``main'' contains numeric values for variable 1 for category 
-#> (categories, i.e., columns) exceding the maximum of 4. These values will 
-#> be ignored.
-#> Warning: The matrix ``main'' contains numeric values for variable 2 for category 
+#> Warning: The matrix ``main'' contains numeric values for variable 3 for category 
 #> (categories, i.e., columns) exceding the maximum of 3. These values will 
 #> be ignored.
 #> Warning: The matrix ``main'' contains numeric values for variable 4 for category 
 #> (categories, i.e., columns) exceding the maximum of 2. These values will 
-#> be ignored.
-#> Warning: The matrix ``main'' contains numeric values for variable 5 for category 
-#> (categories, i.e., columns) exceding the maximum of 1. These values will 
 #> be ignored.
 
 # Generate responses from a network of 2 ordinal and 3 Blume-Capel variables.

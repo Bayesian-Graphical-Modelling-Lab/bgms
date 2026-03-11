@@ -6,13 +6,14 @@ website](reference/figures/bgms_sticker.svg)](https://bayesiangraphicalmodeling.
 **Bayesian analysis of graphical models**
 
 The **bgms** package implements Bayesian estimation and model comparison
-for graphical models of binary, ordinal, and continuous variables
+for graphical models of binary, ordinal, continuous, and mixed variables
 (Marsman, van den Bergh, et al., 2025). It supports **ordinal Markov
-random fields (MRFs)** for discrete data and **Gaussian graphical models
-(GGMs)** for continuous data. The likelihood is approximated with a
-pseudolikelihood, and Markov chain Monte Carlo (MCMC) methods are used
-to sample from the corresponding pseudoposterior distribution of the
-model parameters.
+random fields (MRFs)** for discrete data, **Gaussian graphical models
+(GGMs)** for continuous data, and **mixed MRFs** that combine discrete
+and continuous variables in a single network. The likelihood is
+approximated with a pseudolikelihood, and Markov chain Monte Carlo
+(MCMC) methods are used to sample from the corresponding pseudoposterior
+distribution of the model parameters.
 
 ## Main functions
 
@@ -20,8 +21,9 @@ The package has two main entry points:
 
 - [`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)
   – estimates a single network in a one-sample design. Use
-  `variable_type = "continuous"` for a GGM, or `"ordinal"` (default) for
-  an MRF.
+  `variable_type = "ordinal"` for an MRF, `"continuous"` for a GGM, or a
+  per-variable vector mixing `"ordinal"`, `"blume-capel"`, and
+  `"continuous"` for a mixed MRF.
 - [`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md)
   – compares networks between groups in an independent-sample design.
 
@@ -181,15 +183,28 @@ Fit Bayesian graphical models and compare groups.
 Inspect and summarize fitted models.
 
 - [`print(`*`<bgms>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/print.bgms.md)
-  : Print method for \`bgms\` objects
+  :
+
+  Print method for `bgms` objects
+
 - [`summary(`*`<bgms>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/summary.bgms.md)
-  : Summary method for \`bgms\` objects
+  :
+
+  Summary method for `bgms` objects
+
 - [`coef(`*`<bgms>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/coef.bgms.md)
   : Extract Coefficients from a bgms Object
+
 - [`print(`*`<bgmCompare>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/print.bgmCompare.md)
-  : Print method for \`bgmCompare\` objects
+  :
+
+  Print method for `bgmCompare` objects
+
 - [`summary(`*`<bgmCompare>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/summary.bgmCompare.md)
-  : Summary method for \`bgmCompare\` objects
+  :
+
+  Summary method for `bgmCompare` objects
+
 - [`coef(`*`<bgmCompare>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/coef.bgmCompare.md)
   : Extract Coefficients from a bgmCompare Object
 
@@ -215,7 +230,7 @@ Extract specific components from fitted model objects.
 - [`extract_arguments()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_arguments.md)
   : Extract Model Arguments
 - [`extract_category_thresholds()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_category_thresholds.md)
-  : Extract Category Threshold Estimates
+  **\[deprecated\]** : Extract Category Threshold Estimates
 - [`extract_ess()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_ess.md)
   : Extract Effective Sample Size
 - [`extract_group_params()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_group_params.md)
@@ -224,6 +239,8 @@ Extract specific components from fitted model objects.
   : Extract Indicator Prior Structure
 - [`extract_indicators()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_indicators.md)
   : Extract Indicator Samples
+- [`extract_main_effects()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_main_effects.md)
+  : Extract Main Effect Estimates
 - [`extract_pairwise_interactions()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_pairwise_interactions.md)
   : Extract Pairwise Interaction Samples
 - [`extract_posterior_inclusion_probabilities()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_posterior_inclusion_probabilities.md)
@@ -238,7 +255,7 @@ Extract specific components from fitted model objects.
 Deprecated functions retained for backwards compatibility.
 
 - [`mrfSampler()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/mrfSampler.md)
-  : Sample observations from the ordinal MRF
+  **\[deprecated\]** : Sample observations from the ordinal MRF
 
 ## Datasets
 
@@ -253,8 +270,7 @@ Deprecated functions retained for backwards compatibility.
 
 - [`bgms`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgms-package.md)
   [`bgms-package`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgms-package.md)
-  : bgms: Bayesian Analysis of Networks of Binary and/or Ordinal
-  Variables
+  : bgms: Bayesian Analysis of Graphical Models
 
 # Articles
 

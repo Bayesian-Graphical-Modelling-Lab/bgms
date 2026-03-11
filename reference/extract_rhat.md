@@ -1,7 +1,10 @@
 # Extract R-hat Convergence Diagnostics
 
 Retrieves R-hat convergence diagnostics for all parameters from a model
-fitted with \[bgm()\] or \[bgmCompare()\].
+fitted with
+[`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)
+or
+[`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md).
 
 ## Usage
 
@@ -13,17 +16,21 @@ extract_rhat(bgms_object)
 
 - bgms_object:
 
-  A fitted model object of class \`bgms\` (from \[bgm()\]) or
-  \`bgmCompare\` (from \[bgmCompare()\]).
+  A fitted model object of class `bgms` (from
+  [`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md))
+  or `bgmCompare` (from
+  [`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md)).
 
 ## Value
 
 A named list with R-hat values for each parameter type present in the
-model (e.g., \`main\`, \`pairwise\`, \`indicator\`).
+model (e.g., `main`, `pairwise`, `indicator`).
 
 ## See also
 
-\[bgm()\], \[bgmCompare()\], \[extract_ess()\]
+[`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md),
+[`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md),
+[`extract_ess()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_ess.md)
 
 Other extractors:
 [`extract_arguments()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_arguments.md),
@@ -32,6 +39,7 @@ Other extractors:
 [`extract_group_params()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_group_params.md),
 [`extract_indicator_priors()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_indicator_priors.md),
 [`extract_indicators()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_indicators.md),
+[`extract_main_effects()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_main_effects.md),
 [`extract_pairwise_interactions()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_pairwise_interactions.md),
 [`extract_posterior_inclusion_probabilities()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_posterior_inclusion_probabilities.md),
 [`extract_sbm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_sbm.md)

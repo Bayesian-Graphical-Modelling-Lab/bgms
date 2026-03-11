@@ -1,6 +1,6 @@
-# Print method for \`bgmCompare\` objects
+# Print method for `bgmCompare` objects
 
-Minimal console output for \`bgmCompare\` fit objects.
+Minimal console output for `bgmCompare` fit objects.
 
 ## Usage
 
@@ -13,7 +13,7 @@ print(x, ...)
 
 - x:
 
-  An object of class \`bgmCompare\`.
+  An object of class `bgmCompare`.
 
 - ...:
 
@@ -21,11 +21,13 @@ print(x, ...)
 
 ## Value
 
-Invisibly returns \`x\`.
+Invisibly returns `x`.
 
 ## See also
 
-\[bgmCompare()\], \[summary.bgmCompare()\], \[coef.bgmCompare()\]
+[`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md),
+[`summary.bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/summary.bgmCompare.md),
+[`coef.bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/coef.bgmCompare.md)
 
 Other posterior-methods:
 [`coef.bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/coef.bgmCompare.md),

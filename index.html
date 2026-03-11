@@ -13,8 +13,8 @@
 <link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Bayesian Analysis of Graphical Models">
-<meta name="description" content="Bayesian estimation and variable selection for Markov random field models of networks of binary, ordinal, and continuous variables. Supports Gaussian graphical models, multi-group comparison via bgmCompare, and provides simulation, prediction, and missing data imputation.">
-<meta property="og:description" content="Bayesian estimation and variable selection for Markov random field models of networks of binary, ordinal, and continuous variables. Supports Gaussian graphical models, multi-group comparison via bgmCompare, and provides simulation, prediction, and missing data imputation.">
+<meta name="description" content="Bayesian estimation and variable selection for Markov random field models of networks of binary, ordinal, continuous, and mixed variables. Supports ordinal MRFs, Gaussian graphical models, mixed MRFs combining discrete and continuous variables, multi-group comparison via bgmCompare, and provides simulation, prediction, and missing data imputation.">
+<meta property="og:description" content="Bayesian estimation and variable selection for Markov random field models of networks of binary, ordinal, continuous, and mixed variables. Supports ordinal MRFs, Gaussian graphical models, mixed MRFs combining discrete and continuous variables, multi-group comparison via bgmCompare, and provides simulation, prediction, and missing data imputation.">
 </head>
 <body>
     <a href="#container" class="visually-hidden-focusable">Skip to content</a>
@@ -58,14 +58,14 @@ bgms
 <!-- badges: start -->
 
 <p><strong>Bayesian analysis of graphical models</strong></p>
-<p>The <strong>bgms</strong> package implements Bayesian estimation and model comparison for graphical models of binary, ordinal, and continuous variables (<span class="nocase">Marsman, van den Bergh, et al.</span>, 2025). It supports <strong>ordinal Markov random fields (MRFs)</strong> for discrete data and <strong>Gaussian graphical models (GGMs)</strong> for continuous data. The likelihood is approximated with a pseudolikelihood, and Markov chain Monte Carlo (MCMC) methods are used to sample from the corresponding pseudoposterior distribution of the model parameters.</p>
+<p>The <strong>bgms</strong> package implements Bayesian estimation and model comparison for graphical models of binary, ordinal, continuous, and mixed variables (<span class="nocase">Marsman, van den Bergh, et al.</span>, 2025). It supports <strong>ordinal Markov random fields (MRFs)</strong> for discrete data, <strong>Gaussian graphical models (GGMs)</strong> for continuous data, and <strong>mixed MRFs</strong> that combine discrete and continuous variables in a single network. The likelihood is approximated with a pseudolikelihood, and Markov chain Monte Carlo (MCMC) methods are used to sample from the corresponding pseudoposterior distribution of the model parameters.</p>
 <div class="section level2">
 <h2 id="main-functions">Main functions<a class="anchor" aria-label="anchor" href="#main-functions"></a>
 </h2>
 <p>The package has two main entry points:</p>
 <ul>
 <li>
-<code><a href="reference/bgm.html">bgm()</a></code> – estimates a single network in a one-sample design. Use <code>variable_type = "continuous"</code> for a GGM, or <code>"ordinal"</code> (default) for an MRF.</li>
+<code><a href="reference/bgm.html">bgm()</a></code> – estimates a single network in a one-sample design. Use <code>variable_type = "ordinal"</code> for an MRF, <code>"continuous"</code> for a GGM, or a per-variable vector mixing <code>"ordinal"</code>, <code>"blume-capel"</code>, and <code>"continuous"</code> for a mixed MRF.</li>
 <li>
 <code><a href="reference/bgmCompare.html">bgmCompare()</a></code> – compares networks between groups in an independent-sample design.</li>
 </ul>

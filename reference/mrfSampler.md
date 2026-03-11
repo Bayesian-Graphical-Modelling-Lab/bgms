@@ -1,9 +1,10 @@
 # Sample observations from the ordinal MRF
 
-\`r lifecycle::badge("deprecated")\`
+**\[deprecated\]**
 
-\`mrfSampler()\` was renamed to \[simulate_mrf()\] as of bgms 0.1.6.3 to
-follow the package's naming conventions.
+`mrfSampler()` was renamed to
+[`simulate_mrf()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate_mrf.md)
+as of bgms 0.1.6.3 to follow the package's naming conventions.
 
 ## Usage
 
@@ -66,13 +67,13 @@ mrfSampler(
   What kind of variables are simulated? Can be a single character string
   specifying the variable type of all `p` variables at once or a vector
   of character strings of length `p` specifying the type for each
-  variable separately. Currently, bgm supports “ordinal”, “blume-capel”,
-  and “continuous”. Binary variables are automatically treated as
-  “ordinal”. Ordinal and Blume-Capel variables can be mixed freely, but
-  continuous variables cannot be mixed with ordinal or Blume-Capel
-  variables. When `variable_type = "continuous"`, the function simulates
-  from a Gaussian graphical model. Defaults to
-  `variable_type = "ordinal"`.
+  variable separately. Currently, bgm supports `"ordinal"`,
+  `"blume-capel"`, and `"continuous"`. Binary variables are
+  automatically treated as `"ordinal"`. Ordinal and Blume-Capel
+  variables can be mixed freely, but continuous variables cannot be
+  mixed with ordinal or Blume-Capel variables. When
+  `variable_type = "continuous"`, the function simulates from a Gaussian
+  graphical model. Defaults to `variable_type = "ordinal"`.
 
 - baseline_category:
 
@@ -97,8 +98,10 @@ mrfSampler(
 
 ## Value
 
-A matrix of simulated observations (see \[simulate_mrf()\]).
+A matrix of simulated observations (see
+[`simulate_mrf()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate_mrf.md)).
 
 ## See also
 
-\[simulate_mrf()\] for the current function.
+[`simulate_mrf()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate_mrf.md)
+for the current function.

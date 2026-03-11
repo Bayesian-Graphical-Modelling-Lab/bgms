@@ -1,7 +1,10 @@
 # Extract Indicator Samples
 
 Retrieves posterior samples of inclusion indicators from a model fitted
-with \[bgm()\] (edge inclusion indicators) or \[bgmCompare()\]
+with
+[`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)
+(edge inclusion indicators) or
+[`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md)
 (difference indicators).
 
 ## Usage
@@ -14,8 +17,10 @@ extract_indicators(bgms_object)
 
 - bgms_object:
 
-  A fitted model object of class \`bgms\` (from \[bgm()\]) or
-  \`bgmCompare\` (from \[bgmCompare()\]).
+  A fitted model object of class `bgms` (from
+  [`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md))
+  or `bgmCompare` (from
+  [`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md)).
 
 ## Value
 
@@ -24,17 +29,18 @@ indicator, containing binary (0/1) samples.
 
 - bgms:
 
-  One column per edge. Requires \`edge_selection = TRUE\`.
+  One column per edge. Requires `edge_selection = TRUE`.
 
 - bgmCompare:
 
   Columns for main-effect and pairwise difference indicators. Requires
-  \`difference_selection = TRUE\`.
+  `difference_selection = TRUE`.
 
 ## See also
 
-\[bgm()\], \[bgmCompare()\],
-\[extract_posterior_inclusion_probabilities()\]
+[`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md),
+[`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md),
+[`extract_posterior_inclusion_probabilities()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_posterior_inclusion_probabilities.md)
 
 Other extractors:
 [`extract_arguments()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_arguments.md),
@@ -42,6 +48,7 @@ Other extractors:
 [`extract_ess()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_ess.md),
 [`extract_group_params()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_group_params.md),
 [`extract_indicator_priors()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_indicator_priors.md),
+[`extract_main_effects()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_main_effects.md),
 [`extract_pairwise_interactions()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_pairwise_interactions.md),
 [`extract_posterior_inclusion_probabilities()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_posterior_inclusion_probabilities.md),
 [`extract_rhat()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_rhat.md),

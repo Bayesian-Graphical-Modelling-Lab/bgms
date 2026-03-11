@@ -1,6 +1,6 @@
-# Deprecated: Use extract_category_thresholds instead
+# Deprecated: Use extract_main_effects instead
 
-Deprecated: Use extract_category_thresholds instead
+Deprecated: Use extract_main_effects instead
 
 ## Usage
 

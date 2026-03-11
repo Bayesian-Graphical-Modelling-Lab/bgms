@@ -38,16 +38,11 @@
 <p>Rules for AI agents (Copilot, Claude, etc.) working on this codebase.</p>
 <div class="section level2">
 <h2 id="r-code-style">R code style<a class="anchor" aria-label="anchor" href="#r-code-style"></a></h2>
-<ul><li><p>Use <code>=</code> for assignment, not <code>&lt;-</code>.</p></li>
-<li><p><strong>Exception</strong>: inside function-call arguments where the result must be captured, use <code>&lt;-</code>. With <code>=</code> R treats it as a named argument. Example: <code>expect_message(result &lt;- foo(), "pattern")</code>.</p></li>
-<li><p>No space between <code>if</code>/<code>for</code>/<code>while</code> and <code>(</code>: write <code>if(</code>, not <code>if (</code>.</p></li>
+<ul><li>Use <code>=</code> for assignment, not <code>&lt;-</code>.</li>
 <li>
-<p>Enforced by <code>inst/styler/bgms_style.R</code>. Run before committing:</p>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/source.html" class="external-link">source</a></span><span class="op">(</span><span class="st">"inst/styler/bgms_style.R"</span><span class="op">)</span></span>
-<span><span class="fu">styler</span><span class="fu">::</span><span class="fu">style_pkg</span><span class="op">(</span>style <span class="op">=</span> <span class="va">bgms_style</span><span class="op">)</span></span></code></pre></div>
-<p>After running, check test files for <code>expect_*(result = ...)</code> and revert those to <code>result &lt;- ...</code>.</p>
-</li>
+<strong>Exception</strong>: inside function-call arguments where the result must be captured, use <code>&lt;-</code>. With <code>=</code> R treats it as a named argument. Example: <code>expect_message(result &lt;- foo(), "pattern")</code>.</li>
+<li>No space between <code>if</code>/<code>for</code>/<code>while</code> and <code>(</code>: write <code>if(</code>, not <code>if (</code>.</li>
+<li>Enforced by <code>inst/styler/bgms_style.R</code> (see Pre-commit checks).</li>
 </ul></div>
 <div class="section level2">
 <h2 id="exported-r-functions-tier-1">Exported R functions (Tier 1)<a class="anchor" aria-label="anchor" href="#exported-r-functions-tier-1"></a></h2>
@@ -67,7 +62,7 @@
 <li><p>Use <code># ====</code> banners for file sections, <code># ----</code> banners per function.</p></li>
 <li>
 <p>Format:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># ------------------------------------------------------------------</span></span>
 <span><span class="co"># function_name</span></span>
 <span><span class="co"># ------------------------------------------------------------------</span></span>
@@ -106,6 +101,35 @@
 <li>When modifying a function signature, update its documentation in the same commit.</li>
 <li>When adding a new exported function, add it to <code>_pkgdown.yml</code>.</li>
 </ul></div>
+<div class="section level2">
+<h2 id="pre-commit-checks">Pre-commit checks<a class="anchor" aria-label="anchor" href="#pre-commit-checks"></a></h2>
+<p>Before every commit that touches R code, run these checks and fix any issues they report:</p>
+<ol style="list-style-type: decimal"><li>
+<p><strong>Style</strong> — enforce the project code style:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/source.html" class="external-link">source</a></span><span class="op">(</span><span class="st">"inst/styler/bgms_style.R"</span><span class="op">)</span></span>
+<span><span class="fu">styler</span><span class="fu">::</span><span class="fu">style_pkg</span><span class="op">(</span>style <span class="op">=</span> <span class="va">bgms_style</span><span class="op">)</span></span></code></pre></div>
+<p>After running, check test files for <code>expect_*(result = ...)</code> and revert those to <code>result &lt;- ...</code>.</p>
+</li>
+<li>
+<p><strong>Lint</strong> — catch issues the CI lint workflow will flag:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">lintr</span><span class="fu">::</span><span class="fu">lint_package</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<p>The <code>.lintr</code> config enables <code>T_and_F_symbol_linter()</code> and <code>seq_linter()</code> (among defaults). Fix all findings before committing.</p>
+</li>
+<li>
+<p><strong>Roxygen</strong> — regenerate Rd files if any roxygen comment changed:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">roxygen2</span><span class="fu">::</span><span class="fu">roxygenise</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<p>Stage the regenerated <code>man/*.Rd</code> files in the same commit.</p>
+</li>
+<li>
+<p><strong>R CMD check</strong> — if the change is non-trivial, run:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">rcmdcheck</span><span class="fu">::</span><span class="fu"><a href="http://r-lib.github.io/rcmdcheck/reference/rcmdcheck.html" class="external-link">rcmdcheck</a></span><span class="op">(</span>args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"--no-manual"</span>, <span class="st">"--as-cran"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p>CI uses <code>error-on = "warning"</code>, so warnings are treated as failures.</p>
+</li>
+</ol></div>
 <div class="section level2">
 <h2 id="do-not">Do not<a class="anchor" aria-label="anchor" href="#do-not"></a></h2>
 <ul><li>Add <code>@keywords internal</code> to exported functions.</li>

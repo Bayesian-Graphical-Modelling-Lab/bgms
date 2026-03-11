@@ -28,12 +28,12 @@ A list with components:
 - main_effects_raw:
 
   Posterior means of the raw main-effect parameters (variables x
-  \[baseline + differences\]).
+  (baseline + differences)).
 
 - pairwise_effects_raw:
 
   Posterior means of the raw pairwise-effect parameters (pairs x
-  \[baseline + differences\]).
+  (baseline + differences)).
 
 - main_effects_groups:
 
@@ -53,7 +53,9 @@ A list with components:
 
 ## See also
 
-\[bgmCompare()\], \[print.bgmCompare()\], \[summary.bgmCompare()\]
+[`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md),
+[`print.bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/print.bgmCompare.md),
+[`summary.bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/summary.bgmCompare.md)
 
 Other posterior-methods:
 [`coef.bgms()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/coef.bgms.md),

@@ -1,7 +1,10 @@
 # Extract Pairwise Interaction Samples
 
 Retrieves posterior samples of pairwise interaction parameters from a
-model fitted with \[bgm()\] or \[bgmCompare()\].
+model fitted with
+[`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)
+or
+[`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md).
 
 ## Usage
 
@@ -13,8 +16,10 @@ extract_pairwise_interactions(bgms_object)
 
 - bgms_object:
 
-  A fitted model object of class \`bgms\` (from \[bgm()\]) or
-  \`bgmCompare\` (from \[bgmCompare()\]).
+  A fitted model object of class `bgms` (from
+  [`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md))
+  or `bgmCompare` (from
+  [`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md)).
 
 ## Value
 
@@ -31,7 +36,9 @@ containing posterior samples of interaction strengths.
 
 ## See also
 
-\[bgm()\], \[bgmCompare()\], \[extract_category_thresholds()\]
+[`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md),
+[`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md),
+[`extract_main_effects()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_main_effects.md)
 
 Other extractors:
 [`extract_arguments()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_arguments.md),
@@ -40,6 +47,7 @@ Other extractors:
 [`extract_group_params()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_group_params.md),
 [`extract_indicator_priors()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_indicator_priors.md),
 [`extract_indicators()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_indicators.md),
+[`extract_main_effects()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_main_effects.md),
 [`extract_posterior_inclusion_probabilities()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_posterior_inclusion_probabilities.md),
 [`extract_rhat()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_rhat.md),
 [`extract_sbm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_sbm.md)

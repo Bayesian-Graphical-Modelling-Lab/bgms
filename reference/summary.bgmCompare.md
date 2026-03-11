@@ -1,6 +1,6 @@
-# Summary method for \`bgmCompare\` objects
+# Summary method for `bgmCompare` objects
 
-Returns posterior summaries and diagnostics for a fitted \`bgmCompare\`
+Returns posterior summaries and diagnostics for a fitted `bgmCompare`
 model.
 
 ## Usage
@@ -14,7 +14,7 @@ summary(object, ...)
 
 - object:
 
-  An object of class \`bgmCompare\`.
+  An object of class `bgmCompare`.
 
 - ...:
 
@@ -22,11 +22,13 @@ summary(object, ...)
 
 ## Value
 
-An object of class \`summary.bgmCompare\` with posterior summaries.
+An object of class `summary.bgmCompare` with posterior summaries.
 
 ## See also
 
-\[bgmCompare()\], \[print.bgmCompare()\], \[coef.bgmCompare()\]
+[`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md),
+[`print.bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/print.bgmCompare.md),
+[`coef.bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/coef.bgmCompare.md)
 
 Other posterior-methods:
 [`coef.bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/coef.bgmCompare.md),

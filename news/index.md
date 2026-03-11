@@ -4,6 +4,15 @@
 
 ### New features
 
+- Mixed MRF models:
+  [`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)
+  accepts a per-variable `variable_type` vector that mixes `"ordinal"`,
+  `"blume-capel"`, and `"continuous"` types to estimate networks with
+  both discrete and continuous variables.
+  [`simulate.bgms()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate.bgms.md)
+  and
+  [`predict.bgms()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/predict.bgms.md)
+  also support mixed models.
 - Gaussian graphical models (GGM):
   `bgm(x, variable_type = "continuous")` fits a GGM with Bayesian edge
   selection. Pairwise effects are partial correlations from the

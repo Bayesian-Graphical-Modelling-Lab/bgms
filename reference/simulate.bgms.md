@@ -1,7 +1,8 @@
 # Simulate Data from a Fitted bgms Model
 
 Generates new observations from the Markov Random Field model using the
-estimated parameters from a fitted `bgms` object.
+estimated parameters from a fitted `bgms` object. Supports ordinal,
+Blume-Capel, continuous (GGM), and mixed MRF models.
 
 ## Usage
 
@@ -81,13 +82,18 @@ columns containing simulated observations.
 If `method = "posterior-sample"`: A list of matrices, one per posterior
 draw, each with `nsim` rows and `p` columns.
 
+For mixed MRF models, discrete columns contain non-negative integers and
+continuous columns contain real-valued observations, ordered as in the
+original data.
+
 ## Details
 
 This function uses the estimated interaction and threshold parameters to
 generate new data via Gibbs sampling. When
-`method = "posterior-sample"`, parameter uncertainty is propagated to
-the simulated data by using different posterior draws. Parallel
-processing is available for this method via the `cores` argument.
+`method = "posterior-sample"`, parameter uncertainty is parameter
+uncertainty is propagated to the simulated data by using different
+posterior draws. Parallel processing is available for this method via
+the `cores` argument.
 
 ## See also
 
@@ -111,55 +117,51 @@ fit = bgm(x = Wenchuan[, 1:5], chains = 2)
 #> 7 rows with missing values excluded (n = 355 remaining).
 #> To impute missing values instead, use na_action = "impute".
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 100/2000 (5.0%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 87/2000 (4.3%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 187/4000 (4.7%)
+#> Chain 2 (Warmup): ⦗━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 119/2000 (5.9%)
+#> Total   (Warmup): ⦗━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 219/4000 (5.5%)
 #> Elapsed: 0s | ETA: 0s
-#> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 300/2000 (15.0%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 284/2000 (14.2%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 584/4000 (14.6%)
-#> Elapsed: 1s | ETA: 6s
-#> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 500/2000 (25.0%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 486/2000 (24.3%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 986/4000 (24.6%)
-#> Elapsed: 1s | ETA: 3s
-#> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 700/2000 (35.0%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 703/2000 (35.1%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1403/4000 (35.1%)
-#> Elapsed: 2s | ETA: 4s
+#> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 350/2000 (17.5%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 399/2000 (20.0%)
+#> Total   (Warmup): ⦗━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 749/4000 (18.7%)
+#> Elapsed: 1s | ETA: 4s
+#> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 600/2000 (30.0%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 672/2000 (33.6%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1272/4000 (31.8%)
+#> Elapsed: 1s | ETA: 2s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 900/2000 (45.0%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━⦘ 903/2000 (45.1%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━⦘ 1803/4000 (45.1%)
-#> Elapsed: 3s | ETA: 4s
-#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1100/2000 (55.0%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━⦘ 1103/2000 (55.1%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━⦘ 2203/4000 (55.1%)
-#> Elapsed: 3s | ETA: 2s
-#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1300/2000 (65.0%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1295/2000 (64.8%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2595/4000 (64.9%)
-#> Elapsed: 4s | ETA: 2s
-#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1500/2000 (75.0%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1490/2000 (74.5%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2989/4000 (74.7%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━⦘ 972/2000 (48.6%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1872/4000 (46.8%)
+#> Elapsed: 2s | ETA: 2s
+#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1150/2000 (57.5%)
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1235/2000 (61.8%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2385/4000 (59.6%)
+#> Elapsed: 2s | ETA: 1s
+#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1400/2000 (70.0%)
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━⦘ 1501/2000 (75.0%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━⦘ 2901/4000 (72.5%)
+#> Elapsed: 3s | ETA: 1s
+#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1650/2000 (82.5%)
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━⦘ 1764/2000 (88.2%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━⦘ 3414/4000 (85.4%)
 #> Elapsed: 4s | ETA: 1s
-#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1700/2000 (85.0%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1695/2000 (84.8%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 3395/4000 (84.9%)
-#> Elapsed: 5s | ETA: 1s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1900/2000 (95.0%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1900/2000 (95.0%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 3800/4000 (95.0%)
-#> Elapsed: 5s | ETA: 0s
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2000/2000 (100.0%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 3900/4000 (97.5%)
+#> Elapsed: 4s | ETA: 0s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2000/2000 (100.0%)
 #> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2000/2000 (100.0%)
 #> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 4000/4000 (100.0%)
-#> Elapsed: 6s | ETA: 0s
+#> Elapsed: 4s | ETA: 0s
 
 # Simulate 100 new observations using posterior means
 new_data = simulate(fit, nsim = 100)
 
 # Simulate with parameter uncertainty (10 datasets)
-new_data_list = simulate(fit, nsim = 100, method = "posterior-sample", ndraws = 10)
+new_data_list = simulate(
+  fit,
+  nsim = 100,
+  method = "posterior-sample", ndraws = 10
+)
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 10/10 (100.0%)
 #> Elapsed: 0s | ETA: 0s
 
@@ -168,10 +170,6 @@ new_data_list = simulate(fit,
   nsim = 100, method = "posterior-sample",
   ndraws = 100, cores = 2
 )
-#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 50/100 (50.0%)
-#> Elapsed: 0s | ETA: 0s
-#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 100/100 (100.0%)
-#> Elapsed: 1s | ETA: 0s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 100/100 (100.0%)
 #> Elapsed: 1s | ETA: 0s
 # }
