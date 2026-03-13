@@ -13,8 +13,16 @@
  * Joint model for p discrete (ordinal or Blume-Capel) variables x and
  * q continuous variables y.  The joint density is:
  *
- *   log f(x, y) ∝ Σ_s μ_{x,s}(x_s) + x' Kxx x
- *                  - ½ (y - μ_y)' Kyy (y - μ_y) + 2 x' Kxy y
+ *   log f(x, y) ∝ Σ_s μ_{x,s}(x_s) + x' Kxx x + y' Kyy y + 2 x' Kxy y
+ *
+ * All three interaction blocks (Kxx, Kyy, Kxy) enter the density at
+ * the same scale, so a Cauchy(0, scale) prior has the same meaning for
+ * every block.
+ *
+ * Kyy is stored as the K-scale matrix: negative semi-definite with
+ * negative diagonal.  The positive-definite precision matrix is
+ * Theta = -2 Kyy.  Internally the Cholesky decomposition and covariance
+ * cache operate on Theta.
  *
  * Supports both conditional and marginal pseudo-likelihood, with and
  * without edge selection via spike-and-slab priors.
@@ -290,7 +298,7 @@ private:
     arma::mat main_effects_discrete_;                     ///< p x max_cats main effects (thresholds or alpha/beta)
     arma::vec main_effects_continuous_;                     ///< q-vector continuous means
     arma::mat pairwise_effects_discrete_;                     ///< p x p discrete interactions (symmetric, zero diag)
-    arma::mat pairwise_effects_continuous_;                     ///< q x q SPD precision matrix
+    arma::mat pairwise_effects_continuous_;                     ///< q x q K-scale matrix (Kyy = -½Θ, negative-definite)
     arma::mat pairwise_effects_cross_;                     ///< p x q cross-type interactions
 
     // =========================================================================
@@ -329,10 +337,10 @@ private:
     // Cached quantities
     // =========================================================================
 
-    arma::mat cholesky_of_precision_;       ///< q x q upper Cholesky R (K_yy = R'R)
+    arma::mat cholesky_of_precision_;       ///< q x q upper Cholesky R (Θ = R'R where Θ = -2Kyy)
     arma::mat inv_cholesky_of_precision_;   ///< q x q R^{-1} (upper triangular)
-    arma::mat covariance_continuous_;       ///< q x q K_yy^{-1} = R^{-1} R^{-T}
-    double log_det_precision_;              ///< log|K_yy|
+    arma::mat covariance_continuous_;       ///< q x q Σ = Θ^{-1} = (-2Kyy)^{-1}
+    double log_det_precision_;              ///< log|Θ| = log|-2Kyy|
     arma::mat Theta_;                       ///< p x p marginal PL interaction matrix
     arma::mat conditional_mean_;            ///< n x q conditional mean mu_y + 2 X K_xy Sigma_yy
 

@@ -125,13 +125,14 @@ double MixedMRFModel::log_marginal_omrf(int s) const {
 //   y | x ~ N(conditional_mean_, covariance_continuous_)
 //
 // Uses cached covariance_continuous_, log_det_precision_, and conditional_mean_.
+// The quadratic form uses Theta = -2 Kyy (positive-definite precision).
 // =============================================================================
 
 double MixedMRFModel::log_conditional_ggm() const {
     arma::mat D = continuous_observations_ - conditional_mean_;
 
-    // Quadratic form: trace(K_yy D'D) = sum((D K_yy) .* D)
-    double quad_sum = arma::accu((D * pairwise_effects_continuous_) % D);
+    // Quadratic form: trace(Theta D'D) where Theta = -2 Kyy
+    double quad_sum = arma::accu((D * (-2.0 * pairwise_effects_continuous_)) % D);
 
     return static_cast<double>(n_) / 2.0 *
            (-static_cast<double>(q_) * MY_LOG(2.0 * arma::datum::pi)

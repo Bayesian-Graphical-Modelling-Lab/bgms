@@ -744,8 +744,10 @@ void simulate_mixed_mrf(
   int p = Kxx.n_rows;
   int q = Kyy.n_rows;
 
-  // Precompute Kyy decomposition
-  arma::mat Sigma_y = arma::inv_sympd(Kyy);
+  // Precompute Kyy decomposition: Kyy is K-scale (negative-definite),
+  // Theta = -2 Kyy is positive-definite precision, Sigma = Theta^{-1}.
+  arma::mat Theta_y = -2.0 * Kyy;
+  arma::mat Sigma_y = arma::inv_sympd(Theta_y);
   arma::mat L_Sigma = arma::chol(Sigma_y, "lower");
 
   // Precompute Kxy * Kyy^{-1} for conditional mean

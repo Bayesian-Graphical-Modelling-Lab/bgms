@@ -273,7 +273,7 @@ test_that("mixed MRF discrete conditional probabilities match hand computation",
     0.3, 0.0
   ), nrow = p, byrow = TRUE)
   Kxy = matrix(c(0.2, 0.4), nrow = p, ncol = q)
-  Kyy = matrix(2.0, nrow = q, ncol = q)
+  Kyy = matrix(-1.0, nrow = q, ncol = q)
   mux = matrix(c(-0.5, 0.2), nrow = p, ncol = 1)
   muy = c(0.1)
 
@@ -343,12 +343,15 @@ test_that("mixed MRF discrete conditional probabilities match hand computation",
 # ==============================================================================
 # Test 5: Mixed MRF continuous conditional mean and sd
 # ==============================================================================
+# Kyy is K-scale (negative-definite), Theta = -2 Kyy.
 # For continuous variable j in the mixed MRF:
-#   cond_mean = muy_j + (1/Kyy_jj) * (
-#     -sum_{k != j} Kyy[j,k] * (y_k - muy_k)
+#   theta_jj = -2 * Kyy[j,j]
+#   cond_var = 1 / theta_jj
+#   cond_mean = muy_j + cond_var * (
+#     sum_{k != j} 2 * Kyy[j,k] * (y_k - muy_k)
 #     + sum_s 2 * Kxy[s,j] * (x_s - ref_s)
 #   )
-#   cond_sd = sqrt(1/Kyy_jj)
+#   cond_sd = sqrt(cond_var)
 
 test_that("mixed MRF continuous conditional matches hand computation", {
   n = 3L
@@ -369,7 +372,7 @@ test_that("mixed MRF continuous conditional matches hand computation", {
     0.3, 0.0
   ), nrow = p, byrow = TRUE)
   Kxy = matrix(c(0.2, 0.4), nrow = p, ncol = q)
-  Kyy = matrix(2.0, nrow = q, ncol = q)
+  Kyy = matrix(-1.0, nrow = q, ncol = q)
   mux = matrix(c(-0.5, 0.2), nrow = p, ncol = 1)
   muy = c(0.1)
 
@@ -378,7 +381,8 @@ test_that("mixed MRF continuous conditional matches hand computation", {
   baseline_category = c(0L, 0L)
 
   # Predict continuous variable (index = p = 2, since 0-based: [0,1] are discrete)
-  # cond_var = 1/Kyy[0,0] = 1/2 = 0.5
+  # theta_jj = -2 * Kyy[1,1] = -2 * (-1.0) = 2.0
+  # cond_var = 1/theta_jj = 0.5
   # lp_continuous = 0 (only 1 continuous variable, skip self)
   # lp_discrete = 2 * Kxy[0,0] * (x_1 - 0) + 2 * Kxy[1,0] * (x_2 - 0)
   #             = 2 * 0.2 * x_1 + 2 * 0.4 * x_2
@@ -387,9 +391,11 @@ test_that("mixed MRF continuous conditional matches hand computation", {
   # For n=3: 0.4*1 + 0.8*1 = 1.2
   lp_discrete = c(0.8, 0.4, 1.2)
 
-  hand_mean = muy + (1 / Kyy[1, 1]) * lp_discrete
+  theta_jj = -2 * Kyy[1, 1]
+  cond_var = 1 / theta_jj
+  hand_mean = muy + cond_var * lp_discrete
   # = 0.1 + 0.5 * c(0.8, 0.4, 1.2) = c(0.5, 0.3, 0.7)
-  hand_sd = sqrt(1 / Kyy[1, 1]) # sqrt(0.5)
+  hand_sd = sqrt(cond_var) # sqrt(0.5)
 
   result = compute_conditional_mixed(
     x_observations = x_obs,
@@ -430,7 +436,7 @@ test_that("mixed MRF continuous conditional works for q > 1", {
 
   Kxx = matrix(0.0, nrow = p, ncol = p)
   Kxy = matrix(c(0.2, 0.1), nrow = p, ncol = q)
-  Kyy = matrix(c(2.0, 0.3, 0.3, 1.5), nrow = q, byrow = TRUE)
+  Kyy = matrix(c(-1.0, -0.15, -0.15, -0.75), nrow = q, byrow = TRUE)
   mux = matrix(-0.5, nrow = p, ncol = 1)
   muy = c(0.1, -0.2)
 
@@ -439,9 +445,11 @@ test_that("mixed MRF continuous conditional works for q > 1", {
   baseline_category = c(0L)
 
   # --- Predict continuous variable 0 (internal index p = 1) ---
-  # cond_var_0 = 1/Kyy[0,0] = 1/2 = 0.5
-  # lp_continuous = -Kyy[0,1] * (y[,1] - muy[1])
-  #               = -0.3 * (y[,1] - (-0.2)) = -0.3 * (y[,1] + 0.2)
+  # theta_jj = -2 * Kyy[1,1] = -2 * (-1.0) = 2.0
+  # cond_var_0 = 1/theta_jj = 0.5
+  # lp_continuous = 2 * Kyy[1,2] * (y[,2] - muy[2])
+  #              = 2 * (-0.15) * (y[,2] + 0.2)
+  #              = -0.3 * (y[,2] + 0.2)
   # For n=1: -0.3 * (0.2 + 0.2) = -0.12
   # For n=2: -0.3 * (0.8 + 0.2) = -0.3
   # For n=3: -0.3 * (-0.5 + 0.2) = 0.09
@@ -471,9 +479,10 @@ test_that("mixed MRF continuous conditional works for q > 1", {
   expect_equal(result[[1]][1, 2], hand_sd_y0, tolerance = 1e-10)
 
   # --- Predict continuous variable 1 (internal index p + 1 = 2) ---
-  # cond_var_1 = 1/Kyy[1,1] = 1/1.5
-  # lp_continuous = -Kyy[1,0] * (y[,0] - muy[0])
-  #               = -0.3 * (y[,0] - 0.1)
+  # theta_jj = -2 * Kyy[2,2] = -2 * (-0.75) = 1.5
+  # cond_var_1 = 1/1.5
+  # lp_continuous = 2 * Kyy[2,1] * (y[,1] - muy[1])
+  #              = 2 * (-0.15) * (y[,1] - 0.1) = -0.3 * (y[,1] - 0.1)
   # For n=1: -0.3 * (0.5 - 0.1) = -0.12
   # For n=2: -0.3 * (-0.3 - 0.1) = 0.12
   # For n=3: -0.3 * (1.2 - 0.1) = -0.33
@@ -482,8 +491,9 @@ test_that("mixed MRF continuous conditional works for q > 1", {
   # lp_discrete = 2 * Kxy[0,1] * (x - 0) = 0.2 * c(0, 1, 1)
   lp_disc2 = c(0.0, 0.2, 0.2)
 
-  hand_mean_y1 = muy[2] + (1 / Kyy[2, 2]) * (lp_cont2 + lp_disc2)
-  hand_sd_y1 = sqrt(1 / Kyy[2, 2])
+  theta_jj_y1 = -2 * Kyy[2, 2]
+  hand_mean_y1 = muy[2] + (1 / theta_jj_y1) * (lp_cont2 + lp_disc2)
+  hand_sd_y1 = sqrt(1 / theta_jj_y1)
 
   result2 = compute_conditional_mixed(
     x_observations = x_obs,
@@ -526,7 +536,7 @@ test_that("predicting all variables at once matches individual predictions", {
 
   Kxx = matrix(c(0.0, 0.3, 0.3, 0.0), nrow = p, byrow = TRUE)
   Kxy = matrix(c(0.2, 0.4), nrow = p, ncol = q)
-  Kyy = matrix(2.0, nrow = q, ncol = q)
+  Kyy = matrix(-1.0, nrow = q, ncol = q)
   mux = matrix(c(-0.5, 0.2), nrow = p, ncol = 1)
   muy = c(0.1)
 

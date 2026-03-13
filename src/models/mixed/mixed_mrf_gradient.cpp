@@ -485,20 +485,20 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     // =========================================================================
     // Part 2: GGM conditional log-likelihood and gradients
     // =========================================================================
-    // log p(y | x) = n/2 (log|K_yy| - q log(2π)) - ½ trace(K_yy D'D)
-    // where D = Y - M, M_i = μ_y' + 2 x_i' K_xy Σ_yy
+    // log p(y | x) = n/2 (log|Θ| - q log(2π)) - ½ trace(Θ D'D)
+    // where Θ = -2 Kyy, D = Y - M, M_i = μ_y' + 2 x_i' K_xy Σ_yy
     //
-    // K_yy is fixed, so log|K_yy| contributes to logp but not gradient.
+    // Θ is fixed in this sweep, so log|Θ| contributes to logp but not gradient.
 
-    double quad_sum = arma::accu((D * pairwise_effects_continuous_) % D);
+    double quad_sum = arma::accu((D * (-2.0 * pairwise_effects_continuous_)) % D);
     logp += static_cast<double>(n_) / 2.0 *
             (-static_cast<double>(q_) * MY_LOG(2.0 * arma::datum::pi)
              + log_det_precision_)
           - quad_sum / 2.0;
 
-    // ∂/∂μ_y: K_yy D' 1_n = K_yy sum_over_rows(D)
+    // ∂/∂μ_y: Θ D' 1_n = (-2 Kyy) sum_over_rows(D)
     arma::vec D_colsums = arma::sum(D, 0).t();  // q-vector
-    arma::vec grad_main_effects_continuous_ggm = pairwise_effects_continuous_ * D_colsums;
+    arma::vec grad_main_effects_continuous_ggm = (-2.0 * pairwise_effects_continuous_) * D_colsums;
 
     for(size_t j = 0; j < q_; ++j) {
         grad(main_effects_continuous_grad_offset_ + j) += grad_main_effects_continuous_ggm(j);
@@ -506,13 +506,13 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
 
     // ∂/∂K_xy: The GGM conditional depends on K_xy through M.
     // ∂M/∂pairwise_effects_cross_{s,j} = 2 x_s [Σ_yy]_{j,:}
-    // ∂logp_ggm/∂K_xy = 2 X' D  (shortcut: K_yy Σ_yy = I eliminates K_yy)
+    // ∂logp_ggm/∂K_xy = 2 X' D  (shortcut: Θ Σ_yy = I eliminates Θ)
     //
-    // Correctly: ∂(−½ trace(K_yy D'D))/∂pairwise_effects_cross_{s,j}
-    //   = trace(K_yy D' ∂M/∂pairwise_effects_cross_{s,j})
-    //   = trace(K_yy D' · 2 x_s [Σ_yy]_{j,:})
-    //   = 2 [x_s' D K_yy Σ_yy]_j
-    //   = 2 [x_s' D]_j    (since K_yy Σ_yy = I)
+    // Correctly: ∂(−½ trace(Θ D'D))/∂pairwise_effects_cross_{s,j}
+    //   = trace(Θ D' ∂M/∂pairwise_effects_cross_{s,j})
+    //   = trace(Θ D' · 2 x_s [Σ_yy]_{j,:})
+    //   = 2 [x_s' D Θ Σ_yy]_j
+    //   = 2 [x_s' D]_j    (since Θ Σ_yy = I)
     arma::mat grad_pairwise_effects_cross_ggm = 2.0 * discrete_observations_dbl_t_ * D;  // p x q
 
     for(size_t i = 0; i < p_; ++i) {

@@ -81,8 +81,8 @@ fill_mixed_symmetric = function(values, p, q, disc_idx, cont_idx, dimnames) {
 # ------------------------------------------------------------------
 # Computes slice indices for the mixed MRF flat parameter vector.
 # Groups main-effect indices (discrete thresholds, continuous means),
-# quadratic-effect indices (precision diagonal), and pairwise indices
-# (discrete edges, precision off-diagonal, cross edges).
+# quadratic-effect indices (Kyy diagonal), and pairwise indices
+# (discrete edges, Kyy off-diagonal, cross edges).
 #
 # @param num_thresholds  Total number of discrete threshold parameters.
 # @param p               Number of discrete variables.
@@ -108,7 +108,7 @@ compute_mixed_parameter_indices = function(num_thresholds, p, q) {
   pairwise_cross_end = nt + nxx + q + nxy
   pairwise_continuous_start = nt + nxx + q + nxy + 1L
 
-  # Precision diagonal vs off-diagonal within the continuous block
+  # Kyy diagonal vs off-diagonal within the continuous block
   precision_diag_within = integer(q)
   precision_offdiag_within = integer(nyy_offdiag)
   k_diag = 0L
@@ -501,8 +501,8 @@ build_output_bgm = function(spec, raw) {
 #   C++ indicators:  [Gxx_ut | Gyy_ut | Gxy]
 #
 # Splits into main (discrete thresholds, continuous means),
-# quadratic (precision diagonal), and pairwise (discrete, precision
-# off-diag, cross). The precision diagonal is placed on the diagonal
+# quadratic (Kyy diagonal), and pairwise (discrete, Kyy
+# off-diag, cross). The Kyy diagonal is placed on the diagonal
 # of the pairwise interaction matrix, not under main effects.
 # ==============================================================================
 build_output_mixed_mrf = function(spec, raw) {
@@ -578,7 +578,7 @@ build_output_mixed_mrf = function(spec, raw) {
     names_main = c(names_main, paste0(cont_names[ji], " (mean)"))
   }
   for(ji in seq_len(q)) {
-    names_main = c(names_main, paste0(cont_names[ji], " (precision)"))
+    names_main = c(names_main, paste0(cont_names[ji], " (Kyy)"))
   }
 
   # Pairwise edge names — internal order, mapped to original column names
@@ -700,7 +700,7 @@ build_output_mixed_mrf = function(spec, raw) {
     pairwise_summary$mean, p, q, disc_idx, cont_idx, dn
   )
 
-  # --- Precision diagonal on the pairwise matrix (continuous block) -----------
+  # --- Kyy diagonal on the pairwise matrix (continuous block) ----------------
   kyy_diag_means = main_summary$mean[nt + q + seq_len(q)]
   for(j in seq_len(q)) {
     results$posterior_mean_pairwise[cont_idx[j], cont_idx[j]] = kyy_diag_means[j]

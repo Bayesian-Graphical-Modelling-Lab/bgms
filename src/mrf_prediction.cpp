@@ -176,7 +176,7 @@ Rcpp::List compute_conditional_probs(
 //                         p..p+q-1 refer to continuous variables.
 // @param Kxx              p x p pairwise interactions (diagonal zero).
 // @param Kxy              p x q cross interactions.
-// @param Kyy              q x q precision matrix.
+// @param Kyy              q x q K-scale matrix (negative-definite).
 // @param mux              p x max_cats threshold / Blume-Capel parameters.
 // @param muy              q-vector of continuous means.
 // @param num_categories   p-vector: categories per discrete variable.
@@ -266,16 +266,17 @@ Rcpp::List compute_conditional_mixed(
       // --- Continuous variable: y_j | y_{-j}, x ---
       int j = var_idx - p;
 
-      double omega_jj = Kyy(j, j);
-      double cond_var = 1.0 / omega_jj;
+      // Kyy is K-scale (negative-definite): Theta = -2 Kyy
+      double theta_jj = -2.0 * Kyy(j, j);
+      double cond_var = 1.0 / theta_jj;
       double cond_sd = std::sqrt(cond_var);
 
       // Contribution from other continuous variables:
-      // -sum_{k != j} Kyy[j,k] * (y_k - muy_k)
+      // -sum_{k != j} Theta[j,k] * (y_k - muy_k)
       arma::vec lp_continuous(n, arma::fill::zeros);
       for (int k = 0; k < q; k++) {
         if (k == j) continue;
-        lp_continuous -= Kyy(j, k) * (y_observations.col(k) - muy(k));
+        lp_continuous += 2.0 * Kyy(j, k) * (y_observations.col(k) - muy(k));
       }
 
       // Contribution from discrete variables (factor of 2):

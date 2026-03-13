@@ -658,7 +658,7 @@ extract_main_effects.bgmCompare = function(bgms_object) {
 #' `r lifecycle::badge("deprecated")`
 #'
 #' `extract_category_thresholds()` was renamed to [extract_main_effects()] to
-#' reflect that main effects include continuous means and precisions
+#' reflect that main effects include continuous means and Kyy diagonal
 #' (mixed MRF), not only category thresholds.
 #'
 #' @param bgms_object A fitted model object of class `bgms` (from [bgm()])

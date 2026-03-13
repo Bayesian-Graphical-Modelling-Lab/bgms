@@ -224,7 +224,7 @@
 #'     \item{\code{"conditional"}}{Conditions on the observed continuous
 #'       variables when computing the discrete full conditionals. Faster
 #'       because the discrete pseudo-likelihood does not depend on the
-#'       continuous precision matrix.}
+#'       continuous interaction matrix Kyy.}
 #'     \item{\code{"marginal"}}{Integrates out the continuous variables,
 #'       giving discrete full conditionals that account for induced
 #'       interactions through the continuous block. More expensive per
@@ -332,8 +332,9 @@
 #'     for mixed MRF models these are discrete thresholds and
 #'     continuous means. \code{NULL} for GGM models (no main effects).
 #'   \item \code{posterior_summary_quadratic}: Data frame with posterior
-#'     summaries for the precision matrix diagonal. Present for GGM and
-#'     mixed MRF models; \code{NULL} for OMRF models.
+#'     summaries for the precision matrix diagonal (GGM) or the Kyy
+#'     diagonal (mixed MRF). Present for GGM and mixed MRF models;
+#'     \code{NULL} for OMRF models.
 #'   \item \code{posterior_summary_pairwise}: Data frame with posterior
 #'     summaries for pairwise interaction parameters.
 #'   \item \code{posterior_summary_indicator}: Data frame with posterior
@@ -345,8 +346,9 @@
 #'     with \code{$discrete} (threshold matrix) and \code{$continuous}
 #'     (q x 1 matrix of means).
 #'   \item \code{posterior_mean_pairwise}: Symmetric matrix of posterior mean
-#'     pairwise interaction strengths. For GGM and mixed MRF models the
-#'     precision matrix diagonal is included on the matrix diagonal.
+#'     pairwise interaction strengths. For GGM models the precision matrix
+#'     diagonal is included on the matrix diagonal. For mixed MRF models
+#'     the Kyy diagonal is on the matrix diagonal.
 #'   \item \code{posterior_mean_indicator}: Symmetric matrix of posterior mean
 #'     inclusion probabilities (if edge selection was enabled).
 #'

@@ -70,7 +70,8 @@ make_network = function(p, q, n_cat, variable_type = rep("ordinal", p),
   Kxx[upper.tri(Kxx)] = vals_xx
   Kxx = Kxx + t(Kxx)
 
-  # --- Kyy: continuous precision (positive definite, sparse off-diag with diagonal dominance) ---
+  # --- Kyy: K-scale continuous block (negative-definite; Theta = -2 Kyy) ---
+  # Build a positive-definite precision Theta first, then convert to K-scale.
   n_edges_yy = q * (q - 1) / 2
   mask_yy = rbinom(n_edges_yy, 1, density)
   vals_yy = mask_yy * round(runif(n_edges_yy, 0.05, 0.2) * sample(c(-1, 1), n_edges_yy, replace = TRUE), 2)
@@ -78,6 +79,7 @@ make_network = function(p, q, n_cat, variable_type = rep("ordinal", p),
   Kyy[upper.tri(Kyy)] = vals_yy
   Kyy = Kyy + t(Kyy)
   diag(Kyy) = abs(rowSums(Kyy)) + runif(q, 1.2, 1.8)
+  Kyy = -0.5 * Kyy
 
   # --- Kxy: ordinal-continuous cross interactions ---
   n_cross = p * q
@@ -157,16 +159,14 @@ extract_bgms_blocks = function(fit, net) {
   pm = coef(fit)
   mux = pm$main$discrete # p x max_cat
   muy_vec = pm$main$continuous[, "mean"] # length q
-  Kyy_diag = pm$main$continuous[, "precision"] # length q
 
   pw = pm$pairwise # (p+q) x (p+q)
   p = net$p
   q = net$q
   Kxx = pw[seq_len(p), seq_len(p)]
   Kxy = pw[seq_len(p), p + seq_len(q)]
-  Kyy_off = pw[p + seq_len(q), p + seq_len(q)]
-  Kyy = Kyy_off
-  diag(Kyy) = Kyy_diag
+  # Kyy block (diagonal + off-diagonal) lives on the pairwise matrix
+  Kyy = pw[p + seq_len(q), p + seq_len(q)]
 
   list(mux = mux, muy = muy_vec, Kxx = Kxx, Kxy = Kxy, Kyy = Kyy)
 }

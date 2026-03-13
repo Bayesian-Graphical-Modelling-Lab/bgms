@@ -67,7 +67,7 @@ MixedMRFModel::MixedMRFModel(
     main_effects_discrete_ = arma::zeros<arma::mat>(p_, max_cats_);
     main_effects_continuous_ = arma::zeros<arma::vec>(q_);
     pairwise_effects_discrete_ = arma::zeros<arma::mat>(p_, p_);
-    pairwise_effects_continuous_ = arma::eye<arma::mat>(q_, q_);
+    pairwise_effects_continuous_ = -0.5 * arma::eye<arma::mat>(q_, q_);
     pairwise_effects_cross_ = arma::zeros<arma::mat>(p_, q_);
 
     // Initialize proposal SDs
@@ -77,7 +77,7 @@ MixedMRFModel::MixedMRFModel(
     proposal_sd_pairwise_continuous_ = arma::ones<arma::mat>(q_, q_);
     proposal_sd_pairwise_cross_ = arma::ones<arma::mat>(p_, q_);
 
-    // Initialize precision caches (K_yy starts as identity)
+    // Initialize precision caches (Theta = -2 Kyy starts as identity)
     cholesky_of_precision_ = arma::eye<arma::mat>(q_, q_);
     inv_cholesky_of_precision_ = arma::eye<arma::mat>(q_, q_);
     covariance_continuous_ = arma::eye<arma::mat>(q_, q_);
@@ -230,7 +230,9 @@ void MixedMRFModel::recompute_conditional_mean() {
 }
 
 void MixedMRFModel::recompute_pairwise_effects_continuous_decomposition() {
-    cholesky_of_precision_ = arma::chol(pairwise_effects_continuous_);                // upper Cholesky: K_yy = R'R
+    // Cholesky on Theta = -2 Kyy (positive-definite)
+    arma::mat Theta = -2.0 * pairwise_effects_continuous_;
+    cholesky_of_precision_ = arma::chol(Theta);                // upper Cholesky: Theta = R'R
     arma::inv(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_));
     covariance_continuous_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
     log_det_precision_ = cholesky_helpers::get_log_det(cholesky_of_precision_);
@@ -655,8 +657,11 @@ void MixedMRFModel::impute_missing() {
             const int person = missing_index_continuous_(miss, 0);
             const int variable = missing_index_continuous_(miss, 1);
 
-            // Conditional: y_vj | y_{v,-j}, x ~ N(mu*, 1/pairwise_effects_continuous_jj)
-            // mu* = M_vj - (1/pairwise_effects_continuous_jj) * sum_{k!=j} pairwise_effects_continuous_jk * (y_vk - M_vk)
+            // Conditional: y_vj | y_{v,-j}, x ~ N(mu*, 1/Theta_jj)
+            // where Theta = -2 Kyy. Theta_jk / Theta_jj = Kyy_jk / Kyy_jj.
+            // mu* = M_vj - (1/Theta_jj) sum_{k!=j} Theta_jk (y_vk - M_vk)
+            //      = M_vj - (Kyy_jk / Kyy_jj) (y_vk - M_vk)   [ratio unchanged]
+            double theta_jj = -2.0 * pairwise_effects_continuous_(variable, variable);
             double cond_mean = conditional_mean_(person, variable);
             for(size_t k = 0; k < q_; k++) {
                 if(k != static_cast<size_t>(variable)) {
@@ -665,7 +670,7 @@ void MixedMRFModel::impute_missing() {
                          conditional_mean_(person, k));
                 }
             }
-            double cond_sd = std::sqrt(1.0 / pairwise_effects_continuous_(variable, variable));
+            double cond_sd = std::sqrt(1.0 / theta_jj);
 
             continuous_observations_(person, variable) =
                 rnorm(rng_, cond_mean, cond_sd);

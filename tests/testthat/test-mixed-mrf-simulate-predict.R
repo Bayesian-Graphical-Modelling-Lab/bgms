@@ -29,7 +29,7 @@ test_that("sample_mixed_mrf_gibbs returns correct dimensions", {
   mux = matrix(c(0, 0.5, -0.3, 0, -0.2, 0.1), nrow = p, ncol = 3, byrow = TRUE)
   Kxx = matrix(c(0, 0.3, 0.3, 0), p, p)
   muy = c(0.5, -0.2)
-  Kyy = matrix(c(1.5, 0.2, 0.2, 1.8), q, q)
+  Kyy = matrix(c(-0.75, -0.1, -0.1, -0.9), q, q)
   Kxy = matrix(c(0.1, -0.15, 0.2, 0.05), p, q)
 
   result = sample_mixed_mrf_gibbs(
@@ -52,7 +52,7 @@ test_that("sample_mixed_mrf_gibbs: discrete values in valid range", {
   mux = matrix(0, p, 4)
   Kxx = matrix(0, p, p)
   muy = 0
-  Kyy = matrix(2)
+  Kyy = matrix(-1)
   Kxy = matrix(0, p, q)
 
   result = sample_mixed_mrf_gibbs(
@@ -72,8 +72,9 @@ test_that("sample_mixed_mrf_gibbs: discrete values in valid range", {
   }
 })
 
-test_that("sample_mixed_mrf_gibbs: continuous marginal SD matches precision", {
-  # Independent model: Kxx = 0, Kxy = 0, so y ~ N(muy, Kyy^{-1})
+test_that("sample_mixed_mrf_gibbs: continuous marginal SD matches K-scale", {
+  # Independent model: Kxx = 0, Kxy = 0, so y ~ N(muy, Theta^{-1})
+  # Kyy is K-scale: Theta = -2 Kyy
   p = 1
   q = 2
   n = 2000
@@ -81,8 +82,7 @@ test_that("sample_mixed_mrf_gibbs: continuous marginal SD matches precision", {
   mux = matrix(0, p, 3)
   Kxx = matrix(0)
   muy = c(1.0, -0.5)
-  precision = c(2.0, 0.5)
-  Kyy = diag(precision)
+  Kyy = diag(c(-1.0, -0.25))
   Kxy = matrix(0, p, q)
 
   result = sample_mixed_mrf_gibbs(
@@ -93,7 +93,7 @@ test_that("sample_mixed_mrf_gibbs: continuous marginal SD matches precision", {
   )
 
   for(j in 1:q) {
-    expected_sd = 1 / sqrt(precision[j])
+    expected_sd = 1 / sqrt(-2 * Kyy[j, j])
     empirical_sd = sd(result$y[, j])
     # Loose check: within 30% of expected
     expect_true(
@@ -114,7 +114,7 @@ test_that("sample_mixed_mrf_gibbs: seed reproducibility", {
   mux = matrix(c(0, 0.5, -0.3, 0, -0.2, 0.1), nrow = p, ncol = 3, byrow = TRUE)
   Kxx = matrix(c(0, 0.3, 0.3, 0), p, p)
   muy = 0
-  Kyy = matrix(1)
+  Kyy = matrix(-0.5)
   Kxy = matrix(c(0.1, 0.2), p, q)
 
   args = list(
@@ -144,7 +144,7 @@ test_that("sample_mixed_mrf_gibbs: Blume-Capel variable works", {
 
   Kxx = matrix(c(0, 0.2, 0.2, 0), p, p)
   muy = 0
-  Kyy = matrix(1.5)
+  Kyy = matrix(-0.75)
   Kxy = matrix(c(0.1, -0.1), p, q)
 
   result = sample_mixed_mrf_gibbs(
@@ -174,7 +174,7 @@ test_that("run_mixed_simulation_parallel returns correct structure", {
   )
   kxx_s = matrix(0.3, nrow = ndraws_total, ncol = 1)
   muy_s = matrix(0, nrow = ndraws_total, ncol = 1)
-  kyy_s = matrix(1.5, nrow = ndraws_total, ncol = 1)
+  kyy_s = matrix(-0.75, nrow = ndraws_total, ncol = 1)
   kxy_s = matrix(c(0.1, -0.1), nrow = ndraws_total, ncol = 2, byrow = TRUE)
 
   n_use = 2L
@@ -212,7 +212,7 @@ test_that("compute_conditional_mixed: discrete probs sum to 1", {
   mux = matrix(c(0, 0.5, -0.3, 0, -0.2, 0.1), nrow = p, ncol = 3, byrow = TRUE)
   Kxx = matrix(c(0, 0.3, 0.3, 0), p, p)
   muy = 0
-  Kyy = matrix(1.5)
+  Kyy = matrix(-0.75)
   Kxy = matrix(c(0.1, 0.2), p, q)
 
   x_obs = matrix(c(0L, 1L, 2L, 0L, 1L, 1L, 2L, 0L, 1L, 2L),
@@ -246,7 +246,7 @@ test_that("compute_conditional_mixed: continuous returns mean and sd", {
   mux = matrix(c(0, 0.5, -0.3), nrow = 1, ncol = 3)
   Kxx = matrix(0)
   muy = c(1.0, -0.5)
-  Kyy = matrix(c(2, 0.3, 0.3, 1.5), q, q)
+  Kyy = matrix(c(-1, -0.15, -0.15, -0.75), q, q)
   Kxy = matrix(c(0.1, -0.1), 1, q)
 
   x_obs = matrix(c(0L, 1L, 2L, 1L, 0L), nrow = n, ncol = 1)
@@ -274,7 +274,7 @@ test_that("compute_conditional_mixed: mixed prediction variables", {
   mux = matrix(0, p, 3)
   Kxx = matrix(c(0, 0.3, 0.3, 0), p, p)
   muy = c(0.5, -0.2)
-  Kyy = diag(c(1.5, 1.8))
+  Kyy = diag(c(-0.75, -0.9))
   Kxy = matrix(0.1, p, q)
 
   x_obs = matrix(sample(0:2, n * p, replace = TRUE), n, p)
@@ -398,7 +398,7 @@ test_that("sample_mixed_mrf_gibbs: single discrete variable (p=1, q=2)", {
     num_states = 50L,
     Kxx_r = matrix(0),
     Kxy_r = matrix(c(0.1, -0.1), 1, 2),
-    Kyy_r = diag(c(1.5, 2.0)),
+    Kyy_r = diag(c(-0.75, -1.0)),
     mux_r = matrix(c(0, 0.5), 1, 2),
     muy_r = c(0, 0),
     num_categories_r = 1L,
@@ -417,7 +417,7 @@ test_that("sample_mixed_mrf_gibbs: single continuous variable (p=2, q=1)", {
     num_states = 50L,
     Kxx_r = matrix(c(0, 0.2, 0.2, 0), 2, 2),
     Kxy_r = matrix(c(0.1, -0.1), 2, 1),
-    Kyy_r = matrix(2.0),
+    Kyy_r = matrix(-1.0),
     mux_r = matrix(c(0, 0.5, -0.3, 0, -0.2, 0.1), 2, 3, byrow = TRUE),
     muy_r = 0.5,
     num_categories_r = c(2L, 2L),
@@ -438,7 +438,7 @@ test_that("sample_mixed_mrf_gibbs: minimal mixed MRF (p=1, q=1)", {
 
   Kxx = matrix(0, p, p)
   Kxy = matrix(0.3, p, q)
-  Kyy = matrix(1.5, q, q)
+  Kyy = matrix(-0.75, q, q)
   mux = matrix(c(0, 0.5, -0.3), p, nc + 1)
   muy = 0.2
 
@@ -479,7 +479,7 @@ test_that("sample_mixed_mrf_gibbs handles many categories (4+)", {
 
   Kxx = matrix(c(0, 0.15, 0.15, 0), p, p)
   Kxy = matrix(c(0.2, 0.15), p, q)
-  Kyy = matrix(1.5, q, q)
+  Kyy = matrix(-0.75, q, q)
   mux = matrix(0, p, max(nc))
   mux[1, 1:4] = c(-0.5, 0, 0.3, 0.8)
   mux[2, 1:3] = c(-0.3, 0.2, 0.6)
@@ -522,7 +522,7 @@ test_that("sample_mixed_mrf_gibbs handles large p, small q (p=10, q=1)", {
   Kxy[1, 1] = 0.25
   Kxy[5, 1] = 0.2
 
-  Kyy = matrix(1.5, q, q)
+  Kyy = matrix(-0.75, q, q)
   mux = matrix(0, p, max(nc))
   muy = 0
 
@@ -550,10 +550,10 @@ test_that("sample_mixed_mrf_gibbs handles small p, large q (p=1, q=5)", {
   Kxx = matrix(0, p, p)
   Kxy = matrix(c(0.2, 0.15, 0.1, 0.05, 0.25), p, q)
 
-  # Sparse Kyy
-  Kyy = diag(1.5, q)
-  Kyy[1, 2] = Kyy[2, 1] = 0.2
-  Kyy[3, 4] = Kyy[4, 3] = 0.15
+  # Sparse Kyy (K-scale: negative-definite; Theta = -2 Kyy)
+  Kyy = diag(-0.75, q)
+  Kyy[1, 2] = Kyy[2, 1] = -0.1
+  Kyy[3, 4] = Kyy[4, 3] = -0.075
 
   mux = matrix(0, p, 1)
   muy = rep(0, q)
@@ -569,9 +569,9 @@ test_that("sample_mixed_mrf_gibbs handles small p, large q (p=1, q=5)", {
   expect_equal(dim(result$y), c(n, q))
   expect_true(all(is.finite(result$y)))
 
-  # Kyy diagonal sets marginal variances (when Kxy ~ 0): var_j approx 1/Kyy_jj
+  # K-scale Kyy diagonal sets marginal variances: Theta = -2 Kyy, var_j approx 1/Theta_jj
   for(j in 1:q) {
-    expected_sd = 1 / sqrt(Kyy[j, j])
+    expected_sd = 1 / sqrt(-2 * Kyy[j, j])
     empirical_sd = sd(result$y[, j])
     expect_true(
       abs(empirical_sd - expected_sd) / expected_sd < 0.4,
@@ -590,8 +590,8 @@ test_that("sample_mixed_mrf_gibbs handles correlated Kyy", {
   Kxx = matrix(0, p, p)
   Kxy = matrix(c(0.2, 0.15), p, q)
 
-  # Correlated Kyy with notable off-diagonal
-  Kyy = matrix(c(1.5, 0.5, 0.5, 1.5), q, q)
+  # K-scale Kyy with notable off-diagonal
+  Kyy = matrix(c(-0.75, -0.25, -0.25, -0.75), q, q)
 
   mux = matrix(0, p, 1)
   muy = c(0, 0)
@@ -606,7 +606,8 @@ test_that("sample_mixed_mrf_gibbs handles correlated Kyy", {
   expect_equal(dim(result$y), c(n, q))
   expect_true(all(is.finite(result$y)))
 
-  # With positive off-diagonal precision, y1 and y2 should be negatively correlated
+  # With negative off-diagonal Kyy (positive off-diagonal precision),
+  # y1 and y2 should be negatively correlated
   r = cor(result$y[, 1], result$y[, 2])
   expect_true(r < 0.1, info = sprintf("expected negative or near-zero cor, got %.3f", r))
 })
@@ -621,7 +622,7 @@ test_that("bgm() fits mixed MRF with many categories", {
 
   Kxx = matrix(c(0, 0.15, 0.15, 0), p, p)
   Kxy = matrix(c(0.2, 0.15), p, q)
-  Kyy = matrix(1.5, q, q)
+  Kyy = matrix(-0.75, q, q)
   mux = matrix(0, p, max(nc))
   mux[1, 1:4] = c(-0.5, 0, 0.3, 0.8)
   mux[2, 1:3] = c(-0.3, 0.2, 0.6)
@@ -659,7 +660,7 @@ test_that("bgm() fits mixed MRF with large p, small q", {
   Kxx[1, 2] = Kxx[2, 1] = 0.2
   Kxy = matrix(0, p, q)
   Kxy[1, 1] = 0.15
-  Kyy = matrix(1.5, q, q)
+  Kyy = matrix(-0.75, q, q)
   mux = matrix(0, p, max(nc))
 
   generated = sample_mixed_mrf_gibbs(
@@ -691,8 +692,8 @@ test_that("bgm() fits mixed MRF with small p, large q", {
 
   Kxx = matrix(0, p, p)
   Kxy = matrix(c(0.2, 0.1, 0.05, 0.15), p, q)
-  Kyy = diag(1.5, q)
-  Kyy[1, 2] = Kyy[2, 1] = 0.2
+  Kyy = diag(-0.75, q)
+  Kyy[1, 2] = Kyy[2, 1] = -0.1
   mux = matrix(0, p, 1)
 
   generated = sample_mixed_mrf_gibbs(

@@ -826,11 +826,11 @@ test_that("bgm mixed MRF summary-matrix consistency", {
   )
 })
 
-test_that("bgm mixed MRF posterior precision diagonals are positive", {
+test_that("bgm mixed MRF posterior Kyy diagonals are negative (K-scale)", {
   fit = get_bgms_fit_mixed_mrf_no_es()
   args = extract_arguments(fit)
   cont_idx = args$continuous_indices
-  expect_true(all(diag(fit$posterior_mean_pairwise)[cont_idx] > 0))
+  expect_true(all(diag(fit$posterior_mean_pairwise)[cont_idx] < 0))
 })
 
 test_that("bgm mixed MRF marginal pseudolikelihood runs", {
@@ -1006,7 +1006,7 @@ test_that("bgm mixed MRF output has correct parameter ordering", {
     -0.3, 0.15 # d3-c1 = -0.3, d3-c2 = 0.15
   ), p, q, byrow = TRUE)
 
-  Kyy = diag(c(1.5, 2.0))
+  Kyy = diag(c(-0.75, -1.0))
   Kyy[1, 2] = Kyy[2, 1] = 0.0 # c1-c2 = 0 (swap sentinel)
 
   nc = c(2L, 2L, 2L)
