@@ -254,18 +254,17 @@ test_that("bgms outputs are numerically sane (stochastic-robust)", {
           )
         },
 
-        # main effects: GGM has no main; precision diagonal is on pairwise
+        # main effects: GGM has no main; precision diagonal stored separately
         function(res, ctx) {
-          # Precision diagonal should be on the pairwise matrix diagonal
-          fld = "posterior_mean_pairwise"
-          vals = diag(res[[fld]])
+          fld = "posterior_mean_precision_diagonal"
+          vals = res[[fld]]
 
-          expect_true(!is.null(vals), info = sprintf("%s diag(%s) missing", ctx, fld))
+          expect_true(!is.null(vals), info = sprintf("%s %s missing", ctx, fld))
           expect_equal(length(vals), p_ggm,
-            info = sprintf("%s diag(%s) wrong length", ctx, fld)
+            info = sprintf("%s %s wrong length", ctx, fld)
           )
           expect_true(all(is.finite(vals)),
-            info = sprintf("%s diag(%s) has non-finite values", ctx, fld)
+            info = sprintf("%s %s has non-finite values", ctx, fld)
           )
         }
       )

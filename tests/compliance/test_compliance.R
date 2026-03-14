@@ -98,7 +98,7 @@
 
 library(bgms)
 
-fixture_dir = file.path("tests", "compliance", "fixtures")
+fixture_dir = file.path("fixtures")
 
 if(!file.exists(file.path(fixture_dir, "manifest.rds"))) {
   stop("No fixtures found. Run tests/compliance/generate_fixtures.R first.")

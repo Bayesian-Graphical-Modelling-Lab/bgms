@@ -1553,19 +1553,23 @@ recode_data_for_prediction = function(x, num_categories, is_ordinal) {
 # Reconstruct the full precision matrix from posterior mean components.
 #
 # @param posterior_mean_pairwise p x p symmetric matrix with off-diagonal
-#   precision elements. For GGM and mixed MRF models the precision matrix
-#   diagonal is already included on the matrix diagonal.
+#   precision elements (zero diagonal). For standalone GGM these are
+#   already on precision scale.
+# @param precision_diagonal Named numeric vector of precision diagonal
+#   elements (on precision scale Theta_ii for GGM).
 #
 # @return p x p precision matrix (Omega).
-reconstruct_precision = function(posterior_mean_pairwise) {
+reconstruct_precision = function(posterior_mean_pairwise, precision_diagonal) {
   omega = posterior_mean_pairwise
   # Excluded edges (NA) have zero precision
   omega[is.na(omega)] = 0
+  diag(omega) = precision_diagonal
   return(omega)
 }
 
 
 # Reconstruct precision matrix from a single posterior draw.
+# GGM raw samples are already on precision scale (Theta).
 #
 # @param pairwise_vec Vector of p*(p-1)/2 off-diagonal precision elements
 #   (lower-triangle order).
@@ -1604,7 +1608,8 @@ predict_bgms_ggm = function(object, newdata, predict_vars, data_columnnames,
   if(method == "posterior-mean") {
     # Reconstruct precision matrix from posterior means
     omega = reconstruct_precision(
-      object$posterior_mean_pairwise
+      object$posterior_mean_pairwise,
+      object$posterior_mean_precision_diagonal
     )
 
     result = compute_conditional_ggm(
@@ -1718,9 +1723,10 @@ simulate_bgms_ggm = function(object, nsim, seed, method, ndraws,
                              num_variables, data_columnnames,
                              cores, progress_type) {
   if(method == "posterior-mean") {
-    # Reconstruct precision matrix: diagonal is already on posterior_mean_pairwise
+    # Reconstruct precision matrix from off-diagonal + separate diagonal
     precision = reconstruct_precision(
-      object$posterior_mean_pairwise
+      object$posterior_mean_pairwise,
+      object$posterior_mean_precision_diagonal
     )
 
     # Call simulate_mrf with variable_type = "continuous"
@@ -2065,6 +2071,11 @@ build_mixed_params_mean = function(object, arguments) {
     for(j in seq_len(q)) {
       Kyy[i, j] = pmat[cont_idx[i], cont_idx[j]]
     }
+  }
+  # Inject the separately stored precision diagonal
+  kyy_diag = object$posterior_mean_precision_diagonal
+  for(j in seq_len(q)) {
+    Kyy[j, j] = kyy_diag[j]
   }
 
   mux = object$posterior_mean_main$discrete

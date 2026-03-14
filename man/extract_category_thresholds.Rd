@@ -17,7 +17,7 @@ See \code{\link[=extract_main_effects]{extract_main_effects()}} for details.
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}}
 
 \code{extract_category_thresholds()} was renamed to \code{\link[=extract_main_effects]{extract_main_effects()}} to
-reflect that main effects include continuous means and precisions
+reflect that main effects include continuous means and Kyy diagonal
 (mixed MRF), not only category thresholds.
 }
 \details{
@@ -32,9 +32,12 @@ Other extractors:
 \code{\link{extract_group_params}()},
 \code{\link{extract_indicator_priors}()},
 \code{\link{extract_indicators}()},
+\code{\link{extract_log_odds}()},
 \code{\link{extract_main_effects}()},
 \code{\link{extract_pairwise_interactions}()},
+\code{\link{extract_partial_correlations}()},
 \code{\link{extract_posterior_inclusion_probabilities}()},
+\code{\link{extract_precision}()},
 \code{\link{extract_rhat}()},
 \code{\link{extract_sbm}()}
 }

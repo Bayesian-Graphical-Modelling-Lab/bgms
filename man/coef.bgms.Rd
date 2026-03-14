@@ -19,9 +19,8 @@ GGM models (no main effects). For OMRF models this is a numeric matrix
 (p x max_categories) of category thresholds. For mixed MRF models this
 is a list with \code{$discrete} (p x max_categories matrix) and
 \code{$continuous} (q x 1 matrix of means).}
-\item{pairwise}{Posterior mean of the pairwise interaction matrix. For GGM
-and mixed MRF models the precision matrix diagonal is included on the
-matrix diagonal.}
+\item{pairwise}{Posterior mean of the pairwise interaction matrix (zero
+diagonal). Use \code{\link[=extract_precision]{extract_precision()}} for the full precision matrix.}
 \item{indicator}{Posterior mean of the edge inclusion indicators (if available).}
 }
 }

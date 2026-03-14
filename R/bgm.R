@@ -346,9 +346,13 @@
 #'     with \code{$discrete} (threshold matrix) and \code{$continuous}
 #'     (q x 1 matrix of means).
 #'   \item \code{posterior_mean_pairwise}: Symmetric matrix of posterior mean
-#'     pairwise interaction strengths. For GGM models the precision matrix
-#'     diagonal is included on the matrix diagonal. For mixed MRF models
-#'     the Kyy diagonal is on the matrix diagonal.
+#'     pairwise interaction strengths (zero diagonal). Use
+#'     [extract_precision()] to obtain the full precision matrix.
+#'   \item \code{posterior_mean_precision_diagonal}: Named numeric vector of
+#'     precision-matrix diagonal entries. For GGM: the diagonal
+#'     \eqn{\Theta_{ii}}{Theta_ii} (positive). For mixed MRF: the Kyy
+#'     diagonal on K-scale. Present for GGM and mixed MRF models;
+#'     \code{NULL} for OMRF.
 #'   \item \code{posterior_mean_indicator}: Symmetric matrix of posterior mean
 #'     inclusion probabilities (if edge selection was enabled).
 #'

@@ -148,12 +148,12 @@ test_that("bgms fit objects have posterior_mean fields for simulate/predict", {
     )
 
     if(isTRUE(args$is_continuous)) {
-      # GGM: no main effects; precision diagonal is on pairwise matrix
+      # GGM: no main effects; precision diagonal stored separately
       expect_null(fit$posterior_mean_main,
         info = paste(ctx, "GGM posterior_mean_main should be NULL")
       )
-      expect_true(all(diag(fit$posterior_mean_pairwise) > 0),
-        info = paste(ctx, "GGM pairwise diagonal should be positive")
+      expect_true(all(fit$posterior_mean_precision_diagonal > 0),
+        info = paste(ctx, "GGM precision diagonal should be positive (Theta_ii)")
       )
     } else if(isTRUE(spec$is_mixed)) {
       expect_true(is.list(fit$posterior_mean_main),

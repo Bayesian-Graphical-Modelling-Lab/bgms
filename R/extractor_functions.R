@@ -515,7 +515,7 @@ extract_pairwise_interactions.bgmCompare = function(bgms_object) {
 #' @return The structure depends on the model type:
 #'   \describe{
 #'     \item{GGM (bgms)}{`NULL` (invisibly). GGM models have no main effects;
-#'       the precision matrix diagonal is on `coef(fit)$pairwise`.}
+#'       use [extract_precision()] to obtain the precision matrix.}
 #'     \item{OMRF (bgms)}{A numeric matrix with one row per variable and one
 #'       column per category threshold, containing posterior means. Columns
 #'       beyond the number of categories for a variable are `NA`.}
@@ -550,7 +550,7 @@ extract_main_effects = function(bgms_object) {
 extract_main_effects.bgms = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
 
-  # GGM: no main effects; precision diagonal is on the pairwise matrix
+  # GGM: no main effects; use extract_precision() for the precision matrix
   if(isTRUE(arguments$is_continuous)) {
     return(invisible(NULL))
   }
@@ -1124,4 +1124,206 @@ extract_ess.bgmCompare = function(bgms_object) {
   }
 
   return(result)
+}
+
+
+#' Extract Posterior Mean Precision Matrix
+#'
+#' @title Extract Posterior Mean Precision Matrix
+#'
+#' @description
+#' Retrieves the posterior mean precision matrix from a model fitted with
+#' [bgm()]. For GGM models this is the full p x p precision matrix. For
+#' mixed MRF models this is the q x q precision matrix of the continuous
+#' (Gaussian) block. OMRF models have no precision matrix and return `NULL`.
+#'
+#' For mixed MRF models the precision matrix is reconstructed from the
+#' internal K-scale parameterization as \eqn{\Theta = -2K}{Theta = -2K}.
+#'
+#' @param bgms_object A fitted model object of class `bgms` (from [bgm()]).
+#'
+#' @return A named numeric matrix containing the posterior mean precision
+#'   matrix, or `NULL` for OMRF models.
+#'   \describe{
+#'     \item{GGM}{A p x p symmetric matrix with variable names as row and
+#'       column names.}
+#'     \item{Mixed MRF}{A q x q symmetric matrix for the continuous variables,
+#'       with continuous variable names as row and column names.}
+#'     \item{OMRF}{`NULL` (invisibly).}
+#'   }
+#'
+#' @examples
+#' \donttest{
+#' fit = bgm(x = Wenchuan[, 1:3])
+#' extract_precision(fit)
+#' }
+#'
+#' @seealso [bgm()], [coef.bgms()], [extract_partial_correlations()]
+#' @family extractors
+#' @export
+extract_precision = function(bgms_object) {
+  UseMethod("extract_precision")
+}
+
+#' @inheritParams extract_precision
+#' @exportS3Method
+#' @noRd
+extract_precision.bgms = function(bgms_object) {
+  arguments = extract_arguments(bgms_object)
+
+  # OMRF: no precision matrix
+  if(!isTRUE(arguments$is_continuous) && !isTRUE(arguments$is_mixed)) {
+    return(invisible(NULL))
+  }
+
+  prec_diag = bgms_object$posterior_mean_precision_diagonal
+  pairwise = bgms_object$posterior_mean_pairwise
+
+  if(isTRUE(arguments$is_mixed)) {
+    # Mixed MRF: extract the q x q continuous block (K-scale → precision)
+    cont_idx = arguments$continuous_indices
+    cont_names = arguments$data_columnnames_continuous
+    K_block = pairwise[cont_idx, cont_idx]
+    diag(K_block) = prec_diag
+    precision = -2 * K_block
+    dimnames(precision) = list(cont_names, cont_names)
+    return(precision)
+  }
+
+  # GGM: off-diagonal and diagonal are already on precision scale
+  precision = pairwise
+  diag(precision) = prec_diag
+  return(precision)
+}
+
+
+#' Extract Posterior Mean Partial Correlations
+#'
+#' @title Extract Posterior Mean Partial Correlations
+#'
+#' @description
+#' Computes the posterior mean partial correlation matrix from a model fitted
+#' with [bgm()]. For GGM models this is the full p x p matrix. For mixed
+#' MRF models this is the q x q matrix for the continuous block. OMRF models
+#' have no partial correlations and return `NULL`.
+#'
+#' Partial correlations are computed from the precision matrix as
+#' \eqn{\rho_{ij} = -\Theta_{ij} / \sqrt{\Theta_{ii} \Theta_{jj}}}{rho_ij = -Theta_ij / sqrt(Theta_ii * Theta_jj)}.
+#'
+#' @param bgms_object A fitted model object of class `bgms` (from [bgm()]).
+#'
+#' @return A named numeric matrix containing posterior mean partial
+#'   correlations, or `NULL` for OMRF models.
+#'   \describe{
+#'     \item{GGM}{A p x p symmetric matrix with ones on the diagonal.}
+#'     \item{Mixed MRF}{A q x q symmetric matrix for the continuous variables.}
+#'     \item{OMRF}{`NULL` (invisibly).}
+#'   }
+#'
+#' @examples
+#' \donttest{
+#' fit = bgm(x = Wenchuan[, 1:3])
+#' extract_partial_correlations(fit)
+#' }
+#'
+#' @seealso [bgm()], [extract_precision()]
+#' @family extractors
+#' @export
+extract_partial_correlations = function(bgms_object) {
+  UseMethod("extract_partial_correlations")
+}
+
+#' @inheritParams extract_partial_correlations
+#' @exportS3Method
+#' @noRd
+extract_partial_correlations.bgms = function(bgms_object) {
+  arguments = extract_arguments(bgms_object)
+
+  # OMRF: no partial correlations
+  if(!isTRUE(arguments$is_continuous) && !isTRUE(arguments$is_mixed)) {
+    return(invisible(NULL))
+  }
+
+  prec_diag = bgms_object$posterior_mean_precision_diagonal
+  pairwise = bgms_object$posterior_mean_pairwise
+
+  if(isTRUE(arguments$is_mixed)) {
+    # Mixed MRF: K-scale. rho_ij = K_ij / sqrt(K_ii * K_jj)
+    cont_idx = arguments$continuous_indices
+    cont_names = arguments$data_columnnames_continuous
+    K_block = pairwise[cont_idx, cont_idx]
+    diag(K_block) = prec_diag
+    d = sqrt(prec_diag)
+    partial_corr = K_block / outer(d, d)
+    dimnames(partial_corr) = list(cont_names, cont_names)
+    return(partial_corr)
+  }
+
+  # GGM: precision scale. rho_ij = -Theta_ij / sqrt(Theta_ii * Theta_jj)
+  theta = pairwise
+  diag(theta) = prec_diag
+  d = sqrt(prec_diag)
+  partial_corr = -theta / outer(d, d)
+  return(partial_corr)
+}
+
+
+#' Extract Posterior Mean Log-Odds (Pairwise Interactions)
+#'
+#' @title Extract Posterior Mean Log-Odds
+#'
+#' @description
+#' Retrieves the posterior mean pairwise interaction matrix for discrete
+#' variables from a model fitted with [bgm()]. These are the log-odds
+#' parameters of the discrete (Markov random field) block. GGM models have
+#' no discrete variables and return `NULL`.
+#'
+#' @param bgms_object A fitted model object of class `bgms` (from [bgm()]).
+#'
+#' @return A named numeric matrix of posterior mean log-odds interactions, or
+#'   `NULL` for GGM models.
+#'   \describe{
+#'     \item{OMRF}{A p x p symmetric matrix with zero diagonal.}
+#'     \item{Mixed MRF}{A p x p symmetric matrix for the discrete variables
+#'       (zero diagonal).}
+#'     \item{GGM}{`NULL` (invisibly).}
+#'   }
+#'
+#' @examples
+#' \donttest{
+#' fit = bgm(x = Wenchuan[, 1:3])
+#' extract_log_odds(fit)
+#' }
+#'
+#' @seealso [bgm()], [extract_pairwise_interactions()], [extract_precision()]
+#' @family extractors
+#' @export
+extract_log_odds = function(bgms_object) {
+  UseMethod("extract_log_odds")
+}
+
+#' @inheritParams extract_log_odds
+#' @exportS3Method
+#' @noRd
+extract_log_odds.bgms = function(bgms_object) {
+  arguments = extract_arguments(bgms_object)
+
+  # GGM: no discrete variables
+  if(isTRUE(arguments$is_continuous)) {
+    return(invisible(NULL))
+  }
+
+  pairwise = bgms_object$posterior_mean_pairwise
+
+  if(isTRUE(arguments$is_mixed)) {
+    # Mixed MRF: extract the p x p discrete block
+    disc_idx = arguments$discrete_indices
+    disc_names = arguments$data_columnnames_discrete
+    log_odds = pairwise[disc_idx, disc_idx]
+    dimnames(log_odds) = list(disc_names, disc_names)
+    return(log_odds)
+  }
+
+  # OMRF: full p x p pairwise matrix is already the log-odds
+  return(pairwise)
 }

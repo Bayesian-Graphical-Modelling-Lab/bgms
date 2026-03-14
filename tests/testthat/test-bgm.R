@@ -95,8 +95,8 @@ test_that("bgm GGM output has correct dimensions", {
   expect_equal(nrow(fit$posterior_mean_pairwise), p)
   expect_equal(ncol(fit$posterior_mean_pairwise), p)
 
-  # precision diagonal lives on the pairwise matrix diagonal
-  expect_true(all(diag(fit$posterior_mean_pairwise) > 0))
+  # precision diagonal stored separately (positive for GGM: Theta_ii)
+  expect_true(all(fit$posterior_mean_precision_diagonal > 0))
 
   # pairwise: p*(p-1)/2 off-diagonal elements
   n_edges = p * (p - 1) / 2
@@ -221,8 +221,7 @@ test_that("bgm GGM output has correct parameter ordering", {
     )
   )
 
-  # Truth-based swap-position checks:
-  # V1-V4 (true = 0) should be near zero, not ~0.25 (V3-V4's value)
+  # Truth-based swap-position checks (GGM stores precision-scale Theta_ij):\n  # V1-V4 (true = 0) should be near zero, not ~0.25 (V3-V4's value)
   expect_true(
     abs(fit$posterior_mean_pairwise["V1", "V4"]) < 0.15,
     info = sprintf(
@@ -380,8 +379,8 @@ test_that("bgm GGM posterior mean approaches MLE for large n", {
     seed = 43, display_progress = "none"
   )
 
-  # Reconstruct posterior mean precision
-  omega_hat = fit$posterior_mean_pairwise
+  # Reconstruct posterior mean precision (Theta = -2K)
+  omega_hat = extract_precision(fit)
 
   # Posterior mean should correlate highly with MLE (likelihood dominates)
   cor_offdiag = cor(
@@ -829,8 +828,7 @@ test_that("bgm mixed MRF summary-matrix consistency", {
 test_that("bgm mixed MRF posterior Kyy diagonals are negative (K-scale)", {
   fit = get_bgms_fit_mixed_mrf_no_es()
   args = extract_arguments(fit)
-  cont_idx = args$continuous_indices
-  expect_true(all(diag(fit$posterior_mean_pairwise)[cont_idx] < 0))
+  expect_true(all(fit$posterior_mean_precision_diagonal < 0))
 })
 
 test_that("bgm mixed MRF marginal pseudolikelihood runs", {
@@ -1122,7 +1120,7 @@ test_that("bgm GGM implied regression matches OLS for large n", {
   )
 
   # Reconstruct posterior mean precision matrix
-  omega_hat = fit$posterior_mean_pairwise
+  omega_hat = extract_precision(fit)
 
   # For each variable j, the implied regression coefficients are:
   #   beta_j = -omega_{j,-j} / omega_{jj}

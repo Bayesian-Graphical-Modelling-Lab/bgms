@@ -418,9 +418,10 @@ build_output_bgm = function(spec, raw) {
   results$posterior_mean_pairwise = results$posterior_mean_pairwise +
     t(results$posterior_mean_pairwise)
 
-  # --- Precision diagonal on the pairwise matrix (GGM) -----------------------
+  # --- Precision diagonal (GGM only) ------------------------------------------
   if(is_continuous) {
-    diag(results$posterior_mean_pairwise) = main_summary$mean
+    results$posterior_mean_precision_diagonal = main_summary$mean
+    names(results$posterior_mean_precision_diagonal) = data_columnnames
   }
 
   # --- Posterior mean: indicator + SBM ----------------------------------------
@@ -700,11 +701,10 @@ build_output_mixed_mrf = function(spec, raw) {
     pairwise_summary$mean, p, q, disc_idx, cont_idx, dn
   )
 
-  # --- Kyy diagonal on the pairwise matrix (continuous block) ----------------
+  # --- Precision diagonal (Kyy block) -----------------------------------------
   kyy_diag_means = main_summary$mean[nt + q + seq_len(q)]
-  for(j in seq_len(q)) {
-    results$posterior_mean_pairwise[cont_idx[j], cont_idx[j]] = kyy_diag_means[j]
-  }
+  names(kyy_diag_means) = cont_names
+  results$posterior_mean_precision_diagonal = kyy_diag_means
 
   # --- Posterior mean: indicator -----------------------------------------------
   if(edge_selection) {

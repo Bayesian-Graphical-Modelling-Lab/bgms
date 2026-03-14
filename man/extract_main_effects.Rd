@@ -14,7 +14,7 @@ or \code{bgmCompare} (from \code{\link[=bgmCompare]{bgmCompare()}}).}
 The structure depends on the model type:
 \describe{
 \item{GGM (bgms)}{\code{NULL} (invisibly). GGM models have no main effects;
-the precision matrix diagonal is on \code{coef(fit)$pairwise}.}
+use \code{\link[=extract_precision]{extract_precision()}} to obtain the precision matrix.}
 \item{OMRF (bgms)}{A numeric matrix with one row per variable and one
 column per category threshold, containing posterior means. Columns
 beyond the number of categories for a variable are \code{NA}.}
@@ -56,8 +56,11 @@ Other extractors:
 \code{\link{extract_group_params}()},
 \code{\link{extract_indicator_priors}()},
 \code{\link{extract_indicators}()},
+\code{\link{extract_log_odds}()},
 \code{\link{extract_pairwise_interactions}()},
+\code{\link{extract_partial_correlations}()},
 \code{\link{extract_posterior_inclusion_probabilities}()},
+\code{\link{extract_precision}()},
 \code{\link{extract_rhat}()},
 \code{\link{extract_sbm}()}
 }

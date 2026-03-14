@@ -27,9 +27,12 @@ Other extractors:
 \code{\link{extract_group_params}()},
 \code{\link{extract_indicator_priors}()},
 \code{\link{extract_indicators}()},
+\code{\link{extract_log_odds}()},
 \code{\link{extract_main_effects}()},
 \code{\link{extract_pairwise_interactions}()},
+\code{\link{extract_partial_correlations}()},
 \code{\link{extract_posterior_inclusion_probabilities}()},
+\code{\link{extract_precision}()},
 \code{\link{extract_rhat}()},
 \code{\link{extract_sbm}()}
 }

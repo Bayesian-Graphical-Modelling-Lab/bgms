@@ -177,7 +177,7 @@ pure continuous data). Options:
 \item{\code{"conditional"}}{Conditions on the observed continuous
 variables when computing the discrete full conditionals. Faster
 because the discrete pseudo-likelihood does not depend on the
-continuous precision matrix.}
+continuous interaction matrix Kyy.}
 \item{\code{"marginal"}}{Integrates out the continuous variables,
 giving discrete full conditionals that account for induced
 interactions through the continuous block. More expensive per
@@ -207,8 +207,9 @@ For OMRF models these are category thresholds;
 for mixed MRF models these are discrete thresholds and
 continuous means. \code{NULL} for GGM models (no main effects).
 \item \code{posterior_summary_quadratic}: Data frame with posterior
-summaries for the precision matrix diagonal. Present for GGM and
-mixed MRF models; \code{NULL} for OMRF models.
+summaries for the precision matrix diagonal (GGM) or the Kyy
+diagonal (mixed MRF). Present for GGM and mixed MRF models;
+\code{NULL} for OMRF models.
 \item \code{posterior_summary_pairwise}: Data frame with posterior
 summaries for pairwise interaction parameters.
 \item \code{posterior_summary_indicator}: Data frame with posterior
@@ -220,8 +221,13 @@ parameters. \code{NULL} for GGM models. For OMRF: a matrix
 with \code{$discrete} (threshold matrix) and \code{$continuous}
 (q x 1 matrix of means).
 \item \code{posterior_mean_pairwise}: Symmetric matrix of posterior mean
-pairwise interaction strengths. For GGM and mixed MRF models the
-precision matrix diagonal is included on the matrix diagonal.
+pairwise interaction strengths (zero diagonal). Use
+\code{\link[=extract_precision]{extract_precision()}} to obtain the full precision matrix.
+\item \code{posterior_mean_precision_diagonal}: Named numeric vector of
+precision-matrix diagonal entries. For GGM: the diagonal
+\eqn{\Theta_{ii}}{Theta_ii} (positive). For mixed MRF: the Kyy
+diagonal on K-scale. Present for GGM and mixed MRF models;
+\code{NULL} for OMRF.
 \item \code{posterior_mean_indicator}: Symmetric matrix of posterior mean
 inclusion probabilities (if edge selection was enabled).
 
