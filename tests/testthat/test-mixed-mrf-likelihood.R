@@ -21,7 +21,8 @@
 #   c = 0:  1  (reference)
 #   c = 1:  exp(main[i,1] + 1 * rest_i)
 #
-# rest_i = sum_{k != i} pairwise[k,i] * x_k
+# rest_i = sum_{k != i} 2 * pairwise[k,i] * x_k
+# (K-scale: pairwise stores K = sigma/2)
 
 test_that("OMRF binary conditional probabilities match hand computation", {
   n = 3L
@@ -37,8 +38,8 @@ test_that("OMRF binary conditional probabilities match hand computation", {
 
   pairwise = matrix(
     c(
-      0.0, 0.3,
-      0.3, 0.0
+      0.0, 0.15,
+      0.15, 0.0
     ),
     nrow = p, byrow = TRUE
   )
@@ -48,7 +49,7 @@ test_that("OMRF binary conditional probabilities match hand computation", {
   baseline_category = c(0L, 0L)
 
   # --- Predict variable 0 (1st variable) ---
-  # rest = pairwise[1,0] * x_2 = 0.3 * c(1, 0, 1) = c(0.3, 0, 0.3)
+  # rest = 2 * pairwise[1,0] * x_2 = 2 * 0.15 * c(1, 0, 1) = c(0.3, 0, 0.3)
   rest_v0 = c(0.3, 0.0, 0.3)
   mu0 = main[1, 1] # -0.5
 
@@ -72,7 +73,7 @@ test_that("OMRF binary conditional probabilities match hand computation", {
   expect_equal(probs_cpp[[1]][, 2], prob_v0_cat1, tolerance = 1e-10)
 
   # --- Predict variable 1 (2nd variable) ---
-  # rest = pairwise[0,1] * x_1 = 0.3 * c(0, 1, 1) = c(0, 0.3, 0.3)
+  # rest = 2 * pairwise[0,1] * x_1 = 2 * 0.15 * c(0, 1, 1) = c(0, 0.3, 0.3)
   rest_v1 = c(0.0, 0.3, 0.3)
   mu1 = main[2, 1] # 0.2
 
@@ -123,8 +124,8 @@ test_that("OMRF multi-category conditional probabilities match hand computation"
 
   pairwise = matrix(
     c(
-      0.0, 0.25,
-      0.25, 0.0
+      0.0, 0.125,
+      0.125, 0.0
     ),
     nrow = p, byrow = TRUE
   )
@@ -141,8 +142,8 @@ test_that("OMRF multi-category conditional probabilities match hand computation"
   baseline_category = c(0L, 0L)
 
   # Predict variable 0:
-  # rest = pairwise[1,0] * x_2 = 0.25 * c(1, 0, 2, 1) = c(0.25, 0, 0.5, 0.25)
-  rest = 0.25 * c(1, 0, 2, 1)
+  # rest = 2 * pairwise[1,0] * x_2 = 2 * 0.125 * c(1, 0, 2, 1) = c(0.25, 0, 0.5, 0.25)
+  rest = 2 * 0.125 * c(1, 0, 2, 1)
 
   # For each observation, compute unnormalized probabilities
   hand_probs = matrix(NA_real_, nrow = n, ncol = 3)
@@ -249,8 +250,9 @@ test_that("GGM conditional mean and sd match hand computation", {
 # p=2 binary ordinals, q=1 continuous, n=3.
 #
 # For discrete variable s, the rest scores in the mixed MRF are:
-#   rest = sum_{k != s} (x_k - ref_k) * Kxx[k,s]
+#   rest = sum_{k != s} 2 * (x_k - ref_k) * Kxx[k,s]
 #        + sum_j 2 * Kxy[s,j] * y_j
+# (K-scale: Kxx stores K = sigma/2)
 #
 # Then P(x_s = c | rest) follows the same softmax as the pure OMRF.
 
@@ -269,8 +271,8 @@ test_that("mixed MRF discrete conditional probabilities match hand computation",
   y_obs = matrix(c(0.5, -0.3, 1.2), nrow = n, ncol = q)
 
   Kxx = matrix(c(
-    0.0, 0.3,
-    0.3, 0.0
+    0.0, 0.15,
+    0.15, 0.0
   ), nrow = p, byrow = TRUE)
   Kxy = matrix(c(0.2, 0.4), nrow = p, ncol = q)
   Kyy = matrix(-1.0, nrow = q, ncol = q)
@@ -282,7 +284,7 @@ test_that("mixed MRF discrete conditional probabilities match hand computation",
   baseline_category = c(0L, 0L)
 
   # --- Predict discrete variable 0 ---
-  # rest_discrete = Kxx[1,0] * (x_2 - 0) = 0.3 * c(1, 0, 1)
+  # rest_discrete = 2 * Kxx[1,0] * (x_2 - 0) = 2 * 0.15 * c(1, 0, 1)
   # rest_continuous = 2 * Kxy[0,0] * y = 2 * 0.2 * c(0.5, -0.3, 1.2)
   # rest = c(0.3, 0, 0.3) + c(0.2, -0.12, 0.48) = c(0.5, -0.12, 0.78)
   rest_v0 = c(0.5, -0.12, 0.78)
@@ -311,7 +313,7 @@ test_that("mixed MRF discrete conditional probabilities match hand computation",
   expect_equal(rowSums(result[[1]]), rep(1, n), tolerance = 1e-10)
 
   # --- Predict discrete variable 1 ---
-  # rest_discrete = Kxx[0,1] * (x_1 - 0) = 0.3 * c(0, 1, 1)
+  # rest_discrete = 2 * Kxx[0,1] * (x_1 - 0) = 2 * 0.15 * c(0, 1, 1)
   # rest_continuous = 2 * Kxy[1,0] * y = 2 * 0.4 * c(0.5, -0.3, 1.2)
   # rest = c(0, 0.3, 0.3) + c(0.4, -0.24, 0.96) = c(0.4, 0.06, 1.26)
   rest_v1 = c(0.4, 0.06, 1.26)
@@ -368,8 +370,8 @@ test_that("mixed MRF continuous conditional matches hand computation", {
   y_obs = matrix(c(0.5, -0.3, 1.2), nrow = n, ncol = q)
 
   Kxx = matrix(c(
-    0.0, 0.3,
-    0.3, 0.0
+    0.0, 0.15,
+    0.15, 0.0
   ), nrow = p, byrow = TRUE)
   Kxy = matrix(c(0.2, 0.4), nrow = p, ncol = q)
   Kyy = matrix(-1.0, nrow = q, ncol = q)
@@ -534,7 +536,7 @@ test_that("predicting all variables at once matches individual predictions", {
   )
   y_obs = matrix(c(0.5, -0.3, 1.2), nrow = n, ncol = q)
 
-  Kxx = matrix(c(0.0, 0.3, 0.3, 0.0), nrow = p, byrow = TRUE)
+  Kxx = matrix(c(0.0, 0.15, 0.15, 0.0), nrow = p, byrow = TRUE)
   Kxy = matrix(c(0.2, 0.4), nrow = p, ncol = q)
   Kyy = matrix(-1.0, nrow = q, ncol = q)
   mux = matrix(c(-0.5, 0.2), nrow = p, ncol = 1)

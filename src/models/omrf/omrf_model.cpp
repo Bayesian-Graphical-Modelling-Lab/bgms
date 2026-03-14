@@ -37,7 +37,7 @@ OMRFModel::OMRFModel(
     inclusion_probability_(inclusion_probability),
     main_alpha_(main_alpha),
     main_beta_(main_beta),
-    pairwise_scale_(pairwise_scale),
+    pairwise_scale_(0.5 * pairwise_scale),
     edge_selection_(edge_selection),
     edge_selection_active_(false),
     step_size_(0.1),
@@ -199,13 +199,13 @@ void OMRFModel::build_interaction_index() {
 
 
 void OMRFModel::update_residual_matrix() {
-    residual_matrix_ = observations_double_ * pairwise_effects_;
+    residual_matrix_ = 2.0 * observations_double_ * pairwise_effects_;
 }
 
 
 void OMRFModel::update_residual_columns(int var1, int var2, double delta) {
-    residual_matrix_.col(var1) += delta * observations_double_.col(var2);
-    residual_matrix_.col(var2) += delta * observations_double_.col(var1);
+    residual_matrix_.col(var1) += 2.0 * delta * observations_double_.col(var2);
+    residual_matrix_.col(var2) += 2.0 * delta * observations_double_.col(var1);
 }
 
 
@@ -399,7 +399,7 @@ void OMRFModel::unvectorize_to_temps(
         }
     }
 
-    temp_residual = observations_double_ * temp_pairwise;
+    temp_residual = 2.0 * observations_double_ * temp_pairwise;
 }
 
 
@@ -631,7 +631,7 @@ double OMRFModel::log_pseudoposterior_with_state(
         for (size_t v2 = v1 + 1; v2 < p_; ++v2) {
             if (edge_indicators_(v1, v2) == 1) {
                 double effect = pairwise_eff(v1, v2);
-                log_post += 2.0 * pairwise_stats_(v1, v2) * effect;
+                log_post += 4.0 * pairwise_stats_(v1, v2) * effect;
                 double scaled_scale = pairwise_scale_ * pairwise_scaling_factors_(v1, v2);
                 log_post += R::dcauchy(effect, 0.0, scaled_scale, true);
             }
@@ -691,7 +691,7 @@ double OMRFModel::log_pseudoposterior_main_component(int variable, int category,
 
 
 double OMRFModel::log_pseudoposterior_pairwise_component(int var1, int var2) const {
-    double log_post = 2.0 * pairwise_effects_(var1, var2) * pairwise_stats_(var1, var2);
+    double log_post = 4.0 * pairwise_effects_(var1, var2) * pairwise_stats_(var1, var2);
 
     for (int var : {var1, var2}) {
         int num_cats = num_categories_(var);
@@ -734,7 +734,7 @@ double OMRFModel::compute_log_likelihood_ratio_for_variable(
     const int num_cats = num_categories_(variable);
 
     // Compute adjusted linear predictors without the current interaction
-    arma::vec residual_score = residual_matrix_.col(variable) - interaction * current_state;
+    arma::vec residual_score = residual_matrix_.col(variable) - 2.0 * interaction * current_state;
     arma::vec bounds = residual_score * num_cats;
 
     arma::vec denom_current = arma::zeros(num_persons);
@@ -744,22 +744,22 @@ double OMRFModel::compute_log_likelihood_ratio_for_variable(
         arma::vec main_param = main_effects_.row(variable).cols(0, num_cats - 1).t();
 
         denom_current += compute_denom_ordinal(
-            residual_score + interaction * current_state, main_param, bounds
+            residual_score + 2.0 * interaction * current_state, main_param, bounds
         );
         denom_proposed += compute_denom_ordinal(
-            residual_score + interaction * proposed_state, main_param, bounds
+            residual_score + 2.0 * interaction * proposed_state, main_param, bounds
         );
     } else {
         const int ref_cat = baseline_category_(variable);
 
         denom_current = compute_denom_blume_capel(
-            residual_score + interaction * current_state, main_effects_(variable, 0),
+            residual_score + 2.0 * interaction * current_state, main_effects_(variable, 0),
             main_effects_(variable, 1), ref_cat, num_cats, bounds
         );
         double log_ratio = arma::accu(ARMA_MY_LOG(denom_current) + bounds);
 
         denom_proposed = compute_denom_blume_capel(
-            residual_score + interaction * proposed_state, main_effects_(variable, 0),
+            residual_score + 2.0 * interaction * proposed_state, main_effects_(variable, 0),
             main_effects_(variable, 1), ref_cat, num_cats, bounds
         );
         log_ratio -= arma::accu(ARMA_MY_LOG(denom_proposed) + bounds);
@@ -784,7 +784,7 @@ double OMRFModel::log_pseudolikelihood_ratio_interaction(
     arma::ivec score1 = observations_.col(variable1);
     arma::ivec score2 = observations_.col(variable2);
 
-    log_ratio += 2.0 * pairwise_stats_(variable1, variable2) * delta;
+    log_ratio += 4.0 * pairwise_stats_(variable1, variable2) * delta;
 
     log_ratio += compute_log_likelihood_ratio_for_variable(
         variable1, score2, proposed_state, current_state
@@ -802,7 +802,7 @@ double OMRFModel::log_pseudoposterior_pairwise_at_delta(int var1, int var2, doub
     const int num_observations = static_cast<int>(n_);
     const double proposed_value = pairwise_effects_(var1, var2) + delta;
 
-    double log_pseudo_posterior = 2.0 * proposed_value * pairwise_stats_(var1, var2);
+    double log_pseudo_posterior = 4.0 * proposed_value * pairwise_stats_(var1, var2);
 
     const arma::vec& obs_var1 = observations_double_.col(var1);
     const arma::vec& obs_var2 = observations_double_.col(var2);
@@ -811,7 +811,7 @@ double OMRFModel::log_pseudoposterior_pairwise_at_delta(int var1, int var2, doub
         int num_cats = num_categories_(var);
         const arma::vec& obs_other = (var == var1) ? obs_var2 : obs_var1;
 
-        arma::vec residual_score = residual_matrix_.col(var) + obs_other * delta;
+        arma::vec residual_score = residual_matrix_.col(var) + 2.0 * obs_other * delta;
         arma::vec denominator = arma::zeros(num_observations);
         arma::vec bound = num_cats * residual_score;
 
@@ -886,7 +886,7 @@ void OMRFModel::ensure_gradient_cache() {
         for (int j = i + 1; j < num_variables; j++) {
             if (edge_indicators_(i, j) == 0) continue;
             int location = index_matrix_cache_(i, j);
-            grad_obs_cache_(location) = 2.0 * pairwise_stats_(i, j);
+            grad_obs_cache_(location) = 4.0 * pairwise_stats_(i, j);
         }
     }
 
@@ -931,7 +931,7 @@ arma::vec OMRFModel::gradient(const arma::vec& parameters) {
             for (int j = 0; j < num_variables; j++) {
                 if (edge_indicators_(variable, j) == 0 || variable == j) continue;
                 int location = (variable < j) ? index_matrix_cache_(variable, j) : index_matrix_cache_(j, variable);
-                gradient(location) -= pw_grad(j);
+                gradient(location) -= 2.0 * pw_grad(j);
             }
             offset += num_cats;
         } else {
@@ -958,7 +958,7 @@ arma::vec OMRFModel::gradient(const arma::vec& parameters) {
                 int location = (variable < j)
                     ? index_matrix_cache_(variable, j)
                     : index_matrix_cache_(j, variable);
-                gradient(location) -= pw_grad(j);
+                gradient(location) -= 2.0 * pw_grad(j);
             }
             offset += 2;
         }
@@ -1041,7 +1041,7 @@ std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& param
             if (edge_indicators_(var1, var2) == 0) continue;
 
             double value = temp_pairwise(var1, var2);
-            log_pp += 2.0 * pairwise_stats_(var1, var2) * value;
+            log_pp += 4.0 * pairwise_stats_(var1, var2) * value;
             const double scaled_pairwise_scale = pairwise_scale_ * pairwise_scaling_factors_(var1, var2);
             log_pp += R::dcauchy(value, 0.0, scaled_pairwise_scale, true);
         }
@@ -1077,7 +1077,7 @@ std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& param
             for (int j = 0; j < num_variables; j++) {
                 if (edge_indicators_(variable, j) == 0 || variable == j) continue;
                 int location = (variable < j) ? index_matrix_cache_(variable, j) : index_matrix_cache_(j, variable);
-                gradient(location) -= pw_grad(j);
+                gradient(location) -= 2.0 * pw_grad(j);
             }
             offset += num_cats;
         } else {
@@ -1106,7 +1106,7 @@ std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& param
             for (int j = 0; j < num_variables; j++) {
                 if (edge_indicators_(variable, j) == 0 || variable == j) continue;
                 int location = (variable < j) ? index_matrix_cache_(variable, j) : index_matrix_cache_(j, variable);
-                gradient(location) -= pw_grad(j);
+                gradient(location) -= 2.0 * pw_grad(j);
             }
             offset += 2;
         }
@@ -1188,8 +1188,8 @@ double OMRFModel::update_pairwise_effect(int var1, int var2) {
 
     if (current_value != value) {
         double delta = value - current_value;
-        residual_matrix_.col(var1) += observations_double_.col(var2) * delta;
-        residual_matrix_.col(var2) += observations_double_.col(var1) * delta;
+        residual_matrix_.col(var1) += 2.0 * observations_double_.col(var2) * delta;
+        residual_matrix_.col(var2) += 2.0 * observations_double_.col(var1) * delta;
     }
 
     return result.accept_prob;
@@ -1231,8 +1231,8 @@ void OMRFModel::update_edge_indicator(int var1, int var2) {
         pairwise_effects_(var2, var1) = proposed_state;
 
         const double delta = proposed_state - current_state;
-        residual_matrix_.col(var1) += observations_double_.col(var2) * delta;
-        residual_matrix_.col(var2) += observations_double_.col(var1) * delta;
+        residual_matrix_.col(var1) += 2.0 * observations_double_.col(var2) * delta;
+        residual_matrix_.col(var2) += 2.0 * observations_double_.col(var1) * delta;
     }
 }
 
@@ -1393,7 +1393,7 @@ void OMRFModel::impute_missing() {
 
             // Incrementally update residuals across all variables
             for (int var = 0; var < num_variables; var++) {
-                const double delta_score = (new_value - old_value) * pairwise_effects_(var, variable);
+                const double delta_score = 2.0 * (new_value - old_value) * pairwise_effects_(var, variable);
                 residual_matrix_(person, var) += delta_score;
             }
         }

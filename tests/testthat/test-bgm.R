@@ -995,9 +995,9 @@ test_that("bgm mixed MRF output has correct parameter ordering", {
 
   # Parameters in internal (dd/cc/dc block) order
   Kxx = matrix(c(
-    0, -0.4, 0.2,
-    -0.4, 0, 0.0,
-    0.2, 0.0, 0
+    0, -0.2, 0.1,
+    -0.2, 0, 0.0,
+    0.1, 0.0, 0
   ), p, p, byrow = TRUE)
 
   Kxy = matrix(c(
@@ -1085,11 +1085,11 @@ test_that("bgm mixed MRF output has correct parameter ordering", {
       fit$posterior_mean_pairwise["d2", "d3"]
     )
   )
-  # d1-d2 (true = -0.4) should be negative
+  # d1-d2 (true = -0.2) should be negative
   expect_true(
-    fit$posterior_mean_pairwise["d1", "d2"] < -0.15,
+    fit$posterior_mean_pairwise["d1", "d2"] < -0.08,
     info = sprintf(
-      "d1-d2 should be ~-0.4 but is %.3f",
+      "d1-d2 should be ~-0.2 but is %.3f",
       fit$posterior_mean_pairwise["d1", "d2"]
     )
   )

@@ -62,13 +62,14 @@ make_network = function(p, q, n_cat, variable_type = rep("ordinal", p),
   # --- Continuous means ---
   muy = round(runif(q, -0.5, 0.5), 2)
 
-  # --- Kxx: ordinal-ordinal interactions (symmetric, zero diagonal) ---
+  # --- Kxx: K-scale discrete interactions (K = σ/2, symmetric, zero diagonal) ---
   n_edges_xx = p * (p - 1) / 2
   mask_xx = rbinom(n_edges_xx, 1, density)
   vals_xx = mask_xx * round(runif(n_edges_xx, 0.15, 0.4) * sample(c(-1, 1), n_edges_xx, replace = TRUE), 2)
   Kxx = matrix(0, p, p)
   Kxx[upper.tri(Kxx)] = vals_xx
   Kxx = Kxx + t(Kxx)
+  Kxx = 0.5 * Kxx
 
   # --- Kyy: K-scale continuous block (negative-definite; Theta = -2 Kyy) ---
   # Build a positive-definite precision Theta first, then convert to K-scale.

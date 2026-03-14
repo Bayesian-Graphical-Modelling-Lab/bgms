@@ -114,26 +114,28 @@ void MixedMRFModel::update_pairwise_discrete(int i, int j, int iteration) {
     double proposed = rnorm(rng_, current_val, proposal_sd_pairwise_discrete_(i, j));
 
     // Current log-posterior
+    // Kxx prior: Cauchy(0, pairwise_scale/2) on K-scale
+    const double kxx_scale = 0.5 * pairwise_scale_;
     double ll_curr, ll_prop;
     if(use_marginal_pl_) {
         ll_curr = log_marginal_omrf(i) + log_marginal_omrf(j)
-                + R::dcauchy(current_val, 0.0, pairwise_scale_, true);
+                + R::dcauchy(current_val, 0.0, kxx_scale, true);
 
         pairwise_effects_discrete_(i, j) = proposed;
         pairwise_effects_discrete_(j, i) = proposed;
         recompute_Theta();
 
         ll_prop = log_marginal_omrf(i) + log_marginal_omrf(j)
-                + R::dcauchy(proposed, 0.0, pairwise_scale_, true);
+                + R::dcauchy(proposed, 0.0, kxx_scale, true);
     } else {
         ll_curr = log_conditional_omrf(i) + log_conditional_omrf(j)
-                + R::dcauchy(current_val, 0.0, pairwise_scale_, true);
+                + R::dcauchy(current_val, 0.0, kxx_scale, true);
 
         pairwise_effects_discrete_(i, j) = proposed;
         pairwise_effects_discrete_(j, i) = proposed;
 
         ll_prop = log_conditional_omrf(i) + log_conditional_omrf(j)
-                + R::dcauchy(proposed, 0.0, pairwise_scale_, true);
+                + R::dcauchy(proposed, 0.0, kxx_scale, true);
     }
 
     double ln_alpha = ll_prop - ll_curr;
@@ -658,15 +660,17 @@ void MixedMRFModel::update_edge_indicator_discrete(int i, int j) {
 
     double ln_alpha = ll_prop - ll_curr;
 
+    // Kxx slab prior: Cauchy(0, pairwise_scale/2) on K-scale
+    const double kxx_slab_scale = 0.5 * pairwise_scale_;
     if(g_prop == 1) {
         // Add: slab prior, subtract proposal density, inclusion prior
-        ln_alpha += R::dcauchy(k_prop, 0.0, pairwise_scale_, true);
+        ln_alpha += R::dcauchy(k_prop, 0.0, kxx_slab_scale, true);
         ln_alpha -= R::dnorm(k_prop, k_curr, prop_sd, true);
         ln_alpha += MY_LOG(inclusion_probability_(i, j))
                   - MY_LOG(1.0 - inclusion_probability_(i, j));
     } else {
         // Delete: subtract slab prior, add reverse proposal density, inclusion prior
-        ln_alpha -= R::dcauchy(k_curr, 0.0, pairwise_scale_, true);
+        ln_alpha -= R::dcauchy(k_curr, 0.0, kxx_slab_scale, true);
         ln_alpha += R::dnorm(k_curr, k_prop, prop_sd, true);
         ln_alpha -= MY_LOG(inclusion_probability_(i, j))
                   - MY_LOG(1.0 - inclusion_probability_(i, j));

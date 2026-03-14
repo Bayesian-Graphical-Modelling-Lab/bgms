@@ -226,6 +226,7 @@ struct GibbsCompareChainRunner : public Worker {
         arma::imat observations = observations_master;
 
         // run sampler (pure C++)
+        // K-scale reparameterization: halve pairwise_scale for Cauchy prior on K
         bgmCompareOutput result = run_gibbs_sampler_bgmCompare(
           out.chain_id,
           observations,
@@ -236,7 +237,7 @@ struct GibbsCompareChainRunner : public Worker {
           num_categories,
           main_alpha,
           main_beta,
-          pairwise_scale,
+          0.5 * pairwise_scale,
           pairwise_scaling_factors,
           difference_scale,
           difference_selection_alpha,

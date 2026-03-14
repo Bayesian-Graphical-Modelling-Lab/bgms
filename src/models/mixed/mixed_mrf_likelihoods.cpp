@@ -18,8 +18,9 @@ double MixedMRFModel::log_conditional_omrf(int s) const {
     int C_s = num_categories_(s);
 
     // Rest score: contribution from other discrete vars + continuous vars
-    arma::vec rest = discrete_observations_dbl_ * pairwise_effects_discrete_.col(s)
-                   - discrete_observations_dbl_.col(s) * pairwise_effects_discrete_(s, s)
+    // Kxx is K-scale (K = σ/2); multiply by 2 to recover σ-scale rest score
+    arma::vec rest = 2.0 * (discrete_observations_dbl_ * pairwise_effects_discrete_.col(s)
+                   - discrete_observations_dbl_.col(s) * pairwise_effects_discrete_(s, s))
                    + 2.0 * continuous_observations_ * pairwise_effects_cross_.row(s).t();
 
     // Numerator (sufficient-statistic form): dot(x_s, rest) + main-effect sums

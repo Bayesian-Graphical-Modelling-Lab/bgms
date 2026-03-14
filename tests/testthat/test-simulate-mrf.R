@@ -29,7 +29,7 @@ test_that("simulate_mrf returns matrix of correct dimensions", {
   n_cats = 2
 
   interactions = matrix(0, n_vars, n_vars)
-  interactions[1, 2] = interactions[2, 1] = 0.3
+  interactions[1, 2] = interactions[2, 1] = 0.15
   thresholds = matrix(0, n_vars, n_cats)
 
   result = simulate_mrf(
@@ -74,7 +74,7 @@ test_that("simulate_mrf is reproducible with seed", {
   n_vars = 3
   n_cats = 2
 
-  interactions = matrix(0.2, n_vars, n_vars)
+  interactions = matrix(0.1, n_vars, n_vars)
   diag(interactions) = 0
   thresholds = matrix(0.5, n_vars, n_cats)
 
@@ -134,7 +134,7 @@ test_that("simulate_mrf handles binary variables correctly", {
   n_vars = 3
   n_cats = 1 # Binary: 0 or 1
 
-  interactions = matrix(0.3, n_vars, n_vars)
+  interactions = matrix(0.15, n_vars, n_vars)
   diag(interactions) = 0
   thresholds = matrix(0, n_vars, n_cats)
 
@@ -221,7 +221,7 @@ test_that("simulate_mrf: positive interaction tends to align responses", {
   n_cats = 2
 
   # Moderate positive interaction
-  pos_int = matrix(c(0, 0.8, 0.8, 0), 2, 2)
+  pos_int = matrix(c(0, 0.4, 0.4, 0), 2, 2)
 
   # Use spread-out thresholds to ensure variance in responses
   thresholds = matrix(c(0, 0.5, 0, 0.5), n_vars, n_cats, byrow = TRUE)
@@ -328,7 +328,7 @@ test_that("mrfSampler produces identical results to simulate_mrf", {
     num_states = 50,
     num_variables = 4,
     num_categories = 3,
-    pairwise = matrix(0.1, 4, 4) - diag(0.1, 4),
+    pairwise = matrix(0.05, 4, 4) - diag(0.05, 4),
     main = matrix(0, 4, 3),
     iter = 100,
     seed = 999

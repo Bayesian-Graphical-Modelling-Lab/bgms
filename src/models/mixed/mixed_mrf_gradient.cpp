@@ -78,8 +78,8 @@ void MixedMRFModel::ensure_gradient_cache() {
         for(size_t j = i + 1; j < p_; ++j) {
             if(edge_indicators_(i, j) == 0) continue;
             int loc = kxx_index_cache_(i, j);
-            // Factor 2 from the symmetric double-count in the pseudo-likelihood
-            grad_obs_cache_(loc) = 2.0 * arma::dot(
+            // Factor 4: K-scale (K = σ/2), so d/dK [4K·(x^Tx)] = 4·(x^Tx)
+            grad_obs_cache_(loc) = 4.0 * arma::dot(
                 discrete_observations_dbl_.col(i),
                 discrete_observations_dbl_.col(j)
             );
@@ -205,7 +205,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     // Theta for marginal PL
     arma::mat temp_Theta;
     if(use_marginal_pl_) {
-        temp_Theta = temp_pairwise_discrete + 2.0 * temp_pairwise_cross * covariance_continuous_ * temp_pairwise_cross.t();
+        temp_Theta = 2.0 * temp_pairwise_discrete + 2.0 * temp_pairwise_cross * covariance_continuous_ * temp_pairwise_cross.t();
     }
 
     // Start gradient from observed-statistics cache
@@ -236,9 +236,9 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
                  - discrete_observations_dbl_.col(s) * theta_ss
                  + 2.0 * arma::dot(temp_pairwise_cross.row(s), temp_main_continuous);
         } else {
-            // Conditional: K_xx-based rest + 2 K_xy y
-            rest = discrete_observations_dbl_ * temp_pairwise_discrete.col(s)
-                 - discrete_observations_dbl_.col(s) * temp_pairwise_discrete(s, s)
+            // Conditional: 2*K_xx-based rest + 2 K_xy y  (K-scale: σ = 2K)
+            rest = 2.0 * (discrete_observations_dbl_ * temp_pairwise_discrete.col(s)
+                 - discrete_observations_dbl_.col(s) * temp_pairwise_discrete(s, s))
                  + 2.0 * continuous_observations_ * temp_pairwise_cross.row(s).t();
         }
 
@@ -278,11 +278,12 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
 
             // Pairwise discrete gradient: sum_i x_{i,t} * (x_{i,s}+1 - E_s)
             // (uses pre-transposed discrete observations for BLAS efficiency)
+            // Factor 2: chain rule d/dK = 2 × d/dσ
             arma::vec pw_grad = discrete_observations_dbl_t_ * E;
             for(size_t t = 0; t < p_; ++t) {
                 if(edge_indicators_(s, t) == 0 || s == t) continue;
                 int loc = (s < t) ? kxx_index_cache_(s, t) : kxx_index_cache_(t, s);
-                grad(loc) -= pw_grad(t);
+                grad(loc) -= 2.0 * pw_grad(t);
             }
 
             if(use_marginal_pl_) {
@@ -385,11 +386,12 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
             arma::vec E = result.probs * score;
 
             // Pairwise discrete gradient
+            // Factor 2: chain rule d/dK = 2 × d/dσ
             arma::vec pw_grad = discrete_observations_dbl_t_ * E;
             for(size_t t = 0; t < p_; ++t) {
                 if(edge_indicators_(s, t) == 0 || s == t) continue;
                 int loc = (s < t) ? kxx_index_cache_(s, t) : kxx_index_cache_(t, s);
-                grad(loc) -= pw_grad(t);
+                grad(loc) -= 2.0 * pw_grad(t);
             }
 
             if(use_marginal_pl_) {
@@ -465,8 +467,8 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
                 discrete_observations_dbl_.col(s),
                 discrete_observations_dbl_.col(s));
         } else {
-            rest = discrete_observations_dbl_ * temp_pairwise_discrete.col(s)
-                 - discrete_observations_dbl_.col(s) * temp_pairwise_discrete(s, s)
+            rest = 2.0 * (discrete_observations_dbl_ * temp_pairwise_discrete.col(s)
+                 - discrete_observations_dbl_.col(s) * temp_pairwise_discrete(s, s))
                  + 2.0 * continuous_observations_ * temp_pairwise_cross.row(s).t();
         }
         // Numerator: dot(x_s, rest) + main-effect sums
@@ -552,14 +554,16 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
         }
     }
 
-    // --- pairwise_effects_discrete_ priors: Cauchy(0, pairwise_scale_) ---
+    // --- pairwise_effects_discrete_ priors: Cauchy(0, pairwise_scale/2) on K-scale ---
+    const double kxx_scale = 0.5 * pairwise_scale_;
+    const double kxx_scale_sq = kxx_scale * kxx_scale;
     for(size_t i = 0; i < p_ - 1; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
             if(edge_indicators_(i, j) == 0) continue;
             int loc = kxx_index_cache_(i, j);
             double val = temp_pairwise_discrete(i, j);
-            logp += R::dcauchy(val, 0.0, pairwise_scale_, true);
-            grad(loc) -= 2.0 * val / (val * val + pairwise_scale_ * pairwise_scale_);
+            logp += R::dcauchy(val, 0.0, kxx_scale, true);
+            grad(loc) -= 2.0 * val / (val * val + kxx_scale_sq);
         }
     }
 

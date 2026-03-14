@@ -239,8 +239,8 @@ void MixedMRFModel::recompute_pairwise_effects_continuous_decomposition() {
 }
 
 void MixedMRFModel::recompute_Theta() {
-    // Θ = K_xx + 2 K_xy Σ_yy K_xy'
-    Theta_ = pairwise_effects_discrete_ + 2.0 * pairwise_effects_cross_ * covariance_continuous_ * pairwise_effects_cross_.t();
+    // Θ = 2 K_xx + 2 K_xy Σ_yy K_xy'   (K_xx is K-scale; σ = 2K)
+    Theta_ = 2.0 * pairwise_effects_discrete_ + 2.0 * pairwise_effects_cross_ * covariance_continuous_ * pairwise_effects_cross_.t();
 }
 
 
@@ -577,11 +577,11 @@ void MixedMRFModel::impute_missing() {
             const int variable = missing_index_discrete_(miss, 1);
             const int num_cats = num_categories_(variable);
 
-            // Rest score: sum_t x_vt K_xx(t,s) + 2 sum_j y_vj K_xy(s,j)
+            // Rest score: 2 * sum_t x_vt K_xx(t,s) + 2 sum_j y_vj K_xy(s,j)
             // K_xx diagonal is zero, so no self-interaction subtraction needed
             double rest_v = 0.0;
             for(size_t t = 0; t < p_; t++) {
-                rest_v += discrete_observations_dbl_(person, t) * pairwise_effects_discrete_(t, variable);
+                rest_v += 2.0 * discrete_observations_dbl_(person, t) * pairwise_effects_discrete_(t, variable);
             }
             for(size_t j = 0; j < q_; j++) {
                 rest_v += 2.0 * continuous_observations_(person, j) * pairwise_effects_cross_(variable, j);

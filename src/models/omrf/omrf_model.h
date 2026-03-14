@@ -283,7 +283,7 @@ private:
 
     // Parameters
     arma::mat main_effects_;            ///< Main effect parameters (p x max_cats)
-    arma::mat pairwise_effects_;        ///< Pairwise interaction strengths (p x p, symmetric)
+    arma::mat pairwise_effects_;        ///< K-scale pairwise interactions (p x p, symmetric; K = σ/2)
     arma::imat edge_indicators_;        ///< Edge inclusion indicators (p x p, symmetric binary)
 
     // Priors

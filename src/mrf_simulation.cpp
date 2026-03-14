@@ -93,7 +93,7 @@ arma::imat simulate_mrf(
         for(int vertex = 0; vertex < num_variables; vertex++) {
           int obs = observations(person, vertex);
           int ref = baseline_category[vertex];
-          rest_score += (obs - ref) * pairwise_safe(vertex, variable);
+          rest_score += 2.0 * (obs - ref) * pairwise_safe(vertex, variable);
         }
 
         if(variable_type[variable] == "blume-capel") {
@@ -784,7 +784,7 @@ void simulate_mixed_mrf(
           if (k != s) {
             int obs_k = x_current(k);
             int ref_k = baseline_category(k);
-            rest_discrete += (obs_k - ref_k) * Kxx_safe(k, s);
+            rest_discrete += 2.0 * (obs_k - ref_k) * Kxx_safe(k, s);
           }
         }
 

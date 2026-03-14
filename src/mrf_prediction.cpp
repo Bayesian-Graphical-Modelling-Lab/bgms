@@ -100,10 +100,10 @@ Rcpp::List compute_conditional_probs(
       arma::vec obs_col = arma::conv_to<arma::vec>::from(observations.col(vertex));
 
       if(std::string(variable_type[vertex]) != "blume-capel") {
-        rest_scores += obs_col * pairwise(vertex, variable);
+        rest_scores += 2.0 * obs_col * pairwise(vertex, variable);
       } else {
         int ref = baseline_category[vertex];
-        rest_scores += (obs_col - double(ref)) * pairwise(vertex, variable);
+        rest_scores += 2.0 * (obs_col - double(ref)) * pairwise(vertex, variable);
       }
     }
 
@@ -224,7 +224,7 @@ Rcpp::List compute_conditional_mixed(
         if (k == s) continue;
         arma::vec obs_k = x_dbl.col(k);
         double ref_k = static_cast<double>(baseline_category[k]);
-        rest_discrete += (obs_k - ref_k) * Kxx(k, s);
+        rest_discrete += 2.0 * (obs_k - ref_k) * Kxx(k, s);
       }
 
       // Rest score from continuous (factor of 2)
