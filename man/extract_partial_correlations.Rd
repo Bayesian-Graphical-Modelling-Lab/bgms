@@ -13,15 +13,17 @@ extract_partial_correlations(bgms_object)
 A named numeric matrix containing posterior mean partial
 correlations, or \code{NULL} for OMRF models.
 \describe{
-\item{GGM}{A p x p symmetric matrix with ones on the diagonal.}
-\item{Mixed MRF}{A q x q symmetric matrix for the continuous variables.}
+\item{GGM}{A symmetric matrix with ones on the diagonal and one
+row and column per variable.}
+\item{Mixed MRF}{A symmetric matrix with ones on the diagonal and
+one row and column per continuous variable.}
 \item{OMRF}{\code{NULL} (invisibly).}
 }
 }
 \description{
 Computes the posterior mean partial correlation matrix from a model fitted
-with \code{\link[=bgm]{bgm()}}. For GGM models this is the full p x p matrix. For mixed
-MRF models this is the q x q matrix for the continuous block. OMRF models
+with \code{\link[=bgm]{bgm()}}. For GGM models this is the full matrix. For mixed
+MRF models this is the matrix for the continuous block. OMRF models
 have no partial correlations and return \code{NULL}.
 
 Partial correlations are computed from the precision matrix as
@@ -32,7 +34,8 @@ Extract Posterior Mean Partial Correlations
 }
 \examples{
 \donttest{
-fit = bgm(x = Wenchuan[, 1:3])
+fit = bgm(x = Wenchuan[, 1:3],
+          variable_type = rep("continuous", 3))
 extract_partial_correlations(fit)
 }
 

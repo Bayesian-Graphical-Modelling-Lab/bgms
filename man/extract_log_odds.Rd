@@ -13,9 +13,10 @@ extract_log_odds(bgms_object)
 A named numeric matrix of posterior mean log-odds interactions, or
 \code{NULL} for GGM models.
 \describe{
-\item{OMRF}{A p x p symmetric matrix with zero diagonal.}
-\item{Mixed MRF}{A p x p symmetric matrix for the discrete variables
-(zero diagonal).}
+\item{OMRF}{A symmetric matrix with zero diagonal and one row and
+column per variable.}
+\item{Mixed MRF}{A symmetric matrix with zero diagonal and one row
+and column per discrete variable.}
 \item{GGM}{\code{NULL} (invisibly).}
 }
 }

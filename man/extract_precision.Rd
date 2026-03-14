@@ -13,28 +13,28 @@ extract_precision(bgms_object)
 A named numeric matrix containing the posterior mean precision
 matrix, or \code{NULL} for OMRF models.
 \describe{
-\item{GGM}{A p x p symmetric matrix with variable names as row and
-column names.}
-\item{Mixed MRF}{A q x q symmetric matrix for the continuous variables,
-with continuous variable names as row and column names.}
+\item{GGM}{A symmetric matrix with one row and column per variable.}
+\item{Mixed MRF}{A symmetric matrix with one row and column per
+continuous variable.}
 \item{OMRF}{\code{NULL} (invisibly).}
 }
 }
 \description{
 Retrieves the posterior mean precision matrix from a model fitted with
-\code{\link[=bgm]{bgm()}}. For GGM models this is the full p x p precision matrix. For
-mixed MRF models this is the q x q precision matrix of the continuous
+\code{\link[=bgm]{bgm()}}. For GGM models this is the full precision matrix. For
+mixed MRF models this is the precision matrix of the continuous
 (Gaussian) block. OMRF models have no precision matrix and return \code{NULL}.
 
 For mixed MRF models the precision matrix is reconstructed from the
-internal K-scale parameterization as \eqn{\Theta = -2K}{Theta = -2K}.
+internal parameterization as \eqn{\Theta = -2K}{Theta = -2K}.
 }
 \details{
 Extract Posterior Mean Precision Matrix
 }
 \examples{
 \donttest{
-fit = bgm(x = Wenchuan[, 1:3])
+fit = bgm(x = Wenchuan[, 1:3],
+          variable_type = rep("continuous", 3))
 extract_precision(fit)
 }
 

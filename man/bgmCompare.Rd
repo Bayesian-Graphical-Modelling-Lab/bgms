@@ -168,7 +168,7 @@ differences in thresholds and pairwise interactions.
 \item \code{posterior_summary_indicator}: summaries of inclusion
 indicators (if \code{difference_selection = TRUE}).
 \item \code{posterior_mean_main_baseline},
-\code{posterior_mean_pairwise_baseline}: posterior mean matrices
+\code{posterior_mean_associations_baseline}: posterior mean matrices
 (legacy style).
 \item \code{raw_samples}: list of raw draws per chain for main,
 pairwise, and indicator parameters.

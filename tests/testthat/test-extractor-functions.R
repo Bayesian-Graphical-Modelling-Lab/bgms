@@ -1043,3 +1043,426 @@ test_that("extract_arguments works with all legacy versions", {
     }
   }
 })
+
+
+# ==============================================================================
+# Value-Checking Tests for K-Scale Extractors
+# ==============================================================================
+#
+# These tests build synthetic bgms objects with known parameter values and
+# verify that extractors produce correct output.
+# ==============================================================================
+
+# ------------------------------------------------------------------
+# Helper: build a minimal synthetic bgms object
+# ------------------------------------------------------------------
+make_synthetic_bgms = function(associations, residual_variance = NULL,
+                               is_continuous = FALSE, is_mixed = FALSE,
+                               discrete_indices = NULL,
+                               continuous_indices = NULL,
+                               data_columnnames_discrete = NULL,
+                               data_columnnames_continuous = NULL) {
+  p = nrow(associations)
+  obj = list(
+    posterior_mean_associations = associations,
+    posterior_mean_residual_variance = residual_variance,
+    arguments = list(
+      num_variables = p,
+      num_cases = 100,
+      data_columnnames = colnames(associations),
+      is_continuous = is_continuous,
+      is_mixed = is_mixed,
+      discrete_indices = discrete_indices,
+      continuous_indices = continuous_indices,
+      data_columnnames_discrete = data_columnnames_discrete,
+      data_columnnames_continuous = data_columnnames_continuous
+    )
+  )
+  class(obj) = "bgms"
+  obj
+}
+
+
+# ------------------------------------------------------------------------------
+# extract_log_odds() Value Tests
+# ------------------------------------------------------------------------------
+
+test_that("extract_log_odds returns 2K for OMRF", {
+  K = matrix(c(0, 0.3, -0.2, 0.3, 0, 0.5, -0.2, 0.5, 0),
+    nrow = 3, byrow = TRUE,
+    dimnames = list(paste0("X", 1:3), paste0("X", 1:3))
+  )
+  fit = make_synthetic_bgms(K)
+  result = extract_log_odds(fit)
+  expect_equal(result, 2 * K)
+})
+
+test_that("extract_log_odds returns NULL for GGM", {
+  K = matrix(c(0, -0.5, -0.5, 0),
+    nrow = 2,
+    dimnames = list(c("Y1", "Y2"), c("Y1", "Y2"))
+  )
+  fit = make_synthetic_bgms(K,
+    residual_variance = c(1.2, 0.8),
+    is_continuous = TRUE
+  )
+  result = extract_log_odds(fit)
+  expect_null(result)
+})
+
+test_that("extract_log_odds extracts discrete block for mixed MRF", {
+  # 2 discrete (d1, d2) + 1 continuous (c1)
+  K = matrix(0, 3, 3,
+    dimnames = list(c("d1", "c1", "d2"), c("d1", "c1", "d2"))
+  )
+  K[1, 3] = 0.4
+  K[3, 1] = 0.4 # Kxx between d1 and d2
+  K[1, 2] = 0.1
+  K[2, 1] = 0.1 # cross
+  K[2, 3] = -0.2
+  K[3, 2] = -0.2 # cross
+
+  fit = make_synthetic_bgms(K,
+    residual_variance = c(0.5),
+    is_mixed = TRUE,
+    discrete_indices = c(1, 3),
+    continuous_indices = 2,
+    data_columnnames_discrete = c("d1", "d2"),
+    data_columnnames_continuous = "c1"
+  )
+
+  result = extract_log_odds(fit)
+  expect_equal(nrow(result), 2)
+  expect_equal(ncol(result), 2)
+  expect_equal(dimnames(result), list(c("d1", "d2"), c("d1", "d2")))
+  # Value: 2 * Kxx block
+  expect_equal(result["d1", "d2"], 2 * 0.4)
+  expect_equal(result["d2", "d1"], 2 * 0.4)
+  expect_equal(result["d1", "d1"], 0)
+  expect_equal(result["d2", "d2"], 0)
+})
+
+
+# ------------------------------------------------------------------------------
+# extract_precision() Value Tests
+# ------------------------------------------------------------------------------
+
+test_that("extract_precision reconstructs Theta = -2K for GGM", {
+  # Known K matrix (K = -0.5 * Theta)
+  K = matrix(c(0, -0.3, 0.1, -0.3, 0, 0.2, 0.1, 0.2, 0),
+    nrow = 3,
+    dimnames = list(paste0("Y", 1:3), paste0("Y", 1:3))
+  )
+  rv = c(0.5, 0.8, 0.6) # residual variance = 1/Theta_ii
+  names(rv) = paste0("Y", 1:3)
+
+  fit = make_synthetic_bgms(K, residual_variance = rv, is_continuous = TRUE)
+  Theta = extract_precision(fit)
+
+  # Off-diagonal: Theta_ij = -2 * K_ij
+  expect_equal(Theta[1, 2], -2 * K[1, 2])
+  expect_equal(Theta[1, 3], -2 * K[1, 3])
+  expect_equal(Theta[2, 3], -2 * K[2, 3])
+
+  # Diagonal: Theta_ii = 1/rv_i
+  expect_equal(unname(diag(Theta)), unname(1 / rv))
+
+  # Symmetric
+  expect_equal(Theta, t(Theta))
+})
+
+test_that("extract_precision returns NULL for OMRF", {
+  K = matrix(c(0, 0.3, 0.3, 0),
+    nrow = 2,
+    dimnames = list(c("X1", "X2"), c("X1", "X2"))
+  )
+  fit = make_synthetic_bgms(K)
+  result = extract_precision(fit)
+  expect_null(result)
+})
+
+test_that("extract_precision extracts continuous block for mixed MRF", {
+  # 2 discrete + 2 continuous
+  K = matrix(0, 4, 4,
+    dimnames = list(c("d1", "c1", "d2", "c2"), c("d1", "c1", "d2", "c2"))
+  )
+  K[2, 4] = -0.25
+  K[4, 2] = -0.25 # Kyy between c1, c2
+
+  rv = c(0.5, 0.4)
+  names(rv) = c("c1", "c2")
+
+  fit = make_synthetic_bgms(K,
+    residual_variance = rv,
+    is_mixed = TRUE,
+    discrete_indices = c(1, 3),
+    continuous_indices = c(2, 4),
+    data_columnnames_discrete = c("d1", "d2"),
+    data_columnnames_continuous = c("c1", "c2")
+  )
+
+  Theta = extract_precision(fit)
+
+  expect_equal(nrow(Theta), 2)
+  expect_equal(dimnames(Theta), list(c("c1", "c2"), c("c1", "c2")))
+
+  # Off-diagonal: -2K
+  expect_equal(Theta["c1", "c2"], -2 * (-0.25))
+  expect_equal(Theta["c2", "c1"], -2 * (-0.25))
+
+  # Diagonal: 1/rv
+  expect_equal(Theta["c1", "c1"], 1 / 0.5)
+  expect_equal(Theta["c2", "c2"], 1 / 0.4)
+})
+
+
+# ------------------------------------------------------------------------------
+# extract_partial_correlations() Value Tests
+# ------------------------------------------------------------------------------
+
+test_that("extract_partial_correlations derives from precision for GGM", {
+  K = matrix(c(0, -0.3, 0.1, -0.3, 0, 0.2, 0.1, 0.2, 0),
+    nrow = 3,
+    dimnames = list(paste0("Y", 1:3), paste0("Y", 1:3))
+  )
+  rv = c(0.5, 0.8, 0.6)
+  names(rv) = paste0("Y", 1:3)
+
+  fit = make_synthetic_bgms(K, residual_variance = rv, is_continuous = TRUE)
+  pcor = extract_partial_correlations(fit)
+  Theta = extract_precision(fit)
+
+  # rho_ij = -Theta_ij / sqrt(Theta_ii * Theta_jj)
+  for(i in 1:3) {
+    for(j in 1:3) {
+      if(i == j) {
+        expect_equal(pcor[i, j], 1)
+      } else {
+        expected = -Theta[i, j] / sqrt(Theta[i, i] * Theta[j, j])
+        expect_equal(pcor[i, j], expected,
+          info = sprintf("pcor[%d,%d]", i, j)
+        )
+      }
+    }
+  }
+
+  # Symmetric
+  expect_equal(pcor, t(pcor))
+})
+
+test_that("extract_partial_correlations returns NULL for OMRF", {
+  K = matrix(c(0, 0.3, 0.3, 0),
+    nrow = 2,
+    dimnames = list(c("X1", "X2"), c("X1", "X2"))
+  )
+  fit = make_synthetic_bgms(K)
+  result = extract_partial_correlations(fit)
+  expect_null(result)
+})
+
+test_that("extract_partial_correlations bounded in [-1, 1] for mixed MRF", {
+  K = matrix(0, 4, 4,
+    dimnames = list(c("d1", "c1", "d2", "c2"), c("d1", "c1", "d2", "c2"))
+  )
+  K[2, 4] = -0.25
+  K[4, 2] = -0.25
+
+  rv = c(0.5, 0.4)
+  names(rv) = c("c1", "c2")
+
+  fit = make_synthetic_bgms(K,
+    residual_variance = rv,
+    is_mixed = TRUE,
+    discrete_indices = c(1, 3),
+    continuous_indices = c(2, 4),
+    data_columnnames_discrete = c("d1", "d2"),
+    data_columnnames_continuous = c("c1", "c2")
+  )
+
+  pcor = extract_partial_correlations(fit)
+
+  expect_equal(nrow(pcor), 2)
+  expect_true(all(pcor >= -1 & pcor <= 1))
+  expect_equal(diag(pcor), c(c1 = 1, c2 = 1))
+})
+
+
+# ------------------------------------------------------------------------------
+# Mutual Consistency Tests
+# ------------------------------------------------------------------------------
+
+test_that("GGM extractors are mutually consistent: K → Theta → pcor", {
+  K = matrix(c(0, -0.4, 0.15, -0.4, 0, -0.1, 0.15, -0.1, 0),
+    nrow = 3,
+    dimnames = list(paste0("Y", 1:3), paste0("Y", 1:3))
+  )
+  rv = c(0.5, 1.0, 0.8)
+  names(rv) = paste0("Y", 1:3)
+
+  fit = make_synthetic_bgms(K, residual_variance = rv, is_continuous = TRUE)
+
+  # K → Theta → pcor chain
+  Theta = extract_precision(fit)
+  pcor = extract_partial_correlations(fit)
+  log_odds = extract_log_odds(fit)
+
+  # Theta = -2K
+  expect_equal(Theta[lower.tri(Theta)], -2 * K[lower.tri(K)])
+
+  # pcor from Theta
+  d = sqrt(diag(Theta))
+  expected_pcor = -Theta / outer(d, d)
+  diag(expected_pcor) = 1
+  expect_equal(pcor, expected_pcor)
+
+  # GGM has no log-odds
+  expect_null(log_odds)
+})
+
+test_that("OMRF extractors: log_odds present, precision/pcor NULL", {
+  K = matrix(c(0, 0.3, 0.3, 0),
+    nrow = 2,
+    dimnames = list(c("X1", "X2"), c("X1", "X2"))
+  )
+  fit = make_synthetic_bgms(K)
+
+  expect_equal(extract_log_odds(fit), 2 * K)
+  expect_null(extract_precision(fit))
+  expect_null(extract_partial_correlations(fit))
+})
+
+test_that("Mixed MRF: log_odds and precision from disjoint blocks", {
+  K = matrix(0, 4, 4,
+    dimnames = list(c("d1", "c1", "d2", "c2"), c("d1", "c1", "d2", "c2"))
+  )
+  K[1, 3] = 0.4
+  K[3, 1] = 0.4 # Kxx
+  K[2, 4] = -0.3
+  K[4, 2] = -0.3 # Kyy
+  K[1, 2] = 0.1
+  K[2, 1] = 0.1 # cross
+
+  rv = c(0.5, 0.6)
+  names(rv) = c("c1", "c2")
+
+  fit = make_synthetic_bgms(K,
+    residual_variance = rv,
+    is_mixed = TRUE,
+    discrete_indices = c(1, 3),
+    continuous_indices = c(2, 4),
+    data_columnnames_discrete = c("d1", "d2"),
+    data_columnnames_continuous = c("c1", "c2")
+  )
+
+  lo = extract_log_odds(fit)
+  Theta = extract_precision(fit)
+  pcor = extract_partial_correlations(fit)
+
+  # Discrete block: log_odds = 2K
+  expect_equal(lo["d1", "d2"], 2 * 0.4)
+
+  # Continuous block: Theta = -2K
+  expect_equal(Theta["c1", "c2"], -2 * (-0.3))
+
+  # Dimensions are independent
+  expect_equal(dim(lo), c(2, 2))
+  expect_equal(dim(Theta), c(2, 2))
+  expect_equal(dim(pcor), c(2, 2))
+})
+
+
+# ==============================================================================
+# Convention / Relationship Tests on Real Fit Objects
+# ==============================================================================
+#
+# Verify K-scale invariants hold on real bgm() output (not synthetic objects).
+# ==============================================================================
+
+test_that("GGM: associations diagonal is zero", {
+  fit = get_bgms_fit_ggm()
+  K = fit$posterior_mean_associations
+  expect_true(all(diag(K) == 0))
+})
+
+test_that("GGM: residual variance is positive", {
+  fit = get_bgms_fit_ggm()
+  rv = fit$posterior_mean_residual_variance
+  expect_true(all(rv > 0))
+})
+
+test_that("GGM: precision diagonal = 1/residual_variance", {
+  fit = get_bgms_fit_ggm()
+  Theta = extract_precision(fit)
+  rv = fit$posterior_mean_residual_variance
+  expect_equal(unname(diag(Theta)), unname(1 / rv))
+})
+
+test_that("GGM: precision is symmetric", {
+  fit = get_bgms_fit_ggm()
+  Theta = extract_precision(fit)
+  expect_equal(Theta, t(Theta))
+})
+
+test_that("GGM: partial correlations in [-1, 1] with unit diagonal", {
+  fit = get_bgms_fit_ggm()
+  pcor = extract_partial_correlations(fit)
+  expect_true(all(pcor >= -1 & pcor <= 1))
+  expect_equal(unname(diag(pcor)), rep(1, nrow(pcor)))
+})
+
+test_that("OMRF: associations matrix is symmetric with zero diagonal", {
+  fit = get_bgms_fit()
+  K = fit$posterior_mean_associations
+  expect_equal(K, t(K))
+  expect_true(all(diag(K) == 0))
+})
+
+test_that("OMRF: log_odds = 2 * associations", {
+  fit = get_bgms_fit()
+  lo = extract_log_odds(fit)
+  K = fit$posterior_mean_associations
+  expect_equal(lo, 2 * K)
+})
+
+test_that("Mixed MRF: associations diagonal is zero", {
+  fit = get_bgms_fit_mixed_mrf()
+  K = fit$posterior_mean_associations
+  expect_true(all(diag(K) == 0))
+})
+
+test_that("Mixed MRF: residual variance is positive", {
+  fit = get_bgms_fit_mixed_mrf()
+  rv = fit$posterior_mean_residual_variance
+  expect_true(all(rv > 0))
+})
+
+test_that("Mixed MRF: precision diagonal = 1/residual_variance", {
+  fit = get_bgms_fit_mixed_mrf()
+  Theta = extract_precision(fit)
+  rv = fit$posterior_mean_residual_variance
+  expect_equal(unname(diag(Theta)), unname(1 / rv))
+})
+
+test_that("Mixed MRF: discrete block log_odds = 2 * K_discrete", {
+  fit = get_bgms_fit_mixed_mrf()
+  args = extract_arguments(fit)
+  K = fit$posterior_mean_associations
+  disc_idx = args$discrete_indices
+  lo = extract_log_odds(fit)
+  expected = 2 * K[disc_idx, disc_idx]
+  dimnames(expected) = dimnames(lo)
+  expect_equal(lo, expected)
+})
+
+test_that("Mixed MRF: continuous precision = -2 * K_continuous", {
+  fit = get_bgms_fit_mixed_mrf()
+  args = extract_arguments(fit)
+  K = fit$posterior_mean_associations
+  cont_idx = args$continuous_indices
+  Theta = extract_precision(fit)
+  rv = fit$posterior_mean_residual_variance
+  expected_offdiag = -2 * K[cont_idx, cont_idx]
+  diag(expected_offdiag) = unname(1 / rv)
+  dimnames(expected_offdiag) = dimnames(Theta)
+  expect_equal(Theta, expected_offdiag)
+})
