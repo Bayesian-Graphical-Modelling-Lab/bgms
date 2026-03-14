@@ -297,7 +297,7 @@ private:
 
     arma::mat main_effects_discrete_;                     ///< p x max_cats main effects (thresholds or alpha/beta)
     arma::vec main_effects_continuous_;                     ///< q-vector continuous means
-    arma::mat pairwise_effects_discrete_;                     ///< p x p K-scale discrete interactions (Kxx = σ/2, symmetric, zero diag)
+    arma::mat pairwise_effects_discrete_;                     ///< p x p K-scale discrete interactions (Kxx = σ, symmetric, zero diag)
     arma::mat pairwise_effects_continuous_;                     ///< q x q K-scale matrix (Kyy = -½Θ, negative-definite)
     arma::mat pairwise_effects_cross_;                     ///< p x q cross-type interactions
 

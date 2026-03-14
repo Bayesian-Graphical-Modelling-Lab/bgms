@@ -123,7 +123,7 @@ test_that(paste(
 # 2. Fit-object structure tests
 # ==============================================================================
 # simulate/predict also read directly from the fit object:
-#   - posterior_mean_pairwise, posterior_mean_main  (posterior-mean method)
+#   - posterior_mean_associations, posterior_mean_main  (posterior-mean method)
 #   - raw_samples$pairwise, raw_samples$main       (posterior-sample method)
 # ==============================================================================
 
@@ -134,17 +134,17 @@ test_that("bgms fit objects have posterior_mean fields for simulate/predict", {
     args = extract_arguments(fit)
     p = args$num_variables
 
-    expect_false(is.null(fit$posterior_mean_pairwise),
-      info = paste(ctx, "missing posterior_mean_pairwise")
+    expect_false(is.null(fit$posterior_mean_associations),
+      info = paste(ctx, "missing posterior_mean_associations")
     )
-    expect_true(is.matrix(fit$posterior_mean_pairwise),
-      info = paste(ctx, "posterior_mean_pairwise not a matrix")
+    expect_true(is.matrix(fit$posterior_mean_associations),
+      info = paste(ctx, "posterior_mean_associations not a matrix")
     )
-    expect_equal(nrow(fit$posterior_mean_pairwise), p,
-      info = paste(ctx, "posterior_mean_pairwise wrong nrow")
+    expect_equal(nrow(fit$posterior_mean_associations), p,
+      info = paste(ctx, "posterior_mean_associations wrong nrow")
     )
-    expect_equal(ncol(fit$posterior_mean_pairwise), p,
-      info = paste(ctx, "posterior_mean_pairwise wrong ncol")
+    expect_equal(ncol(fit$posterior_mean_associations), p,
+      info = paste(ctx, "posterior_mean_associations wrong ncol")
     )
 
     if(isTRUE(args$is_continuous)) {
@@ -152,8 +152,8 @@ test_that("bgms fit objects have posterior_mean fields for simulate/predict", {
       expect_null(fit$posterior_mean_main,
         info = paste(ctx, "GGM posterior_mean_main should be NULL")
       )
-      expect_true(all(fit$posterior_mean_precision_diagonal > 0),
-        info = paste(ctx, "GGM precision diagonal should be positive (Theta_ii)")
+      expect_true(all(fit$posterior_mean_residual_variance > 0),
+        info = paste(ctx, "GGM residual variance should be positive (1/Theta_ii)")
       )
     } else if(isTRUE(spec$is_mixed)) {
       expect_true(is.list(fit$posterior_mean_main),

@@ -443,6 +443,12 @@ extract_pairwise_interactions.bgms = function(bgms_object) {
     }
 
     dimnames(mat) = list(paste0("iter", seq_len(nrow(mat))), edge_names)
+
+    # GGM raw samples are on precision scale (Theta); convert to K-scale
+    if(isTRUE(arguments$is_continuous)) {
+      mat = -0.5 * mat
+    }
+
     return(mat)
   }
 
@@ -1176,23 +1182,23 @@ extract_precision.bgms = function(bgms_object) {
     return(invisible(NULL))
   }
 
-  prec_diag = bgms_object$posterior_mean_precision_diagonal
-  pairwise = bgms_object$posterior_mean_pairwise
+  rv = bgms_object$posterior_mean_residual_variance
+  associations = bgms_object$posterior_mean_associations
 
   if(isTRUE(arguments$is_mixed)) {
     # Mixed MRF: extract the q x q continuous block (K-scale → precision)
     cont_idx = arguments$continuous_indices
     cont_names = arguments$data_columnnames_continuous
-    K_block = pairwise[cont_idx, cont_idx]
-    diag(K_block) = prec_diag
+    K_block = associations[cont_idx, cont_idx]
     precision = -2 * K_block
+    diag(precision) = 1 / rv
     dimnames(precision) = list(cont_names, cont_names)
     return(precision)
   }
 
-  # GGM: off-diagonal and diagonal are already on precision scale
-  precision = pairwise
-  diag(precision) = prec_diag
+  # GGM: associations are on K-scale (K = -0.5 * Theta)
+  precision = -2 * associations
+  diag(precision) = 1 / rv
   return(precision)
 }
 
@@ -1247,28 +1253,10 @@ extract_partial_correlations.bgms = function(bgms_object) {
     return(invisible(NULL))
   }
 
-  prec_diag = bgms_object$posterior_mean_precision_diagonal
-  pairwise = bgms_object$posterior_mean_pairwise
-
-  if(isTRUE(arguments$is_mixed)) {
-    # Mixed MRF: rho_ij = K_ij / sqrt(K_ii * K_jj)
-    # K_ii < 0, so use sqrt(-K_ii) for the denominator
-    cont_idx = arguments$continuous_indices
-    cont_names = arguments$data_columnnames_continuous
-    K_block = pairwise[cont_idx, cont_idx]
-    diag(K_block) = prec_diag
-    d = sqrt(-prec_diag)
-    partial_corr = K_block / outer(d, d)
-    diag(partial_corr) = 1
-    dimnames(partial_corr) = list(cont_names, cont_names)
-    return(partial_corr)
-  }
-
-  # GGM: rho_ij = -Theta_ij / sqrt(Theta_ii * Theta_jj)
-  theta = pairwise
-  diag(theta) = prec_diag
-  d = sqrt(prec_diag)
-  partial_corr = -theta / outer(d, d)
+  # Derive from precision: rho_ij = -Theta_ij / sqrt(Theta_ii * Theta_jj)
+  precision = extract_precision(bgms_object)
+  d = sqrt(diag(precision))
+  partial_corr = -precision / outer(d, d)
   diag(partial_corr) = 1
   return(partial_corr)
 }
@@ -1320,17 +1308,17 @@ extract_log_odds.bgms = function(bgms_object) {
     return(invisible(NULL))
   }
 
-  pairwise = bgms_object$posterior_mean_pairwise
+  associations = bgms_object$posterior_mean_associations
 
   if(isTRUE(arguments$is_mixed)) {
-    # Mixed MRF: extract the p x p discrete block
+    # Mixed MRF: extract the p x p discrete block, convert K → log-odds
     disc_idx = arguments$discrete_indices
     disc_names = arguments$data_columnnames_discrete
-    log_odds = pairwise[disc_idx, disc_idx]
+    log_odds = 2 * associations[disc_idx, disc_idx]
     dimnames(log_odds) = list(disc_names, disc_names)
     return(log_odds)
   }
 
-  # OMRF: full p x p pairwise matrix is already the log-odds
-  return(pairwise)
+  # OMRF: log adjacent-category odds ratio = 2K = 2 * sigma
+  return(2 * associations)
 }

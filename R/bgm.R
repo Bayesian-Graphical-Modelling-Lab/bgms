@@ -332,11 +332,10 @@
 #'     for mixed MRF models these are discrete thresholds and
 #'     continuous means. \code{NULL} for GGM models (no main effects).
 #'   \item \code{posterior_summary_quadratic}: Data frame with posterior
-#'     summaries for the precision matrix diagonal (GGM) or the Kyy
-#'     diagonal (mixed MRF). Present for GGM and mixed MRF models;
+#'     summaries for the residual variance parameters (GGM and mixed MRF).
 #'     \code{NULL} for OMRF models.
 #'   \item \code{posterior_summary_pairwise}: Data frame with posterior
-#'     summaries for pairwise interaction parameters.
+#'     summaries for partial association parameters.
 #'   \item \code{posterior_summary_indicator}: Data frame with posterior
 #'     summaries for edge inclusion indicators (if \code{edge_selection = TRUE}).
 #'
@@ -345,14 +344,15 @@
 #'     (p x max_categories) of category thresholds. For mixed MRF: a list
 #'     with \code{$discrete} (threshold matrix) and \code{$continuous}
 #'     (q x 1 matrix of means).
-#'   \item \code{posterior_mean_pairwise}: Symmetric matrix of posterior mean
-#'     pairwise interaction strengths (zero diagonal). Use
-#'     [extract_precision()] to obtain the full precision matrix.
-#'   \item \code{posterior_mean_precision_diagonal}: Named numeric vector of
-#'     precision-matrix diagonal entries. For GGM: the diagonal
-#'     \eqn{\Theta_{ii}}{Theta_ii} (positive). For mixed MRF: the Kyy
-#'     diagonal on K-scale. Present for GGM and mixed MRF models;
-#'     \code{NULL} for OMRF.
+#'   \item \code{posterior_mean_associations}: Symmetric matrix of posterior
+#'     mean partial associations (zero diagonal). For continuous variables
+#'     these are unstandardized partial correlations; for discrete variables
+#'     these are half the log adjacent-category odds ratio. Use
+#'     [extract_precision()], [extract_partial_correlations()], or
+#'     [extract_log_odds()] to convert to interpretable scales.
+#'   \item \code{posterior_mean_residual_variance}: Named numeric vector of
+#'     posterior mean residual variances \eqn{1/\Theta_{ii}}{1/Theta_ii}.
+#'     Present for GGM and mixed MRF models; \code{NULL} for OMRF.
 #'   \item \code{posterior_mean_indicator}: Symmetric matrix of posterior mean
 #'     inclusion probabilities (if edge selection was enabled).
 #'

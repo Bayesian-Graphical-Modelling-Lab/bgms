@@ -168,8 +168,8 @@ test_that("estimate-simulate-re-estimate cycle: cor > 0.7 (mixed MRF)", {
     chains = 1, seed = 801
   )
 
-  pw1 = as.vector(fit1$posterior_mean_pairwise)
-  pw2 = as.vector(fit2$posterior_mean_pairwise)
+  pw1 = as.vector(fit1$posterior_mean_associations)
+  pw2 = as.vector(fit2$posterior_mean_associations)
 
   r = cor(pw1, pw2)
   expect_gt(r, 0.7,

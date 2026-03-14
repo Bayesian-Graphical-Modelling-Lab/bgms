@@ -643,7 +643,7 @@ test_that("bgm() fits mixed MRF with many categories", {
   )
 
   expect_s3_class(fit, "bgms")
-  pw = fit$posterior_mean_pairwise
+  pw = fit$posterior_mean_associations
   expect_equal(dim(pw), c(p + q, p + q))
   expect_true(all(is.finite(pw)))
 })
@@ -679,7 +679,7 @@ test_that("bgm() fits mixed MRF with large p, small q", {
   )
 
   expect_s3_class(fit, "bgms")
-  expect_equal(nrow(fit$posterior_mean_pairwise), p + q)
+  expect_equal(nrow(fit$posterior_mean_associations), p + q)
 })
 
 # ---- bgm() end-to-end with small p, large q ---------------------------------
@@ -712,5 +712,5 @@ test_that("bgm() fits mixed MRF with small p, large q", {
   )
 
   expect_s3_class(fit, "bgms")
-  expect_equal(nrow(fit$posterior_mean_pairwise), p + q)
+  expect_equal(nrow(fit$posterior_mean_associations), p + q)
 })

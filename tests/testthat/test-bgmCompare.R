@@ -72,7 +72,7 @@ test_that("bgmCompare posterior summaries have expected format", {
 
   # Should have baseline summaries
   expect_true(!is.null(fit$posterior_summary_pairwise_baseline))
-  expect_true(!is.null(fit$posterior_mean_pairwise_baseline))
+  expect_true(!is.null(fit$posterior_mean_associations_baseline))
 })
 
 
@@ -86,7 +86,7 @@ test_that("bgmCompare outputs are numerically sane", {
   p = args$num_variables
 
   # Check baseline pairwise
-  M = fit$posterior_mean_pairwise_baseline
+  M = fit$posterior_mean_associations_baseline
 
   expect_true(is.matrix(M))
   expect_equal(dim(M), c(p, p))
@@ -126,7 +126,7 @@ test_that("bgmCompare without selection produces valid estimates", {
   expect_s3_class(fit, "bgmCompare")
 
   # Should have posterior means
-  expect_true(!is.null(fit$posterior_mean_pairwise_baseline))
+  expect_true(!is.null(fit$posterior_mean_associations_baseline))
   expect_true(!is.null(fit$posterior_mean_main_baseline))
 })
 
@@ -243,7 +243,7 @@ test_that("bgmCompare output has correct parameter ordering", {
   )
 
   # Summary mean vector -> matrix lower triangle (same row-major order)
-  M = fit$posterior_mean_pairwise_baseline
+  M = fit$posterior_mean_associations_baseline
   expect_true(
     all(abs(fit$posterior_summary_pairwise_baseline$mean - M[lower.tri(M)]) < 1e-10),
     info = "bgmCompare pairwise baseline summary means do not match matrix lower triangle"
@@ -253,7 +253,7 @@ test_that("bgmCompare output has correct parameter ordering", {
   pw_means = colMeans(extract_pairwise_interactions(fit))
   expect_true(
     all(check_extractor_matrix_consistency(
-      pw_means, fit$posterior_mean_pairwise_baseline
+      pw_means, fit$posterior_mean_associations_baseline
     )),
     info = "bgmCompare extract_pairwise_interactions() names do not match matrix positions"
   )

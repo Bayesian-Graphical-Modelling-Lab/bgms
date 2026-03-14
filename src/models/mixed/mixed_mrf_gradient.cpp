@@ -78,7 +78,8 @@ void MixedMRFModel::ensure_gradient_cache() {
         for(size_t j = i + 1; j < p_; ++j) {
             if(edge_indicators_(i, j) == 0) continue;
             int loc = kxx_index_cache_(i, j);
-            // Factor 4: K-scale (K = σ/2), so d/dK [4K·(x^Tx)] = 4·(x^Tx)
+            // Factor 4: K = σ, and the log-PL has edge (i,j) in two conditionals,
+            // giving d/dK [4K·(x^Tx)] = 4·(x^Tx)
             grad_obs_cache_(loc) = 4.0 * arma::dot(
                 discrete_observations_dbl_.col(i),
                 discrete_observations_dbl_.col(j)

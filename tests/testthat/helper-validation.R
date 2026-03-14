@@ -166,9 +166,9 @@ extract_bgms_blocks = function(fit, net) {
   q = net$q
   Kxx = pw[seq_len(p), seq_len(p)]
   Kxy = pw[seq_len(p), p + seq_len(q)]
-  # Kyy off-diagonal from pairwise, diagonal from separate field
+  # Kyy off-diagonal from pairwise, diagonal converted from residual variance
   Kyy = pw[p + seq_len(q), p + seq_len(q)]
-  diag(Kyy) = fit$posterior_mean_precision_diagonal
+  diag(Kyy) = -1 / (2 * fit$posterior_mean_residual_variance)
 
   list(mux = mux, muy = muy_vec, Kxx = Kxx, Kxy = Kxy, Kyy = Kyy)
 }

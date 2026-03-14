@@ -707,7 +707,7 @@ simulate.bgms = function(object,
 
   if(method == "posterior-mean") {
     # Use posterior mean parameters
-    pairwise = object$posterior_mean_pairwise
+    pairwise = object$posterior_mean_associations
     main = object$posterior_mean_main
 
     # Set R's RNG for simulate_mrf
@@ -1159,7 +1159,7 @@ predict.bgms = function(object,
 
   if(method == "posterior-mean") {
     # Use posterior mean parameters
-    pairwise = object$posterior_mean_pairwise
+    pairwise = object$posterior_mean_associations
     main = object$posterior_mean_main
 
     probs = compute_conditional_probs(
@@ -1550,20 +1550,20 @@ recode_data_for_prediction = function(x, num_categories, is_ordinal) {
 #   GGM Prediction Helpers
 # ==============================================================================
 
-# Reconstruct the full precision matrix from posterior mean components.
+# Reconstruct the full precision matrix from K-scale associations and
+# residual variances.
 #
-# @param posterior_mean_pairwise p x p symmetric matrix with off-diagonal
-#   precision elements (zero diagonal). For standalone GGM these are
-#   already on precision scale.
-# @param precision_diagonal Named numeric vector of precision diagonal
-#   elements (on precision scale Theta_ii for GGM).
+# @param associations p x p symmetric matrix of K-scale partial
+#   associations (zero diagonal).
+# @param residual_variance Named numeric vector of residual variances
+#   (1 / Theta_ii).
 #
-# @return p x p precision matrix (Omega).
-reconstruct_precision = function(posterior_mean_pairwise, precision_diagonal) {
-  omega = posterior_mean_pairwise
+# @return p x p precision matrix (Omega = Theta).
+reconstruct_precision = function(associations, residual_variance) {
+  omega = -2 * associations
   # Excluded edges (NA) have zero precision
   omega[is.na(omega)] = 0
-  diag(omega) = precision_diagonal
+  diag(omega) = 1 / residual_variance
   return(omega)
 }
 
@@ -1608,8 +1608,8 @@ predict_bgms_ggm = function(object, newdata, predict_vars, data_columnnames,
   if(method == "posterior-mean") {
     # Reconstruct precision matrix from posterior means
     omega = reconstruct_precision(
-      object$posterior_mean_pairwise,
-      object$posterior_mean_precision_diagonal
+      object$posterior_mean_associations,
+      object$posterior_mean_residual_variance
     )
 
     result = compute_conditional_ggm(
@@ -1725,8 +1725,8 @@ simulate_bgms_ggm = function(object, nsim, seed, method, ndraws,
   if(method == "posterior-mean") {
     # Reconstruct precision matrix from off-diagonal + separate diagonal
     precision = reconstruct_precision(
-      object$posterior_mean_pairwise,
-      object$posterior_mean_precision_diagonal
+      object$posterior_mean_associations,
+      object$posterior_mean_residual_variance
     )
 
     # Call simulate_mrf with variable_type = "continuous"
@@ -2050,7 +2050,7 @@ build_mixed_params_mean = function(object, arguments) {
   disc_idx = arguments$discrete_indices
   cont_idx = arguments$continuous_indices
 
-  pmat = object$posterior_mean_pairwise
+  pmat = object$posterior_mean_associations
 
   Kxx = matrix(0, p, p)
   for(i in seq_len(p)) {
@@ -2072,10 +2072,10 @@ build_mixed_params_mean = function(object, arguments) {
       Kyy[i, j] = pmat[cont_idx[i], cont_idx[j]]
     }
   }
-  # Inject the separately stored continuous diagonal (K-scale, negative)
-  kyy_diag = object$posterior_mean_precision_diagonal
+  # Convert residual variance back to K-scale diagonal: K_ii = -1/(2*rv)
+  rv = object$posterior_mean_residual_variance
   for(j in seq_len(q)) {
-    Kyy[j, j] = kyy_diag[j]
+    Kyy[j, j] = -1 / (2 * rv[j])
   }
 
   mux = object$posterior_mean_main$discrete

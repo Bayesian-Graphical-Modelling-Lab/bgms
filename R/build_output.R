@@ -408,20 +408,25 @@ build_output_bgm = function(spec, raw) {
     colnames(results$posterior_mean_main) = paste0("cat (", seq_len(ncol(pmm)), ")")
   }
 
-  # --- Posterior mean: pairwise -----------------------------------------------
-  results$posterior_mean_pairwise = matrix(0,
+  # --- Posterior mean: associations (K-scale) ---------------------------------
+  # For GGM: C++ stores precision Theta; convert to K = -0.5 * Theta.
+  # For OMRF: C++ already stores K (= sigma, the paper's association parameter).
+  associations = matrix(0,
     nrow = num_variables, ncol = num_variables,
     dimnames = list(data_columnnames, data_columnnames)
   )
-  results$posterior_mean_pairwise[lower.tri(results$posterior_mean_pairwise)] =
-    pairwise_summary$mean
-  results$posterior_mean_pairwise = results$posterior_mean_pairwise +
-    t(results$posterior_mean_pairwise)
-
-  # --- Precision diagonal (GGM only) ------------------------------------------
+  associations[lower.tri(associations)] = pairwise_summary$mean
+  associations = associations + t(associations)
   if(is_continuous) {
-    results$posterior_mean_precision_diagonal = main_summary$mean
-    names(results$posterior_mean_precision_diagonal) = data_columnnames
+    associations = -0.5 * associations
+  }
+  results$posterior_mean_associations = associations
+
+  # --- Residual variance (GGM only) -------------------------------------------
+  # C++ stores precision diagonal Theta_ii; convert to 1 / Theta_ii.
+  if(is_continuous) {
+    results$posterior_mean_residual_variance = 1 / main_summary$mean
+    names(results$posterior_mean_residual_variance) = data_columnnames
   }
 
   # --- Posterior mean: indicator + SBM ----------------------------------------
@@ -504,7 +509,7 @@ build_output_bgm = function(spec, raw) {
 # Splits into main (discrete thresholds, continuous means),
 # quadratic (continuous diagonal), and pairwise (discrete,
 # continuous off-diagonal, cross). The continuous diagonal is
-# stored separately in posterior_mean_precision_diagonal;
+# stored separately in posterior_mean_residual_variance;
 # the diagonal of the pairwise interaction matrix is zero.
 # ==============================================================================
 build_output_mixed_mrf = function(spec, raw) {
@@ -696,16 +701,17 @@ build_output_mixed_mrf = function(spec, raw) {
     continuous = pmm_cont
   )
 
-  # --- Posterior mean: pairwise as (p+q) × (p+q) matrix -----------------------
+  # --- Posterior mean: associations (K-scale, all blocks) ---------------------
   dn = list(data_columnnames, data_columnnames)
-  results$posterior_mean_pairwise = fill_mixed_symmetric(
+  results$posterior_mean_associations = fill_mixed_symmetric(
     pairwise_summary$mean, p, q, disc_idx, cont_idx, dn
   )
 
-  # --- Precision diagonal (Kyy block) -----------------------------------------
+  # --- Residual variance (continuous diagonal) --------------------------------
+  # C++ stores Kyy_ii (K-scale, negative); convert to 1/Theta_ii = -1/(2*K_ii).
   kyy_diag_means = main_summary$mean[nt + q + seq_len(q)]
   names(kyy_diag_means) = cont_names
-  results$posterior_mean_precision_diagonal = kyy_diag_means
+  results$posterior_mean_residual_variance = -1 / (2 * kyy_diag_means)
 
   # --- Posterior mean: indicator -----------------------------------------------
   if(edge_selection) {
@@ -829,17 +835,17 @@ build_output_compare = function(spec, raw) {
   colnames(results$posterior_mean_main_baseline) =
     paste0("cat (", seq_len(ncol(pmm)), ")")
 
-  # --- Posterior mean: pairwise baseline --------------------------------------
-  results$posterior_mean_pairwise_baseline = matrix(0,
+  # --- Posterior mean: associations baseline ----------------------------------
+  results$posterior_mean_associations_baseline = matrix(0,
     nrow = num_variables, ncol = num_variables,
     dimnames = list(data_columnnames, data_columnnames)
   )
-  results$posterior_mean_pairwise_baseline[
-    lower.tri(results$posterior_mean_pairwise_baseline)
+  results$posterior_mean_associations_baseline[
+    lower.tri(results$posterior_mean_associations_baseline)
   ] = summary_list$pairwise_baseline$mean
-  results$posterior_mean_pairwise_baseline =
-    results$posterior_mean_pairwise_baseline +
-    t(results$posterior_mean_pairwise_baseline)
+  results$posterior_mean_associations_baseline =
+    results$posterior_mean_associations_baseline +
+    t(results$posterior_mean_associations_baseline)
 
   # --- raw_samples ------------------------------------------------------------
   results$raw_samples = list(

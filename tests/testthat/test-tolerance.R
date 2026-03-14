@@ -97,7 +97,7 @@ test_that("bgms outputs are numerically sane (stochastic-robust)", {
 
         # pairwise sanity + symmetry
         function(res, ctx) {
-          fld = "posterior_mean_pairwise"
+          fld = "posterior_mean_associations"
           M = res[[fld]]
 
           actual_dim = if(!is.null(dim(M))) paste(dim(M), collapse = "x") else "NULL"
@@ -122,7 +122,7 @@ test_that("bgms outputs are numerically sane (stochastic-robust)", {
 
         # coarse aggregate for pairwise (wide bounds; calibrate if you want tighter)
         function(res, ctx) {
-          fld = "posterior_mean_pairwise"
+          fld = "posterior_mean_associations"
           M = res[[fld]]
           vals = abs(upper_vals(M))
           stat = mean(vals, na.rm = TRUE)
@@ -160,7 +160,7 @@ test_that("bgms outputs are numerically sane (stochastic-robust)", {
       checks = list(
         # baseline pairwise sanity + symmetry
         function(res, ctx) {
-          fld = "posterior_mean_pairwise_baseline"
+          fld = "posterior_mean_associations_baseline"
           M = res[[fld]]
 
           actual_dim = if(!is.null(dim(M))) paste(dim(M), collapse = "x") else "NULL"
@@ -185,7 +185,7 @@ test_that("bgms outputs are numerically sane (stochastic-robust)", {
 
         # coarse aggregate for baseline pairwise (wide bounds; calibrate if you want tighter)
         function(res, ctx) {
-          fld = "posterior_mean_pairwise_baseline"
+          fld = "posterior_mean_associations_baseline"
           M = res[[fld]]
           vals = abs(upper_vals(M))
           stat = mean(vals, na.rm = TRUE)
@@ -237,7 +237,7 @@ test_that("bgms outputs are numerically sane (stochastic-robust)", {
 
         # pairwise sanity + symmetry
         function(res, ctx) {
-          fld = "posterior_mean_pairwise"
+          fld = "posterior_mean_associations"
           M = res[[fld]]
 
           expect_true(is.matrix(M), info = sprintf("%s %s is not a matrix", ctx, fld))
@@ -256,7 +256,7 @@ test_that("bgms outputs are numerically sane (stochastic-robust)", {
 
         # main effects: GGM has no main; precision diagonal stored separately
         function(res, ctx) {
-          fld = "posterior_mean_precision_diagonal"
+          fld = "posterior_mean_residual_variance"
           vals = res[[fld]]
 
           expect_true(!is.null(vals), info = sprintf("%s %s missing", ctx, fld))
@@ -301,7 +301,7 @@ test_that("bgms outputs are numerically sane (stochastic-robust)", {
 
         # pairwise sanity + symmetry
         function(res, ctx) {
-          fld = "posterior_mean_pairwise"
+          fld = "posterior_mean_associations"
           M = res[[fld]]
 
           expect_true(is.matrix(M), info = sprintf("%s %s is not a matrix", ctx, fld))
@@ -320,7 +320,7 @@ test_that("bgms outputs are numerically sane (stochastic-robust)", {
 
         # coarse aggregate for pairwise
         function(res, ctx) {
-          fld = "posterior_mean_pairwise"
+          fld = "posterior_mean_associations"
           M = res[[fld]]
           vals = abs(upper_vals(M))
           stat = mean(vals, na.rm = TRUE)
