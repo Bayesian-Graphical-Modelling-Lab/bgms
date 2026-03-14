@@ -502,9 +502,10 @@ build_output_bgm = function(spec, raw) {
 #   C++ indicators:  [Gxx_ut | Gyy_ut | Gxy]
 #
 # Splits into main (discrete thresholds, continuous means),
-# quadratic (Kyy diagonal), and pairwise (discrete, Kyy
-# off-diag, cross). The Kyy diagonal is placed on the diagonal
-# of the pairwise interaction matrix, not under main effects.
+# quadratic (continuous diagonal), and pairwise (discrete,
+# continuous off-diagonal, cross). The continuous diagonal is
+# stored separately in posterior_mean_precision_diagonal;
+# the diagonal of the pairwise interaction matrix is zero.
 # ==============================================================================
 build_output_mixed_mrf = function(spec, raw) {
   d = spec$data

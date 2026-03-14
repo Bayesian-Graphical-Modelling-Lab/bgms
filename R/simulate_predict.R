@@ -2072,7 +2072,7 @@ build_mixed_params_mean = function(object, arguments) {
       Kyy[i, j] = pmat[cont_idx[i], cont_idx[j]]
     }
   }
-  # Inject the separately stored precision diagonal
+  # Inject the separately stored continuous diagonal (K-scale, negative)
   kyy_diag = object$posterior_mean_precision_diagonal
   for(j in seq_len(q)) {
     Kyy[j, j] = kyy_diag[j]

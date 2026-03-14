@@ -221,7 +221,8 @@ test_that("bgm GGM output has correct parameter ordering", {
     )
   )
 
-  # Truth-based swap-position checks (GGM stores precision-scale Theta_ij):\n  # V1-V4 (true = 0) should be near zero, not ~0.25 (V3-V4's value)
+  # Truth-based swap-position checks (GGM stores precision-scale values):
+  # V1-V4 (true = 0) should be near zero, not ~0.25 (V3-V4's value)
   expect_true(
     abs(fit$posterior_mean_pairwise["V1", "V4"]) < 0.15,
     info = sprintf(
