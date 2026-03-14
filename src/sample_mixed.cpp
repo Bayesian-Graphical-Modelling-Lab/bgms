@@ -2,7 +2,7 @@
 //
 // Uses the unified MCMC runner infrastructure to sample from models with
 // both discrete (ordinal / Blume-Capel) and continuous variables.
-// Supports MH and hybrid-nuts (NUTS for unconstrained block + MH for Kyy)
+// Supports MH and hybrid-nuts (NUTS for unconstrained block + MH for continuous precision)
 // samplers, with optional edge selection.
 #include <vector>
 #include <memory>

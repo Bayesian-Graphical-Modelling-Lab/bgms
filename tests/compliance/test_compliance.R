@@ -85,20 +85,19 @@
 #    where Theta_ss is absorbed into main_param. The affected configs use
 #    structure-only comparison against CRAN fixtures.
 #
-# 8. K-scale reparameterization (Kxx = sigma/2):
-#    OMRF pairwise effects are now stored on K-scale (half the old
-#    conditional rest-score coefficient sigma). The Cauchy prior scale is
-#    halved to keep the posterior equivalent on sigma-scale, but the MCMC
-#    sampler operates in K-space with different proposal/step-size scales,
-#    so MCMC trajectories diverge from sigma-scale CRAN 0.1.6.3 fixtures.
-#    Compliance comparison transforms the fixture pairwise values by /2
-#    and uses all.equal() with tolerance instead of identical().
+# 8. Association-scale reparameterization (stored A = σ/2):
+#    OMRF pairwise effects are now stored on association scale (half the old
+#    conditional rest-score coefficient σ). The Cauchy prior scale is halved
+#    to keep the posterior equivalent, but the MCMC sampler operates on
+#    association scale with different proposal/step-size scales, so MCMC
+#    trajectories diverge from CRAN 0.1.6.3 fixtures. All configs use
+#    structure-only comparison until fixtures are regenerated.
 #
 # ==============================================================================
 
 library(bgms)
 
-fixture_dir = file.path("fixtures")
+fixture_dir = file.path("tests", "compliance", "fixtures")
 
 if(!file.exists(file.path(fixture_dir, "manifest.rds"))) {
   stop("No fixtures found. Run tests/compliance/generate_fixtures.R first.")
@@ -455,7 +454,7 @@ na_bugfix_ids = c(
 # Configs excluded from bitwise comparison due to confirmed algorithm changes
 # (see header notes 4, 5, 7, 8). Checked for structural match only.
 structure_only_ids = c(
-  names(all_configs) # all OMRF after K-scale reparameterization (note 8)
+  names(all_configs) # all OMRF after association-scale reparameterization (note 8)
 )
 
 compare_fields = function(expected, actual, type, id) {
@@ -659,8 +658,8 @@ for(entry in manifest) {
   }
 
   # Compare: structure-only for all configs pending fixture regeneration
-  # (note 8: K-scale reparameterization breaks bitwise identity with
-  # sigma-scale CRAN 0.1.6.3 fixtures)
+  # (note 8: association-scale reparameterization breaks bitwise identity
+  # with CRAN 0.1.6.3 fixtures)
   if(id %in% structure_only_ids) {
     mismatches = check_structure(expected, actual, type)
     label = "PASS (structure)"
@@ -699,5 +698,5 @@ if(fail_count > 0 || error_count > 0) {
   }
   quit(status = 1)
 } else if(pass_count == total) {
-  cat("All fixtures match (structure-only pending K-scale fixture regeneration).\n")
+  cat("All fixtures match (structure-only pending association-scale fixture regeneration).\n")
 }

@@ -77,7 +77,7 @@ MixedMRFModel::MixedMRFModel(
     proposal_sd_pairwise_continuous_ = arma::ones<arma::mat>(q_, q_);
     proposal_sd_pairwise_cross_ = arma::ones<arma::mat>(p_, q_);
 
-    // Initialize precision caches (Theta = -2 Kyy starts as identity)
+    // Initialize precision caches (precision starts as identity)
     cholesky_of_precision_ = arma::eye<arma::mat>(q_, q_);
     inv_cholesky_of_precision_ = arma::eye<arma::mat>(q_, q_);
     covariance_continuous_ = arma::eye<arma::mat>(q_, q_);
@@ -85,19 +85,19 @@ MixedMRFModel::MixedMRFModel(
 
     // Rank-1 Cholesky update workspace
     precision_proposal_ = arma::mat(q_, q_, arma::fill::none);
-    kyy_vf1_ = arma::zeros<arma::vec>(q_);
-    kyy_vf2_ = arma::zeros<arma::vec>(q_);
-    kyy_u1_ = arma::zeros<arma::vec>(q_);
-    kyy_u2_ = arma::zeros<arma::vec>(q_);
+    cont_vf1_ = arma::zeros<arma::vec>(q_);
+    cont_vf2_ = arma::zeros<arma::vec>(q_);
+    cont_u1_ = arma::zeros<arma::vec>(q_);
+    cont_u2_ = arma::zeros<arma::vec>(q_);
 
-    // Initialize conditional mean: M = μ_y' + 2 X K_xy Σ_yy
-    //   With K_xy = 0 and K_yy = I, this reduces to μ_y' = 0.
+    // Initialize conditional mean: M = μ_y' + 2 X cross_int Sigma_yy
+    //   With cross_int = 0 and precision = I, this reduces to 0.
     conditional_mean_ = arma::zeros<arma::mat>(n_, q_);
 
-    // Initialize Theta (marginal PL only): Θ = K_xx + 2 K_xy Σ_yy K_xy'
-    //   With K_xy = 0, Θ = K_xx = 0.
+    // Initialize marginal interactions (marginal PL only): disc_int + 2 * cross_int * Sigma_yy * cross_int'
+    //   With cross_int = 0, this is zero.
     if(use_marginal_pl_) {
-        Theta_ = arma::zeros<arma::mat>(p_, p_);
+        marginal_interactions_ = arma::zeros<arma::mat>(p_, p_);
     }
 
     // Initialize edge-order permutation vectors
@@ -154,16 +154,16 @@ MixedMRFModel::MixedMRFModel(const MixedMRFModel& other)
       inv_cholesky_of_precision_(other.inv_cholesky_of_precision_),
       covariance_continuous_(other.covariance_continuous_),
       log_det_precision_(other.log_det_precision_),
-      Theta_(other.Theta_),
+      marginal_interactions_(other.marginal_interactions_),
       conditional_mean_(other.conditional_mean_),
-      kyy_constants_(other.kyy_constants_),
+      cont_constants_(other.cont_constants_),
       precision_proposal_(other.precision_proposal_),
-      kyy_v1_(other.kyy_v1_),
-      kyy_v2_(other.kyy_v2_),
-      kyy_vf1_(other.kyy_vf1_),
-      kyy_vf2_(other.kyy_vf2_),
-      kyy_u1_(other.kyy_u1_),
-      kyy_u2_(other.kyy_u2_),
+      cont_v1_(other.cont_v1_),
+      cont_v2_(other.cont_v2_),
+      cont_vf1_(other.cont_vf1_),
+      cont_vf2_(other.cont_vf2_),
+      cont_u1_(other.cont_u1_),
+      cont_u2_(other.cont_u2_),
       gradient_cache_valid_(false),
       use_marginal_pl_(other.use_marginal_pl_),
       rng_(other.rng_),
@@ -224,23 +224,23 @@ size_t MixedMRFModel::count_num_main_effects() const {
 // =============================================================================
 
 void MixedMRFModel::recompute_conditional_mean() {
-    // M = μ_y' + 2 X K_xy Σ_yy
+    // M = μ_y' + 2 X A_xy Σ_yy
     conditional_mean_ = arma::repmat(main_effects_continuous_.t(), n_, 1) +
                         2.0 * discrete_observations_dbl_ * pairwise_effects_cross_ * covariance_continuous_;
 }
 
 void MixedMRFModel::recompute_pairwise_effects_continuous_decomposition() {
-    // Cholesky on Theta = -2 Kyy (positive-definite)
-    arma::mat Theta = -2.0 * pairwise_effects_continuous_;
-    cholesky_of_precision_ = arma::chol(Theta);                // upper Cholesky: Theta = R'R
+    // Cholesky on precision = -2 * pairwise_effects_continuous_
+    arma::mat precision = -2.0 * pairwise_effects_continuous_;
+    cholesky_of_precision_ = arma::chol(precision);            // upper Cholesky: Precision = R'R
     arma::inv(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_));
     covariance_continuous_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
     log_det_precision_ = cholesky_helpers::get_log_det(cholesky_of_precision_);
 }
 
-void MixedMRFModel::recompute_Theta() {
-    // Θ = 2 K_xx + 2 K_xy Σ_yy K_xy'   (K_xx is K-scale; σ = 2K)
-    Theta_ = 2.0 * pairwise_effects_discrete_ + 2.0 * pairwise_effects_cross_ * covariance_continuous_ * pairwise_effects_cross_.t();
+void MixedMRFModel::recompute_marginal_interactions() {
+    // Marginal PL effective interaction: disc_int + 2 * cross_int * Sigma_yy * cross_int'
+    marginal_interactions_ = 2.0 * pairwise_effects_discrete_ + 2.0 * pairwise_effects_cross_ * covariance_continuous_ * pairwise_effects_cross_.t();
 }
 
 
@@ -465,7 +465,7 @@ void MixedMRFModel::set_vectorized_parameters(const arma::vec& params) {
     // Refresh caches (precision unchanged, so no decomposition update needed)
     recompute_conditional_mean();
     if(use_marginal_pl_) {
-        recompute_Theta();
+        recompute_marginal_interactions();
     }
 }
 
@@ -577,8 +577,8 @@ void MixedMRFModel::impute_missing() {
             const int variable = missing_index_discrete_(miss, 1);
             const int num_cats = num_categories_(variable);
 
-            // Rest score: 2 * sum_t x_vt K_xx(t,s) + 2 sum_j y_vj K_xy(s,j)
-            // K_xx diagonal is zero, so no self-interaction subtraction needed
+            // Rest score: 2 * sum_t x_vt A_xx(t,s) + 2 sum_j y_vj A_xy(s,j)
+            // A_xx diagonal is zero, so no self-interaction subtraction needed
             double rest_v = 0.0;
             for(size_t t = 0; t < p_; t++) {
                 rest_v += 2.0 * discrete_observations_dbl_(person, t) * pairwise_effects_discrete_(t, variable);
@@ -657,11 +657,9 @@ void MixedMRFModel::impute_missing() {
             const int person = missing_index_continuous_(miss, 0);
             const int variable = missing_index_continuous_(miss, 1);
 
-            // Conditional: y_vj | y_{v,-j}, x ~ N(mu*, 1/Theta_jj)
-            // where Theta = -2 Kyy. Theta_jk / Theta_jj = Kyy_jk / Kyy_jj.
-            // mu* = M_vj - (1/Theta_jj) sum_{k!=j} Theta_jk (y_vk - M_vk)
-            //      = M_vj - (Kyy_jk / Kyy_jj) (y_vk - M_vk)   [ratio unchanged]
-            double theta_jj = -2.0 * pairwise_effects_continuous_(variable, variable);
+            // Conditional: y_vj | y_{v,-j}, x ~ N(mu*, 1/precision_jj)
+            // mu* = M_vj - sum_{k!=j} (interaction_jk / interaction_jj) * (y_vk - M_vk)
+            double precision_jj = -2.0 * pairwise_effects_continuous_(variable, variable);
             double cond_mean = conditional_mean_(person, variable);
             for(size_t k = 0; k < q_; k++) {
                 if(k != static_cast<size_t>(variable)) {
@@ -670,7 +668,7 @@ void MixedMRFModel::impute_missing() {
                          conditional_mean_(person, k));
                 }
             }
-            double cond_sd = std::sqrt(1.0 / theta_jj);
+            double cond_sd = std::sqrt(1.0 / precision_jj);
 
             continuous_observations_(person, variable) =
                 rnorm(rng_, cond_mean, cond_sd);
@@ -823,7 +821,7 @@ void MixedMRFModel::initialize_graph() {
         }
     }
     recompute_conditional_mean();
-    if(use_marginal_pl_) recompute_Theta();
+    if(use_marginal_pl_) recompute_marginal_interactions();
 }
 
 void MixedMRFModel::prepare_iteration() {

@@ -95,7 +95,7 @@ test_that("bgm GGM output has correct dimensions", {
   expect_equal(nrow(fit$posterior_mean_associations), p)
   expect_equal(ncol(fit$posterior_mean_associations), p)
 
-  # precision diagonal stored separately (positive for GGM: Theta_ii)
+  # precision diagonal stored separately (positive for GGM)
   expect_true(all(fit$posterior_mean_residual_variance > 0))
 
   # pairwise: p*(p-1)/2 off-diagonal elements
@@ -201,7 +201,7 @@ test_that("bgm GGM output has correct parameter ordering", {
   )
 
   # Summary names -> matrix positions (pairwise)
-  # GGM: summary stores precision-scale (Theta), matrix stores K = -0.5 * Theta
+  # GGM: summary stores precision-scale, matrix stores association-scale (= -0.5 * precision)
   summary_pairwise_k = fit$posterior_summary_pairwise
   summary_pairwise_k$mean = -0.5 * summary_pairwise_k$mean
   expect_true(
@@ -224,8 +224,8 @@ test_that("bgm GGM output has correct parameter ordering", {
     )
   )
 
-  # Truth-based swap-position checks (GGM stores K-scale: K = -0.5 * Theta):
-  # V1-V4 (true Theta = 0) should be near zero, not ~-0.125 (V3-V4's value)
+  # Truth-based swap-position checks (GGM stores association-scale: A = -0.5 * precision):
+  # V1-V4 (true precision = 0) should be near zero, not ~-0.125 (V3-V4's value)
   expect_true(
     abs(fit$posterior_mean_associations["V1", "V4"]) < 0.15,
     info = sprintf(
@@ -233,7 +233,7 @@ test_that("bgm GGM output has correct parameter ordering", {
       fit$posterior_mean_associations["V1", "V4"]
     )
   )
-  # V2-V3 (true Theta = 0) should be near zero, not ~-0.3 (V1-V2's value)
+  # V2-V3 (true precision = 0) should be near zero, not ~-0.3 (V1-V2's value)
   expect_true(
     abs(fit$posterior_mean_associations["V2", "V3"]) < 0.15,
     info = sprintf(
@@ -241,7 +241,7 @@ test_that("bgm GGM output has correct parameter ordering", {
       fit$posterior_mean_associations["V2", "V3"]
     )
   )
-  # V3-V4 (true Theta = 0.25, true K = -0.125) should be negative
+  # V3-V4 (true precision = 0.25, true association = -0.125) should be negative
   expect_true(
     fit$posterior_mean_associations["V3", "V4"] < -0.05,
     info = sprintf(
@@ -249,7 +249,7 @@ test_that("bgm GGM output has correct parameter ordering", {
       fit$posterior_mean_associations["V3", "V4"]
     )
   )
-  # V2-V4 (true Theta = -0.5, true K = 0.25) should be positive
+  # V2-V4 (true precision = -0.5, true association = 0.25) should be positive
   expect_true(
     fit$posterior_mean_associations["V2", "V4"] > 0.15,
     info = sprintf(
@@ -383,7 +383,7 @@ test_that("bgm GGM posterior mean approaches MLE for large n", {
     seed = 43, display_progress = "none"
   )
 
-  # Reconstruct posterior mean precision (Theta = -2K)
+  # Reconstruct posterior mean precision (precision = -2 * association)
   omega_hat = extract_precision(fit)
 
   # Posterior mean should correlate highly with MLE (likelihood dominates)
@@ -996,27 +996,28 @@ test_that("bgm mixed MRF output has correct parameter ordering", {
   n = 500L
 
   # Parameters in internal (dd/cc/dc block) order
-  Kxx = matrix(c(
+  pairwise_disc = matrix(c(
     0, -0.2, 0.1,
     -0.2, 0, 0.0,
     0.1, 0.0, 0
   ), p, p, byrow = TRUE)
 
-  Kxy = matrix(c(
+  pairwise_cross = matrix(c(
     0.3,  0.0, # d1-c1 = 0.3, d1-c2 = 0.0 (swap sentinel)
     0.5,  0.3, # d2-c1 = 0.5 (swap sentinel), d2-c2 = 0.3
     -0.3, 0.15 # d3-c1 = -0.3, d3-c2 = 0.15
   ), p, q, byrow = TRUE)
 
-  Kyy = diag(c(-0.75, -1.0))
-  Kyy[1, 2] = Kyy[2, 1] = 0.0 # c1-c2 = 0 (swap sentinel)
+  pairwise_cont = diag(c(-0.75, -1.0))
+  pairwise_cont[1, 2] = pairwise_cont[2, 1] = 0.0 # c1-c2 = 0 (swap sentinel)
 
   nc = c(2L, 2L, 2L)
   mux = matrix(0, p, max(nc) + 1)
   muy = rep(0, q)
 
   result = sample_mixed_mrf_gibbs(
-    num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
+    num_states = n, pairwise_disc_r = pairwise_disc,
+    pairwise_cross_r = pairwise_cross, pairwise_cont_r = pairwise_cont,
     mux_r = mux, muy_r = muy, num_categories_r = nc,
     variable_type_r = rep("ordinal", p),
     baseline_category_r = rep(0L, p), iter = 500L, seed = 42L

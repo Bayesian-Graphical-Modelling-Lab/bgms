@@ -27,13 +27,13 @@ test_that("sample_mixed_mrf_gibbs returns correct dimensions", {
   n = 100
   nc = c(2L, 2L)
   mux = matrix(c(0, 0.5, -0.3, 0, -0.2, 0.1), nrow = p, ncol = 3, byrow = TRUE)
-  Kxx = matrix(c(0, 0.15, 0.15, 0), p, p)
+  pairwise_disc = matrix(c(0, 0.15, 0.15, 0), p, p)
   muy = c(0.5, -0.2)
-  Kyy = matrix(c(-0.75, -0.1, -0.1, -0.9), q, q)
-  Kxy = matrix(c(0.1, -0.15, 0.2, 0.05), p, q)
+  pairwise_cont = matrix(c(-0.75, -0.1, -0.1, -0.9), q, q)
+  pairwise_cross = matrix(c(0.1, -0.15, 0.2, 0.05), p, q)
 
   result = sample_mixed_mrf_gibbs(
-    num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
+    num_states = n, pairwise_disc_r = pairwise_disc, pairwise_cross_r = pairwise_cross, pairwise_cont_r = pairwise_cont,
     mux_r = mux, muy_r = muy, num_categories_r = nc,
     variable_type_r = c("ordinal", "ordinal"),
     baseline_category_r = c(0L, 0L), iter = 200L, seed = 42L
@@ -50,13 +50,13 @@ test_that("sample_mixed_mrf_gibbs: discrete values in valid range", {
   n = 500
   nc = c(2L, 3L, 1L) # categories 0-2, 0-3, 0-1 (binary)
   mux = matrix(0, p, 4)
-  Kxx = matrix(0, p, p)
+  pairwise_disc = matrix(0, p, p)
   muy = 0
-  Kyy = matrix(-1)
-  Kxy = matrix(0, p, q)
+  pairwise_cont = matrix(-1)
+  pairwise_cross = matrix(0, p, q)
 
   result = sample_mixed_mrf_gibbs(
-    num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
+    num_states = n, pairwise_disc_r = pairwise_disc, pairwise_cross_r = pairwise_cross, pairwise_cont_r = pairwise_cont,
     mux_r = mux, muy_r = muy, num_categories_r = nc,
     variable_type_r = c("ordinal", "ordinal", "ordinal"),
     baseline_category_r = c(0L, 0L, 0L), iter = 100L, seed = 1L
@@ -72,28 +72,28 @@ test_that("sample_mixed_mrf_gibbs: discrete values in valid range", {
   }
 })
 
-test_that("sample_mixed_mrf_gibbs: continuous marginal SD matches K-scale", {
-  # Independent model: Kxx = 0, Kxy = 0, so y ~ N(muy, Theta^{-1})
-  # Kyy is K-scale: Theta = -2 Kyy
+test_that("sample_mixed_mrf_gibbs: continuous marginal SD matches association scale", {
+  # Independent model: pairwise_disc = 0, pairwise_cross = 0, so y ~ N(muy, precision^{-1})
+  # precision = -2 * pairwise_cont
   p = 1
   q = 2
   n = 2000
   nc = c(2L)
   mux = matrix(0, p, 3)
-  Kxx = matrix(0)
+  pairwise_disc = matrix(0)
   muy = c(1.0, -0.5)
-  Kyy = diag(c(-1.0, -0.25))
-  Kxy = matrix(0, p, q)
+  pairwise_cont = diag(c(-1.0, -0.25))
+  pairwise_cross = matrix(0, p, q)
 
   result = sample_mixed_mrf_gibbs(
-    num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
+    num_states = n, pairwise_disc_r = pairwise_disc, pairwise_cross_r = pairwise_cross, pairwise_cont_r = pairwise_cont,
     mux_r = mux, muy_r = muy, num_categories_r = nc,
     variable_type_r = "ordinal", baseline_category_r = 0L,
     iter = 300L, seed = 99L
   )
 
   for(j in 1:q) {
-    expected_sd = 1 / sqrt(-2 * Kyy[j, j])
+    expected_sd = 1 / sqrt(-2 * pairwise_cont[j, j])
     empirical_sd = sd(result$y[, j])
     # Loose check: within 30% of expected
     expect_true(
@@ -112,13 +112,13 @@ test_that("sample_mixed_mrf_gibbs: seed reproducibility", {
   n = 50
   nc = c(2L, 2L)
   mux = matrix(c(0, 0.5, -0.3, 0, -0.2, 0.1), nrow = p, ncol = 3, byrow = TRUE)
-  Kxx = matrix(c(0, 0.15, 0.15, 0), p, p)
+  pairwise_disc = matrix(c(0, 0.15, 0.15, 0), p, p)
   muy = 0
-  Kyy = matrix(-0.5)
-  Kxy = matrix(c(0.1, 0.2), p, q)
+  pairwise_cont = matrix(-0.5)
+  pairwise_cross = matrix(c(0.1, 0.2), p, q)
 
   args = list(
-    num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
+    num_states = n, pairwise_disc_r = pairwise_disc, pairwise_cross_r = pairwise_cross, pairwise_cont_r = pairwise_cont,
     mux_r = mux, muy_r = muy, num_categories_r = nc,
     variable_type_r = c("ordinal", "ordinal"),
     baseline_category_r = c(0L, 0L), iter = 100L, seed = 42L
@@ -142,13 +142,13 @@ test_that("sample_mixed_mrf_gibbs: Blume-Capel variable works", {
   mux[2, 1] = 0.5 # alpha
   mux[2, 2] = -0.3 # beta (penalizes distance from reference)
 
-  Kxx = matrix(c(0, 0.1, 0.1, 0), p, p)
+  pairwise_disc = matrix(c(0, 0.1, 0.1, 0), p, p)
   muy = 0
-  Kyy = matrix(-0.75)
-  Kxy = matrix(c(0.1, -0.1), p, q)
+  pairwise_cont = matrix(-0.75)
+  pairwise_cross = matrix(c(0.1, -0.1), p, q)
 
   result = sample_mixed_mrf_gibbs(
-    num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
+    num_states = n, pairwise_disc_r = pairwise_disc, pairwise_cross_r = pairwise_cross, pairwise_cont_r = pairwise_cont,
     mux_r = mux, muy_r = muy, num_categories_r = nc,
     variable_type_r = c("ordinal", "blume-capel"),
     baseline_category_r = c(0L, 2L), iter = 200L, seed = 7L
@@ -172,16 +172,16 @@ test_that("run_mixed_simulation_parallel returns correct structure", {
   mux_s = matrix(rep(c(0, 0.5, -0.3, 0, -0.2, 0.1), each = ndraws_total),
     nrow = ndraws_total
   )
-  kxx_s = matrix(0.15, nrow = ndraws_total, ncol = 1)
+  disc_s = matrix(0.15, nrow = ndraws_total, ncol = 1)
   muy_s = matrix(0, nrow = ndraws_total, ncol = 1)
-  kyy_s = matrix(-0.75, nrow = ndraws_total, ncol = 1)
-  kxy_s = matrix(c(0.1, -0.1), nrow = ndraws_total, ncol = 2, byrow = TRUE)
+  cont_s = matrix(-0.75, nrow = ndraws_total, ncol = 1)
+  cross_s = matrix(c(0.1, -0.1), nrow = ndraws_total, ncol = 2, byrow = TRUE)
 
   n_use = 2L
   n_obs = 15L
   res = run_mixed_simulation_parallel(
-    mux_samples = mux_s, kxx_samples = kxx_s,
-    muy_samples = muy_s, kyy_samples = kyy_s, kxy_samples = kxy_s,
+    mux_samples = mux_s, disc_samples = disc_s,
+    muy_samples = muy_s, cont_samples = cont_s, cross_samples = cross_s,
     draw_indices = 1:n_use, num_states = n_obs,
     p = p, q = q, num_categories = nc,
     variable_type_r = c("ordinal", "ordinal"),
@@ -210,10 +210,10 @@ test_that("compute_conditional_mixed: discrete probs sum to 1", {
   n = 5
   nc = c(2L, 2L)
   mux = matrix(c(0, 0.5, -0.3, 0, -0.2, 0.1), nrow = p, ncol = 3, byrow = TRUE)
-  Kxx = matrix(c(0, 0.15, 0.15, 0), p, p)
+  pairwise_disc = matrix(c(0, 0.15, 0.15, 0), p, p)
   muy = 0
-  Kyy = matrix(-0.75)
-  Kxy = matrix(c(0.1, 0.2), p, q)
+  pairwise_cont = matrix(-0.75)
+  pairwise_cross = matrix(c(0.1, 0.2), p, q)
 
   x_obs = matrix(c(0L, 1L, 2L, 0L, 1L, 1L, 2L, 0L, 1L, 2L),
     nrow = n, ncol = p
@@ -223,7 +223,7 @@ test_that("compute_conditional_mixed: discrete probs sum to 1", {
   # Predict first discrete variable (0-based index 0)
   preds = compute_conditional_mixed(
     x_observations = x_obs, y_observations = y_obs,
-    predict_vars = 0L, Kxx = Kxx, Kxy = Kxy, Kyy = Kyy,
+    predict_vars = 0L, pairwise_disc = pairwise_disc, pairwise_cross = pairwise_cross, pairwise_cont = pairwise_cont,
     mux = mux, muy = muy, num_categories = nc,
     variable_type = c("ordinal", "ordinal"),
     baseline_category = c(0L, 0L)
@@ -244,10 +244,10 @@ test_that("compute_conditional_mixed: continuous returns mean and sd", {
   n = 5
   nc = c(2L)
   mux = matrix(c(0, 0.5, -0.3), nrow = 1, ncol = 3)
-  Kxx = matrix(0)
+  pairwise_disc = matrix(0)
   muy = c(1.0, -0.5)
-  Kyy = matrix(c(-1, -0.15, -0.15, -0.75), q, q)
-  Kxy = matrix(c(0.1, -0.1), 1, q)
+  pairwise_cont = matrix(c(-1, -0.15, -0.15, -0.75), q, q)
+  pairwise_cross = matrix(c(0.1, -0.1), 1, q)
 
   x_obs = matrix(c(0L, 1L, 2L, 1L, 0L), nrow = n, ncol = 1)
   y_obs = matrix(rnorm(n * q), nrow = n, ncol = q)
@@ -255,7 +255,7 @@ test_that("compute_conditional_mixed: continuous returns mean and sd", {
   # Predict continuous variable at index p=1 (0-based)
   preds = compute_conditional_mixed(
     x_observations = x_obs, y_observations = y_obs,
-    predict_vars = as.integer(p), Kxx = Kxx, Kxy = Kxy, Kyy = Kyy,
+    predict_vars = as.integer(p), pairwise_disc = pairwise_disc, pairwise_cross = pairwise_cross, pairwise_cont = pairwise_cont,
     mux = mux, muy = muy, num_categories = nc,
     variable_type = "ordinal", baseline_category = 0L
   )
@@ -272,10 +272,10 @@ test_that("compute_conditional_mixed: mixed prediction variables", {
   n = 5
   nc = c(2L, 2L)
   mux = matrix(0, p, 3)
-  Kxx = matrix(c(0, 0.15, 0.15, 0), p, p)
+  pairwise_disc = matrix(c(0, 0.15, 0.15, 0), p, p)
   muy = c(0.5, -0.2)
-  Kyy = diag(c(-0.75, -0.9))
-  Kxy = matrix(0.1, p, q)
+  pairwise_cont = diag(c(-0.75, -0.9))
+  pairwise_cross = matrix(0.1, p, q)
 
   x_obs = matrix(sample(0:2, n * p, replace = TRUE), n, p)
   storage.mode(x_obs) = "integer"
@@ -284,7 +284,7 @@ test_that("compute_conditional_mixed: mixed prediction variables", {
   # Predict one discrete (0) and one continuous (p+0 = 2)
   preds = compute_conditional_mixed(
     x_observations = x_obs, y_observations = y_obs,
-    predict_vars = c(0L, 2L), Kxx = Kxx, Kxy = Kxy, Kyy = Kyy,
+    predict_vars = c(0L, 2L), pairwise_disc = pairwise_disc, pairwise_cross = pairwise_cross, pairwise_cont = pairwise_cont,
     mux = mux, muy = muy, num_categories = nc,
     variable_type = c("ordinal", "ordinal"),
     baseline_category = c(0L, 0L)
@@ -396,9 +396,9 @@ test_that("predict.bgms response type works for mixed MRF", {
 test_that("sample_mixed_mrf_gibbs: single discrete variable (p=1, q=2)", {
   result = sample_mixed_mrf_gibbs(
     num_states = 50L,
-    Kxx_r = matrix(0),
-    Kxy_r = matrix(c(0.1, -0.1), 1, 2),
-    Kyy_r = diag(c(-0.75, -1.0)),
+    pairwise_disc_r = matrix(0),
+    pairwise_cross_r = matrix(c(0.1, -0.1), 1, 2),
+    pairwise_cont_r = diag(c(-0.75, -1.0)),
     mux_r = matrix(c(0, 0.5), 1, 2),
     muy_r = c(0, 0),
     num_categories_r = 1L,
@@ -415,9 +415,9 @@ test_that("sample_mixed_mrf_gibbs: single discrete variable (p=1, q=2)", {
 test_that("sample_mixed_mrf_gibbs: single continuous variable (p=2, q=1)", {
   result = sample_mixed_mrf_gibbs(
     num_states = 50L,
-    Kxx_r = matrix(c(0, 0.1, 0.1, 0), 2, 2),
-    Kxy_r = matrix(c(0.1, -0.1), 2, 1),
-    Kyy_r = matrix(-1.0),
+    pairwise_disc_r = matrix(c(0, 0.1, 0.1, 0), 2, 2),
+    pairwise_cross_r = matrix(c(0.1, -0.1), 2, 1),
+    pairwise_cont_r = matrix(-1.0),
     mux_r = matrix(c(0, 0.5, -0.3, 0, -0.2, 0.1), 2, 3, byrow = TRUE),
     muy_r = 0.5,
     num_categories_r = c(2L, 2L),
@@ -436,14 +436,14 @@ test_that("sample_mixed_mrf_gibbs: minimal mixed MRF (p=1, q=1)", {
   n = 200L
   nc = 2L
 
-  Kxx = matrix(0, p, p)
-  Kxy = matrix(0.3, p, q)
-  Kyy = matrix(-0.75, q, q)
+  pairwise_disc = matrix(0, p, p)
+  pairwise_cross = matrix(0.3, p, q)
+  pairwise_cont = matrix(-0.75, q, q)
   mux = matrix(c(0, 0.5, -0.3), p, nc + 1)
   muy = 0.2
 
   result = sample_mixed_mrf_gibbs(
-    num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
+    num_states = n, pairwise_disc_r = pairwise_disc, pairwise_cross_r = pairwise_cross, pairwise_cont_r = pairwise_cont,
     mux_r = mux, muy_r = muy, num_categories_r = nc,
     variable_type_r = "ordinal",
     baseline_category_r = 0L, iter = 200L, seed = 77L
@@ -454,7 +454,7 @@ test_that("sample_mixed_mrf_gibbs: minimal mixed MRF (p=1, q=1)", {
   expect_true(all(result$x >= 0 & result$x <= nc))
   expect_true(all(is.finite(result$y)))
 
-  # With non-zero Kxy, discrete and continuous should be associated
+  # With non-zero pairwise_cross, discrete and continuous should be associated
   group_means = tapply(result$y[, 1], result$x[, 1], mean)
   expect_true(length(group_means) >= 2,
     info = "at least 2 discrete categories observed"
@@ -466,7 +466,7 @@ test_that("sample_mixed_mrf_gibbs: minimal mixed MRF (p=1, q=1)", {
 # 7. Edge cases (ported from mixedGM::test-edge-cases.R)
 # ==============================================================================
 # Structural smoke tests for boundary configurations: many categories,
-# large p / small q, small p / large q, near-singular Kyy, and
+# large p / small q, small p / large q, near-singular pairwise_cont, and
 # end-to-end bgm() fitting with edge-case data.
 # ==============================================================================
 
@@ -477,16 +477,16 @@ test_that("sample_mixed_mrf_gibbs handles many categories (4+)", {
   n = 200L
   nc = c(4L, 3L)
 
-  Kxx = matrix(c(0, 0.075, 0.075, 0), p, p)
-  Kxy = matrix(c(0.2, 0.15), p, q)
-  Kyy = matrix(-0.75, q, q)
+  pairwise_disc = matrix(c(0, 0.075, 0.075, 0), p, p)
+  pairwise_cross = matrix(c(0.2, 0.15), p, q)
+  pairwise_cont = matrix(-0.75, q, q)
   mux = matrix(0, p, max(nc))
   mux[1, 1:4] = c(-0.5, 0, 0.3, 0.8)
   mux[2, 1:3] = c(-0.3, 0.2, 0.6)
   muy = 0
 
   result = sample_mixed_mrf_gibbs(
-    num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
+    num_states = n, pairwise_disc_r = pairwise_disc, pairwise_cross_r = pairwise_cross, pairwise_cont_r = pairwise_cont,
     mux_r = mux, muy_r = muy, num_categories_r = nc,
     variable_type_r = c("ordinal", "ordinal"),
     baseline_category_r = c(0L, 0L), iter = 200L, seed = 33L
@@ -512,22 +512,22 @@ test_that("sample_mixed_mrf_gibbs handles large p, small q (p=10, q=1)", {
   n = 300L
   nc = as.integer(rep(1, p))
 
-  # Sparse Kxx
-  Kxx = matrix(0, p, p)
-  Kxx[1, 2] = Kxx[2, 1] = 0.1
-  Kxx[3, 4] = Kxx[4, 3] = 0.075
+  # Sparse pairwise_disc
+  pairwise_disc = matrix(0, p, p)
+  pairwise_disc[1, 2] = pairwise_disc[2, 1] = 0.1
+  pairwise_disc[3, 4] = pairwise_disc[4, 3] = 0.075
 
-  # Sparse Kxy
-  Kxy = matrix(0, p, q)
-  Kxy[1, 1] = 0.25
-  Kxy[5, 1] = 0.2
+  # Sparse pairwise_cross
+  pairwise_cross = matrix(0, p, q)
+  pairwise_cross[1, 1] = 0.25
+  pairwise_cross[5, 1] = 0.2
 
-  Kyy = matrix(-0.75, q, q)
+  pairwise_cont = matrix(-0.75, q, q)
   mux = matrix(0, p, max(nc))
   muy = 0
 
   result = sample_mixed_mrf_gibbs(
-    num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
+    num_states = n, pairwise_disc_r = pairwise_disc, pairwise_cross_r = pairwise_cross, pairwise_cont_r = pairwise_cont,
     mux_r = mux, muy_r = muy, num_categories_r = nc,
     variable_type_r = rep("ordinal", p),
     baseline_category_r = rep(0L, p), iter = 200L, seed = 44L
@@ -547,19 +547,19 @@ test_that("sample_mixed_mrf_gibbs handles small p, large q (p=1, q=5)", {
   n = 300L
   nc = 1L
 
-  Kxx = matrix(0, p, p)
-  Kxy = matrix(c(0.2, 0.15, 0.1, 0.05, 0.25), p, q)
+  pairwise_disc = matrix(0, p, p)
+  pairwise_cross = matrix(c(0.2, 0.15, 0.1, 0.05, 0.25), p, q)
 
-  # Sparse Kyy (K-scale: negative-definite; Theta = -2 Kyy)
-  Kyy = diag(-0.75, q)
-  Kyy[1, 2] = Kyy[2, 1] = -0.1
-  Kyy[3, 4] = Kyy[4, 3] = -0.075
+  # Sparse pairwise_cont (association-scale: negative-definite; precision = -2 * pairwise_cont)
+  pairwise_cont = diag(-0.75, q)
+  pairwise_cont[1, 2] = pairwise_cont[2, 1] = -0.1
+  pairwise_cont[3, 4] = pairwise_cont[4, 3] = -0.075
 
   mux = matrix(0, p, 1)
   muy = rep(0, q)
 
   result = sample_mixed_mrf_gibbs(
-    num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
+    num_states = n, pairwise_disc_r = pairwise_disc, pairwise_cross_r = pairwise_cross, pairwise_cont_r = pairwise_cont,
     mux_r = mux, muy_r = muy, num_categories_r = nc,
     variable_type_r = "ordinal",
     baseline_category_r = 0L, iter = 300L, seed = 55L
@@ -569,9 +569,9 @@ test_that("sample_mixed_mrf_gibbs handles small p, large q (p=1, q=5)", {
   expect_equal(dim(result$y), c(n, q))
   expect_true(all(is.finite(result$y)))
 
-  # K-scale Kyy diagonal sets marginal variances: Theta = -2 Kyy, var_j approx 1/Theta_jj
+  # pairwise_cont diagonal sets marginal variances: precision = -2 * pairwise_cont, var_j approx 1/precision_jj
   for(j in 1:q) {
-    expected_sd = 1 / sqrt(-2 * Kyy[j, j])
+    expected_sd = 1 / sqrt(-2 * pairwise_cont[j, j])
     empirical_sd = sd(result$y[, j])
     expect_true(
       abs(empirical_sd - expected_sd) / expected_sd < 0.4,
@@ -580,24 +580,24 @@ test_that("sample_mixed_mrf_gibbs handles small p, large q (p=1, q=5)", {
   }
 })
 
-# ---- near-singular Kyy ------------------------------------------------------
-test_that("sample_mixed_mrf_gibbs handles correlated Kyy", {
+# ---- near-singular pairwise_cont ------------------------------------------------------
+test_that("sample_mixed_mrf_gibbs handles correlated pairwise_cont", {
   p = 1L
   q = 2L
   n = 200L
   nc = 1L
 
-  Kxx = matrix(0, p, p)
-  Kxy = matrix(c(0.2, 0.15), p, q)
+  pairwise_disc = matrix(0, p, p)
+  pairwise_cross = matrix(c(0.2, 0.15), p, q)
 
-  # K-scale Kyy with notable off-diagonal
-  Kyy = matrix(c(-0.75, -0.25, -0.25, -0.75), q, q)
+  # Association-scale pairwise_cont with notable off-diagonal
+  pairwise_cont = matrix(c(-0.75, -0.25, -0.25, -0.75), q, q)
 
   mux = matrix(0, p, 1)
   muy = c(0, 0)
 
   result = sample_mixed_mrf_gibbs(
-    num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
+    num_states = n, pairwise_disc_r = pairwise_disc, pairwise_cross_r = pairwise_cross, pairwise_cont_r = pairwise_cont,
     mux_r = mux, muy_r = muy, num_categories_r = nc,
     variable_type_r = "ordinal",
     baseline_category_r = 0L, iter = 300L, seed = 66L
@@ -606,7 +606,7 @@ test_that("sample_mixed_mrf_gibbs handles correlated Kyy", {
   expect_equal(dim(result$y), c(n, q))
   expect_true(all(is.finite(result$y)))
 
-  # With negative off-diagonal Kyy (positive off-diagonal precision),
+  # With negative off-diagonal pairwise_cont (positive off-diagonal precision),
   # y1 and y2 should be negatively correlated
   r = cor(result$y[, 1], result$y[, 2])
   expect_true(r < 0.1, info = sprintf("expected negative or near-zero cor, got %.3f", r))
@@ -620,15 +620,15 @@ test_that("bgm() fits mixed MRF with many categories", {
   n = 150L
   nc = c(4L, 3L)
 
-  Kxx = matrix(c(0, 0.075, 0.075, 0), p, p)
-  Kxy = matrix(c(0.2, 0.15), p, q)
-  Kyy = matrix(-0.75, q, q)
+  pairwise_disc = matrix(c(0, 0.075, 0.075, 0), p, p)
+  pairwise_cross = matrix(c(0.2, 0.15), p, q)
+  pairwise_cont = matrix(-0.75, q, q)
   mux = matrix(0, p, max(nc))
   mux[1, 1:4] = c(-0.5, 0, 0.3, 0.8)
   mux[2, 1:3] = c(-0.3, 0.2, 0.6)
 
   generated = sample_mixed_mrf_gibbs(
-    num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
+    num_states = n, pairwise_disc_r = pairwise_disc, pairwise_cross_r = pairwise_cross, pairwise_cont_r = pairwise_cont,
     mux_r = mux, muy_r = 0, num_categories_r = nc,
     variable_type_r = c("ordinal", "ordinal"),
     baseline_category_r = c(0L, 0L), iter = 500L, seed = 77L
@@ -656,15 +656,15 @@ test_that("bgm() fits mixed MRF with large p, small q", {
   n = 200L
   nc = as.integer(rep(1, p))
 
-  Kxx = matrix(0, p, p)
-  Kxx[1, 2] = Kxx[2, 1] = 0.1
-  Kxy = matrix(0, p, q)
-  Kxy[1, 1] = 0.15
-  Kyy = matrix(-0.75, q, q)
+  pairwise_disc = matrix(0, p, p)
+  pairwise_disc[1, 2] = pairwise_disc[2, 1] = 0.1
+  pairwise_cross = matrix(0, p, q)
+  pairwise_cross[1, 1] = 0.15
+  pairwise_cont = matrix(-0.75, q, q)
   mux = matrix(0, p, max(nc))
 
   generated = sample_mixed_mrf_gibbs(
-    num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
+    num_states = n, pairwise_disc_r = pairwise_disc, pairwise_cross_r = pairwise_cross, pairwise_cont_r = pairwise_cont,
     mux_r = mux, muy_r = 0, num_categories_r = nc,
     variable_type_r = rep("ordinal", p),
     baseline_category_r = rep(0L, p), iter = 500L, seed = 88L
@@ -690,14 +690,14 @@ test_that("bgm() fits mixed MRF with small p, large q", {
   n = 200L
   nc = 1L
 
-  Kxx = matrix(0, p, p)
-  Kxy = matrix(c(0.2, 0.1, 0.05, 0.15), p, q)
-  Kyy = diag(-0.75, q)
-  Kyy[1, 2] = Kyy[2, 1] = -0.1
+  pairwise_disc = matrix(0, p, p)
+  pairwise_cross = matrix(c(0.2, 0.1, 0.05, 0.15), p, q)
+  pairwise_cont = diag(-0.75, q)
+  pairwise_cont[1, 2] = pairwise_cont[2, 1] = -0.1
   mux = matrix(0, p, 1)
 
   generated = sample_mixed_mrf_gibbs(
-    num_states = n, Kxx_r = Kxx, Kxy_r = Kxy, Kyy_r = Kyy,
+    num_states = n, pairwise_disc_r = pairwise_disc, pairwise_cross_r = pairwise_cross, pairwise_cont_r = pairwise_cont,
     mux_r = mux, muy_r = rep(0, q), num_categories_r = nc,
     variable_type_r = "ordinal",
     baseline_category_r = 0L, iter = 500L, seed = 99L

@@ -346,7 +346,8 @@ bgm_spec = function(x,
   )
 
   # Mixed MRF: remap "nuts" to the hybrid sampler that uses NUTS for the
-  # unconstrained block and component-wise MH for the SPD-constrained Kyy.
+  # unconstrained block and component-wise MH for the SPD-constrained
+  # continuous precision.
   if(is_mixed && sampler$update_method == "nuts") {
     sampler$update_method = "hybrid-nuts"
   }

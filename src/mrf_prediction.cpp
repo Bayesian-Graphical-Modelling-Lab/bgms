@@ -174,9 +174,9 @@ Rcpp::List compute_conditional_probs(
 // @param predict_vars     0-based indices into the combined (p+q) variable list.
 //                         Indices 0..p-1 refer to discrete variables,
 //                         p..p+q-1 refer to continuous variables.
-// @param Kxx              p x p pairwise interactions (diagonal zero).
-// @param Kxy              p x q cross interactions.
-// @param Kyy              q x q K-scale matrix (negative-definite).
+// @param pairwise_disc    p x p pairwise interactions (diagonal zero).
+// @param pairwise_cross   p x q cross interactions.
+// @param pairwise_cont    q x q continuous interaction matrix (negative-definite).
 // @param mux              p x max_cats threshold / Blume-Capel parameters.
 // @param muy              q-vector of continuous means.
 // @param num_categories   p-vector: categories per discrete variable.
@@ -191,9 +191,9 @@ Rcpp::List compute_conditional_mixed(
     const arma::imat& x_observations,
     const arma::mat& y_observations,
     const arma::ivec& predict_vars,
-    const arma::mat& Kxx,
-    const arma::mat& Kxy,
-    const arma::mat& Kyy,
+    const arma::mat& pairwise_disc,
+    const arma::mat& pairwise_cross,
+    const arma::mat& pairwise_cont,
     const arma::mat& mux,
     const arma::vec& muy,
     const arma::ivec& num_categories,
@@ -224,13 +224,13 @@ Rcpp::List compute_conditional_mixed(
         if (k == s) continue;
         arma::vec obs_k = x_dbl.col(k);
         double ref_k = static_cast<double>(baseline_category[k]);
-        rest_discrete += 2.0 * (obs_k - ref_k) * Kxx(k, s);
+        rest_discrete += 2.0 * (obs_k - ref_k) * pairwise_disc(k, s);
       }
 
       // Rest score from continuous (factor of 2)
       arma::vec rest_continuous(n, arma::fill::zeros);
       for (int j = 0; j < q; j++) {
-        rest_continuous += 2.0 * Kxy(s, j) * y_observations.col(j);
+        rest_continuous += 2.0 * pairwise_cross(s, j) * y_observations.col(j);
       }
 
       arma::vec rest_scores = rest_discrete + rest_continuous;
@@ -266,25 +266,25 @@ Rcpp::List compute_conditional_mixed(
       // --- Continuous variable: y_j | y_{-j}, x ---
       int j = var_idx - p;
 
-      // Kyy is K-scale (negative-definite): Theta = -2 Kyy
-      double theta_jj = -2.0 * Kyy(j, j);
-      double cond_var = 1.0 / theta_jj;
+      // Continuous interaction matrix is negative-definite: precision = -2 * pairwise_cont
+      double precision_jj = -2.0 * pairwise_cont(j, j);
+      double cond_var = 1.0 / precision_jj;
       double cond_sd = std::sqrt(cond_var);
 
       // Contribution from other continuous variables:
-      // -sum_{k != j} Theta[j,k] * (y_k - muy_k)
+      // -sum_{k != j} precision[j,k] * (y_k - muy_k)
       arma::vec lp_continuous(n, arma::fill::zeros);
       for (int k = 0; k < q; k++) {
         if (k == j) continue;
-        lp_continuous += 2.0 * Kyy(j, k) * (y_observations.col(k) - muy(k));
+        lp_continuous += 2.0 * pairwise_cont(j, k) * (y_observations.col(k) - muy(k));
       }
 
       // Contribution from discrete variables (factor of 2):
-      // sum_s 2 * Kxy(s, j) * x_s_centered
+      // sum_s 2 * cross_interaction(s, j) * x_s_centered
       arma::vec lp_discrete(n, arma::fill::zeros);
       for (int s = 0; s < p; s++) {
         double ref_s = static_cast<double>(baseline_category[s]);
-        lp_discrete += 2.0 * Kxy(s, j) * (x_dbl.col(s) - ref_s);
+        lp_discrete += 2.0 * pairwise_cross(s, j) * (x_dbl.col(s) - ref_s);
       }
 
       arma::vec cond_means = muy(j) + cond_var * (lp_continuous + lp_discrete);

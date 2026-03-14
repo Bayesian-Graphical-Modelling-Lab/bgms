@@ -22,7 +22,7 @@
 #   c = 1:  exp(main[i,1] + 1 * rest_i)
 #
 # rest_i = sum_{k != i} 2 * pairwise[k,i] * x_k
-# (K-scale: pairwise stores K = sigma/2)
+# (association scale: pairwise stores A = sigma/2)
 
 test_that("OMRF binary conditional probabilities match hand computation", {
   n = 3L
@@ -250,9 +250,9 @@ test_that("GGM conditional mean and sd match hand computation", {
 # p=2 binary ordinals, q=1 continuous, n=3.
 #
 # For discrete variable s, the rest scores in the mixed MRF are:
-#   rest = sum_{k != s} 2 * (x_k - ref_k) * Kxx[k,s]
-#        + sum_j 2 * Kxy[s,j] * y_j
-# (K-scale: Kxx stores K = sigma/2)
+#   rest = sum_{k != s} 2 * (x_k - ref_k) * pairwise_disc[k,s]
+#        + sum_j 2 * pairwise_cross[s,j] * y_j
+# (association scale: pairwise_disc stores A = sigma/2)
 #
 # Then P(x_s = c | rest) follows the same softmax as the pure OMRF.
 
@@ -270,12 +270,12 @@ test_that("mixed MRF discrete conditional probabilities match hand computation",
   )
   y_obs = matrix(c(0.5, -0.3, 1.2), nrow = n, ncol = q)
 
-  Kxx = matrix(c(
+  pairwise_disc = matrix(c(
     0.0, 0.15,
     0.15, 0.0
   ), nrow = p, byrow = TRUE)
-  Kxy = matrix(c(0.2, 0.4), nrow = p, ncol = q)
-  Kyy = matrix(-1.0, nrow = q, ncol = q)
+  pairwise_cross = matrix(c(0.2, 0.4), nrow = p, ncol = q)
+  pairwise_cont = matrix(-1.0, nrow = q, ncol = q)
   mux = matrix(c(-0.5, 0.2), nrow = p, ncol = 1)
   muy = c(0.1)
 
@@ -284,8 +284,8 @@ test_that("mixed MRF discrete conditional probabilities match hand computation",
   baseline_category = c(0L, 0L)
 
   # --- Predict discrete variable 0 ---
-  # rest_discrete = 2 * Kxx[1,0] * (x_2 - 0) = 2 * 0.15 * c(1, 0, 1)
-  # rest_continuous = 2 * Kxy[0,0] * y = 2 * 0.2 * c(0.5, -0.3, 1.2)
+  # rest_discrete = 2 * pairwise_disc[1,0] * (x_2 - 0) = 2 * 0.15 * c(1, 0, 1)
+  # rest_continuous = 2 * pairwise_cross[0,0] * y = 2 * 0.2 * c(0.5, -0.3, 1.2)
   # rest = c(0.3, 0, 0.3) + c(0.2, -0.12, 0.48) = c(0.5, -0.12, 0.78)
   rest_v0 = c(0.5, -0.12, 0.78)
   mu0 = mux[1, 1] # -0.5
@@ -298,9 +298,9 @@ test_that("mixed MRF discrete conditional probabilities match hand computation",
     x_observations = x_obs,
     y_observations = y_obs,
     predict_vars = 0L,
-    Kxx = Kxx,
-    Kxy = Kxy,
-    Kyy = Kyy,
+    pairwise_disc = pairwise_disc,
+    pairwise_cross = pairwise_cross,
+    pairwise_cont = pairwise_cont,
     mux = mux,
     muy = muy,
     num_categories = num_categories,
@@ -313,8 +313,8 @@ test_that("mixed MRF discrete conditional probabilities match hand computation",
   expect_equal(rowSums(result[[1]]), rep(1, n), tolerance = 1e-10)
 
   # --- Predict discrete variable 1 ---
-  # rest_discrete = 2 * Kxx[0,1] * (x_1 - 0) = 2 * 0.15 * c(0, 1, 1)
-  # rest_continuous = 2 * Kxy[1,0] * y = 2 * 0.4 * c(0.5, -0.3, 1.2)
+  # rest_discrete = 2 * pairwise_disc[0,1] * (x_1 - 0) = 2 * 0.15 * c(0, 1, 1)
+  # rest_continuous = 2 * pairwise_cross[1,0] * y = 2 * 0.4 * c(0.5, -0.3, 1.2)
   # rest = c(0, 0.3, 0.3) + c(0.4, -0.24, 0.96) = c(0.4, 0.06, 1.26)
   rest_v1 = c(0.4, 0.06, 1.26)
   mu1 = mux[2, 1] # 0.2
@@ -327,9 +327,9 @@ test_that("mixed MRF discrete conditional probabilities match hand computation",
     x_observations = x_obs,
     y_observations = y_obs,
     predict_vars = 1L,
-    Kxx = Kxx,
-    Kxy = Kxy,
-    Kyy = Kyy,
+    pairwise_disc = pairwise_disc,
+    pairwise_cross = pairwise_cross,
+    pairwise_cont = pairwise_cont,
     mux = mux,
     muy = muy,
     num_categories = num_categories,
@@ -345,13 +345,13 @@ test_that("mixed MRF discrete conditional probabilities match hand computation",
 # ==============================================================================
 # Test 5: Mixed MRF continuous conditional mean and sd
 # ==============================================================================
-# Kyy is K-scale (negative-definite), Theta = -2 Kyy.
+# pairwise_cont is association-scale (negative-definite), precision = -2 * pairwise_cont.
 # For continuous variable j in the mixed MRF:
-#   theta_jj = -2 * Kyy[j,j]
+#   theta_jj = -2 * pairwise_cont[j,j]
 #   cond_var = 1 / theta_jj
 #   cond_mean = muy_j + cond_var * (
-#     sum_{k != j} 2 * Kyy[j,k] * (y_k - muy_k)
-#     + sum_s 2 * Kxy[s,j] * (x_s - ref_s)
+#     sum_{k != j} 2 * pairwise_cont[j,k] * (y_k - muy_k)
+#     + sum_s 2 * pairwise_cross[s,j] * (x_s - ref_s)
 #   )
 #   cond_sd = sqrt(cond_var)
 
@@ -369,12 +369,12 @@ test_that("mixed MRF continuous conditional matches hand computation", {
   )
   y_obs = matrix(c(0.5, -0.3, 1.2), nrow = n, ncol = q)
 
-  Kxx = matrix(c(
+  pairwise_disc = matrix(c(
     0.0, 0.15,
     0.15, 0.0
   ), nrow = p, byrow = TRUE)
-  Kxy = matrix(c(0.2, 0.4), nrow = p, ncol = q)
-  Kyy = matrix(-1.0, nrow = q, ncol = q)
+  pairwise_cross = matrix(c(0.2, 0.4), nrow = p, ncol = q)
+  pairwise_cont = matrix(-1.0, nrow = q, ncol = q)
   mux = matrix(c(-0.5, 0.2), nrow = p, ncol = 1)
   muy = c(0.1)
 
@@ -383,17 +383,17 @@ test_that("mixed MRF continuous conditional matches hand computation", {
   baseline_category = c(0L, 0L)
 
   # Predict continuous variable (index = p = 2, since 0-based: [0,1] are discrete)
-  # theta_jj = -2 * Kyy[1,1] = -2 * (-1.0) = 2.0
+  # theta_jj = -2 * pairwise_cont[1,1] = -2 * (-1.0) = 2.0
   # cond_var = 1/theta_jj = 0.5
   # lp_continuous = 0 (only 1 continuous variable, skip self)
-  # lp_discrete = 2 * Kxy[0,0] * (x_1 - 0) + 2 * Kxy[1,0] * (x_2 - 0)
+  # lp_discrete = 2 * pairwise_cross[0,0] * (x_1 - 0) + 2 * pairwise_cross[1,0] * (x_2 - 0)
   #             = 2 * 0.2 * x_1 + 2 * 0.4 * x_2
   # For n=1: 0.4*0 + 0.8*1 = 0.8
   # For n=2: 0.4*1 + 0.8*0 = 0.4
   # For n=3: 0.4*1 + 0.8*1 = 1.2
   lp_discrete = c(0.8, 0.4, 1.2)
 
-  theta_jj = -2 * Kyy[1, 1]
+  theta_jj = -2 * pairwise_cont[1, 1]
   cond_var = 1 / theta_jj
   hand_mean = muy + cond_var * lp_discrete
   # = 0.1 + 0.5 * c(0.8, 0.4, 1.2) = c(0.5, 0.3, 0.7)
@@ -403,9 +403,9 @@ test_that("mixed MRF continuous conditional matches hand computation", {
     x_observations = x_obs,
     y_observations = y_obs,
     predict_vars = as.integer(p), # index 2 = first continuous variable
-    Kxx = Kxx,
-    Kxy = Kxy,
-    Kyy = Kyy,
+    pairwise_disc = pairwise_disc,
+    pairwise_cross = pairwise_cross,
+    pairwise_cont = pairwise_cont,
     mux = mux,
     muy = muy,
     num_categories = num_categories,
@@ -436,9 +436,9 @@ test_that("mixed MRF continuous conditional works for q > 1", {
     1.2, -0.5
   ), nrow = n, ncol = q, byrow = TRUE)
 
-  Kxx = matrix(0.0, nrow = p, ncol = p)
-  Kxy = matrix(c(0.2, 0.1), nrow = p, ncol = q)
-  Kyy = matrix(c(-1.0, -0.15, -0.15, -0.75), nrow = q, byrow = TRUE)
+  pairwise_disc = matrix(0.0, nrow = p, ncol = p)
+  pairwise_cross = matrix(c(0.2, 0.1), nrow = p, ncol = q)
+  pairwise_cont = matrix(c(-1.0, -0.15, -0.15, -0.75), nrow = q, byrow = TRUE)
   mux = matrix(-0.5, nrow = p, ncol = 1)
   muy = c(0.1, -0.2)
 
@@ -447,9 +447,9 @@ test_that("mixed MRF continuous conditional works for q > 1", {
   baseline_category = c(0L)
 
   # --- Predict continuous variable 0 (internal index p = 1) ---
-  # theta_jj = -2 * Kyy[1,1] = -2 * (-1.0) = 2.0
+  # theta_jj = -2 * pairwise_cont[1,1] = -2 * (-1.0) = 2.0
   # cond_var_0 = 1/theta_jj = 0.5
-  # lp_continuous = 2 * Kyy[1,2] * (y[,2] - muy[2])
+  # lp_continuous = 2 * pairwise_cont[1,2] * (y[,2] - muy[2])
   #              = 2 * (-0.15) * (y[,2] + 0.2)
   #              = -0.3 * (y[,2] + 0.2)
   # For n=1: -0.3 * (0.2 + 0.2) = -0.12
@@ -457,7 +457,7 @@ test_that("mixed MRF continuous conditional works for q > 1", {
   # For n=3: -0.3 * (-0.5 + 0.2) = 0.09
   lp_cont = c(-0.12, -0.3, 0.09)
 
-  # lp_discrete = 2 * Kxy[0,0] * (x - 0) = 0.4 * c(0, 1, 1)
+  # lp_discrete = 2 * pairwise_cross[0,0] * (x - 0) = 0.4 * c(0, 1, 1)
   lp_disc = c(0.0, 0.4, 0.4)
 
   hand_mean_y0 = muy[1] + 0.5 * (lp_cont + lp_disc)
@@ -467,9 +467,9 @@ test_that("mixed MRF continuous conditional works for q > 1", {
     x_observations = x_obs,
     y_observations = y_obs,
     predict_vars = as.integer(p), # index 1 = first continuous
-    Kxx = Kxx,
-    Kxy = Kxy,
-    Kyy = Kyy,
+    pairwise_disc = pairwise_disc,
+    pairwise_cross = pairwise_cross,
+    pairwise_cont = pairwise_cont,
     mux = mux,
     muy = muy,
     num_categories = num_categories,
@@ -481,19 +481,19 @@ test_that("mixed MRF continuous conditional works for q > 1", {
   expect_equal(result[[1]][1, 2], hand_sd_y0, tolerance = 1e-10)
 
   # --- Predict continuous variable 1 (internal index p + 1 = 2) ---
-  # theta_jj = -2 * Kyy[2,2] = -2 * (-0.75) = 1.5
+  # theta_jj = -2 * pairwise_cont[2,2] = -2 * (-0.75) = 1.5
   # cond_var_1 = 1/1.5
-  # lp_continuous = 2 * Kyy[2,1] * (y[,1] - muy[1])
+  # lp_continuous = 2 * pairwise_cont[2,1] * (y[,1] - muy[1])
   #              = 2 * (-0.15) * (y[,1] - 0.1) = -0.3 * (y[,1] - 0.1)
   # For n=1: -0.3 * (0.5 - 0.1) = -0.12
   # For n=2: -0.3 * (-0.3 - 0.1) = 0.12
   # For n=3: -0.3 * (1.2 - 0.1) = -0.33
   lp_cont2 = c(-0.12, 0.12, -0.33)
 
-  # lp_discrete = 2 * Kxy[0,1] * (x - 0) = 0.2 * c(0, 1, 1)
+  # lp_discrete = 2 * pairwise_cross[0,1] * (x - 0) = 0.2 * c(0, 1, 1)
   lp_disc2 = c(0.0, 0.2, 0.2)
 
-  theta_jj_y1 = -2 * Kyy[2, 2]
+  theta_jj_y1 = -2 * pairwise_cont[2, 2]
   hand_mean_y1 = muy[2] + (1 / theta_jj_y1) * (lp_cont2 + lp_disc2)
   hand_sd_y1 = sqrt(1 / theta_jj_y1)
 
@@ -501,9 +501,9 @@ test_that("mixed MRF continuous conditional works for q > 1", {
     x_observations = x_obs,
     y_observations = y_obs,
     predict_vars = as.integer(p + 1L), # index 2 = second continuous
-    Kxx = Kxx,
-    Kxy = Kxy,
-    Kyy = Kyy,
+    pairwise_disc = pairwise_disc,
+    pairwise_cross = pairwise_cross,
+    pairwise_cont = pairwise_cont,
     mux = mux,
     muy = muy,
     num_categories = num_categories,
@@ -536,9 +536,9 @@ test_that("predicting all variables at once matches individual predictions", {
   )
   y_obs = matrix(c(0.5, -0.3, 1.2), nrow = n, ncol = q)
 
-  Kxx = matrix(c(0.0, 0.15, 0.15, 0.0), nrow = p, byrow = TRUE)
-  Kxy = matrix(c(0.2, 0.4), nrow = p, ncol = q)
-  Kyy = matrix(-1.0, nrow = q, ncol = q)
+  pairwise_disc = matrix(c(0.0, 0.15, 0.15, 0.0), nrow = p, byrow = TRUE)
+  pairwise_cross = matrix(c(0.2, 0.4), nrow = p, ncol = q)
+  pairwise_cont = matrix(-1.0, nrow = q, ncol = q)
   mux = matrix(c(-0.5, 0.2), nrow = p, ncol = 1)
   muy = c(0.1)
 
@@ -551,9 +551,9 @@ test_that("predicting all variables at once matches individual predictions", {
     x_observations = x_obs,
     y_observations = y_obs,
     predict_vars = c(0L, 1L, as.integer(p)),
-    Kxx = Kxx,
-    Kxy = Kxy,
-    Kyy = Kyy,
+    pairwise_disc = pairwise_disc,
+    pairwise_cross = pairwise_cross,
+    pairwise_cont = pairwise_cont,
     mux = mux,
     muy = muy,
     num_categories = num_categories,
@@ -566,7 +566,7 @@ test_that("predicting all variables at once matches individual predictions", {
     x_observations = x_obs,
     y_observations = y_obs,
     predict_vars = 0L,
-    Kxx = Kxx, Kxy = Kxy, Kyy = Kyy,
+    pairwise_disc = pairwise_disc, pairwise_cross = pairwise_cross, pairwise_cont = pairwise_cont,
     mux = mux, muy = muy,
     num_categories = num_categories,
     variable_type = variable_type,
@@ -577,7 +577,7 @@ test_that("predicting all variables at once matches individual predictions", {
     x_observations = x_obs,
     y_observations = y_obs,
     predict_vars = 1L,
-    Kxx = Kxx, Kxy = Kxy, Kyy = Kyy,
+    pairwise_disc = pairwise_disc, pairwise_cross = pairwise_cross, pairwise_cont = pairwise_cont,
     mux = mux, muy = muy,
     num_categories = num_categories,
     variable_type = variable_type,
@@ -588,7 +588,7 @@ test_that("predicting all variables at once matches individual predictions", {
     x_observations = x_obs,
     y_observations = y_obs,
     predict_vars = as.integer(p),
-    Kxx = Kxx, Kxy = Kxy, Kyy = Kyy,
+    pairwise_disc = pairwise_disc, pairwise_cross = pairwise_cross, pairwise_cont = pairwise_cont,
     mux = mux, muy = muy,
     num_categories = num_categories,
     variable_type = variable_type,

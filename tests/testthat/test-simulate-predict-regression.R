@@ -153,7 +153,7 @@ test_that("bgms fit objects have posterior_mean fields for simulate/predict", {
         info = paste(ctx, "GGM posterior_mean_main should be NULL")
       )
       expect_true(all(fit$posterior_mean_residual_variance > 0),
-        info = paste(ctx, "GGM residual variance should be positive (1/Theta_ii)")
+        info = paste(ctx, "GGM residual variance should be positive (1/precision_ii)")
       )
     } else if(isTRUE(spec$is_mixed)) {
       expect_true(is.list(fit$posterior_mean_main),

@@ -444,7 +444,7 @@ extract_pairwise_interactions.bgms = function(bgms_object) {
 
     dimnames(mat) = list(paste0("iter", seq_len(nrow(mat))), edge_names)
 
-    # GGM raw samples are on precision scale (Theta); convert to K-scale
+    # GGM raw samples are on precision scale; convert to association scale
     if(isTRUE(arguments$is_continuous)) {
       mat = -0.5 * mat
     }
@@ -664,7 +664,7 @@ extract_main_effects.bgmCompare = function(bgms_object) {
 #' `r lifecycle::badge("deprecated")`
 #'
 #' `extract_category_thresholds()` was renamed to [extract_main_effects()] to
-#' reflect that main effects include continuous means and Kyy diagonal
+#' reflect that main effects include continuous means and precision diagonal
 #' (mixed MRF), not only category thresholds.
 #'
 #' @param bgms_object A fitted model object of class `bgms` (from [bgm()])
@@ -1144,7 +1144,7 @@ extract_ess.bgmCompare = function(bgms_object) {
 #' (Gaussian) block. OMRF models have no precision matrix and return `NULL`.
 #'
 #' For mixed MRF models the precision matrix is reconstructed from the
-#' internal parameterization as \eqn{\Theta = -2K}{Theta = -2K}.
+#' internal association-scale parameterization.
 #'
 #' @param bgms_object A fitted model object of class `bgms` (from [bgm()]).
 #'
@@ -1188,17 +1188,17 @@ extract_precision.bgms = function(bgms_object) {
   associations = bgms_object$posterior_mean_associations
 
   if(isTRUE(arguments$is_mixed)) {
-    # Mixed MRF: extract the q x q continuous block (K-scale → precision)
+    # Mixed MRF: extract the q x q continuous block, convert to precision
     cont_idx = arguments$continuous_indices
     cont_names = arguments$data_columnnames_continuous
-    K_block = associations[cont_idx, cont_idx]
-    precision = -2 * K_block
+    cont_block = associations[cont_idx, cont_idx]
+    precision = -2 * cont_block
     diag(precision) = 1 / rv
     dimnames(precision) = list(cont_names, cont_names)
     return(precision)
   }
 
-  # GGM: associations are on K-scale (K = -0.5 * Theta)
+  # GGM: associations are stored at half precision scale; convert to precision
   precision = -2 * associations
   diag(precision) = 1 / rv
   return(precision)
@@ -1315,7 +1315,7 @@ extract_log_odds.bgms = function(bgms_object) {
   associations = bgms_object$posterior_mean_associations
 
   if(isTRUE(arguments$is_mixed)) {
-    # Mixed MRF: extract the p x p discrete block, convert K → log-odds
+    # Mixed MRF: extract the p x p discrete block, convert to log-odds
     disc_idx = arguments$discrete_indices
     disc_names = arguments$data_columnnames_discrete
     log_odds = 2 * associations[disc_idx, disc_idx]
@@ -1323,6 +1323,6 @@ extract_log_odds.bgms = function(bgms_object) {
     return(log_odds)
   }
 
-  # OMRF: log adjacent-category odds ratio = 2K = 2 * sigma
+  # OMRF: log adjacent-category odds ratio = 2 * association
   return(2 * associations)
 }

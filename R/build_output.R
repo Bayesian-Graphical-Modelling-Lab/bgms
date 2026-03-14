@@ -81,8 +81,8 @@ fill_mixed_symmetric = function(values, p, q, disc_idx, cont_idx, dimnames) {
 # ------------------------------------------------------------------
 # Computes slice indices for the mixed MRF flat parameter vector.
 # Groups main-effect indices (discrete thresholds, continuous means),
-# quadratic-effect indices (Kyy diagonal), and pairwise indices
-# (discrete edges, Kyy off-diagonal, cross edges).
+# quadratic-effect indices (continuous precision diagonal), and pairwise indices
+# (discrete edges, continuous off-diagonal, cross edges).
 #
 # @param num_thresholds  Total number of discrete threshold parameters.
 # @param p               Number of discrete variables.
@@ -108,7 +108,7 @@ compute_mixed_parameter_indices = function(num_thresholds, p, q) {
   pairwise_cross_end = nt + nxx + q + nxy
   pairwise_continuous_start = nt + nxx + q + nxy + 1L
 
-  # Kyy diagonal vs off-diagonal within the continuous block
+  # Continuous diagonal vs off-diagonal within the continuous block
   precision_diag_within = integer(q)
   precision_offdiag_within = integer(nyy_offdiag)
   k_diag = 0L
@@ -408,9 +408,9 @@ build_output_bgm = function(spec, raw) {
     colnames(results$posterior_mean_main) = paste0("cat (", seq_len(ncol(pmm)), ")")
   }
 
-  # --- Posterior mean: associations (K-scale) ---------------------------------
-  # For GGM: C++ stores precision Theta; convert to K = -0.5 * Theta.
-  # For OMRF: C++ already stores K (= sigma, the paper's association parameter).
+  # --- Posterior mean: associations -------------------------------------------
+  # For GGM: C++ stores precision; convert to association scale (* -0.5).
+  # For OMRF: C++ already stores association-scale values.
   associations = matrix(0,
     nrow = num_variables, ncol = num_variables,
     dimnames = list(data_columnnames, data_columnnames)
@@ -423,7 +423,7 @@ build_output_bgm = function(spec, raw) {
   results$posterior_mean_associations = associations
 
   # --- Residual variance (GGM only) -------------------------------------------
-  # C++ stores precision diagonal Theta_ii; convert to 1 / Theta_ii.
+  # C++ stores precision diagonal; convert to residual variance = 1 / diag.
   if(is_continuous) {
     results$posterior_mean_residual_variance = 1 / main_summary$mean
     names(results$posterior_mean_residual_variance) = data_columnnames
@@ -585,7 +585,7 @@ build_output_mixed_mrf = function(spec, raw) {
     names_main = c(names_main, paste0(cont_names[ji], " (mean)"))
   }
   for(ji in seq_len(q)) {
-    names_main = c(names_main, paste0(cont_names[ji], " (Kyy)"))
+    names_main = c(names_main, paste0(cont_names[ji], " (precision diag)"))
   }
 
   # Pairwise edge names — internal order, mapped to original column names
@@ -701,17 +701,17 @@ build_output_mixed_mrf = function(spec, raw) {
     continuous = pmm_cont
   )
 
-  # --- Posterior mean: associations (K-scale, all blocks) ---------------------
+  # --- Posterior mean: associations (all blocks) -----------------------------
   dn = list(data_columnnames, data_columnnames)
   results$posterior_mean_associations = fill_mixed_symmetric(
     pairwise_summary$mean, p, q, disc_idx, cont_idx, dn
   )
 
   # --- Residual variance (continuous diagonal) --------------------------------
-  # C++ stores Kyy_ii (K-scale, negative); convert to 1/Theta_ii = -1/(2*K_ii).
-  kyy_diag_means = main_summary$mean[nt + q + seq_len(q)]
-  names(kyy_diag_means) = cont_names
-  results$posterior_mean_residual_variance = -1 / (2 * kyy_diag_means)
+  # C++ stores negative association diagonal; convert to residual variance.
+  assoc_diag_means = main_summary$mean[nt + q + seq_len(q)]
+  names(assoc_diag_means) = cont_names
+  results$posterior_mean_residual_variance = -1 / (2 * assoc_diag_means)
 
   # --- Posterior mean: indicator -----------------------------------------------
   if(edge_selection) {

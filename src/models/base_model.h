@@ -155,7 +155,8 @@ public:
      *
      * Used by GradientSamplerBase for mass-matrix sizing and adaptation.
      * For most models this equals the storage dimension. For models where
-     * some parameters are not sampled by NUTS (e.g., MixedMRFModel's Kyy),
+     * some parameters are not sampled by NUTS (e.g., MixedMRFModel's
+     * continuous precision),
      * this returns the NUTS-block dimension.
      * Defaults to parameter_dimension().
      */
@@ -178,8 +179,8 @@ public:
      * @return Dimension for sample storage (includes all parameters).
      *
      * For most models this equals full_parameter_dimension(). Override
-     * when storage needs more entries than the NUTS block (e.g., Kyy
-     * parameters in MixedMRFModel).
+     * when storage needs more entries than the NUTS block (e.g., continuous
+     * precision parameters in MixedMRFModel).
      */
     virtual size_t storage_dimension() const {
         return full_parameter_dimension();

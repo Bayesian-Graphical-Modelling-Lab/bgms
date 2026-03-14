@@ -6,13 +6,14 @@
 #include "models/mixed/mixed_mrf_model.h"
 
 /**
- * HybridNUTSSampler - NUTS for unconstrained block + MH for Kyy
+ * HybridNUTSSampler - NUTS for unconstrained block + MH for continuous precision
  *
- * Designed for MixedMRFModel where the NUTS block covers (mux, Kxx, muy, Kxy)
- * and the SPD-constrained Kyy is updated via component-wise Metropolis.
- * Inherits warmup adaptation (step size, diagonal mass matrix) from
- * GradientSamplerBase for the NUTS block.  Kyy proposal SDs are adapted
- * via the embedded Robbins-Monro schedule inside the model.
+ * Designed for MixedMRFModel where the NUTS block covers
+ * (discrete main effects, discrete pairwise, continuous means, cross interactions)
+ * and the SPD-constrained continuous precision is updated via component-wise
+ * Metropolis. Inherits warmup adaptation (step size, diagonal mass matrix) from
+ * GradientSamplerBase for the NUTS block. Continuous precision proposal SDs
+ * are adapted via the embedded Robbins-Monro schedule inside the model.
  */
 class HybridNUTSSampler : public GradientSamplerBase {
 public:
@@ -28,7 +29,7 @@ public:
         // Initialize NUTS adaptation (step-size heuristic + mass matrix)
         GradientSamplerBase::initialize(model);
 
-        // Initialize Kyy Metropolis adaptation (stores total_warmup_)
+        // Initialize continuous precision Metropolis adaptation (stores total_warmup_)
         model.init_metropolis_adaptation(schedule_);
     }
 
@@ -52,7 +53,7 @@ protected:
 
         model.set_vectorized_parameters(result.state);
 
-        // --- Phase 2: Kyy Metropolis step ---
+        // --- Phase 2: Continuous precision Metropolis step ---
         auto& mixed = static_cast<MixedMRFModel&>(model);
         mixed.do_pairwise_continuous_metropolis_step(current_iteration_);
 
@@ -66,7 +67,7 @@ private:
 public:
     // The iteration counter is set by the overridden step() method via
     // the base class.  We store it so do_gradient_step() can pass it
-    // to the Kyy Metropolis update for Robbins-Monro adaptation.
+    // to the continuous precision Metropolis update for Robbins-Monro adaptation.
     StepResult step(BaseModel& model, int iteration) override {
         current_iteration_ = iteration;
         return GradientSamplerBase::step(model, iteration);

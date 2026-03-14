@@ -709,13 +709,13 @@ Rcpp::List run_ggm_simulation_parallel(
 // Simulate observations from a mixed MRF using block Gibbs sampling.
 //
 // Each iteration updates all discrete variables from their full conditional
-// given (x_{-s}, y), then updates all continuous variables from
-// y | x ~ N(mu_y + 2 * x * Kxy * Kyy^{-1}, Kyy^{-1}).
+// given (x_{-s}, y), then updates all continuous variables from the
+// conditional Gaussian.
 //
 // @param num_states      Number of observations to simulate.
-// @param Kxx             p x p discrete pairwise interactions (diagonal zero).
-// @param Kxy             p x q cross interactions.
-// @param Kyy             q x q SPD continuous precision.
+// @param pairwise_disc   p x p discrete pairwise interactions (diagonal zero).
+// @param pairwise_cross  p x q cross interactions.
+// @param pairwise_cont   q x q continuous interaction matrix (negative-definite).
 // @param mux             p x max_cats threshold / Blume-Capel parameters.
 // @param muy             q-vector of continuous means.
 // @param num_categories  p-vector: number of categories per discrete variable
@@ -728,9 +728,9 @@ Rcpp::List run_ggm_simulation_parallel(
 // @param y_out           Output: n x q numeric matrix of continuous observations.
 void simulate_mixed_mrf(
     int num_states,
-    const arma::mat& Kxx,
-    const arma::mat& Kxy,
-    const arma::mat& Kyy,
+    const arma::mat& pairwise_disc,
+    const arma::mat& pairwise_cross,
+    const arma::mat& pairwise_cont,
     const arma::mat& mux,
     const arma::vec& muy,
     const arma::ivec& num_categories,
@@ -741,21 +741,20 @@ void simulate_mixed_mrf(
     arma::imat& x_out,
     arma::mat& y_out) {
 
-  int p = Kxx.n_rows;
-  int q = Kyy.n_rows;
+  int p = pairwise_disc.n_rows;
+  int q = pairwise_cont.n_rows;
 
-  // Precompute Kyy decomposition: Kyy is K-scale (negative-definite),
-  // Theta = -2 Kyy is positive-definite precision, Sigma = Theta^{-1}.
-  arma::mat Theta_y = -2.0 * Kyy;
-  arma::mat Sigma_y = arma::inv_sympd(Theta_y);
+  // Precompute precision decomposition: precision = -2 * pairwise_cont
+  arma::mat precision_y = -2.0 * pairwise_cont;
+  arma::mat Sigma_y = arma::inv_sympd(precision_y);
   arma::mat L_Sigma = arma::chol(Sigma_y, "lower");
 
-  // Precompute Kxy * Kyy^{-1} for conditional mean
-  arma::mat Kxy_Sigma = Kxy * Sigma_y;  // p x q
+  // Precompute cross * covariance for conditional mean
+  arma::mat cross_sigma = pairwise_cross * Sigma_y;  // p x q
 
-  // Copy Kxx with zeroed diagonal for safety
-  arma::mat Kxx_safe = Kxx;
-  Kxx_safe.diag().zeros();
+  // Copy discrete interactions with zeroed diagonal
+  arma::mat disc_safe = pairwise_disc;
+  disc_safe.diag().zeros();
 
   // Generate each observation independently
   for (int obs = 0; obs < num_states; obs++) {
@@ -784,14 +783,14 @@ void simulate_mixed_mrf(
           if (k != s) {
             int obs_k = x_current(k);
             int ref_k = baseline_category(k);
-            rest_discrete += 2.0 * (obs_k - ref_k) * Kxx_safe(k, s);
+            rest_discrete += 2.0 * (obs_k - ref_k) * disc_safe(k, s);
           }
         }
 
         // Rest score from continuous (factor of 2)
         double rest_continuous = 0.0;
         for (int j = 0; j < q; j++) {
-          rest_continuous += 2.0 * Kxy(s, j) * y_current(j);
+          rest_continuous += 2.0 * pairwise_cross(s, j) * y_current(j);
         }
 
         double rest = rest_discrete + rest_continuous;
@@ -849,16 +848,16 @@ void simulate_mixed_mrf(
       }
 
       // --- Update continuous variables from y | x ---
-      // y | x ~ N(muy + 2 * Kxy_Sigma^T * x_centered, Sigma_y)
+      // y | x ~ N(muy + 2 * cross_sigma^T * x_centered, Sigma_y)
       // Compute centered discrete observations
       arma::vec x_centered(p);
       for (int s = 0; s < p; s++) {
         x_centered(s) = static_cast<double>(x_current(s) - baseline_category(s));
       }
 
-      // Conditional mean: muy + 2 * Sigma_y * Kxy^T * x_centered
-      //   = muy + 2 * Kxy_Sigma^T * x_centered
-      arma::vec cond_mean = muy + 2.0 * Kxy_Sigma.t() * x_centered;
+      // Conditional mean: muy + 2 * Sigma_y * cross^T * x_centered
+      //   = muy + 2 * cross_sigma^T * x_centered
+      arma::vec cond_mean = muy + 2.0 * cross_sigma.t() * x_centered;
 
       // Sample y ~ N(cond_mean, Sigma_y)
       arma::vec z2 = arma_rnorm_vec(rng, q);
@@ -879,9 +878,9 @@ void simulate_mixed_mrf(
 // [[Rcpp::export]]
 Rcpp::List sample_mixed_mrf_gibbs(
     int num_states,
-    NumericMatrix Kxx_r,
-    NumericMatrix Kxy_r,
-    NumericMatrix Kyy_r,
+    NumericMatrix pairwise_disc_r,
+    NumericMatrix pairwise_cross_r,
+    NumericMatrix pairwise_cont_r,
     NumericMatrix mux_r,
     NumericVector muy_r,
     IntegerVector num_categories_r,
@@ -892,12 +891,12 @@ Rcpp::List sample_mixed_mrf_gibbs(
 
   SafeRNG rng(seed);
 
-  int p = Kxx_r.nrow();
-  int q = Kyy_r.nrow();
+  int p = pairwise_disc_r.nrow();
+  int q = pairwise_cont_r.nrow();
 
-  arma::mat Kxx = Rcpp::as<arma::mat>(Kxx_r);
-  arma::mat Kxy = Rcpp::as<arma::mat>(Kxy_r);
-  arma::mat Kyy = Rcpp::as<arma::mat>(Kyy_r);
+  arma::mat pairwise_disc = Rcpp::as<arma::mat>(pairwise_disc_r);
+  arma::mat pairwise_cross = Rcpp::as<arma::mat>(pairwise_cross_r);
+  arma::mat pairwise_cont = Rcpp::as<arma::mat>(pairwise_cont_r);
   arma::mat mux = Rcpp::as<arma::mat>(mux_r);
   arma::vec muy = Rcpp::as<arma::vec>(muy_r);
   arma::ivec num_categories = Rcpp::as<arma::ivec>(num_categories_r);
@@ -916,7 +915,7 @@ Rcpp::List sample_mixed_mrf_gibbs(
   arma::mat y_out(num_states, q);
 
   simulate_mixed_mrf(
-    num_states, Kxx, Kxy, Kyy, mux, muy,
+    num_states, pairwise_disc, pairwise_cross, pairwise_cont, mux, muy,
     num_categories, variable_type, baseline_category,
     iter, rng, x_out, y_out
   );
@@ -947,10 +946,10 @@ class MixedSimulationWorker : public RcppParallel::Worker {
 public:
   // Input: posterior samples as flat vectors (one row per draw)
   const arma::mat& mux_samples;       // ndraws x n_mux
-  const arma::mat& kxx_samples;       // ndraws x p*(p-1)/2
+  const arma::mat& disc_samples;       // ndraws x p*(p-1)/2
   const arma::mat& muy_samples;       // ndraws x q
-  const arma::mat& kyy_samples;       // ndraws x q*(q+1)/2
-  const arma::mat& kxy_samples;       // ndraws x p*q
+  const arma::mat& cont_samples;       // ndraws x q*(q+1)/2
+  const arma::mat& cross_samples;       // ndraws x p*q
 
   const arma::ivec& draw_indices;
   const int num_states;
@@ -967,10 +966,10 @@ public:
 
   MixedSimulationWorker(
     const arma::mat& mux_samples,
-    const arma::mat& kxx_samples,
+    const arma::mat& disc_samples,
     const arma::mat& muy_samples,
-    const arma::mat& kyy_samples,
-    const arma::mat& kxy_samples,
+    const arma::mat& cont_samples,
+    const arma::mat& cross_samples,
     const arma::ivec& draw_indices,
     int num_states,
     int p, int q,
@@ -984,10 +983,10 @@ public:
     std::vector<MixedSimulationResult>& results
   ) :
     mux_samples(mux_samples),
-    kxx_samples(kxx_samples),
+    disc_samples(disc_samples),
     muy_samples(muy_samples),
-    kyy_samples(kyy_samples),
-    kxy_samples(kxy_samples),
+    cont_samples(cont_samples),
+    cross_samples(cross_samples),
     draw_indices(draw_indices),
     num_states(num_states),
     p(p), q(q),
@@ -1025,13 +1024,13 @@ public:
           }
         }
 
-        // Reconstruct Kxx (p x p symmetric, zero diagonal)
-        arma::mat Kxx(p, p, arma::fill::zeros);
+        // Reconstruct discrete interactions (p x p symmetric, zero diagonal)
+        arma::mat pairwise_disc(p, p, arma::fill::zeros);
         idx = 0;
         for (int col = 0; col < p; col++) {
           for (int row = col + 1; row < p; row++) {
-            Kxx(row, col) = kxx_samples(draw_row, idx);
-            Kxx(col, row) = kxx_samples(draw_row, idx);
+            pairwise_disc(row, col) = disc_samples(draw_row, idx);
+            pairwise_disc(col, row) = disc_samples(draw_row, idx);
             idx++;
           }
         }
@@ -1042,27 +1041,27 @@ public:
           muy(j) = muy_samples(draw_row, j);
         }
 
-        // Reconstruct Kyy (q x q symmetric, upper triangle including diagonal)
-        arma::mat Kyy(q, q, arma::fill::zeros);
+        // Reconstruct continuous interactions (q x q symmetric, including diagonal)
+        arma::mat pairwise_cont(q, q, arma::fill::zeros);
         idx = 0;
         for (int col = 0; col < q; col++) {
           for (int row = col; row < q; row++) {
             if (row == col) {
-              Kyy(row, col) = kyy_samples(draw_row, idx);
+              pairwise_cont(row, col) = cont_samples(draw_row, idx);
             } else {
-              Kyy(row, col) = kyy_samples(draw_row, idx);
-              Kyy(col, row) = kyy_samples(draw_row, idx);
+              pairwise_cont(row, col) = cont_samples(draw_row, idx);
+              pairwise_cont(col, row) = cont_samples(draw_row, idx);
             }
             idx++;
           }
         }
 
-        // Reconstruct Kxy (p x q, row-major)
-        arma::mat Kxy(p, q, arma::fill::zeros);
+        // Reconstruct cross interactions (p x q, row-major)
+        arma::mat pairwise_cross(p, q, arma::fill::zeros);
         idx = 0;
         for (int s = 0; s < p; s++) {
           for (int j = 0; j < q; j++) {
-            Kxy(s, j) = kxy_samples(draw_row, idx);
+            pairwise_cross(s, j) = cross_samples(draw_row, idx);
             idx++;
           }
         }
@@ -1072,7 +1071,7 @@ public:
         result.y_observations.set_size(num_states, q);
 
         simulate_mixed_mrf(
-          num_states, Kxx, Kxy, Kyy, mux, muy,
+          num_states, pairwise_disc, pairwise_cross, pairwise_cont, mux, muy,
           num_categories, variable_type, baseline_category,
           iter, rng,
           result.x_observations, result.y_observations
@@ -1099,10 +1098,10 @@ public:
 // and passes them as separate sample matrices.
 //
 // @param mux_samples     ndraws x n_mux
-// @param kxx_samples     ndraws x p*(p-1)/2
+// @param disc_samples     ndraws x p*(p-1)/2
 // @param muy_samples     ndraws x q
-// @param kyy_samples     ndraws x q*(q+1)/2
-// @param kxy_samples     ndraws x p*q
+// @param cont_samples     ndraws x q*(q+1)/2
+// @param cross_samples     ndraws x p*q
 // @param draw_indices    1-based indices of which draws to use
 // @param num_states      Number of observations per draw
 // @param p               Number of discrete variables
@@ -1119,10 +1118,10 @@ public:
 // [[Rcpp::export]]
 Rcpp::List run_mixed_simulation_parallel(
     const arma::mat& mux_samples,
-    const arma::mat& kxx_samples,
+    const arma::mat& disc_samples,
     const arma::mat& muy_samples,
-    const arma::mat& kyy_samples,
-    const arma::mat& kxy_samples,
+    const arma::mat& cont_samples,
+    const arma::mat& cross_samples,
     const arma::ivec& draw_indices,
     int num_states,
     int p,
@@ -1165,7 +1164,7 @@ Rcpp::List run_mixed_simulation_parallel(
   ProgressManager pm(1, ndraws, 0, 50, progress_type);
 
   MixedSimulationWorker worker(
-    mux_samples, kxx_samples, muy_samples, kyy_samples, kxy_samples,
+    mux_samples, disc_samples, muy_samples, cont_samples, cross_samples,
     draw_indices, num_states, p, q,
     num_categories, variable_type, baseline_category_safe,
     iter, mux_param_counts, draw_rngs, pm, results

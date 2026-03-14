@@ -56,7 +56,7 @@ test_that("mixed MRF parameter recovery: cor > 0.8 (small network)", {
 
   true_blocks = list(
     mux = net$mux, muy = net$muy,
-    Kxx = net$Kxx, Kxy = net$Kxy, Kyy = net$Kyy
+    pairwise_disc = net$pairwise_disc, pairwise_cross = net$pairwise_cross, pairwise_cont = net$pairwise_cont
   )
   est_blocks = extract_bgms_blocks(fit, net)
 

@@ -18,16 +18,16 @@ void MixedMRFModel::ensure_gradient_cache() {
     // --- Build index matrix for pairwise_effects_discrete_ upper-triangular entries ---
     // Maps (i, j) to a position in the flat gradient vector (offset from
     // the start of pairwise_discrete entries, which sits at num_main_).
-    kxx_index_cache_.set_size(p_, p_);
-    kxx_index_cache_.zeros();
+    disc_index_cache_.set_size(p_, p_);
+    disc_index_cache_.zeros();
 
-    int num_active_kxx = 0;
+    int num_active_disc = 0;
     for(size_t i = 0; i < p_ - 1; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
             if(edge_indicators_(i, j) == 1) {
-                kxx_index_cache_(i, j) = num_main_ + num_active_kxx;
-                kxx_index_cache_(j, i) = kxx_index_cache_(i, j);
-                num_active_kxx++;
+                disc_index_cache_(i, j) = num_main_ + num_active_disc;
+                disc_index_cache_(j, i) = disc_index_cache_(i, j);
+                num_active_disc++;
             }
         }
     }
@@ -35,25 +35,25 @@ void MixedMRFModel::ensure_gradient_cache() {
     // --- Build index matrix for pairwise_effects_cross_ entries ---
     // Maps (i, j) to a position in the flat gradient vector (offset from
     // the start of pairwise_cross entries, which sits at num_main_ + active_kxx + q).
-    kxy_index_cache_.set_size(p_, q_);
-    kxy_index_cache_.zeros();
+    cross_index_cache_.set_size(p_, q_);
+    cross_index_cache_.zeros();
 
-    int kxy_offset = num_main_ + num_active_kxx + static_cast<int>(q_);
-    int num_active_kxy = 0;
+    int cross_offset = num_main_ + num_active_disc + static_cast<int>(q_);
+    int num_active_cross = 0;
     for(size_t i = 0; i < p_; ++i) {
         for(size_t j = 0; j < q_; ++j) {
             if(edge_indicators_(i, p_ + j) == 1) {
-                kxy_index_cache_(i, j) = kxy_offset + num_active_kxy;
-                num_active_kxy++;
+                cross_index_cache_(i, j) = cross_offset + num_active_cross;
+                num_active_cross++;
             }
         }
     }
 
     // main_effects_continuous_ offset in gradient vector
-    main_effects_continuous_grad_offset_ = num_main_ + num_active_kxx;
+    main_effects_continuous_grad_offset_ = num_main_ + num_active_disc;
 
     // --- Precompute observed statistics portion of the gradient ---
-    size_t active_dim = num_main_ + num_active_kxx + q_ + num_active_kxy;
+    size_t active_dim = num_main_ + num_active_disc + q_ + num_active_cross;
     grad_obs_cache_.set_size(active_dim);
     grad_obs_cache_.zeros();
 
@@ -77,7 +77,7 @@ void MixedMRFModel::ensure_gradient_cache() {
     for(size_t i = 0; i < p_ - 1; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
             if(edge_indicators_(i, j) == 0) continue;
-            int loc = kxx_index_cache_(i, j);
+            int loc = disc_index_cache_(i, j);
             // Factor 4: K = σ, and the log-PL has edge (i,j) in two conditionals,
             // giving d/dK [4K·(x^Tx)] = 4·(x^Tx)
             grad_obs_cache_(loc) = 4.0 * arma::dot(
@@ -171,15 +171,15 @@ arma::vec MixedMRFModel::gradient(const arma::vec& parameters) {
 // logp_and_gradient — conditional pseudo-likelihood
 // =============================================================================
 // Computes the log pseudo-posterior and its gradient with respect to the
-// NUTS parameters (μ_x, K_xx, μ_y, K_xy).  K_yy is treated as fixed.
+// NUTS parameters (μ_x, A_xx, μ_y, A_xy).  A_yy is treated as fixed.
 //
 // The pseudo-log-posterior is:
 //   l(θ) = sum_s log p(x_s | x_{-s}, y)   [OMRF conditionals]
 //            + log p(y | x)                     [GGM conditional]
 //            + log π(θ)                    [priors]
 //
-// For marginal PL, the OMRF conditionals use Θ = K_xx + 2 K_xy Σ_yy K_xy'
-// instead of K_xx directly, and derive rest scores and denominator offsets
+// For marginal PL, the OMRF conditionals use Θ = A_xx + 2 A_xy Σ_yy A_xy'
+// instead of A_xx directly, and derive rest scores and denominator offsets
 // from Θ.  The GGM conditional is the same in both modes.
 // =============================================================================
 
@@ -196,17 +196,17 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     unvectorize_nuts_to_temps(parameters, temp_main_discrete, temp_pairwise_discrete, temp_main_continuous, temp_pairwise_cross);
 
     // --- Derived quantities ---
-    // Conditional mean: M_i = μ_y' + 2 x_i' K_xy Σ_yy  (n x q)
+    // Conditional mean: M_i = μ_y' + 2 x_i' A_xy Σ_yy  (n x q)
     arma::mat temp_cond_mean = arma::repmat(temp_main_continuous.t(), n_, 1)
                              + 2.0 * discrete_observations_dbl_ * temp_pairwise_cross * covariance_continuous_;
 
     // Residual: D = Y - M  (n x q)
     arma::mat D = continuous_observations_ - temp_cond_mean;
 
-    // Theta for marginal PL
-    arma::mat temp_Theta;
+    // Marginal PL effective discrete interaction matrix
+    arma::mat temp_marginal;
     if(use_marginal_pl_) {
-        temp_Theta = 2.0 * temp_pairwise_discrete + 2.0 * temp_pairwise_cross * covariance_continuous_ * temp_pairwise_cross.t();
+        temp_marginal = 2.0 * temp_pairwise_discrete + 2.0 * temp_pairwise_cross * covariance_continuous_ * temp_pairwise_cross.t();
     }
 
     // Start gradient from observed-statistics cache
@@ -214,7 +214,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
 
     double logp = 0.0;
 
-    // For marginal PL: precompute K_xy Σ_yy (used in cross-contributions)
+    // For marginal PL: precompute A_xy Σ_yy (used in cross-contributions)
     arma::mat cross_times_cov;  // p x q
     if(use_marginal_pl_) {
         cross_times_cov = temp_pairwise_cross * covariance_continuous_;
@@ -231,13 +231,13 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
         // --- Rest score for variable s ---
         arma::vec rest;
         if(use_marginal_pl_) {
-            // Marginal: Θ-based rest + K_xy μ_y bias
-            double theta_ss = temp_Theta(s, s);
-            rest = discrete_observations_dbl_ * temp_Theta.col(s)
-                 - discrete_observations_dbl_.col(s) * theta_ss
+            // Marginal: Θ-based rest + A_xy μ_y bias
+            double precision_ss = temp_marginal(s, s);
+            rest = discrete_observations_dbl_ * temp_marginal.col(s)
+                 - discrete_observations_dbl_.col(s) * precision_ss
                  + 2.0 * arma::dot(temp_pairwise_cross.row(s), temp_main_continuous);
         } else {
-            // Conditional: 2*K_xx-based rest + 2 K_xy y  (K-scale: σ = 2K)
+            // Conditional: 2 * discrete_int rest + 2 * cross_int * y
             rest = 2.0 * (discrete_observations_dbl_ * temp_pairwise_discrete.col(s)
                  - discrete_observations_dbl_.col(s) * temp_pairwise_discrete(s, s))
                  + 2.0 * continuous_observations_ * temp_pairwise_cross.row(s).t();
@@ -246,11 +246,11 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
         if(is_ordinal_variable_(s)) {
             arma::vec main_param = temp_main_discrete.row(s).cols(0, C_s - 1).t();
 
-            // Marginal PL: absorb Theta_ss into main_param
+            // Marginal PL: absorb marginal self-interaction into main_param
             if(use_marginal_pl_) {
-                double theta_ss = temp_Theta(s, s);
+                double precision_ss = temp_marginal(s, s);
                 for(int c = 0; c < C_s; ++c) {
-                    main_param(c) += static_cast<double>((c + 1) * (c + 1)) * theta_ss;
+                    main_param(c) += static_cast<double>((c + 1) * (c + 1)) * precision_ss;
                 }
             }
 
@@ -283,7 +283,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
             arma::vec pw_grad = discrete_observations_dbl_t_ * E;
             for(size_t t = 0; t < p_; ++t) {
                 if(edge_indicators_(s, t) == 0 || s == t) continue;
-                int loc = (s < t) ? kxx_index_cache_(s, t) : kxx_index_cache_(t, s);
+                int loc = (s < t) ? disc_index_cache_(s, t) : disc_index_cache_(t, s);
                 grad(loc) -= 2.0 * pw_grad(t);
             }
 
@@ -293,7 +293,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
                 // So pairwise_discrete gradient from Θ rest scores is already handled above.
 
                 // Pairwise_cross gradient from marginal OMRF (through Θ):
-                // ∂Theta_{st}/∂pairwise_effects_cross_{a,j} has two terms:
+                // ∂marginal_{st}/∂pairwise_effects_cross_{a,j} has two terms:
                 //   = 2 [Σyy pairwise_effects_cross_t']_j δ_{as} + 2 [pairwise_effects_cross_s Σyy]_j δ_{at}
                 // Self-contribution (a=s): from rest_s → pairwise_effects_cross_s
                 // Cross-contribution (a=t): from rest_s → pairwise_effects_cross_t for each t≠s
@@ -312,27 +312,27 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
                 double sum_obs_minus_E = arma::accu(discrete_observations_dbl_.col(s)) - arma::accu(E);
 
                 // Self-contribution: a = s
-                // Off-diagonal Theta: ∂Θ_{st}/∂pairwise_effects_cross_{s,j} = 2 [Σyy pairwise_effects_cross_t']_j
-                // Diagonal Theta: ∂Θ_{ss}/∂pairwise_effects_cross_{s,j} = 4 [Σyy pairwise_effects_cross_s']_j
+                // Off-diagonal effective interaction: ∂Θ_{st}/∂pairwise_effects_cross_{s,j} = 2 [Σyy pairwise_effects_cross_t']_j
+                // Diagonal effective interaction: ∂Θ_{ss}/∂pairwise_effects_cross_{s,j} = 4 [Σyy pairwise_effects_cross_s']_j
                 // Rest-score bias: ∂(2 pairwise_effects_cross_s μy)/∂pairwise_effects_cross_{s,j} = 2 μy_j
-                arma::rowvec kxy_self = 2.0 * (diff_pw.t() * temp_pairwise_cross) * covariance_continuous_
+                arma::rowvec cross_self = 2.0 * (diff_pw.t() * temp_pairwise_cross) * covariance_continuous_
                                       + 4.0 * diff_diag * cross_times_cov.row(s)
                                       + 2.0 * sum_obs_minus_E * temp_main_continuous.t();
 
                 for(size_t j = 0; j < q_; ++j) {
                     if(edge_indicators_(s, p_ + j) == 0) continue;
-                    int loc = kxy_index_cache_(s, j);
-                    grad(loc) += kxy_self(j);
+                    int loc = cross_index_cache_(s, j);
+                    grad(loc) += cross_self(j);
                 }
 
                 // Cross-contribution: a = t, for each t ≠ s
                 // ∂l_s/∂pairwise_effects_cross_{t,:} = diff_pw(t) * 2 * pairwise_effects_cross_s * Σyy
-                arma::rowvec V_s = 2.0 * cross_times_cov.row(s);  // 2 K_xy_s Σ_yy
+                arma::rowvec V_s = 2.0 * cross_times_cov.row(s);  // 2 A_xy_s Σ_yy
                 for(size_t t = 0; t < p_; ++t) {
                     if(t == s || std::abs(diff_pw(t)) < 1e-300) continue;
                     for(size_t j = 0; j < q_; ++j) {
                         if(edge_indicators_(t, p_ + j) == 0) continue;
-                        int loc = kxy_index_cache_(t, j);
+                        int loc = cross_index_cache_(t, j);
                         grad(loc) += diff_pw(t) * V_s(j);
                     }
                 }
@@ -345,14 +345,14 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
             } else {
                 // Conditional PL: pairwise_cross gradient from OMRF rest score
                 // ∂/∂pairwise_effects_cross_{s,j} = 2 sum_i y_{ij} (x_{is}+1 - E_s)
-                arma::rowvec kxy_grad_s = 2.0 * (
+                arma::rowvec cross_grad_s = 2.0 * (
                     discrete_observations_dbl_.col(s) - E
                 ).t() * continuous_observations_;
 
                 for(size_t j = 0; j < q_; ++j) {
                     if(edge_indicators_(s, p_ + j) == 0) continue;
-                    int loc = kxy_index_cache_(s, j);
-                    grad(loc) += kxy_grad_s(j);
+                    int loc = cross_index_cache_(s, j);
+                    grad(loc) += cross_grad_s(j);
                 }
             }
 
@@ -363,10 +363,10 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
             double lin_eff = temp_main_discrete(s, 0);
             double quad_eff = temp_main_discrete(s, 1);
 
-            // Marginal PL: absorb Theta_ss into quadratic effect
+            // Marginal PL: absorb marginal self-interaction into quadratic effect
             double effective_quad = quad_eff;
             if(use_marginal_pl_) {
-                effective_quad += temp_Theta(s, s);
+                effective_quad += temp_marginal(s, s);
             }
 
             arma::vec bc_bound;
@@ -391,7 +391,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
             arma::vec pw_grad = discrete_observations_dbl_t_ * E;
             for(size_t t = 0; t < p_; ++t) {
                 if(edge_indicators_(s, t) == 0 || s == t) continue;
-                int loc = (s < t) ? kxx_index_cache_(s, t) : kxx_index_cache_(t, s);
+                int loc = (s < t) ? disc_index_cache_(s, t) : disc_index_cache_(t, s);
                 grad(loc) -= 2.0 * pw_grad(t);
             }
 
@@ -410,14 +410,14 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
                 double sum_obs_minus_E = arma::accu(discrete_observations_dbl_.col(s)) - arma::accu(E);
 
                 // Self-contribution: a = s
-                arma::rowvec kxy_self = 2.0 * (diff_pw.t() * temp_pairwise_cross) * covariance_continuous_
+                arma::rowvec cross_self = 2.0 * (diff_pw.t() * temp_pairwise_cross) * covariance_continuous_
                                       + 4.0 * diff_diag * cross_times_cov.row(s)
                                       + 2.0 * sum_obs_minus_E * temp_main_continuous.t();
 
                 for(size_t j = 0; j < q_; ++j) {
                     if(edge_indicators_(s, p_ + j) == 0) continue;
-                    int loc = kxy_index_cache_(s, j);
-                    grad(loc) += kxy_self(j);
+                    int loc = cross_index_cache_(s, j);
+                    grad(loc) += cross_self(j);
                 }
 
                 // Cross-contribution: a = t, for each t ≠ s
@@ -426,7 +426,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
                     if(t == s || std::abs(diff_pw(t)) < 1e-300) continue;
                     for(size_t j = 0; j < q_; ++j) {
                         if(edge_indicators_(t, p_ + j) == 0) continue;
-                        int loc = kxy_index_cache_(t, j);
+                        int loc = cross_index_cache_(t, j);
                         grad(loc) += diff_pw(t) * V_s(j);
                     }
                 }
@@ -437,14 +437,14 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
                 }
             } else {
                 // Conditional PL: pairwise_cross gradient from OMRF rest score
-                arma::rowvec kxy_grad_s = 2.0 * (
+                arma::rowvec cross_grad_s = 2.0 * (
                     discrete_observations_dbl_.col(s) - E
                 ).t() * continuous_observations_;
 
                 for(size_t j = 0; j < q_; ++j) {
                     if(edge_indicators_(s, p_ + j) == 0) continue;
-                    int loc = kxy_index_cache_(s, j);
-                    grad(loc) += kxy_grad_s(j);
+                    int loc = cross_index_cache_(s, j);
+                    grad(loc) += cross_grad_s(j);
                 }
             }
 
@@ -459,12 +459,12 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
         int C_s = num_categories_(s);
         arma::vec rest;
         if(use_marginal_pl_) {
-            double theta_ss = temp_Theta(s, s);
-            rest = discrete_observations_dbl_ * temp_Theta.col(s)
-                 - discrete_observations_dbl_.col(s) * theta_ss
+            double precision_ss = temp_marginal(s, s);
+            rest = discrete_observations_dbl_ * temp_marginal.col(s)
+                 - discrete_observations_dbl_.col(s) * precision_ss
                  + 2.0 * arma::dot(temp_pairwise_cross.row(s), temp_main_continuous);
-            // Theta_ss quadratic contribution
-            logp += temp_Theta(s, s) * arma::dot(
+            // Marginal self-interaction quadratic contribution
+            logp += temp_marginal(s, s) * arma::dot(
                 discrete_observations_dbl_.col(s),
                 discrete_observations_dbl_.col(s));
         } else {
@@ -488,10 +488,10 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     // =========================================================================
     // Part 2: GGM conditional log-likelihood and gradients
     // =========================================================================
-    // log p(y | x) = n/2 (log|Θ| - q log(2π)) - ½ trace(Θ D'D)
-    // where Θ = -2 Kyy, D = Y - M, M_i = μ_y' + 2 x_i' K_xy Σ_yy
+    // log p(y | x) = n/2 (log|Precision| - q log(2π)) - ½ trace(Precision D'D)
+    // where Precision = -2 * pairwise_effects_continuous_, D = Y - M
     //
-    // Θ is fixed in this sweep, so log|Θ| contributes to logp but not gradient.
+    // Precision is fixed in this sweep, so log|Precision| contributes to logp but not gradient.
 
     double quad_sum = arma::accu((D * (-2.0 * pairwise_effects_continuous_)) % D);
     logp += static_cast<double>(n_) / 2.0 *
@@ -499,7 +499,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
              + log_det_precision_)
           - quad_sum / 2.0;
 
-    // ∂/∂μ_y: Θ D' 1_n = (-2 Kyy) sum_over_rows(D)
+    // ∂/∂μ_y: Precision * sum_over_rows(D)
     arma::vec D_colsums = arma::sum(D, 0).t();  // q-vector
     arma::vec grad_main_effects_continuous_ggm = (-2.0 * pairwise_effects_continuous_) * D_colsums;
 
@@ -507,9 +507,9 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
         grad(main_effects_continuous_grad_offset_ + j) += grad_main_effects_continuous_ggm(j);
     }
 
-    // ∂/∂K_xy: The GGM conditional depends on K_xy through M.
+    // ∂/∂A_xy: The GGM conditional depends on A_xy through M.
     // ∂M/∂pairwise_effects_cross_{s,j} = 2 x_s [Σ_yy]_{j,:}
-    // ∂logp_ggm/∂K_xy = 2 X' D  (shortcut: Θ Σ_yy = I eliminates Θ)
+    // ∂logp_ggm/∂A_xy = 2 X' D  (shortcut: Θ Σ_yy = I eliminates Θ)
     //
     // Correctly: ∂(−½ trace(Θ D'D))/∂pairwise_effects_cross_{s,j}
     //   = trace(Θ D' ∂M/∂pairwise_effects_cross_{s,j})
@@ -521,7 +521,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     for(size_t i = 0; i < p_; ++i) {
         for(size_t j = 0; j < q_; ++j) {
             if(edge_indicators_(i, p_ + j) == 0) continue;
-            int loc = kxy_index_cache_(i, j);
+            int loc = cross_index_cache_(i, j);
             grad(loc) += grad_pairwise_effects_cross_ggm(i, j);
         }
     }
@@ -555,16 +555,16 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
         }
     }
 
-    // --- pairwise_effects_discrete_ priors: Cauchy(0, pairwise_scale/2) on K-scale ---
-    const double kxx_scale = 0.5 * pairwise_scale_;
-    const double kxx_scale_sq = kxx_scale * kxx_scale;
+    // --- pairwise_effects_discrete_ priors: Cauchy(0, pairwise_scale/2) ---
+    const double disc_scale = 0.5 * pairwise_scale_;
+    const double disc_scale_sq = disc_scale * disc_scale;
     for(size_t i = 0; i < p_ - 1; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
             if(edge_indicators_(i, j) == 0) continue;
-            int loc = kxx_index_cache_(i, j);
+            int loc = disc_index_cache_(i, j);
             double val = temp_pairwise_discrete(i, j);
-            logp += R::dcauchy(val, 0.0, kxx_scale, true);
-            grad(loc) -= 2.0 * val / (val * val + kxx_scale_sq);
+            logp += R::dcauchy(val, 0.0, disc_scale, true);
+            grad(loc) -= 2.0 * val / (val * val + disc_scale_sq);
         }
     }
 
@@ -579,7 +579,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     for(size_t i = 0; i < p_; ++i) {
         for(size_t j = 0; j < q_; ++j) {
             if(edge_indicators_(i, p_ + j) == 0) continue;
-            int loc = kxy_index_cache_(i, j);
+            int loc = cross_index_cache_(i, j);
             double val = temp_pairwise_cross(i, j);
             logp += R::dcauchy(val, 0.0, pairwise_scale_, true);
             grad(loc) -= 2.0 * val / (val * val + pairwise_scale_ * pairwise_scale_);

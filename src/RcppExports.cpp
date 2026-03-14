@@ -122,23 +122,23 @@ BEGIN_RCPP
 END_RCPP
 }
 // compute_conditional_mixed
-Rcpp::List compute_conditional_mixed(const arma::imat& x_observations, const arma::mat& y_observations, const arma::ivec& predict_vars, const arma::mat& Kxx, const arma::mat& Kxy, const arma::mat& Kyy, const arma::mat& mux, const arma::vec& muy, const arma::ivec& num_categories, const Rcpp::StringVector& variable_type, const arma::ivec& baseline_category);
-RcppExport SEXP _bgms_compute_conditional_mixed(SEXP x_observationsSEXP, SEXP y_observationsSEXP, SEXP predict_varsSEXP, SEXP KxxSEXP, SEXP KxySEXP, SEXP KyySEXP, SEXP muxSEXP, SEXP muySEXP, SEXP num_categoriesSEXP, SEXP variable_typeSEXP, SEXP baseline_categorySEXP) {
+Rcpp::List compute_conditional_mixed(const arma::imat& x_observations, const arma::mat& y_observations, const arma::ivec& predict_vars, const arma::mat& pairwise_disc, const arma::mat& pairwise_cross, const arma::mat& pairwise_cont, const arma::mat& mux, const arma::vec& muy, const arma::ivec& num_categories, const Rcpp::StringVector& variable_type, const arma::ivec& baseline_category);
+RcppExport SEXP _bgms_compute_conditional_mixed(SEXP x_observationsSEXP, SEXP y_observationsSEXP, SEXP predict_varsSEXP, SEXP pairwise_discSEXP, SEXP pairwise_crossSEXP, SEXP pairwise_contSEXP, SEXP muxSEXP, SEXP muySEXP, SEXP num_categoriesSEXP, SEXP variable_typeSEXP, SEXP baseline_categorySEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const arma::imat& >::type x_observations(x_observationsSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type y_observations(y_observationsSEXP);
     Rcpp::traits::input_parameter< const arma::ivec& >::type predict_vars(predict_varsSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type Kxx(KxxSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type Kxy(KxySEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type Kyy(KyySEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type pairwise_disc(pairwise_discSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type pairwise_cross(pairwise_crossSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type pairwise_cont(pairwise_contSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type mux(muxSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type muy(muySEXP);
     Rcpp::traits::input_parameter< const arma::ivec& >::type num_categories(num_categoriesSEXP);
     Rcpp::traits::input_parameter< const Rcpp::StringVector& >::type variable_type(variable_typeSEXP);
     Rcpp::traits::input_parameter< const arma::ivec& >::type baseline_category(baseline_categorySEXP);
-    rcpp_result_gen = Rcpp::wrap(compute_conditional_mixed(x_observations, y_observations, predict_vars, Kxx, Kxy, Kyy, mux, muy, num_categories, variable_type, baseline_category));
+    rcpp_result_gen = Rcpp::wrap(compute_conditional_mixed(x_observations, y_observations, predict_vars, pairwise_disc, pairwise_cross, pairwise_cont, mux, muy, num_categories, variable_type, baseline_category));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -234,15 +234,15 @@ BEGIN_RCPP
 END_RCPP
 }
 // sample_mixed_mrf_gibbs
-Rcpp::List sample_mixed_mrf_gibbs(int num_states, NumericMatrix Kxx_r, NumericMatrix Kxy_r, NumericMatrix Kyy_r, NumericMatrix mux_r, NumericVector muy_r, IntegerVector num_categories_r, Rcpp::StringVector variable_type_r, IntegerVector baseline_category_r, int iter, int seed);
-RcppExport SEXP _bgms_sample_mixed_mrf_gibbs(SEXP num_statesSEXP, SEXP Kxx_rSEXP, SEXP Kxy_rSEXP, SEXP Kyy_rSEXP, SEXP mux_rSEXP, SEXP muy_rSEXP, SEXP num_categories_rSEXP, SEXP variable_type_rSEXP, SEXP baseline_category_rSEXP, SEXP iterSEXP, SEXP seedSEXP) {
+Rcpp::List sample_mixed_mrf_gibbs(int num_states, NumericMatrix pairwise_disc_r, NumericMatrix pairwise_cross_r, NumericMatrix pairwise_cont_r, NumericMatrix mux_r, NumericVector muy_r, IntegerVector num_categories_r, Rcpp::StringVector variable_type_r, IntegerVector baseline_category_r, int iter, int seed);
+RcppExport SEXP _bgms_sample_mixed_mrf_gibbs(SEXP num_statesSEXP, SEXP pairwise_disc_rSEXP, SEXP pairwise_cross_rSEXP, SEXP pairwise_cont_rSEXP, SEXP mux_rSEXP, SEXP muy_rSEXP, SEXP num_categories_rSEXP, SEXP variable_type_rSEXP, SEXP baseline_category_rSEXP, SEXP iterSEXP, SEXP seedSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< int >::type num_states(num_statesSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type Kxx_r(Kxx_rSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type Kxy_r(Kxy_rSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type Kyy_r(Kyy_rSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type pairwise_disc_r(pairwise_disc_rSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type pairwise_cross_r(pairwise_cross_rSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type pairwise_cont_r(pairwise_cont_rSEXP);
     Rcpp::traits::input_parameter< NumericMatrix >::type mux_r(mux_rSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type muy_r(muy_rSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type num_categories_r(num_categories_rSEXP);
@@ -250,21 +250,21 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< IntegerVector >::type baseline_category_r(baseline_category_rSEXP);
     Rcpp::traits::input_parameter< int >::type iter(iterSEXP);
     Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
-    rcpp_result_gen = Rcpp::wrap(sample_mixed_mrf_gibbs(num_states, Kxx_r, Kxy_r, Kyy_r, mux_r, muy_r, num_categories_r, variable_type_r, baseline_category_r, iter, seed));
+    rcpp_result_gen = Rcpp::wrap(sample_mixed_mrf_gibbs(num_states, pairwise_disc_r, pairwise_cross_r, pairwise_cont_r, mux_r, muy_r, num_categories_r, variable_type_r, baseline_category_r, iter, seed));
     return rcpp_result_gen;
 END_RCPP
 }
 // run_mixed_simulation_parallel
-Rcpp::List run_mixed_simulation_parallel(const arma::mat& mux_samples, const arma::mat& kxx_samples, const arma::mat& muy_samples, const arma::mat& kyy_samples, const arma::mat& kxy_samples, const arma::ivec& draw_indices, int num_states, int p, int q, const arma::ivec& num_categories, const Rcpp::StringVector& variable_type_r, const arma::ivec& baseline_category, int iter, int nThreads, int seed, int progress_type);
-RcppExport SEXP _bgms_run_mixed_simulation_parallel(SEXP mux_samplesSEXP, SEXP kxx_samplesSEXP, SEXP muy_samplesSEXP, SEXP kyy_samplesSEXP, SEXP kxy_samplesSEXP, SEXP draw_indicesSEXP, SEXP num_statesSEXP, SEXP pSEXP, SEXP qSEXP, SEXP num_categoriesSEXP, SEXP variable_type_rSEXP, SEXP baseline_categorySEXP, SEXP iterSEXP, SEXP nThreadsSEXP, SEXP seedSEXP, SEXP progress_typeSEXP) {
+Rcpp::List run_mixed_simulation_parallel(const arma::mat& mux_samples, const arma::mat& disc_samples, const arma::mat& muy_samples, const arma::mat& cont_samples, const arma::mat& cross_samples, const arma::ivec& draw_indices, int num_states, int p, int q, const arma::ivec& num_categories, const Rcpp::StringVector& variable_type_r, const arma::ivec& baseline_category, int iter, int nThreads, int seed, int progress_type);
+RcppExport SEXP _bgms_run_mixed_simulation_parallel(SEXP mux_samplesSEXP, SEXP disc_samplesSEXP, SEXP muy_samplesSEXP, SEXP cont_samplesSEXP, SEXP cross_samplesSEXP, SEXP draw_indicesSEXP, SEXP num_statesSEXP, SEXP pSEXP, SEXP qSEXP, SEXP num_categoriesSEXP, SEXP variable_type_rSEXP, SEXP baseline_categorySEXP, SEXP iterSEXP, SEXP nThreadsSEXP, SEXP seedSEXP, SEXP progress_typeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const arma::mat& >::type mux_samples(mux_samplesSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type kxx_samples(kxx_samplesSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type disc_samples(disc_samplesSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type muy_samples(muy_samplesSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type kyy_samples(kyy_samplesSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type kxy_samples(kxy_samplesSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type cont_samples(cont_samplesSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type cross_samples(cross_samplesSEXP);
     Rcpp::traits::input_parameter< const arma::ivec& >::type draw_indices(draw_indicesSEXP);
     Rcpp::traits::input_parameter< int >::type num_states(num_statesSEXP);
     Rcpp::traits::input_parameter< int >::type p(pSEXP);
@@ -276,7 +276,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type nThreads(nThreadsSEXP);
     Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
     Rcpp::traits::input_parameter< int >::type progress_type(progress_typeSEXP);
-    rcpp_result_gen = Rcpp::wrap(run_mixed_simulation_parallel(mux_samples, kxx_samples, muy_samples, kyy_samples, kxy_samples, draw_indices, num_states, p, q, num_categories, variable_type_r, baseline_category, iter, nThreads, seed, progress_type));
+    rcpp_result_gen = Rcpp::wrap(run_mixed_simulation_parallel(mux_samples, disc_samples, muy_samples, cont_samples, cross_samples, draw_indices, num_states, p, q, num_categories, variable_type_r, baseline_category, iter, nThreads, seed, progress_type));
     return rcpp_result_gen;
 END_RCPP
 }

@@ -1550,15 +1550,14 @@ recode_data_for_prediction = function(x, num_categories, is_ordinal) {
 #   GGM Prediction Helpers
 # ==============================================================================
 
-# Reconstruct the full precision matrix from K-scale associations and
+# Reconstruct the full precision matrix from association-scale values and
 # residual variances.
 #
-# @param associations p x p symmetric matrix of K-scale partial
+# @param associations p x p symmetric matrix of pairwise
 #   associations (zero diagonal).
-# @param residual_variance Named numeric vector of residual variances
-#   (1 / Theta_ii).
+# @param residual_variance Named numeric vector of residual variances.
 #
-# @return p x p precision matrix (Omega = Theta).
+# @return p x p precision matrix.
 reconstruct_precision = function(associations, residual_variance) {
   omega = -2 * associations
   # Excluded edges (NA) have zero precision
@@ -1569,7 +1568,7 @@ reconstruct_precision = function(associations, residual_variance) {
 
 
 # Reconstruct precision matrix from a single posterior draw.
-# GGM raw samples are already on precision scale (Theta).
+# GGM raw samples are already on precision scale.
 #
 # @param pairwise_vec Vector of p*(p-1)/2 off-diagonal precision elements
 #   (lower-triangle order).
@@ -1829,9 +1828,9 @@ simulate_bgms_mixed = function(object, nsim, seed, method, ndraws,
 
     result = sample_mixed_mrf_gibbs(
       num_states = as.integer(nsim),
-      Kxx_r = params$Kxx,
-      Kxy_r = params$Kxy,
-      Kyy_r = params$Kyy,
+      pairwise_disc_r = params$pairwise_disc,
+      pairwise_cross_r = params$pairwise_cross,
+      pairwise_cont_r = params$pairwise_cont,
       mux_r = params$mux,
       muy_r = params$muy,
       num_categories_r = as.integer(num_categories),
@@ -1855,10 +1854,10 @@ simulate_bgms_mixed = function(object, nsim, seed, method, ndraws,
 
     results = run_mixed_simulation_parallel(
       mux_samples = sample_info$mux_samples,
-      kxx_samples = sample_info$kxx_samples,
+      disc_samples = sample_info$disc_samples,
       muy_samples = sample_info$muy_samples,
-      kyy_samples = sample_info$kyy_samples,
-      kxy_samples = sample_info$kxy_samples,
+      cont_samples = sample_info$cont_samples,
+      cross_samples = sample_info$cross_samples,
       draw_indices = as.integer(draw_indices),
       num_states = as.integer(nsim),
       p = as.integer(p),
@@ -1949,14 +1948,14 @@ predict_bgms_mixed = function(object, newdata, predict_vars, arguments,
     }
   }
 
-  compute_one_draw = function(Kxx, Kxy, Kyy, mux, muy) {
+  compute_one_draw = function(pairwise_disc, pairwise_cross, pairwise_cont, mux, muy) {
     compute_conditional_mixed(
       x_observations = x_data,
       y_observations = y_data,
       predict_vars = as.integer(internal_predict_vars),
-      Kxx = Kxx,
-      Kxy = Kxy,
-      Kyy = Kyy,
+      pairwise_disc = pairwise_disc,
+      pairwise_cross = pairwise_cross,
+      pairwise_cont = pairwise_cont,
       mux = mux,
       muy = muy,
       num_categories = as.integer(num_categories),
@@ -1968,7 +1967,7 @@ predict_bgms_mixed = function(object, newdata, predict_vars, arguments,
   if(method == "posterior-mean") {
     params = build_mixed_params_mean(object, arguments)
     raw_result = compute_one_draw(
-      params$Kxx, params$Kxy, params$Kyy, params$mux, params$muy
+      params$pairwise_disc, params$pairwise_cross, params$pairwise_cont, params$mux, params$muy
     )
 
     probs = format_mixed_predictions(
@@ -1989,7 +1988,7 @@ predict_bgms_mixed = function(object, newdata, predict_vars, arguments,
         sample_info, draw_indices[i], p, q, num_categories, is_ordinal
       )
       all_results[[i]] = compute_one_draw(
-        params_i$Kxx, params_i$Kxy, params_i$Kyy, params_i$mux, params_i$muy
+        params_i$pairwise_disc, params_i$pairwise_cross, params_i$pairwise_cont, params_i$mux, params_i$muy
       )
     }
 
@@ -2037,12 +2036,13 @@ predict_bgms_mixed = function(object, newdata, predict_vars, arguments,
 # ------------------------------------------------------------------
 # build_mixed_params_mean
 # ------------------------------------------------------------------
-# Reconstruct Kxx, Kxy, Kyy, mux, muy from posterior mean summaries.
+# Reconstruct discrete, cross, and continuous interaction matrices,
+# plus mux and muy from posterior mean summaries.
 #
 # @param object     Fitted bgms object (mixed MRF).
 # @param arguments  Output of extract_arguments().
 #
-# Returns: list with Kxx, Kxy, Kyy, mux, muy.
+# Returns: list with pairwise_disc, pairwise_cross, pairwise_cont, mux, muy.
 # ------------------------------------------------------------------
 build_mixed_params_mean = function(object, arguments) {
   p = arguments$num_discrete
@@ -2052,30 +2052,30 @@ build_mixed_params_mean = function(object, arguments) {
 
   pmat = object$posterior_mean_associations
 
-  Kxx = matrix(0, p, p)
+  pairwise_disc = matrix(0, p, p)
   for(i in seq_len(p)) {
     for(j in seq_len(p)) {
-      if(i != j) Kxx[i, j] = pmat[disc_idx[i], disc_idx[j]]
+      if(i != j) pairwise_disc[i, j] = pmat[disc_idx[i], disc_idx[j]]
     }
   }
 
-  Kxy = matrix(0, p, q)
+  pairwise_cross = matrix(0, p, q)
   for(i in seq_len(p)) {
     for(j in seq_len(q)) {
-      Kxy[i, j] = pmat[disc_idx[i], cont_idx[j]]
+      pairwise_cross[i, j] = pmat[disc_idx[i], cont_idx[j]]
     }
   }
 
-  Kyy = matrix(0, q, q)
+  pairwise_cont = matrix(0, q, q)
   for(i in seq_len(q)) {
     for(j in seq_len(q)) {
-      Kyy[i, j] = pmat[cont_idx[i], cont_idx[j]]
+      pairwise_cont[i, j] = pmat[cont_idx[i], cont_idx[j]]
     }
   }
-  # Convert residual variance back to K-scale diagonal: K_ii = -1/(2*rv)
+  # Convert residual variance back to association-scale diagonal
   rv = object$posterior_mean_residual_variance
   for(j in seq_len(q)) {
-    Kyy[j, j] = -1 / (2 * rv[j])
+    pairwise_cont[j, j] = -1 / (2 * rv[j])
   }
 
   mux = object$posterior_mean_main$discrete
@@ -2083,7 +2083,7 @@ build_mixed_params_mean = function(object, arguments) {
 
   muy = as.numeric(object$posterior_mean_main$continuous[, "mean"])
 
-  list(Kxx = Kxx, Kxy = Kxy, Kyy = Kyy, mux = mux, muy = muy)
+  list(pairwise_disc = pairwise_disc, pairwise_cross = pairwise_cross, pairwise_cont = pairwise_cont, mux = mux, muy = muy)
 }
 
 
@@ -2096,8 +2096,8 @@ build_mixed_params_mean = function(object, arguments) {
 # @param object     Fitted bgms object (mixed MRF).
 # @param arguments  Output of extract_arguments().
 #
-# Returns: list with mux_samples, kxx_samples, muy_samples,
-#   kyy_samples, kxy_samples, total_draws.
+# Returns: list with mux_samples, disc_samples, muy_samples,
+#   cont_samples, cross_samples, total_draws.
 # ------------------------------------------------------------------
 split_mixed_raw_samples = function(object, arguments) {
   p = arguments$num_discrete
@@ -2109,46 +2109,46 @@ split_mixed_raw_samples = function(object, arguments) {
   pairwise_all = do.call(rbind, object$raw_samples$pairwise)
   total_draws = nrow(main_all)
 
-  # Main layout: [mux_flat | muy | kyy_diag]
+  # Main layout: [mux_flat | muy | cont_diag]
   num_mux = sum(ifelse(is_ordinal, num_categories, 2L))
   mux_cols = seq_len(num_mux)
   muy_cols = num_mux + seq_len(q)
-  kyy_diag_cols = num_mux + q + seq_len(q)
+  cont_diag_cols = num_mux + q + seq_len(q)
 
   mux_samples = main_all[, mux_cols, drop = FALSE]
   muy_samples = main_all[, muy_cols, drop = FALSE]
-  kyy_diag_values = main_all[, kyy_diag_cols, drop = FALSE]
+  cont_diag_values = main_all[, cont_diag_cols, drop = FALSE]
 
-  # Pairwise layout: [kxx_ut | kyy_offdiag | kxy]
+  # Pairwise layout: [disc_ut | cont_offdiag | cross]
   nxx = as.integer(p * (p - 1) / 2)
   nyy_offdiag = as.integer(q * (q - 1) / 2)
   nxy = as.integer(p * q)
 
-  kyy_off_end = nxx + nyy_offdiag
-  kxy_end = kyy_off_end + nxy
+  cont_off_end = nxx + nyy_offdiag
+  cross_end = cont_off_end + nxy
 
-  kxx_samples = if(nxx > 0) {
+  disc_samples = if(nxx > 0) {
     pairwise_all[, seq_len(nxx), drop = FALSE]
   } else {
     matrix(0, nrow = total_draws, ncol = 0)
   }
 
-  kyy_offdiag_values = if(nyy_offdiag > 0) {
-    pairwise_all[, (nxx + 1):kyy_off_end, drop = FALSE]
+  cont_offdiag_values = if(nyy_offdiag > 0) {
+    pairwise_all[, (nxx + 1):cont_off_end, drop = FALSE]
   } else {
     matrix(0, nrow = total_draws, ncol = 0)
   }
 
-  kxy_samples = if(nxy > 0) {
-    pairwise_all[, (kyy_off_end + 1):kxy_end, drop = FALSE]
+  cross_samples = if(nxy > 0) {
+    pairwise_all[, (cont_off_end + 1):cross_end, drop = FALSE]
   } else {
     matrix(0, nrow = total_draws, ncol = 0)
   }
 
-  # Combine Kyy diagonal and off-diagonal into upper-triangle format
+  # Combine continuous diagonal and off-diagonal into upper-triangle format
   # C++ expects column-major upper-triangle including diagonal
   nyy_total = as.integer(q * (q + 1) / 2)
-  kyy_samples = matrix(0, nrow = total_draws, ncol = nyy_total)
+  cont_samples = matrix(0, nrow = total_draws, ncol = nyy_total)
   diag_pos = 0L
   offdiag_pos = 0L
   out_pos = 0L
@@ -2157,20 +2157,20 @@ split_mixed_raw_samples = function(object, arguments) {
       out_pos = out_pos + 1L
       if(row == col) {
         diag_pos = diag_pos + 1L
-        kyy_samples[, out_pos] = kyy_diag_values[, diag_pos]
+        cont_samples[, out_pos] = cont_diag_values[, diag_pos]
       } else {
         offdiag_pos = offdiag_pos + 1L
-        kyy_samples[, out_pos] = kyy_offdiag_values[, offdiag_pos]
+        cont_samples[, out_pos] = cont_offdiag_values[, offdiag_pos]
       }
     }
   }
 
   list(
     mux_samples = mux_samples,
-    kxx_samples = kxx_samples,
+    disc_samples = disc_samples,
     muy_samples = muy_samples,
-    kyy_samples = kyy_samples,
-    kxy_samples = kxy_samples,
+    cont_samples = cont_samples,
+    cross_samples = cross_samples,
     total_draws = total_draws
   )
 }
@@ -2179,7 +2179,8 @@ split_mixed_raw_samples = function(object, arguments) {
 # ------------------------------------------------------------------
 # build_mixed_params_row
 # ------------------------------------------------------------------
-# Reconstruct Kxx, Kxy, Kyy, mux, muy from a single row of split
+# Reconstruct discrete, cross, and continuous interaction matrices,
+# plus mux and muy from a single row of split
 # sample matrices (used by predict posterior-sample).
 #
 # @param sample_info  Output of split_mixed_raw_samples().
@@ -2189,7 +2190,7 @@ split_mixed_raw_samples = function(object, arguments) {
 # @param num_categories  Categories per discrete variable.
 # @param is_ordinal   Logical vector.
 #
-# Returns: list with Kxx, Kxy, Kyy, mux, muy.
+# Returns: list with pairwise_disc, pairwise_cross, pairwise_cont, mux, muy.
 # ------------------------------------------------------------------
 build_mixed_params_row = function(sample_info, row_idx,
                                   p, q, num_categories,
@@ -2205,45 +2206,45 @@ build_mixed_params_row = function(sample_info, row_idx,
     pos = pos + nc
   }
 
-  Kxx = matrix(0, p, p)
+  pairwise_disc = matrix(0, p, p)
   if(p > 1) {
-    kxx_vec = sample_info$kxx_samples[row_idx, ]
+    disc_vec = sample_info$disc_samples[row_idx, ]
     idx = 0L
     for(col in seq_len(p - 1)) {
       for(row in (col + 1):p) {
         idx = idx + 1L
-        Kxx[row, col] = kxx_vec[idx]
-        Kxx[col, row] = kxx_vec[idx]
+        pairwise_disc[row, col] = disc_vec[idx]
+        pairwise_disc[col, row] = disc_vec[idx]
       }
     }
   }
 
   muy = sample_info$muy_samples[row_idx, ]
 
-  kyy_vec = sample_info$kyy_samples[row_idx, ]
-  Kyy = matrix(0, q, q)
+  cont_vec = sample_info$cont_samples[row_idx, ]
+  pairwise_cont = matrix(0, q, q)
   idx = 0L
   for(col in seq_len(q)) {
     for(row in col:q) {
       idx = idx + 1L
-      Kyy[row, col] = kyy_vec[idx]
-      if(row != col) Kyy[col, row] = kyy_vec[idx]
+      pairwise_cont[row, col] = cont_vec[idx]
+      if(row != col) pairwise_cont[col, row] = cont_vec[idx]
     }
   }
 
-  Kxy = matrix(0, p, q)
+  pairwise_cross = matrix(0, p, q)
   if(p > 0 && q > 0) {
-    kxy_vec = sample_info$kxy_samples[row_idx, ]
+    cross_vec = sample_info$cross_samples[row_idx, ]
     idx = 0L
     for(s in seq_len(p)) {
       for(j in seq_len(q)) {
         idx = idx + 1L
-        Kxy[s, j] = kxy_vec[idx]
+        pairwise_cross[s, j] = cross_vec[idx]
       }
     }
   }
 
-  list(Kxx = Kxx, Kxy = Kxy, Kyy = Kyy, mux = mux, muy = muy)
+  list(pairwise_disc = pairwise_disc, pairwise_cross = pairwise_cross, pairwise_cont = pairwise_cont, mux = mux, muy = muy)
 }
 
 

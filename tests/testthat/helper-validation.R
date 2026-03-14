@@ -5,8 +5,8 @@
 #   - make_network()       : generate reproducible true parameter sets
 #   - generate_data()      : simulate data from true parameters via bgms or
 #                            mixedGM
-#   - extract_bgms_blocks(): pull (mux, muy, Kxx, Kxy, Kyy) from bgms fit
-#   - extract_mgm_blocks() : pull (mux, muy, Kxx, Kxy, Kyy) from mixedGM fit
+#   - extract_bgms_blocks(): pull (mux, muy, pairwise_disc, pairwise_cross, pairwise_cont) from bgms fit
+#   - extract_mgm_blocks() : pull (mux, muy, pairwise_disc, pairwise_cross, pairwise_cont) from mixedGM fit
 #   - flatten_params()     : flatten all blocks to a single named vector
 #   - recovery_table()     : compare estimated vs true as a data.frame
 #   - recovery_scatter()   : scatterplot of estimated vs true
@@ -32,7 +32,7 @@
 # @param density        Approximate fraction of non-zero edges.
 # @param seed           Random seed for reproducibility.
 #
-# Returns: named list with mux, muy, Kxx, Kxy, Kyy, n_cat, p, q,
+# Returns: named list with mux, muy, pairwise_disc, pairwise_cross, pairwise_cont, n_cat, p, q,
 #   variable_type, baseline_category.
 # ------------------------------------------------------------------
 make_network = function(p, q, n_cat, variable_type = rep("ordinal", p),
@@ -62,35 +62,35 @@ make_network = function(p, q, n_cat, variable_type = rep("ordinal", p),
   # --- Continuous means ---
   muy = round(runif(q, -0.5, 0.5), 2)
 
-  # --- Kxx: K-scale discrete interactions (K = σ/2, symmetric, zero diagonal) ---
+  # --- pairwise_disc: association-scale discrete interactions (A = σ/2, symmetric, zero diagonal) ---
   n_edges_xx = p * (p - 1) / 2
   mask_xx = rbinom(n_edges_xx, 1, density)
   vals_xx = mask_xx * round(runif(n_edges_xx, 0.15, 0.4) * sample(c(-1, 1), n_edges_xx, replace = TRUE), 2)
-  Kxx = matrix(0, p, p)
-  Kxx[upper.tri(Kxx)] = vals_xx
-  Kxx = Kxx + t(Kxx)
-  Kxx = 0.5 * Kxx
+  pairwise_disc = matrix(0, p, p)
+  pairwise_disc[upper.tri(pairwise_disc)] = vals_xx
+  pairwise_disc = pairwise_disc + t(pairwise_disc)
+  pairwise_disc = 0.5 * pairwise_disc
 
-  # --- Kyy: K-scale continuous block (negative-definite; Theta = -2 Kyy) ---
-  # Build a positive-definite precision Theta first, then convert to K-scale.
+  # --- pairwise_cont: association-scale continuous block (negative-definite; precision = -2 * pairwise_cont) ---
+  # Build a positive-definite precision matrix first, then convert to association scale.
   n_edges_yy = q * (q - 1) / 2
   mask_yy = rbinom(n_edges_yy, 1, density)
   vals_yy = mask_yy * round(runif(n_edges_yy, 0.05, 0.2) * sample(c(-1, 1), n_edges_yy, replace = TRUE), 2)
-  Kyy = matrix(0, q, q)
-  Kyy[upper.tri(Kyy)] = vals_yy
-  Kyy = Kyy + t(Kyy)
-  diag(Kyy) = abs(rowSums(Kyy)) + runif(q, 1.2, 1.8)
-  Kyy = -0.5 * Kyy
+  pairwise_cont = matrix(0, q, q)
+  pairwise_cont[upper.tri(pairwise_cont)] = vals_yy
+  pairwise_cont = pairwise_cont + t(pairwise_cont)
+  diag(pairwise_cont) = abs(rowSums(pairwise_cont)) + runif(q, 1.2, 1.8)
+  pairwise_cont = -0.5 * pairwise_cont
 
-  # --- Kxy: ordinal-continuous cross interactions ---
+  # --- pairwise_cross: ordinal-continuous cross interactions ---
   n_cross = p * q
   mask_xy = rbinom(n_cross, 1, density)
   vals_xy = mask_xy * round(runif(n_cross, 0.1, 0.3) * sample(c(-1, 1), n_cross, replace = TRUE), 2)
-  Kxy = matrix(vals_xy, p, q)
+  pairwise_cross = matrix(vals_xy, p, q)
 
   list(
     mux = mux, muy = muy,
-    Kxx = Kxx, Kxy = Kxy, Kyy = Kyy,
+    pairwise_disc = pairwise_disc, pairwise_cross = pairwise_cross, pairwise_cont = pairwise_cont,
     n_cat = n_cat, p = p, q = q,
     variable_type = variable_type,
     baseline_category = as.integer(baseline_category)
@@ -116,9 +116,9 @@ generate_data = function(net, n, source = "bgms", iter = 1000L, seed = 1) {
     # sampler directly via sample_mixed_mrf_gibbs().
     sim = bgms:::sample_mixed_mrf_gibbs(
       num_states = as.integer(n),
-      Kxx_r = net$Kxx,
-      Kxy_r = net$Kxy,
-      Kyy_r = net$Kyy,
+      pairwise_disc_r = net$pairwise_disc,
+      pairwise_cross_r = net$pairwise_cross,
+      pairwise_cont_r = net$pairwise_cont,
       mux_r = net$mux,
       muy_r = net$muy,
       num_categories_r = as.integer(net$n_cat),
@@ -133,7 +133,7 @@ generate_data = function(net, n, source = "bgms", iter = 1000L, seed = 1) {
   } else if(source == "mixedGM") {
     sim = mixedGM::mixed_gibbs_generate(
       n = n,
-      Kxx = net$Kxx, Kxy = net$Kxy, Kyy = net$Kyy,
+      pairwise_disc = net$pairwise_disc, pairwise_cross = net$pairwise_cross, pairwise_cont = net$pairwise_cont,
       mux = net$mux, muy = net$muy,
       num_categories = net$n_cat + 1L,
       n_burnin = iter
@@ -154,7 +154,7 @@ generate_data = function(net, n, source = "bgms", iter = 1000L, seed = 1) {
 # @param fit  A bgms object.
 # @param net  The true network (for dimension reference).
 #
-# Returns: list(mux, muy, Kxx, Kxy, Kyy).
+# Returns: list(mux, muy, pairwise_disc, pairwise_cross, pairwise_cont).
 # ------------------------------------------------------------------
 extract_bgms_blocks = function(fit, net) {
   pm = coef(fit)
@@ -164,13 +164,13 @@ extract_bgms_blocks = function(fit, net) {
   pw = pm$pairwise # (p+q) x (p+q)
   p = net$p
   q = net$q
-  Kxx = pw[seq_len(p), seq_len(p)]
-  Kxy = pw[seq_len(p), p + seq_len(q)]
-  # Kyy off-diagonal from pairwise, diagonal converted from residual variance
-  Kyy = pw[p + seq_len(q), p + seq_len(q)]
-  diag(Kyy) = -1 / (2 * fit$posterior_mean_residual_variance)
+  pairwise_disc = pw[seq_len(p), seq_len(p)]
+  pairwise_cross = pw[seq_len(p), p + seq_len(q)]
+  # pairwise_cont off-diagonal from pairwise, diagonal converted from residual variance
+  pairwise_cont = pw[p + seq_len(q), p + seq_len(q)]
+  diag(pairwise_cont) = -1 / (2 * fit$posterior_mean_residual_variance)
 
-  list(mux = mux, muy = muy_vec, Kxx = Kxx, Kxy = Kxy, Kyy = Kyy)
+  list(mux = mux, muy = muy_vec, pairwise_disc = pairwise_disc, pairwise_cross = pairwise_cross, pairwise_cont = pairwise_cont)
 }
 
 # ------------------------------------------------------------------
@@ -183,7 +183,7 @@ extract_bgms_blocks = function(fit, net) {
 #               variable (bgms convention). Used to NA-pad unused threshold
 #               slots so flatten_params() produces matching lengths.
 #
-# Returns: list(mux, muy, Kxx, Kxy, Kyy).
+# Returns: list(mux, muy, pairwise_disc, pairwise_cross, pairwise_cont).
 # ------------------------------------------------------------------
 extract_mgm_blocks = function(fit, n_cat) {
   mux = apply(fit$samples$mux, c(2, 3), mean)
@@ -195,9 +195,9 @@ extract_mgm_blocks = function(fit, n_cat) {
   list(
     mux = mux,
     muy = colMeans(fit$samples$muy),
-    Kxx = apply(fit$samples$Kxx, c(2, 3), mean),
-    Kxy = apply(fit$samples$Kxy, c(2, 3), mean),
-    Kyy = apply(fit$samples$Kyy, c(2, 3), mean)
+    pairwise_disc = apply(fit$samples$Kxx, c(2, 3), mean),
+    pairwise_cross = apply(fit$samples$Kxy, c(2, 3), mean),
+    pairwise_cont = apply(fit$samples$Kyy, c(2, 3), mean)
   )
 }
 
@@ -207,7 +207,7 @@ extract_mgm_blocks = function(fit, n_cat) {
 # Flatten parameter blocks to a single named vector for comparison.
 # Excludes NA entries in mux.
 #
-# @param blocks  list(mux, muy, Kxx, Kxy, Kyy).
+# @param blocks  list(mux, muy, pairwise_disc, pairwise_cross, pairwise_cont).
 # @param prefix  Optional prefix for names.
 #
 # Returns: named numeric vector.
@@ -221,19 +221,19 @@ flatten_params = function(blocks, prefix = "") {
   muy_named = blocks$muy
   names(muy_named) = paste0(prefix, "muy_", seq_along(muy_named))
 
-  # Kxx upper triangle
-  kxx_ut = blocks$Kxx[upper.tri(blocks$Kxx)]
-  names(kxx_ut) = paste0(prefix, "Kxx_", seq_along(kxx_ut))
+  # pairwise_disc upper triangle
+  disc_ut = blocks$pairwise_disc[upper.tri(blocks$pairwise_disc)]
+  names(disc_ut) = paste0(prefix, "disc_", seq_along(disc_ut))
 
-  # Kxy full
-  kxy_vals = as.vector(blocks$Kxy)
-  names(kxy_vals) = paste0(prefix, "Kxy_", seq_along(kxy_vals))
+  # pairwise_cross full
+  cross_vals = as.vector(blocks$pairwise_cross)
+  names(cross_vals) = paste0(prefix, "cross_", seq_along(cross_vals))
 
-  # Kyy upper triangle (includes diagonal)
-  kyy_ut = blocks$Kyy[upper.tri(blocks$Kyy, diag = TRUE)]
-  names(kyy_ut) = paste0(prefix, "Kyy_", seq_along(kyy_ut))
+  # pairwise_cont upper triangle (includes diagonal)
+  cont_ut = blocks$pairwise_cont[upper.tri(blocks$pairwise_cont, diag = TRUE)]
+  names(cont_ut) = paste0(prefix, "cont_", seq_along(cont_ut))
 
-  c(mux_named, muy_named, kxx_ut, kxy_vals, kyy_ut)
+  c(mux_named, muy_named, disc_ut, cross_vals, cont_ut)
 }
 
 # ------------------------------------------------------------------
@@ -241,8 +241,8 @@ flatten_params = function(blocks, prefix = "") {
 # ------------------------------------------------------------------
 # Build a data.frame comparing true vs estimated parameters.
 #
-# @param true_blocks  list(mux, muy, Kxx, Kxy, Kyy).
-# @param est_blocks   list(mux, muy, Kxx, Kxy, Kyy).
+# @param true_blocks  list(mux, muy, pairwise_disc, pairwise_cross, pairwise_cont).
+# @param est_blocks   list(mux, muy, pairwise_disc, pairwise_cross, pairwise_cont).
 # @param label        Character label for the method.
 #
 # Returns: data.frame with columns: parameter, true, estimate, diff, block, method.
@@ -254,8 +254,8 @@ recovery_table = function(true_blocks, est_blocks, label = "estimate") {
   # Determine block membership
   block = ifelse(grepl("^mux", names(true_flat)), "mux",
     ifelse(grepl("^muy", names(true_flat)), "muy",
-      ifelse(grepl("^Kxx", names(true_flat)), "Kxx",
-        ifelse(grepl("^Kxy", names(true_flat)), "Kxy", "Kyy")
+      ifelse(grepl("^pairwise_disc", names(true_flat)), "pairwise_disc",
+        ifelse(grepl("^pairwise_cross", names(true_flat)), "pairwise_cross", "pairwise_cont")
       )
     )
   )
@@ -282,8 +282,8 @@ recovery_table = function(true_blocks, est_blocks, label = "estimate") {
 # ------------------------------------------------------------------
 recovery_scatter = function(tab, main = "Parameter recovery") {
   block_cols = c(
-    mux = "#E41A1C", muy = "#377EB8", Kxx = "#4DAF4A",
-    Kxy = "#984EA3", Kyy = "#FF7F00"
+    mux = "#E41A1C", muy = "#377EB8", pairwise_disc = "#4DAF4A",
+    pairwise_cross = "#984EA3", pairwise_cont = "#FF7F00"
   )
   rng = range(c(tab$true, tab$estimate), na.rm = TRUE)
   rng = rng + diff(rng) * c(-0.05, 0.05)
@@ -369,8 +369,8 @@ summarise_recovery = function(tab, label = "") {
 agreement_scatter = function(tab_a, tab_b, label_a = "Method A",
                              label_b = "Method B", main = "Agreement") {
   block_cols = c(
-    mux = "#E41A1C", muy = "#377EB8", Kxx = "#4DAF4A",
-    Kxy = "#984EA3", Kyy = "#FF7F00"
+    mux = "#E41A1C", muy = "#377EB8", pairwise_disc = "#4DAF4A",
+    pairwise_cross = "#984EA3", pairwise_cont = "#FF7F00"
   )
   rng = range(c(tab_a$estimate, tab_b$estimate), na.rm = TRUE)
   rng = rng + diff(rng) * c(-0.05, 0.05)

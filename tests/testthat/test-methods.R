@@ -622,7 +622,7 @@ test_that("predict.bgms GGM conditional mean matches analytic formula", {
 
   pred = predict(fit, newdata = newdata)
 
-  # Reconstruct the posterior mean precision matrix (Theta = -2K)
+  # Reconstruct the posterior mean precision matrix (precision = -2 * association)
   omega_hat = extract_precision(fit)
   p = args$num_variables
 
