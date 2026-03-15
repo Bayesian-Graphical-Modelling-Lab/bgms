@@ -114,8 +114,7 @@ void MixedMRFModel::update_pairwise_discrete(int i, int j, int iteration) {
     double proposed = rnorm(rng_, current_val, proposal_sd_pairwise_discrete_(i, j));
 
     // Current log-posterior
-    // Discrete pairwise prior: Cauchy(0, pairwise_scale/2)
-    const double disc_scale = 0.5 * pairwise_scale_;
+    const double disc_scale = pairwise_scale_;
     double ll_curr, ll_prop;
     if(use_marginal_pl_) {
         ll_curr = log_marginal_omrf(i) + log_marginal_omrf(j)

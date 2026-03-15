@@ -18,8 +18,8 @@ double MixedMRFModel::log_conditional_omrf(int s) const {
     int C_s = num_categories_(s);
 
     // Rest score: contribution from other discrete vars + continuous vars.
-    // Stored pairwise effects are on association scale (A = σ/2); multiply
-    // by 2 to recover the conditional rest-score coefficient σ·x_i·x_j.
+    // Factor 2 comes from the joint density x'Kxx x = 2Σ_{i<j} K_ij x_i x_j,
+    // so the full conditional coefficient for x_j is 2 K_{sj}.
     arma::vec rest = 2.0 * (discrete_observations_dbl_ * pairwise_effects_discrete_.col(s)
                    - discrete_observations_dbl_.col(s) * pairwise_effects_discrete_(s, s))
                    + 2.0 * continuous_observations_ * pairwise_effects_cross_.row(s).t();

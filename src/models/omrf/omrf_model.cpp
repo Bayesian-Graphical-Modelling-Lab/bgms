@@ -37,7 +37,7 @@ OMRFModel::OMRFModel(
     inclusion_probability_(inclusion_probability),
     main_alpha_(main_alpha),
     main_beta_(main_beta),
-    pairwise_scale_(0.5 * pairwise_scale),
+    pairwise_scale_(pairwise_scale),
     edge_selection_(edge_selection),
     edge_selection_active_(false),
     step_size_(0.1),

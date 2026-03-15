@@ -555,8 +555,8 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
         }
     }
 
-    // --- pairwise_effects_discrete_ priors: Cauchy(0, pairwise_scale/2) ---
-    const double disc_scale = 0.5 * pairwise_scale_;
+    // --- pairwise_effects_discrete_ priors: Cauchy(0, pairwise_scale_) ---
+    const double disc_scale = pairwise_scale_;
     const double disc_scale_sq = disc_scale * disc_scale;
     for(size_t i = 0; i < p_ - 1; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
