@@ -71,12 +71,18 @@ Extract specific components from fitted model objects.
   : Extract Indicator Prior Structure
 - [`extract_indicators()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_indicators.md)
   : Extract Indicator Samples
+- [`extract_log_odds()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_log_odds.md)
+  : Extract Posterior Mean Log-Odds
 - [`extract_main_effects()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_main_effects.md)
   : Extract Main Effect Estimates
 - [`extract_pairwise_interactions()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_pairwise_interactions.md)
   : Extract Pairwise Interaction Samples
+- [`extract_partial_correlations()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_partial_correlations.md)
+  : Extract Posterior Mean Partial Correlations
 - [`extract_posterior_inclusion_probabilities()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_posterior_inclusion_probabilities.md)
   : Extract Posterior Inclusion Probabilities
+- [`extract_precision()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_precision.md)
+  : Extract Posterior Mean Precision Matrix
 - [`extract_rhat()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_rhat.md)
   : Extract R-hat Convergence Diagnostics
 - [`extract_sbm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_sbm.md)

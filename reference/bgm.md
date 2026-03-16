@@ -237,8 +237,8 @@ bgm(
 
   :   Conditions on the observed continuous variables when computing the
       discrete full conditionals. Faster because the discrete
-      pseudo-likelihood does not depend on the continuous precision
-      matrix.
+      pseudo-likelihood does not depend on the continuous interaction
+      matrix Kyy.
 
   `"marginal"`
 
@@ -277,11 +277,11 @@ Main components include:
   effects).
 
 - `posterior_summary_quadratic`: Data frame with posterior summaries for
-  the precision matrix diagonal. Present for GGM and mixed MRF models;
-  `NULL` for OMRF models.
+  the residual variance parameters (GGM and mixed MRF). `NULL` for OMRF
+  models.
 
 - `posterior_summary_pairwise`: Data frame with posterior summaries for
-  pairwise interaction parameters.
+  partial association parameters.
 
 - `posterior_summary_indicator`: Data frame with posterior summaries for
   edge inclusion indicators (if `edge_selection = TRUE`).
@@ -291,9 +291,19 @@ Main components include:
   category thresholds. For mixed MRF: a list with `$discrete` (threshold
   matrix) and `$continuous` (q x 1 matrix of means).
 
-- `posterior_mean_pairwise`: Symmetric matrix of posterior mean pairwise
-  interaction strengths. For GGM and mixed MRF models the precision
-  matrix diagonal is included on the matrix diagonal.
+- `posterior_mean_associations`: Symmetric matrix of posterior mean
+  partial associations (zero diagonal). For continuous variables these
+  are unstandardized partial correlations; for discrete variables these
+  are half the log adjacent-category odds ratio. Use
+  [`extract_precision()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_precision.md),
+  [`extract_partial_correlations()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_partial_correlations.md),
+  or
+  [`extract_log_odds()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_log_odds.md)
+  to convert to interpretable scales.
+
+- `posterior_mean_residual_variance`: Named numeric vector of posterior
+  mean residual variances \\1/\Theta\_{ii}\\. Present for GGM and mixed
+  MRF models; `NULL` for OMRF.
 
 - `posterior_mean_indicator`: Symmetric matrix of posterior mean
   inclusion probabilities (if edge selection was enabled).
@@ -553,90 +563,92 @@ fit = bgm(x = Wenchuan[, 1:5], chains = 2)
 #> 7 rows with missing values excluded (n = 355 remaining).
 #> To impute missing values instead, use na_action = "impute".
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 100/2000 (5.0%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 136/2000 (6.8%)
-#> Total   (Warmup): ⦗━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 236/4000 (5.9%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 141/2000 (7.0%)
+#> Total   (Warmup): ⦗━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 241/4000 (6.0%)
 #> Elapsed: 0s | ETA: 0s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 350/2000 (17.5%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 411/2000 (20.5%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 761/4000 (19.0%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 384/2000 (19.2%)
+#> Total   (Warmup): ⦗━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 734/4000 (18.4%)
 #> Elapsed: 1s | ETA: 4s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 650/2000 (32.5%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 687/2000 (34.4%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1337/4000 (33.4%)
-#> Elapsed: 1s | ETA: 2s
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 684/2000 (34.2%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1334/4000 (33.4%)
+#> Elapsed: 2s | ETA: 4s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 950/2000 (47.5%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━⦘ 962/2000 (48.1%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━⦘ 1912/4000 (47.8%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━⦘ 975/2000 (48.8%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━⦘ 1925/4000 (48.1%)
 #> Elapsed: 2s | ETA: 2s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1200/2000 (60.0%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1235/2000 (61.8%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━⦘ 2435/4000 (60.9%)
-#> Elapsed: 2s | ETA: 1s
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━⦘ 1222/2000 (61.1%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━⦘ 2422/4000 (60.6%)
+#> Elapsed: 3s | ETA: 2s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1450/2000 (72.5%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━⦘ 1514/2000 (75.7%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2964/4000 (74.1%)
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1480/2000 (74.0%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━⦘ 2930/4000 (73.2%)
 #> Elapsed: 3s | ETA: 1s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1700/2000 (85.0%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1794/2000 (89.7%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 3494/4000 (87.4%)
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━⦘ 1712/2000 (85.6%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━⦘ 3412/4000 (85.3%)
 #> Elapsed: 4s | ETA: 1s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1950/2000 (97.5%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2000/2000 (100.0%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺⦘ 3950/4000 (98.8%)
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺⦘ 1960/2000 (98.0%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺⦘ 3910/4000 (97.8%)
 #> Elapsed: 4s | ETA: 0s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2000/2000 (100.0%)
 #> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2000/2000 (100.0%)
 #> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 4000/4000 (100.0%)
 #> Elapsed: 4s | ETA: 0s
+#> NUTS issues:
+#>   - E-BFMI: 0.012 in chain 1 - see vignette('diagnostics') for guidance 
 
 # Posterior inclusion probabilities
 summary(fit)$indicator
-#>                     mean         sd        mcse n0->0 n0->1 n1->0
-#> intrusion-dreams  1.0000 0.00000000          NA     0     0     0
-#> intrusion-flash   1.0000 0.00000000          NA     0     0     0
-#> intrusion-upset   0.9675 0.17732386 0.017715597    59     6     6
-#> intrusion-physior 0.9310 0.25345414 0.031614942   130     8     8
-#> dreams-flash      1.0000 0.00000000          NA     0     0     0
-#> dreams-upset      0.9970 0.05469004 0.002729573     4     2     2
-#> dreams-physior    0.0785 0.26895678 0.015236989  1803    39    39
-#> flash-upset       0.0455 0.20839806 0.009276970  1873    35    35
-#> flash-physior     1.0000 0.00000000          NA     0     0     0
-#> upset-physior     1.0000 0.00000000          NA     0     0     0
-#>                   n1->1     n_eff     Rhat
-#> intrusion-dreams   1999        NA       NA
-#> intrusion-flash    1999        NA       NA
-#> intrusion-upset    1928 100.18962 1.033302
-#> intrusion-physior  1853  64.27084 1.005021
-#> dreams-flash       1999        NA       NA
-#> dreams-upset       1991 401.44593 1.293096
-#> dreams-physior      118 311.57791 1.011088
-#> flash-upset          56 504.63232 1.004600
-#> flash-physior      1999        NA       NA
-#> upset-physior      1999        NA       NA
+#>                     mean         sd       mcse n0->0 n0->1 n1->0 n1->1
+#> intrusion-dreams  1.0000 0.00000000         NA     0     0     0  1999
+#> intrusion-flash   1.0000 0.00000000         NA     0     0     0  1999
+#> intrusion-upset   0.9215 0.26895678 0.04535242   152     5     5  1837
+#> intrusion-physior 0.8790 0.32612728 0.05637966   235     7     7  1750
+#> dreams-flash      1.0000 0.00000000         NA     0     0     0  1999
+#> dreams-upset      0.9925 0.08627717 0.01034875    14     1     1  1983
+#> dreams-physior    0.1750 0.37996710 0.04373509  1628    21    21   329
+#> flash-upset       0.1750 0.37996710 0.05637409  1637    12    13   337
+#> flash-physior     1.0000 0.00000000         NA     0     0     0  1999
+#> upset-physior     0.7530 0.43126674 0.30296297   493     1     0  1505
+#>                       n_eff     Rhat
+#> intrusion-dreams         NA       NA
+#> intrusion-flash          NA       NA
+#> intrusion-upset   35.169328 1.146108
+#> intrusion-physior 33.460267 1.417904
+#> dreams-flash             NA       NA
+#> dreams-upset      69.505050 1.297360
+#> dreams-physior    75.480010 1.228818
+#> flash-upset       45.428972 1.400036
+#> flash-physior            NA       NA
+#> upset-physior      2.026342 1.988872
 
 # Posterior pairwise effects
 summary(fit)$pairwise
-#>                          mean          sd         mcse     n_eff
-#> intrusion-dreams  0.630855528 0.001883693 0.0685459089 1324.1672
-#> intrusion-flash   0.339667295 0.001944605 0.0659669594 1150.7747
-#> intrusion-upset   0.204686991 0.068643592 0.0043033760  254.4377
-#> intrusion-physior 0.187516017 0.072841306 0.0065398306  124.0573
-#> dreams-flash      0.500135879 0.001555576 0.0597645194 1476.0616
-#> dreams-upset      0.226026761 0.057287424 0.0024103287  564.8928
-#> dreams-physior    0.007831647 0.027272413 0.0015860166  295.6866
-#> flash-upset       0.003844110 0.017761557 0.0008497726  436.8744
-#> flash-physior     0.310209887 0.001668501 0.0551604618 1092.9560
-#> upset-physior     0.711191831 0.001830377 0.0622308542 1155.9270
+#>                         mean           sd        mcse       n_eff
+#> intrusion-dreams  0.31453808 0.0010858224 0.033756319  966.479369
+#> intrusion-flash   0.16876454 0.0012033992 0.032851657  745.238252
+#> intrusion-upset   0.10652085 0.0443354874 0.006745704   43.196487
+#> intrusion-physior 0.09906104 0.0472233514 0.007351353   41.264734
+#> dreams-flash      0.24852576 0.0008574681 0.030531187 1267.801979
+#> dreams-upset      0.11929710 0.0322203492 0.002920848  121.686551
+#> dreams-physior    0.01303264 0.0287125625 0.003297334   75.825977
+#> flash-upset       0.01519624 0.0334945874 0.004963402   45.539719
+#> flash-physior     0.15879730 0.0015407049 0.028892099  351.656983
+#> upset-physior     0.26760665 0.1552103266 0.107673379    2.077899
 #>                        Rhat
-#> intrusion-dreams  1.0062418
-#> intrusion-flash   0.9999221
-#> intrusion-upset   1.0037108
-#> intrusion-physior 0.9998689
-#> dreams-flash      1.0005903
-#> dreams-upset      1.0045769
-#> dreams-physior    1.0016101
-#> flash-upset       1.0009667
-#> flash-physior     1.0041469
-#> upset-physior     0.9995857
+#> intrusion-dreams  1.0015859
+#> intrusion-flash   1.0231001
+#> intrusion-upset   1.0457080
+#> intrusion-physior 1.1785076
+#> dreams-flash      1.0021167
+#> dreams-upset      1.0309185
+#> dreams-physior    1.0841510
+#> flash-upset       1.1525478
+#> flash-physior     0.9998035
+#> upset-physior     1.3997221
 # }
 ```

@@ -1,6 +1,7 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/404.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/CONTRIBUTING.html</loc></url>
+<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/LICENSE-text.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/articles/comparison.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/articles/diagnostics.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/articles/index.html</loc></url>
@@ -24,10 +25,13 @@
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_group_params.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_indicator_priors.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_indicators.html</loc></url>
+<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_log_odds.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_main_effects.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_pairwise_interactions.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_pairwise_thresholds.html</loc></url>
+<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_partial_correlations.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_posterior_inclusion_probabilities.html</loc></url>
+<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_precision.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_rhat.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_sbm.html</loc></url>
 <url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/index.html</loc></url>

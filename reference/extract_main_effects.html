@@ -65,7 +65,7 @@ or <code>bgmCompare</code> (from <code><a href="bgmCompare.html">bgmCompare()</a
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>The structure depends on the model type:</p><dl><dt>GGM (bgms)</dt>
 <dd><p><code>NULL</code> (invisibly). GGM models have no main effects;
-the precision matrix diagonal is on <code>coef(fit)$pairwise</code>.</p></dd>
+use <code><a href="extract_precision.html">extract_precision()</a></code> to obtain the precision matrix.</p></dd>
 
 <dt>OMRF (bgms)</dt>
 <dd><p>A numeric matrix with one row per variable and one
@@ -105,8 +105,11 @@ containing posterior samples of baseline main-effect parameters.</p></dd>
 <code><a href="extract_group_params.html">extract_group_params()</a></code>,
 <code><a href="extract_indicator_priors.html">extract_indicator_priors()</a></code>,
 <code><a href="extract_indicators.html">extract_indicators()</a></code>,
+<code><a href="extract_log_odds.html">extract_log_odds()</a></code>,
 <code><a href="extract_pairwise_interactions.html">extract_pairwise_interactions()</a></code>,
+<code><a href="extract_partial_correlations.html">extract_partial_correlations()</a></code>,
 <code><a href="extract_posterior_inclusion_probabilities.html">extract_posterior_inclusion_probabilities()</a></code>,
+<code><a href="extract_precision.html">extract_precision()</a></code>,
 <code><a href="extract_rhat.html">extract_rhat()</a></code>,
 <code><a href="extract_sbm.html">extract_sbm()</a></code></p></div>
     </div>
@@ -117,41 +120,41 @@ containing posterior samples of baseline main-effect parameters.</p></dd>
 <span class="r-in"><span><span class="va">fit</span> <span class="op">=</span> <span class="fu"><a href="bgm.html">bgm</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">Wenchuan</span><span class="op">[</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> 2 rows with missing values excluded (n = 360 remaining).</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> To impute missing values instead, use na_action = "impute".</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Warmup): ⦗<span style="color: #5FAFAF;">━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 150/2000 (7.5%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 212/2000 (10.6%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 3 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 184/2000 (9.2%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 4 (Warmup): ⦗<span style="color: #5FAFAF;">━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 163/2000 (8.2%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Warmup): ⦗<span style="color: #5FAFAF;">━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 709/8000 (8.9%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Warmup): ⦗<span style="color: #5FAFAF;">━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 100/2000 (5.0%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Warmup): ⦗<span style="color: #5FAFAF;">━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 146/2000 (7.3%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 3 (Warmup): ⦗<span style="color: #5FAFAF;">━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 88/2000 (4.4%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 4 (Warmup): ⦗<span style="color: #5FAFAF;">━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 75/2000 (3.8%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Warmup): ⦗<span style="color: #5FAFAF;">━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 409/8000 (5.1%)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 0s | ETA: 0s</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 500/2000 (25.0%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 559/2000 (28.0%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 3 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 529/2000 (26.5%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 4 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 499/2000 (24.9%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 2087/8000 (26.1%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 1s | ETA: 3s</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 450/2000 (22.5%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 506/2000 (25.3%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 3 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 401/2000 (20.1%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 4 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 357/2000 (17.8%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 1714/8000 (21.4%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 1s | ETA: 4s</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 850/2000 (42.5%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━</span>⦘ 924/2000 (46.2%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 3 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 871/2000 (43.5%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 4 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 875/2000 (43.8%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 3520/8000 (44.0%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 893/2000 (44.6%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 3 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 788/2000 (39.4%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 4 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 742/2000 (37.1%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 3273/8000 (40.9%)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 1s | ETA: 1s</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━</span>⦘ 1200/2000 (60.0%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━</span>⦘ 1289/2000 (64.5%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 3 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━</span>⦘ 1212/2000 (60.6%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 4 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━</span>⦘ 1222/2000 (61.1%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━</span>⦘ 4923/8000 (61.5%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━</span>⦘ 1256/2000 (62.8%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 3 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━</span>⦘ 1137/2000 (56.9%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 4 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━</span>⦘ 1088/2000 (54.4%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━</span>⦘ 4681/8000 (58.5%)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 2s | ETA: 1s</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━</span>⦘ 1550/2000 (77.5%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━</span>⦘ 1662/2000 (83.1%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 3 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━</span>⦘ 1553/2000 (77.6%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 4 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━</span>⦘ 1573/2000 (78.6%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━</span>⦘ 6338/8000 (79.2%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━</span>⦘ 1618/2000 (80.9%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 3 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━</span>⦘ 1476/2000 (73.8%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 4 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━</span>⦘ 1446/2000 (72.3%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━</span>⦘ 6090/8000 (76.1%)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 2s | ETA: 1s</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━</span>⦘ 1900/2000 (95.0%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 2000/2000 (100.0%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 3 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━</span>⦘ 1912/2000 (95.6%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 4 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━</span>⦘ 1940/2000 (97.0%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━</span>⦘ 7752/8000 (96.9%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺</span>⦘ 1964/2000 (98.2%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 3 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━</span>⦘ 1831/2000 (91.5%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 4 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━</span>⦘ 1788/2000 (89.4%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━</span>⦘ 7483/8000 (93.5%)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 3s | ETA: 0s</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 2000/2000 (100.0%)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 2000/2000 (100.0%)</span>
@@ -161,9 +164,9 @@ containing posterior samples of baseline main-effect parameters.</p></dd>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 3s | ETA: 0s</span>
 <span class="r-in"><span><span class="fu">extract_main_effects</span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                  [,1]      [,2]      [,3]       [,4]</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion  0.81077103 -1.169802 -3.520669  -7.421631</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> dreams    -0.40834340 -3.304464 -6.369120 -10.464337</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> flash      0.07065692 -2.128317 -4.577792  -8.416585</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intrusion  0.80551268 -1.178783 -3.539132  -7.449839</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> dreams    -0.40509187 -3.298885 -6.354711 -10.449802</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> flash      0.07534302 -2.135925 -4.591060  -8.448069</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>

@@ -165,11 +165,14 @@ x = simulate_mrf(
   pairwise = Pairwise,
   main = Main
 )
-#> Warning: The matrix ``main'' contains numeric values for variable 3 for category 
+#> Warning: The matrix ``main'' contains numeric values for variable 2 for category 
 #> (categories, i.e., columns) exceding the maximum of 3. These values will 
 #> be ignored.
-#> Warning: The matrix ``main'' contains numeric values for variable 4 for category 
+#> Warning: The matrix ``main'' contains numeric values for variable 3 for category 
 #> (categories, i.e., columns) exceding the maximum of 2. These values will 
+#> be ignored.
+#> Warning: The matrix ``main'' contains numeric values for variable 4 for category 
+#> (categories, i.e., columns) exceding the maximum of 1. These values will 
 #> be ignored.
 
 # Generate responses from a network of 2 ordinal and 3 Blume-Capel variables.
