@@ -1,6 +1,7 @@
 // [[Rcpp::depends(RcppParallel, RcppArmadillo, dqrng, BH)]]
 #include <RcppArmadillo.h>
 #include <RcppParallel.h>
+#include <tbb/global_control.h>
 #include "math/explog_macros.h"
 #include "rng/rng_utils.h"
 #include "utils/progress_manager.h"
