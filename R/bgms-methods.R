@@ -154,7 +154,7 @@ print.summary.bgms = function(x, digits = 3, ...) {
   }
 
   if(!is.null(x$quadratic)) {
-    cat("Precision matrix diagonal:\n")
+    cat("Residual variances:\n")
     print(round(head(x$quadratic, 6), digits = digits))
     if(nrow(x$quadratic) > 6) cat("... (use `summary(fit)$quadratic` to see full output)\n")
     cat("\n")
@@ -209,6 +209,16 @@ print.summary.bgms = function(x, digits = 3, ...) {
   }
 
   cat("Use `summary(fit)$<component>` to access full results.\n")
+  if(!is.null(x$quadratic) && !is.null(x$main)) {
+    cat("Use `extract_partial_correlations(fit)` for partial correlations,\n")
+    cat("`extract_precision(fit)` for the precision matrix,\n")
+    cat("and `extract_log_odds(fit)` for log odds ratios.\n")
+  } else if(!is.null(x$quadratic)) {
+    cat("Use `extract_partial_correlations(fit)` for partial correlations,\n")
+    cat("and `extract_precision(fit)` for the precision matrix.\n")
+  } else if(!is.null(x$main)) {
+    cat("Use `extract_log_odds(fit)` for log odds ratios.\n")
+  }
   cat("See the `easybgm` package for other summary and plotting tools.\n")
 }
 

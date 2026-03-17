@@ -305,8 +305,8 @@ build_output_bgm = function(spec, raw) {
 
   # --- Parameter names --------------------------------------------------------
   if(is_continuous) {
-    # GGM: one "precision" per variable
-    names_main = paste0(data_columnnames, " (precision)")
+    # GGM: one residual variance per variable
+    names_main = paste0(data_columnnames, " (residual variance)")
     is_ordinal_variable = NULL
     num_categories = NULL
   } else {
@@ -342,7 +342,17 @@ build_output_bgm = function(spec, raw) {
   }
 
   # --- MCMC summaries ---------------------------------------------------------
-  summary_list = summarize_fit(raw, edge_selection = edge_selection)
+  # For GGM, transform diagonal (precision) samples to residual-variance scale
+  # (1/x) before summarization. Raw samples stay on C++ precision scale.
+  if(is_continuous) {
+    raw_for_summary = lapply(raw, function(chain) {
+      chain$main_samples = 1 / chain$main_samples
+      chain
+    })
+    summary_list = summarize_fit(raw_for_summary, edge_selection = edge_selection)
+  } else {
+    summary_list = summarize_fit(raw, edge_selection = edge_selection)
+  }
   main_summary = summary_list$main[, -1]
   pairwise_summary = summary_list$pairwise[, -1]
 
@@ -423,9 +433,9 @@ build_output_bgm = function(spec, raw) {
   results$posterior_mean_associations = associations
 
   # --- Residual variance (GGM only) -------------------------------------------
-  # C++ stores precision diagonal; convert to residual variance = 1 / diag.
+  # Summaries are already on residual-variance scale; use directly.
   if(is_continuous) {
-    results$posterior_mean_residual_variance = 1 / main_summary$mean
+    results$posterior_mean_residual_variance = main_summary$mean
     names(results$posterior_mean_residual_variance) = data_columnnames
   }
 
@@ -585,7 +595,7 @@ build_output_mixed_mrf = function(spec, raw) {
     names_main = c(names_main, paste0(cont_names[ji], " (mean)"))
   }
   for(ji in seq_len(q)) {
-    names_main = c(names_main, paste0(cont_names[ji], " (precision diag)"))
+    names_main = c(names_main, paste0(cont_names[ji], " (residual variance)"))
   }
 
   # Pairwise edge names — internal order, mapped to original column names
@@ -630,7 +640,16 @@ build_output_mixed_mrf = function(spec, raw) {
   }
 
   # --- MCMC summaries ---------------------------------------------------------
-  summary_list = summarize_fit(raw, edge_selection = edge_selection)
+  # Transform the quadratic (association diagonal) columns to residual-variance
+  # scale for summarization only. Raw samples stay on C++ scale.
+  n_main_cols = length(main_idx)
+  quad_cols = seq(n_main_cols - q + 1L, n_main_cols)
+
+  raw_for_summary = lapply(raw, function(chain) {
+    chain$main_samples[, quad_cols] = -1 / (2 * chain$main_samples[, quad_cols])
+    chain
+  })
+  summary_list = summarize_fit(raw_for_summary, edge_selection = edge_selection)
   main_summary = summary_list$main[, -1]
   pairwise_summary = summary_list$pairwise[, -1]
 
@@ -708,10 +727,9 @@ build_output_mixed_mrf = function(spec, raw) {
   )
 
   # --- Residual variance (continuous diagonal) --------------------------------
-  # C++ stores negative association diagonal; convert to residual variance.
-  assoc_diag_means = main_summary$mean[nt + q + seq_len(q)]
-  names(assoc_diag_means) = cont_names
-  results$posterior_mean_residual_variance = -1 / (2 * assoc_diag_means)
+  # Summaries are already on residual-variance scale; use directly.
+  results$posterior_mean_residual_variance = main_summary$mean[nt + q + seq_len(q)]
+  names(results$posterior_mean_residual_variance) = cont_names
 
   # --- Posterior mean: indicator -----------------------------------------------
   if(edge_selection) {
