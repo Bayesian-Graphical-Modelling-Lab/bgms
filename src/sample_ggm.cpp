@@ -36,9 +36,11 @@ Rcpp::List sample_ggm(
 ) {
 
     // Create model from R input
+    double pairwise_scale = Rcpp::as<double>(inputFromR["pairwise_scale"]);
+
     GGMModel model = createGGMModelFromR(
         inputFromR, prior_inclusion_prob, initial_edge_indicators,
-        edge_selection, 2.5, na_impute);
+        edge_selection, pairwise_scale, na_impute);
 
     // Set up missing data imputation (same pattern as OMRF)
     if (na_impute && missing_index_nullable.isNotNull()) {

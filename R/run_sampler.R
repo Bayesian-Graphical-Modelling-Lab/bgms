@@ -59,7 +59,7 @@ run_sampler_ggm = function(spec) {
   bb_beta_between = bb_between_default(p$beta_bernoulli_beta_between)
 
   out_raw = sample_ggm(
-    inputFromR = list(X = d$x),
+    inputFromR = list(X = d$x, pairwise_scale = p$pairwise_scale),
     prior_inclusion_prob = p$inclusion_probability,
     initial_edge_indicators = matrix(1L,
       nrow = d$num_variables,

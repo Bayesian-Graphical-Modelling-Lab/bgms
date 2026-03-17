@@ -48,7 +48,7 @@ public:
         const arma::ivec& baseline_category,
         double main_alpha = 1.0,
         double main_beta = 1.0,
-        double pairwise_scale = 2.5,
+        double pairwise_scale = 1.0,
         bool edge_selection = true
     );
 

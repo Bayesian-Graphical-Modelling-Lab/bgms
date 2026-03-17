@@ -1436,8 +1436,7 @@ OMRFModel createOMRFModelFromR(
         ? Rcpp::as<double>(inputFromR["main_alpha"]) : 1.0;
     double main_beta = inputFromR.containsElementNamed("main_beta")
         ? Rcpp::as<double>(inputFromR["main_beta"]) : 1.0;
-    double pairwise_scale = inputFromR.containsElementNamed("pairwise_scale")
-        ? Rcpp::as<double>(inputFromR["pairwise_scale"]) : 2.5;
+    double pairwise_scale = Rcpp::as<double>(inputFromR["pairwise_scale"]);
 
     return OMRFModel(
         observations,

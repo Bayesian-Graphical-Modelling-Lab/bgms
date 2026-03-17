@@ -194,7 +194,7 @@
 #'   smaller value is requested. Default: \code{1e3}.
 #'
 #' @param pairwise_scale Double. Scale of the Cauchy prior for pairwise
-#'   interaction parameters. Default: \code{2.5}.
+#'   interaction parameters. Default: \code{1}.
 #'
 #' @param standardize Logical. If \code{TRUE}, the Cauchy prior scale for each
 #'   pairwise interaction is adjusted based on the range of response scores.
@@ -422,7 +422,7 @@ bgm = function(
   baseline_category,
   iter = 1e3,
   warmup = 1e3,
-  pairwise_scale = 2.5,
+  pairwise_scale = 1,
   main_alpha = 0.5,
   main_beta = 0.5,
   edge_selection = TRUE,

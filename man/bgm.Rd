@@ -10,7 +10,7 @@ bgm(
   baseline_category,
   iter = 1000,
   warmup = 1000,
-  pairwise_scale = 2.5,
+  pairwise_scale = 1,
   main_alpha = 0.5,
   main_beta = 0.5,
   edge_selection = TRUE,
@@ -70,7 +70,7 @@ samples. A minimum of 1000 iterations is enforced, with a warning if a
 smaller value is requested. Default: \code{1e3}.}
 
 \item{pairwise_scale}{Double. Scale of the Cauchy prior for pairwise
-interaction parameters. Default: \code{2.5}.}
+interaction parameters. Default: \code{1}.}
 
 \item{main_alpha, main_beta}{Double. Shape parameters of the
 beta-prime prior for threshold parameters. Must be positive. If equal,

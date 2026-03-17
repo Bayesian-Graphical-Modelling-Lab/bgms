@@ -500,7 +500,7 @@ test_that("new_bgm_spec: rejects non-matrix x", {
         missing_index = NULL
       ),
       prior = list(
-        pairwise_scale = 2.5, main_alpha = 0.5, main_beta = 0.5,
+        pairwise_scale = 1, main_alpha = 0.5, main_beta = 0.5,
         standardize = FALSE, pairwise_scaling_factors = matrix(1, 2, 2),
         edge_selection = TRUE, edge_prior = "Bernoulli",
         inclusion_probability = matrix(0.5, 2, 2)

@@ -71,7 +71,7 @@ public:
         const std::string& pseudolikelihood,
         double main_alpha = 1.0,
         double main_beta = 1.0,
-        double pairwise_scale = 2.5,
+        double pairwise_scale = 1.0,
         int seed = 1
     );
 
