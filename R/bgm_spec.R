@@ -661,6 +661,13 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
   is_ordinal_disc = is_ordinal[disc_idx]
   vtype_disc = variable_type[disc_idx]
 
+  # Subset baseline_category to discrete columns when the user supplies a
+
+  # full-length vector (one entry per variable, including continuous ones).
+  if(length(baseline_category) == num_variables && num_variables != p) {
+    baseline_category = baseline_category[disc_idx]
+  }
+
   # Baseline category for discrete variables
   bc = validate_baseline_category(
     baseline_category = baseline_category,

@@ -616,3 +616,69 @@ test_that("OMRF spec: standardize = FALSE produces ones matrix", {
   psf = s$prior$pairwise_scaling_factors
   expect_true(all(psf == 1))
 })
+
+
+# ==============================================================================
+# 12.  Mixed MRF: baseline_category subsetting
+# ==============================================================================
+# Regression tests for a bug where build_spec_mixed_mrf passed a full-length
+# baseline_category vector (num_variables) to validate_baseline_category,
+# which received x_disc (only discrete columns). The length mismatch caused
+# a spurious "needs to be a single integer or a vector of integers of length p"
+# error.
+
+make_mixed_data = function(n = 30) {
+  set.seed(42)
+  x = cbind(
+    sample(0:2, n, replace = TRUE),
+    sample(0:2, n, replace = TRUE),
+    rnorm(n),
+    rnorm(n)
+  )
+  colnames(x) = c("d1", "d2", "c1", "c2")
+  x
+}
+
+test_that("mixed MRF: full-length baseline_category with NAs for continuous", {
+  s = spec(
+    x = make_mixed_data(),
+    variable_type = c("blume-capel", "blume-capel", "continuous", "continuous"),
+    baseline_category = c(1, 1, NA, NA),
+    model_type = "omrf"
+  )
+  expect_equal(s$model_type, "mixed_mrf")
+  expect_equal(s$variables$baseline_category[1:2], c(1L, 1L))
+})
+
+test_that("mixed MRF: full-length baseline_category with dummy values for continuous", {
+  s = spec(
+    x = make_mixed_data(),
+    variable_type = c("blume-capel", "blume-capel", "continuous", "continuous"),
+    baseline_category = c(1, 1, 1, 1),
+    model_type = "omrf"
+  )
+  expect_equal(s$model_type, "mixed_mrf")
+  expect_equal(s$variables$baseline_category[1:2], c(1L, 1L))
+})
+
+test_that("mixed MRF: scalar baseline_category still works", {
+  s = spec(
+    x = make_mixed_data(),
+    variable_type = c("blume-capel", "blume-capel", "continuous", "continuous"),
+    baseline_category = 1,
+    model_type = "omrf"
+  )
+  expect_equal(s$model_type, "mixed_mrf")
+  expect_equal(s$variables$baseline_category[1:2], c(1L, 1L))
+})
+
+test_that("mixed MRF: disc-length baseline_category works", {
+  s = spec(
+    x = make_mixed_data(),
+    variable_type = c("blume-capel", "blume-capel", "continuous", "continuous"),
+    baseline_category = c(1, 1),
+    model_type = "omrf"
+  )
+  expect_equal(s$model_type, "mixed_mrf")
+  expect_equal(s$variables$baseline_category[1:2], c(1L, 1L))
+})
