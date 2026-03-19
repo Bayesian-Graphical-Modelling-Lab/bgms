@@ -171,8 +171,8 @@ validate_bgm_spec = function(spec) {
     if(!isTRUE(spec$variables$is_continuous)) {
       stop("bgm_spec: model_type = 'ggm' requires is_continuous = TRUE.")
     }
-    if(spec$sampler$update_method != "adaptive-metropolis") {
-      stop("bgm_spec: model_type = 'ggm' requires update_method = 'adaptive-metropolis'.")
+    if(spec$sampler$update_method == "hamiltonian-mc") {
+      stop("bgm_spec: model_type = 'ggm' does not support update_method = 'hamiltonian-mc'. Use 'nuts' or 'adaptive-metropolis'.")
     }
   }
 

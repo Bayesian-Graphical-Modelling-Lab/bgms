@@ -58,6 +58,7 @@ public:
         vectorized_parameters_(dim_),
         vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
         proposal_sds_(arma::vec(dim_, arma::fill::ones) * 0.25),
+        num_pairwise_(p_ * (p_ - 1) / 2),
         observations_(na_impute ? observations : arma::mat()),
         precision_proposal_(arma::mat(p_, p_, arma::fill::none))
     {}
@@ -97,6 +98,7 @@ public:
         vectorized_parameters_(dim_),
         vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
         proposal_sds_(arma::vec(dim_, arma::fill::ones) * 0.25),
+        num_pairwise_(p_ * (p_ - 1) / 2),
         precision_proposal_(arma::mat(p_, p_, arma::fill::none))
     {}
 
@@ -119,6 +121,8 @@ public:
           vectorized_indicator_parameters_(other.vectorized_indicator_parameters_),
           proposal_sds_(other.proposal_sds_),
           total_warmup_(other.total_warmup_),
+          shuffled_edge_order_(other.shuffled_edge_order_),
+          num_pairwise_(other.num_pairwise_),
           rng_(other.rng_),
           observations_(other.observations_),
           has_missing_(other.has_missing_),
@@ -172,8 +176,19 @@ public:
     /** Store warmup length for Robbins-Monro proposal-SD adaptation. */
     void init_metropolis_adaptation(const WarmupSchedule& schedule) override;
 
-    /** No-op: GGM handles edge indicator updates inside do_one_metropolis_step(). */
-    void update_edge_indicators() override {}
+    /** Shuffle edge visit order (random scan). */
+    void prepare_iteration() override;
+
+    /** Sweep over edges in shuffled order, proposing add/remove moves. */
+    void update_edge_indicators() override;
+
+    /**
+     * Element-wise MH updates for proposal-SD tuning during stage 3b.
+     *
+     * Runs off-diagonal and diagonal Metropolis updates with
+     * Robbins-Monro adaptation, following the OMRF pattern.
+     */
+    void tune_proposal_sd(int iteration, const WarmupSchedule& schedule) override;
 
     /**
      * Combined log-posterior and gradient for NUTS.
@@ -368,6 +383,11 @@ private:
     arma::vec proposal_sds_;
     /// Total number of warmup iterations (for Robbins-Monro adaptation).
     int total_warmup_ = 0;
+
+    /// Shuffled edge visit order for random-scan edge selection.
+    arma::uvec shuffled_edge_order_;
+    /// Number of unique off-diagonal pairs: p(p-1)/2.
+    size_t num_pairwise_ = 0;
     /// Random number generator.
     SafeRNG rng_;
 

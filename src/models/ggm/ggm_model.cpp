@@ -143,21 +143,52 @@ arma::vec GGMModel::get_active_inv_mass() const {
         return arma::ones<arma::vec>(cs.active_dim);
     }
 
-    // If inv_mass_ has full dimension, filter to active parameters
+    // inv_mass_ has full dimension (from stage 2, all edges on).
+    // Rotate into the current constrained basis using N_q.
     if (inv_mass_.n_elem == cs.full_dim) {
         arma::vec active(cs.active_dim);
+        arma::mat Aq_buf;
+
         for (size_t q = 0; q < p_; ++q) {
             const auto& col = cs.columns[q];
             size_t active_offset = cs.theta_offsets[q];
             size_t full_offset = cs.full_theta_offsets[q];
 
-            // f_q entries
-            for (size_t k = 0; k < col.d_q; ++k) {
-                size_t full_pos = full_offset + col.included_indices[k];
-                active(active_offset + k) = inv_mass_(full_pos);
+            if (q == 0 || col.d_q == 0) {
+                // psi_q only — pass through directly
+                active(cs.psi_offset(q)) = inv_mass_(cs.full_psi_offset(q));
+                continue;
             }
 
-            // psi_q entry
+            // Gather per-Cholesky-entry variances for column q
+            arma::vec var_xq(q);
+            for (size_t j = 0; j < q; ++j) {
+                var_xq(j) = inv_mass_(full_offset + j);
+            }
+
+            if (col.m_q == 0) {
+                // No constraints: N_q = I, so f_q = x_q and
+                // mass entries pass through directly.
+                for (size_t k = 0; k < col.d_q; ++k) {
+                    active(active_offset + k) = var_xq(col.included_indices[k]);
+                }
+            } else {
+                // Build N_q and rotate: M^{-1}_{f_k} = sum_j N_{jk}^2 var(x_j)
+                arma::mat Nq;
+                arma::vec R_diag;
+                GGMGradientEngine::build_Aq(cholesky_of_precision_, col, q, Aq_buf);
+                GGMGradientEngine::compute_null_basis_and_rdiag(Aq_buf, Nq, R_diag);
+
+                for (size_t k = 0; k < col.d_q; ++k) {
+                    double mass_k = 0.0;
+                    for (size_t j = 0; j < q; ++j) {
+                        mass_k += Nq(j, k) * Nq(j, k) * var_xq(j);
+                    }
+                    active(active_offset + k) = mass_k;
+                }
+            }
+
+            // psi_q: pass through unchanged
             active(cs.psi_offset(q)) = inv_mass_(cs.full_psi_offset(q));
         }
         return active;
@@ -431,6 +462,8 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 
             cholesky_update_after_edge(omega_ij_old, omega_jj_old, i, j);
 
+            constraint_dirty_ = true;
+            theta_valid_ = false;
         }
 
     } else {
@@ -483,6 +516,8 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 
             cholesky_update_after_edge(omega_ij_old, omega_jj_old, i, j);
 
+            constraint_dirty_ = true;
+            theta_valid_ = false;
         }
     }
 }
@@ -500,18 +535,117 @@ void GGMModel::do_one_metropolis_step(int iteration) {
     for (size_t i = 0; i < p_; ++i) {
         update_diagonal_parameter(i, iteration);
     }
-
-    if (edge_selection_active_) {
-        for (size_t i = 0; i < p_ - 1; ++i) {
-            for (size_t j = i + 1; j < p_; ++j) {
-                update_edge_indicator_parameter_pair(i, j);
-            }
-        }
-    }
 }
 
 void GGMModel::init_metropolis_adaptation(const WarmupSchedule& schedule) {
     total_warmup_ = schedule.total_warmup;
+}
+
+void GGMModel::prepare_iteration() {
+    // Shuffle edge visit order for random-scan edge selection.
+    // Called unconditionally to keep RNG state consistent.
+    shuffled_edge_order_ = arma_randperm(rng_, num_pairwise_);
+}
+
+void GGMModel::update_edge_indicators() {
+    for (size_t idx = 0; idx < num_pairwise_; ++idx) {
+        size_t flat = shuffled_edge_order_(idx);
+        // Convert flat index to (i, j) upper-triangle pair.
+        // flat = 0..(num_pairwise_-1), row-major: (0,1),(0,2),...,(0,p-1),(1,2),...
+        size_t i = 0, j = 0;
+        size_t acc = 0;
+        for (size_t row = 0; row < p_ - 1; ++row) {
+            size_t cols_in_row = p_ - 1 - row;
+            if (flat < acc + cols_in_row) {
+                i = row;
+                j = row + 1 + (flat - acc);
+                break;
+            }
+            acc += cols_in_row;
+        }
+        update_edge_indicator_parameter_pair(i, j);
+    }
+}
+
+void GGMModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {
+    if (!schedule.adapt_proposal_sd(iteration)) return;
+
+    const double target_accept = 0.44;
+    const double rm_decay = 0.75;
+    double t = iteration - schedule.stage3b_start + 1;
+    double rm_weight = std::pow(t, -rm_decay);
+
+    // Off-diagonal sweeps
+    for (size_t i = 0; i < p_ - 1; ++i) {
+        for (size_t j = i + 1; j < p_; ++j) {
+            if (edge_indicators_(i, j) == 0) continue;
+
+            get_constants(i, j);
+            double Phi_q1q = constants_[0];
+            size_t e = j * (j + 1) / 2 + i;
+            double proposal_sd = proposal_sds_(e);
+
+            double phi_prop = rnorm(rng_, Phi_q1q, proposal_sd);
+            double omega_prop_q1q = constants_[2] + constants_[3] * phi_prop;
+            double omega_prop_qq = constrained_diagonal(omega_prop_q1q);
+
+            precision_proposal_ = precision_matrix_;
+            precision_proposal_(i, j) = omega_prop_q1q;
+            precision_proposal_(j, i) = omega_prop_q1q;
+            precision_proposal_(j, j) = omega_prop_qq;
+
+            double ln_alpha = log_density_impl_edge(i, j);
+            ln_alpha += R::dcauchy(precision_proposal_(i, j), 0.0, pairwise_scale_, true);
+            ln_alpha -= R::dcauchy(precision_matrix_(i, j), 0.0, pairwise_scale_, true);
+
+            if (MY_LOG(runif(rng_)) < ln_alpha) {
+                double omega_ij_old = precision_matrix_(i, j);
+                double omega_jj_old = precision_matrix_(j, j);
+                precision_matrix_(i, j) = omega_prop_q1q;
+                precision_matrix_(j, i) = omega_prop_q1q;
+                precision_matrix_(j, j) = omega_prop_qq;
+                cholesky_update_after_edge(omega_ij_old, omega_jj_old, i, j);
+            }
+
+            proposal_sds_(e) = update_proposal_sd_with_robbins_monro(
+                proposal_sds_(e), ln_alpha, rm_weight, target_accept);
+        }
+    }
+
+    // Diagonal sweeps
+    for (size_t i = 0; i < p_; ++i) {
+        double logdet_omega = cholesky_helpers::get_log_det(cholesky_of_precision_);
+        double logdet_omega_sub_ii = logdet_omega + MY_LOG(covariance_matrix_(i, i));
+
+        size_t e = i * (i + 3) / 2;
+        double proposal_sd = proposal_sds_(e);
+
+        double theta_curr = (logdet_omega - logdet_omega_sub_ii) / 2;
+        double theta_prop = rnorm(rng_, theta_curr, proposal_sd);
+
+        precision_proposal_ = precision_matrix_;
+        precision_proposal_(i, i) = precision_matrix_(i, i)
+            - MY_EXP(theta_curr) * MY_EXP(theta_curr)
+            + MY_EXP(theta_prop) * MY_EXP(theta_prop);
+
+        double ln_alpha = log_density_impl_diag(i);
+        ln_alpha += R::dgamma(MY_EXP(theta_prop), 1.0, 1.0, true);
+        ln_alpha -= R::dgamma(MY_EXP(theta_curr), 1.0, 1.0, true);
+        ln_alpha += theta_prop - theta_curr;
+
+        if (MY_LOG(runif(rng_)) < ln_alpha) {
+            double omega_ii = precision_matrix_(i, i);
+            precision_matrix_(i, i) = precision_proposal_(i, i);
+            cholesky_update_after_diag(omega_ii, i);
+        }
+
+        proposal_sds_(e) = update_proposal_sd_with_robbins_monro(
+            proposal_sds_(e), ln_alpha, rm_weight, target_accept);
+    }
+
+    // Invalidate gradient cache after MH updates
+    constraint_dirty_ = true;
+    theta_valid_ = false;
 }
 
 void GGMModel::initialize_graph() {
@@ -537,6 +671,8 @@ void GGMModel::initialize_graph() {
             }
         }
     }
+    constraint_dirty_ = true;
+    theta_valid_ = false;
 }
 
 

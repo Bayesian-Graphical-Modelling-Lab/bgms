@@ -70,18 +70,20 @@ test_that("bgm errors on invalid update_method", {
 # bgm() GGM-Specific Input Validation
 # ------------------------------------------------------------------------------
 
-test_that("GGM rejects NUTS and HMC update methods", {
+test_that("GGM rejects HMC but allows NUTS", {
   set.seed(42)
   x = matrix(rnorm(200), nrow = 50, ncol = 4)
 
   expect_error(
-    bgm(x = x, variable_type = "continuous", update_method = "nuts"),
-    "only supports.*adaptive-metropolis"
-  )
-  expect_error(
     bgm(x = x, variable_type = "continuous", update_method = "hamiltonian-mc"),
-    "only supports.*adaptive-metropolis"
+    "hamiltonian-mc"
   )
+  # NUTS should be accepted (no error at validation stage)
+  spec = bgm_spec(
+    x = x, variable_type = "continuous", update_method = "nuts",
+    iter = 10, warmup = 10, chains = 1
+  )
+  expect_equal(spec$sampler$update_method, "nuts")
 })
 
 test_that("Mixed continuous and ordinal variable types are accepted for bgm", {

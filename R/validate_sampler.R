@@ -107,16 +107,18 @@ validate_sampler = function(update_method,
     choices = c("nuts", "adaptive-metropolis", "hamiltonian-mc")
   )
 
-  # --- GGM guard: force adaptive-metropolis -----------------------------------
+  # --- GGM: default to adaptive-metropolis; allow NUTS, block HMC ---------------
   if(is_continuous) {
-    if(user_chose_method && update_method %in% c("nuts", "hamiltonian-mc")) {
+    if(!user_chose_method) {
+      update_method = "adaptive-metropolis"
+    }
+    if(update_method == "hamiltonian-mc") {
       stop(paste0(
-        "The Gaussian model (variable_type = 'continuous') only supports ",
-        "update_method = 'adaptive-metropolis'. ",
-        "Got '", update_method, "'."
+        "The Gaussian model (variable_type = 'continuous') does not support ",
+        "update_method = 'hamiltonian-mc'. ",
+        "Use 'nuts' or 'adaptive-metropolis'."
       ))
     }
-    update_method = "adaptive-metropolis"
   }
 
   # --- target_accept ----------------------------------------------------------

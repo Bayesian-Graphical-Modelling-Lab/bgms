@@ -274,6 +274,9 @@ build_output_bgm = function(spec, raw) {
       if(!is.null(chain$allocation_samples)) {
         res$allocations = t(chain$allocation_samples)
       }
+      if(!is.null(chain$treedepth)) res[["treedepth__"]] = chain$treedepth
+      if(!is.null(chain$divergent)) res[["divergent__"]] = chain$divergent
+      if(!is.null(chain$energy)) res[["energy__"]] = chain$energy
       res
     })
   } else {
