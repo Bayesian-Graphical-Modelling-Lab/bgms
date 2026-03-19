@@ -7,7 +7,7 @@ this is the precision matrix of the continuous (Gaussian) block. OMRF
 models have no precision matrix and return `NULL`.
 
 For mixed MRF models the precision matrix is reconstructed from the
-internal parameterization as \\\Theta = -2K\\.
+internal association-scale parameterization.
 
 ## Usage
 
@@ -68,8 +68,10 @@ Other extractors:
 
 ``` r
 # \donttest{
-fit = bgm(x = Wenchuan[, 1:3],
-          variable_type = rep("continuous", 3))
+fit = bgm(
+  x = Wenchuan[, 1:3],
+  variable_type = rep("continuous", 3)
+)
 #> 2 rows with missing values excluded (n = 360 remaining).
 #> To impute missing values instead, use na_action = "impute".
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2000/2000 (100.0%)

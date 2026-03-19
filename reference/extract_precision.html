@@ -4,12 +4,12 @@ bgm(). For GGM models this is the full precision matrix. For
 mixed MRF models this is the precision matrix of the continuous
 (Gaussian) block. OMRF models have no precision matrix and return NULL.
 For mixed MRF models the precision matrix is reconstructed from the
-internal parameterization as \(\Theta = -2K\)."><meta property="og:description" content="Retrieves the posterior mean precision matrix from a model fitted with
+internal association-scale parameterization."><meta property="og:description" content="Retrieves the posterior mean precision matrix from a model fitted with
 bgm(). For GGM models this is the full precision matrix. For
 mixed MRF models this is the precision matrix of the continuous
 (Gaussian) block. OMRF models have no precision matrix and return NULL.
 For mixed MRF models the precision matrix is reconstructed from the
-internal parameterization as \(\Theta = -2K\)."></head><body>
+internal association-scale parameterization."></head><body>
     <a href="#container" class="visually-hidden-focusable">Skip to content</a>
 
 
@@ -50,7 +50,7 @@ internal parameterization as \(\Theta = -2K\)."></head><body>
 mixed MRF models this is the precision matrix of the continuous
 (Gaussian) block. OMRF models have no precision matrix and return <code>NULL</code>.</p>
 <p>For mixed MRF models the precision matrix is reconstructed from the
-internal parameterization as \(\Theta = -2K\).</p>
+internal association-scale parameterization.</p>
     </div>
 
     <div class="section level2">
@@ -107,8 +107,10 @@ continuous variable.</p></dd>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># \donttest{</span></span></span>
-<span class="r-in"><span><span class="va">fit</span> <span class="op">=</span> <span class="fu"><a href="bgm.html">bgm</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">Wenchuan</span><span class="op">[</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>,</span></span>
-<span class="r-in"><span>          variable_type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="st">"continuous"</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">=</span> <span class="fu"><a href="bgm.html">bgm</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>  x <span class="op">=</span> <span class="va">Wenchuan</span><span class="op">[</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>,</span></span>
+<span class="r-in"><span>  variable_type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="st">"continuous"</span>, <span class="fl">3</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> 2 rows with missing values excluded (n = 360 remaining).</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> To impute missing values instead, use na_action = "impute".</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 2000/2000 (100.0%)</span>
