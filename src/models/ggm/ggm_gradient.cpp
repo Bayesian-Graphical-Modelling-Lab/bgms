@@ -232,7 +232,12 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
 
     // Step 1: K_bar from likelihood + priors
     // Likelihood: (n/2) K^{-1} - (1/2) S
-    arma::mat K_bar = (n / 2.0) * arma::inv_sympd(K) - 0.5 * S;
+    // Use Phi^{-1} to compute K^{-1} = Phi^{-1} Phi^{-T} (more robust
+    // than inv_sympd(K) when the leapfrog integrator pushes theta to
+    // extreme values)
+    arma::mat Phi_inv = arma::inv(arma::trimatu(Phi));
+    arma::mat K_inv = Phi_inv * Phi_inv.t();
+    arma::mat K_bar = (n / 2.0) * K_inv - 0.5 * S;
 
     // Cauchy prior on off-diagonal included edges (upper triangle only)
     // d/dk log(dcauchy(k; 0, s)) = -2k / (s^2 + k^2)
