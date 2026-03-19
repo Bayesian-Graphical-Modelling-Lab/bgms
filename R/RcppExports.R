@@ -17,6 +17,14 @@ rcpp_ieee754_log <- function(x) {
     .Call(`_bgms_rcpp_ieee754_log`, x)
 }
 
+ggm_test_logp_and_gradient <- function(theta, suf_stat, n, edge_indicators, pairwise_scale) {
+    .Call(`_bgms_ggm_test_logp_and_gradient`, theta, suf_stat, n, edge_indicators, pairwise_scale)
+}
+
+ggm_test_forward_map <- function(theta, edge_indicators) {
+    .Call(`_bgms_ggm_test_forward_map`, theta, edge_indicators)
+}
+
 compute_conditional_ggm <- function(observations, predict_vars, precision) {
     .Call(`_bgms_compute_conditional_ggm`, observations, predict_vars, precision)
 }

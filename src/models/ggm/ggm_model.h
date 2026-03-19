@@ -5,6 +5,8 @@
 #include "models/base_model.h"
 #include "math/cholesky_helpers.h"
 #include "rng/rng_utils.h"
+#include "models/ggm/graph_constraint_structure.h"
+#include "models/ggm/ggm_gradient.h"
 
 
 /**
@@ -121,11 +123,16 @@ public:
           observations_(other.observations_),
           has_missing_(other.has_missing_),
           missing_index_(other.missing_index_),
-          precision_proposal_(other.precision_proposal_)
+          precision_proposal_(other.precision_proposal_),
+          constraint_structure_(other.constraint_structure_),
+          gradient_engine_(other.gradient_engine_),
+          constraint_dirty_(other.constraint_dirty_),
+          theta_valid_(other.theta_valid_),
+          theta_(other.theta_)
     {}
 
-    /** @return false (GGM has no gradient implementation). */
-    bool has_gradient()        const override { return false; }
+    /** @return true (GGM supports NUTS via free-element Cholesky gradient). */
+    bool has_gradient()        const override { return true; }
     /** @return true (GGM supports adaptive Metropolis). */
     bool has_adaptive_metropolis()     const override { return true; }
     /** @return true when edge selection is enabled. */
@@ -169,6 +176,29 @@ public:
     void update_edge_indicators() override {}
 
     /**
+     * Combined log-posterior and gradient for NUTS.
+     *
+     * Uses the free-element Cholesky parameterization:
+     * theta = (psi_1, f_2, psi_2, ..., f_p, psi_p) where psi_q = log(phi_qq)
+     * and x_q = N_q f_q gives the off-diagonal Cholesky entries.
+     *
+     * @param parameters  Active theta vector (dimension = p + |E|)
+     * @return (log-posterior, gradient) pair
+     */
+    std::pair<double, arma::vec> logp_and_gradient(
+        const arma::vec& parameters) override;
+
+    /**
+     * Set model state from a theta vector (inverse of get_vectorized_parameters).
+     *
+     * Runs the forward map theta -> Phi -> K and updates all internal
+     * matrices (precision, Cholesky, inverse Cholesky, covariance).
+     *
+     * @param parameters  Active theta vector (dimension = p + |E|)
+     */
+    void set_vectorized_parameters(const arma::vec& parameters) override;
+
+    /**
      * Compute the Gaussian log-likelihood for a given precision matrix.
      * @param omega  Precision matrix
      */
@@ -186,10 +216,29 @@ public:
      */
     void do_one_metropolis_step(int iteration = -1) override;
 
-    /** @return Number of upper-triangle elements p(p+1)/2. */
-    size_t parameter_dimension() const override { return dim_; }
-    /** @return Same as parameter_dimension() for GGM. */
-    size_t full_parameter_dimension() const override { return dim_; }
+    /**
+     * @return Active theta dimension: p + |E| (diagonals + included edges).
+     *
+     * Changes when edge indicators toggle. Used by NUTS for leapfrog
+     * integration.
+     */
+    size_t parameter_dimension() const override;
+
+    /**
+     * @return Full theta dimension: p + p(p-1)/2 (all possible off-diag slots).
+     *
+     * Fixed across all graphs. Used by the adaptation controller for
+     * mass-matrix sizing.
+     */
+    size_t full_parameter_dimension() const override;
+
+    /**
+     * @return Storage dimension for sample output: p(p+1)/2 (upper triangle of K).
+     *
+     * Preserves the existing output contract: downstream R code expects
+     * the upper triangle of the precision matrix.
+     */
+    size_t storage_dimension() const override { return dim_; }
 
     /**
      * Set random seed for reproducibility.
@@ -199,13 +248,28 @@ public:
         rng_ = SafeRNG(seed);
     }
 
-    /** @return Upper triangle of the precision matrix as a vector. */
-    arma::vec get_vectorized_parameters() const override {
-        return extract_upper_triangle();
-    }
+    /**
+     * @return Active theta vector: (psi_1, f_2, psi_2, ..., f_p, psi_p).
+     *
+     * Dimension = parameter_dimension() = p + |E|. Used by NUTS as the
+     * current state. Recomputed lazily from Phi when stale.
+     */
+    arma::vec get_vectorized_parameters() const override;
 
-    /** @return Same as get_vectorized_parameters() for GGM. */
-    arma::vec get_full_vectorized_parameters() const override {
+    /**
+     * @return Full (zero-padded) theta vector for mass-matrix adaptation.
+     *
+     * Dimension = full_parameter_dimension() = p + p(p-1)/2. Inactive
+     * edges have their f_q slots set to zero.
+     */
+    arma::vec get_full_vectorized_parameters() const override;
+
+    /**
+     * @return Upper triangle of the precision matrix for sample storage.
+     *
+     * Preserves the existing output contract.
+     */
+    arma::vec get_storage_vectorized_parameters() const override {
         return extract_upper_triangle();
     }
 
@@ -243,6 +307,15 @@ public:
     int get_num_pairwise() const override {
         return static_cast<int>(p_ * (p_ - 1) / 2);
     }
+
+    /**
+     * @return Active subset of the inverse mass diagonal.
+     *
+     * Filters the full inv_mass_ (dimension p + p(p-1)/2) to active
+     * parameters only (dimension p + |E|). For columns where N_q != I,
+     * rotates the per-Cholesky-entry variances into f_q coordinates.
+     */
+    arma::vec get_active_inv_mass() const override;
 
     /** @return Deep copy of this model. */
     std::unique_ptr<BaseModel> clone() const override {
@@ -450,6 +523,35 @@ private:
      * @param i             Diagonal index
      */
     void cholesky_update_after_diag(double omega_ii_old, size_t i);
+
+    // =================================================================
+    // NUTS gradient support
+    // =================================================================
+
+    /// Graph constraint structure (rebuilt when edge indicators change).
+    GraphConstraintStructure constraint_structure_;
+    /// Gradient engine for the free-element Cholesky parameterization.
+    GGMGradientEngine gradient_engine_;
+    /// Whether the constraint structure needs rebuilding.
+    bool constraint_dirty_ = true;
+    /// Whether theta_ is in sync with cholesky_of_precision_.
+    mutable bool theta_valid_ = false;
+    /// Cached theta vector (active parameterization).
+    mutable arma::vec theta_;
+
+    /**
+     * Rebuild the constraint structure and gradient engine from current
+     * edge indicators. Called lazily before gradient evaluation.
+     */
+    void ensure_constraint_structure();
+
+    /**
+     * Convert the current Cholesky factor to the theta parameterization.
+     *
+     * For each column q, computes psi_q = log(phi_qq) and
+     * f_q = N_q^T x_q where x_q = Phi[0:q-1, q].
+     */
+    void recompute_theta() const;
 };
 
 /**

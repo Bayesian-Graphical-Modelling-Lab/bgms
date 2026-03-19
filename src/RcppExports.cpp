@@ -91,6 +91,33 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// ggm_test_logp_and_gradient
+Rcpp::List ggm_test_logp_and_gradient(const arma::vec& theta, const arma::mat& suf_stat, int n, const arma::imat& edge_indicators, double pairwise_scale);
+RcppExport SEXP _bgms_ggm_test_logp_and_gradient(SEXP thetaSEXP, SEXP suf_statSEXP, SEXP nSEXP, SEXP edge_indicatorsSEXP, SEXP pairwise_scaleSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type theta(thetaSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type suf_stat(suf_statSEXP);
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
+    Rcpp::traits::input_parameter< double >::type pairwise_scale(pairwise_scaleSEXP);
+    rcpp_result_gen = Rcpp::wrap(ggm_test_logp_and_gradient(theta, suf_stat, n, edge_indicators, pairwise_scale));
+    return rcpp_result_gen;
+END_RCPP
+}
+// ggm_test_forward_map
+Rcpp::List ggm_test_forward_map(const arma::vec& theta, const arma::imat& edge_indicators);
+RcppExport SEXP _bgms_ggm_test_forward_map(SEXP thetaSEXP, SEXP edge_indicatorsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type theta(thetaSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
+    rcpp_result_gen = Rcpp::wrap(ggm_test_forward_map(theta, edge_indicators));
+    return rcpp_result_gen;
+END_RCPP
+}
 // compute_conditional_ggm
 Rcpp::List compute_conditional_ggm(const arma::mat& observations, const arma::ivec& predict_vars, const arma::mat& precision);
 RcppExport SEXP _bgms_compute_conditional_ggm(SEXP observationsSEXP, SEXP predict_varsSEXP, SEXP precisionSEXP) {
@@ -397,6 +424,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_get_explog_switch", (DL_FUNC) &_bgms_get_explog_switch, 0},
     {"_bgms_rcpp_ieee754_exp", (DL_FUNC) &_bgms_rcpp_ieee754_exp, 1},
     {"_bgms_rcpp_ieee754_log", (DL_FUNC) &_bgms_rcpp_ieee754_log, 1},
+    {"_bgms_ggm_test_logp_and_gradient", (DL_FUNC) &_bgms_ggm_test_logp_and_gradient, 5},
+    {"_bgms_ggm_test_forward_map", (DL_FUNC) &_bgms_ggm_test_forward_map, 2},
     {"_bgms_compute_conditional_ggm", (DL_FUNC) &_bgms_compute_conditional_ggm, 3},
     {"_bgms_compute_conditional_probs", (DL_FUNC) &_bgms_compute_conditional_probs, 7},
     {"_bgms_compute_conditional_mixed", (DL_FUNC) &_bgms_compute_conditional_mixed, 11},

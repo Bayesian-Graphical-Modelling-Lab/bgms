@@ -5,6 +5,168 @@
 #include "mcmc/execution/step_result.h"
 #include "mcmc/execution/warmup_schedule.h"
 
+// =====================================================================
+// NUTS gradient support
+// =====================================================================
+
+void GGMModel::ensure_constraint_structure() {
+    if (!constraint_dirty_) return;
+    constraint_structure_.build(edge_indicators_);
+    gradient_engine_.rebuild(constraint_structure_, n_, suf_stat_, pairwise_scale_);
+    constraint_dirty_ = false;
+    theta_valid_ = false;
+}
+
+void GGMModel::recompute_theta() const {
+    if (theta_valid_) return;
+
+    // Build constraint structure (const-safe: structure is already built
+    // by ensure_constraint_structure before any gradient call)
+    const auto& cs = constraint_structure_;
+    theta_.set_size(cs.active_dim);
+
+    arma::mat Aq_buf;
+
+    for (size_t q = 0; q < p_; ++q) {
+        const auto& col = cs.columns[q];
+        size_t offset = cs.theta_offsets[q];
+
+        // psi_q = log(phi_qq)
+        double psi_q = std::log(cholesky_of_precision_(q, q));
+        theta_(offset + col.d_q) = psi_q;
+
+        if (q == 0 || col.d_q == 0) continue;
+
+        // Build A_q, compute null-space basis N_q
+        arma::mat Nq;
+        arma::vec R_diag;
+        GGMGradientEngine::build_Aq(cholesky_of_precision_, col, q, Aq_buf);
+        GGMGradientEngine::compute_null_basis_and_rdiag(Aq_buf, Nq, R_diag);
+
+        // f_q = N_q^T x_q
+        arma::vec x_q = cholesky_of_precision_.col(q).head(q);
+        arma::vec f_q = Nq.t() * x_q;
+        for (size_t k = 0; k < col.d_q; ++k) {
+            theta_(offset + k) = f_q(k);
+        }
+    }
+
+    theta_valid_ = true;
+}
+
+size_t GGMModel::parameter_dimension() const {
+    // Lazy: if constraint structure hasn't been built, use full dimension
+    if (constraint_dirty_) {
+        return p_ + p_ * (p_ - 1) / 2;
+    }
+    return constraint_structure_.active_dim;
+}
+
+size_t GGMModel::full_parameter_dimension() const {
+    return p_ + p_ * (p_ - 1) / 2;
+}
+
+arma::vec GGMModel::get_vectorized_parameters() const {
+    // Ensure the constraint structure is built so we can compute theta
+    if (constraint_dirty_) {
+        // const_cast is safe: ensure_constraint_structure only modifies
+        // the constraint cache, not the model state
+        const_cast<GGMModel*>(this)->ensure_constraint_structure();
+    }
+    recompute_theta();
+    return theta_;
+}
+
+arma::vec GGMModel::get_full_vectorized_parameters() const {
+    if (constraint_dirty_) {
+        const_cast<GGMModel*>(this)->ensure_constraint_structure();
+    }
+    recompute_theta();
+
+    const auto& cs = constraint_structure_;
+    arma::vec full(cs.full_dim, arma::fill::zeros);
+
+    for (size_t q = 0; q < p_; ++q) {
+        const auto& col = cs.columns[q];
+        size_t active_offset = cs.theta_offsets[q];
+        size_t full_offset = cs.full_theta_offsets[q];
+
+        // Copy f_q entries into their matching slots in the full vector.
+        // In the full vector, column q has q slots for off-diagonal + 1 for diagonal.
+        // The included indices map to specific positions.
+        for (size_t k = 0; k < col.d_q; ++k) {
+            // The k-th included index maps to position included_indices[k] in
+            // the column's off-diagonal block
+            size_t full_pos = full_offset + col.included_indices[k];
+            full(full_pos) = theta_(active_offset + k);
+        }
+
+        // psi_q is at the end of the column's block in both layouts
+        full(cs.full_psi_offset(q)) = theta_(active_offset + col.d_q);
+    }
+
+    return full;
+}
+
+void GGMModel::set_vectorized_parameters(const arma::vec& parameters) {
+    ensure_constraint_structure();
+
+    // Run forward map: theta -> Phi -> K
+    ForwardMapResult fm = gradient_engine_.forward_map(parameters);
+
+    // Update internal state
+    precision_matrix_ = fm.K;
+    cholesky_of_precision_ = fm.Phi;
+    arma::inv(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_));
+    covariance_matrix_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
+
+    // Cache theta
+    theta_ = parameters;
+    theta_valid_ = true;
+}
+
+std::pair<double, arma::vec> GGMModel::logp_and_gradient(
+    const arma::vec& parameters)
+{
+    ensure_constraint_structure();
+    return gradient_engine_.logp_and_gradient(parameters);
+}
+
+arma::vec GGMModel::get_active_inv_mass() const {
+    if (constraint_dirty_) {
+        const_cast<GGMModel*>(this)->ensure_constraint_structure();
+    }
+
+    const auto& cs = constraint_structure_;
+
+    if (inv_mass_.n_elem == 0) {
+        return arma::ones<arma::vec>(cs.active_dim);
+    }
+
+    // If inv_mass_ has full dimension, filter to active parameters
+    if (inv_mass_.n_elem == cs.full_dim) {
+        arma::vec active(cs.active_dim);
+        for (size_t q = 0; q < p_; ++q) {
+            const auto& col = cs.columns[q];
+            size_t active_offset = cs.theta_offsets[q];
+            size_t full_offset = cs.full_theta_offsets[q];
+
+            // f_q entries
+            for (size_t k = 0; k < col.d_q; ++k) {
+                size_t full_pos = full_offset + col.included_indices[k];
+                active(active_offset + k) = inv_mass_(full_pos);
+            }
+
+            // psi_q entry
+            active(cs.psi_offset(q)) = inv_mass_(cs.full_psi_offset(q));
+        }
+        return active;
+    }
+
+    // Fallback: return inv_mass_ as-is (dimensions should match active_dim)
+    return inv_mass_;
+}
+
 void GGMModel::get_constants(size_t i, size_t j) {
 
     double logdet_omega = cholesky_helpers::get_log_det(cholesky_of_precision_);
