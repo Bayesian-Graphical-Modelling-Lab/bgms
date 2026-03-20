@@ -55,21 +55,42 @@ summary(fit)$pairwise
 - The effective sample size (ESS) reflects the number of independent samples that would provide equivalent precision. Larger ESS values indicate more reliable estimates.
 - The Monte Carlo standard error (MCSE) measures the additional variability introduced by using a finite number of MCMC draws. A small MCSE relative to the posterior standard deviation indicates stable estimates, whereas a large MCSE suggests that more samples are needed.
 
-Advanced users can inspect traceplots by extracting raw samples and using 
-external packages such as `coda` or `bayesplot`. Here is an example using the 
-`coda` package to create a traceplot for a pairwise effect parameter.
+## Two ESS measures for edge-selected parameters
+
+With edge or difference selection active, the effect parameters are governed by
+spike-and-slab priors. The corresponding parameter is set to exactly zero when 
+the effect is excluded, rather than being removed from the model. Because the 
+parameter has a well-defined value at every iteration, the full chain — 
+including zeros — is a valid sequence for computing ESS.
+
+- **n_eff** is the unconditional ESS, computed from the full effect chain. It
+  measures how precisely the overall posterior mean is estimated.
+- **n_eff_mixt** is the mixture ESS. It measures how precisely the posterior
+  mean of the effect is estimated while accounting for the additional
+  uncertainty introduced by the spike-and-slab selection. When the indicator
+  rarely switches between inclusion and exclusion (fewer than 5 transitions),
+  `n_eff_mixt` is suppressed in the printed output.
+
+## Traceplots
+
+Users can inspect traceplots by extracting raw samples directly. Here is an 
+example for the pairwise effect parameter.
 
 ```{r, fig.width= 7, fig.height= 7}
-library(coda)
-
 param_index = 1
-chains = lapply(fit$raw_samples$pairwise, function(mat) mat[, param_index])
-mcmc_obj = mcmc.list(lapply(chains, mcmc))
+chains = fit$raw_samples$pairwise
+nchains = length(chains)
+cols = c("firebrick", "steelblue", "darkgreen", "goldenrod")
 
-traceplot(mcmc_obj,
-  col = c("firebrick", "steelblue", "darkgreen", "goldenrod"),
-  main = "Traceplot of pairwise[1]"
-)
+plot(chains[[1]][, param_index], type = "l", col = cols[1],
+  xlab = "Iteration", ylab = "Value",
+  main = "Traceplot of pairwise[1]",
+  ylim = range(sapply(chains, function(ch) range(ch[, param_index]))))
+if(nchains > 1) {
+  for(c in 2:nchains) {
+    lines(chains[[c]][, param_index], col = cols[c])
+  }
+}
 ```
 
 

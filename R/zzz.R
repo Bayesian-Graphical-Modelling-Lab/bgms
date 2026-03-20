@@ -6,7 +6,7 @@
 #' @import RcppParallel
 #' @importFrom RcppParallel setThreadOptions
 #' @importFrom RcppParallel defaultNumThreads
-#' @importFrom coda effectiveSize gelman.diag mcmc mcmc.list
+
 NULL
 
 # Null-coalescing operator for R < 4.4 compatibility

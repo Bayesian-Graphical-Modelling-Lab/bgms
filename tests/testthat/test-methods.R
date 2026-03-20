@@ -917,3 +917,46 @@ test_that("extract_ess works with adaptive-metropolis", {
     }
   }
 })
+
+
+# ==============================================================================
+# [[ access consistency with $ for lazy-evaluated summaries
+# ==============================================================================
+
+for(spec in get_bgms_fixtures()) {
+  test_that(
+    sprintf("[[ and $ return identical posterior summaries (%s)", spec$label), {
+      fit = spec$get_fit()
+      summary_fields = grep(
+        "^posterior_summary_", names(fit), value = TRUE
+      )
+      for(field in summary_fields) {
+        bracket_val = fit[[field]]
+        dollar_val = do.call("$", list(fit, field))
+        expect_identical(
+          bracket_val, dollar_val,
+          info = sprintf("field '%s' differs between $ and [[", field)
+        )
+      }
+    }
+  )
+}
+
+for(spec in get_bgmcompare_fixtures()) {
+  test_that(
+    sprintf("[[ and $ return identical posterior summaries (%s)", spec$label), {
+      fit = spec$get_fit()
+      summary_fields = grep(
+        "^posterior_summary_", names(fit), value = TRUE
+      )
+      for(field in summary_fields) {
+        bracket_val = fit[[field]]
+        dollar_val = do.call("$", list(fit, field))
+        expect_identical(
+          bracket_val, dollar_val,
+          info = sprintf("field '%s' differs between $ and [[", field)
+        )
+      }
+    }
+  )
+}

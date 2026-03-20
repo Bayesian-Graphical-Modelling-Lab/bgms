@@ -93,6 +93,25 @@
 #    trajectories diverge from CRAN 0.1.6.3 fixtures. All configs use
 #    structure-only comparison until fixtures are regenerated.
 #
+# 9. Lazy diagnostics & C++ ESS/Rhat (PR #77):
+#    - posterior_summary diagnostic columns (n_eff, Rhat, mcse) are now
+#      computed by C++ AR-spectral / Gelman-Rubin instead of coda.
+#      Values differ at the algorithmic level.
+#    - Indicator summaries rename n_eff -> n_eff_mixt.
+#    - Edge-selected pairwise summaries gain an unconditional n_eff column.
+#    - posterior_mean computed via colMeans() instead of mean() inside
+#      summarize_fit(), causing ~1e-14 floating-point differences.
+#    Fix: posterior_summary comparisons strip diagnostic columns (n_eff,
+#    n_eff_mixt, Rhat, mcse). posterior_mean comparisons use tolerance
+#    1e-12.
+#
+# 10. sd / mcse swap in pairwise summaries (bug fix, CONFIRMED):
+#    CRAN 0.1.6.3 placed MCSE in the sd column and SD in the mcse column
+#    for edge-selected pairwise summaries. The new code has them correct:
+#    sd = posterior SD, mcse = sd / sqrt(n_eff).
+#    Fix: comparisons strip sd and mcse columns (along with other derived
+#    columns in diag_cols), so the historical swap is ignored.
+#
 # ==============================================================================
 
 library(bgms)
@@ -457,6 +476,26 @@ structure_only_ids = c(
   names(all_configs) # all OMRF after association-scale reparameterization (note 8)
 )
 
+# Diagnostic and derived columns that changed in PR #77 (note 8).
+# Stripped from posterior_summary comparisons. The values in these columns
+# are derived from the raw chains (which ARE compared bitwise).
+# sd is included because CRAN 0.1.6.3 had sd/mcse values swapped in
+# the edge-selected pairwise summaries (note 9).
+diag_cols = c("n_eff", "n_eff_mixt", "Rhat", "mcse", "sd", "parameter")
+
+# Strip diagnostic / derived columns from a data.frame/matrix, keeping only
+# shared non-diagnostic columns between expected and actual.
+strip_diag_cols = function(exp_df, act_df) {
+  exp_names = if(is.data.frame(exp_df)) names(exp_df) else colnames(exp_df)
+  act_names = if(is.data.frame(act_df)) names(act_df) else colnames(act_df)
+  shared = intersect(exp_names, act_names)
+  keep = setdiff(shared, diag_cols)
+  list(
+    exp = as.matrix(exp_df[, keep, drop = FALSE]),
+    act = as.matrix(act_df[, keep, drop = FALSE])
+  )
+}
+
 compare_fields = function(expected, actual, type, id) {
   if(type == "bgm") {
     fields = c(
@@ -490,33 +529,80 @@ compare_fields = function(expected, actual, type, id) {
       mismatches = c(mismatches, sprintf("  %s: one is NULL, the other is not", field))
       next
     }
+
+    is_summary = grepl("^posterior_summary", field)
+    is_mean = grepl("^posterior_mean", field)
+
+    # posterior_summary: strip diagnostic columns before comparing (notes 8-9)
+    if(is_summary && (is.data.frame(exp_val) || is.data.frame(act_val))) {
+      stripped = strip_diag_cols(exp_val, act_val)
+      exp_m = stripped$exp
+      act_m = stripped$act
+
+      if(!identical(dim(exp_m), dim(act_m))) {
+        mismatches = c(mismatches, sprintf(
+          "  %s: dim mismatch after stripping diag cols (%s vs %s)", field,
+          paste(dim(exp_m), collapse = "x"), paste(dim(act_m), collapse = "x")
+        ))
+        next
+      }
+
+      if(allow_na_skip) {
+        non_na = !is.na(exp_m)
+        if(!isTRUE(all.equal(exp_m[non_na], act_m[non_na], tolerance = 1e-12))) {
+          max_diff = max(abs(exp_m[non_na] - act_m[non_na]), na.rm = TRUE)
+          mismatches = c(mismatches, sprintf(
+            "  %s: NOT identical (max |diff| = %.2e, ignoring diag cols + fixture NAs)",
+            field, max_diff
+          ))
+        }
+      } else {
+        if(!isTRUE(all.equal(exp_m, act_m, tolerance = 1e-12))) {
+          max_diff = max(abs(exp_m - act_m), na.rm = TRUE)
+          mismatches = c(mismatches, sprintf(
+            "  %s: NOT identical (max |diff| = %.2e, ignoring diag cols)", field, max_diff
+          ))
+        }
+      }
+      next
+    }
+
+    # posterior_mean: allow tolerance for colMeans vs mean() differences (note 8)
+    if(is_mean && (is.data.frame(exp_val) || is.matrix(exp_val))) {
+      exp_m = as.matrix(exp_val)
+      act_m = as.matrix(act_val)
+      if(!identical(dim(exp_m), dim(act_m))) {
+        mismatches = c(mismatches, sprintf(
+          "  %s: dim mismatch (%s vs %s)", field,
+          paste(dim(exp_m), collapse = "x"), paste(dim(act_m), collapse = "x")
+        ))
+        next
+      }
+      if(allow_na_skip) {
+        non_na = !is.na(exp_m)
+        if(!isTRUE(all.equal(exp_m[non_na], act_m[non_na], tolerance = 1e-12))) {
+          max_diff = max(abs(exp_m[non_na] - act_m[non_na]), na.rm = TRUE)
+          mismatches = c(mismatches, sprintf(
+            "  %s: NOT identical (max |diff| = %.2e, ignoring fixture NAs)", field, max_diff
+          ))
+        }
+      } else {
+        if(!isTRUE(all.equal(exp_m, act_m, tolerance = 1e-12))) {
+          max_diff = max(abs(exp_m - act_m), na.rm = TRUE)
+          mismatches = c(mismatches, sprintf(
+            "  %s: NOT identical (max |diff| = %.2e)", field, max_diff
+          ))
+        }
+      }
+      next
+    }
+
+    # Everything else: bitwise identical
     if(!identical(dim(exp_val), dim(act_val))) {
       mismatches = c(mismatches, sprintf(
         "  %s: dim mismatch (%s vs %s)", field,
         paste(dim(exp_val), collapse = "x"), paste(dim(act_val), collapse = "x")
       ))
-      next
-    }
-
-    # For known bug-fix configs only: the old code returned NA in
-    # posterior_summary/posterior_mean for constant parameters where the new
-    # code computes values. Compare only cells that are non-NA in the fixture.
-    is_posterior = grepl("^posterior_summary|^posterior_mean", field)
-    if(allow_na_skip && is_posterior &&
-      (is.data.frame(exp_val) || is.matrix(exp_val))) {
-      exp_m = as.matrix(exp_val)
-      act_m = as.matrix(act_val)
-      non_na = !is.na(exp_m)
-      if(!identical(exp_m[non_na], act_m[non_na])) {
-        if(is.numeric(exp_m) && is.numeric(act_m)) {
-          max_diff = max(abs(exp_m[non_na] - act_m[non_na]), na.rm = TRUE)
-          mismatches = c(mismatches, sprintf(
-            "  %s: NOT identical (max |diff| = %.2e, ignoring fixture NAs)", field, max_diff
-          ))
-        } else {
-          mismatches = c(mismatches, sprintf("  %s: NOT identical (non-numeric)", field))
-        }
-      }
       next
     }
 
@@ -586,7 +672,19 @@ check_structure = function(expected, actual, type) {
       ))
       next
     }
-    if(!identical(dim(exp_val), dim(act_val)) && !identical(length(exp_val), length(act_val))) {
+    # For posterior_summary fields: allow extra columns (note 8) and check
+    # row count only. For everything else: require identical dimensions.
+    is_summary = grepl("^posterior_summary", field)
+    if(is_summary && (is.data.frame(exp_val) || is.data.frame(act_val))) {
+      exp_nr = nrow(exp_val)
+      act_nr = nrow(act_val)
+      if(!identical(exp_nr, act_nr)) {
+        mismatches = c(mismatches, sprintf(
+          "  %s: row count mismatch (%d vs %d)", field, exp_nr, act_nr
+        ))
+      }
+    } else if(!identical(dim(exp_val), dim(act_val)) &&
+             !identical(length(exp_val), length(act_val))) {
       mismatches = c(mismatches, sprintf(
         "  %s: dim mismatch (%s vs %s)",
         field, paste(dim(exp_val), collapse = "x"), paste(dim(act_val), collapse = "x")

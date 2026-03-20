@@ -83,6 +83,7 @@ print.bgmCompare = function(x, ...) {
 #'
 #' @export
 summary.bgmCompare = function(object, ...) {
+  ensure_summaries(object)
   arguments = extract_arguments(object)
 
   if(!is.null(object$posterior_summary_main_baseline) &&
@@ -152,6 +153,13 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
     cat("Inclusion probabilities:\n")
     ind = head(x$indicator, 6)
 
+    # Suppress n_eff_mixt where fewer than 5 transitions observed
+    if(all(c("n0->1", "n1->0", "n_eff_mixt") %in% names(ind))) {
+      few = ind[["n0->1"]] + ind[["n1->0"]] < 5
+      few[is.na(few)] = TRUE
+      ind[["n_eff_mixt"]][few] = NA
+    }
+
     # round only numeric columns
     ind[] = lapply(ind, function(col) {
       if(is.numeric(col)) {
@@ -171,8 +179,8 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
       cat("... (use `summary(fit)$indicator` to see full output)\n")
     }
     cat("Note: NA values are suppressed in the print table. They occur when an indicator\n")
-    cat("was constant (all 0 or all 1) across all iterations, so sd/mcse/n_eff/Rhat\n")
-    cat("are undefined; `summary(fit)$indicator` still contains the NA values.\n\n")
+    cat("was constant or had fewer than 5 transitions, so n_eff_mixt is unreliable;\n")
+    cat("`summary(fit)$indicator` still contains all computed values.\n\n")
   }
 
   if(!is.null(x$main_diff)) {
@@ -195,7 +203,7 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
 
     if(!is.null(x$indicator)) {
       cat("Note: NA values are suppressed in the print table. They occur here when an\n")
-      cat("indicator was zero across all iterations, so mcse/n_eff/Rhat are undefined;\n")
+      cat("indicator was zero across all iterations, so mcse/n_eff/n_eff_mixt/Rhat are undefined;\n")
       cat("`summary(fit)$main_diff` still contains the NA values.\n")
     }
     cat("\n")
@@ -221,7 +229,7 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
 
     if(!is.null(x$indicator)) {
       cat("Note: NA values are suppressed in the print table. They occur here when an\n")
-      cat("indicator was zero across all iterations, so mcse/n_eff/Rhat are undefined;\n")
+      cat("indicator was zero across all iterations, so mcse/n_eff/n_eff_mixt/Rhat are undefined;\n")
       cat("`summary(fit)$pairwise_diff` still contains the NA values.\n")
     }
     cat("\n")
@@ -400,4 +408,49 @@ coef.bgmCompare = function(object, ...) {
     pairwise_effects_groups = pairwise_effects_groups,
     indicators              = indicators
   )
+}
+
+
+#' Access elements of a bgmCompare object
+#'
+#' @description Intercepts access to \code{posterior_summary_*} fields and
+#'   triggers lazy computation from cache when needed. All other fields pass
+#'   through using standard list extraction.
+#'
+#' @param x A \code{bgmCompare} object.
+#' @param name Name of the element to access.
+#'
+#' @return The requested element.
+#'
+#' @method $ bgmCompare
+#' @export
+#' @keywords internal
+`$.bgmCompare` = function(x, name) {
+  if(startsWith(name, "posterior_summary_")) {
+    cache = .subset2(x, "cache")
+    if(!is.null(cache)) {
+      ensure_summaries(x)
+      val = cache[[name]]
+      if(!is.null(val)) return(val)
+    }
+  }
+  .subset2(x, name)
+}
+
+
+#' @rdname cash-.bgmCompare
+#' @param ... Ignored.
+#' @method [[ bgmCompare
+#' @export
+#' @keywords internal
+`[[.bgmCompare` = function(x, name, ...) {
+  if(is.character(name) && startsWith(name, "posterior_summary_")) {
+    cache = .subset2(x, "cache")
+    if(!is.null(cache)) {
+      ensure_summaries(x)
+      val = cache[[name]]
+      if(!is.null(val)) return(val)
+    }
+  }
+  .subset2(x, name)
 }

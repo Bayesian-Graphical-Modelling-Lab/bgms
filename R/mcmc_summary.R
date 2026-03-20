@@ -1,5 +1,87 @@
 # Summary utilities for spike-and-slab MCMC output
 
+
+# ------------------------------------------------------------------
+# ensure_summaries
+# ------------------------------------------------------------------
+# Lazily computes MCMC diagnostics (ESS, Rhat, MCSE) and stores
+# results in fit$cache (an environment with reference semantics).
+# On first call the summaries are computed from raw chain samples;
+# subsequent calls return immediately.
+#
+# @param fit  A bgms or bgmCompare object with a $cache environment.
+#
+# Returns: invisible(NULL). Results are stored in fit$cache.
+# ------------------------------------------------------------------
+ensure_summaries = function(fit) {
+  cache = fit$cache
+  if(is.null(cache)) return(invisible(NULL))
+  if(isTRUE(cache$summaries_computed)) return(invisible(NULL))
+
+  raw = cache$raw
+  edge_selection = cache$edge_selection
+  names_main = cache$names_main
+  edge_names = cache$edge_names
+  is_continuous = cache$is_continuous
+  model_type = cache$model_type
+
+  if(identical(model_type, "compare")) {
+    names_all = cache$names_all
+    summary_list = summarize_fit_compare(
+      fit = raw,
+      main_effect_indices = cache$main_effect_indices,
+      pairwise_effect_indices = cache$pairwise_effect_indices,
+      num_variables = cache$num_variables,
+      num_groups = cache$num_groups,
+      difference_selection = cache$difference_selection,
+      param_names_main = names_all$main_baseline,
+      param_names_pairwise = names_all$pairwise_baseline,
+      param_names_main_diff = names_all$main_diff,
+      param_names_pairwise_diff = names_all$pairwise_diff,
+      param_names_indicators = names_all$indicators
+    )
+
+    cache$posterior_summary_main_baseline = summary_list$main_baseline
+    cache$posterior_summary_pairwise_baseline = summary_list$pairwise_baseline
+    cache$posterior_summary_main_differences = summary_list$main_differences
+    cache$posterior_summary_pairwise_differences = summary_list$pairwise_differences
+    cache$posterior_summary_indicator = summary_list$indicators
+
+  } else {
+    summary_list = summarize_fit(raw, edge_selection = edge_selection)
+    main_summary = summary_list$main[, -1]
+    pairwise_summary = summary_list$pairwise[, -1]
+
+    rownames(main_summary) = names_main
+    rownames(pairwise_summary) = edge_names
+
+    if(identical(model_type, "mixed_mrf")) {
+      n_main = cache$n_main
+      n_quad = cache$n_quad
+      main_rows = seq_len(n_main)
+      quad_rows = n_main + seq_len(n_quad)
+      cache$posterior_summary_main = main_summary[main_rows, , drop = FALSE]
+      cache$posterior_summary_quadratic = main_summary[quad_rows, , drop = FALSE]
+    } else if(isTRUE(is_continuous)) {
+      cache$posterior_summary_main = NULL
+      cache$posterior_summary_quadratic = main_summary
+    } else {
+      cache$posterior_summary_main = main_summary
+    }
+    cache$posterior_summary_pairwise = pairwise_summary
+
+    if(edge_selection) {
+      indicator_summary = summary_list$indicator[, -1]
+      rownames(indicator_summary) = edge_names
+      cache$posterior_summary_indicator = indicator_summary
+    }
+  }
+
+  cache$summaries_computed = TRUE
+  invisible(NULL)
+}
+
+
 # Combine MCMC chains into a 3D array [niter x nchains x nparam]
 combine_chains = function(fit, component) {
   nchains = length(fit)
@@ -13,24 +95,14 @@ combine_chains = function(fit, component) {
   array3d
 }
 
-# Compute effective sample size and Rhat (Gelman-Rubin diagnostic)
+# Compute ESS and Rhat for a single [niter x nchains] draws matrix.
+# Used only by summarize_slab() where the draws are variable-length.
 compute_rhat_ess = function(draws) {
-  tryCatch(
-    {
-      if(is.matrix(draws) && ncol(draws) > 1) {
-        mcmc_list = coda::mcmc.list(
-          lapply(seq_len(ncol(draws)), function(i) coda::mcmc(draws[, i]))
-        )
-        ess = coda::effectiveSize(mcmc_list)
-        rhat = coda::gelman.diag(mcmc_list, autoburnin = FALSE)$psrf[1]
-      } else {
-        ess = coda::effectiveSize(draws)
-        rhat = NA_real_
-      }
-      list(ess = ess, rhat = rhat)
-    },
-    error = function(e) list(ess = NA_real_, rhat = NA_real_)
-  )
+  if(!is.matrix(draws)) draws = matrix(draws, ncol = 1)
+  arr = array(draws, dim = c(nrow(draws), ncol(draws), 1L))
+  ess = .compute_ess_cpp(arr)[1]
+  rhat = .compute_rhat_cpp(arr)[1]
+  list(ess = ess, rhat = rhat)
 }
 
 # Basic summarizer for continuous parameters
@@ -39,19 +111,17 @@ summarize_manual = function(fit, component = c("main_samples", "pairwise_samples
   if(is.null(array3d)) array3d = combine_chains(fit, component)
   nparam = dim(array3d)[3]
 
-  result = matrix(NA, nparam, 5)
-  colnames(result) = c("mean", "mcse", "sd", "n_eff", "Rhat")
+  # Batch computation via C++
+  ess = .compute_ess_cpp(array3d)
+  rhat = .compute_rhat_cpp(array3d)
 
-  for(j in seq_len(nparam)) {
-    draws = array3d[, , j]
-    vec = as.vector(draws)
-    result[j, "mean"] = mean(vec)
-    result[j, "sd"] = sd(vec)
-    est = compute_rhat_ess(draws)
-    result[j, "mcse"] = sd(vec) / sqrt(est$ess)
-    result[j, "n_eff"] = est$ess
-    result[j, "Rhat"] = est$rhat
-  }
+  # Vectorized mean and sd across all iterations and chains
+  pooled = matrix(array3d, nrow = dim(array3d)[1] * dim(array3d)[2], ncol = nparam)
+  means = colMeans(pooled)
+  sds = apply(pooled, 2, sd)
+  mcse = sds / sqrt(ess)
+
+  result = cbind(mean = means, mcse = mcse, sd = sds, n_eff = ess, Rhat = rhat)
 
   if(is.null(param_names)) {
     data.frame(parameter = paste0("parameter [", seq_len(nparam), "]"), result, check.names = FALSE)
@@ -64,42 +134,17 @@ summarize_manual = function(fit, component = c("main_samples", "pairwise_samples
 summarize_indicator = function(fit, component = c("indicator_samples"), param_names = NULL, array3d = NULL) {
   component = match.arg(component) # Add options later
   if(is.null(array3d)) array3d = combine_chains(fit, component)
-
   nparam = dim(array3d)[3]
-  nchains = dim(array3d)[2]
-  niter = dim(array3d)[1]
 
-  result = matrix(NA, nparam, 9)
-  colnames(result) = c("mean", "sd", "mcse", "n0->0", "n0->1", "n1->0", "n1->1", "n_eff", "Rhat")
+  # Batch indicator ESS + transition counts via C++
+  ind_stats = .compute_indicator_ess_cpp(array3d)
+  batch_rhat = .compute_rhat_cpp(array3d)
 
-  for(j in seq_len(nparam)) {
-    draws = array3d[, , j]
-    vec = as.vector(draws)
-    n_total = length(vec)
-    g_next = vec[-1]
-    g_curr = vec[-n_total]
+  result = cbind(ind_stats[, c("mean", "mcse", "sd", "n00", "n01", "n10", "n11", "n_eff_mixt"), drop = FALSE], Rhat = batch_rhat)
+  colnames(result)[4:7] = c("n0->0", "n0->1", "n1->0", "n1->1")
 
-    p_hat = mean(vec)
-    sd = sqrt(p_hat * (1 - p_hat))
-    n00 = sum(g_curr == 0 & g_next == 0)
-    n01 = sum(g_curr == 0 & g_next == 1)
-    n10 = sum(g_curr == 1 & g_next == 0)
-    n11 = sum(g_curr == 1 & g_next == 1)
-
-    if(n01 + n10 == 0) {
-      n_eff = mcse = R = NA_real_
-    } else {
-      a = n01 / (n00 + n01)
-      b = n10 / (n10 + n11)
-      tau_int = (2 - (a + b)) / (a + b)
-      n_eff = n_total / tau_int
-      mcse = sd / sqrt(n_eff)
-      est = compute_rhat_ess(draws)
-      R = est$rhat
-    }
-
-    result[j, ] = c(p_hat, sd, mcse, n00, n01, n10, n11, n_eff, R)
-  }
+  # Where n_eff_mixt is NA (constant chain), Rhat should also be NA
+  result[is.na(result[, "n_eff_mixt"]), "Rhat"] = NA_real_
 
   if(is.null(param_names)) {
     data.frame(parameter = paste0("indicator [", seq_len(nparam), "]"), result, check.names = FALSE)
@@ -117,7 +162,7 @@ summarize_slab = function(fit, component = c("pairwise_samples"), param_names = 
   if(is.null(array3d)) array3d = combine_chains(fit, component)
   nparam = dim(array3d)[3]
   result = matrix(NA, nparam, 5)
-  colnames(result) = c("mean", "sd", "mcse", "n_eff", "Rhat")
+  colnames(result) = c("mean", "mcse", "sd", "n_eff", "Rhat")
 
   for(j in seq_len(nparam)) {
     draws = array3d[, , j]
@@ -173,49 +218,22 @@ summarize_pair = function(fit,
   mcse2 = (summ_slab$mean^2 * summ_ind$mcse^2) + (summ_ind$mean^2 * summ_slab$mcse^2)
   mcse = sqrt(mcse2)
   sd = sqrt(v)
-  n_eff = v / mcse2
+  n_eff_mixt = v / mcse2
 
-  rhat = rep(NA_real_, nparam)
-  nchains = dim(array3d_pw)[2]
-  n_total = prod(dim(array3d_pw)[1:2])
-
-  for(j in seq_len(nparam)) {
-    draws_pw = array3d_pw[, , j]
-    draws_id = array3d_id[, , j]
-    if(nchains > 1) {
-      chain_means = numeric(nchains)
-      chain_vars = numeric(nchains)
-      for(chain in 1:nchains) {
-        pi = mean(draws_id[, chain])
-        tmp = draws_pw[, chain]
-        e = mean(tmp[tmp != 0])
-        v = var(tmp[tmp != 0])
-        chain_means[chain] = pi * e
-        chain_vars[chain] = pi * (v + (1 - pi) * e^2)
-      }
-      B = n_total * sum((chain_means - eap[j])^2) / (nchains - 1)
-      W = mean(chain_vars)
-      V = (n_total - 1) * W / n_total + B / n_total
-      rhat[j] = sqrt(V / W)
-    }
-  }
-
-  data.frame(
-    parameter = paste0("V[", seq_len(nparam), "]"),
-    mean = eap, sd = sd, mcse = mcse, n_eff = n_eff, Rhat = rhat,
-    check.names = FALSE
-  )
+  # Unconditional ESS and Rhat on the raw effect chain (includes zeros)
+  n_eff = .compute_ess_cpp(array3d_pw)
+  rhat = .compute_rhat_cpp(array3d_pw)
 
   if(is.null(param_names)) {
     data.frame(
       parameter = paste0("weight [", seq_len(nparam), "]"),
-      mean = eap, sd = sd, mcse = mcse, n_eff = n_eff, Rhat = rhat,
+      mean = eap, mcse = mcse, sd = sd, n_eff = n_eff, n_eff_mixt = n_eff_mixt, Rhat = rhat,
       check.names = FALSE
     )
   } else {
     data.frame(
       parameter = paste0(param_names, "- weight"),
-      mean = eap, sd = sd, mcse = mcse, n_eff = n_eff, Rhat = rhat,
+      mean = eap, mcse = mcse, sd = sd, n_eff = n_eff, n_eff_mixt = n_eff_mixt, Rhat = rhat,
       check.names = FALSE
     )
   }
@@ -254,9 +272,13 @@ summarize_fit = function(fit, edge_selection = FALSE) {
   )
   manual_summary = summarize_manual(fit, component = "pairwise_samples", array3d = array3d_pw)
 
-  # Replace rows in full_summary with manual results for fully selected entries
+  # Replace rows in full_summary with manual results for fully selected entries.
+  # manual_summary lacks n_eff_mixt; for always-included edges, mixture ESS is
+  # undefined, so set it to NA and copy the remaining columns.
   if(any(all_selected)) {
-    full_summary[all_selected, ] = manual_summary[all_selected, ]
+    shared_cols = intersect(names(full_summary), names(manual_summary))
+    full_summary[all_selected, shared_cols] = manual_summary[all_selected, shared_cols]
+    full_summary[all_selected, "n_eff_mixt"] = NA_real_
   }
 
   pair_summary = full_summary
@@ -282,9 +304,6 @@ summarize_alloc_pairs = function(allocations, node_names = NULL) {
   Pairs = t(combn(seq_len(no_variables), 2))
   nparam = nrow(Pairs)
 
-  result = matrix(NA, nparam, 9)
-  colnames(result) = c("mean", "sd", "mcse", "n0->0", "n0->1", "n1->0", "n1->1", "n_eff", "Rhat")
-
   # helper to construct a "time-series"
   get_draws_pair = function(i, j) {
     out = matrix(NA, n_iter, n_ch)
@@ -295,37 +314,20 @@ summarize_alloc_pairs = function(allocations, node_names = NULL) {
     out
   }
 
+  # Pre-build 3D array and batch Rhat via C++
+  array3d = array(NA_real_, dim = c(n_iter, n_ch, nparam))
   for(p in seq_len(nparam)) {
-    i = Pairs[p, 1]
-    j = Pairs[p, 2]
-    draws = get_draws_pair(i, j)
-
-    vec = as.vector(draws)
-    n_total = length(vec)
-    g_next = vec[-1]
-    g_curr = vec[-n_total]
-
-    p_hat = mean(vec)
-    sd = sqrt(p_hat * (1 - p_hat))
-    n00 = sum(g_curr == 0 & g_next == 0)
-    n01 = sum(g_curr == 0 & g_next == 1)
-    n10 = sum(g_curr == 1 & g_next == 0)
-    n11 = sum(g_curr == 1 & g_next == 1)
-
-    if(n01 + n10 == 0) {
-      n_eff = mcse = R = NA_real_
-    } else {
-      a = n01 / (n00 + n01)
-      b = n10 / (n10 + n11)
-      tau_int = (2 - (a + b)) / (a + b)
-      n_eff = n_total / tau_int
-      mcse = sd / sqrt(n_eff)
-      est = compute_rhat_ess(draws)
-      R = est$rhat
-    }
-
-    result[p, ] = c(p_hat, sd, mcse, n00, n01, n10, n11, n_eff, R)
+    array3d[, , p] = get_draws_pair(Pairs[p, 1], Pairs[p, 2])
   }
+  ind_stats = .compute_indicator_ess_cpp(array3d)
+  batch_rhat = .compute_rhat_cpp(array3d)
+
+  result = cbind(
+    ind_stats[, c("mean", "mcse", "sd", "n00", "n01", "n10", "n11", "n_eff_mixt"), drop = FALSE],
+    Rhat = batch_rhat
+  )
+  colnames(result)[4:7] = c("n0->0", "n0->1", "n1->0", "n1->1")
+  result[is.na(result[, "n_eff_mixt"]), "Rhat"] = NA_real_
   if(is.null(node_names)) {
     rn = paste0(Pairs[, 1], "-", Pairs[, 2])
     dimn = as.character(seq_len(no_variables))
@@ -530,19 +532,18 @@ summarize_manual_compare = function(fit_or_array,
   }
 
   nparam = dim(array3d)[3]
-  result = matrix(NA, nparam, 5)
-  colnames(result) = c("mean", "mcse", "sd", "n_eff", "Rhat")
 
-  for(j in seq_len(nparam)) {
-    draws = array3d[, , j]
-    vec = as.vector(draws)
-    result[j, "mean"] = mean(vec)
-    result[j, "sd"] = sd(vec)
-    est = compute_rhat_ess(draws)
-    result[j, "mcse"] = sd(vec) / sqrt(est$ess)
-    result[j, "n_eff"] = est$ess
-    result[j, "Rhat"] = est$rhat
-  }
+  # Batch computation via C++
+  ess = .compute_ess_cpp(array3d)
+  rhat = .compute_rhat_cpp(array3d)
+
+  # Vectorized mean and sd across all iterations and chains
+  pooled = matrix(array3d, nrow = dim(array3d)[1] * dim(array3d)[2], ncol = nparam)
+  means = colMeans(pooled)
+  sds = apply(pooled, 2, sd)
+  mcse = sds / sqrt(ess)
+
+  result = cbind(mean = means, mcse = mcse, sd = sds, n_eff = ess, Rhat = rhat)
 
   if(is.null(param_names)) {
     data.frame(parameter = paste0("param [", seq_len(nparam)), result, check.names = FALSE)
@@ -556,37 +557,14 @@ summarize_indicator_compare = function(fit, component = "indicator_samples", par
   array3d = combine_chains_compare(fit, component)
   nparam = dim(array3d)[3]
 
-  result = matrix(NA, nparam, 9)
-  colnames(result) = c("mean", "sd", "mcse", "n0->0", "n0->1", "n1->0", "n1->1", "n_eff", "Rhat")
+  # Batch indicator ESS + transition counts via C++
+  ind_stats = .compute_indicator_ess_cpp(array3d)
+  batch_rhat = .compute_rhat_cpp(array3d)
 
-  for(j in seq_len(nparam)) {
-    draws = array3d[, , j]
-    vec = as.vector(draws)
-    n_total = length(vec)
-    g_next = vec[-1]
-    g_curr = vec[-n_total]
+  result = cbind(ind_stats[, c("mean", "mcse", "sd", "n00", "n01", "n10", "n11", "n_eff_mixt"), drop = FALSE], Rhat = batch_rhat)
+  colnames(result)[4:7] = c("n0->0", "n0->1", "n1->0", "n1->1")
 
-    p_hat = mean(vec)
-    sd = sqrt(p_hat * (1 - p_hat))
-    n00 = sum(g_curr == 0 & g_next == 0)
-    n01 = sum(g_curr == 0 & g_next == 1)
-    n10 = sum(g_curr == 1 & g_next == 0)
-    n11 = sum(g_curr == 1 & g_next == 1)
-
-    if(n01 + n10 == 0) {
-      n_eff = mcse = R = NA_real_
-    } else {
-      a = n01 / (n00 + n01)
-      b = n10 / (n10 + n11)
-      tau_int = (2 - (a + b)) / (a + b)
-      n_eff = n_total / tau_int
-      mcse = sd / sqrt(n_eff)
-      est = compute_rhat_ess(draws)
-      R = est$rhat
-    }
-
-    result[j, ] = c(p_hat, sd, mcse, n00, n01, n10, n11, n_eff, R)
-  }
+  result[is.na(result[, "n_eff_mixt"]), "Rhat"] = NA_real_
 
   if(is.null(param_names)) {
     data.frame(parameter = paste0("indicator [", seq_len(nparam), "]"), result, check.names = FALSE)
@@ -632,32 +610,12 @@ summarize_mixture_effect = function(draws_pw, draws_id, name) {
   }
 
   ## --- indicator part ---
-  vec_id = as.vector(draws_id)
-  T_id = length(vec_id)
-  g_next = vec_id[-1]
-  g_curr = vec_id[-T_id]
+  id_array = array(draws_id, dim = c(niter, nchains, 1L))
+  id_stats = .compute_indicator_ess_cpp(id_array)
 
-  p_hat = mean(vec_id)
-  p_sd = sqrt(p_hat * (1 - p_hat))
-
-  if(T_id > 1) {
-    n00 = sum(g_curr == 0 & g_next == 0)
-    n01 = sum(g_curr == 0 & g_next == 1)
-    n10 = sum(g_curr == 1 & g_next == 0)
-    n11 = sum(g_curr == 1 & g_next == 1)
-
-    if(n01 + n10 == 0) {
-      p_mcse = NA_real_
-    } else {
-      a = n01 / (n00 + n01)
-      b = n10 / (n10 + n11)
-      tau_int = (2 - (a + b)) / (a + b)
-      n_eff_id = T_id / tau_int
-      p_mcse = p_sd / sqrt(n_eff_id)
-    }
-  } else {
-    p_mcse = NA_real_
-  }
+  p_hat = id_stats[1, "mean"]
+  p_sd = id_stats[1, "sd"]
+  p_mcse = id_stats[1, "mcse"]
 
   ## --- combined summaries ---
   posterior_mean = p_hat * eap_slab
@@ -667,39 +625,20 @@ summarize_mixture_effect = function(draws_pw, draws_id, name) {
   mcse2 = (eap_slab^2 * p_mcse^2) + (p_hat^2 * mcse_slab^2)
 
   mcse = if(is.finite(mcse2) && mcse2 > 0) sqrt(mcse2) else NA_real_
-  n_eff = if(!is.na(mcse) && mcse > 0) v / (mcse^2) else NA_real_
+  n_eff_mixt = if(!is.na(mcse) && mcse > 0) v / (mcse^2) else NA_real_
 
-  ## --- Rhat (mixture, across chains) ---
-  Rhat = NA_real_
-  if(nchains > 1) {
-    chain_means = numeric(nchains)
-    chain_vars = numeric(nchains)
-    for(ch in seq_len(nchains)) {
-      pi_ch = mean(draws_id[, ch])
-      tmp = draws_pw[, ch]
-      nz_ch = tmp != 0
-      if(isTRUE(any(nz_ch))) {
-        e_ch = mean(tmp[nz_ch], na.rm = TRUE)
-        v_ch = if(sum(nz_ch, na.rm = TRUE) > 1) var(tmp[nz_ch], na.rm = TRUE) else 0
-      } else {
-        e_ch = 0
-        v_ch = 0
-      }
-      chain_means[ch] = pi_ch * e_ch
-      chain_vars[ch] = pi_ch * (v_ch + (1 - pi_ch) * e_ch^2)
-    }
-    B = niter * sum((chain_means - posterior_mean)^2) / (nchains - 1)
-    W = mean(chain_vars)
-    V = (niter - 1) * W / niter + B / niter
-    if(W > 0) Rhat = sqrt(V / W)
-  }
+  ## --- unconditional ESS and Rhat on the raw effect chain ---
+  pw_array = array(draws_pw, dim = c(niter, nchains, 1L))
+  n_eff = .compute_ess_cpp(pw_array)[1]
+  Rhat = if(nchains > 1) .compute_rhat_cpp(pw_array)[1] else NA_real_
 
   data.frame(
     parameter = name,
     mean = posterior_mean,
-    sd = posterior_sd,
     mcse = mcse,
+    sd = posterior_sd,
     n_eff = n_eff,
+    n_eff_mixt = n_eff_mixt,
     Rhat = Rhat,
     check.names = FALSE
   )
