@@ -20,6 +20,7 @@ bgm(
   main_alpha = 0.5,
   main_beta = 0.5,
   edge_selection = TRUE,
+  include_edge = NULL,
   edge_prior = c("Bernoulli", "Beta-Bernoulli", "Stochastic-Block"),
   inclusion_probability = 0.5,
   beta_bernoulli_alpha = 1,
@@ -99,7 +100,17 @@ bgm(
 - edge_selection:
 
   Logical. Whether to perform Bayesian edge selection. If `FALSE`, the
-  model estimates all edges. Default: `TRUE`.
+  model estimates all edges (or only those specified by `include_edge`).
+  Default: `TRUE`.
+
+- include_edge:
+
+  Optional binary matrix (`p x p`). Specifies which edges to include in
+  the model. Must be symmetric with zero diagonal and contain only 0s
+  and 1s. When `NULL` (the default), all edges are included (complete
+  graph). When `edge_selection = FALSE`, only the edges marked 1 in this
+  matrix are estimated; when `edge_selection = TRUE`, edge selection is
+  restricted to the edges marked 1. Default: `NULL`.
 
 - edge_prior:
 
@@ -563,92 +574,90 @@ fit = bgm(x = Wenchuan[, 1:5], chains = 2)
 #> 7 rows with missing values excluded (n = 355 remaining).
 #> To impute missing values instead, use na_action = "impute".
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 100/2000 (5.0%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 139/2000 (7.0%)
-#> Total   (Warmup): ⦗━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 239/4000 (6.0%)
-#> Elapsed: 0s | ETA: 0s
+#> Chain 2 (Warmup): ⦗━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 157/2000 (7.8%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 257/4000 (6.4%)
+#> Elapsed: 1s | ETA: 15s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 350/2000 (17.5%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 377/2000 (18.9%)
-#> Total   (Warmup): ⦗━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 727/4000 (18.2%)
-#> Elapsed: 1s | ETA: 5s
+#> Chain 2 (Warmup): ⦗━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 411/2000 (20.5%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 761/4000 (19.0%)
+#> Elapsed: 1s | ETA: 4s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 650/2000 (32.5%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 672/2000 (33.6%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1322/4000 (33.1%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 725/2000 (36.2%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1375/4000 (34.4%)
 #> Elapsed: 2s | ETA: 4s
-#> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 950/2000 (47.5%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━⦘ 964/2000 (48.2%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━⦘ 1914/4000 (47.9%)
+#> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 900/2000 (45.0%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━⦘ 968/2000 (48.4%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1868/4000 (46.7%)
 #> Elapsed: 2s | ETA: 2s
-#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1200/2000 (60.0%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━⦘ 1209/2000 (60.5%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━⦘ 2409/4000 (60.2%)
+#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1150/2000 (57.5%)
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1238/2000 (61.9%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2388/4000 (59.7%)
 #> Elapsed: 3s | ETA: 2s
-#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1450/2000 (72.5%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━⦘ 1462/2000 (73.1%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━⦘ 2912/4000 (72.8%)
+#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1400/2000 (70.0%)
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━⦘ 1508/2000 (75.4%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━⦘ 2908/4000 (72.7%)
 #> Elapsed: 3s | ETA: 1s
-#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1700/2000 (85.0%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1696/2000 (84.8%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 3396/4000 (84.9%)
+#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1650/2000 (82.5%)
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━⦘ 1773/2000 (88.6%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━⦘ 3423/4000 (85.6%)
 #> Elapsed: 4s | ETA: 1s
-#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1950/2000 (97.5%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1939/2000 (97.0%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 3889/4000 (97.2%)
+#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1900/2000 (95.0%)
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2000/2000 (100.0%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 3900/4000 (97.5%)
 #> Elapsed: 4s | ETA: 0s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2000/2000 (100.0%)
 #> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2000/2000 (100.0%)
 #> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 4000/4000 (100.0%)
-#> Elapsed: 4s | ETA: 0s
-#> NUTS issues:
-#>   - E-BFMI: 0.012 in chain 1 - see vignette('diagnostics') for guidance 
+#> Elapsed: 5s | ETA: 0s
 
 # Posterior inclusion probabilities
 summary(fit)$indicator
-#>                     mean         sd       mcse n0->0 n0->1 n1->0 n1->1
-#> intrusion-dreams  1.0000 0.00000000         NA     0     0     0  1999
-#> intrusion-flash   1.0000 0.00000000         NA     0     0     0  1999
-#> intrusion-upset   0.9215 0.26895678 0.04535242   152     5     5  1837
-#> intrusion-physior 0.8790 0.32612728 0.05637966   235     7     7  1750
-#> dreams-flash      1.0000 0.00000000         NA     0     0     0  1999
-#> dreams-upset      0.9925 0.08627717 0.01034875    14     1     1  1983
-#> dreams-physior    0.1750 0.37996710 0.04373509  1628    21    21   329
-#> flash-upset       0.1750 0.37996710 0.05637409  1637    12    13   337
-#> flash-physior     1.0000 0.00000000         NA     0     0     0  1999
-#> upset-physior     0.7530 0.43126674 0.30296297   493     1     0  1505
-#>                       n_eff     Rhat
-#> intrusion-dreams         NA       NA
-#> intrusion-flash          NA       NA
-#> intrusion-upset   35.169328 1.146108
-#> intrusion-physior 33.460267 1.417904
-#> dreams-flash             NA       NA
-#> dreams-upset      69.505050 1.297360
-#> dreams-physior    75.480010 1.228818
-#> flash-upset       45.428972 1.400036
-#> flash-physior            NA       NA
-#> upset-physior      2.026342 1.988872
+#>                     mean        sd       mcse n0->0 n0->1 n1->0 n1->1
+#> intrusion-dreams  1.0000 0.0000000         NA     0     0     0  1999
+#> intrusion-flash   1.0000 0.0000000         NA     0     0     0  1999
+#> intrusion-upset   0.9050 0.2932149 0.04548424   183     7     7  1802
+#> intrusion-physior 0.9765 0.1514851 0.03227556    46     1     1  1951
+#> dreams-flash      1.0000 0.0000000         NA     0     0     0  1999
+#> dreams-upset      1.0000 0.0000000         NA     0     0     0  1999
+#> dreams-physior    0.3295 0.4700316 0.06964994  1321    19    20   639
+#> flash-upset       0.4700 0.4990992 0.09887164  1047    12    13   927
+#> flash-physior     1.0000 0.0000000         NA     0     0     0  1999
+#> upset-physior     0.5000 0.5000000 0.49987498   999     1     0   999
+#>                      n_eff     Rhat
+#> intrusion-dreams        NA       NA
+#> intrusion-flash         NA       NA
+#> intrusion-upset   41.55759 1.427530
+#> intrusion-physior 22.02888 1.314054
+#> dreams-flash            NA       NA
+#> dreams-upset            NA       NA
+#> dreams-physior    45.54207 2.233717
+#> flash-upset       25.48181 5.139062
+#> flash-physior           NA       NA
+#> upset-physior      1.00050      Inf
 
 # Posterior pairwise effects
 summary(fit)$pairwise
 #>                         mean           sd        mcse       n_eff
-#> intrusion-dreams  0.31453808 0.0010858224 0.033756319  966.479369
-#> intrusion-flash   0.16876454 0.0012033992 0.032851657  745.238252
-#> intrusion-upset   0.10652085 0.0443354874 0.006745704   43.196487
-#> intrusion-physior 0.09906104 0.0472233514 0.007351353   41.264734
-#> dreams-flash      0.24852576 0.0008574681 0.030531187 1267.801979
-#> dreams-upset      0.11929710 0.0322203492 0.002920848  121.686551
-#> dreams-physior    0.01303264 0.0287125625 0.003297334   75.825977
-#> flash-upset       0.01519624 0.0334945874 0.004963402   45.539719
-#> flash-physior     0.15879730 0.0015407049 0.028892099  351.656983
-#> upset-physior     0.26760665 0.1552103266 0.107673379    2.077899
-#>                        Rhat
-#> intrusion-dreams  1.0015859
-#> intrusion-flash   1.0231001
-#> intrusion-upset   1.0457080
-#> intrusion-physior 1.1785076
-#> dreams-flash      1.0021167
-#> dreams-upset      1.0309185
-#> dreams-physior    1.0841510
-#> flash-upset       1.1525478
-#> flash-physior     0.9998035
-#> upset-physior     1.3997221
+#> intrusion-dreams  0.31251788 0.0011086516 0.034593533  973.642758
+#> intrusion-flash   0.16045461 0.0009040525 0.032658399 1304.975966
+#> intrusion-upset   0.10480672 0.0447146517 0.006197096   52.062294
+#> intrusion-physior 0.12041328 0.0386713620 0.006253218   38.244741
+#> dreams-flash      0.24233305 0.0008939708 0.030951893 1198.747652
+#> dreams-upset      0.12390582 0.0017188152 0.029821963  301.032974
+#> dreams-physior    0.02583121 0.0379260349 0.005514738   47.296084
+#> flash-upset       0.04395110 0.0483165055 0.009265344   27.193674
+#> flash-physior     0.15623361 0.0011448480 0.028153156  604.725848
+#> upset-physior     0.17887233 0.1795900823 0.178829050    1.008529
+#>                       Rhat
+#> intrusion-dreams  1.015295
+#> intrusion-flash   1.208862
+#> intrusion-upset   1.298104
+#> intrusion-physior 1.266191
+#> dreams-flash      1.066401
+#> dreams-upset      1.008753
+#> dreams-physior    1.499734
+#> flash-upset       2.542126
+#> flash-physior     1.010603
+#> upset-physior           NA
 # }
 ```
