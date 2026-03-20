@@ -70,10 +70,8 @@ Other extractors:
 
 ``` r
 # \donttest{
-fit = bgm(
-  x = Wenchuan[, 1:3],
-  variable_type = rep("continuous", 3)
-)
+fit = bgm(x = Wenchuan[, 1:3],
+          variable_type = rep("continuous", 3))
 #> 2 rows with missing values excluded (n = 360 remaining).
 #> To impute missing values instead, use na_action = "impute".
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2000/2000 (100.0%)
@@ -84,8 +82,8 @@ fit = bgm(
 #> Elapsed: 0s | ETA: 0s
 extract_partial_correlations(fit)
 #>           intrusion    dreams     flash
-#> intrusion 1.0000000 0.4954515 0.3035109
-#> dreams    0.4954515 1.0000000 0.4166301
-#> flash     0.3035109 0.4166301 1.0000000
+#> intrusion 1.0000000 0.4937827 0.2986608
+#> dreams    0.4937827 1.0000000 0.4222465
+#> flash     0.2986608 0.4222465 1.0000000
 # }
 ```
