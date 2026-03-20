@@ -132,7 +132,9 @@ test_that("NUTS and MH 95% credible intervals overlap (p=4)", {
     ci_y = quantile(y, c(0.025, 0.975))
     overlap_lo = max(ci_x[1], ci_y[1])
     overlap_hi = min(ci_x[2], ci_y[2])
-    if(overlap_lo >= overlap_hi) return(0)
+    if(overlap_lo >= overlap_hi) {
+      return(0)
+    }
     overlap_width = overlap_hi - overlap_lo
     avg_width = (diff(ci_x) + diff(ci_y)) / 2
     overlap_width / avg_width
@@ -141,7 +143,8 @@ test_that("NUTS and MH 95% credible intervals overlap (p=4)", {
   for(j in seq_len(ncol(mh_pairwise))) {
     ov = ci_overlap(mh_pairwise[, j], nuts_pairwise[, j])
     expect_gt(ov, 0.80,
-      label = paste0("pairwise[", j, "] CI overlap > 80%"))
+      label = paste0("pairwise[", j, "] CI overlap > 80%")
+    )
   }
 
   # Also check SD ratios are in [0.8, 1.25]
@@ -259,7 +262,8 @@ test_that("Geweke: one NUTS transition preserves joint distribution (p=4)", {
     ks = ks.test(prior_diag[ok, j], post_diag[ok, j])
     # Loose threshold: we expect overlap, not identity
     expect_gt(ks$p.value, 0.001,
-      label = paste0("Geweke diag[", j, "] KS p-value"))
+      label = paste0("Geweke diag[", j, "] KS p-value")
+    )
   }
 })
 
@@ -321,18 +325,21 @@ test_that("NUTS edge selection recovers true graph structure (p=6)", {
   pip_mh_ut = pip_mh[upper.tri(pip_mh)]
   pip_nuts_ut = pip_nuts[upper.tri(pip_nuts)]
   expect_lt(max(abs(pip_mh_ut - pip_nuts_ut)), 0.15,
-    label = "max PIP difference < 0.15")
+    label = "max PIP difference < 0.15"
+  )
 
   # NUTS should identify true edges (PIP > 0.5)
   for(idx in true_ut) {
     expect_gt(pip_nuts_ut[idx], 0.5,
-      label = paste0("true edge ", idx, " PIP > 0.5"))
+      label = paste0("true edge ", idx, " PIP > 0.5")
+    )
   }
 
   # NUTS should exclude false edges (PIP < 0.5)
   for(idx in false_ut) {
     expect_lt(pip_nuts_ut[idx], 0.5,
-      label = paste0("false edge ", idx, " PIP < 0.5"))
+      label = paste0("false edge ", idx, " PIP < 0.5")
+    )
   }
 })
 
@@ -392,7 +399,8 @@ test_that("gradient is accurate near the PD boundary", {
   denom = pmax(abs(ag$gradient), abs(fd), 1)
   rel_err = abs(ag$gradient - fd) / denom
   expect_lt(max(rel_err), 1e-3,
-    label = "gradient rel error < 1e-3 near PD boundary")
+    label = "gradient rel error < 1e-3 near PD boundary"
+  )
 })
 
 test_that("gradient is accurate with sparse graph near PD boundary", {
@@ -419,7 +427,8 @@ test_that("gradient is accurate with sparse graph near PD boundary", {
   denom = pmax(abs(ag$gradient), abs(fd), 1)
   rel_err = abs(ag$gradient - fd) / denom
   expect_lt(max(rel_err), 1e-3,
-    label = "sparse graph gradient near PD boundary")
+    label = "sparse graph gradient near PD boundary"
+  )
 })
 
 

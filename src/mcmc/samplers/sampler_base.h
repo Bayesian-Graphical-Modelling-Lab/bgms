@@ -79,13 +79,27 @@ public:
     {}
 
     StepResult step(BaseModel& model, int iteration) override {
+        // Stage 3c boundary: edge selection just activated.
+        // Restart dual averaging with a generous initial step size
+        // so adaptation can tune to the new geometry quickly.
+        if (schedule_.in_stage3c(iteration) && !stage3c_initialized_) {
+            stage3c_initialized_ = true;
+            // Scale up step size: post-selection has fewer active params,
+            // so the posterior is typically less stiff than the full graph.
+            adapt_->reinit_stepsize(adapt_->current_step_size());
+        }
+
         // Use adaptation controller's current step size for this iteration
         step_size_ = adapt_->current_step_size();
 
         StepResult result = do_gradient_step(model);
 
-        // Let the adaptation controller handle step-size and mass-matrix logic
-        arma::vec full_params = model.get_full_vectorized_parameters();
+        // Let the adaptation controller handle step-size and mass-matrix logic.
+        // For RATTLE (constrained) models, feed x-space samples so the mass
+        // matrix is estimated in the same coordinate system NUTS operates in.
+        arma::vec full_params = model.has_constraints()
+            ? model.get_full_position()
+            : model.get_full_vectorized_parameters();
         adapt_->update(full_params, result.accept_prob, iteration);
 
         // If mass matrix was just updated, apply it and re-run the step-size heuristic
@@ -93,21 +107,36 @@ public:
             arma::vec new_inv_mass = adapt_->inv_mass_diag();
             model.set_inv_mass(new_inv_mass);
 
-            arma::vec theta = model.get_vectorized_parameters();
             SafeRNG& rng = model.get_rng();
-            auto grad_fn = [&model](const arma::vec& params) -> arma::vec {
-                return model.logp_and_gradient(params).second;
-            };
-            auto joint_fn = [&model](const arma::vec& params)
-                -> std::pair<double, arma::vec> {
-                return model.logp_and_gradient(params);
-            };
-            arma::vec active_inv_mass = model.get_active_inv_mass();
 
-            double new_eps = heuristic_initial_step_size(
-                theta, grad_fn, joint_fn, active_inv_mass, rng,
-                0.625, adapt_->current_step_size());
-            adapt_->reinit_stepsize(new_eps);
+            if (model.has_constraints()) {
+                arma::vec x = model.get_full_position();
+                auto grad_fn = [&model](const arma::vec& params) -> arma::vec {
+                    return model.logp_and_gradient_full(params).second;
+                };
+                auto joint_fn = [&model](const arma::vec& params)
+                    -> std::pair<double, arma::vec> {
+                    return model.logp_and_gradient_full(params);
+                };
+                double new_eps = heuristic_initial_step_size(
+                    x, grad_fn, joint_fn, new_inv_mass, rng,
+                    0.625, adapt_->current_step_size());
+                adapt_->reinit_stepsize(new_eps);
+            } else {
+                arma::vec theta = model.get_vectorized_parameters();
+                auto grad_fn = [&model](const arma::vec& params) -> arma::vec {
+                    return model.logp_and_gradient(params).second;
+                };
+                auto joint_fn = [&model](const arma::vec& params)
+                    -> std::pair<double, arma::vec> {
+                    return model.logp_and_gradient(params);
+                };
+                arma::vec active_inv_mass = model.get_active_inv_mass();
+                double new_eps = heuristic_initial_step_size(
+                    theta, grad_fn, joint_fn, active_inv_mass, rng,
+                    0.625, adapt_->current_step_size());
+                adapt_->reinit_stepsize(new_eps);
+            }
         }
 
         // Update step_size_ from controller (may have changed due to mass update)
@@ -142,23 +171,47 @@ public:
 private:
     void do_initialize(BaseModel& model) {
         int dim = static_cast<int>(model.full_parameter_dimension());
-        arma::vec theta = model.get_vectorized_parameters();
         SafeRNG& rng = model.get_rng();
 
         // Initialize inverse mass to ones
         arma::vec init_inv_mass = arma::ones<arma::vec>(dim);
         model.set_inv_mass(init_inv_mass);
 
-        auto grad_fn = [&model](const arma::vec& params) -> arma::vec {
-            return model.logp_and_gradient(params).second;
-        };
-        auto joint_fn = [&model](const arma::vec& params)
-            -> std::pair<double, arma::vec> {
-            return model.logp_and_gradient(params);
-        };
+        double init_eps;
 
-        double init_eps = heuristic_initial_step_size(
-            theta, grad_fn, joint_fn, rng, target_acceptance_);
+        if (model.has_constraints()) {
+            // Project initial position onto constraint manifold before
+            // computing step size. The MLE initialization may violate
+            // K_ij = 0 constraints for excluded edges.
+            arma::vec x = model.get_full_position();
+            arma::vec r_dummy = arma::zeros<arma::vec>(x.n_elem);
+            model.project_position(x);
+            model.project_momentum(r_dummy, x);
+            model.set_full_position(x);
+
+            x = model.get_full_position();
+            auto grad_fn = [&model](const arma::vec& params) -> arma::vec {
+                return model.logp_and_gradient_full(params).second;
+            };
+            auto joint_fn = [&model](const arma::vec& params)
+                -> std::pair<double, arma::vec> {
+                return model.logp_and_gradient_full(params);
+            };
+            init_eps = heuristic_initial_step_size(
+                x, grad_fn, joint_fn, rng, target_acceptance_);
+        } else {
+            arma::vec theta = model.get_vectorized_parameters();
+            auto grad_fn = [&model](const arma::vec& params) -> arma::vec {
+                return model.logp_and_gradient(params).second;
+            };
+            auto joint_fn = [&model](const arma::vec& params)
+                -> std::pair<double, arma::vec> {
+                return model.logp_and_gradient(params);
+            };
+            init_eps = heuristic_initial_step_size(
+                theta, grad_fn, joint_fn, rng, target_acceptance_);
+        }
+
         step_size_ = init_eps;
 
         // Construct the adaptation controller with the shared schedule
@@ -168,5 +221,6 @@ private:
 
     WarmupSchedule& schedule_;
     bool initialized_;
+    bool stage3c_initialized_ = false;
     std::unique_ptr<HMCAdaptationController> adapt_;
 };

@@ -1,6 +1,7 @@
 #include "models/ggm/ggm_gradient.h"
 
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 
 // =====================================================================
@@ -45,57 +46,72 @@ void GGMGradientEngine::build_Aq(
 }
 
 // =====================================================================
-// compute_null_basis_and_rdiag
+// givens_qr
 // =====================================================================
 // Compute null-space basis N_q and QR R-diagonal from A_q.
 //
 // Uses QR of A_q^T (which is q x m_q). The last (q - rank) columns
 // of Q form the null-space basis. The diagonal of R gives the
-// Jacobian contribution.
+// Givens QR decomposition of n x m matrix M (n >= m).
+//
+// Computes M = Q R via bottom-to-top Givens rotations. Stores the
+// rotation sequence for reverse-mode differentiation in the backward
+// pass. The convention is:
+//   G = [[c, s], [-s, c]]  applied to rows (r1, r2) of W from the left.
+//   Q accumulates G^T on columns.
+// R diagonal entries are always positive by construction.
 
-void GGMGradientEngine::compute_null_basis_and_rdiag(
-    const arma::mat& Aq,
-    arma::mat& Nq,
-    arma::vec& R_diag)
+void GGMGradientEngine::givens_qr(
+    const arma::mat& M,
+    arma::mat& Q,
+    arma::mat& R,
+    arma::vec& R_diag,
+    std::vector<GivensRotation>& rots)
 {
-    size_t m_q = Aq.n_rows;
-    size_t q_minus_1 = Aq.n_cols;  // q (0-based), so this is the number of rows above diagonal
+    size_t n = M.n_rows;
+    size_t m = M.n_cols;
+    R = M;            // working copy, will become R
+    Q.eye(n, n);      // accumulate Q
+    rots.clear();
 
-    if (m_q == 0) {
-        // No constraints: null space is the full space
-        Nq = arma::eye(q_minus_1, q_minus_1);
-        R_diag.reset();
-        return;
-    }
+    for (size_t j = 0; j < m; ++j) {
+        if (j + 1 < n) {
+            for (size_t i = n - 1; i > j; --i) {
+                size_t r1 = i - 1;
+                size_t r2 = i;
+                double a = R(r1, j);
+                double b = R(r2, j);
+                double r_val = std::sqrt(a * a + b * b);
 
-    if (m_q >= q_minus_1) {
-        // Fully constrained: no free parameters
-        Nq.reset();
-        // Still need R_diag for the Jacobian
-        arma::mat Q, R;
-        arma::qr_econ(Q, R, Aq.t());
-        R_diag.set_size(R.n_rows);
-        for (size_t j = 0; j < R.n_rows; ++j) {
-            R_diag(j) = std::abs(R(j, j));
+                if (r_val < 1e-300) continue;  // skip identity rotation
+
+                double c = a / r_val;
+                double s = b / r_val;
+
+                rots.push_back({c, s, r1, r2, j});
+
+                // G * R: rotate rows (r1, r2) of R
+                for (size_t k = j; k < m; ++k) {
+                    double w1 = R(r1, k), w2 = R(r2, k);
+                    R(r1, k) =  c * w1 + s * w2;
+                    R(r2, k) = -s * w1 + c * w2;
+                }
+                // Q * G^T: rotate columns (r1, r2) of Q
+                for (size_t l = 0; l < n; ++l) {
+                    double q1 = Q(l, r1), q2 = Q(l, r2);
+                    Q(l, r1) =  c * q1 + s * q2;
+                    Q(l, r2) = -s * q1 + c * q2;
+                }
+            }
         }
-        return;
     }
 
-    // General case: QR of A_q^T to get null space
-    arma::mat AqT = Aq.t();  // (q-1) x m_q
-    arma::mat Q, R;
-    arma::qr(Q, R, AqT);    // Full QR: Q is (q-1) x (q-1)
-
-    size_t rank = m_q;  // A_q should have full row rank
-
-    // R_diag: absolute diagonal of R (length = rank)
+    // Extract positive R diagonal
+    size_t rank = std::min(n, m);
     R_diag.set_size(rank);
     for (size_t j = 0; j < rank; ++j) {
         R_diag(j) = std::abs(R(j, j));
     }
-
-    // N_q: last (q-1 - rank) columns of Q
-    Nq = Q.cols(rank, q_minus_1 - 1);
 }
 
 // =====================================================================
@@ -108,6 +124,9 @@ ForwardMapResult GGMGradientEngine::forward_map(const arma::vec& theta) const {
     result.psi.set_size(p_);
     result.Nq.resize(p_);
     result.R_diag.resize(p_);
+    result.givens_rotations.resize(p_);
+    result.Q_full.resize(p_);
+    result.R_full.resize(p_);
 
     arma::mat Aq_buf;  // reusable buffer for A_q
 
@@ -142,23 +161,30 @@ ForwardMapResult GGMGradientEngine::forward_map(const arma::vec& theta) const {
             // No constraints: x_q = f_q directly (N_q = I)
             result.Nq[q] = arma::eye(q, q);
             result.R_diag[q].reset();
+            result.givens_rotations[q].clear();
             for (size_t k = 0; k < d_q; ++k) {
                 result.Phi(k, q) = f_q(k);
             }
         } else if (d_q == 0) {
             // Fully constrained: x_q = 0
-            // Still compute R_diag for Jacobian
+            // Givens QR for R_diag (Jacobian) and stored rotations
             if (m_q > 0) {
                 build_Aq(result.Phi, col, q, Aq_buf);
-                arma::mat Nq_dummy;
-                compute_null_basis_and_rdiag(Aq_buf, Nq_dummy, result.R_diag[q]);
+                givens_qr(Aq_buf.t(),
+                          result.Q_full[q], result.R_full[q],
+                          result.R_diag[q], result.givens_rotations[q]);
             }
             result.Nq[q].reset();
             // x_q stays zero (already zeroed)
         } else {
-            // General case: build A_q, QR, null space
+            // General case: build A_q, Givens QR, null space
             build_Aq(result.Phi, col, q, Aq_buf);
-            compute_null_basis_and_rdiag(Aq_buf, result.Nq[q], result.R_diag[q]);
+            givens_qr(Aq_buf.t(),
+                      result.Q_full[q], result.R_full[q],
+                      result.R_diag[q], result.givens_rotations[q]);
+
+            // N_q = last d_q columns of Q
+            result.Nq[q] = result.Q_full[q].cols(m_q, q - 1);
 
             // x_q = N_q f_q
             arma::vec x_q = result.Nq[q] * f_q;
@@ -206,6 +232,15 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
     double n = static_cast<double>(n_);
     double scale2 = pairwise_scale_ * pairwise_scale_;
 
+    // Check for degenerate Phi (extreme theta pushed by leapfrog).
+    // If any diagonal element of Phi is too small, return -Inf and
+    // zero gradient so the NUTS trajectory rejects this point.
+    double min_diag = Phi.diag().min();
+    if (!std::isfinite(min_diag) || min_diag < 1e-15) {
+        return {-std::numeric_limits<double>::infinity(),
+                arma::vec(theta.n_elem, arma::fill::zeros)};
+    }
+
     // --- Log-posterior value ---
     double log_det_K = 2.0 * arma::accu(fm.psi);
     double log_lik = (n / 2.0) * log_det_K - 0.5 * arma::accu(K % S);
@@ -227,6 +262,11 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
 
     double lp = log_lik + log_slab + log_diag_prior + fm.log_det_jacobian;
 
+    // If log-posterior is non-finite, skip the backward pass
+    if (!std::isfinite(lp)) {
+        return {lp, arma::vec(theta.n_elem, arma::fill::zeros)};
+    }
+
     // --- Backward pass ---
     arma::vec gradient(theta.n_elem, arma::fill::zeros);
 
@@ -234,8 +274,15 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
     // Likelihood: (n/2) K^{-1} - (1/2) S
     // Use Phi^{-1} to compute K^{-1} = Phi^{-1} Phi^{-T} (more robust
     // than inv_sympd(K) when the leapfrog integrator pushes theta to
-    // extreme values)
-    arma::mat Phi_inv = arma::inv(arma::trimatu(Phi));
+    // extreme values). Use solve() for robustness against near-singular Phi.
+    arma::mat Phi_inv;
+    bool ok = arma::solve(Phi_inv, arma::trimatu(Phi), arma::eye(p_, p_),
+                          arma::solve_opts::fast);
+    if (!ok) {
+        // Degenerate Phi — return -Inf so NUTS rejects this trajectory
+        return {-std::numeric_limits<double>::infinity(),
+                arma::vec(theta.n_elem, arma::fill::zeros)};
+    }
     arma::mat K_inv = Phi_inv * Phi_inv.t();
     arma::mat K_bar = (n / 2.0) * K_inv - 0.5 * S;
 
@@ -289,62 +336,236 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
             }
         }
 
-        // --- Cross-column adjoint (Phi_{<q} via N_q and R_diag) ---
+        // --- Cross-column adjoint (reverse-Givens) ---
+        // Differentiate through the Givens QR of M = A_q^T to get
+        // M_bar = dL/dM, then accumulate into Phi_bar.
+        // Handles both Jacobian and null-space contributions in one
+        // unified pass — no finite differences, exact for all d_q.
         size_t m_q = col.m_q;
         if (m_q == 0) continue;
 
-        // Extract f_q for FD perturbations
-        arma::vec f_q;
-        if (d_q > 0) {
-            f_q = theta.subvec(offset, offset + d_q - 1);
+        const auto& rotations = fm.givens_rotations[q];
+        size_t n_rot = rotations.size();
+
+        // Initialize W_bar (R_bar) and Q_bar with seed adjoints.
+        // W_bar: Jacobian adjoint R_bar[j,j] = -1/R[j,j]
+        // Q_bar: null-space adjoint Q_bar[:, m_q:q-1] = x_bar * f_q^T
+        arma::mat W_bar(q, m_q, arma::fill::zeros);
+        arma::mat Q_bar(q, q, arma::fill::zeros);
+
+        size_t rank = std::min(m_q, q);
+        const arma::mat& R = fm.R_full[q];
+        for (size_t j = 0; j < rank; ++j) {
+            W_bar(j, j) = -1.0 / R(j, j);
         }
 
-        // Finite differences: perturb Phi[l, i] for each excluded
-        // neighbor i of column q, and each l <= i.
-        double eps = 1e-7;
-        arma::mat Phi_pert = Phi;
-        arma::mat Aq_plus, Aq_minus;
-        arma::mat Nq_plus, Nq_minus;
-        arma::vec Rd_plus, Rd_minus;
+        if (d_q > 0) {
+            arma::vec f_q = theta.subvec(offset, offset + d_q - 1);
+            for (size_t k = 0; k < d_q; ++k) {
+                for (size_t l = 0; l < q; ++l) {
+                    Q_bar(l, m_q + k) = x_bar(l) * f_q(k);
+                }
+            }
+        }
 
+        // Copy Q and W for undoing rotations during backward pass
+        arma::mat Q_work = fm.Q_full[q];
+        arma::mat W_work = fm.R_full[q];
+
+        // Process rotations in reverse order
+        for (size_t k = n_rot; k-- > 0; ) {
+            const auto& rot = rotations[k];
+            double cc = rot.c, ss = rot.s;
+            size_t r1 = rot.r1, r2 = rot.r2;
+
+            // A: Undo rotation on W (G^T * W_post -> W_pre)
+            for (size_t cj = 0; cj < m_q; ++cj) {
+                double w1 = W_work(r1, cj), w2 = W_work(r2, cj);
+                W_work(r1, cj) =  cc * w1 - ss * w2;
+                W_work(r2, cj) =  ss * w1 + cc * w2;
+            }
+            // A: Undo rotation on Q (Q_post * G -> Q_pre)
+            for (size_t ri = 0; ri < q; ++ri) {
+                double q1 = Q_work(ri, r1), q2 = Q_work(ri, r2);
+                Q_work(ri, r1) =  cc * q1 - ss * q2;
+                Q_work(ri, r2) =  ss * q1 + cc * q2;
+            }
+
+            // B: Accumulate c_bar, s_bar from W_bar and Q_bar
+            double c_bar = 0.0, s_bar = 0.0;
+            for (size_t cj = 0; cj < m_q; ++cj) {
+                c_bar += W_bar(r1, cj) * W_work(r1, cj) +
+                         W_bar(r2, cj) * W_work(r2, cj);
+                s_bar += W_bar(r1, cj) * W_work(r2, cj) -
+                         W_bar(r2, cj) * W_work(r1, cj);
+            }
+            for (size_t ri = 0; ri < q; ++ri) {
+                c_bar += Q_bar(ri, r1) * Q_work(ri, r1) +
+                         Q_bar(ri, r2) * Q_work(ri, r2);
+                s_bar += Q_bar(ri, r1) * Q_work(ri, r2) -
+                         Q_bar(ri, r2) * Q_work(ri, r1);
+            }
+
+            // C: Adjoint rotation on W_bar (G^T on rows)
+            for (size_t cj = 0; cj < m_q; ++cj) {
+                double wb1 = W_bar(r1, cj), wb2 = W_bar(r2, cj);
+                W_bar(r1, cj) = cc * wb1 - ss * wb2;
+                W_bar(r2, cj) = ss * wb1 + cc * wb2;
+            }
+
+            // D: Adjoint rotation on Q_bar (Q_bar * G)
+            for (size_t ri = 0; ri < q; ++ri) {
+                double qb1 = Q_bar(ri, r1), qb2 = Q_bar(ri, r2);
+                Q_bar(ri, r1) = cc * qb1 - ss * qb2;
+                Q_bar(ri, r2) = ss * qb1 + cc * qb2;
+            }
+
+            // E: c_bar/s_bar -> W_bar through (c,s) = (a/r, b/r)
+            size_t j_col = rot.col;
+            double a = W_work(r1, j_col);
+            double b = W_work(r2, j_col);
+            double r_val = std::sqrt(a * a + b * b);
+            if (r_val > 1e-300) {
+                double r3 = r_val * r_val * r_val;
+                W_bar(r1, j_col) += (c_bar * b * b - s_bar * a * b) / r3;
+                W_bar(r2, j_col) += (-c_bar * a * b + s_bar * a * a) / r3;
+            }
+        }
+
+        // W_bar is now M_bar = dL/d(A_q^T).
+        // M(l, r) = Phi(l, excluded_indices[r]) for l <= excluded_indices[r].
+        // Accumulate into Phi_bar.
         for (size_t r = 0; r < m_q; ++r) {
             size_t i = col.excluded_indices[r];
             for (size_t l = 0; l <= i; ++l) {
-                double orig = Phi(l, i);
-
-                // Plus perturbation
-                Phi_pert(l, i) = orig + eps;
-                build_Aq(Phi_pert, col, q, Aq_plus);
-                compute_null_basis_and_rdiag(Aq_plus, Nq_plus, Rd_plus);
-
-                // Minus perturbation
-                Phi_pert(l, i) = orig - eps;
-                build_Aq(Phi_pert, col, q, Aq_minus);
-                compute_null_basis_and_rdiag(Aq_minus, Nq_minus, Rd_minus);
-
-                // Restore
-                Phi_pert(l, i) = orig;
-
-                // x_q contribution (when d_q > 0)
-                if (d_q > 0) {
-                    arma::vec x_q_plus = Nq_plus * f_q;
-                    arma::vec x_q_minus = Nq_minus * f_q;
-                    arma::vec dx_q = (x_q_plus - x_q_minus) / (2.0 * eps);
-                    Phi_bar(l, i) += arma::dot(x_bar, dx_q);
-                }
-
-                // Jacobian R-diagonal contribution
-                double jac_plus = 0.0, jac_minus = 0.0;
-                for (size_t j = 0; j < Rd_plus.n_elem; ++j) {
-                    jac_plus -= std::log(Rd_plus(j));
-                }
-                for (size_t j = 0; j < Rd_minus.n_elem; ++j) {
-                    jac_minus -= std::log(Rd_minus(j));
-                }
-                double d_jac = (jac_plus - jac_minus) / (2.0 * eps);
-                Phi_bar(l, i) += d_jac;
+                Phi_bar(l, i) += W_bar(l, r);
             }
         }
+    }
+
+    return {lp, gradient};
+}
+
+// =====================================================================
+// logp_and_gradient_full
+// =====================================================================
+// Full-space gradient for RATTLE integration.
+//
+// Operates on x in R^{p(p+1)/2}: raw Cholesky off-diagonal entries
+// and log-diagonal (psi). No null-space transformation, no QR, no
+// reverse-Givens adjoint. The gradient w.r.t. each x_{iq} is simply
+// Phi_bar_{iq}.
+
+std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient_full(
+    const arma::vec& x) const
+{
+    // --- Forward pass: unpack x -> Phi -> K ---
+    arma::mat Phi(p_, p_, arma::fill::zeros);
+    arma::vec psi(p_);
+
+    for (size_t q = 0; q < p_; ++q) {
+        size_t offset = structure_->full_theta_offsets[q];
+        for (size_t i = 0; i < q; ++i) {
+            Phi(i, q) = x(offset + i);
+        }
+        psi(q) = x(offset + q);
+        Phi(q, q) = std::exp(psi(q));
+    }
+
+    // Check for degenerate Phi
+    double min_diag = Phi.diag().min();
+    if (!std::isfinite(min_diag) || min_diag < 1e-15) {
+        return {-std::numeric_limits<double>::infinity(),
+                arma::vec(x.n_elem, arma::fill::zeros)};
+    }
+
+    arma::mat K = Phi.t() * Phi;
+    const arma::mat& S = *suf_stat_;
+    double n = static_cast<double>(n_);
+    double scale2 = pairwise_scale_ * pairwise_scale_;
+
+    // --- Log-posterior value ---
+    double log_det_K = 2.0 * arma::accu(psi);
+    double log_lik = (n / 2.0) * log_det_K - 0.5 * arma::accu(K % S);
+
+    // Cauchy slab prior on included off-diagonal K entries
+    double log_slab = 0.0;
+    for (size_t q = 1; q < p_; ++q) {
+        for (size_t i : structure_->columns[q].included_indices) {
+            double kij = K(i, q);
+            log_slab += R::dcauchy(kij, 0.0, pairwise_scale_, 1);
+        }
+    }
+
+    // Gamma(1,1) prior on diagonal K entries
+    double log_diag_prior = 0.0;
+    for (size_t i = 0; i < p_; ++i) {
+        log_diag_prior += R::dgamma(K(i, i), 1.0, 1.0, 1);
+    }
+
+    // Jacobian: Cholesky-to-K + log-diagonal (NO QR terms)
+    // = p * log(2) + sum_q (p + 1 - q) * psi_q
+    double ldj = static_cast<double>(p_) * std::log(2.0);
+    for (size_t q = 0; q < p_; ++q) {
+        ldj += 2.0 * psi(q);
+    }
+    for (size_t i = 0; i + 1 < p_; ++i) {
+        ldj += static_cast<double>(p_ - 1 - i) * psi(i);
+    }
+
+    double lp = log_lik + log_slab + log_diag_prior + ldj;
+
+    if (!std::isfinite(lp)) {
+        return {lp, arma::vec(x.n_elem, arma::fill::zeros)};
+    }
+
+    // --- Backward pass ---
+    arma::vec gradient(x.n_elem, arma::fill::zeros);
+
+    // K_bar = (n/2) K^{-1} - (1/2) S + prior terms
+    arma::mat Phi_inv;
+    bool ok = arma::solve(Phi_inv, arma::trimatu(Phi), arma::eye(p_, p_),
+                          arma::solve_opts::fast);
+    if (!ok) {
+        return {-std::numeric_limits<double>::infinity(),
+                arma::vec(x.n_elem, arma::fill::zeros)};
+    }
+    arma::mat K_inv = Phi_inv * Phi_inv.t();
+    arma::mat K_bar = (n / 2.0) * K_inv - 0.5 * S;
+
+    // Cauchy prior on included edges
+    for (size_t q = 1; q < p_; ++q) {
+        for (size_t i : structure_->columns[q].included_indices) {
+            double kij = K(i, q);
+            K_bar(i, q) += -2.0 * kij / (scale2 + kij * kij);
+        }
+    }
+
+    // Gamma(1,1) prior on diagonals
+    for (size_t i = 0; i < p_; ++i) {
+        K_bar(i, i) -= 1.0;
+    }
+
+    // Phi_bar = Phi * (K_bar + K_bar^T)
+    arma::mat K_bar_sym = K_bar + K_bar.t();
+    arma::mat Phi_bar = Phi * K_bar_sym;
+
+    // --- Gradient: direct from Phi_bar, no N_q or reverse-Givens ---
+    for (size_t q = 0; q < p_; ++q) {
+        size_t offset = structure_->full_theta_offsets[q];
+
+        // Off-diagonal: grad_{x_{iq}} = Phi_bar_{i,q}
+        for (size_t i = 0; i < q; ++i) {
+            gradient(offset + i) = Phi_bar(i, q);
+        }
+
+        // Diagonal (psi_q): chain rule through exp + Jacobian
+        double psi_bar = Phi_bar(q, q) * Phi(q, q);
+        psi_bar += 2.0;
+        if (q + 1 < p_) {
+            psi_bar += static_cast<double>(p_ - 1 - q);
+        }
+        gradient(offset + q) = psi_bar;
     }
 
     return {lp, gradient};

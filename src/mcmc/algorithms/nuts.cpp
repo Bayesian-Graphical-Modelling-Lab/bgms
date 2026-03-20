@@ -62,16 +62,23 @@ BuildTreeResult build_tree(
     const double kin0,
     Memoizer& memo,
     const arma::vec& inv_mass_diag,
-    SafeRNG& rng
+    SafeRNG& rng,
+    const ProjectFn* project
 ) {
   constexpr double Delta_max = 1000.0;
 
   if (j == 0) {
     // Base case: take a single leapfrog step
     arma::vec theta_new, r_new;
-    std::tie(theta_new, r_new) = leapfrog_memo(
-      theta, r, v * step_size, memo, inv_mass_diag
-    );
+    if (project) {
+      std::tie(theta_new, r_new) = leapfrog_constrained(
+        theta, r, v * step_size, memo, inv_mass_diag, *project
+      );
+    } else {
+      std::tie(theta_new, r_new) = leapfrog_memo(
+        theta, r, v * step_size, memo, inv_mass_diag
+      );
+    }
 
     auto logp = memo.cached_log_post(theta_new);
     double kin = kinetic_energy(r_new, inv_mass_diag);
@@ -108,7 +115,7 @@ BuildTreeResult build_tree(
     // Recursion: build the first subtree
     BuildTreeResult init_result = build_tree(
       theta, r, log_u, v, j - 1, step_size, theta_0, r0, logp0, kin0, memo,
-      inv_mass_diag, rng
+      inv_mass_diag, rng, project
     );
 
     if (init_result.s_prime == 0) {
@@ -139,7 +146,7 @@ BuildTreeResult build_tree(
     if (v == -1) {
       final_result = build_tree(
         theta_min, r_min, log_u, v, j - 1, step_size, theta_0, r0, logp0,
-        kin0, memo, inv_mass_diag, rng
+        kin0, memo, inv_mass_diag, rng, project
       );
       // Update backward boundary
       theta_min = final_result.theta_min;
@@ -147,7 +154,7 @@ BuildTreeResult build_tree(
     } else {
       final_result = build_tree(
         theta_plus, r_plus, log_u, v, j - 1, step_size, theta_0, r0, logp0,
-        kin0, memo, inv_mass_diag, rng
+        kin0, memo, inv_mass_diag, rng, project
       );
       // Update forward boundary
       theta_plus = final_result.theta_plus;
@@ -265,7 +272,8 @@ StepResult nuts_step(
     const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
     const arma::vec& inv_mass_diag,
     SafeRNG& rng,
-    int max_depth
+    int max_depth,
+    const ProjectFn* project
 ) {
   // Create Memoizer with joint function
   Memoizer memo(joint);
@@ -304,7 +312,7 @@ StepResult nuts_step(
       rho_fwd = rho;
       result = build_tree(
         theta_min, r_min, log_u, v, j, step_size, init_theta, r0, logp0, kin0, memo,
-        inv_mass_diag, rng
+        inv_mass_diag, rng, project
       );
       theta_min = result.theta_min;
       r_min = result.r_min;
@@ -316,7 +324,7 @@ StepResult nuts_step(
       rho_bck = rho;
       result = build_tree(
         theta_plus, r_plus, log_u, v, j, step_size, init_theta, r0, logp0, kin0, memo,
-        inv_mass_diag, rng
+        inv_mass_diag, rng, project
       );
       theta_plus = result.theta_plus;
       r_plus = result.r_plus;

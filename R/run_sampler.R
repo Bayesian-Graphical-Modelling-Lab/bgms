@@ -73,7 +73,7 @@ run_sampler_ggm = function(spec) {
   out_raw = sample_ggm(
     inputFromR = list(X = d$x),
     prior_inclusion_prob = p$inclusion_probability,
-    initial_edge_indicators = matrix(1L,
+    initial_edge_indicators = p$include_edge %||% matrix(1L,
       nrow = d$num_variables,
       ncol = d$num_variables
     ),
@@ -128,7 +128,7 @@ run_sampler_omrf = function(spec) {
   out_raw = sample_omrf(
     inputFromR = input_list,
     prior_inclusion_prob = p$inclusion_probability,
-    initial_edge_indicators = matrix(1L,
+    initial_edge_indicators = p$include_edge %||% matrix(1L,
       nrow = d$num_variables,
       ncol = d$num_variables
     ),
@@ -187,7 +187,7 @@ run_sampler_mixed_mrf = function(spec) {
   out_raw = sample_mixed_mrf(
     inputFromR = input_list,
     prior_inclusion_prob = p$inclusion_probability,
-    initial_edge_indicators = matrix(1L,
+    initial_edge_indicators = p$include_edge %||% matrix(1L,
       nrow = d$num_variables,
       ncol = d$num_variables
     ),

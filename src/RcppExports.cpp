@@ -118,6 +118,76 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// ggm_test_project_position
+Rcpp::List ggm_test_project_position(const arma::vec& x, const arma::imat& edge_indicators);
+RcppExport SEXP _bgms_ggm_test_project_position(SEXP xSEXP, SEXP edge_indicatorsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
+    rcpp_result_gen = Rcpp::wrap(ggm_test_project_position(x, edge_indicators));
+    return rcpp_result_gen;
+END_RCPP
+}
+// ggm_test_get_full_position
+arma::vec ggm_test_get_full_position(const arma::mat& Phi, const arma::imat& edge_indicators);
+RcppExport SEXP _bgms_ggm_test_get_full_position(SEXP PhiSEXP, SEXP edge_indicatorsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type Phi(PhiSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
+    rcpp_result_gen = Rcpp::wrap(ggm_test_get_full_position(Phi, edge_indicators));
+    return rcpp_result_gen;
+END_RCPP
+}
+// ggm_test_logp_and_gradient_full
+Rcpp::List ggm_test_logp_and_gradient_full(const arma::vec& x, const arma::mat& suf_stat, int n, const arma::imat& edge_indicators, double pairwise_scale);
+RcppExport SEXP _bgms_ggm_test_logp_and_gradient_full(SEXP xSEXP, SEXP suf_statSEXP, SEXP nSEXP, SEXP edge_indicatorsSEXP, SEXP pairwise_scaleSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type suf_stat(suf_statSEXP);
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
+    Rcpp::traits::input_parameter< double >::type pairwise_scale(pairwise_scaleSEXP);
+    rcpp_result_gen = Rcpp::wrap(ggm_test_logp_and_gradient_full(x, suf_stat, n, edge_indicators, pairwise_scale));
+    return rcpp_result_gen;
+END_RCPP
+}
+// ggm_test_project_momentum
+arma::vec ggm_test_project_momentum(const arma::vec& r, const arma::vec& x, const arma::imat& edge_indicators);
+RcppExport SEXP _bgms_ggm_test_project_momentum(SEXP rSEXP, SEXP xSEXP, SEXP edge_indicatorsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type r(rSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
+    rcpp_result_gen = Rcpp::wrap(ggm_test_project_momentum(r, x, edge_indicators));
+    return rcpp_result_gen;
+END_RCPP
+}
+// ggm_test_leapfrog_constrained
+Rcpp::List ggm_test_leapfrog_constrained(const arma::vec& x0, const arma::vec& r0, double step_size, int n_steps, const arma::mat& suf_stat, int n, const arma::imat& edge_indicators, double pairwise_scale);
+RcppExport SEXP _bgms_ggm_test_leapfrog_constrained(SEXP x0SEXP, SEXP r0SEXP, SEXP step_sizeSEXP, SEXP n_stepsSEXP, SEXP suf_statSEXP, SEXP nSEXP, SEXP edge_indicatorsSEXP, SEXP pairwise_scaleSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type x0(x0SEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type r0(r0SEXP);
+    Rcpp::traits::input_parameter< double >::type step_size(step_sizeSEXP);
+    Rcpp::traits::input_parameter< int >::type n_steps(n_stepsSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type suf_stat(suf_statSEXP);
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
+    Rcpp::traits::input_parameter< double >::type pairwise_scale(pairwise_scaleSEXP);
+    rcpp_result_gen = Rcpp::wrap(ggm_test_leapfrog_constrained(x0, r0, step_size, n_steps, suf_stat, n, edge_indicators, pairwise_scale));
+    return rcpp_result_gen;
+END_RCPP
+}
 // compute_conditional_ggm
 Rcpp::List compute_conditional_ggm(const arma::mat& observations, const arma::ivec& predict_vars, const arma::mat& precision);
 RcppExport SEXP _bgms_compute_conditional_ggm(SEXP observationsSEXP, SEXP predict_varsSEXP, SEXP precisionSEXP) {
@@ -429,6 +499,11 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_rcpp_ieee754_log", (DL_FUNC) &_bgms_rcpp_ieee754_log, 1},
     {"_bgms_ggm_test_logp_and_gradient", (DL_FUNC) &_bgms_ggm_test_logp_and_gradient, 5},
     {"_bgms_ggm_test_forward_map", (DL_FUNC) &_bgms_ggm_test_forward_map, 2},
+    {"_bgms_ggm_test_project_position", (DL_FUNC) &_bgms_ggm_test_project_position, 2},
+    {"_bgms_ggm_test_get_full_position", (DL_FUNC) &_bgms_ggm_test_get_full_position, 2},
+    {"_bgms_ggm_test_logp_and_gradient_full", (DL_FUNC) &_bgms_ggm_test_logp_and_gradient_full, 5},
+    {"_bgms_ggm_test_project_momentum", (DL_FUNC) &_bgms_ggm_test_project_momentum, 3},
+    {"_bgms_ggm_test_leapfrog_constrained", (DL_FUNC) &_bgms_ggm_test_leapfrog_constrained, 8},
     {"_bgms_compute_conditional_ggm", (DL_FUNC) &_bgms_compute_conditional_ggm, 3},
     {"_bgms_compute_conditional_probs", (DL_FUNC) &_bgms_compute_conditional_probs, 7},
     {"_bgms_compute_conditional_mixed", (DL_FUNC) &_bgms_compute_conditional_mixed, 11},

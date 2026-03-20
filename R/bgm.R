@@ -238,7 +238,16 @@
 #'   \code{main_beta = 0.5}.
 #'
 #' @param edge_selection Logical. Whether to perform Bayesian edge selection.
-#'   If \code{FALSE}, the model estimates all edges. Default: \code{TRUE}.
+#'   If \code{FALSE}, the model estimates all edges (or only those specified
+#'   by \code{include_edge}). Default: \code{TRUE}.
+#'
+#' @param include_edge Optional binary matrix (\code{p x p}). Specifies which
+#'   edges to include in the model. Must be symmetric with zero diagonal and
+#'   contain only 0s and 1s. When \code{NULL} (the default), all edges are
+#'   included (complete graph). When \code{edge_selection = FALSE}, only the
+#'   edges marked 1 in this matrix are estimated; when
+#'   \code{edge_selection = TRUE}, edge selection is restricted to the edges
+#'   marked 1. Default: \code{NULL}.
 #'
 #' @param edge_prior Character. Specifies the prior for edge inclusion.
 #'   Options: \code{"Bernoulli"}, \code{"Beta-Bernoulli"}, or
@@ -426,6 +435,7 @@ bgm = function(
   main_alpha = 0.5,
   main_beta = 0.5,
   edge_selection = TRUE,
+  include_edge = NULL,
   edge_prior = c("Bernoulli", "Beta-Bernoulli", "Stochastic-Block"),
   inclusion_probability = 0.5,
   beta_bernoulli_alpha = 1,
@@ -499,6 +509,7 @@ bgm = function(
     main_beta = main_beta,
     standardize = standardize,
     edge_selection = edge_selection,
+    include_edge = include_edge,
     edge_prior = edge_prior,
     inclusion_probability = inclusion_probability,
     beta_bernoulli_alpha = beta_bernoulli_alpha,

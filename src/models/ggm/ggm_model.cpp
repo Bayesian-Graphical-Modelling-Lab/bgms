@@ -37,11 +37,13 @@ void GGMModel::recompute_theta() const {
 
         if (q == 0 || col.d_q == 0) continue;
 
-        // Build A_q, compute null-space basis N_q
-        arma::mat Nq;
+        // Build A_q, compute null-space basis N_q via Givens QR
+        arma::mat Q_tmp, R_tmp;
         arma::vec R_diag;
+        std::vector<GivensRotation> rots_tmp;
         GGMGradientEngine::build_Aq(cholesky_of_precision_, col, q, Aq_buf);
-        GGMGradientEngine::compute_null_basis_and_rdiag(Aq_buf, Nq, R_diag);
+        GGMGradientEngine::givens_qr(Aq_buf.t(), Q_tmp, R_tmp, R_diag, rots_tmp);
+        arma::mat Nq = Q_tmp.cols(col.m_q, q - 1);
 
         // f_q = N_q^T x_q
         arma::vec x_q = cholesky_of_precision_.col(q).head(q);
@@ -117,8 +119,13 @@ void GGMModel::set_vectorized_parameters(const arma::vec& parameters) {
     // Update internal state
     precision_matrix_ = fm.K;
     cholesky_of_precision_ = fm.Phi;
-    arma::inv(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_));
-    covariance_matrix_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
+    bool ok = arma::solve(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_),
+                          arma::eye(p_, p_), arma::solve_opts::fast);
+    if (!ok) {
+        refresh_cholesky();
+    } else {
+        covariance_matrix_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
+    }
 
     // Cache theta
     theta_ = parameters;
@@ -130,6 +137,13 @@ std::pair<double, arma::vec> GGMModel::logp_and_gradient(
 {
     ensure_constraint_structure();
     return gradient_engine_.logp_and_gradient(parameters);
+}
+
+std::pair<double, arma::vec> GGMModel::logp_and_gradient_full(
+    const arma::vec& x)
+{
+    ensure_constraint_structure();
+    return gradient_engine_.logp_and_gradient_full(x);
 }
 
 arma::vec GGMModel::get_active_inv_mass() const {
@@ -174,10 +188,12 @@ arma::vec GGMModel::get_active_inv_mass() const {
                 }
             } else {
                 // Build N_q and rotate: M^{-1}_{f_k} = sum_j N_{jk}^2 var(x_j)
-                arma::mat Nq;
+                arma::mat Q_tmp, R_tmp;
                 arma::vec R_diag;
+                std::vector<GivensRotation> rots_tmp;
                 GGMGradientEngine::build_Aq(cholesky_of_precision_, col, q, Aq_buf);
-                GGMGradientEngine::compute_null_basis_and_rdiag(Aq_buf, Nq, R_diag);
+                GGMGradientEngine::givens_qr(Aq_buf.t(), Q_tmp, R_tmp, R_diag, rots_tmp);
+                arma::mat Nq = Q_tmp.cols(col.m_q, q - 1);
 
                 for (size_t k = 0; k < col.d_q; ++k) {
                     double mass_k = 0.0;
@@ -196,6 +212,217 @@ arma::vec GGMModel::get_active_inv_mass() const {
 
     // Fallback: return inv_mass_ as-is (dimensions should match active_dim)
     return inv_mass_;
+}
+
+// =====================================================================
+// RATTLE constrained integration
+// =====================================================================
+
+// ------------------------------------------------------------------
+// get_full_position
+// ------------------------------------------------------------------
+// Pack Phi into a column-by-column full-dimension position vector.
+// Column q contributes q off-diagonal entries followed by psi_q.
+//
+// Returns: arma::vec of dimension p(p+1)/2.
+// ------------------------------------------------------------------
+arma::vec GGMModel::get_full_position() const {
+    if (constraint_dirty_) {
+        const_cast<GGMModel*>(this)->ensure_constraint_structure();
+    }
+    const auto& cs = constraint_structure_;
+    arma::vec x(cs.full_dim);
+    for (size_t q = 0; q < p_; ++q) {
+        size_t offset = cs.full_theta_offsets[q];
+        for (size_t i = 0; i < q; ++i) {
+            x(offset + i) = cholesky_of_precision_(i, q);
+        }
+        x(offset + q) = std::log(cholesky_of_precision_(q, q));
+    }
+    return x;
+}
+
+// ------------------------------------------------------------------
+// set_full_position
+// ------------------------------------------------------------------
+// Unpack a full-dimension position vector into Phi and derived matrices.
+//
+// @param x  Position vector of dimension p(p+1)/2.
+// ------------------------------------------------------------------
+void GGMModel::set_full_position(const arma::vec& x) {
+    if (constraint_dirty_) {
+        ensure_constraint_structure();
+    }
+    const auto& cs = constraint_structure_;
+
+    for (size_t q = 0; q < p_; ++q) {
+        size_t offset = cs.full_theta_offsets[q];
+        for (size_t i = 0; i < q; ++i) {
+            cholesky_of_precision_(i, q) = x(offset + i);
+        }
+        cholesky_of_precision_(q, q) = std::exp(x(offset + q));
+        // Zero out below diagonal (Phi is upper-triangular)
+        for (size_t i = q + 1; i < p_; ++i) {
+            cholesky_of_precision_(i, q) = 0.0;
+        }
+    }
+
+    precision_matrix_ = cholesky_of_precision_.t() * cholesky_of_precision_;
+    bool ok = arma::solve(inv_cholesky_of_precision_,
+                          arma::trimatu(cholesky_of_precision_),
+                          arma::eye(p_, p_), arma::solve_opts::fast);
+    if (!ok) {
+        refresh_cholesky();
+    } else {
+        covariance_matrix_ = inv_cholesky_of_precision_ *
+                             inv_cholesky_of_precision_.t();
+    }
+    theta_valid_ = false;
+}
+
+// ------------------------------------------------------------------
+// project_position
+// ------------------------------------------------------------------
+// Project onto the constraint manifold: for each excluded edge (i,q),
+// enforce K_{iq} = sum_l Phi_{li} Phi_{lq} = 0.
+//
+// Uses direct projection (Option B from RATTLE plan):
+//   x_q -= A_q^T (A_q A_q^T)^{-1} (A_q x_q)
+//
+// Columns are processed left-to-right. Each column's constraints are
+// linear in that column's off-diagonal entries given earlier columns,
+// so one projection per column is exact (Newton-free).
+//
+// @param x  Full-dimension position vector (modified in-place).
+// ------------------------------------------------------------------
+void GGMModel::project_position(arma::vec& x) const {
+    if (constraint_dirty_) {
+        const_cast<GGMModel*>(this)->ensure_constraint_structure();
+    }
+    const auto& cs = constraint_structure_;
+
+    // Build a working Phi from x so build_Aq can read earlier columns
+    arma::mat Phi(p_, p_, arma::fill::zeros);
+    for (size_t q = 0; q < p_; ++q) {
+        size_t offset = cs.full_theta_offsets[q];
+        for (size_t i = 0; i < q; ++i) {
+            Phi(i, q) = x(offset + i);
+        }
+        Phi(q, q) = std::exp(x(offset + q));
+    }
+
+    arma::mat Aq_buf;
+
+    for (size_t q = 1; q < p_; ++q) {
+        const auto& col = cs.columns[q];
+        if (col.m_q == 0) continue;
+
+        size_t offset = cs.full_theta_offsets[q];
+
+        // Build A_q from the working Phi (earlier columns are finalized)
+        GGMGradientEngine::build_Aq(Phi, col, q, Aq_buf);
+
+        // Extract current off-diagonal entries for column q
+        arma::vec x_q(q);
+        for (size_t i = 0; i < q; ++i) {
+            x_q(i) = x(offset + i);
+        }
+
+        // Direct projection: x_q -= A_q^T (A_q A_q^T)^{-1} (A_q x_q)
+        arma::vec Aq_xq = Aq_buf * x_q;                // m_q x 1
+        arma::mat G = Aq_buf * Aq_buf.t();              // m_q x m_q
+        arma::vec lambda = arma::solve(G, Aq_xq,
+                                       arma::solve_opts::likely_sympd);
+        x_q -= Aq_buf.t() * lambda;
+
+        // Write back to x and update working Phi
+        for (size_t i = 0; i < q; ++i) {
+            x(offset + i) = x_q(i);
+            Phi(i, q) = x_q(i);
+        }
+    }
+}
+
+// ------------------------------------------------------------------
+// project_momentum
+// ------------------------------------------------------------------
+// Full-J momentum projection (Option G from RATTLE plan).
+//
+// Projects momentum onto the cotangent space of the constraint
+// manifold using the full constraint Jacobian J:
+//   r <- r - J^T (J J^T)^{-1} J r
+//
+// Uses identity mass (M = I). Mass-weighted projection deferred to
+// Phase 5 integration.
+//
+// The constraint Jacobian J has one row per excluded edge (i,q) and
+// one column per entry in the full x vector. For c_{iq} = sum_l
+// Phi_{li} Phi_{lq} = 0:
+//   dc/d(x_{l,q}) = Phi_{l,i}   for l = 0..min(i,q-1)  (Type 1)
+//   dc/d(x_{l,i}) = Phi_{l,q}   for l = 0..i-1          (Type 2)
+//   dc/d(psi_i)   = Phi_{i,q} * Phi_{i,i}               (diagonal)
+//
+// @param r  Momentum vector (modified in-place).
+// @param x  Current position (after projection).
+// ------------------------------------------------------------------
+void GGMModel::project_momentum(arma::vec& r, const arma::vec& x) const {
+    if (constraint_dirty_) {
+        const_cast<GGMModel*>(this)->ensure_constraint_structure();
+    }
+    const auto& cs = constraint_structure_;
+
+    // Count total excluded edges
+    size_t m_total = 0;
+    for (size_t q = 1; q < p_; ++q) {
+        m_total += cs.columns[q].m_q;
+    }
+    if (m_total == 0) return;
+
+    // Unpack x -> Phi
+    arma::mat Phi(p_, p_, arma::fill::zeros);
+    for (size_t q = 0; q < p_; ++q) {
+        size_t offset = cs.full_theta_offsets[q];
+        for (size_t i = 0; i < q; ++i) {
+            Phi(i, q) = x(offset + i);
+        }
+        Phi(q, q) = std::exp(x(offset + q));
+    }
+
+    // Build J (m_total x full_dim) and compute J*r simultaneously
+    arma::mat J(m_total, cs.full_dim, arma::fill::zeros);
+    size_t row = 0;
+
+    for (size_t q = 1; q < p_; ++q) {
+        const auto& col = cs.columns[q];
+        size_t offset_q = cs.full_theta_offsets[q];
+
+        for (size_t e = 0; e < col.m_q; ++e) {
+            size_t i = col.excluded_indices[e];
+            size_t offset_i = cs.full_theta_offsets[i];
+
+            // Type 1: dc/d(x_{l,q}) = Phi_{l,i} for l = 0..min(i, q-1)
+            for (size_t l = 0; l <= i && l < q; ++l) {
+                J(row, offset_q + l) = Phi(l, i);
+            }
+
+            // Type 2: dc/d(x_{l,i}) = Phi_{l,q} for l = 0..i-1
+            for (size_t l = 0; l < i; ++l) {
+                J(row, offset_i + l) = Phi(l, q);
+            }
+
+            // Diagonal chain rule: dc/d(psi_i) = Phi_{i,q} * Phi_{i,i}
+            J(row, offset_i + i) = Phi(i, q) * Phi(i, i);
+
+            ++row;
+        }
+    }
+
+    // r <- r - J^T (J J^T)^{-1} J r
+    arma::vec Jr = J * r;                                  // m x 1
+    arma::mat G = J * J.t();                               // m x m
+    arma::vec lambda = arma::solve(G, Jr,
+                                   arma::solve_opts::likely_sympd);
+    r -= J.t() * lambda;
 }
 
 void GGMModel::get_constants(size_t i, size_t j) {
@@ -345,9 +572,15 @@ void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_o
     cholesky_update(cholesky_of_precision_, u1_);
     cholesky_downdate(cholesky_of_precision_, u2_);
 
-    // update inverse (2x O(p^2))
-    arma::inv(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_));
-    covariance_matrix_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
+    // update inverse — fall back to full recomputation if rank-1
+    // updates have caused numerical drift
+    bool ok = arma::solve(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_),
+                          arma::eye(p_, p_), arma::solve_opts::fast);
+    if (!ok) {
+        refresh_cholesky();
+    } else {
+        covariance_matrix_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
+    }
 
     // reset for next iteration
     vf1_[i] = 0.0;
@@ -403,9 +636,15 @@ void GGMModel::cholesky_update_after_diag(double omega_ii_old, size_t i)
     else
         cholesky_update(cholesky_of_precision_, vf1_);
 
-    // update inverse (2x O(p^2))
-    arma::inv(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_));
-    covariance_matrix_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
+    // update inverse — fall back to full recomputation if rank-1
+    // updates have caused numerical drift
+    bool ok = arma::solve(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_),
+                          arma::eye(p_, p_), arma::solve_opts::fast);
+    if (!ok) {
+        refresh_cholesky();
+    } else {
+        covariance_matrix_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
+    }
 
     // reset for next iteration
     vf1_(i) = 0.0;
@@ -673,6 +912,57 @@ void GGMModel::initialize_graph() {
     }
     constraint_dirty_ = true;
     theta_valid_ = false;
+
+    // Recompute Cholesky from scratch after bulk edge changes to avoid
+    // accumulated numerical drift from many rank-1 updates/downdates.
+    refresh_cholesky();
+}
+
+
+void GGMModel::refresh_cholesky() {
+    cholesky_of_precision_ = arma::chol(precision_matrix_, "upper");
+    arma::solve(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_),
+                arma::eye(p_, p_), arma::solve_opts::fast);
+    covariance_matrix_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
+}
+
+
+void GGMModel::initialize_precision_from_mle() {
+    // Regularized MLE: K = n * inv(S + delta * I).
+    // delta = trace(S) / (p * n) gives scale-appropriate shrinkage toward I.
+    double trace_s = arma::trace(suf_stat_);
+    double delta = trace_s / static_cast<double>(p_ * n_);
+    arma::mat S_reg = suf_stat_ + delta * arma::eye(p_, p_);
+    arma::mat K_init;
+    if (arma::inv_sympd(K_init, S_reg)) {
+        precision_matrix_ = static_cast<double>(n_) * K_init;
+
+        // For fixed sparse graphs, zero out excluded edges and
+        // recompute the diagonal to maintain positive definiteness.
+        if (has_sparse_graph_) {
+            for (size_t i = 0; i < p_ - 1; ++i) {
+                for (size_t j = i + 1; j < p_; ++j) {
+                    if (edge_indicators_(i, j) == 0) {
+                        precision_matrix_(i, j) = 0.0;
+                        precision_matrix_(j, i) = 0.0;
+                    }
+                }
+            }
+            // Make diagonally dominant to ensure PD after zeroing.
+            for (size_t i = 0; i < p_; ++i) {
+                double row_sum = 0.0;
+                for (size_t j = 0; j < p_; ++j) {
+                    if (j != i) row_sum += std::abs(precision_matrix_(i, j));
+                }
+                if (precision_matrix_(i, i) <= row_sum) {
+                    precision_matrix_(i, i) = row_sum + 0.1;
+                }
+            }
+        }
+
+        refresh_cholesky();
+    }
+    // If inv_sympd fails, keep the identity initialization.
 }
 
 

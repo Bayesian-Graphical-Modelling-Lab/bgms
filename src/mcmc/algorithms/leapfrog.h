@@ -63,6 +63,14 @@ public:
     return cached_grad_val;
   }
 
+  /**
+   * Invalidate the cached gradient (e.g. after in-place position projection).
+   *
+   * After RATTLE projection modifies x, the cached gradient is for the
+   * pre-projection position and must be recomputed.
+   */
+  void invalidate() { has_cache = false; }
+
 private:
   void ensure_cached(const arma::vec& theta) {
     if (has_cache &&
@@ -100,6 +108,38 @@ std::pair<arma::vec, arma::vec> leapfrog_memo(
     double eps,
     Memoizer& memo,
     const arma::vec& inv_mass_diag
+);
+
+/**
+ * Projection callback type for constrained leapfrog (RATTLE).
+ *
+ * Takes (position, momentum) by reference and projects both
+ * onto the constraint manifold and its cotangent space.
+ */
+using ProjectFn = std::function<void(arma::vec& x, arma::vec& r)>;
+
+/**
+ * Performs a single constrained leapfrog step (RATTLE scheme).
+ *
+ * After the position half-step, projects position onto the constraint
+ * manifold and momentum onto the cotangent space. Invalidates the
+ * Memoizer cache since projection changes the position.
+ *
+ * @param theta          Current position (parameter vector)
+ * @param r              Current momentum vector
+ * @param eps            Step size for integration
+ * @param memo           Memoizer caching gradient evaluations
+ * @param inv_mass_diag  Diagonal of the inverse mass matrix
+ * @param project        Projection callback (position + momentum)
+ * @return Pair of (updated position, updated momentum)
+ */
+std::pair<arma::vec, arma::vec> leapfrog_constrained(
+    const arma::vec& theta,
+    const arma::vec& r,
+    double eps,
+    Memoizer& memo,
+    const arma::vec& inv_mass_diag,
+    const ProjectFn& project
 );
 
 

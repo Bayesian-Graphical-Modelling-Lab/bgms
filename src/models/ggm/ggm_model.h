@@ -61,7 +61,12 @@ public:
         num_pairwise_(p_ * (p_ - 1) / 2),
         observations_(na_impute ? observations : arma::mat()),
         precision_proposal_(arma::mat(p_, p_, arma::fill::none))
-    {}
+    {
+        int num_edges = arma::accu(edge_indicators_) / 2;
+        int max_edges = static_cast<int>(p_ * (p_ - 1) / 2);
+        has_sparse_graph_ = !edge_selection_ && (num_edges < max_edges);
+        initialize_precision_from_mle();
+    }
 
     /**
      * Construct from sufficient statistics.
@@ -100,7 +105,12 @@ public:
         proposal_sds_(arma::vec(dim_, arma::fill::ones) * 0.25),
         num_pairwise_(p_ * (p_ - 1) / 2),
         precision_proposal_(arma::mat(p_, p_, arma::fill::none))
-    {}
+    {
+        int num_edges = arma::accu(edge_indicators_) / 2;
+        int max_edges = static_cast<int>(p_ * (p_ - 1) / 2);
+        has_sparse_graph_ = !edge_selection_ && (num_edges < max_edges);
+        initialize_precision_from_mle();
+    }
 
     /** Copy constructor for cloning (required for parallel chains). */
     GGMModel(const GGMModel& other)
@@ -111,6 +121,7 @@ public:
           suf_stat_(other.suf_stat_),
           inclusion_probability_(other.inclusion_probability_),
           edge_selection_(other.edge_selection_),
+          has_sparse_graph_(other.has_sparse_graph_),
           pairwise_scale_(other.pairwise_scale_),
           precision_matrix_(other.precision_matrix_),
           cholesky_of_precision_(other.cholesky_of_precision_),
@@ -332,6 +343,65 @@ public:
      */
     arma::vec get_active_inv_mass() const override;
 
+    // -----------------------------------------------------------------
+    // RATTLE constrained integration
+    // -----------------------------------------------------------------
+
+    /** @return true when constraints exist (edge selection or sparse graph). */
+    bool has_constraints() const override { return edge_selection_ || has_sparse_graph_; }
+
+    /**
+     * Pack the Cholesky factor into a full-dimension position vector.
+     *
+     * Layout: column-by-column, each column q contributes q off-diagonal
+     * entries x_{i,q} = Phi_{i,q} (i < q) followed by psi_q = log(Phi_{qq}).
+     * Total dimension = p(p+1)/2 regardless of edge state.
+     */
+    arma::vec get_full_position() const override;
+
+    /**
+     * Unpack a full-dimension position vector into the Cholesky factor
+     * and derived matrices (precision, inverse, covariance).
+     *
+     * @param x  Full position vector of dimension p(p+1)/2
+     */
+    void set_full_position(const arma::vec& x) override;
+
+    /**
+     * Project position onto the constraint manifold (in-place).
+     *
+     * For each column q with excluded edges, projects the off-diagonal
+     * entries to satisfy K_{iq} = 0 using direct orthogonal projection
+     * onto null(A_q). Columns are processed left-to-right so that each
+     * projection uses finalized earlier columns (Roverato structure).
+     *
+     * @param x  Full-dimension position vector (modified in-place)
+     */
+    void project_position(arma::vec& x) const override;
+
+    /**
+     * Project momentum onto the cotangent space (in-place).
+     *
+     * Uses the full constraint Jacobian J to enforce J M^{-1} r = 0.
+     * Stub for Phase 1 — full implementation in Phase 3.
+     *
+     * @param r  Momentum vector (modified in-place)
+     * @param x  Current position (after projection)
+     */
+    void project_momentum(arma::vec& r, const arma::vec& x) const override;
+
+    /**
+     * Full-space log-posterior and gradient for RATTLE integration.
+     *
+     * Simplified gradient in the full x-space: no null-space chain
+     * rule, no reverse-Givens adjoint, no QR Jacobian. Delegates
+     * to GGMGradientEngine::logp_and_gradient_full().
+     *
+     * @param x  Full position vector of dimension p(p+1)/2
+     * @return (log-posterior value, gradient vector)
+     */
+    std::pair<double, arma::vec> logp_and_gradient_full(const arma::vec& x) override;
+
     /** @return Deep copy of this model. */
     std::unique_ptr<BaseModel> clone() const override {
         return std::make_unique<GGMModel>(*this);
@@ -366,6 +436,8 @@ private:
     bool edge_selection_;
     /// Whether edge add-delete proposals are currently active.
     bool edge_selection_active_ = false;
+    /// Whether the initial graph excludes any edges (triggers RATTLE).
+    bool has_sparse_graph_ = false;
     /// Scale parameter of the Cauchy slab prior on off-diagonal elements.
     double pairwise_scale_;
 
@@ -543,6 +615,27 @@ private:
      * @param i             Diagonal index
      */
     void cholesky_update_after_diag(double omega_ii_old, size_t i);
+
+    /**
+     * Recompute Cholesky and its inverse from the precision matrix.
+     *
+     * Used as a fallback when accumulated rank-1 updates/downdates
+     * cause numerical drift that makes the triangular inverse fail.
+     * Resets both cholesky_of_precision_ and inv_cholesky_of_precision_
+     * from precision_matrix_, then recomputes covariance_matrix_.
+     */
+    void refresh_cholesky();
+
+    /**
+     * Initialize precision matrix at the regularized MLE.
+     *
+     * Computes K = n * inv(S + delta * I) where delta provides
+     * Ledoit-Wolf-style shrinkage toward identity. Gives NUTS a
+     * starting point near the posterior mode, avoiding the step-size
+     * instability that arises when starting from K = I far from the
+     * mode.
+     */
+    void initialize_precision_from_mle();
 
     // =================================================================
     // NUTS gradient support

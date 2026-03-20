@@ -25,6 +25,57 @@ std::pair<arma::vec, arma::vec> leapfrog_memo(
 }
 
 
+std::pair<arma::vec, arma::vec> leapfrog_constrained(
+    const arma::vec& theta,
+    const arma::vec& r,
+    double eps,
+    Memoizer& memo,
+    const arma::vec& inv_mass_diag,
+    const ProjectFn& project
+) {
+  arma::vec r_half = r;
+  arma::vec theta_new = theta;
+
+  // Half-step momentum
+  const arma::vec& grad1 = memo.cached_grad(theta_new);
+  r_half += 0.5 * eps * grad1;
+
+  // Full-step position
+  theta_new += eps * (inv_mass_diag % r_half);
+
+  // --- RATTLE position-constraint step ---
+  // Save pre-projection position to compute the correction
+  arma::vec theta_pre = theta_new;
+
+  // Project position only (discard the momentum projection from this call)
+  arma::vec r_temp = r_half;
+  project(theta_new, r_temp);
+
+  // RATTLE momentum correction: couples position and momentum updates
+  // In standard RATTLE, the Lagrange multiplier from the position constraint
+  // also appears in the momentum half-step. The correction is:
+  //   Δr = M · Δx / ε = Δx / (ε · M^{-1})
+  arma::vec delta_x = theta_new - theta_pre;
+  r_half += delta_x / (eps * inv_mass_diag);
+
+  // Note: mid-step momentum is NOT projected to the tangent space.
+  // Only the final momentum gets the velocity-constraint projection.
+
+  memo.invalidate();
+
+  // Second half-step momentum (re-evaluates gradient at projected position)
+  const arma::vec& grad2 = memo.cached_grad(theta_new);
+  r_half += 0.5 * eps * grad2;
+
+  // --- RATTLE velocity-constraint step ---
+  // Project final momentum onto cotangent space
+  // (position projection is a no-op since theta_new is already on manifold)
+  project(theta_new, r_half);
+
+  return {theta_new, r_half};
+}
+
+
 LeapfrogJointResult leapfrog(
     const arma::vec& theta_init,
     const arma::vec& r_init,
