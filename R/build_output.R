@@ -492,7 +492,7 @@ build_output_bgm = function(spec, raw) {
   }
 
   # --- NUTS diagnostics -------------------------------------------------------
-  if(s$update_method %in% c("nuts", "nuts-nullspace")) {
+  if(s$update_method == "nuts") {
     results$nuts_diag = summarize_nuts_diagnostics(
       raw,
       nuts_max_depth = s$nuts_max_depth
@@ -871,7 +871,7 @@ build_output_compare = function(spec, raw) {
   class(results) = "bgmCompare"
 
   # --- NUTS diagnostics -------------------------------------------------------
-  if(s$update_method %in% c("nuts", "nuts-nullspace")) {
+  if(s$update_method == "nuts") {
     results$nuts_diag = summarize_nuts_diagnostics(
       raw,
       nuts_max_depth = s$nuts_max_depth

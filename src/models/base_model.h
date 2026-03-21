@@ -240,38 +240,6 @@ public:
      */
     virtual arma::vec get_active_inv_mass() const { return inv_mass_; }
 
-    /**
-     * Project a full-space covariance matrix to the current active subspace.
-     *
-     * For models with null-space constraints, rotates the full covariance
-     * through the null-space basis N_q: Sigma_active = B^T Sigma_full B
-     * where B maps active free parameters to full Cholesky entries.
-     *
-     * Default: returns the full covariance (identity projection).
-     *
-     * @param full_cov  Full-space covariance matrix (full_dim x full_dim)
-     * @return Active-space covariance matrix (active_dim x active_dim)
-     */
-    virtual arma::mat project_dense_mass(const arma::mat& full_cov) const {
-        return full_cov;
-    }
-
-    /**
-     * Build the projection matrix B mapping active parameters to full space.
-     *
-     * B has dimensions (full_dim x active_dim). For unconstrained columns,
-     * B selects the relevant rows of the identity. For constrained columns,
-     * B embeds through the null-space basis N_q.
-     *
-     * Default: identity matrix (no projection needed).
-     *
-     * @return Projection matrix B (full_dim x active_dim)
-     */
-    virtual arma::mat get_projection_matrix() const {
-        size_t d = full_parameter_dimension();
-        return arma::eye(d, d);
-    }
-
     // =========================================================================
     // RATTLE constrained integration
     // =========================================================================

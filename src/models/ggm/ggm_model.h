@@ -343,23 +343,6 @@ public:
      */
     arma::vec get_active_inv_mass() const override;
 
-    /**
-     * Project a full-space covariance matrix to the active subspace.
-     *
-     * Builds the projection matrix B that maps active (f_q, psi_q)
-     * parameters to full (x_q, psi_q) parameters using the current
-     * null-space bases N_q, then returns B^T * full_cov * B.
-     *
-     * @param full_cov  Full-space covariance (full_dim x full_dim)
-     * @return Active-space covariance (active_dim x active_dim)
-     */
-    arma::mat project_dense_mass(const arma::mat& full_cov) const override;
-
-    /**
-     * Build projection matrix B (full_dim x active_dim) for current graph.
-     */
-    arma::mat get_projection_matrix() const override;
-
     // -----------------------------------------------------------------
     // RATTLE constrained integration
     // -----------------------------------------------------------------

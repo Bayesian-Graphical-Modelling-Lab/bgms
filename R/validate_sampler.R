@@ -104,7 +104,7 @@ validate_sampler = function(update_method,
   user_chose_method = length(update_method) == 1
   update_method = match.arg(
     update_method,
-    choices = c("nuts", "nuts-nullspace", "adaptive-metropolis", "hamiltonian-mc")
+    choices = c("nuts", "adaptive-metropolis", "hamiltonian-mc")
   )
 
   # --- GGM: default to adaptive-metropolis; allow NUTS, block HMC ---------------
@@ -116,7 +116,7 @@ validate_sampler = function(update_method,
       stop(paste0(
         "The Gaussian model (variable_type = 'continuous') does not support ",
         "update_method = 'hamiltonian-mc'. ",
-        "Use 'nuts', 'nuts-nullspace', or 'adaptive-metropolis'."
+        "Use 'nuts' or 'adaptive-metropolis'."
       ))
     }
   }
@@ -129,8 +129,7 @@ validate_sampler = function(update_method,
     target_accept = switch(update_method,
       "adaptive-metropolis" = 0.44,
       "hamiltonian-mc"      = 0.65,
-      "nuts"                = 0.80,
-      "nuts-nullspace"      = 0.80
+      "nuts"                = 0.80
     )
   }
 
@@ -139,7 +138,7 @@ validate_sampler = function(update_method,
   check_non_negative_integer(warmup, "warmup")
 
   # --- warmup warnings --------------------------------------------------------
-  if(verbose && update_method %in% c("hamiltonian-mc", "nuts", "nuts-nullspace")) {
+  if(verbose && update_method %in% c("hamiltonian-mc", "nuts")) {
     if(edge_selection) {
       if(warmup < 50) {
         warning(

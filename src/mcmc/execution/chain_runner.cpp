@@ -9,7 +9,7 @@
 
 
 std::unique_ptr<SamplerBase> create_sampler(const SamplerConfig& config, WarmupSchedule& schedule) {
-    if (config.sampler_type == "nuts" || config.sampler_type == "nuts-nullspace") {
+    if (config.sampler_type == "nuts") {
         return std::make_unique<NUTSSampler>(config, schedule);
     } else if (config.sampler_type == "hybrid-nuts") {
         return std::make_unique<HybridNUTSSampler>(config, schedule);
@@ -35,7 +35,6 @@ void run_mcmc_chain(
 
     // Construct warmup schedule (shared by runner and sampler)
     const bool learn_sd = (config.sampler_type == "nuts" ||
-                           config.sampler_type == "nuts-nullspace" ||
                            config.sampler_type == "hybrid-nuts" ||
                            config.sampler_type == "hmc" ||
                            config.sampler_type == "hamiltonian-mc");
@@ -150,7 +149,6 @@ std::vector<ChainResult> run_mcmc_sampler(
     ProgressManager& pm
 ) {
     const bool has_nuts_diag = (config.sampler_type == "nuts" ||
-                                config.sampler_type == "nuts-nullspace" ||
                                 config.sampler_type == "hybrid-nuts");
     const bool has_sbm_alloc = edge_prior.has_allocations() ||
         (config.edge_selection && dynamic_cast<StochasticBlockEdgePrior*>(&edge_prior) != nullptr);

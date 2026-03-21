@@ -6,7 +6,7 @@
 # Helper: minimal valid call with sensible defaults
 vs = function(...) {
   defaults = list(
-    update_method     = c("nuts", "nuts-nullspace", "adaptive-metropolis", "hamiltonian-mc"),
+    update_method     = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
     target_accept     = NULL,
     iter              = 1000L,
     warmup            = 250L,

@@ -213,7 +213,7 @@ bgmCompare = function(
   iter = 1e3,
   warmup = 1e3,
   na_action = c("listwise", "impute"),
-  update_method = c("nuts", "nuts-nullspace", "adaptive-metropolis", "hamiltonian-mc"),
+  update_method = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
   target_accept,
   hmc_num_leapfrogs = 100,
   nuts_max_depth = 10,

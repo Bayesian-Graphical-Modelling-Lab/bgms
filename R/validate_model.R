@@ -302,55 +302,6 @@ validate_baseline_category = function(baseline_category,
 
 
 # ------------------------------------------------------------------------------
-# validate_include_edge
-# ------------------------------------------------------------------------------
-# Validates the include_edge argument for bgm().
-#
-# @param include_edge  NULL or a p x p matrix of 0s and 1s specifying which
-#   edges to include. Must be symmetric with zero diagonal.
-# @param num_variables  Integer: number of variables.
-#
-# Returns: NULL (if input is NULL) or a validated p x p integer matrix.
-# ------------------------------------------------------------------------------
-validate_include_edge = function(include_edge, num_variables) {
-  if(is.null(include_edge)) {
-    return(NULL)
-  }
-
-  if(!is.matrix(include_edge)) {
-    stop(
-      "The include_edge argument must be a matrix or NULL, not ",
-      class(include_edge)[1L], "."
-    )
-  }
-
-  if(nrow(include_edge) != num_variables || ncol(include_edge) != num_variables) {
-    stop(
-      "The include_edge matrix must be ", num_variables, " x ", num_variables,
-      " (matching the number of variables), but has dimensions ",
-      nrow(include_edge), " x ", ncol(include_edge), "."
-    )
-  }
-
-  storage.mode(include_edge) = "integer"
-  vals = unique(as.vector(include_edge))
-  if(!all(vals %in% c(0L, 1L))) {
-    stop("The include_edge matrix must contain only 0s and 1s.")
-  }
-
-  if(!isSymmetric(include_edge)) {
-    stop("The include_edge matrix must be symmetric.")
-  }
-
-  if(any(diag(include_edge) != 0L)) {
-    stop("The diagonal of include_edge must be zero.")
-  }
-
-  include_edge
-}
-
-
-# ------------------------------------------------------------------------------
 # validate_edge_prior
 # ------------------------------------------------------------------------------
 #
