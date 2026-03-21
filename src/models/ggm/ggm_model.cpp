@@ -4,6 +4,7 @@
 #include "math/cholupdate.h"
 #include "mcmc/execution/step_result.h"
 #include "mcmc/execution/warmup_schedule.h"
+#include "mcmc/profiler.h"
 
 // =====================================================================
 // NUTS gradient support
@@ -48,6 +49,7 @@ void GGMModel::recompute_theta() const {
         // f_q = N_q^T x_q
         arma::vec x_q = cholesky_of_precision_.col(q).head(q);
         arma::vec f_q = Nq.t() * x_q;
+
         for (size_t k = 0; k < col.d_q; ++k) {
             theta_(offset + k) = f_q(k);
         }
@@ -215,6 +217,78 @@ arma::vec GGMModel::get_active_inv_mass() const {
 }
 
 // =====================================================================
+// project_dense_mass
+// =====================================================================
+
+arma::mat GGMModel::project_dense_mass(const arma::mat& full_cov) const {
+    arma::mat B = get_projection_matrix();
+    if (B.n_rows == B.n_cols) {
+        return full_cov;  // All edges on — B is identity
+    }
+    return B.t() * full_cov * B;
+}
+
+// =====================================================================
+// get_projection_matrix
+// =====================================================================
+// Build the projection matrix B (full_dim x active_dim) that maps
+// active (f_q, psi_q) parameters to full (x_q, psi_q) Cholesky entries.
+
+arma::mat GGMModel::get_projection_matrix() const {
+    if (constraint_dirty_) {
+        const_cast<GGMModel*>(this)->ensure_constraint_structure();
+    }
+
+    const auto& cs = constraint_structure_;
+
+    // If active == full (all edges on), return identity
+    if (cs.active_dim == cs.full_dim) {
+        return arma::eye(cs.full_dim, cs.full_dim);
+    }
+
+    arma::mat B(cs.full_dim, cs.active_dim, arma::fill::zeros);
+    arma::mat Aq_buf;
+
+    for (size_t q = 0; q < p_; ++q) {
+        const auto& col = cs.columns[q];
+        size_t active_offset = cs.theta_offsets[q];
+        size_t full_offset = cs.full_theta_offsets[q];
+
+        if (q == 0 || col.d_q == 0) {
+            // psi_q only — direct mapping
+            B(cs.full_psi_offset(q), cs.psi_offset(q)) = 1.0;
+            continue;
+        }
+
+        if (col.m_q == 0) {
+            // No constraints: N_q = I, f_q maps directly to x_q
+            for (size_t k = 0; k < col.d_q; ++k) {
+                B(full_offset + col.included_indices[k], active_offset + k) = 1.0;
+            }
+        } else {
+            // Constrained: build N_q and set B block
+            arma::mat Q_tmp, R_tmp;
+            arma::vec R_diag;
+            std::vector<GivensRotation> rots_tmp;
+            GGMGradientEngine::build_Aq(cholesky_of_precision_, col, q, Aq_buf);
+            GGMGradientEngine::givens_qr(Aq_buf.t(), Q_tmp, R_tmp, R_diag, rots_tmp);
+            arma::mat Nq = Q_tmp.cols(col.m_q, q - 1);
+
+            for (size_t j = 0; j < q; ++j) {
+                for (size_t k = 0; k < col.d_q; ++k) {
+                    B(full_offset + j, active_offset + k) = Nq(j, k);
+                }
+            }
+        }
+
+        // psi_q — direct mapping
+        B(cs.full_psi_offset(q), cs.psi_offset(q)) = 1.0;
+    }
+
+    return B;
+}
+
+// =====================================================================
 // RATTLE constrained integration
 // =====================================================================
 
@@ -281,27 +355,38 @@ void GGMModel::set_full_position(const arma::vec& x) {
 }
 
 // ------------------------------------------------------------------
-// project_position
+// project_position  (identity-mass overload)
+// ------------------------------------------------------------------
+void GGMModel::project_position(arma::vec& x) const {
+    arma::vec ones(x.n_elem, arma::fill::ones);
+    project_position(x, ones);
+}
+
+// ------------------------------------------------------------------
+// project_position  (mass-weighted SHAKE)
 // ------------------------------------------------------------------
 // Project onto the constraint manifold: for each excluded edge (i,q),
 // enforce K_{iq} = sum_l Phi_{li} Phi_{lq} = 0.
 //
-// Uses direct projection (Option B from RATTLE plan):
-//   x_q -= A_q^T (A_q A_q^T)^{-1} (A_q x_q)
+// Uses the RATTLE-correct SHAKE correction direction M^{-1} A_q^T:
+//   x_q -= diag(inv_mass_q) A_q^T (A_q diag(inv_mass_q) A_q^T)^{-1} (A_q x_q)
 //
 // Columns are processed left-to-right. Each column's constraints are
 // linear in that column's off-diagonal entries given earlier columns,
-// so one projection per column is exact (Newton-free).
+// so one projection per column is exact.
 //
-// @param x  Full-dimension position vector (modified in-place).
+// @param x              Full-dimension position vector (modified).
+// @param inv_mass_diag  Diagonal of the inverse mass matrix.
 // ------------------------------------------------------------------
-void GGMModel::project_position(arma::vec& x) const {
+void GGMModel::project_position(arma::vec& x,
+                                const arma::vec& inv_mass_diag) const {
     if (constraint_dirty_) {
         const_cast<GGMModel*>(this)->ensure_constraint_structure();
     }
     const auto& cs = constraint_structure_;
 
     // Build a working Phi from x so build_Aq can read earlier columns
+    BGMS_PROF_START(_t_pp_phi);
     arma::mat Phi(p_, p_, arma::fill::zeros);
     for (size_t q = 0; q < p_; ++q) {
         size_t offset = cs.full_theta_offsets[q];
@@ -310,7 +395,9 @@ void GGMModel::project_position(arma::vec& x) const {
         }
         Phi(q, q) = std::exp(x(offset + q));
     }
+    BGMS_PROF_RECORD("proj_pos.unpack", _t_pp_phi);
 
+    BGMS_PROF_START(_t_pp_loop);
     arma::mat Aq_buf;
 
     for (size_t q = 1; q < p_; ++q) {
@@ -328,12 +415,25 @@ void GGMModel::project_position(arma::vec& x) const {
             x_q(i) = x(offset + i);
         }
 
-        // Direct projection: x_q -= A_q^T (A_q A_q^T)^{-1} (A_q x_q)
-        arma::vec Aq_xq = Aq_buf * x_q;                // m_q x 1
-        arma::mat G = Aq_buf * Aq_buf.t();              // m_q x m_q
+        // SHAKE projection: x_q -= M_q^{-1} A_q^T (A_q M_q^{-1} A_q^T)^{-1} (A_q x_q)
+        arma::vec Aq_xq = Aq_buf * x_q;                // m_q x 1 (constraint violation)
+
+        // Build M_q^{-1}: diagonal sub-block of inv_mass for column q off-diagonals
+        arma::vec inv_mass_q(q);
+        for (size_t i = 0; i < q; ++i) {
+            inv_mass_q(i) = inv_mass_diag(offset + i);
+        }
+
+        // G = A_q diag(inv_mass_q) A_q^T
+        arma::mat Aq_scaled = Aq_buf;
+        Aq_scaled.each_row() %= inv_mass_q.t();         // scale columns by inv_mass
+        arma::mat G = Aq_scaled * Aq_buf.t();            // m_q x m_q
         arma::vec lambda = arma::solve(G, Aq_xq,
                                        arma::solve_opts::likely_sympd);
-        x_q -= Aq_buf.t() * lambda;
+
+        // Correction: x_q -= diag(inv_mass_q) * A_q^T * lambda
+        arma::vec correction = Aq_buf.t() * lambda;      // q x 1
+        x_q -= inv_mass_q % correction;
 
         // Write back to x and update working Phi
         for (size_t i = 0; i < q; ++i) {
@@ -341,44 +441,66 @@ void GGMModel::project_position(arma::vec& x) const {
             Phi(i, q) = x_q(i);
         }
     }
+    BGMS_PROF_RECORD("proj_pos.project", _t_pp_loop);
 }
 
 // ------------------------------------------------------------------
-// project_momentum
-// ------------------------------------------------------------------
-// Full-J momentum projection (Option G from RATTLE plan).
-//
-// Projects momentum onto the cotangent space of the constraint
-// manifold using the full constraint Jacobian J:
-//   r <- r - J^T (J J^T)^{-1} J r
-//
-// Uses identity mass (M = I). Mass-weighted projection deferred to
-// Phase 5 integration.
-//
-// The constraint Jacobian J has one row per excluded edge (i,q) and
-// one column per entry in the full x vector. For c_{iq} = sum_l
-// Phi_{li} Phi_{lq} = 0:
-//   dc/d(x_{l,q}) = Phi_{l,i}   for l = 0..min(i,q-1)  (Type 1)
-//   dc/d(x_{l,i}) = Phi_{l,q}   for l = 0..i-1          (Type 2)
-//   dc/d(psi_i)   = Phi_{i,q} * Phi_{i,i}               (diagonal)
-//
-// @param r  Momentum vector (modified in-place).
-// @param x  Current position (after projection).
+// project_momentum  (identity-mass overload)
 // ------------------------------------------------------------------
 void GGMModel::project_momentum(arma::vec& r, const arma::vec& x) const {
+    arma::vec ones(r.n_elem, arma::fill::ones);
+    project_momentum(r, x, ones);
+}
+
+// ------------------------------------------------------------------
+// project_momentum  (mass-weighted RATTLE, preconditioned CG)
+// ------------------------------------------------------------------
+// Enforces the RATTLE velocity constraint J M^{-1} r = 0 by solving
+// (J M^{-1} J^T) lambda = J M^{-1} r via preconditioned conjugate
+// gradient, then scattering r -= J^T lambda.
+//
+// The Gram matrix G = J M^{-1} J^T is never formed explicitly.
+// Instead, each PCG iteration applies G via two sparse mat-vecs:
+//   G d = J (M^{-1} (J^T d))
+//
+// The block-diagonal preconditioner uses the exact within-column
+// Gram block G_q (including Type 2 self-interaction on the diagonal).
+// Within a column q, all constraints have distinct source indices,
+// so the off-diagonal of G_q exactly equals the full G restricted to
+// column q's constraints. Only the cross-column interactions
+// (Cases 3/4) are captured iteratively by PCG.
+//
+// Typical convergence: 3-5 PCG iterations for machine precision.
+// Per-call cost: O(kmp + sum_q m_q^2 q) vs O(m^2 p + m^3) for the
+// direct solve.
+//
+// @param r              Momentum vector (modified in-place).
+// @param x              Current position (after projection).
+// @param inv_mass_diag  Diagonal of the inverse mass matrix.
+// ------------------------------------------------------------------
+void GGMModel::project_momentum(arma::vec& r, const arma::vec& x,
+                                const arma::vec& inv_mass_diag) const {
     if (constraint_dirty_) {
         const_cast<GGMModel*>(this)->ensure_constraint_structure();
     }
     const auto& cs = constraint_structure_;
 
-    // Count total excluded edges
-    size_t m_total = 0;
+    // Enumerate constraints and count total
+    struct Con { size_t i, q, off_i, off_q; };
+    std::vector<Con> cons;
     for (size_t q = 1; q < p_; ++q) {
-        m_total += cs.columns[q].m_q;
+        const auto& col = cs.columns[q];
+        size_t off_q = cs.full_theta_offsets[q];
+        for (size_t e = 0; e < col.m_q; ++e) {
+            size_t i = col.excluded_indices[e];
+            cons.push_back({i, q, cs.full_theta_offsets[i], off_q});
+        }
     }
-    if (m_total == 0) return;
+    size_t m = cons.size();
+    if (m == 0) return;
 
     // Unpack x -> Phi
+    BGMS_PROF_START(_t_pm_phi);
     arma::mat Phi(p_, p_, arma::fill::zeros);
     for (size_t q = 0; q < p_; ++q) {
         size_t offset = cs.full_theta_offsets[q];
@@ -387,42 +509,156 @@ void GGMModel::project_momentum(arma::vec& r, const arma::vec& x) const {
         }
         Phi(q, q) = std::exp(x(offset + q));
     }
+    BGMS_PROF_RECORD("proj_mom.unpack", _t_pm_phi);
 
-    // Build J (m_total x full_dim) and compute J*r simultaneously
-    arma::mat J(m_total, cs.full_dim, arma::fill::zeros);
-    size_t row = 0;
+    BGMS_PROF_START(_t_pm_proj);
 
-    for (size_t q = 1; q < p_; ++q) {
-        const auto& col = cs.columns[q];
-        size_t offset_q = cs.full_theta_offsets[q];
+    size_t d = x.n_elem;
 
-        for (size_t e = 0; e < col.m_q; ++e) {
-            size_t i = col.excluded_indices[e];
-            size_t offset_i = cs.full_theta_offsets[i];
+    // --- Build block-diagonal preconditioner ---
+    // For each column q, form G_q = A_q diag(inv_mass_q) A_q^T with
+    // diagonal correction for Type 2 self-interaction.
+    // Store inverted blocks and block offsets for fast apply.
+    struct PrecBlock { arma::mat Gq_inv; size_t offset; size_t size; };
+    std::vector<PrecBlock> prec_blocks;
+    prec_blocks.reserve(p_);
+    arma::mat Aq_buf;
 
-            // Type 1: dc/d(x_{l,q}) = Phi_{l,i} for l = 0..min(i, q-1)
-            for (size_t l = 0; l <= i && l < q; ++l) {
-                J(row, offset_q + l) = Phi(l, i);
+    {
+        size_t offset = 0;
+        for (size_t q = 1; q < p_; ++q) {
+            const auto& col = cs.columns[q];
+            if (col.m_q == 0) continue;
+
+            size_t off_q = cs.full_theta_offsets[q];
+            GGMGradientEngine::build_Aq(Phi, col, q, Aq_buf);
+
+            // G_q = A_q diag(inv_mass_q) A_q^T
+            arma::mat Aq_scaled = Aq_buf;
+            for (size_t l = 0; l < q; ++l)
+                Aq_scaled.col(l) *= inv_mass_diag(off_q + l);
+            arma::mat Gq = Aq_scaled * Aq_buf.t();
+
+            // Diagonal correction: Type 2 self-interaction
+            for (size_t e = 0; e < col.m_q; ++e) {
+                size_t i = col.excluded_indices[e];
+                size_t off_i = cs.full_theta_offsets[i];
+                double diag_add = 0.0;
+                for (size_t l = 0; l < i; ++l)
+                    diag_add += Phi(l, q) * Phi(l, q) * inv_mass_diag(off_i + l);
+                double dd = Phi(i, q) * Phi(i, i);
+                diag_add += dd * dd * inv_mass_diag(off_i + i);
+                Gq(e, e) += diag_add;
             }
 
-            // Type 2: dc/d(x_{l,i}) = Phi_{l,q} for l = 0..i-1
-            for (size_t l = 0; l < i; ++l) {
-                J(row, offset_i + l) = Phi(l, q);
-            }
-
-            // Diagonal chain rule: dc/d(psi_i) = Phi_{i,q} * Phi_{i,i}
-            J(row, offset_i + i) = Phi(i, q) * Phi(i, i);
-
-            ++row;
+            prec_blocks.push_back({arma::inv_sympd(Gq), offset, col.m_q});
+            offset += col.m_q;
         }
     }
 
-    // r <- r - J^T (J J^T)^{-1} J r
-    arma::vec Jr = J * r;                                  // m x 1
-    arma::mat G = J * J.t();                               // m x m
-    arma::vec lambda = arma::solve(G, Jr,
-                                   arma::solve_opts::likely_sympd);
-    r -= J.t() * lambda;
+    // Apply preconditioner: z = P^{-1} v  (block-diagonal)
+    auto apply_precond = [&](const arma::vec& v, arma::vec& z) {
+        for (const auto& blk : prec_blocks) {
+            z.subvec(blk.offset, blk.offset + blk.size - 1) =
+                blk.Gq_inv * v.subvec(blk.offset, blk.offset + blk.size - 1);
+        }
+    };
+
+    // --- Sparse Jacobian operations ---
+
+    // J^T d: scatter d (m-vector) into scratch (d-vector)
+    arma::vec scratch(d);
+    auto Jt_mul = [&](const arma::vec& dv) {
+        scratch.zeros();
+        for (size_t a = 0; a < m; ++a) {
+            const auto& c = cons[a];
+            double da = dv(a);
+            for (size_t l = 0; l <= c.i; ++l)
+                scratch(c.off_q + l) += Phi(l, c.i) * da;
+            for (size_t l = 0; l < c.i; ++l)
+                scratch(c.off_i + l) += Phi(l, c.q) * da;
+            scratch(c.off_i + c.i) += Phi(c.i, c.q) * Phi(c.i, c.i) * da;
+        }
+    };
+
+    // J z: gather from scratch (d-vector) into result (m-vector)
+    auto J_mul = [&](arma::vec& result) {
+        for (size_t a = 0; a < m; ++a) {
+            const auto& c = cons[a];
+            double dot = 0.0;
+            for (size_t l = 0; l <= c.i; ++l)
+                dot += Phi(l, c.i) * scratch(c.off_q + l);
+            for (size_t l = 0; l < c.i; ++l)
+                dot += Phi(l, c.q) * scratch(c.off_i + l);
+            dot += Phi(c.i, c.q) * Phi(c.i, c.i) * scratch(c.off_i + c.i);
+            result(a) = dot;
+        }
+    };
+
+    // G d = J M^{-1} J^T d  (matrix-free, reuses scratch)
+    auto G_mul = [&](const arma::vec& dv, arma::vec& result) {
+        Jt_mul(dv);
+        scratch %= inv_mass_diag;
+        J_mul(result);
+    };
+
+    // --- Compute RHS: b = J M^{-1} r ---
+    arma::vec b(m);
+    {
+        scratch = inv_mass_diag % r;
+        J_mul(b);
+    }
+
+    // --- Preconditioned CG: G lambda = b, preconditioner P ---
+    arma::vec lambda(m, arma::fill::zeros);
+    arma::vec cg_r = b;
+    arma::vec z(m);
+    apply_precond(cg_r, z);
+    arma::vec cg_d = z;
+    double rz = arma::dot(cg_r, z);
+    arma::vec Ad(m);
+
+    const double tol = 1e-26;
+    const size_t max_iter = m;
+    size_t pcg_iters = 0;
+
+    for (size_t iter = 0; iter < max_iter && arma::dot(cg_r, cg_r) > tol; ++iter) {
+        G_mul(cg_d, Ad);
+        double dAd = arma::dot(cg_d, Ad);
+        double alpha = rz / dAd;
+        lambda += alpha * cg_d;
+        cg_r -= alpha * Ad;
+        apply_precond(cg_r, z);
+        double rz_new = arma::dot(cg_r, z);
+        cg_d = z + (rz_new / rz) * cg_d;
+        rz = rz_new;
+        ++pcg_iters;
+    }
+
+    {
+        auto& prof = RattleProfiler::instance();
+        if (prof.enabled) {
+            prof.total_pcg_iterations += static_cast<int64_t>(pcg_iters);
+            prof.total_pcg_calls++;
+            prof.total_pcg_constraints += static_cast<int64_t>(m);
+        }
+    }
+
+    // --- Scatter: r -= J^T lambda ---
+    for (size_t a = 0; a < m; ++a) {
+        const auto& c = cons[a];
+        double lam = lambda(a);
+        // Type 1
+        for (size_t l = 0; l <= c.i; ++l)
+            r(c.off_q + l) -= Phi(l, c.i) * lam;
+        // Type 2
+        for (size_t l = 0; l < c.i; ++l)
+            r(c.off_i + l) -= Phi(l, c.q) * lam;
+        // Diagonal
+        r(c.off_i + c.i) -= Phi(c.i, c.q) * Phi(c.i, c.i) * lam;
+    }
+
+    BGMS_PROF_RECORD("proj_mom.project", _t_pm_proj);
 }
 
 void GGMModel::get_constants(size_t i, size_t j) {

@@ -277,6 +277,7 @@ build_output_bgm = function(spec, raw) {
       if(!is.null(chain$treedepth)) res[["treedepth__"]] = chain$treedepth
       if(!is.null(chain$divergent)) res[["divergent__"]] = chain$divergent
       if(!is.null(chain$energy)) res[["energy__"]] = chain$energy
+      if(!is.null(chain$step_size)) res[["step_size__"]] = chain$step_size
       res
     })
   } else {
@@ -302,6 +303,7 @@ build_output_bgm = function(spec, raw) {
       if(!is.null(chain$treedepth)) res[["treedepth__"]] = chain$treedepth
       if(!is.null(chain$divergent)) res[["divergent__"]] = chain$divergent
       if(!is.null(chain$energy)) res[["energy__"]] = chain$energy
+      if(!is.null(chain$step_size)) res[["step_size__"]] = chain$step_size
       res
     })
   }
@@ -490,7 +492,7 @@ build_output_bgm = function(spec, raw) {
   }
 
   # --- NUTS diagnostics -------------------------------------------------------
-  if(s$update_method == "nuts") {
+  if(s$update_method %in% c("nuts", "nuts-nullspace")) {
     results$nuts_diag = summarize_nuts_diagnostics(
       raw,
       nuts_max_depth = s$nuts_max_depth
@@ -869,7 +871,7 @@ build_output_compare = function(spec, raw) {
   class(results) = "bgmCompare"
 
   # --- NUTS diagnostics -------------------------------------------------------
-  if(s$update_method == "nuts") {
+  if(s$update_method %in% c("nuts", "nuts-nullspace")) {
     results$nuts_diag = summarize_nuts_diagnostics(
       raw,
       nuts_max_depth = s$nuts_max_depth

@@ -114,6 +114,49 @@ public:
 };
 
 /**
+ * DenseMassAccumulator - Online full covariance estimator
+ *
+ * Accumulates Welford running covariance of parameter samples, blended
+ * with a weak prior to prevent degenerate estimates. Used alongside
+ * DiagMassMatrixAccumulator to estimate the full mass matrix for
+ * null-space NUTS.
+ */
+class DenseMassAccumulator {
+public:
+  int count;
+  arma::vec mean;
+  arma::mat M2;
+
+  DenseMassAccumulator(int dim)
+    : count(0), mean(arma::zeros(dim)), M2(arma::zeros(dim, dim)) {}
+
+  void update(const arma::vec& sample) {
+    count++;
+    arma::vec delta = sample - mean;
+    mean += delta / count;
+    arma::vec delta2 = sample - mean;
+    M2 += delta * delta2.t();
+  }
+
+  arma::mat covariance() const {
+    static constexpr double prior_weight = 5.0;
+    static constexpr double prior_variance = 1e-3;
+    double n = static_cast<double>(count);
+
+    arma::mat empirical = M2 / std::max(1.0, n - 1.0);
+    arma::mat prior = arma::eye(mean.n_elem, mean.n_elem) * prior_variance;
+    return (n / (n + prior_weight)) * empirical
+    + (prior_weight / (n + prior_weight)) * prior;
+  }
+
+  void reset() {
+    count = 0;
+    mean.zeros();
+    M2.zeros();
+  }
+};
+
+/**
  * HMCAdaptationController - Warmup adaptation for HMC and NUTS
  *
  * Coordinates step-size dual averaging (Stages 1, 2, 3a, 3c) and
@@ -126,10 +169,13 @@ public:
                           double initial_step_size,
                           double target_accept,
                           WarmupSchedule& schedule_ref,
-                          bool learn_mass_matrix = true)
+                          bool learn_mass_matrix = true,
+                          bool learn_dense_mass = false)
     : schedule(schedule_ref),
       learn_mass_matrix_(learn_mass_matrix),
+      learn_dense_mass_(learn_dense_mass),
       mass_accumulator(dim),
+      dense_accumulator_(dim),
       step_adapter(initial_step_size),
       inv_mass_(arma::ones<arma::vec>(dim)),
       step_size_(initial_step_size),
@@ -160,12 +206,20 @@ public:
      * --------------------------------------------------------- */
     if (schedule.in_stage2(iteration) && learn_mass_matrix_) {
       mass_accumulator.update(theta);
+      if (learn_dense_mass_) {
+        dense_accumulator_.update(theta);
+      }
       int w = schedule.current_window(iteration);
       if (iteration + 1 == schedule.window_ends[w]) {
         // inv_mass = variance (not 1/variance)
         // Higher variance → higher inverse mass → parameter moves more freely
         inv_mass_ = mass_accumulator.variance();
         mass_accumulator.reset();
+        if (learn_dense_mass_) {
+          dense_cov_ = dense_accumulator_.covariance();
+          has_dense_cov_ = true;
+          dense_accumulator_.reset();
+        }
         // Signal that mass matrix was updated - caller should run heuristic
         // and call reinit_stepsize() with the new step size
         mass_matrix_updated_ = true;
@@ -184,6 +238,16 @@ public:
   double final_step_size() const { return step_adapter.averaged(); }
   const arma::vec& inv_mass_diag() const { return inv_mass_; }
   bool has_fixed_mass_matrix() const { return finalized_mass_; }
+
+  /**
+   * @return true when a dense covariance estimate is available (after Stage 2).
+   */
+  bool has_dense_covariance() const { return has_dense_cov_; }
+
+  /**
+   * @return Estimated dense covariance from Stage 2 warmup samples.
+   */
+  const arma::mat& dense_covariance() const { return dense_cov_; }
 
   /**
    * Check if the mass matrix was just updated and needs step size re-initialization.
@@ -211,9 +275,13 @@ public:
 private:
   WarmupSchedule& schedule;
   bool learn_mass_matrix_;
+  bool learn_dense_mass_;
   DiagMassMatrixAccumulator mass_accumulator;
+  DenseMassAccumulator dense_accumulator_;
   DualAveraging step_adapter;
   arma::vec inv_mass_;
+  arma::mat dense_cov_;
+  bool has_dense_cov_ = false;
   double step_size_;
   double target_accept_;
   bool finalized_mass_;

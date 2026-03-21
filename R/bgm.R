@@ -295,8 +295,12 @@
 #'       with Robbins–Monro proposal adaptation.}
 #'     \item{"hamiltonian-mc"}{Hamiltonian Monte Carlo with fixed path length
 #'       (number of leapfrog steps set by \code{hmc_num_leapfrogs}).}
-#'     \item{"nuts"}{The No-U-Turn Sampler, an adaptive form of HMC with
-#'       dynamically chosen trajectory lengths.}
+#'     \item{"nuts"}{The No-U-Turn Sampler with RATTLE constrained integration
+#'       for Gaussian models with edge selection.}
+#'     \item{"nuts-nullspace"}{The No-U-Turn Sampler using null-space
+#'       parameterization. Operates in the reduced theta-space where
+#'       constraints are satisfied by construction, avoiding projection
+#'       at each leapfrog step. Only applicable to Gaussian models.}
 #'   }
 #'   Default: \code{"nuts"}.
 #'
@@ -445,7 +449,7 @@ bgm = function(
   dirichlet_alpha = 1,
   lambda = 1,
   na_action = c("listwise", "impute"),
-  update_method = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
+  update_method = c("nuts", "nuts-nullspace", "adaptive-metropolis", "hamiltonian-mc"),
   target_accept,
   hmc_num_leapfrogs = 100,
   nuts_max_depth = 10,

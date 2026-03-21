@@ -9,7 +9,7 @@
 
 
 std::unique_ptr<SamplerBase> create_sampler(const SamplerConfig& config, WarmupSchedule& schedule) {
-    if (config.sampler_type == "nuts") {
+    if (config.sampler_type == "nuts" || config.sampler_type == "nuts-nullspace") {
         return std::make_unique<NUTSSampler>(config, schedule);
     } else if (config.sampler_type == "hybrid-nuts") {
         return std::make_unique<HybridNUTSSampler>(config, schedule);
@@ -35,6 +35,7 @@ void run_mcmc_chain(
 
     // Construct warmup schedule (shared by runner and sampler)
     const bool learn_sd = (config.sampler_type == "nuts" ||
+                           config.sampler_type == "nuts-nullspace" ||
                            config.sampler_type == "hybrid-nuts" ||
                            config.sampler_type == "hmc" ||
                            config.sampler_type == "hamiltonian-mc");
@@ -112,6 +113,11 @@ void run_mcmc_chain(
             return;
         }
     }
+
+    // Store final adapted step size
+    if (chain_result.has_nuts_diagnostics) {
+        chain_result.step_size = sampler->get_final_step_size();
+    }
 }
 
 
@@ -144,6 +150,7 @@ std::vector<ChainResult> run_mcmc_sampler(
     ProgressManager& pm
 ) {
     const bool has_nuts_diag = (config.sampler_type == "nuts" ||
+                                config.sampler_type == "nuts-nullspace" ||
                                 config.sampler_type == "hybrid-nuts");
     const bool has_sbm_alloc = edge_prior.has_allocations() ||
         (config.edge_selection && dynamic_cast<StochasticBlockEdgePrior*>(&edge_prior) != nullptr);
@@ -224,6 +231,7 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
                 chain_list["treedepth"] = chain.treedepth_samples;
                 chain_list["divergent"] = chain.divergent_samples;
                 chain_list["energy"] = chain.energy_samples;
+                chain_list["step_size"] = chain.step_size;
             }
         }
 

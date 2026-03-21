@@ -85,6 +85,22 @@ run_mixed_simulation_parallel <- function(mux_samples, disc_samples, muy_samples
     .Call(`_bgms_run_mixed_simulation_parallel`, mux_samples, disc_samples, muy_samples, cont_samples, cross_samples, draw_indices, num_states, p, q, num_categories, variable_type_r, baseline_category, iter, nThreads, seed, progress_type)
 }
 
+bgms_profiler_enable <- function() {
+    invisible(.Call(`_bgms_bgms_profiler_enable`))
+}
+
+bgms_profiler_disable <- function() {
+    invisible(.Call(`_bgms_bgms_profiler_disable`))
+}
+
+bgms_profiler_reset <- function() {
+    invisible(.Call(`_bgms_bgms_profiler_reset`))
+}
+
+bgms_profiler_results <- function() {
+    .Call(`_bgms_bgms_profiler_results`)
+}
+
 sample_ggm <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, target_acceptance = 0.8, max_tree_depth = 10L, na_impute = FALSE, missing_index_nullable = NULL) {
     .Call(`_bgms_sample_ggm`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, target_acceptance, max_tree_depth, na_impute, missing_index_nullable)
 }

@@ -5,6 +5,7 @@
 #include "mcmc/algorithms/leapfrog.h"
 #include "mcmc/algorithms/nuts.h"
 #include "mcmc/algorithms/hmc.h"
+#include "mcmc/profiler.h"
 #include "rng/rng_utils.h"
 
 
@@ -86,6 +87,14 @@ BuildTreeResult build_tree(
     int s_new = 1 * (log_u <= Delta_max + logp - kin);
     bool divergent = (s_new == 0);
     double alpha = std::min(1.0, MY_EXP(logp - kin - logp0 + kin0));
+
+    {
+      auto& _prof = RattleProfiler::instance();
+      if(_prof.enabled) {
+        _prof.total_leapfrogs++;
+        if(project) _prof.total_constrained_leapfrogs++;
+      }
+    }
 
     // Initialize rho with the momentum at this point
     arma::vec rho = r_new;
@@ -280,6 +289,13 @@ StepResult nuts_step(
   bool any_divergence = false;
 
   arma::vec r0 = arma::sqrt(1.0 / inv_mass_diag) % arma_rnorm_vec(rng, init_theta.n_elem);
+
+  // TODO: re-enable initial momentum projection after tree depth issue is resolved
+  // if (project) {
+  //   arma::vec pos_tmp = init_theta;
+  //   (*project)(pos_tmp, r0);
+  // }
+
   auto logp0 = memo.cached_log_post(init_theta);
   double kin0 = kinetic_energy(r0, inv_mass_diag);
   double joint0 = logp0 - kin0;
@@ -362,6 +378,14 @@ StepResult nuts_step(
     s = result.s_prime * (persist_criterion ? 1 : 0);
     n += result.n_prime;
     j++;
+  }
+
+  {
+    auto& _prof = RattleProfiler::instance();
+    if(_prof.enabled) {
+      _prof.total_nuts_steps++;
+      _prof.total_tree_depth += j;
+    }
   }
 
   double accept_prob = alpha / static_cast<double>(n_alpha);

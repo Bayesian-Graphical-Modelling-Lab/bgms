@@ -343,6 +343,23 @@ public:
      */
     arma::vec get_active_inv_mass() const override;
 
+    /**
+     * Project a full-space covariance matrix to the active subspace.
+     *
+     * Builds the projection matrix B that maps active (f_q, psi_q)
+     * parameters to full (x_q, psi_q) parameters using the current
+     * null-space bases N_q, then returns B^T * full_cov * B.
+     *
+     * @param full_cov  Full-space covariance (full_dim x full_dim)
+     * @return Active-space covariance (active_dim x active_dim)
+     */
+    arma::mat project_dense_mass(const arma::mat& full_cov) const override;
+
+    /**
+     * Build projection matrix B (full_dim x active_dim) for current graph.
+     */
+    arma::mat get_projection_matrix() const override;
+
     // -----------------------------------------------------------------
     // RATTLE constrained integration
     // -----------------------------------------------------------------
@@ -370,25 +387,51 @@ public:
     /**
      * Project position onto the constraint manifold (in-place).
      *
-     * For each column q with excluded edges, projects the off-diagonal
-     * entries to satisfy K_{iq} = 0 using direct orthogonal projection
-     * onto null(A_q). Columns are processed left-to-right so that each
-     * projection uses finalized earlier columns (Roverato structure).
+     * Identity-mass overload (M = I). Delegates to the mass-weighted
+     * version with inv_mass_diag = ones.
      *
      * @param x  Full-dimension position vector (modified in-place)
      */
     void project_position(arma::vec& x) const override;
 
     /**
+     * Project position onto the constraint manifold (in-place).
+     *
+     * Mass-weighted SHAKE projection: for each column q with excluded
+     * edges, projects the off-diagonal entries to satisfy K_{iq} = 0
+     * using the correction direction M^{-1} A_q^T (RATTLE-correct).
+     * Columns processed left-to-right (Roverato structure).
+     *
+     * @param x              Full-dimension position vector (modified)
+     * @param inv_mass_diag  Diagonal of the inverse mass matrix
+     */
+    void project_position(arma::vec& x,
+                          const arma::vec& inv_mass_diag) const;
+
+    /**
      * Project momentum onto the cotangent space (in-place).
      *
-     * Uses the full constraint Jacobian J to enforce J M^{-1} r = 0.
-     * Stub for Phase 1 — full implementation in Phase 3.
+     * Identity-mass overload (M = I). Delegates to the mass-weighted
+     * version with inv_mass_diag = ones.
      *
      * @param r  Momentum vector (modified in-place)
      * @param x  Current position (after projection)
      */
     void project_momentum(arma::vec& r, const arma::vec& x) const override;
+
+    /**
+     * Project momentum onto the cotangent space (in-place).
+     *
+     * Enforces the RATTLE velocity constraint J M^{-1} r = 0 using
+     * the sparse full-J representation:
+     *   r <- r - J^T (J M^{-1} J^T)^{-1} J M^{-1} r
+     *
+     * @param r              Momentum vector (modified in-place)
+     * @param x              Current position (after projection)
+     * @param inv_mass_diag  Diagonal of the inverse mass matrix
+     */
+    void project_momentum(arma::vec& r, const arma::vec& x,
+                          const arma::vec& inv_mass_diag) const;
 
     /**
      * Full-space log-posterior and gradient for RATTLE integration.

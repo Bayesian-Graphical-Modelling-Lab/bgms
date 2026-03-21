@@ -2,6 +2,7 @@
 #include <functional>
 #include <utility>
 #include "mcmc/algorithms/leapfrog.h"
+#include "mcmc/profiler.h"
 
 
 std::pair<arma::vec, arma::vec> leapfrog_memo(
@@ -14,11 +15,17 @@ std::pair<arma::vec, arma::vec> leapfrog_memo(
   arma::vec r_half = r;
   arma::vec theta_new = theta;
 
+  BGMS_PROF_START(_t_g1);
   const arma::vec& grad1 = memo.cached_grad(theta_new);
-  r_half += 0.5 * eps * grad1;
+  BGMS_PROF_RECORD("lf.grad1", _t_g1);
 
+  r_half += 0.5 * eps * grad1;
   theta_new += eps * (inv_mass_diag % r_half);
+
+  BGMS_PROF_START(_t_g2);
   const arma::vec& grad2 = memo.cached_grad(theta_new);
+  BGMS_PROF_RECORD("lf.grad2", _t_g2);
+
   r_half += 0.5 * eps * grad2;
 
   return {theta_new, r_half};
@@ -37,40 +44,47 @@ std::pair<arma::vec, arma::vec> leapfrog_constrained(
   arma::vec theta_new = theta;
 
   // Half-step momentum
+  BGMS_PROF_START(_t1);
   const arma::vec& grad1 = memo.cached_grad(theta_new);
+  BGMS_PROF_RECORD("rlf.grad1", _t1);
+
+  BGMS_PROF_START(_t2);
   r_half += 0.5 * eps * grad1;
+  BGMS_PROF_RECORD("rlf.half1", _t2);
 
   // Full-step position
+  BGMS_PROF_START(_t3);
   theta_new += eps * (inv_mass_diag % r_half);
+  BGMS_PROF_RECORD("rlf.pos", _t3);
 
   // --- RATTLE position-constraint step ---
-  // Save pre-projection position to compute the correction
+  BGMS_PROF_START(_t4);
   arma::vec theta_pre = theta_new;
-
-  // Project position only (discard the momentum projection from this call)
   arma::vec r_temp = r_half;
   project(theta_new, r_temp);
+  BGMS_PROF_RECORD("rlf.proj_pos", _t4);
 
-  // RATTLE momentum correction: couples position and momentum updates
-  // In standard RATTLE, the Lagrange multiplier from the position constraint
-  // also appears in the momentum half-step. The correction is:
-  //   Δr = M · Δx / ε = Δx / (ε · M^{-1})
+  // RATTLE momentum correction
+  BGMS_PROF_START(_t5);
   arma::vec delta_x = theta_new - theta_pre;
   r_half += delta_x / (eps * inv_mass_diag);
-
-  // Note: mid-step momentum is NOT projected to the tangent space.
-  // Only the final momentum gets the velocity-constraint projection.
+  BGMS_PROF_RECORD("rlf.mom_correct", _t5);
 
   memo.invalidate();
 
   // Second half-step momentum (re-evaluates gradient at projected position)
+  BGMS_PROF_START(_t6);
   const arma::vec& grad2 = memo.cached_grad(theta_new);
+  BGMS_PROF_RECORD("rlf.grad2", _t6);
+
+  BGMS_PROF_START(_t7);
   r_half += 0.5 * eps * grad2;
+  BGMS_PROF_RECORD("rlf.half2", _t7);
 
   // --- RATTLE velocity-constraint step ---
-  // Project final momentum onto cotangent space
-  // (position projection is a no-op since theta_new is already on manifold)
+  BGMS_PROF_START(_t8);
   project(theta_new, r_half);
+  BGMS_PROF_RECORD("rlf.proj_mom", _t8);
 
   return {theta_new, r_half};
 }

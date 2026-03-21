@@ -377,6 +377,43 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// bgms_profiler_enable
+void bgms_profiler_enable();
+RcppExport SEXP _bgms_bgms_profiler_enable() {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    bgms_profiler_enable();
+    return R_NilValue;
+END_RCPP
+}
+// bgms_profiler_disable
+void bgms_profiler_disable();
+RcppExport SEXP _bgms_bgms_profiler_disable() {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    bgms_profiler_disable();
+    return R_NilValue;
+END_RCPP
+}
+// bgms_profiler_reset
+void bgms_profiler_reset();
+RcppExport SEXP _bgms_bgms_profiler_reset() {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    bgms_profiler_reset();
+    return R_NilValue;
+END_RCPP
+}
+// bgms_profiler_results
+Rcpp::List bgms_profiler_results();
+RcppExport SEXP _bgms_bgms_profiler_results() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    rcpp_result_gen = Rcpp::wrap(bgms_profiler_results());
+    return rcpp_result_gen;
+END_RCPP
+}
 // sample_ggm
 Rcpp::List sample_ggm(const Rcpp::List& inputFromR, const arma::mat& prior_inclusion_prob, const arma::imat& initial_edge_indicators, const int no_iter, const int no_warmup, const int no_chains, const bool edge_selection, const std::string& sampler_type, const int seed, const int no_threads, const int progress_type, const std::string& edge_prior, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double beta_bernoulli_alpha_between, const double beta_bernoulli_beta_between, const double dirichlet_alpha, const double lambda, const double target_acceptance, const int max_tree_depth, const bool na_impute, const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable);
 RcppExport SEXP _bgms_sample_ggm(SEXP inputFromRSEXP, SEXP prior_inclusion_probSEXP, SEXP initial_edge_indicatorsSEXP, SEXP no_iterSEXP, SEXP no_warmupSEXP, SEXP no_chainsSEXP, SEXP edge_selectionSEXP, SEXP sampler_typeSEXP, SEXP seedSEXP, SEXP no_threadsSEXP, SEXP progress_typeSEXP, SEXP edge_priorSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP beta_bernoulli_alpha_betweenSEXP, SEXP beta_bernoulli_beta_betweenSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP, SEXP target_acceptanceSEXP, SEXP max_tree_depthSEXP, SEXP na_imputeSEXP, SEXP missing_index_nullableSEXP) {
@@ -514,6 +551,10 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_run_ggm_simulation_parallel", (DL_FUNC) &_bgms_run_ggm_simulation_parallel, 9},
     {"_bgms_sample_mixed_mrf_gibbs", (DL_FUNC) &_bgms_sample_mixed_mrf_gibbs, 11},
     {"_bgms_run_mixed_simulation_parallel", (DL_FUNC) &_bgms_run_mixed_simulation_parallel, 16},
+    {"_bgms_bgms_profiler_enable", (DL_FUNC) &_bgms_bgms_profiler_enable, 0},
+    {"_bgms_bgms_profiler_disable", (DL_FUNC) &_bgms_bgms_profiler_disable, 0},
+    {"_bgms_bgms_profiler_reset", (DL_FUNC) &_bgms_bgms_profiler_reset, 0},
+    {"_bgms_bgms_profiler_results", (DL_FUNC) &_bgms_bgms_profiler_results, 0},
     {"_bgms_sample_ggm", (DL_FUNC) &_bgms_sample_ggm, 22},
     {"_bgms_sample_mixed_mrf", (DL_FUNC) &_bgms_sample_mixed_mrf, 24},
     {"_bgms_sample_omrf", (DL_FUNC) &_bgms_sample_omrf, 24},

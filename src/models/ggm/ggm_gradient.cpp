@@ -1,4 +1,5 @@
 #include "models/ggm/ggm_gradient.h"
+#include "mcmc/profiler.h"
 
 #include <cmath>
 #include <limits>
@@ -220,11 +221,27 @@ ForwardMapResult GGMGradientEngine::forward_map(const arma::vec& theta) const {
 // =====================================================================
 // logp_and_gradient
 // =====================================================================
+// Null-space gradient using the Phi-space adjoint for the initial
+// Phi_bar computation, eliminating the K^{-1} triangular solve.
+//
+// The backward pass has two phases:
+//   1. Phi_bar from data + priors via direct Phi-space formulation:
+//        Phi_bar = -(Phi*S + 2*Phi) + Cauchy adjoint.
+//      This replaces the K^{-1} = Phi^{-1} Phi^{-T} solve and the
+//      K_bar_sym matrix multiply from the original approach.
+//   2. Reverse-Givens cross-column adjoint (unchanged): differentiates
+//      through the Givens QR to capture both the Jacobian gradient
+//      and the null-space basis rotation.
+//
+// Since log|K| = 2*sum(psi) depends only on the diagonal of Phi,
+// the off-diagonal entries of Phi_bar.col(q) are identical to those
+// from the K^{-1} approach. The log-det contribution to psi_bar is
+// added explicitly (+n) instead of flowing through K^{-1}.
 
 std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
     const arma::vec& theta) const
 {
-    // --- Forward pass ---
+    // --- Forward pass: theta -> Phi, K via null-space constraints ---
     ForwardMapResult fm = forward_map(theta);
     const arma::mat& Phi = fm.Phi;
     const arma::mat& K = fm.K;
@@ -233,24 +250,24 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
     double scale2 = pairwise_scale_ * pairwise_scale_;
 
     // Check for degenerate Phi (extreme theta pushed by leapfrog).
-    // If any diagonal element of Phi is too small, return -Inf and
-    // zero gradient so the NUTS trajectory rejects this point.
     double min_diag = Phi.diag().min();
     if (!std::isfinite(min_diag) || min_diag < 1e-15) {
         return {-std::numeric_limits<double>::infinity(),
                 arma::vec(theta.n_elem, arma::fill::zeros)};
     }
 
+    // P = Phi * S — reused for value and gradient
+    arma::mat P = Phi * S;
+
     // --- Log-posterior value ---
     double log_det_K = 2.0 * arma::accu(fm.psi);
-    double log_lik = (n / 2.0) * log_det_K - 0.5 * arma::accu(K % S);
+    double log_lik = (n / 2.0) * log_det_K - 0.5 * arma::accu(Phi % P);
 
     // Cauchy slab prior on included off-diagonal K entries
     double log_slab = 0.0;
     for (size_t q = 1; q < p_; ++q) {
         for (size_t i : structure_->columns[q].included_indices) {
-            double kij = K(i, q);
-            log_slab += R::dcauchy(kij, 0.0, pairwise_scale_, 1);
+            log_slab += R::dcauchy(K(i, q), 0.0, pairwise_scale_, 1);
         }
     }
 
@@ -262,70 +279,51 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
 
     double lp = log_lik + log_slab + log_diag_prior + fm.log_det_jacobian;
 
-    // If log-posterior is non-finite, skip the backward pass
     if (!std::isfinite(lp)) {
         return {lp, arma::vec(theta.n_elem, arma::fill::zeros)};
     }
 
     // --- Backward pass ---
-    arma::vec gradient(theta.n_elem, arma::fill::zeros);
 
-    // Step 1: K_bar from likelihood + priors
-    // Likelihood: (n/2) K^{-1} - (1/2) S
-    // Use Phi^{-1} to compute K^{-1} = Phi^{-1} Phi^{-T} (more robust
-    // than inv_sympd(K) when the leapfrog integrator pushes theta to
-    // extreme values). Use solve() for robustness against near-singular Phi.
-    arma::mat Phi_inv;
-    bool ok = arma::solve(Phi_inv, arma::trimatu(Phi), arma::eye(p_, p_),
-                          arma::solve_opts::fast);
-    if (!ok) {
-        // Degenerate Phi — return -Inf so NUTS rejects this trajectory
-        return {-std::numeric_limits<double>::infinity(),
-                arma::vec(theta.n_elem, arma::fill::zeros)};
-    }
-    arma::mat K_inv = Phi_inv * Phi_inv.t();
-    arma::mat K_bar = (n / 2.0) * K_inv - 0.5 * S;
+    // Phase 1: Phi_bar from data + priors (direct Phi-space, no K^{-1})
+    // Data:  d/dPhi [-0.5 tr(Phi^T Phi S)] = -Phi S = -P
+    // Gamma: d/dPhi [-K_ii] = -2 Phi  (since K_ii = ||Phi(:,i)||^2)
+    arma::mat Phi_bar = -(P + 2.0 * Phi);
 
-    // Cauchy prior on off-diagonal included edges (upper triangle only)
-    // d/dk log(dcauchy(k; 0, s)) = -2k / (s^2 + k^2)
+    // Cauchy prior adjoint on included edges
     for (size_t q = 1; q < p_; ++q) {
         for (size_t i : structure_->columns[q].included_indices) {
             double kij = K(i, q);
-            K_bar(i, q) += -2.0 * kij / (scale2 + kij * kij);
+            double d = -2.0 * kij / (scale2 + kij * kij);
+            Phi_bar.col(q).head(i + 1) += d * Phi.col(i).head(i + 1);
+            Phi_bar.col(i).head(i + 1) += d * Phi.col(q).head(i + 1);
         }
     }
 
-    // Gamma(1,1) prior on diagonals: d/dk [log dgamma(k;1,1)] = -1
-    for (size_t i = 0; i < p_; ++i) {
-        K_bar(i, i) -= 1.0;
-    }
+    // Phase 2: Process columns right-to-left, extracting theta gradient
+    // and accumulating the cross-column adjoint into Phi_bar.
+    arma::vec gradient(theta.n_elem, arma::fill::zeros);
 
-    // Step 2: Phi_bar from K_bar
-    // K = Phi^T Phi, adjoint: Phi_bar = Phi * (K_bar + K_bar^T)
-    arma::mat K_bar_sym = K_bar + K_bar.t();
-    arma::mat Phi_bar = Phi * K_bar_sym;
-
-    // Step 3: Process columns in reverse order -> theta gradient
     for (size_t q = p_; q-- > 0; ) {
         const auto& col = structure_->columns[q];
         size_t offset = structure_->theta_offsets[q];
         size_t d_q = col.d_q;
 
         // --- psi_q gradient ---
-        // Chain rule through phi_qq = exp(psi_q)
+        // Phi_bar(q,q) * Phi(q,q) = chain rule through exp(psi_q)
+        // +n from log-det: d/dpsi [(n/2)*2*psi] = n
+        // +2 from Jacobian: d/dpsi [2*psi] = 2
+        // +(p-1-q) from Jacobian: d/dpsi [(p-1-q)*psi] for q < p-1
         double psi_bar = Phi_bar(q, q) * Phi(q, q);
-
-        // Jacobian contribution: 2 + (p - 1 - q) for q < p-1, or 2 for q = p-1
-        psi_bar += 2.0;
+        psi_bar += n + 2.0;
         if (q + 1 < p_) {
             psi_bar += static_cast<double>(p_ - 1 - q);
         }
-
         gradient(offset + d_q) = psi_bar;
 
         if (q == 0) continue;
 
-        // --- f_q gradient ---
+        // --- f_q gradient via N_q ---
         arma::vec x_bar = Phi_bar.col(q).head(q);
 
         if (d_q > 0) {
@@ -337,10 +335,6 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
         }
 
         // --- Cross-column adjoint (reverse-Givens) ---
-        // Differentiate through the Givens QR of M = A_q^T to get
-        // M_bar = dL/dM, then accumulate into Phi_bar.
-        // Handles both Jacobian and null-space contributions in one
-        // unified pass — no finite differences, exact for all d_q.
         size_t m_q = col.m_q;
         if (m_q == 0) continue;
 
@@ -348,8 +342,6 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
         size_t n_rot = rotations.size();
 
         // Initialize W_bar (R_bar) and Q_bar with seed adjoints.
-        // W_bar: Jacobian adjoint R_bar[j,j] = -1/R[j,j]
-        // Q_bar: null-space adjoint Q_bar[:, m_q:q-1] = x_bar * f_q^T
         arma::mat W_bar(q, m_q, arma::fill::zeros);
         arma::mat Q_bar(q, q, arma::fill::zeros);
 
@@ -368,30 +360,25 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
             }
         }
 
-        // Copy Q and W for undoing rotations during backward pass
         arma::mat Q_work = fm.Q_full[q];
         arma::mat W_work = fm.R_full[q];
 
-        // Process rotations in reverse order
         for (size_t k = n_rot; k-- > 0; ) {
             const auto& rot = rotations[k];
             double cc = rot.c, ss = rot.s;
             size_t r1 = rot.r1, r2 = rot.r2;
 
-            // A: Undo rotation on W (G^T * W_post -> W_pre)
             for (size_t cj = 0; cj < m_q; ++cj) {
                 double w1 = W_work(r1, cj), w2 = W_work(r2, cj);
                 W_work(r1, cj) =  cc * w1 - ss * w2;
                 W_work(r2, cj) =  ss * w1 + cc * w2;
             }
-            // A: Undo rotation on Q (Q_post * G -> Q_pre)
             for (size_t ri = 0; ri < q; ++ri) {
                 double q1 = Q_work(ri, r1), q2 = Q_work(ri, r2);
                 Q_work(ri, r1) =  cc * q1 - ss * q2;
                 Q_work(ri, r2) =  ss * q1 + cc * q2;
             }
 
-            // B: Accumulate c_bar, s_bar from W_bar and Q_bar
             double c_bar = 0.0, s_bar = 0.0;
             for (size_t cj = 0; cj < m_q; ++cj) {
                 c_bar += W_bar(r1, cj) * W_work(r1, cj) +
@@ -406,21 +393,18 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
                          Q_bar(ri, r2) * Q_work(ri, r1);
             }
 
-            // C: Adjoint rotation on W_bar (G^T on rows)
             for (size_t cj = 0; cj < m_q; ++cj) {
                 double wb1 = W_bar(r1, cj), wb2 = W_bar(r2, cj);
                 W_bar(r1, cj) = cc * wb1 - ss * wb2;
                 W_bar(r2, cj) = ss * wb1 + cc * wb2;
             }
 
-            // D: Adjoint rotation on Q_bar (Q_bar * G)
             for (size_t ri = 0; ri < q; ++ri) {
                 double qb1 = Q_bar(ri, r1), qb2 = Q_bar(ri, r2);
                 Q_bar(ri, r1) = cc * qb1 - ss * qb2;
                 Q_bar(ri, r2) = ss * qb1 + cc * qb2;
             }
 
-            // E: c_bar/s_bar -> W_bar through (c,s) = (a/r, b/r)
             size_t j_col = rot.col;
             double a = W_work(r1, j_col);
             double b = W_work(r2, j_col);
@@ -432,9 +416,6 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
             }
         }
 
-        // W_bar is now M_bar = dL/d(A_q^T).
-        // M(l, r) = Phi(l, excluded_indices[r]) for l <= excluded_indices[r].
-        // Accumulate into Phi_bar.
         for (size_t r = 0; r < m_q; ++r) {
             size_t i = col.excluded_indices[r];
             for (size_t l = 0; l <= i; ++l) {
@@ -453,13 +434,19 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
 //
 // Operates on x in R^{p(p+1)/2}: raw Cholesky off-diagonal entries
 // and log-diagonal (psi). No null-space transformation, no QR, no
-// reverse-Givens adjoint. The gradient w.r.t. each x_{iq} is simply
-// Phi_bar_{iq}.
+// reverse-Givens adjoint.
+//
+// Direct Phi-space formulation: the gradient of -0.5 tr(Phi^T Phi S)
+// w.r.t. Phi is -Phi S, computed as one matrix multiply. The
+// log-determinant gradient contributes only to the diagonal (psi).
+// This eliminates the O(p^3) triangular solve and K^{-1} computation
+// from the previous K-space adjoint approach.
 
 std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient_full(
     const arma::vec& x) const
 {
-    // --- Forward pass: unpack x -> Phi -> K ---
+    // --- Forward pass: unpack x -> Phi ---
+    BGMS_PROF_START(_t_fwd);
     arma::mat Phi(p_, p_, arma::fill::zeros);
     arma::vec psi(p_);
 
@@ -479,32 +466,46 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient_full(
                 arma::vec(x.n_elem, arma::fill::zeros)};
     }
 
-    arma::mat K = Phi.t() * Phi;
+    // P = Phi * S — single O(p^3) multiply, reused for value and gradient
     const arma::mat& S = *suf_stat_;
+    arma::mat P = Phi * S;
+    BGMS_PROF_RECORD("grad.forward", _t_fwd);
+
     double n = static_cast<double>(n_);
     double scale2 = pairwise_scale_ * pairwise_scale_;
 
     // --- Log-posterior value ---
+    BGMS_PROF_START(_t_logp);
+
+    // tr(KS) = tr(Phi^T Phi S) = accu(Phi % P)
+    double tr_KS = arma::accu(Phi % P);
+
     double log_det_K = 2.0 * arma::accu(psi);
-    double log_lik = (n / 2.0) * log_det_K - 0.5 * arma::accu(K % S);
+    double log_lik = (n / 2.0) * log_det_K - 0.5 * tr_KS;
 
     // Cauchy slab prior on included off-diagonal K entries
+    // K_ij = dot(Phi(:,i), Phi(:,j)) for i < j, via column dot products
     double log_slab = 0.0;
     for (size_t q = 1; q < p_; ++q) {
         for (size_t i : structure_->columns[q].included_indices) {
-            double kij = K(i, q);
+            double kij = arma::dot(
+                Phi.col(i).head(i + 1),
+                Phi.col(q).head(i + 1));
             log_slab += R::dcauchy(kij, 0.0, pairwise_scale_, 1);
         }
     }
 
     // Gamma(1,1) prior on diagonal K entries
+    // K_ii = ||Phi(:,i)||^2
     double log_diag_prior = 0.0;
     for (size_t i = 0; i < p_; ++i) {
-        log_diag_prior += R::dgamma(K(i, i), 1.0, 1.0, 1);
+        double kii = arma::dot(
+            Phi.col(i).head(i + 1),
+            Phi.col(i).head(i + 1));
+        log_diag_prior += R::dgamma(kii, 1.0, 1.0, 1);
     }
 
     // Jacobian: Cholesky-to-K + log-diagonal (NO QR terms)
-    // = p * log(2) + sum_q (p + 1 - q) * psi_q
     double ldj = static_cast<double>(p_) * std::log(2.0);
     for (size_t q = 0; q < p_; ++q) {
         ldj += 2.0 * psi(q);
@@ -514,43 +515,36 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient_full(
     }
 
     double lp = log_lik + log_slab + log_diag_prior + ldj;
+    BGMS_PROF_RECORD("grad.logpost", _t_logp);
 
     if (!std::isfinite(lp)) {
         return {lp, arma::vec(x.n_elem, arma::fill::zeros)};
     }
 
-    // --- Backward pass ---
-    arma::vec gradient(x.n_elem, arma::fill::zeros);
+    // --- Backward pass: direct Phi-space gradient ---
+    BGMS_PROF_START(_t_bwd);
 
-    // K_bar = (n/2) K^{-1} - (1/2) S + prior terms
-    arma::mat Phi_inv;
-    bool ok = arma::solve(Phi_inv, arma::trimatu(Phi), arma::eye(p_, p_),
-                          arma::solve_opts::fast);
-    if (!ok) {
-        return {-std::numeric_limits<double>::infinity(),
-                arma::vec(x.n_elem, arma::fill::zeros)};
-    }
-    arma::mat K_inv = Phi_inv * Phi_inv.t();
-    arma::mat K_bar = (n / 2.0) * K_inv - 0.5 * S;
+    // Data term: d/dPhi[-0.5 tr(Phi^T Phi S)] = -Phi S = -P
+    // Gamma prior: d/dK_ii[-K_ii] → Phi_bar -= 2 Phi
+    arma::mat Phi_bar = -(P + 2.0 * Phi);
 
-    // Cauchy prior on included edges
+    // Cauchy prior adjoint on included edges
     for (size_t q = 1; q < p_; ++q) {
         for (size_t i : structure_->columns[q].included_indices) {
-            double kij = K(i, q);
-            K_bar(i, q) += -2.0 * kij / (scale2 + kij * kij);
+            double kij = arma::dot(
+                Phi.col(i).head(i + 1),
+                Phi.col(q).head(i + 1));
+            double d = -2.0 * kij / (scale2 + kij * kij);
+            Phi_bar.col(q).head(i + 1) += d * Phi.col(i).head(i + 1);
+            Phi_bar.col(i).head(i + 1) += d * Phi.col(q).head(i + 1);
         }
     }
+    BGMS_PROF_RECORD("grad.backward", _t_bwd);
 
-    // Gamma(1,1) prior on diagonals
-    for (size_t i = 0; i < p_; ++i) {
-        K_bar(i, i) -= 1.0;
-    }
+    // --- Extract gradient from Phi_bar ---
+    BGMS_PROF_START(_t_ext);
+    arma::vec gradient(x.n_elem, arma::fill::zeros);
 
-    // Phi_bar = Phi * (K_bar + K_bar^T)
-    arma::mat K_bar_sym = K_bar + K_bar.t();
-    arma::mat Phi_bar = Phi * K_bar_sym;
-
-    // --- Gradient: direct from Phi_bar, no N_q or reverse-Givens ---
     for (size_t q = 0; q < p_; ++q) {
         size_t offset = structure_->full_theta_offsets[q];
 
@@ -559,14 +553,15 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient_full(
             gradient(offset + i) = Phi_bar(i, q);
         }
 
-        // Diagonal (psi_q): chain rule through exp + Jacobian
+        // Diagonal (psi_q): chain rule through exp + log-det + Jacobian
         double psi_bar = Phi_bar(q, q) * Phi(q, q);
-        psi_bar += 2.0;
+        psi_bar += n + 2.0;
         if (q + 1 < p_) {
             psi_bar += static_cast<double>(p_ - 1 - q);
         }
         gradient(offset + q) = psi_bar;
     }
+    BGMS_PROF_RECORD("grad.extract", _t_ext);
 
     return {lp, gradient};
 }

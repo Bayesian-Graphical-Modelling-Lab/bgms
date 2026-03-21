@@ -51,6 +51,11 @@ public:
      * (tree depth, divergences, energy)
      */
     virtual bool has_nuts_diagnostics() const { return false; }
+
+    /**
+     * Return the final adapted step size (0 for non-gradient samplers)
+     */
+    virtual double get_final_step_size() const { return 0.0; }
 };
 
 // ---------------------------------------------------------------------------
@@ -71,21 +76,22 @@ public:
 class GradientSamplerBase : public SamplerBase {
 public:
     GradientSamplerBase(double step_size, double target_acceptance,
-                        WarmupSchedule& schedule)
+                        WarmupSchedule& schedule,
+                        bool force_nullspace = false)
         : step_size_(step_size),
           target_acceptance_(target_acceptance),
+          use_dense_mass_(force_nullspace),
           schedule_(schedule),
-          initialized_(false)
+          initialized_(false),
+          force_nullspace_(force_nullspace)
     {}
 
     StepResult step(BaseModel& model, int iteration) override {
         // Stage 3c boundary: edge selection just activated.
-        // Restart dual averaging with a generous initial step size
-        // so adaptation can tune to the new geometry quickly.
+        // Restart dual averaging so adaptation can tune to the new
+        // geometry (changed active parameters) quickly.
         if (schedule_.in_stage3c(iteration) && !stage3c_initialized_) {
             stage3c_initialized_ = true;
-            // Scale up step size: post-selection has fewer active params,
-            // so the posterior is typically less stiff than the full graph.
             adapt_->reinit_stepsize(adapt_->current_step_size());
         }
 
@@ -97,7 +103,7 @@ public:
         // Let the adaptation controller handle step-size and mass-matrix logic.
         // For RATTLE (constrained) models, feed x-space samples so the mass
         // matrix is estimated in the same coordinate system NUTS operates in.
-        arma::vec full_params = model.has_constraints()
+        arma::vec full_params = uses_constrained_integration(model)
             ? model.get_full_position()
             : model.get_full_vectorized_parameters();
         adapt_->update(full_params, result.accept_prob, iteration);
@@ -109,7 +115,7 @@ public:
 
             SafeRNG& rng = model.get_rng();
 
-            if (model.has_constraints()) {
+            if (uses_constrained_integration(model)) {
                 arma::vec x = model.get_full_position();
                 auto grad_fn = [&model](const arma::vec& params) -> arma::vec {
                     return model.logp_and_gradient_full(params).second;
@@ -120,6 +126,27 @@ public:
                 };
                 double new_eps = heuristic_initial_step_size(
                     x, grad_fn, joint_fn, new_inv_mass, rng,
+                    0.625, adapt_->current_step_size());
+                adapt_->reinit_stepsize(new_eps);
+            } else if (use_dense_mass_ && adapt_->has_dense_covariance()) {
+                // Dense mass: recompute L_full from new covariance, then L_active
+                L_full_.reset();  // Force recomputation of L_full
+                recompute_dense_transform(model);
+                arma::vec theta = model.get_vectorized_parameters();
+                arma::vec z = arma::solve(arma::trimatl(L_active_), theta);
+                auto grad_fn_z = [this, &model](const arma::vec& z_param) -> arma::vec {
+                    arma::vec theta_param = L_active_ * z_param;
+                    return L_active_.t() * model.logp_and_gradient(theta_param).second;
+                };
+                auto joint_fn_z = [this, &model](const arma::vec& z_param)
+                    -> std::pair<double, arma::vec> {
+                    arma::vec theta_param = L_active_ * z_param;
+                    auto [lp, g] = model.logp_and_gradient(theta_param);
+                    return {lp, L_active_.t() * g};
+                };
+                arma::vec unit_mass = arma::ones<arma::vec>(z.n_elem);
+                double new_eps = heuristic_initial_step_size(
+                    z, grad_fn_z, joint_fn_z, unit_mass, rng,
                     0.625, adapt_->current_step_size());
                 adapt_->reinit_stepsize(new_eps);
             } else {
@@ -146,6 +173,7 @@ public:
     }
 
     double get_step_size() const { return step_size_; }
+    double get_final_step_size() const override { return step_size_; }
     double get_averaged_step_size() const {
         return adapt_ ? adapt_->final_step_size() : step_size_;
     }
@@ -154,8 +182,68 @@ public:
 protected:
     virtual StepResult do_gradient_step(BaseModel& model) = 0;
 
+    /** Whether to use unconstrained (null-space) integration even when
+     *  the model reports constraints. Set by "nuts-nullspace" sampler type. */
+    bool uses_constrained_integration(const BaseModel& model) const {
+        return !force_nullspace_ && model.has_constraints();
+    }
+
     double step_size_;
     double target_acceptance_;
+
+    // Dense mass transform state
+    bool use_dense_mass_;
+    arma::mat L_active_;       ///< Lower Cholesky of projected covariance
+    arma::mat L_full_;         ///< chol(Σ_full) from Stage 2 (computed once)
+
+    /**
+     * Recompute the dense mass transform for the current constraint structure.
+     *
+     * Uses the pre-stored L_full (Cholesky of full-space covariance) and
+     * projects through the model's current null-space bases B:
+     *   Σ_active = B^T L_full L_full^T B = (L_full^T B)^T (L_full^T B)
+     * Then QR of (L_full^T B) gives the Cholesky of Σ_active as R^T.
+     */
+    void recompute_dense_transform(BaseModel& model) {
+        if (L_full_.is_empty()) {
+            // First call: compute L_full from the full covariance
+            arma::mat full_cov = adapt_->dense_covariance();
+            full_cov += 1e-8 * arma::eye(full_cov.n_rows, full_cov.n_cols);
+            L_full_ = arma::chol(full_cov, "lower");
+        }
+
+        arma::mat B = model.get_projection_matrix();
+
+        if (B.n_cols == B.n_rows) {
+            // Square B (typically identity or permutation) — L_active = L_full
+            if (B.n_cols == L_full_.n_cols) {
+                L_active_ = L_full_;
+                return;
+            }
+        }
+
+        // C = L_full^T * B  (upper-tri × dense, full_dim × active_dim)
+        arma::mat C = L_full_.t() * B;
+
+        // QR of C: C = Q R, so C^T C = R^T R → L_active = R^T
+        arma::mat Q, R;
+        arma::qr_econ(Q, R, C);
+
+        // Ensure positive diagonal (standard Cholesky sign convention)
+        for (arma::uword i = 0; i < R.n_rows; ++i) {
+            if (R(i, i) < 0) {
+                R.row(i) *= -1;
+            }
+        }
+        L_active_ = R.t();
+    }
+
+    /**
+     * @return true when a valid dense transform is available.
+     */
+    bool has_dense_transform() const {
+        return use_dense_mass_ && !L_active_.is_empty();
+    }
 
 public:
     /**
@@ -179,7 +267,7 @@ private:
 
         double init_eps;
 
-        if (model.has_constraints()) {
+        if (uses_constrained_integration(model)) {
             // Project initial position onto constraint manifold before
             // computing step size. The MLE initialization may violate
             // K_ij = 0 constraints for excluded edges.
@@ -216,11 +304,14 @@ private:
 
         // Construct the adaptation controller with the shared schedule
         adapt_ = std::make_unique<HMCAdaptationController>(
-            dim, init_eps, target_acceptance_, schedule_);
+            dim, init_eps, target_acceptance_, schedule_,
+            /*learn_mass_matrix=*/true,
+            /*learn_dense_mass=*/use_dense_mass_);
     }
 
     WarmupSchedule& schedule_;
     bool initialized_;
     bool stage3c_initialized_ = false;
+    bool force_nullspace_;
     std::unique_ptr<HMCAdaptationController> adapt_;
 };

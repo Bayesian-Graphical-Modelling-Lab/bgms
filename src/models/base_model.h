@@ -240,6 +240,38 @@ public:
      */
     virtual arma::vec get_active_inv_mass() const { return inv_mass_; }
 
+    /**
+     * Project a full-space covariance matrix to the current active subspace.
+     *
+     * For models with null-space constraints, rotates the full covariance
+     * through the null-space basis N_q: Sigma_active = B^T Sigma_full B
+     * where B maps active free parameters to full Cholesky entries.
+     *
+     * Default: returns the full covariance (identity projection).
+     *
+     * @param full_cov  Full-space covariance matrix (full_dim x full_dim)
+     * @return Active-space covariance matrix (active_dim x active_dim)
+     */
+    virtual arma::mat project_dense_mass(const arma::mat& full_cov) const {
+        return full_cov;
+    }
+
+    /**
+     * Build the projection matrix B mapping active parameters to full space.
+     *
+     * B has dimensions (full_dim x active_dim). For unconstrained columns,
+     * B selects the relevant rows of the identity. For constrained columns,
+     * B embeds through the null-space basis N_q.
+     *
+     * Default: identity matrix (no projection needed).
+     *
+     * @return Projection matrix B (full_dim x active_dim)
+     */
+    virtual arma::mat get_projection_matrix() const {
+        size_t d = full_parameter_dimension();
+        return arma::eye(d, d);
+    }
+
     // =========================================================================
     // RATTLE constrained integration
     // =========================================================================
@@ -298,6 +330,21 @@ public:
     virtual void project_position(arma::vec& x) const { (void)x; }
 
     /**
+     * Project position onto the constraint manifold (mass-weighted SHAKE).
+     *
+     * Uses the correction direction M^{-1} J^T for RATTLE-correct
+     * symplecticity. Default: delegates to identity-mass overload.
+     *
+     * @param x              Full-dimension position vector (modified)
+     * @param inv_mass_diag  Diagonal of the inverse mass matrix
+     */
+    virtual void project_position(arma::vec& x,
+                                  const arma::vec& inv_mass_diag) const {
+        (void)inv_mass_diag;
+        project_position(x);
+    }
+
+    /**
      * Project momentum onto the cotangent space of the constraint manifold.
      *
      * Ensures the momentum vector lies in the tangent space of the
@@ -308,6 +355,22 @@ public:
      */
     virtual void project_momentum(arma::vec& r, const arma::vec& x) const {
         (void)r; (void)x;
+    }
+
+    /**
+     * Project momentum onto the cotangent space (mass-weighted RATTLE).
+     *
+     * Enforces J M^{-1} r = 0 for RATTLE-correct symplecticity.
+     * Default: delegates to identity-mass overload.
+     *
+     * @param r              Momentum vector (modified in-place)
+     * @param x              Current position (after projection)
+     * @param inv_mass_diag  Diagonal of the inverse mass matrix
+     */
+    virtual void project_momentum(arma::vec& r, const arma::vec& x,
+                                  const arma::vec& inv_mass_diag) const {
+        (void)inv_mass_diag;
+        project_momentum(r, x);
     }
 
     // =========================================================================

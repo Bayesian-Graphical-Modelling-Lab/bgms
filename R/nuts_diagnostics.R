@@ -140,6 +140,11 @@ summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) 
   }
   ebfmi_per_chain = apply(energy_mat, 1, compute_ebfmi)
 
+  # Step size per chain (scalar, constant during sampling)
+  step_sizes = vapply(nuts_chains, function(chain) {
+    if(!is.null(chain[["step_size__"]])) chain[["step_size__"]] else NA_real_
+  }, numeric(1))
+
   warmup_check = check_warmup_complete(energy_mat)
 
   # Summaries
@@ -205,6 +210,7 @@ summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) 
     divergent = divergent_mat,
     energy = energy_mat,
     ebfmi = ebfmi_per_chain,
+    step_size = step_sizes,
     warmup_check = warmup_check,
     summary = list(
       total_divergences = total_divergences,
