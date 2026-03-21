@@ -14,7 +14,6 @@ bgm(
   main_alpha = 0.5,
   main_beta = 0.5,
   edge_selection = TRUE,
-  include_edge = NULL,
   edge_prior = c("Bernoulli", "Beta-Bernoulli", "Stochastic-Block"),
   inclusion_probability = 0.5,
   beta_bernoulli_alpha = 1,
@@ -79,16 +78,7 @@ the prior is symmetric. Defaults: \code{main_alpha = 0.5} and
 \code{main_beta = 0.5}.}
 
 \item{edge_selection}{Logical. Whether to perform Bayesian edge selection.
-If \code{FALSE}, the model estimates all edges (or only those specified
-by \code{include_edge}). Default: \code{TRUE}.}
-
-\item{include_edge}{Optional binary matrix (\code{p x p}). Specifies which
-edges to include in the model. Must be symmetric with zero diagonal and
-contain only 0s and 1s. When \code{NULL} (the default), all edges are
-included (complete graph). When \code{edge_selection = FALSE}, only the
-edges marked 1 in this matrix are estimated; when
-\code{edge_selection = TRUE}, edge selection is restricted to the edges
-marked 1. Default: \code{NULL}.}
+If \code{FALSE}, the model estimates all edges. Default: \code{TRUE}.}
 
 \item{edge_prior}{Character. Specifies the prior for edge inclusion.
 Options: \code{"Bernoulli"}, \code{"Beta-Bernoulli"}, or
@@ -126,8 +116,8 @@ the model parameters:
 with Robbins–Monro proposal adaptation.}
 \item{"hamiltonian-mc"}{Hamiltonian Monte Carlo with fixed path length
 (number of leapfrog steps set by \code{hmc_num_leapfrogs}).}
-\item{"nuts"}{The No-U-Turn Sampler, an adaptive form of HMC with
-dynamically chosen trajectory lengths.}
+\item{"nuts"}{The No-U-Turn Sampler with RATTLE constrained integration
+for Gaussian models with edge selection.}
 }
 Default: \code{"nuts"}.}
 

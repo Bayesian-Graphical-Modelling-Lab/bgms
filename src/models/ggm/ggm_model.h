@@ -389,7 +389,7 @@ public:
      * @param inv_mass_diag  Diagonal of the inverse mass matrix
      */
     void project_position(arma::vec& x,
-                          const arma::vec& inv_mass_diag) const;
+                          const arma::vec& inv_mass_diag) const override;
 
     /**
      * Project momentum onto the cotangent space (in-place).
@@ -414,7 +414,7 @@ public:
      * @param inv_mass_diag  Diagonal of the inverse mass matrix
      */
     void project_momentum(arma::vec& r, const arma::vec& x,
-                          const arma::vec& inv_mass_diag) const;
+                          const arma::vec& inv_mass_diag) const override;
 
     /**
      * Full-space log-posterior and gradient for RATTLE integration.
