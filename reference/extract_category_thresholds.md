@@ -4,8 +4,8 @@
 
 `extract_category_thresholds()` was renamed to
 [`extract_main_effects()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_main_effects.md)
-to reflect that main effects include continuous means and Kyy diagonal
-(mixed MRF), not only category thresholds.
+to reflect that main effects include continuous means and precision
+diagonal (mixed MRF), not only category thresholds.
 
 ## Usage
 

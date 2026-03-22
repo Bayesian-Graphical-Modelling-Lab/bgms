@@ -70,8 +70,10 @@ Other extractors:
 
 ``` r
 # \donttest{
-fit = bgm(x = Wenchuan[, 1:3],
-          variable_type = rep("continuous", 3))
+fit = bgm(
+  x = Wenchuan[, 1:3],
+  variable_type = rep("continuous", 3)
+)
 #> 2 rows with missing values excluded (n = 360 remaining).
 #> To impute missing values instead, use na_action = "impute".
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2000/2000 (100.0%)
