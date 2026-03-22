@@ -133,3 +133,32 @@ StepResult hmc_step(
     const arma::vec& inv_mass_diag,
     SafeRNG& rng
 );
+
+
+/**
+ * Constrained HMC step using RATTLE integration
+ *
+ * Same Metropolis accept/reject as the unconstrained overload, but uses
+ * leapfrog_constrained (SHAKE + RATTLE projections) at each step to
+ * keep the trajectory on the constraint manifold.
+ *
+ * @param init_theta        Initial parameter vector (on constraint manifold)
+ * @param step_size         Leapfrog integration step size (epsilon)
+ * @param joint             Joint log-posterior + gradient function
+ * @param num_leapfrogs     Number of leapfrog steps per proposal
+ * @param inv_mass_diag     Diagonal of the inverse mass matrix
+ * @param project_position  SHAKE position projection callback
+ * @param project_momentum  RATTLE momentum projection callback
+ * @param rng               Thread-safe random number generator
+ * @return StepResult with accepted state and acceptance probability
+ */
+StepResult hmc_step(
+    const arma::vec& init_theta,
+    double step_size,
+    const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
+    const int num_leapfrogs,
+    const arma::vec& inv_mass_diag,
+    const ProjectPositionFn& project_position,
+    const ProjectMomentumFn& project_momentum,
+    SafeRNG& rng
+);

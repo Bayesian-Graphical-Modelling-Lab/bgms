@@ -174,3 +174,44 @@ StepResult hmc_step(
 
   return {state, accept_prob};
 }
+
+
+StepResult hmc_step(
+    const arma::vec& init_theta,
+    double step_size,
+    const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
+    const int num_leapfrogs,
+    const arma::vec& inv_mass_diag,
+    const ProjectPositionFn& project_position,
+    const ProjectMomentumFn& project_momentum,
+    SafeRNG& rng
+) {
+  Memoizer memo(joint);
+
+  // Sample initial momentum and project onto cotangent space
+  arma::vec r = arma::sqrt(1.0 / inv_mass_diag) % arma_rnorm_vec(rng, init_theta.n_elem);
+  project_momentum(r, init_theta);
+
+  double logp0 = memo.cached_log_post(init_theta);
+  double kin0 = kinetic_energy(r, inv_mass_diag);
+  double H0 = logp0 - kin0;
+
+  // Run num_leapfrogs constrained leapfrog steps
+  arma::vec theta = init_theta;
+  for (int i = 0; i < num_leapfrogs; ++i) {
+    std::tie(theta, r) = leapfrog_constrained(
+      theta, r, step_size, memo, inv_mass_diag,
+      project_position, project_momentum
+    );
+  }
+
+  double logp1 = memo.cached_log_post(theta);
+  double kin1 = kinetic_energy(r, inv_mass_diag);
+  double H1 = logp1 - kin1;
+
+  double log_accept_prob = H1 - H0;
+  arma::vec state = (MY_LOG(runif(rng)) < log_accept_prob) ? theta : init_theta;
+  double accept_prob = std::min(1.0, MY_EXP(log_accept_prob));
+
+  return {state, accept_prob};
+}

@@ -376,8 +376,8 @@ test_that("validate: GGM requires is_continuous = TRUE", {
   )
 })
 
-test_that("validate: GGM rejects hamiltonian-mc", {
-  expect_error(
+test_that("validate: GGM allows hamiltonian-mc", {
+  expect_silent(
     validate_bgm_spec(
       structure(list(
         model_type = "ggm",
@@ -385,8 +385,7 @@ test_that("validate: GGM rejects hamiltonian-mc", {
         sampler    = list(update_method = "hamiltonian-mc"),
         prior      = list(edge_selection = TRUE, edge_prior = "Bernoulli")
       ), class = "bgm_spec")
-    ),
-    "hamiltonian-mc"
+    )
   )
 })
 

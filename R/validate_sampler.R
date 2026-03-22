@@ -78,7 +78,7 @@ progress_type_from_display_progress = function(display_progress = c("per-chain",
 # @param cores  Integer: number of CPU cores.
 # @param seed  Integer or NULL.
 # @param display_progress  Character or logical: progress display mode.
-# @param is_continuous  Logical: TRUE for GGM model. Forces adaptive-metropolis.
+# @param is_continuous  Logical: TRUE for GGM model.
 # @param edge_selection  Logical: affects warmup warning tiers.
 # @param verbose  Logical: whether to emit warmup warnings.
 #
@@ -107,21 +107,17 @@ validate_sampler = function(update_method,
     choices = c("nuts", "adaptive-metropolis", "hamiltonian-mc")
   )
 
-  # --- GGM: default to adaptive-metropolis; allow NUTS, block HMC ---------------
-  if(is_continuous) {
-    if(!user_chose_method) {
-      update_method = "adaptive-metropolis"
-    }
-    if(update_method == "hamiltonian-mc") {
-      stop(paste0(
-        "The Gaussian model (variable_type = 'continuous') does not support ",
-        "update_method = 'hamiltonian-mc'. ",
-        "Use 'nuts' or 'adaptive-metropolis'."
-      ))
-    }
+  # --- target_accept ----------------------------------------------------------
+  if(is_continuous && edge_selection && update_method == "hamiltonian-mc") {
+    warning(
+      "hamiltonian-mc with edge selection on a GGM uses constrained ",
+      "integration (RATTLE), which can be numerically fragile with a ",
+      "fixed trajectory length. Consider using 'nuts' instead, which ",
+      "adapts trajectory length and avoids degenerate regions.",
+      call. = FALSE
+    )
   }
 
-  # --- target_accept ----------------------------------------------------------
   if(!is.null(target_accept)) {
     target_accept = min(target_accept, 1 - sqrt(.Machine$double.eps))
     target_accept = max(target_accept, 0 + sqrt(.Machine$double.eps))
