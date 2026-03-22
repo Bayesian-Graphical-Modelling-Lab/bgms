@@ -91,6 +91,103 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// ggm_test_logp_and_gradient
+Rcpp::List ggm_test_logp_and_gradient(const arma::vec& theta, const arma::mat& suf_stat, int n, const arma::imat& edge_indicators, double pairwise_scale);
+RcppExport SEXP _bgms_ggm_test_logp_and_gradient(SEXP thetaSEXP, SEXP suf_statSEXP, SEXP nSEXP, SEXP edge_indicatorsSEXP, SEXP pairwise_scaleSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type theta(thetaSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type suf_stat(suf_statSEXP);
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
+    Rcpp::traits::input_parameter< double >::type pairwise_scale(pairwise_scaleSEXP);
+    rcpp_result_gen = Rcpp::wrap(ggm_test_logp_and_gradient(theta, suf_stat, n, edge_indicators, pairwise_scale));
+    return rcpp_result_gen;
+END_RCPP
+}
+// ggm_test_forward_map
+Rcpp::List ggm_test_forward_map(const arma::vec& theta, const arma::imat& edge_indicators);
+RcppExport SEXP _bgms_ggm_test_forward_map(SEXP thetaSEXP, SEXP edge_indicatorsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type theta(thetaSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
+    rcpp_result_gen = Rcpp::wrap(ggm_test_forward_map(theta, edge_indicators));
+    return rcpp_result_gen;
+END_RCPP
+}
+// ggm_test_project_position
+Rcpp::List ggm_test_project_position(const arma::vec& x, const arma::imat& edge_indicators);
+RcppExport SEXP _bgms_ggm_test_project_position(SEXP xSEXP, SEXP edge_indicatorsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
+    rcpp_result_gen = Rcpp::wrap(ggm_test_project_position(x, edge_indicators));
+    return rcpp_result_gen;
+END_RCPP
+}
+// ggm_test_get_full_position
+arma::vec ggm_test_get_full_position(const arma::mat& Phi, const arma::imat& edge_indicators);
+RcppExport SEXP _bgms_ggm_test_get_full_position(SEXP PhiSEXP, SEXP edge_indicatorsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type Phi(PhiSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
+    rcpp_result_gen = Rcpp::wrap(ggm_test_get_full_position(Phi, edge_indicators));
+    return rcpp_result_gen;
+END_RCPP
+}
+// ggm_test_logp_and_gradient_full
+Rcpp::List ggm_test_logp_and_gradient_full(const arma::vec& x, const arma::mat& suf_stat, int n, const arma::imat& edge_indicators, double pairwise_scale);
+RcppExport SEXP _bgms_ggm_test_logp_and_gradient_full(SEXP xSEXP, SEXP suf_statSEXP, SEXP nSEXP, SEXP edge_indicatorsSEXP, SEXP pairwise_scaleSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type suf_stat(suf_statSEXP);
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
+    Rcpp::traits::input_parameter< double >::type pairwise_scale(pairwise_scaleSEXP);
+    rcpp_result_gen = Rcpp::wrap(ggm_test_logp_and_gradient_full(x, suf_stat, n, edge_indicators, pairwise_scale));
+    return rcpp_result_gen;
+END_RCPP
+}
+// ggm_test_project_momentum
+arma::vec ggm_test_project_momentum(const arma::vec& r, const arma::vec& x, const arma::imat& edge_indicators);
+RcppExport SEXP _bgms_ggm_test_project_momentum(SEXP rSEXP, SEXP xSEXP, SEXP edge_indicatorsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type r(rSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
+    rcpp_result_gen = Rcpp::wrap(ggm_test_project_momentum(r, x, edge_indicators));
+    return rcpp_result_gen;
+END_RCPP
+}
+// ggm_test_leapfrog_constrained
+Rcpp::List ggm_test_leapfrog_constrained(const arma::vec& x0, const arma::vec& r0, double step_size, int n_steps, const arma::mat& suf_stat, int n, const arma::imat& edge_indicators, double pairwise_scale);
+RcppExport SEXP _bgms_ggm_test_leapfrog_constrained(SEXP x0SEXP, SEXP r0SEXP, SEXP step_sizeSEXP, SEXP n_stepsSEXP, SEXP suf_statSEXP, SEXP nSEXP, SEXP edge_indicatorsSEXP, SEXP pairwise_scaleSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type x0(x0SEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type r0(r0SEXP);
+    Rcpp::traits::input_parameter< double >::type step_size(step_sizeSEXP);
+    Rcpp::traits::input_parameter< int >::type n_steps(n_stepsSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type suf_stat(suf_statSEXP);
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
+    Rcpp::traits::input_parameter< double >::type pairwise_scale(pairwise_scaleSEXP);
+    rcpp_result_gen = Rcpp::wrap(ggm_test_leapfrog_constrained(x0, r0, step_size, n_steps, suf_stat, n, edge_indicators, pairwise_scale));
+    return rcpp_result_gen;
+END_RCPP
+}
 // compute_conditional_ggm
 Rcpp::List compute_conditional_ggm(const arma::mat& observations, const arma::ivec& predict_vars, const arma::mat& precision);
 RcppExport SEXP _bgms_compute_conditional_ggm(SEXP observationsSEXP, SEXP predict_varsSEXP, SEXP precisionSEXP) {
@@ -281,8 +378,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // sample_ggm
-Rcpp::List sample_ggm(const Rcpp::List& inputFromR, const arma::mat& prior_inclusion_prob, const arma::imat& initial_edge_indicators, const int no_iter, const int no_warmup, const int no_chains, const bool edge_selection, const int seed, const int no_threads, const int progress_type, const std::string& edge_prior, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double beta_bernoulli_alpha_between, const double beta_bernoulli_beta_between, const double dirichlet_alpha, const double lambda, const bool na_impute, const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable);
-RcppExport SEXP _bgms_sample_ggm(SEXP inputFromRSEXP, SEXP prior_inclusion_probSEXP, SEXP initial_edge_indicatorsSEXP, SEXP no_iterSEXP, SEXP no_warmupSEXP, SEXP no_chainsSEXP, SEXP edge_selectionSEXP, SEXP seedSEXP, SEXP no_threadsSEXP, SEXP progress_typeSEXP, SEXP edge_priorSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP beta_bernoulli_alpha_betweenSEXP, SEXP beta_bernoulli_beta_betweenSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP, SEXP na_imputeSEXP, SEXP missing_index_nullableSEXP) {
+Rcpp::List sample_ggm(const Rcpp::List& inputFromR, const arma::mat& prior_inclusion_prob, const arma::imat& initial_edge_indicators, const int no_iter, const int no_warmup, const int no_chains, const bool edge_selection, const std::string& sampler_type, const int seed, const int no_threads, const int progress_type, const std::string& edge_prior, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double beta_bernoulli_alpha_between, const double beta_bernoulli_beta_between, const double dirichlet_alpha, const double lambda, const double target_acceptance, const int max_tree_depth, const bool na_impute, const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable);
+RcppExport SEXP _bgms_sample_ggm(SEXP inputFromRSEXP, SEXP prior_inclusion_probSEXP, SEXP initial_edge_indicatorsSEXP, SEXP no_iterSEXP, SEXP no_warmupSEXP, SEXP no_chainsSEXP, SEXP edge_selectionSEXP, SEXP sampler_typeSEXP, SEXP seedSEXP, SEXP no_threadsSEXP, SEXP progress_typeSEXP, SEXP edge_priorSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP beta_bernoulli_alpha_betweenSEXP, SEXP beta_bernoulli_beta_betweenSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP, SEXP target_acceptanceSEXP, SEXP max_tree_depthSEXP, SEXP na_imputeSEXP, SEXP missing_index_nullableSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -293,6 +390,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const int >::type no_warmup(no_warmupSEXP);
     Rcpp::traits::input_parameter< const int >::type no_chains(no_chainsSEXP);
     Rcpp::traits::input_parameter< const bool >::type edge_selection(edge_selectionSEXP);
+    Rcpp::traits::input_parameter< const std::string& >::type sampler_type(sampler_typeSEXP);
     Rcpp::traits::input_parameter< const int >::type seed(seedSEXP);
     Rcpp::traits::input_parameter< const int >::type no_threads(no_threadsSEXP);
     Rcpp::traits::input_parameter< const int >::type progress_type(progress_typeSEXP);
@@ -303,9 +401,11 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const double >::type beta_bernoulli_beta_between(beta_bernoulli_beta_betweenSEXP);
     Rcpp::traits::input_parameter< const double >::type dirichlet_alpha(dirichlet_alphaSEXP);
     Rcpp::traits::input_parameter< const double >::type lambda(lambdaSEXP);
+    Rcpp::traits::input_parameter< const double >::type target_acceptance(target_acceptanceSEXP);
+    Rcpp::traits::input_parameter< const int >::type max_tree_depth(max_tree_depthSEXP);
     Rcpp::traits::input_parameter< const bool >::type na_impute(na_imputeSEXP);
     Rcpp::traits::input_parameter< const Rcpp::Nullable<Rcpp::IntegerMatrix> >::type missing_index_nullable(missing_index_nullableSEXP);
-    rcpp_result_gen = Rcpp::wrap(sample_ggm(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, na_impute, missing_index_nullable));
+    rcpp_result_gen = Rcpp::wrap(sample_ggm(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, target_acceptance, max_tree_depth, na_impute, missing_index_nullable));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -397,6 +497,13 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_get_explog_switch", (DL_FUNC) &_bgms_get_explog_switch, 0},
     {"_bgms_rcpp_ieee754_exp", (DL_FUNC) &_bgms_rcpp_ieee754_exp, 1},
     {"_bgms_rcpp_ieee754_log", (DL_FUNC) &_bgms_rcpp_ieee754_log, 1},
+    {"_bgms_ggm_test_logp_and_gradient", (DL_FUNC) &_bgms_ggm_test_logp_and_gradient, 5},
+    {"_bgms_ggm_test_forward_map", (DL_FUNC) &_bgms_ggm_test_forward_map, 2},
+    {"_bgms_ggm_test_project_position", (DL_FUNC) &_bgms_ggm_test_project_position, 2},
+    {"_bgms_ggm_test_get_full_position", (DL_FUNC) &_bgms_ggm_test_get_full_position, 2},
+    {"_bgms_ggm_test_logp_and_gradient_full", (DL_FUNC) &_bgms_ggm_test_logp_and_gradient_full, 5},
+    {"_bgms_ggm_test_project_momentum", (DL_FUNC) &_bgms_ggm_test_project_momentum, 3},
+    {"_bgms_ggm_test_leapfrog_constrained", (DL_FUNC) &_bgms_ggm_test_leapfrog_constrained, 8},
     {"_bgms_compute_conditional_ggm", (DL_FUNC) &_bgms_compute_conditional_ggm, 3},
     {"_bgms_compute_conditional_probs", (DL_FUNC) &_bgms_compute_conditional_probs, 7},
     {"_bgms_compute_conditional_mixed", (DL_FUNC) &_bgms_compute_conditional_mixed, 11},
@@ -407,7 +514,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_run_ggm_simulation_parallel", (DL_FUNC) &_bgms_run_ggm_simulation_parallel, 9},
     {"_bgms_sample_mixed_mrf_gibbs", (DL_FUNC) &_bgms_sample_mixed_mrf_gibbs, 11},
     {"_bgms_run_mixed_simulation_parallel", (DL_FUNC) &_bgms_run_mixed_simulation_parallel, 16},
-    {"_bgms_sample_ggm", (DL_FUNC) &_bgms_sample_ggm, 19},
+    {"_bgms_sample_ggm", (DL_FUNC) &_bgms_sample_ggm, 22},
     {"_bgms_sample_mixed_mrf", (DL_FUNC) &_bgms_sample_mixed_mrf, 24},
     {"_bgms_sample_omrf", (DL_FUNC) &_bgms_sample_omrf, 24},
     {"_bgms_compute_Vn_mfm_sbm", (DL_FUNC) &_bgms_compute_Vn_mfm_sbm, 4},

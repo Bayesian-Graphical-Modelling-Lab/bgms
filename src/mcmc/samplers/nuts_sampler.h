@@ -3,12 +3,17 @@
 #include <utility>
 #include "mcmc/samplers/sampler_base.h"
 #include "mcmc/algorithms/nuts.h"
+#include "mcmc/algorithms/leapfrog.h"
 
 /**
  * NUTSSampler - No-U-Turn Sampler
  *
  * Adaptive tree-depth leapfrog integration. Inherits warmup adaptation
  * (step size + diagonal mass matrix) from GradientSamplerBase.
+ *
+ * For constrained models (edge selection), uses RATTLE integration:
+ * full Cholesky space with position and momentum projection at each
+ * leapfrog step.
  */
 class NUTSSampler : public GradientSamplerBase {
 public:
@@ -21,6 +26,14 @@ public:
 
 protected:
     StepResult do_gradient_step(BaseModel& model) override {
+        if (uses_constrained_integration(model)) {
+            return do_constrained_step(model);
+        }
+        return do_unconstrained_step(model);
+    }
+
+private:
+    StepResult do_unconstrained_step(BaseModel& model) {
         arma::vec theta = model.get_vectorized_parameters();
         SafeRNG& rng = model.get_rng();
 
@@ -40,6 +53,35 @@ protected:
         return result;
     }
 
-private:
+    StepResult do_constrained_step(BaseModel& model) {
+        model.reset_projection_cache();
+        arma::vec x = model.get_full_position();
+        SafeRNG& rng = model.get_rng();
+
+        auto joint_fn = [&model](const arma::vec& params)
+            -> std::pair<double, arma::vec> {
+            return model.logp_and_gradient_full(params);
+        };
+
+        arma::vec inv_mass = model.get_inv_mass();
+
+        ProjectPositionFn proj_pos = [&model, &inv_mass](arma::vec& pos) {
+            model.project_position(pos, inv_mass);
+        };
+
+        ProjectMomentumFn proj_mom = [&model, &inv_mass](arma::vec& mom, const arma::vec& pos) {
+            model.project_momentum(mom, pos, inv_mass);
+        };
+
+        StepResult result = nuts_step(
+            x, step_size_, joint_fn,
+            inv_mass, rng, max_tree_depth_,
+            &proj_pos, &proj_mom
+        );
+
+        model.set_full_position(result.state);
+        return result;
+    }
+
     int max_tree_depth_;
 };

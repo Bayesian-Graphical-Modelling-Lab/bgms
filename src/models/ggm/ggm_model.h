@@ -5,6 +5,8 @@
 #include "models/base_model.h"
 #include "math/cholesky_helpers.h"
 #include "rng/rng_utils.h"
+#include "models/ggm/graph_constraint_structure.h"
+#include "models/ggm/ggm_gradient.h"
 
 
 /**
@@ -56,9 +58,15 @@ public:
         vectorized_parameters_(dim_),
         vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
         proposal_sds_(arma::vec(dim_, arma::fill::ones) * 0.25),
+        num_pairwise_(p_ * (p_ - 1) / 2),
         observations_(na_impute ? observations : arma::mat()),
         precision_proposal_(arma::mat(p_, p_, arma::fill::none))
-    {}
+    {
+        int num_edges = arma::accu(edge_indicators_) / 2;
+        int max_edges = static_cast<int>(p_ * (p_ - 1) / 2);
+        has_sparse_graph_ = !edge_selection_ && (num_edges < max_edges);
+        initialize_precision_from_mle();
+    }
 
     /**
      * Construct from sufficient statistics.
@@ -95,8 +103,14 @@ public:
         vectorized_parameters_(dim_),
         vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
         proposal_sds_(arma::vec(dim_, arma::fill::ones) * 0.25),
+        num_pairwise_(p_ * (p_ - 1) / 2),
         precision_proposal_(arma::mat(p_, p_, arma::fill::none))
-    {}
+    {
+        int num_edges = arma::accu(edge_indicators_) / 2;
+        int max_edges = static_cast<int>(p_ * (p_ - 1) / 2);
+        has_sparse_graph_ = !edge_selection_ && (num_edges < max_edges);
+        initialize_precision_from_mle();
+    }
 
     /** Copy constructor for cloning (required for parallel chains). */
     GGMModel(const GGMModel& other)
@@ -107,6 +121,7 @@ public:
           suf_stat_(other.suf_stat_),
           inclusion_probability_(other.inclusion_probability_),
           edge_selection_(other.edge_selection_),
+          has_sparse_graph_(other.has_sparse_graph_),
           pairwise_scale_(other.pairwise_scale_),
           precision_matrix_(other.precision_matrix_),
           cholesky_of_precision_(other.cholesky_of_precision_),
@@ -117,15 +132,23 @@ public:
           vectorized_indicator_parameters_(other.vectorized_indicator_parameters_),
           proposal_sds_(other.proposal_sds_),
           total_warmup_(other.total_warmup_),
+          shuffled_edge_order_(other.shuffled_edge_order_),
+          num_pairwise_(other.num_pairwise_),
           rng_(other.rng_),
           observations_(other.observations_),
           has_missing_(other.has_missing_),
           missing_index_(other.missing_index_),
-          precision_proposal_(other.precision_proposal_)
+          precision_proposal_(other.precision_proposal_),
+          constraint_structure_(other.constraint_structure_),
+          gradient_engine_(other.gradient_engine_),
+          constraint_dirty_(other.constraint_dirty_),
+          theta_valid_(other.theta_valid_),
+          theta_(other.theta_),
+          pcg_lambda_cache_(other.pcg_lambda_cache_)
     {}
 
-    /** @return false (GGM has no gradient implementation). */
-    bool has_gradient()        const override { return false; }
+    /** @return true (GGM supports NUTS via free-element Cholesky gradient). */
+    bool has_gradient()        const override { return true; }
     /** @return true (GGM supports adaptive Metropolis). */
     bool has_adaptive_metropolis()     const override { return true; }
     /** @return true when edge selection is enabled. */
@@ -165,8 +188,42 @@ public:
     /** Store warmup length for Robbins-Monro proposal-SD adaptation. */
     void init_metropolis_adaptation(const WarmupSchedule& schedule) override;
 
-    /** No-op: GGM handles edge indicator updates inside do_one_metropolis_step(). */
-    void update_edge_indicators() override {}
+    /** Shuffle edge visit order (random scan). */
+    void prepare_iteration() override;
+
+    /** Sweep over edges in shuffled order, proposing add/remove moves. */
+    void update_edge_indicators() override;
+
+    /**
+     * Element-wise MH updates for proposal-SD tuning during stage 3b.
+     *
+     * Runs off-diagonal and diagonal Metropolis updates with
+     * Robbins-Monro adaptation, following the OMRF pattern.
+     */
+    void tune_proposal_sd(int iteration, const WarmupSchedule& schedule) override;
+
+    /**
+     * Combined log-posterior and gradient for NUTS.
+     *
+     * Uses the free-element Cholesky parameterization:
+     * theta = (psi_1, f_2, psi_2, ..., f_p, psi_p) where psi_q = log(phi_qq)
+     * and x_q = N_q f_q gives the off-diagonal Cholesky entries.
+     *
+     * @param parameters  Active theta vector (dimension = p + |E|)
+     * @return (log-posterior, gradient) pair
+     */
+    std::pair<double, arma::vec> logp_and_gradient(
+        const arma::vec& parameters) override;
+
+    /**
+     * Set model state from a theta vector (inverse of get_vectorized_parameters).
+     *
+     * Runs the forward map theta -> Phi -> K and updates all internal
+     * matrices (precision, Cholesky, inverse Cholesky, covariance).
+     *
+     * @param parameters  Active theta vector (dimension = p + |E|)
+     */
+    void set_vectorized_parameters(const arma::vec& parameters) override;
 
     /**
      * Compute the Gaussian log-likelihood for a given precision matrix.
@@ -186,10 +243,29 @@ public:
      */
     void do_one_metropolis_step(int iteration = -1) override;
 
-    /** @return Number of upper-triangle elements p(p+1)/2. */
-    size_t parameter_dimension() const override { return dim_; }
-    /** @return Same as parameter_dimension() for GGM. */
-    size_t full_parameter_dimension() const override { return dim_; }
+    /**
+     * @return Active theta dimension: p + |E| (diagonals + included edges).
+     *
+     * Changes when edge indicators toggle. Used by NUTS for leapfrog
+     * integration.
+     */
+    size_t parameter_dimension() const override;
+
+    /**
+     * @return Full theta dimension: p + p(p-1)/2 (all possible off-diag slots).
+     *
+     * Fixed across all graphs. Used by the adaptation controller for
+     * mass-matrix sizing.
+     */
+    size_t full_parameter_dimension() const override;
+
+    /**
+     * @return Storage dimension for sample output: p(p+1)/2 (upper triangle of K).
+     *
+     * Preserves the existing output contract: downstream R code expects
+     * the upper triangle of the precision matrix.
+     */
+    size_t storage_dimension() const override { return dim_; }
 
     /**
      * Set random seed for reproducibility.
@@ -199,13 +275,28 @@ public:
         rng_ = SafeRNG(seed);
     }
 
-    /** @return Upper triangle of the precision matrix as a vector. */
-    arma::vec get_vectorized_parameters() const override {
-        return extract_upper_triangle();
-    }
+    /**
+     * @return Active theta vector: (psi_1, f_2, psi_2, ..., f_p, psi_p).
+     *
+     * Dimension = parameter_dimension() = p + |E|. Used by NUTS as the
+     * current state. Recomputed lazily from Phi when stale.
+     */
+    arma::vec get_vectorized_parameters() const override;
 
-    /** @return Same as get_vectorized_parameters() for GGM. */
-    arma::vec get_full_vectorized_parameters() const override {
+    /**
+     * @return Full (zero-padded) theta vector for mass-matrix adaptation.
+     *
+     * Dimension = full_parameter_dimension() = p + p(p-1)/2. Inactive
+     * edges have their f_q slots set to zero.
+     */
+    arma::vec get_full_vectorized_parameters() const override;
+
+    /**
+     * @return Upper triangle of the precision matrix for sample storage.
+     *
+     * Preserves the existing output contract.
+     */
+    arma::vec get_storage_vectorized_parameters() const override {
         return extract_upper_triangle();
     }
 
@@ -244,6 +335,100 @@ public:
         return static_cast<int>(p_ * (p_ - 1) / 2);
     }
 
+    /**
+     * @return Active subset of the inverse mass diagonal.
+     *
+     * Filters the full inv_mass_ (dimension p + p(p-1)/2) to active
+     * parameters only (dimension p + |E|). For columns where N_q != I,
+     * rotates the per-Cholesky-entry variances into f_q coordinates.
+     */
+    arma::vec get_active_inv_mass() const override;
+
+    // -----------------------------------------------------------------
+    // RATTLE constrained integration
+    // -----------------------------------------------------------------
+
+    /** @return true when constraints exist (edge selection or sparse graph). */
+    bool has_constraints() const override { return edge_selection_ || has_sparse_graph_; }
+
+    /**
+     * Pack the Cholesky factor into a full-dimension position vector.
+     *
+     * Layout: column-by-column, each column q contributes q off-diagonal
+     * entries x_{i,q} = Phi_{i,q} (i < q) followed by psi_q = log(Phi_{qq}).
+     * Total dimension = p(p+1)/2 regardless of edge state.
+     */
+    arma::vec get_full_position() const override;
+
+    /**
+     * Unpack a full-dimension position vector into the Cholesky factor
+     * and derived matrices (precision, inverse, covariance).
+     *
+     * @param x  Full position vector of dimension p(p+1)/2
+     */
+    void set_full_position(const arma::vec& x) override;
+
+    /**
+     * Project position onto the constraint manifold (in-place).
+     *
+     * Identity-mass overload (M = I). Delegates to the mass-weighted
+     * version with inv_mass_diag = ones.
+     *
+     * @param x  Full-dimension position vector (modified in-place)
+     */
+    void project_position(arma::vec& x) const override;
+
+    /**
+     * Project position onto the constraint manifold (in-place).
+     *
+     * Mass-weighted SHAKE projection: for each column q with excluded
+     * edges, projects the off-diagonal entries to satisfy K_{iq} = 0
+     * using the correction direction M^{-1} A_q^T (RATTLE-correct).
+     * Columns processed left-to-right (Roverato structure).
+     *
+     * @param x              Full-dimension position vector (modified)
+     * @param inv_mass_diag  Diagonal of the inverse mass matrix
+     */
+    void project_position(arma::vec& x,
+                          const arma::vec& inv_mass_diag) const override;
+
+    /**
+     * Project momentum onto the cotangent space (in-place).
+     *
+     * Identity-mass overload (M = I). Delegates to the mass-weighted
+     * version with inv_mass_diag = ones.
+     *
+     * @param r  Momentum vector (modified in-place)
+     * @param x  Current position (after projection)
+     */
+    void project_momentum(arma::vec& r, const arma::vec& x) const override;
+
+    /**
+     * Project momentum onto the cotangent space (in-place).
+     *
+     * Enforces the RATTLE velocity constraint J M^{-1} r = 0 using
+     * the sparse full-J representation:
+     *   r <- r - J^T (J M^{-1} J^T)^{-1} J M^{-1} r
+     *
+     * @param r              Momentum vector (modified in-place)
+     * @param x              Current position (after projection)
+     * @param inv_mass_diag  Diagonal of the inverse mass matrix
+     */
+    void project_momentum(arma::vec& r, const arma::vec& x,
+                          const arma::vec& inv_mass_diag) const override;
+
+    /**
+     * Full-space log-posterior and gradient for RATTLE integration.
+     *
+     * Simplified gradient in the full x-space: no null-space chain
+     * rule, no reverse-Givens adjoint, no QR Jacobian. Delegates
+     * to GGMGradientEngine::logp_and_gradient_full().
+     *
+     * @param x  Full position vector of dimension p(p+1)/2
+     * @return (log-posterior value, gradient vector)
+     */
+    std::pair<double, arma::vec> logp_and_gradient_full(const arma::vec& x) override;
+
     /** @return Deep copy of this model. */
     std::unique_ptr<BaseModel> clone() const override {
         return std::make_unique<GGMModel>(*this);
@@ -278,6 +463,8 @@ private:
     bool edge_selection_;
     /// Whether edge add-delete proposals are currently active.
     bool edge_selection_active_ = false;
+    /// Whether the initial graph excludes any edges (triggers RATTLE).
+    bool has_sparse_graph_ = false;
     /// Scale parameter of the Cauchy slab prior on off-diagonal elements.
     double pairwise_scale_;
 
@@ -295,6 +482,11 @@ private:
     arma::vec proposal_sds_;
     /// Total number of warmup iterations (for Robbins-Monro adaptation).
     int total_warmup_ = 0;
+
+    /// Shuffled edge visit order for random-scan edge selection.
+    arma::uvec shuffled_edge_order_;
+    /// Number of unique off-diagonal pairs: p(p-1)/2.
+    size_t num_pairwise_ = 0;
     /// Random number generator.
     SafeRNG rng_;
 
@@ -450,6 +642,62 @@ private:
      * @param i             Diagonal index
      */
     void cholesky_update_after_diag(double omega_ii_old, size_t i);
+
+    /**
+     * Recompute Cholesky and its inverse from the precision matrix.
+     *
+     * Used as a fallback when accumulated rank-1 updates/downdates
+     * cause numerical drift that makes the triangular inverse fail.
+     * Resets both cholesky_of_precision_ and inv_cholesky_of_precision_
+     * from precision_matrix_, then recomputes covariance_matrix_.
+     */
+    void refresh_cholesky();
+
+    /**
+     * Initialize precision matrix at the regularized MLE.
+     *
+     * Computes K = n * inv(S + delta * I) where delta provides
+     * Ledoit-Wolf-style shrinkage toward identity. Gives NUTS a
+     * starting point near the posterior mode, avoiding the step-size
+     * instability that arises when starting from K = I far from the
+     * mode.
+     */
+    void initialize_precision_from_mle();
+
+    // =================================================================
+    // NUTS gradient support
+    // =================================================================
+
+    /// Graph constraint structure (rebuilt when edge indicators change).
+    GraphConstraintStructure constraint_structure_;
+    /// Gradient engine for the free-element Cholesky parameterization.
+    GGMGradientEngine gradient_engine_;
+    /// Whether the constraint structure needs rebuilding.
+    bool constraint_dirty_ = true;
+    /// Whether theta_ is in sync with cholesky_of_precision_.
+    mutable bool theta_valid_ = false;
+    /// Cached theta vector (active parameterization).
+    mutable arma::vec theta_;
+    /// Cached PCG solution for warm-starting the next projection.
+    mutable arma::vec pcg_lambda_cache_;
+
+public:
+    /** Clear the PCG warm-start cache (called between NUTS trees). */
+    void reset_projection_cache() override { pcg_lambda_cache_.reset(); }
+
+    /**
+     * Rebuild the constraint structure and gradient engine from current
+     * edge indicators. Called lazily before gradient evaluation.
+     */
+    void ensure_constraint_structure();
+
+    /**
+     * Convert the current Cholesky factor to the theta parameterization.
+     *
+     * For each column q, computes psi_q = log(phi_qq) and
+     * f_q = N_q^T x_q where x_q = Phi[0:q-1, q].
+     */
+    void recompute_theta() const;
 };
 
 /**

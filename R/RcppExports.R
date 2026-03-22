@@ -17,6 +17,34 @@ rcpp_ieee754_log <- function(x) {
     .Call(`_bgms_rcpp_ieee754_log`, x)
 }
 
+ggm_test_logp_and_gradient <- function(theta, suf_stat, n, edge_indicators, pairwise_scale) {
+    .Call(`_bgms_ggm_test_logp_and_gradient`, theta, suf_stat, n, edge_indicators, pairwise_scale)
+}
+
+ggm_test_forward_map <- function(theta, edge_indicators) {
+    .Call(`_bgms_ggm_test_forward_map`, theta, edge_indicators)
+}
+
+ggm_test_project_position <- function(x, edge_indicators) {
+    .Call(`_bgms_ggm_test_project_position`, x, edge_indicators)
+}
+
+ggm_test_get_full_position <- function(Phi, edge_indicators) {
+    .Call(`_bgms_ggm_test_get_full_position`, Phi, edge_indicators)
+}
+
+ggm_test_logp_and_gradient_full <- function(x, suf_stat, n, edge_indicators, pairwise_scale) {
+    .Call(`_bgms_ggm_test_logp_and_gradient_full`, x, suf_stat, n, edge_indicators, pairwise_scale)
+}
+
+ggm_test_project_momentum <- function(r, x, edge_indicators) {
+    .Call(`_bgms_ggm_test_project_momentum`, r, x, edge_indicators)
+}
+
+ggm_test_leapfrog_constrained <- function(x0, r0, step_size, n_steps, suf_stat, n, edge_indicators, pairwise_scale) {
+    .Call(`_bgms_ggm_test_leapfrog_constrained`, x0, r0, step_size, n_steps, suf_stat, n, edge_indicators, pairwise_scale)
+}
+
 compute_conditional_ggm <- function(observations, predict_vars, precision) {
     .Call(`_bgms_compute_conditional_ggm`, observations, predict_vars, precision)
 }
@@ -57,8 +85,8 @@ run_mixed_simulation_parallel <- function(mux_samples, disc_samples, muy_samples
     .Call(`_bgms_run_mixed_simulation_parallel`, mux_samples, disc_samples, muy_samples, cont_samples, cross_samples, draw_indices, num_states, p, q, num_categories, variable_type_r, baseline_category, iter, nThreads, seed, progress_type)
 }
 
-sample_ggm <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, na_impute = FALSE, missing_index_nullable = NULL) {
-    .Call(`_bgms_sample_ggm`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, na_impute, missing_index_nullable)
+sample_ggm <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, target_acceptance = 0.8, max_tree_depth = 10L, na_impute = FALSE, missing_index_nullable = NULL) {
+    .Call(`_bgms_sample_ggm`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, target_acceptance, max_tree_depth, na_impute, missing_index_nullable)
 }
 
 sample_mixed_mrf <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, sampler_type = "mh", target_acceptance = 0.80, max_tree_depth = 10L, num_leapfrogs = 100L, na_impute = FALSE, missing_index_discrete_nullable = NULL, missing_index_continuous_nullable = NULL) {

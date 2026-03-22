@@ -286,8 +286,8 @@
 #'       with Robbins–Monro proposal adaptation.}
 #'     \item{"hamiltonian-mc"}{Hamiltonian Monte Carlo with fixed path length
 #'       (number of leapfrog steps set by \code{hmc_num_leapfrogs}).}
-#'     \item{"nuts"}{The No-U-Turn Sampler, an adaptive form of HMC with
-#'       dynamically chosen trajectory lengths.}
+#'     \item{"nuts"}{The No-U-Turn Sampler with RATTLE constrained integration
+#'       for Gaussian models with edge selection.}
 #'   }
 #'   Default: \code{"nuts"}.
 #'

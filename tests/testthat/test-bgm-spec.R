@@ -376,16 +376,29 @@ test_that("validate: GGM requires is_continuous = TRUE", {
   )
 })
 
-test_that("validate: GGM requires adaptive-metropolis", {
-  expect_error(
+test_that("validate: GGM allows hamiltonian-mc", {
+  expect_silent(
     validate_bgm_spec(
       structure(list(
         model_type = "ggm",
         variables  = list(is_continuous = TRUE),
-        sampler    = list(update_method = "nuts")
+        sampler    = list(update_method = "hamiltonian-mc"),
+        prior      = list(edge_selection = TRUE, edge_prior = "Bernoulli")
       ), class = "bgm_spec")
-    ),
-    "adaptive-metropolis"
+    )
+  )
+})
+
+test_that("validate: GGM allows nuts", {
+  expect_silent(
+    validate_bgm_spec(
+      structure(list(
+        model_type = "ggm",
+        variables  = list(is_continuous = TRUE),
+        sampler    = list(update_method = "nuts"),
+        prior      = list(edge_selection = TRUE, edge_prior = "Bernoulli")
+      ), class = "bgm_spec")
+    )
   )
 })
 

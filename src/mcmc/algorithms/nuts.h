@@ -4,6 +4,7 @@
 #include <functional>
 #include <utility>
 #include "mcmc/execution/step_result.h"
+#include "mcmc/algorithms/leapfrog.h"
 struct SafeRNG;
 
 
@@ -41,12 +42,17 @@ struct BuildTreeResult {
  * The joint function computes both values together, which is more efficient
  * when they share common computations (e.g., normalization constants).
  *
- * @param init_theta     Initial position (parameter vector)
- * @param step_size      Step size for leapfrog integration
- * @param joint          Function returning (log_post, gradient) pair
- * @param inv_mass_diag  Diagonal of the inverse mass matrix
- * @param rng            Thread-safe random number generator
- * @param max_depth      Maximum tree depth (default = 10)
+ * For constrained models, pass non-null project_position and
+ * project_momentum callbacks to use RATTLE integration.
+ *
+ * @param init_theta        Initial position (parameter vector)
+ * @param step_size         Step size for leapfrog integration
+ * @param joint             Function returning (log_post, gradient) pair
+ * @param inv_mass_diag     Diagonal of the inverse mass matrix
+ * @param rng               Thread-safe random number generator
+ * @param max_depth         Maximum tree depth (default = 10)
+ * @param project_position  SHAKE position projection (nullptr for unconstrained)
+ * @param project_momentum  RATTLE momentum projection (nullptr for unconstrained)
  * @return StepResult with position, acceptance probability, and NUTS diagnostics
  */
 StepResult nuts_step(
@@ -55,5 +61,7 @@ StepResult nuts_step(
     const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
     const arma::vec& inv_mass_diag,
     SafeRNG& rng,
-    int max_depth = 10
+    int max_depth = 10,
+    const ProjectPositionFn* project_position = nullptr,
+    const ProjectMomentumFn* project_momentum = nullptr
 );

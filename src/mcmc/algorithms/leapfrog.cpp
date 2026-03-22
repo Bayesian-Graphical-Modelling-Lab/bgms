@@ -15,11 +15,56 @@ std::pair<arma::vec, arma::vec> leapfrog_memo(
   arma::vec theta_new = theta;
 
   const arma::vec& grad1 = memo.cached_grad(theta_new);
+
+  r_half += 0.5 * eps * grad1;
+  theta_new += eps * (inv_mass_diag % r_half);
+
+  const arma::vec& grad2 = memo.cached_grad(theta_new);
+
+  r_half += 0.5 * eps * grad2;
+
+  return {theta_new, r_half};
+}
+
+
+std::pair<arma::vec, arma::vec> leapfrog_constrained(
+    const arma::vec& theta,
+    const arma::vec& r,
+    double eps,
+    Memoizer& memo,
+    const arma::vec& inv_mass_diag,
+    const ProjectPositionFn& project_position,
+    const ProjectMomentumFn& project_momentum
+) {
+  arma::vec r_half = r;
+  arma::vec theta_new = theta;
+
+  // --- Step 1: Half-step momentum ---
+  const arma::vec& grad1 = memo.cached_grad(theta_new);
   r_half += 0.5 * eps * grad1;
 
+  // --- Step 2: Project momentum onto cotangent space ---
+  project_momentum(r_half, theta_new);
+
+  // --- Step 3: Full-step position ---
   theta_new += eps * (inv_mass_diag % r_half);
+
+  // --- Step 4: SHAKE — position-only projection ---
+  arma::vec theta_pre = theta_new;
+  project_position(theta_new);
+
+  // --- Step 5: Momentum correction for constraint forces ---
+  arma::vec delta_x = theta_new - theta_pre;
+  r_half += delta_x / (eps * inv_mass_diag);
+
+  memo.invalidate();
+
+  // --- Step 6: Second half-step momentum ---
   const arma::vec& grad2 = memo.cached_grad(theta_new);
   r_half += 0.5 * eps * grad2;
+
+  // --- Step 7: Project momentum onto cotangent space ---
+  project_momentum(r_half, theta_new);
 
   return {theta_new, r_half};
 }

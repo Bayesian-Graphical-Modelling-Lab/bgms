@@ -4,6 +4,7 @@
 #include <functional>
 #include <utility>
 #include "mcmc/execution/step_result.h"
+#include "mcmc/algorithms/leapfrog.h"
 struct SafeRNG;
 
 
@@ -75,6 +76,38 @@ double heuristic_initial_step_size(
 
 
 /**
+ * Heuristic initial step size for constrained HMC/NUTS (RATTLE)
+ *
+ * Same doubling/halving algorithm as the unconstrained overload, but uses
+ * leapfrog_constrained for the trial step and projects initial momentum
+ * onto the cotangent space before computing kinetic energy. This finds a
+ * step size appropriate for the constrained manifold geometry.
+ *
+ * @param theta             Initial parameter vector (on constraint manifold)
+ * @param joint             Joint log-posterior + gradient function
+ * @param inv_mass_diag     Diagonal of the inverse mass matrix
+ * @param project_position  SHAKE position projection callback
+ * @param project_momentum  RATTLE momentum projection callback
+ * @param rng               Random number generator
+ * @param target_acceptance Target acceptance probability
+ * @param init_step         Starting step size
+ * @param max_attempts      Maximum doubling/halving iterations
+ * @return Step size yielding acceptance probability near target
+ */
+double heuristic_initial_step_size_constrained(
+    const arma::vec& theta,
+    const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
+    const arma::vec& inv_mass_diag,
+    const ProjectPositionFn& project_position,
+    const ProjectMomentumFn& project_momentum,
+    SafeRNG& rng,
+    double target_acceptance = 0.625,
+    double init_step = 1.0,
+    int max_attempts = 20
+);
+
+
+/**
  * Performs one iteration of Hamiltonian Monte Carlo sampling
  *
  * Proposes a new state by simulating Hamiltonian dynamics through leapfrog
@@ -98,5 +131,34 @@ StepResult hmc_step(
     const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
     const int num_leapfrogs,
     const arma::vec& inv_mass_diag,
+    SafeRNG& rng
+);
+
+
+/**
+ * Constrained HMC step using RATTLE integration
+ *
+ * Same Metropolis accept/reject as the unconstrained overload, but uses
+ * leapfrog_constrained (SHAKE + RATTLE projections) at each step to
+ * keep the trajectory on the constraint manifold.
+ *
+ * @param init_theta        Initial parameter vector (on constraint manifold)
+ * @param step_size         Leapfrog integration step size (epsilon)
+ * @param joint             Joint log-posterior + gradient function
+ * @param num_leapfrogs     Number of leapfrog steps per proposal
+ * @param inv_mass_diag     Diagonal of the inverse mass matrix
+ * @param project_position  SHAKE position projection callback
+ * @param project_momentum  RATTLE momentum projection callback
+ * @param rng               Thread-safe random number generator
+ * @return StepResult with accepted state and acceptance probability
+ */
+StepResult hmc_step(
+    const arma::vec& init_theta,
+    double step_size,
+    const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
+    const int num_leapfrogs,
+    const arma::vec& inv_mass_diag,
+    const ProjectPositionFn& project_position,
+    const ProjectMomentumFn& project_momentum,
     SafeRNG& rng
 );

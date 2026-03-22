@@ -54,9 +54,9 @@ test_that("invalid update_method errors", {
 # 2. GGM guard  (is_continuous = TRUE)
 # ==============================================================================
 
-test_that("GGM defaults → adaptive-metropolis silently", {
+test_that("GGM defaults → nuts silently", {
   res = vs(is_continuous = TRUE)
-  expect_equal(res$update_method, "adaptive-metropolis")
+  expect_equal(res$update_method, "nuts")
 })
 
 test_that("GGM + explicit 'adaptive-metropolis' OK", {
@@ -64,18 +64,23 @@ test_that("GGM + explicit 'adaptive-metropolis' OK", {
   expect_equal(res$update_method, "adaptive-metropolis")
 })
 
-test_that("GGM + explicit 'nuts' errors", {
-  expect_error(
-    vs(is_continuous = TRUE, update_method = "nuts"),
-    "adaptive-metropolis"
-  )
+test_that("GGM + explicit 'nuts' OK", {
+  res = vs(is_continuous = TRUE, update_method = "nuts")
+  expect_equal(res$update_method, "nuts")
 })
 
-test_that("GGM + explicit 'hamiltonian-mc' errors", {
-  expect_error(
-    vs(is_continuous = TRUE, update_method = "hamiltonian-mc"),
-    "adaptive-metropolis"
+test_that("GGM + explicit 'hamiltonian-mc' OK", {
+  res = vs(is_continuous = TRUE, update_method = "hamiltonian-mc")
+  expect_equal(res$update_method, "hamiltonian-mc")
+})
+
+test_that("GGM + hamiltonian-mc + edge_selection warns", {
+  expect_warning(
+    res <- vs(is_continuous = TRUE, edge_selection = TRUE,
+              update_method = "hamiltonian-mc"),
+    "numerically fragile"
   )
+  expect_equal(res$update_method, "hamiltonian-mc")
 })
 
 

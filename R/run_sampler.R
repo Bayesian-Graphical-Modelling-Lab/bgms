@@ -35,6 +35,18 @@ run_sampler = function(spec) {
     stop("Unknown model_type: ", spec$model_type)
   )
 
+  # Check for chain-level errors
+  chain_errors = vapply(raw, function(ch) isTRUE(ch$error), logical(1L))
+  if(all(chain_errors)) {
+    msgs = vapply(raw, function(ch) ch$error_msg %||% "unknown error", character(1L))
+    stop("All chains failed. First error: ", msgs[1L])
+  }
+  if(any(chain_errors)) {
+    n_fail = sum(chain_errors)
+    warning(n_fail, " of ", length(raw), " chain(s) failed and will be dropped.")
+    raw = raw[!chain_errors]
+  }
+
   # Check for user interrupt across all chains
   userInterrupt = any(vapply(raw, `[[`, logical(1L), "userInterrupt"))
   attr(raw, "userInterrupt") = userInterrupt
@@ -69,6 +81,7 @@ run_sampler_ggm = function(spec) {
     no_warmup = s$warmup,
     no_chains = s$chains,
     edge_selection = p$edge_selection,
+    sampler_type = s$update_method,
     seed = s$seed,
     no_threads = s$cores,
     progress_type = s$progress_type,
@@ -79,6 +92,8 @@ run_sampler_ggm = function(spec) {
     beta_bernoulli_beta_between = bb_beta_between,
     dirichlet_alpha = p$dirichlet_alpha,
     lambda = p$lambda,
+    target_acceptance = s$target_accept,
+    max_tree_depth = s$nuts_max_depth,
     na_impute = m$na_impute,
     missing_index_nullable = m$missing_index
   )

@@ -63,6 +63,14 @@ public:
     return cached_grad_val;
   }
 
+  /**
+   * Invalidate the cached gradient (e.g. after in-place position projection).
+   *
+   * After RATTLE projection modifies x, the cached gradient is for the
+   * pre-projection position and must be recomputed.
+   */
+  void invalidate() { has_cache = false; }
+
 private:
   void ensure_cached(const arma::vec& theta) {
     if (has_cache &&
@@ -100,6 +108,58 @@ std::pair<arma::vec, arma::vec> leapfrog_memo(
     double eps,
     Memoizer& memo,
     const arma::vec& inv_mass_diag
+);
+
+/**
+ * Projection callback for SHAKE position constraint.
+ * Projects position onto the constraint manifold c(q) = 0.
+ */
+using ProjectPositionFn = std::function<void(arma::vec& x)>;
+
+/**
+ * Projection callback for RATTLE velocity constraint.
+ * Projects momentum onto the cotangent space: J M^{-1} r = 0.
+ */
+using ProjectMomentumFn = std::function<void(arma::vec& r, const arma::vec& x)>;
+
+/**
+ * Legacy projection callback combining position + momentum projection.
+ * Retained for the test interface (ggm_gradient_interface.cpp).
+ */
+using ProjectFn = std::function<void(arma::vec& x, arma::vec& r)>;
+
+/**
+ * Performs a single constrained leapfrog step (RATTLE scheme).
+ *
+ * Structure follows Mici / Reich (1996):
+ *   1. Half-step momentum
+ *   2. Project momentum onto cotangent space
+ *   3. Full-step position
+ *   4. SHAKE: project position onto constraint manifold
+ *   5. Momentum correction for constraint forces
+ *   6. Second half-step momentum
+ *   7. Project momentum onto cotangent space
+ *
+ * Position and momentum projections are separate, eliminating the
+ * wasted PCG solve in the old bundled-projection implementation.
+ *
+ * @param theta            Current position (parameter vector)
+ * @param r                Current momentum vector
+ * @param eps              Step size for integration
+ * @param memo             Memoizer caching gradient evaluations
+ * @param inv_mass_diag    Diagonal of the inverse mass matrix
+ * @param project_position SHAKE position projection callback
+ * @param project_momentum RATTLE momentum projection callback
+ * @return Pair of (updated position, updated momentum)
+ */
+std::pair<arma::vec, arma::vec> leapfrog_constrained(
+    const arma::vec& theta,
+    const arma::vec& r,
+    double eps,
+    Memoizer& memo,
+    const arma::vec& inv_mass_diag,
+    const ProjectPositionFn& project_position,
+    const ProjectMomentumFn& project_momentum
 );
 
 
