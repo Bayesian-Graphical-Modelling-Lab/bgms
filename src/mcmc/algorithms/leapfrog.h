@@ -111,26 +111,45 @@ std::pair<arma::vec, arma::vec> leapfrog_memo(
 );
 
 /**
- * Projection callback type for constrained leapfrog (RATTLE).
- *
- * Takes (position, momentum) by reference and projects both
- * onto the constraint manifold and its cotangent space.
+ * Projection callback for SHAKE position constraint.
+ * Projects position onto the constraint manifold c(q) = 0.
+ */
+using ProjectPositionFn = std::function<void(arma::vec& x)>;
+
+/**
+ * Projection callback for RATTLE velocity constraint.
+ * Projects momentum onto the cotangent space: J M^{-1} r = 0.
+ */
+using ProjectMomentumFn = std::function<void(arma::vec& r, const arma::vec& x)>;
+
+/**
+ * Legacy projection callback combining position + momentum projection.
+ * Retained for the test interface (ggm_gradient_interface.cpp).
  */
 using ProjectFn = std::function<void(arma::vec& x, arma::vec& r)>;
 
 /**
  * Performs a single constrained leapfrog step (RATTLE scheme).
  *
- * After the position half-step, projects position onto the constraint
- * manifold and momentum onto the cotangent space. Invalidates the
- * Memoizer cache since projection changes the position.
+ * Structure follows Mici / Reich (1996):
+ *   1. Half-step momentum
+ *   2. Project momentum onto cotangent space
+ *   3. Full-step position
+ *   4. SHAKE: project position onto constraint manifold
+ *   5. Momentum correction for constraint forces
+ *   6. Second half-step momentum
+ *   7. Project momentum onto cotangent space
  *
- * @param theta          Current position (parameter vector)
- * @param r              Current momentum vector
- * @param eps            Step size for integration
- * @param memo           Memoizer caching gradient evaluations
- * @param inv_mass_diag  Diagonal of the inverse mass matrix
- * @param project        Projection callback (position + momentum)
+ * Position and momentum projections are separate, eliminating the
+ * wasted PCG solve in the old bundled-projection implementation.
+ *
+ * @param theta            Current position (parameter vector)
+ * @param r                Current momentum vector
+ * @param eps              Step size for integration
+ * @param memo             Memoizer caching gradient evaluations
+ * @param inv_mass_diag    Diagonal of the inverse mass matrix
+ * @param project_position SHAKE position projection callback
+ * @param project_momentum RATTLE momentum projection callback
  * @return Pair of (updated position, updated momentum)
  */
 std::pair<arma::vec, arma::vec> leapfrog_constrained(
@@ -139,7 +158,8 @@ std::pair<arma::vec, arma::vec> leapfrog_constrained(
     double eps,
     Memoizer& memo,
     const arma::vec& inv_mass_diag,
-    const ProjectFn& project
+    const ProjectPositionFn& project_position,
+    const ProjectMomentumFn& project_momentum
 );
 
 

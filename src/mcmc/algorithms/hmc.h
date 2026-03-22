@@ -4,6 +4,7 @@
 #include <functional>
 #include <utility>
 #include "mcmc/execution/step_result.h"
+#include "mcmc/algorithms/leapfrog.h"
 struct SafeRNG;
 
 
@@ -67,6 +68,38 @@ double heuristic_initial_step_size(
     const std::function<arma::vec(const arma::vec&)>& grad,
     const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
     const arma::vec& inv_mass_diag,
+    SafeRNG& rng,
+    double target_acceptance = 0.625,
+    double init_step = 1.0,
+    int max_attempts = 20
+);
+
+
+/**
+ * Heuristic initial step size for constrained HMC/NUTS (RATTLE)
+ *
+ * Same doubling/halving algorithm as the unconstrained overload, but uses
+ * leapfrog_constrained for the trial step and projects initial momentum
+ * onto the cotangent space before computing kinetic energy. This finds a
+ * step size appropriate for the constrained manifold geometry.
+ *
+ * @param theta             Initial parameter vector (on constraint manifold)
+ * @param joint             Joint log-posterior + gradient function
+ * @param inv_mass_diag     Diagonal of the inverse mass matrix
+ * @param project_position  SHAKE position projection callback
+ * @param project_momentum  RATTLE momentum projection callback
+ * @param rng               Random number generator
+ * @param target_acceptance Target acceptance probability
+ * @param init_step         Starting step size
+ * @param max_attempts      Maximum doubling/halving iterations
+ * @return Step size yielding acceptance probability near target
+ */
+double heuristic_initial_step_size_constrained(
+    const arma::vec& theta,
+    const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
+    const arma::vec& inv_mass_diag,
+    const ProjectPositionFn& project_position,
+    const ProjectMomentumFn& project_momentum,
     SafeRNG& rng,
     double target_acceptance = 0.625,
     double init_step = 1.0,

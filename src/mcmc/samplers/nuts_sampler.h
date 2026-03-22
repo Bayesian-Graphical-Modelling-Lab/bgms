@@ -64,15 +64,18 @@ private:
 
         arma::vec inv_mass = model.get_inv_mass();
 
-        ProjectFn project = [&model, &inv_mass](arma::vec& pos, arma::vec& mom) {
+        ProjectPositionFn proj_pos = [&model, &inv_mass](arma::vec& pos) {
             model.project_position(pos, inv_mass);
+        };
+
+        ProjectMomentumFn proj_mom = [&model, &inv_mass](arma::vec& mom, const arma::vec& pos) {
             model.project_momentum(mom, pos, inv_mass);
         };
 
         StepResult result = nuts_step(
             x, step_size_, joint_fn,
             inv_mass, rng, max_tree_depth_,
-            &project
+            &proj_pos, &proj_mom
         );
 
         model.set_full_position(result.state);

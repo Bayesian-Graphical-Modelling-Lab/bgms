@@ -89,7 +89,30 @@ public:
         // geometry (changed active parameters) quickly.
         if (schedule_.in_stage3c(iteration) && !stage3c_initialized_) {
             stage3c_initialized_ = true;
-            adapt_->reinit_stepsize(adapt_->current_step_size());
+            if (uses_constrained_integration(model)) {
+                // Re-run step-size heuristic with constrained integrator.
+                // The step size from stages 1-2 was tuned for unconstrained
+                // leapfrog; constraints are now active, so re-tune.
+                SafeRNG& rng = model.get_rng();
+                arma::vec x = model.get_full_position();
+                arma::vec inv_mass = model.get_inv_mass();
+                auto joint_fn = [&model](const arma::vec& params)
+                    -> std::pair<double, arma::vec> {
+                    return model.logp_and_gradient_full(params);
+                };
+                ProjectPositionFn proj_pos = [&model, &inv_mass](arma::vec& pos) {
+                    model.project_position(pos, inv_mass);
+                };
+                ProjectMomentumFn proj_mom = [&model, &inv_mass](arma::vec& mom, const arma::vec& pos) {
+                    model.project_momentum(mom, pos, inv_mass);
+                };
+                double new_eps = heuristic_initial_step_size_constrained(
+                    x, joint_fn, inv_mass, proj_pos, proj_mom, rng,
+                    0.625, adapt_->current_step_size());
+                adapt_->reinit_stepsize(new_eps);
+            } else {
+                adapt_->reinit_stepsize(adapt_->current_step_size());
+            }
         }
 
         // Use adaptation controller's current step size for this iteration
@@ -114,15 +137,18 @@ public:
 
             if (uses_constrained_integration(model)) {
                 arma::vec x = model.get_full_position();
-                auto grad_fn = [&model](const arma::vec& params) -> arma::vec {
-                    return model.logp_and_gradient_full(params).second;
-                };
                 auto joint_fn = [&model](const arma::vec& params)
                     -> std::pair<double, arma::vec> {
                     return model.logp_and_gradient_full(params);
                 };
-                double new_eps = heuristic_initial_step_size(
-                    x, grad_fn, joint_fn, new_inv_mass, rng,
+                ProjectPositionFn proj_pos = [&model, &new_inv_mass](arma::vec& pos) {
+                    model.project_position(pos, new_inv_mass);
+                };
+                ProjectMomentumFn proj_mom = [&model, &new_inv_mass](arma::vec& mom, const arma::vec& pos) {
+                    model.project_momentum(mom, pos, new_inv_mass);
+                };
+                double new_eps = heuristic_initial_step_size_constrained(
+                    x, joint_fn, new_inv_mass, proj_pos, proj_mom, rng,
                     0.625, adapt_->current_step_size());
                 adapt_->reinit_stepsize(new_eps);
             } else {

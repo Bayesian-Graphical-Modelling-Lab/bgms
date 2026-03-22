@@ -64,16 +64,18 @@ BuildTreeResult build_tree(
     Memoizer& memo,
     const arma::vec& inv_mass_diag,
     SafeRNG& rng,
-    const ProjectFn* project
+    const ProjectPositionFn* project_position,
+    const ProjectMomentumFn* project_momentum
 ) {
   constexpr double Delta_max = 1000.0;
 
   if (j == 0) {
     // Base case: take a single leapfrog step
     arma::vec theta_new, r_new;
-    if (project) {
+    if (project_position && project_momentum) {
       std::tie(theta_new, r_new) = leapfrog_constrained(
-        theta, r, v * step_size, memo, inv_mass_diag, *project
+        theta, r, v * step_size, memo, inv_mass_diag,
+        *project_position, *project_momentum
       );
     } else {
       std::tie(theta_new, r_new) = leapfrog_memo(
@@ -92,7 +94,7 @@ BuildTreeResult build_tree(
       auto& _prof = RattleProfiler::instance();
       if(_prof.enabled) {
         _prof.total_leapfrogs++;
-        if(project) _prof.total_constrained_leapfrogs++;
+        if(project_position) _prof.total_constrained_leapfrogs++;
       }
     }
 
@@ -124,7 +126,7 @@ BuildTreeResult build_tree(
     // Recursion: build the first subtree
     BuildTreeResult init_result = build_tree(
       theta, r, log_u, v, j - 1, step_size, theta_0, r0, logp0, kin0, memo,
-      inv_mass_diag, rng, project
+      inv_mass_diag, rng, project_position, project_momentum
     );
 
     if (init_result.s_prime == 0) {
@@ -155,7 +157,7 @@ BuildTreeResult build_tree(
     if (v == -1) {
       final_result = build_tree(
         theta_min, r_min, log_u, v, j - 1, step_size, theta_0, r0, logp0,
-        kin0, memo, inv_mass_diag, rng, project
+        kin0, memo, inv_mass_diag, rng, project_position, project_momentum
       );
       // Update backward boundary
       theta_min = final_result.theta_min;
@@ -163,7 +165,7 @@ BuildTreeResult build_tree(
     } else {
       final_result = build_tree(
         theta_plus, r_plus, log_u, v, j - 1, step_size, theta_0, r0, logp0,
-        kin0, memo, inv_mass_diag, rng, project
+        kin0, memo, inv_mass_diag, rng, project_position, project_momentum
       );
       // Update forward boundary
       theta_plus = final_result.theta_plus;
@@ -282,7 +284,8 @@ StepResult nuts_step(
     const arma::vec& inv_mass_diag,
     SafeRNG& rng,
     int max_depth,
-    const ProjectFn* project
+    const ProjectPositionFn* project_position,
+    const ProjectMomentumFn* project_momentum
 ) {
   // Create Memoizer with joint function
   Memoizer memo(joint);
@@ -290,11 +293,10 @@ StepResult nuts_step(
 
   arma::vec r0 = arma::sqrt(1.0 / inv_mass_diag) % arma_rnorm_vec(rng, init_theta.n_elem);
 
-  // TODO: re-enable initial momentum projection after tree depth issue is resolved
-  // if (project) {
-  //   arma::vec pos_tmp = init_theta;
-  //   (*project)(pos_tmp, r0);
-  // }
+  // Project initial momentum onto cotangent space (momentum-only)
+  if (project_momentum) {
+    (*project_momentum)(r0, init_theta);
+  }
 
   auto logp0 = memo.cached_log_post(init_theta);
   double kin0 = kinetic_energy(r0, inv_mass_diag);
@@ -328,7 +330,7 @@ StepResult nuts_step(
       rho_fwd = rho;
       result = build_tree(
         theta_min, r_min, log_u, v, j, step_size, init_theta, r0, logp0, kin0, memo,
-        inv_mass_diag, rng, project
+        inv_mass_diag, rng, project_position, project_momentum
       );
       theta_min = result.theta_min;
       r_min = result.r_min;
@@ -340,7 +342,7 @@ StepResult nuts_step(
       rho_bck = rho;
       result = build_tree(
         theta_plus, r_plus, log_u, v, j, step_size, init_theta, r0, logp0, kin0, memo,
-        inv_mass_diag, rng, project
+        inv_mass_diag, rng, project_position, project_momentum
       );
       theta_plus = result.theta_plus;
       r_plus = result.r_plus;

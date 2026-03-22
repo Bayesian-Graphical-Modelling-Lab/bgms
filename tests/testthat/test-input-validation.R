@@ -81,7 +81,7 @@ test_that("GGM rejects HMC but allows NUTS", {
   # NUTS should be accepted (no error at validation stage)
   spec = bgm_spec(
     x = x, variable_type = "continuous", update_method = "nuts",
-    iter = 10, warmup = 10, chains = 1
+    iter = 10, warmup = 300, chains = 1
   )
   expect_equal(spec$sampler$update_method, "nuts")
 })

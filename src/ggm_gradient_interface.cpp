@@ -193,9 +193,11 @@ Rcpp::List ggm_test_leapfrog_constrained(
     };
     Memoizer memo(joint);
 
-    // Projection callback
-    ProjectFn project = [&model](arma::vec& x, arma::vec& r) {
+    // Projection callbacks (split for RATTLE integration)
+    ProjectPositionFn proj_pos = [&model](arma::vec& x) {
         model.project_position(x);
+    };
+    ProjectMomentumFn proj_mom = [&model](arma::vec& r, const arma::vec& x) {
         model.project_momentum(r, x);
     };
 
@@ -209,7 +211,7 @@ Rcpp::List ggm_test_leapfrog_constrained(
 
     for (int s = 0; s < n_steps; ++s) {
         std::tie(x, r) = leapfrog_constrained(
-            x, r, step_size, memo, inv_mass, project
+            x, r, step_size, memo, inv_mass, proj_pos, proj_mom
         );
     }
 

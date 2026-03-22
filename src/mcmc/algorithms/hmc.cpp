@@ -81,6 +81,67 @@ double heuristic_initial_step_size(
 }
 
 
+double heuristic_initial_step_size_constrained(
+    const arma::vec& theta,
+    const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
+    const arma::vec& inv_mass_diag,
+    const ProjectPositionFn& project_position,
+    const ProjectMomentumFn& project_momentum,
+    SafeRNG& rng,
+    double target_acceptance,
+    double init_step,
+    int max_attempts
+) {
+  double eps = init_step;
+
+  Memoizer memo(joint);
+
+  // Log-posterior at initial position (does not change across iterations)
+  double logp0 = memo.cached_log_post(theta);
+
+  // Sample momentum and project onto cotangent space (momentum-only)
+  arma::vec r = arma::sqrt(1.0 / inv_mass_diag) % arma_rnorm_vec(rng, theta.n_elem);
+  project_momentum(r, theta);
+  double kin0 = kinetic_energy(r, inv_mass_diag);
+  double H0 = logp0 - kin0;
+
+  // One constrained leapfrog step
+  auto [theta1, r1] = leapfrog_constrained(
+    theta, r, eps, memo, inv_mass_diag, project_position, project_momentum
+  );
+
+  double logp1 = memo.cached_log_post(theta1);
+  double kin1 = kinetic_energy(r1, inv_mass_diag);
+  double H1 = logp1 - kin1;
+
+  int direction = 2 * (H1 - H0 > MY_LOG(0.5)) - 1;
+
+  int attempts = 0;
+  while (direction * (H1 - H0) > -direction * MY_LOG(2.0) && attempts < max_attempts) {
+    eps = (direction == 1) ? 2.0 * eps : 0.5 * eps;
+
+    // Resample momentum and project onto cotangent space
+    r = arma::sqrt(1.0 / inv_mass_diag) % arma_rnorm_vec(rng, theta.n_elem);
+    project_momentum(r, theta);
+    kin0 = kinetic_energy(r, inv_mass_diag);
+    H0 = logp0 - kin0;
+
+    // One constrained leapfrog step from original position
+    auto [theta_new, r_new] = leapfrog_constrained(
+      theta, r, eps, memo, inv_mass_diag, project_position, project_momentum
+    );
+
+    logp1 = memo.cached_log_post(theta_new);
+    kin1 = kinetic_energy(r_new, inv_mass_diag);
+    H1 = logp1 - kin1;
+
+    attempts++;
+  }
+
+  return eps;
+}
+
+
 StepResult hmc_step(
     const arma::vec& init_theta,
     double step_size,

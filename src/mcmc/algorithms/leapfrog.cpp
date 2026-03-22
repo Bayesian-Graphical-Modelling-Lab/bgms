@@ -38,12 +38,13 @@ std::pair<arma::vec, arma::vec> leapfrog_constrained(
     double eps,
     Memoizer& memo,
     const arma::vec& inv_mass_diag,
-    const ProjectFn& project
+    const ProjectPositionFn& project_position,
+    const ProjectMomentumFn& project_momentum
 ) {
   arma::vec r_half = r;
   arma::vec theta_new = theta;
 
-  // Half-step momentum
+  // --- Step 1: Half-step momentum ---
   BGMS_PROF_START(_t1);
   const arma::vec& grad1 = memo.cached_grad(theta_new);
   BGMS_PROF_RECORD("rlf.grad1", _t1);
@@ -52,19 +53,23 @@ std::pair<arma::vec, arma::vec> leapfrog_constrained(
   r_half += 0.5 * eps * grad1;
   BGMS_PROF_RECORD("rlf.half1", _t2);
 
-  // Full-step position
+  // --- Step 2: Project momentum onto cotangent space ---
+  BGMS_PROF_START(_t2b);
+  project_momentum(r_half, theta_new);
+  BGMS_PROF_RECORD("rlf.proj_mom_pre", _t2b);
+
+  // --- Step 3: Full-step position ---
   BGMS_PROF_START(_t3);
   theta_new += eps * (inv_mass_diag % r_half);
   BGMS_PROF_RECORD("rlf.pos", _t3);
 
-  // --- RATTLE position-constraint step ---
+  // --- Step 4: SHAKE — position-only projection ---
   BGMS_PROF_START(_t4);
   arma::vec theta_pre = theta_new;
-  arma::vec r_temp = r_half;
-  project(theta_new, r_temp);
+  project_position(theta_new);
   BGMS_PROF_RECORD("rlf.proj_pos", _t4);
 
-  // RATTLE momentum correction
+  // --- Step 5: Momentum correction for constraint forces ---
   BGMS_PROF_START(_t5);
   arma::vec delta_x = theta_new - theta_pre;
   r_half += delta_x / (eps * inv_mass_diag);
@@ -72,7 +77,7 @@ std::pair<arma::vec, arma::vec> leapfrog_constrained(
 
   memo.invalidate();
 
-  // Second half-step momentum (re-evaluates gradient at projected position)
+  // --- Step 6: Second half-step momentum ---
   BGMS_PROF_START(_t6);
   const arma::vec& grad2 = memo.cached_grad(theta_new);
   BGMS_PROF_RECORD("rlf.grad2", _t6);
@@ -81,9 +86,9 @@ std::pair<arma::vec, arma::vec> leapfrog_constrained(
   r_half += 0.5 * eps * grad2;
   BGMS_PROF_RECORD("rlf.half2", _t7);
 
-  // --- RATTLE velocity-constraint step ---
+  // --- Step 7: Project momentum onto cotangent space ---
   BGMS_PROF_START(_t8);
-  project(theta_new, r_half);
+  project_momentum(r_half, theta_new);
   BGMS_PROF_RECORD("rlf.proj_mom", _t8);
 
   return {theta_new, r_half};
