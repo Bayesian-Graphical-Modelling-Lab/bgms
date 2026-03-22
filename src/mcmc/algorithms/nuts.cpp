@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <functional>
 #include <memory>
+#include <utility>
 #include "mcmc/algorithms/leapfrog.h"
 #include "mcmc/algorithms/nuts.h"
 #include "mcmc/algorithms/hmc.h"
@@ -101,23 +102,21 @@ BuildTreeResult build_tree(
     }
 
     BGMS_PROF_START(_t_leaf_bk);
-    // Initialize rho with the momentum at this point
-    arma::vec rho = r_new;
     // Sharp momentum (velocity): M^{-1} * p
     arma::vec p_sharp = inv_mass_diag % r_new;
 
     BuildTreeResult result;
     result.theta_min = theta_new;
-    result.r_min = r_new;
     result.theta_plus = theta_new;
+    result.r_min = r_new;
     result.r_plus = r_new;
-    result.theta_prime = theta_new;
-    result.r_prime = r_new;
-    result.rho = rho;
-    result.p_sharp_beg = p_sharp;
-    result.p_sharp_end = p_sharp;
+    result.rho = r_new;
     result.p_beg = r_new;
     result.p_end = r_new;
+    result.r_prime = std::move(r_new);
+    result.theta_prime = std::move(theta_new);
+    result.p_sharp_beg = p_sharp;
+    result.p_sharp_end = std::move(p_sharp);
     result.n_prime = n_new;
     result.s_prime = s_new;
     result.alpha = alpha;
@@ -141,18 +140,18 @@ BuildTreeResult build_tree(
     BGMS_PROF_START(_t_ext);
     bool divergent = init_result.divergent;
 
-    // Extract values from init subtree
-    arma::vec theta_min = init_result.theta_min;
-    arma::vec r_min = init_result.r_min;
-    arma::vec theta_plus = init_result.theta_plus;
-    arma::vec r_plus = init_result.r_plus;
-    arma::vec theta_prime = init_result.theta_prime;
-    arma::vec r_prime = init_result.r_prime;
-    arma::vec rho_init = init_result.rho;
-    arma::vec p_sharp_init_beg = init_result.p_sharp_beg;
-    arma::vec p_sharp_init_end = init_result.p_sharp_end;
-    arma::vec p_init_beg = init_result.p_beg;
-    arma::vec p_init_end = init_result.p_end;
+    // Extract values from init subtree (move — init_result not used again)
+    arma::vec theta_min = std::move(init_result.theta_min);
+    arma::vec r_min = std::move(init_result.r_min);
+    arma::vec theta_plus = std::move(init_result.theta_plus);
+    arma::vec r_plus = std::move(init_result.r_plus);
+    arma::vec theta_prime = std::move(init_result.theta_prime);
+    arma::vec r_prime = std::move(init_result.r_prime);
+    arma::vec rho_init = std::move(init_result.rho);
+    arma::vec p_sharp_init_beg = std::move(init_result.p_sharp_beg);
+    arma::vec p_sharp_init_end = std::move(init_result.p_sharp_end);
+    arma::vec p_init_beg = std::move(init_result.p_beg);
+    arma::vec p_init_end = std::move(init_result.p_end);
     int n_prime = init_result.n_prime;
     double alpha_prime = init_result.alpha;
     int n_alpha_prime = init_result.n_alpha;
@@ -166,33 +165,34 @@ BuildTreeResult build_tree(
         kin0, memo, inv_mass_diag, rng, project_position, project_momentum
       );
       // Update backward boundary
-      theta_min = final_result.theta_min;
-      r_min = final_result.r_min;
+      theta_min = std::move(final_result.theta_min);
+      r_min = std::move(final_result.r_min);
     } else {
       final_result = build_tree(
         theta_plus, r_plus, log_u, v, j - 1, step_size, theta_0, r0, logp0,
         kin0, memo, inv_mass_diag, rng, project_position, project_momentum
       );
       // Update forward boundary
-      theta_plus = final_result.theta_plus;
-      r_plus = final_result.r_plus;
+      theta_plus = std::move(final_result.theta_plus);
+      r_plus = std::move(final_result.r_plus);
     }
 
     if (final_result.s_prime == 0) {
       // Second subtree is invalid - return early with s_prime=0
       BGMS_PROF_START(_t_fail);
       BuildTreeResult result;
-      result.theta_min = theta_min;
-      result.r_min = r_min;
-      result.theta_plus = theta_plus;
-      result.r_plus = r_plus;
-      result.theta_prime = theta_prime;
-      result.r_prime = r_prime;
-      result.rho = rho_init + final_result.rho;
-      result.p_sharp_beg = p_sharp_init_beg;
-      result.p_sharp_end = final_result.p_sharp_end;
-      result.p_beg = p_init_beg;
-      result.p_end = final_result.p_end;
+      result.theta_min = std::move(theta_min);
+      result.r_min = std::move(r_min);
+      result.theta_plus = std::move(theta_plus);
+      result.r_plus = std::move(r_plus);
+      result.theta_prime = std::move(theta_prime);
+      result.r_prime = std::move(r_prime);
+      rho_init += final_result.rho;
+      result.rho = std::move(rho_init);
+      result.p_sharp_beg = std::move(p_sharp_init_beg);
+      result.p_sharp_end = std::move(final_result.p_sharp_end);
+      result.p_beg = std::move(p_init_beg);
+      result.p_end = std::move(final_result.p_end);
       result.n_prime = n_prime + final_result.n_prime;
       result.s_prime = 0;
       result.alpha = alpha_prime + final_result.alpha;
@@ -203,12 +203,12 @@ BuildTreeResult build_tree(
     }
 
     BGMS_PROF_START(_t_ext2);
-    // Extract values from final subtree
-    arma::vec rho_final = final_result.rho;
-    arma::vec p_sharp_final_beg = final_result.p_sharp_beg;
-    arma::vec p_sharp_final_end = final_result.p_sharp_end;
-    arma::vec p_final_beg = final_result.p_beg;
-    arma::vec p_final_end = final_result.p_end;
+    // Extract values from final subtree (move — final_result not used again)
+    arma::vec rho_final = std::move(final_result.rho);
+    arma::vec p_sharp_final_beg = std::move(final_result.p_sharp_beg);
+    arma::vec p_sharp_final_end = std::move(final_result.p_sharp_end);
+    arma::vec p_final_beg = std::move(final_result.p_beg);
+    arma::vec p_final_end = std::move(final_result.p_end);
     int n_double_prime = final_result.n_prime;
     double alpha_double_prime = final_result.alpha;
     int n_alpha_double_prime = final_result.n_alpha;
@@ -221,8 +221,8 @@ BuildTreeResult build_tree(
     double prob = static_cast<double>(n_double_prime) / denom;
 
     if (runif(rng) < prob) {
-      theta_prime = final_result.theta_prime;
-      r_prime = final_result.r_prime;
+      theta_prime = std::move(final_result.theta_prime);
+      r_prime = std::move(final_result.r_prime);
     }
 
     alpha_prime += alpha_double_prime;
@@ -231,46 +231,40 @@ BuildTreeResult build_tree(
 
     // Combine rho from both subtrees
     arma::vec rho_subtree = rho_init + rho_final;
-
-    // Determine the sharp momenta at the boundaries of the combined subtree
-    arma::vec p_sharp_beg = p_sharp_init_beg;
-    arma::vec p_sharp_end = final_result.p_sharp_end;
-    arma::vec p_beg = p_init_beg;
-    arma::vec p_end = final_result.p_end;
     BGMS_PROF_RECORD("nuts.merge_arith", _t_merge);
 
     // Generalized U-turn criterion (three checks like STAN)
     BGMS_PROF_START(_t_crit);
 
     // 1. Check criterion around merged subtrees
-    bool persist_criterion = compute_criterion(p_sharp_beg, p_sharp_end, rho_subtree);
+    bool persist_criterion = compute_criterion(p_sharp_init_beg, p_sharp_final_end, rho_subtree);
 
     // 2. Check between subtrees: from start of tree to start of final subtree
     arma::vec rho_extended = rho_init + p_final_beg;
     persist_criterion = persist_criterion &&
-      compute_criterion(p_sharp_beg, p_sharp_final_beg, rho_extended);
+      compute_criterion(p_sharp_init_beg, p_sharp_final_beg, rho_extended);
 
     // 3. Check between subtrees: from end of init subtree to end of tree
     rho_extended = rho_final + p_init_end;
     persist_criterion = persist_criterion &&
-      compute_criterion(p_sharp_init_end, p_sharp_end, rho_extended);
+      compute_criterion(p_sharp_init_end, p_sharp_final_end, rho_extended);
     BGMS_PROF_RECORD("nuts.criterion", _t_crit);
 
     int s_prime = persist_criterion ? 1 : 0;
 
     BGMS_PROF_START(_t_ret);
     BuildTreeResult result;
-    result.theta_min = theta_min;
-    result.r_min = r_min;
-    result.theta_plus = theta_plus;
-    result.r_plus = r_plus;
-    result.theta_prime = theta_prime;
-    result.r_prime = r_prime;
-    result.rho = rho_subtree;
-    result.p_sharp_beg = p_sharp_beg;
-    result.p_sharp_end = p_sharp_end;
-    result.p_beg = p_beg;
-    result.p_end = p_end;
+    result.theta_min = std::move(theta_min);
+    result.r_min = std::move(r_min);
+    result.theta_plus = std::move(theta_plus);
+    result.r_plus = std::move(r_plus);
+    result.theta_prime = std::move(theta_prime);
+    result.r_prime = std::move(r_prime);
+    result.rho = std::move(rho_subtree);
+    result.p_sharp_beg = std::move(p_sharp_init_beg);
+    result.p_sharp_end = std::move(p_sharp_final_end);
+    result.p_beg = std::move(p_init_beg);
+    result.p_end = std::move(p_final_end);
     result.n_prime = n_prime;
     result.s_prime = s_prime;
     result.alpha = alpha_prime;
@@ -337,24 +331,24 @@ StepResult nuts_step(
         theta_min, r_min, log_u, v, j, step_size, init_theta, r0, logp0, kin0, memo,
         inv_mass_diag, rng, project_position, project_momentum
       );
-      theta_min = result.theta_min;
-      r_min = result.r_min;
-      rho_bck = result.rho;
-      p_sharp_bck_bck = result.p_sharp_beg;
-      p_bck_fwd = result.p_end;
-      p_sharp_bck_fwd = result.p_sharp_end;
+      theta_min = std::move(result.theta_min);
+      r_min = std::move(result.r_min);
+      rho_bck = std::move(result.rho);
+      p_sharp_bck_bck = std::move(result.p_sharp_beg);
+      p_bck_fwd = std::move(result.p_end);
+      p_sharp_bck_fwd = std::move(result.p_sharp_end);
     } else {
       rho_bck = rho;
       result = build_tree(
         theta_plus, r_plus, log_u, v, j, step_size, init_theta, r0, logp0, kin0, memo,
         inv_mass_diag, rng, project_position, project_momentum
       );
-      theta_plus = result.theta_plus;
-      r_plus = result.r_plus;
-      rho_fwd = result.rho;
-      p_sharp_fwd_fwd = result.p_sharp_end;
-      p_fwd_bck = result.p_beg;
-      p_sharp_fwd_bck = result.p_sharp_beg;
+      theta_plus = std::move(result.theta_plus);
+      r_plus = std::move(result.r_plus);
+      rho_fwd = std::move(result.rho);
+      p_sharp_fwd_fwd = std::move(result.p_sharp_end);
+      p_fwd_bck = std::move(result.p_beg);
+      p_sharp_fwd_bck = std::move(result.p_sharp_beg);
     }
 
     any_divergence = any_divergence || result.divergent;
@@ -364,8 +358,8 @@ StepResult nuts_step(
     if (result.s_prime == 1) {
       double prob = static_cast<double>(result.n_prime) / static_cast<double>(n);
       if (runif(rng) < prob) {
-        theta = result.theta_prime;
-        r = result.r_prime;
+        theta = std::move(result.theta_prime);
+        r = std::move(result.r_prime);
       }
     }
 

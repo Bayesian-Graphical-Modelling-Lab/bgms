@@ -526,7 +526,10 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient_full(
 
     // Data term: d/dPhi[-0.5 tr(Phi^T Phi S)] = -Phi S = -P
     // Gamma prior: d/dK_ii[-K_ii] → Phi_bar -= 2 Phi
-    arma::mat Phi_bar = -(P + 2.0 * Phi);
+    // Repurpose P as Phi_bar to avoid a p×p allocation
+    P += 2.0 * Phi;
+    P *= -1.0;
+    // P now holds -(Phi*S + 2*Phi) = Phi_bar
 
     // Cauchy prior adjoint on included edges
     for (size_t q = 1; q < p_; ++q) {
@@ -535,26 +538,26 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient_full(
                 Phi.col(i).head(i + 1),
                 Phi.col(q).head(i + 1));
             double d = -2.0 * kij / (scale2 + kij * kij);
-            Phi_bar.col(q).head(i + 1) += d * Phi.col(i).head(i + 1);
-            Phi_bar.col(i).head(i + 1) += d * Phi.col(q).head(i + 1);
+            P.col(q).head(i + 1) += d * Phi.col(i).head(i + 1);
+            P.col(i).head(i + 1) += d * Phi.col(q).head(i + 1);
         }
     }
     BGMS_PROF_RECORD("grad.backward", _t_bwd);
 
-    // --- Extract gradient from Phi_bar ---
+    // --- Extract gradient from Phi_bar (stored in P) ---
     BGMS_PROF_START(_t_ext);
-    arma::vec gradient(x.n_elem, arma::fill::zeros);
+    arma::vec gradient(x.n_elem, arma::fill::none);
 
     for (size_t q = 0; q < p_; ++q) {
         size_t offset = structure_->full_theta_offsets[q];
 
         // Off-diagonal: grad_{x_{iq}} = Phi_bar_{i,q}
         for (size_t i = 0; i < q; ++i) {
-            gradient(offset + i) = Phi_bar(i, q);
+            gradient(offset + i) = P(i, q);
         }
 
         // Diagonal (psi_q): chain rule through exp + log-det + Jacobian
-        double psi_bar = Phi_bar(q, q) * Phi(q, q);
+        double psi_bar = P(q, q) * Phi(q, q);
         psi_bar += n + 2.0;
         if (q + 1 < p_) {
             psi_bar += static_cast<double>(p_ - 1 - q);
@@ -563,5 +566,5 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient_full(
     }
     BGMS_PROF_RECORD("grad.extract", _t_ext);
 
-    return {lp, gradient};
+    return {lp, std::move(gradient)};
 }
