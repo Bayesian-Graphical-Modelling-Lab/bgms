@@ -1,5 +1,4 @@
 #include "models/ggm/ggm_gradient.h"
-#include "mcmc/profiler.h"
 
 #include <cmath>
 #include <limits>
@@ -448,7 +447,6 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient_full(
     const arma::vec& x) const
 {
     // --- Forward pass: unpack x -> Phi ---
-    BGMS_PROF_START(_t_fwd);
     arma::mat Phi(p_, p_, arma::fill::zeros);
     arma::vec psi(p_);
 
@@ -473,13 +471,11 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient_full(
     // halving the FLOP count vs dense gemm.
     const arma::mat& S = *suf_stat_;
     arma::mat P = arma::trimatu(Phi) * S;
-    BGMS_PROF_RECORD("grad.forward", _t_fwd);
 
     double n = static_cast<double>(n_);
     double scale2 = pairwise_scale_ * pairwise_scale_;
 
     // --- Log-posterior value ---
-    BGMS_PROF_START(_t_logp);
 
     // tr(KS) = tr(Phi^T Phi S) = accu(Phi % P)
     double tr_KS = arma::accu(Phi % P);
@@ -519,14 +515,12 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient_full(
     }
 
     double lp = log_lik + log_slab + log_diag_prior + ldj;
-    BGMS_PROF_RECORD("grad.logpost", _t_logp);
 
     if (!std::isfinite(lp)) {
         return {lp, arma::vec(x.n_elem, arma::fill::zeros)};
     }
 
     // --- Backward pass: direct Phi-space gradient ---
-    BGMS_PROF_START(_t_bwd);
 
     // Data term: d/dPhi[-0.5 tr(Phi^T Phi S)] = -Phi S = -P
     // Gamma prior: d/dK_ii[-K_ii] → Phi_bar -= 2 Phi
@@ -546,10 +540,8 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient_full(
             P.col(i).head(i + 1) += d * Phi.col(q).head(i + 1);
         }
     }
-    BGMS_PROF_RECORD("grad.backward", _t_bwd);
 
     // --- Extract gradient from Phi_bar (stored in P) ---
-    BGMS_PROF_START(_t_ext);
     arma::vec gradient(x.n_elem, arma::fill::none);
 
     for (size_t q = 0; q < p_; ++q) {
@@ -568,7 +560,6 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient_full(
         }
         gradient(offset + q) = psi_bar;
     }
-    BGMS_PROF_RECORD("grad.extract", _t_ext);
 
     return {lp, std::move(gradient)};
 }

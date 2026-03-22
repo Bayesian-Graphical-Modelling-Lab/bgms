@@ -6,7 +6,6 @@
 #include "mcmc/algorithms/leapfrog.h"
 #include "mcmc/algorithms/nuts.h"
 #include "mcmc/algorithms/hmc.h"
-#include "mcmc/profiler.h"
 #include "rng/rng_utils.h"
 
 
@@ -84,24 +83,13 @@ BuildTreeResult build_tree(
       );
     }
 
-    BGMS_PROF_START(_t_kin0);
     auto logp = memo.cached_log_post(theta_new);
     double kin = kinetic_energy(r_new, inv_mass_diag);
     int n_new = 1 * (log_u <= logp - kin);
     int s_new = 1 * (log_u <= Delta_max + logp - kin);
     bool divergent = (s_new == 0);
     double alpha = std::min(1.0, MY_EXP(logp - kin - logp0 + kin0));
-    BGMS_PROF_RECORD("nuts.leaf_eval", _t_kin0);
 
-    {
-      auto& _prof = RattleProfiler::instance();
-      if(_prof.enabled) {
-        _prof.total_leapfrogs++;
-        if(project_position) _prof.total_constrained_leapfrogs++;
-      }
-    }
-
-    BGMS_PROF_START(_t_leaf_bk);
     // Sharp momentum (velocity): M^{-1} * p
     arma::vec p_sharp = inv_mass_diag % r_new;
 
@@ -122,7 +110,6 @@ BuildTreeResult build_tree(
     result.alpha = alpha;
     result.n_alpha = 1;
     result.divergent = divergent;
-    BGMS_PROF_RECORD("nuts.leaf_copy", _t_leaf_bk);
     return result;
 
   } else {
@@ -137,7 +124,6 @@ BuildTreeResult build_tree(
       return init_result;
     }
 
-    BGMS_PROF_START(_t_ext);
     bool divergent = init_result.divergent;
 
     // Extract values from init subtree (move — init_result not used again)
@@ -155,7 +141,6 @@ BuildTreeResult build_tree(
     int n_prime = init_result.n_prime;
     double alpha_prime = init_result.alpha;
     int n_alpha_prime = init_result.n_alpha;
-    BGMS_PROF_RECORD("nuts.extract_init", _t_ext);
 
     // Build the second subtree in the same direction
     BuildTreeResult final_result;
@@ -179,7 +164,6 @@ BuildTreeResult build_tree(
 
     if (final_result.s_prime == 0) {
       // Second subtree is invalid - return early with s_prime=0
-      BGMS_PROF_START(_t_fail);
       BuildTreeResult result;
       result.theta_min = std::move(theta_min);
       result.r_min = std::move(r_min);
@@ -198,11 +182,9 @@ BuildTreeResult build_tree(
       result.alpha = alpha_prime + final_result.alpha;
       result.n_alpha = n_alpha_prime + final_result.n_alpha;
       result.divergent = divergent || final_result.divergent;
-      BGMS_PROF_RECORD("nuts.merge_fail", _t_fail);
       return result;
     }
 
-    BGMS_PROF_START(_t_ext2);
     // Extract values from final subtree (move — final_result not used again)
     arma::vec rho_final = std::move(final_result.rho);
     arma::vec p_sharp_final_beg = std::move(final_result.p_sharp_beg);
@@ -213,9 +195,7 @@ BuildTreeResult build_tree(
     double alpha_double_prime = final_result.alpha;
     int n_alpha_double_prime = final_result.n_alpha;
     divergent = divergent || final_result.divergent;
-    BGMS_PROF_RECORD("nuts.extract_final", _t_ext2);
 
-    BGMS_PROF_START(_t_merge);
     // Multinomial sampling from the combined subtree
     double denom = static_cast<double>(n_prime + n_double_prime);
     double prob = static_cast<double>(n_double_prime) / denom;
@@ -231,10 +211,8 @@ BuildTreeResult build_tree(
 
     // Combine rho from both subtrees
     arma::vec rho_subtree = rho_init + rho_final;
-    BGMS_PROF_RECORD("nuts.merge_arith", _t_merge);
 
     // Generalized U-turn criterion (three checks like STAN)
-    BGMS_PROF_START(_t_crit);
 
     // 1. Check criterion around merged subtrees
     bool persist_criterion = compute_criterion(p_sharp_init_beg, p_sharp_final_end, rho_subtree);
@@ -248,11 +226,9 @@ BuildTreeResult build_tree(
     rho_extended = rho_final + p_init_end;
     persist_criterion = persist_criterion &&
       compute_criterion(p_sharp_init_end, p_sharp_final_end, rho_extended);
-    BGMS_PROF_RECORD("nuts.criterion", _t_crit);
 
     int s_prime = persist_criterion ? 1 : 0;
 
-    BGMS_PROF_START(_t_ret);
     BuildTreeResult result;
     result.theta_min = std::move(theta_min);
     result.r_min = std::move(r_min);
@@ -270,7 +246,6 @@ BuildTreeResult build_tree(
     result.alpha = alpha_prime;
     result.n_alpha = n_alpha_prime;
     result.divergent = divergent;
-    BGMS_PROF_RECORD("nuts.merge_ok", _t_ret);
     return result;
   }
 }
@@ -379,14 +354,6 @@ StepResult nuts_step(
     s = result.s_prime * (persist_criterion ? 1 : 0);
     n += result.n_prime;
     j++;
-  }
-
-  {
-    auto& _prof = RattleProfiler::instance();
-    if(_prof.enabled) {
-      _prof.total_nuts_steps++;
-      _prof.total_tree_depth += j;
-    }
   }
 
   double accept_prob = alpha / static_cast<double>(n_alpha);

@@ -4,7 +4,6 @@
 #include "math/cholupdate.h"
 #include "mcmc/execution/step_result.h"
 #include "mcmc/execution/warmup_schedule.h"
-#include "mcmc/profiler.h"
 
 // =====================================================================
 // NUTS gradient support
@@ -314,7 +313,6 @@ void GGMModel::project_position(arma::vec& x,
     const auto& cs = constraint_structure_;
 
     // Build a working Phi from x so build_Aq can read earlier columns
-    BGMS_PROF_START(_t_pp_phi);
     arma::mat Phi(p_, p_, arma::fill::zeros);
     for (size_t q = 0; q < p_; ++q) {
         size_t offset = cs.full_theta_offsets[q];
@@ -323,9 +321,7 @@ void GGMModel::project_position(arma::vec& x,
         }
         Phi(q, q) = std::exp(x(offset + q));
     }
-    BGMS_PROF_RECORD("proj_pos.unpack", _t_pp_phi);
 
-    BGMS_PROF_START(_t_pp_loop);
     arma::mat Aq_buf;
 
     for (size_t q = 1; q < p_; ++q) {
@@ -369,7 +365,6 @@ void GGMModel::project_position(arma::vec& x,
             Phi(i, q) = x_q(i);
         }
     }
-    BGMS_PROF_RECORD("proj_pos.project", _t_pp_loop);
 }
 
 // ------------------------------------------------------------------
@@ -428,7 +423,6 @@ void GGMModel::project_momentum(arma::vec& r, const arma::vec& x,
     if (m == 0) return;
 
     // Unpack x -> Phi
-    BGMS_PROF_START(_t_pm_phi);
     arma::mat Phi(p_, p_, arma::fill::zeros);
     for (size_t q = 0; q < p_; ++q) {
         size_t offset = cs.full_theta_offsets[q];
@@ -437,9 +431,6 @@ void GGMModel::project_momentum(arma::vec& r, const arma::vec& x,
         }
         Phi(q, q) = std::exp(x(offset + q));
     }
-    BGMS_PROF_RECORD("proj_mom.unpack", _t_pm_phi);
-
-    BGMS_PROF_START(_t_pm_proj);
 
     size_t d = x.n_elem;
 
@@ -557,7 +548,6 @@ void GGMModel::project_momentum(arma::vec& r, const arma::vec& x,
 
     const double tol = 1e-26;
     const size_t max_iter = m;
-    size_t pcg_iters = 0;
 
     for (size_t iter = 0; iter < max_iter && arma::dot(cg_r, cg_r) > tol; ++iter) {
         G_mul(cg_d, Ad);
@@ -569,18 +559,8 @@ void GGMModel::project_momentum(arma::vec& r, const arma::vec& x,
         double rz_new = arma::dot(cg_r, z);
         cg_d = z + (rz_new / rz) * cg_d;
         rz = rz_new;
-        ++pcg_iters;
     }
     pcg_lambda_cache_ = lambda;
-
-    {
-        auto& prof = RattleProfiler::instance();
-        if (prof.enabled) {
-            prof.total_pcg_iterations += static_cast<int64_t>(pcg_iters);
-            prof.total_pcg_calls++;
-            prof.total_pcg_constraints += static_cast<int64_t>(m);
-        }
-    }
 
     // --- Scatter: r -= J^T lambda ---
     for (size_t a = 0; a < m; ++a) {
@@ -595,8 +575,6 @@ void GGMModel::project_momentum(arma::vec& r, const arma::vec& x,
         // Diagonal
         r(c.off_i + c.i) -= Phi(c.i, c.q) * Phi(c.i, c.i) * lam;
     }
-
-    BGMS_PROF_RECORD("proj_mom.project", _t_pm_proj);
 }
 
 void GGMModel::get_constants(size_t i, size_t j) {

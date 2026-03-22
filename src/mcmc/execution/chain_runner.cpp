@@ -2,7 +2,6 @@
 
 #include <exception>
 #include <tbb/global_control.h>
-#include "mcmc/profiler.h"
 #include "mcmc/samplers/nuts_sampler.h"
 #include "mcmc/samplers/hmc_sampler.h"
 #include "mcmc/samplers/metropolis_sampler.h"
@@ -87,12 +86,6 @@ void run_mcmc_chain(
 
         // Store samples (only during sampling phase)
         if (schedule.sampling(iter)) {
-            // Reset profiler on first post-warmup iteration so it
-            // captures only the sampling phase, not warmup.
-            if (iter == config.no_warmup) {
-                RattleProfiler::instance().reset();
-            }
-
             int sample_index = iter - config.no_warmup;
 
             if (chain_result.has_nuts_diagnostics && sampler->has_nuts_diagnostics()) {
