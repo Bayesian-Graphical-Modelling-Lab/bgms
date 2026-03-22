@@ -256,8 +256,10 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
                 arma::vec(theta.n_elem, arma::fill::zeros)};
     }
 
-    // P = Phi * S — reused for value and gradient
-    arma::mat P = Phi * S;
+    // P = Phi * S — reused for value and gradient.
+    // Phi is upper triangular; trimatu dispatches to BLAS dtrmm,
+    // halving the FLOP count vs dense gemm.
+    arma::mat P = arma::trimatu(Phi) * S;
 
     // --- Log-posterior value ---
     double log_det_K = 2.0 * arma::accu(fm.psi);
@@ -466,9 +468,11 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient_full(
                 arma::vec(x.n_elem, arma::fill::zeros)};
     }
 
-    // P = Phi * S — single O(p^3) multiply, reused for value and gradient
+    // P = Phi * S — reused for value and gradient.
+    // Phi is upper triangular; trimatu dispatches to BLAS dtrmm,
+    // halving the FLOP count vs dense gemm.
     const arma::mat& S = *suf_stat_;
-    arma::mat P = Phi * S;
+    arma::mat P = arma::trimatu(Phi) * S;
     BGMS_PROF_RECORD("grad.forward", _t_fwd);
 
     double n = static_cast<double>(n_);
