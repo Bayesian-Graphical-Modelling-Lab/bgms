@@ -72,7 +72,9 @@ build_constraint_jacobian = function(Phi, edges) {
     }
   }
   m = length(excluded)
-  if(m == 0) return(matrix(0, 0, d))
+  if(m == 0) {
+    return(matrix(0, 0, d))
+  }
   J = matrix(0, m, d)
   for(row_idx in seq_along(excluded)) {
     pair = excluded[[row_idx]]
@@ -124,8 +126,10 @@ test_that("project_position is near-no-op on valid position, p=4", {
   dat = make_test_phi(p, seed = 300)
   edges = matrix(1L, p, p)
   diag(edges) = 0L
-  edges[1, 3] = 0L; edges[3, 1] = 0L
-  edges[2, 4] = 0L; edges[4, 2] = 0L
+  edges[1, 3] = 0L
+  edges[3, 1] = 0L
+  edges[2, 4] = 0L
+  edges[4, 2] = 0L
 
   x_raw = phi_to_full_position(dat$Phi)
   proj = ggm_test_project_position(x_raw, edges)
@@ -143,10 +147,14 @@ test_that("project_position is near-no-op on valid position, p=6", {
   dat = make_test_phi(p, seed = 301)
   edges = matrix(1L, p, p)
   diag(edges) = 0L
-  edges[1, 4] = 0L; edges[4, 1] = 0L
-  edges[2, 5] = 0L; edges[5, 2] = 0L
-  edges[3, 6] = 0L; edges[6, 3] = 0L
-  edges[1, 6] = 0L; edges[6, 1] = 0L
+  edges[1, 4] = 0L
+  edges[4, 1] = 0L
+  edges[2, 5] = 0L
+  edges[5, 2] = 0L
+  edges[3, 6] = 0L
+  edges[6, 3] = 0L
+  edges[1, 6] = 0L
+  edges[6, 1] = 0L
 
   x_raw = phi_to_full_position(dat$Phi)
   proj = ggm_test_project_position(x_raw, edges)
@@ -167,8 +175,10 @@ test_that("NUTS init pattern: projected r0 satisfies J*r=0, p=4", {
   dat = make_test_phi(p, seed = 310)
   edges = matrix(1L, p, p)
   diag(edges) = 0L
-  edges[1, 3] = 0L; edges[3, 1] = 0L
-  edges[2, 4] = 0L; edges[4, 2] = 0L
+  edges[1, 3] = 0L
+  edges[3, 1] = 0L
+  edges[2, 4] = 0L
+  edges[4, 2] = 0L
 
   x_raw = phi_to_full_position(dat$Phi)
   proj = ggm_test_project_position(x_raw, edges)
@@ -226,9 +236,12 @@ test_that("mean kin0 after projection consistent with d-m DoF, p=5", {
   dat = make_test_phi(p, seed = 320)
   edges = matrix(1L, p, p)
   diag(edges) = 0L
-  edges[1, 3] = 0L; edges[3, 1] = 0L
-  edges[2, 4] = 0L; edges[4, 2] = 0L
-  edges[1, 5] = 0L; edges[5, 1] = 0L
+  edges[1, 3] = 0L
+  edges[3, 1] = 0L
+  edges[2, 4] = 0L
+  edges[4, 2] = 0L
+  edges[1, 5] = 0L
+  edges[5, 1] = 0L
 
   x_raw = phi_to_full_position(dat$Phi)
   proj = ggm_test_project_position(x_raw, edges)
@@ -267,8 +280,9 @@ test_that("mean kin0 after projection consistent with d-m DoF, p=5", {
   # expected_mean + m/2. Verify we are closer to d-m than to d.
   wrong_mean = d / 2
   expect_lt(abs(observed_mean - expected_mean),
-            abs(observed_mean - wrong_mean),
-            label = "kin0 closer to (d-m)/2 than d/2")
+    abs(observed_mean - wrong_mean),
+    label = "kin0 closer to (d-m)/2 than d/2"
+  )
 })
 
 test_that("mean kin0 after projection consistent with d-m DoF, p=8 sparse", {
@@ -317,6 +331,7 @@ test_that("mean kin0 after projection consistent with d-m DoF, p=8 sparse", {
 
   wrong_mean = d / 2
   expect_lt(abs(observed_mean - expected_mean),
-            abs(observed_mean - wrong_mean),
-            label = "kin0 closer to (d-m)/2 than d/2")
+    abs(observed_mean - wrong_mean),
+    label = "kin0 closer to (d-m)/2 than d/2"
+  )
 })
