@@ -113,10 +113,6 @@ void run_mcmc_chain(
         }
     }
 
-    // Store final adapted step size
-    if (chain_result.has_nuts_diagnostics) {
-        chain_result.step_size = sampler->get_final_step_size();
-    }
 }
 
 
@@ -229,7 +225,6 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
                 chain_list["treedepth"] = chain.treedepth_samples;
                 chain_list["divergent"] = chain.divergent_samples;
                 chain_list["energy"] = chain.energy_samples;
-                chain_list["step_size"] = chain.step_size;
             }
         }
 

@@ -52,10 +52,6 @@ public:
      */
     virtual bool has_nuts_diagnostics() const { return false; }
 
-    /**
-     * Return the final adapted step size (0 for non-gradient samplers)
-     */
-    virtual double get_final_step_size() const { return 0.0; }
 };
 
 // ---------------------------------------------------------------------------
@@ -175,7 +171,6 @@ public:
     }
 
     double get_step_size() const { return step_size_; }
-    double get_final_step_size() const override { return step_size_; }
     double get_averaged_step_size() const {
         return adapt_ ? adapt_->final_step_size() : step_size_;
     }

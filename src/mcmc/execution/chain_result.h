@@ -46,9 +46,6 @@ public:
     /// Whether NUTS/HMC diagnostics are stored.
     bool        has_nuts_diagnostics = false;
 
-    /// Final adapted step size (set after warmup).
-    double      step_size = 0.0;
-
     /**
      * Reserve storage for samples
      * @param param_dim  Number of parameters per sample
