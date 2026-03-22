@@ -341,6 +341,9 @@ public:
         project_momentum(r, x);
     }
 
+    /** Reset any cached state used by projection solvers. */
+    virtual void reset_projection_cache() {}
+
     // =========================================================================
     // Edge selection control
     // =========================================================================

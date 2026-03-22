@@ -143,7 +143,8 @@ public:
           gradient_engine_(other.gradient_engine_),
           constraint_dirty_(other.constraint_dirty_),
           theta_valid_(other.theta_valid_),
-          theta_(other.theta_)
+          theta_(other.theta_),
+          pcg_lambda_cache_(other.pcg_lambda_cache_)
     {}
 
     /** @return true (GGM supports NUTS via free-element Cholesky gradient). */
@@ -677,6 +678,12 @@ private:
     mutable bool theta_valid_ = false;
     /// Cached theta vector (active parameterization).
     mutable arma::vec theta_;
+    /// Cached PCG solution for warm-starting the next projection.
+    mutable arma::vec pcg_lambda_cache_;
+
+public:
+    /** Clear the PCG warm-start cache (called between NUTS trees). */
+    void reset_projection_cache() override { pcg_lambda_cache_.reset(); }
 
     /**
      * Rebuild the constraint structure and gradient engine from current

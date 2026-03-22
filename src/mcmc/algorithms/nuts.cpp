@@ -83,12 +83,14 @@ BuildTreeResult build_tree(
       );
     }
 
+    BGMS_PROF_START(_t_kin0);
     auto logp = memo.cached_log_post(theta_new);
     double kin = kinetic_energy(r_new, inv_mass_diag);
     int n_new = 1 * (log_u <= logp - kin);
     int s_new = 1 * (log_u <= Delta_max + logp - kin);
     bool divergent = (s_new == 0);
     double alpha = std::min(1.0, MY_EXP(logp - kin - logp0 + kin0));
+    BGMS_PROF_RECORD("nuts.leaf_eval", _t_kin0);
 
     {
       auto& _prof = RattleProfiler::instance();
@@ -98,6 +100,7 @@ BuildTreeResult build_tree(
       }
     }
 
+    BGMS_PROF_START(_t_leaf_bk);
     // Initialize rho with the momentum at this point
     arma::vec rho = r_new;
     // Sharp momentum (velocity): M^{-1} * p
@@ -120,6 +123,7 @@ BuildTreeResult build_tree(
     result.alpha = alpha;
     result.n_alpha = 1;
     result.divergent = divergent;
+    BGMS_PROF_RECORD("nuts.leaf_copy", _t_leaf_bk);
     return result;
 
   } else {
@@ -134,6 +138,7 @@ BuildTreeResult build_tree(
       return init_result;
     }
 
+    BGMS_PROF_START(_t_ext);
     bool divergent = init_result.divergent;
 
     // Extract values from init subtree
@@ -151,6 +156,7 @@ BuildTreeResult build_tree(
     int n_prime = init_result.n_prime;
     double alpha_prime = init_result.alpha;
     int n_alpha_prime = init_result.n_alpha;
+    BGMS_PROF_RECORD("nuts.extract_init", _t_ext);
 
     // Build the second subtree in the same direction
     BuildTreeResult final_result;
@@ -174,8 +180,7 @@ BuildTreeResult build_tree(
 
     if (final_result.s_prime == 0) {
       // Second subtree is invalid - return early with s_prime=0
-      // p_sharp/p_beg/p_end values follow same convention as valid case
-      // (init_beg and final_end), even though they won't be used for criterion checks
+      BGMS_PROF_START(_t_fail);
       BuildTreeResult result;
       result.theta_min = theta_min;
       result.r_min = r_min;
@@ -193,9 +198,11 @@ BuildTreeResult build_tree(
       result.alpha = alpha_prime + final_result.alpha;
       result.n_alpha = n_alpha_prime + final_result.n_alpha;
       result.divergent = divergent || final_result.divergent;
+      BGMS_PROF_RECORD("nuts.merge_fail", _t_fail);
       return result;
     }
 
+    BGMS_PROF_START(_t_ext2);
     // Extract values from final subtree
     arma::vec rho_final = final_result.rho;
     arma::vec p_sharp_final_beg = final_result.p_sharp_beg;
@@ -206,7 +213,9 @@ BuildTreeResult build_tree(
     double alpha_double_prime = final_result.alpha;
     int n_alpha_double_prime = final_result.n_alpha;
     divergent = divergent || final_result.divergent;
+    BGMS_PROF_RECORD("nuts.extract_final", _t_ext2);
 
+    BGMS_PROF_START(_t_merge);
     // Multinomial sampling from the combined subtree
     double denom = static_cast<double>(n_prime + n_double_prime);
     double prob = static_cast<double>(n_double_prime) / denom;
@@ -224,21 +233,14 @@ BuildTreeResult build_tree(
     arma::vec rho_subtree = rho_init + rho_final;
 
     // Determine the sharp momenta at the boundaries of the combined subtree
-    // Following STAN convention: "beg" = first visited (in build direction), "end" = last visited
-    // This is the same regardless of direction - init subtree is always first, final is last
-    arma::vec p_sharp_beg = p_sharp_init_beg;    // First visited in combined tree
-    arma::vec p_sharp_end = final_result.p_sharp_end;  // Last visited in combined tree
+    arma::vec p_sharp_beg = p_sharp_init_beg;
+    arma::vec p_sharp_end = final_result.p_sharp_end;
     arma::vec p_beg = p_init_beg;
     arma::vec p_end = final_result.p_end;
-
-    // However, theta_min/theta_plus track ABSOLUTE positions (backward/forward boundaries)
-    // These DO depend on direction:
-    // - For v=-1: we're extending backward, so theta_min (backward boundary) gets updated
-    // - For v=+1: we're extending forward, so theta_plus (forward boundary) gets updated
+    BGMS_PROF_RECORD("nuts.merge_arith", _t_merge);
 
     // Generalized U-turn criterion (three checks like STAN)
-    // The tree structure is always: init_subtree -> final_subtree (in direction v)
-    // So the junction is always between p_init_end and p_final_beg
+    BGMS_PROF_START(_t_crit);
 
     // 1. Check criterion around merged subtrees
     bool persist_criterion = compute_criterion(p_sharp_beg, p_sharp_end, rho_subtree);
@@ -252,9 +254,11 @@ BuildTreeResult build_tree(
     rho_extended = rho_final + p_init_end;
     persist_criterion = persist_criterion &&
       compute_criterion(p_sharp_init_end, p_sharp_end, rho_extended);
+    BGMS_PROF_RECORD("nuts.criterion", _t_crit);
 
     int s_prime = persist_criterion ? 1 : 0;
 
+    BGMS_PROF_START(_t_ret);
     BuildTreeResult result;
     result.theta_min = theta_min;
     result.r_min = r_min;
@@ -272,6 +276,7 @@ BuildTreeResult build_tree(
     result.alpha = alpha_prime;
     result.n_alpha = n_alpha_prime;
     result.divergent = divergent;
+    BGMS_PROF_RECORD("nuts.merge_ok", _t_ret);
     return result;
   }
 }

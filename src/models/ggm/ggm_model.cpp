@@ -538,8 +538,17 @@ void GGMModel::project_momentum(arma::vec& r, const arma::vec& x,
     }
 
     // --- Preconditioned CG: G lambda = b, preconditioner P ---
-    arma::vec lambda(m, arma::fill::zeros);
-    arma::vec cg_r = b;
+    // Warm-start: reuse previous lambda if constraint count unchanged
+    arma::vec lambda(m);
+    arma::vec cg_r(m);
+    if (pcg_lambda_cache_.n_elem == m) {
+        lambda = pcg_lambda_cache_;
+        G_mul(lambda, cg_r);
+        cg_r = b - cg_r;
+    } else {
+        lambda.zeros();
+        cg_r = b;
+    }
     arma::vec z(m);
     apply_precond(cg_r, z);
     arma::vec cg_d = z;
@@ -562,6 +571,7 @@ void GGMModel::project_momentum(arma::vec& r, const arma::vec& x,
         rz = rz_new;
         ++pcg_iters;
     }
+    pcg_lambda_cache_ = lambda;
 
     {
         auto& prof = RattleProfiler::instance();

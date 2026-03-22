@@ -54,6 +54,7 @@ private:
     }
 
     StepResult do_constrained_step(BaseModel& model) {
+        model.reset_projection_cache();
         arma::vec x = model.get_full_position();
         SafeRNG& rng = model.get_rng();
 
