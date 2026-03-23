@@ -659,17 +659,17 @@ void MixedMRFModel::update_edge_indicator_discrete(int i, int j) {
 
     double ln_alpha = ll_prop - ll_curr;
 
-    // Discrete slab prior: Cauchy(0, pairwise_scale/2)
-    const double disc_slab_scale = 0.5 * pairwise_scale_;
+    // Discrete slab prior: Cauchy(0, pairwise_scale_)
+    // Must match the prior used in logp_and_gradient / logp_and_gradient_full.
     if(g_prop == 1) {
         // Add: slab prior, subtract proposal density, inclusion prior
-        ln_alpha += R::dcauchy(k_prop, 0.0, disc_slab_scale, true);
+        ln_alpha += R::dcauchy(k_prop, 0.0, pairwise_scale_, true);
         ln_alpha -= R::dnorm(k_prop, k_curr, prop_sd, true);
         ln_alpha += MY_LOG(inclusion_probability_(i, j))
                   - MY_LOG(1.0 - inclusion_probability_(i, j));
     } else {
         // Delete: subtract slab prior, add reverse proposal density, inclusion prior
-        ln_alpha -= R::dcauchy(k_curr, 0.0, disc_slab_scale, true);
+        ln_alpha -= R::dcauchy(k_curr, 0.0, pairwise_scale_, true);
         ln_alpha += R::dnorm(k_curr, k_prop, prop_sd, true);
         ln_alpha -= MY_LOG(inclusion_probability_(i, j))
                   - MY_LOG(1.0 - inclusion_probability_(i, j));
@@ -679,6 +679,7 @@ void MixedMRFModel::update_edge_indicator_discrete(int i, int j) {
         pairwise_effects_discrete_(i, j) = k_prop;
         pairwise_effects_discrete_(j, i) = k_prop;
         set_gxx(i, j, g_prop);
+        constraint_dirty_ = true;
         if(use_marginal_pl_) recompute_marginal_interactions();
     }
 }
@@ -779,6 +780,7 @@ void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
         pairwise_effects_continuous_(j, j) = -0.5 * theta_prop_jj;
 
         set_gyy(i, j, g_prop);
+        constraint_dirty_ = true;
         cholesky_update_after_precision_edge(old_theta_ij, old_theta_jj, i, j);
         recompute_conditional_mean();
         if(use_marginal_pl_) recompute_marginal_interactions();
@@ -862,6 +864,7 @@ void MixedMRFModel::update_edge_indicator_cross(int i, int j) {
     if(MY_LOG(runif(rng_)) < ln_alpha) {
         pairwise_effects_cross_(i, j) = k_prop;
         set_gxy(i, j, g_prop);
+        constraint_dirty_ = true;
         recompute_conditional_mean();
         if(use_marginal_pl_) recompute_marginal_interactions();
     }
