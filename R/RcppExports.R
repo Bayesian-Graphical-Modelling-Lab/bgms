@@ -49,6 +49,18 @@ mixed_test_logp_and_gradient <- function(params, discrete_observations, continuo
     .Call(`_bgms_mixed_test_logp_and_gradient`, params, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pseudolikelihood, pairwise_scale)
 }
 
+mixed_test_logp_and_gradient_full <- function(params, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pseudolikelihood, pairwise_scale) {
+    .Call(`_bgms_mixed_test_logp_and_gradient_full`, params, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pseudolikelihood, pairwise_scale)
+}
+
+mixed_test_project_position <- function(x, inv_mass, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pseudolikelihood, pairwise_scale) {
+    .Call(`_bgms_mixed_test_project_position`, x, inv_mass, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pseudolikelihood, pairwise_scale)
+}
+
+mixed_test_project_momentum <- function(r, x, inv_mass, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pseudolikelihood, pairwise_scale) {
+    .Call(`_bgms_mixed_test_project_momentum`, r, x, inv_mass, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pseudolikelihood, pairwise_scale)
+}
+
 compute_conditional_ggm <- function(observations, predict_vars, precision) {
     .Call(`_bgms_compute_conditional_ggm`, observations, predict_vars, precision)
 }
