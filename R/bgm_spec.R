@@ -213,7 +213,7 @@ validate_bgm_spec = function(spec) {
     if(length(spec$data$num_categories) != spec$data$num_discrete) {
       stop("bgm_spec: num_categories length doesn't match num_discrete.")
     }
-    allowed = c("adaptive-metropolis", "hybrid-nuts")
+    allowed = c("adaptive-metropolis", "nuts", "hybrid-nuts")
     if(!(spec$sampler$update_method %in% allowed)) {
       stop(
         "bgm_spec: model_type = 'mixed_mrf' requires update_method in ",
@@ -344,11 +344,11 @@ bgm_spec = function(x,
     verbose           = verbose
   )
 
-  # Mixed MRF: remap "nuts" to the hybrid sampler that uses NUTS for the
-  # unconstrained block and component-wise MH for the SPD-constrained
-  # continuous precision.
-  if(is_mixed && sampler$update_method == "nuts") {
-    sampler$update_method = "hybrid-nuts"
+  # Mixed MRF: remap "hybrid-nuts" to "nuts" — the full NUTS sampler now
+  # handles all parameters including the continuous precision via Cholesky
+  # parameterization. Keep "hybrid-nuts" as a recognized alias.
+  if(is_mixed && sampler$update_method == "hybrid-nuts") {
+    sampler$update_method = "nuts"
   }
 
   # --- Build by model type ----------------------------------------------------

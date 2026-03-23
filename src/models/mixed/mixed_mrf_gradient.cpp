@@ -53,9 +53,13 @@ void MixedMRFModel::ensure_gradient_cache() {
     main_effects_continuous_grad_offset_ = num_main_ + num_active_disc;
 
     // --- Precompute observed statistics portion of the gradient ---
-    size_t active_dim = num_main_ + num_active_disc + q_ + num_active_cross;
+    size_t active_dim = num_main_ + num_active_disc + q_ + num_active_cross
+                      + num_cholesky_;
     grad_obs_cache_.set_size(active_dim);
     grad_obs_cache_.zeros();
+
+    // Cholesky block offset in gradient vector
+    chol_grad_offset_ = num_main_ + num_active_disc + q_ + num_active_cross;
 
     // Observed statistics for discrete main effects
     int offset = 0;
@@ -171,16 +175,17 @@ arma::vec MixedMRFModel::gradient(const arma::vec& parameters) {
 // logp_and_gradient — conditional pseudo-likelihood
 // =============================================================================
 // Computes the log pseudo-posterior and its gradient with respect to the
-// NUTS parameters (μ_x, A_xx, μ_y, A_xy).  A_yy is treated as fixed.
+// NUTS parameters (μ_x, A_xx, μ_y, A_xy, R) where R is the Cholesky
+// factor of the continuous precision matrix Ω = R^T R.
 //
 // The pseudo-log-posterior is:
 //   l(θ) = sum_s log p(x_s | x_{-s}, y)   [OMRF conditionals]
-//            + log p(y | x)                     [GGM conditional]
-//            + log π(θ)                    [priors]
+//            + log p(y | x)                [GGM conditional]
+//            + log π(θ)                    [priors on all params]
+//            + log |det J|                 [Cholesky Jacobian]
 //
 // For marginal PL, the OMRF conditionals use Θ = A_xx + 2 A_xy Σ_yy A_xy'
-// instead of A_xx directly, and derive rest scores and denominator offsets
-// from Θ.  The GGM conditional is the same in both modes.
+// instead of A_xx directly.  The GGM conditional is the same in both modes.
 // =============================================================================
 
 std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
@@ -188,17 +193,45 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
 {
     ensure_gradient_cache();
 
-    // --- Unvectorize into temporaries ---
+    // --- Unvectorize into temporaries (blocks 1–4) ---
     arma::mat temp_main_discrete = main_effects_discrete_;
     arma::mat temp_pairwise_discrete = pairwise_effects_discrete_;
     arma::vec temp_main_continuous = main_effects_continuous_;
     arma::mat temp_pairwise_cross = pairwise_effects_cross_;
     unvectorize_nuts_to_temps(parameters, temp_main_discrete, temp_pairwise_discrete, temp_main_continuous, temp_pairwise_cross);
 
+    // --- Unpack block 5: Cholesky of precision ---
+    arma::mat temp_cholesky(q_, q_, arma::fill::zeros);
+    size_t chol_idx = static_cast<size_t>(chol_grad_offset_);
+    for(size_t j = 0; j < q_; ++j) {
+        for(size_t i = 0; i < j; ++i) {
+            temp_cholesky(i, j) = parameters(chol_idx++);
+        }
+        temp_cholesky(j, j) = std::exp(parameters(chol_idx++));
+    }
+
+    // Guard against degenerate Cholesky (extreme theta pushed by leapfrog)
+    double min_diag = temp_cholesky.diag().min();
+    if(!std::isfinite(min_diag) || min_diag < 1e-15) {
+        return {-std::numeric_limits<double>::infinity(),
+                arma::vec(parameters.n_elem, arma::fill::zeros)};
+    }
+
+    arma::mat temp_precision = temp_cholesky.t() * temp_cholesky;
+    arma::mat temp_inv_chol;
+    bool solve_ok = arma::solve(temp_inv_chol, arma::trimatu(temp_cholesky),
+                                arma::eye(q_, q_), arma::solve_opts::fast);
+    if(!solve_ok) {
+        return {-std::numeric_limits<double>::infinity(),
+                arma::vec(parameters.n_elem, arma::fill::zeros)};
+    }
+    arma::mat temp_covariance = temp_inv_chol * temp_inv_chol.t();
+    double temp_log_det = 2.0 * arma::sum(arma::log(temp_cholesky.diag()));
+
     // --- Derived quantities ---
     // Conditional mean: M_i = μ_y' + 2 x_i' A_xy Σ_yy  (n x q)
     arma::mat temp_cond_mean = arma::repmat(temp_main_continuous.t(), n_, 1)
-                             + 2.0 * discrete_observations_dbl_ * temp_pairwise_cross * covariance_continuous_;
+                             + 2.0 * discrete_observations_dbl_ * temp_pairwise_cross * temp_covariance;
 
     // Residual: D = Y - M  (n x q)
     arma::mat D = continuous_observations_ - temp_cond_mean;
@@ -206,7 +239,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     // Marginal PL effective discrete interaction matrix
     arma::mat temp_marginal;
     if(use_marginal_pl_) {
-        temp_marginal = 2.0 * temp_pairwise_discrete + 2.0 * temp_pairwise_cross * covariance_continuous_ * temp_pairwise_cross.t();
+        temp_marginal = 2.0 * temp_pairwise_discrete + 2.0 * temp_pairwise_cross * temp_covariance * temp_pairwise_cross.t();
     }
 
     // Start gradient from observed-statistics cache
@@ -216,8 +249,10 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
 
     // For marginal PL: precompute A_xy Σ_yy (used in cross-contributions)
     arma::mat cross_times_cov;  // p x q
+    arma::mat Theta_bar;        // p x p marginal-PL coupling for precision gradient
     if(use_marginal_pl_) {
-        cross_times_cov = temp_pairwise_cross * covariance_continuous_;
+        cross_times_cov = temp_pairwise_cross * temp_covariance;
+        Theta_bar = arma::zeros<arma::mat>(p_, p_);
     }
 
     // =========================================================================
@@ -311,11 +346,17 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
 
                 double sum_obs_minus_E = arma::accu(discrete_observations_dbl_.col(s)) - arma::accu(E);
 
+                // Accumulate Θ̄ for precision gradient coupling
+                for(size_t t = 0; t < p_; ++t) {
+                    if(t != s) Theta_bar(s, t) += diff_pw(t);
+                }
+                Theta_bar(s, s) += diff_diag;
+
                 // Self-contribution: a = s
                 // Off-diagonal effective interaction: ∂Θ_{st}/∂pairwise_effects_cross_{s,j} = 2 [Σyy pairwise_effects_cross_t']_j
                 // Diagonal effective interaction: ∂Θ_{ss}/∂pairwise_effects_cross_{s,j} = 4 [Σyy pairwise_effects_cross_s']_j
                 // Rest-score bias: ∂(2 pairwise_effects_cross_s μy)/∂pairwise_effects_cross_{s,j} = 2 μy_j
-                arma::rowvec cross_self = 2.0 * (diff_pw.t() * temp_pairwise_cross) * covariance_continuous_
+                arma::rowvec cross_self = 2.0 * (diff_pw.t() * temp_pairwise_cross) * temp_covariance
                                       + 4.0 * diff_diag * cross_times_cov.row(s)
                                       + 2.0 * sum_obs_minus_E * temp_main_continuous.t();
 
@@ -409,8 +450,14 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
 
                 double sum_obs_minus_E = arma::accu(discrete_observations_dbl_.col(s)) - arma::accu(E);
 
+                // Accumulate Θ̄ for precision gradient coupling
+                for(size_t t = 0; t < p_; ++t) {
+                    if(t != s) Theta_bar(s, t) += diff_pw(t);
+                }
+                Theta_bar(s, s) += diff_diag;
+
                 // Self-contribution: a = s
-                arma::rowvec cross_self = 2.0 * (diff_pw.t() * temp_pairwise_cross) * covariance_continuous_
+                arma::rowvec cross_self = 2.0 * (diff_pw.t() * temp_pairwise_cross) * temp_covariance
                                       + 4.0 * diff_diag * cross_times_cov.row(s)
                                       + 2.0 * sum_obs_minus_E * temp_main_continuous.t();
 
@@ -488,20 +535,18 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     // =========================================================================
     // Part 2: GGM conditional log-likelihood and gradients
     // =========================================================================
-    // log p(y | x) = n/2 (log|Precision| - q log(2π)) - ½ trace(Precision D'D)
-    // where Precision = -2 * pairwise_effects_continuous_, D = Y - M
-    //
-    // Precision is fixed in this sweep, so log|Precision| contributes to logp but not gradient.
+    // log p(y | x) = n/2 (log|Ω| - q log(2π)) - ½ trace(Ω D'D)
+    // where Ω = R'R (precision), D = Y - M
 
-    double quad_sum = arma::accu((D * (-2.0 * pairwise_effects_continuous_)) % D);
+    double quad_sum = arma::accu((D * temp_precision) % D);
     logp += static_cast<double>(n_) / 2.0 *
             (-static_cast<double>(q_) * MY_LOG(2.0 * arma::datum::pi)
-             + log_det_precision_)
+             + temp_log_det)
           - quad_sum / 2.0;
 
-    // ∂/∂μ_y: Precision * sum_over_rows(D)
+    // ∂/∂μ_y: Ω * sum_over_rows(D)
     arma::vec D_colsums = arma::sum(D, 0).t();  // q-vector
-    arma::vec grad_main_effects_continuous_ggm = (-2.0 * pairwise_effects_continuous_) * D_colsums;
+    arma::vec grad_main_effects_continuous_ggm = temp_precision * D_colsums;
 
     for(size_t j = 0; j < q_; ++j) {
         grad(main_effects_continuous_grad_offset_ + j) += grad_main_effects_continuous_ggm(j);
@@ -585,6 +630,76 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
             grad(loc) -= 2.0 * val / (val * val + pairwise_scale_ * pairwise_scale_);
         }
     }
+
+    // =========================================================================
+    // Part 4: Precision gradient via Cholesky parameterization
+    // =========================================================================
+    // Compute Ω̄ = ∂ℓ/∂Ω, then map to R̄ = ∂ℓ/∂R, then to position gradient.
+    //
+    // Ω̄ = (n/2) Σ − ½ D^T D − 2 Σ A_xy^T X^T D + priors on Ω
+    //     + [marginal PL coupling through Θ]
+
+    // --- Phase 1: GGM conditional contribution ---
+    arma::mat Omega_bar = 0.5 * static_cast<double>(n_) * temp_covariance
+                        - 0.5 * D.t() * D;
+
+    // --- Phase 2: Conditional-mean coupling ---
+    // M_i = μ_y + 2 Σ A_xy^T x_i depends on Σ = Ω^{-1}
+    // ∂ℓ/∂Σ_{ab} from GGM conditional = 2 [A_xy^T X^T D Ω]_{ab}
+    // Mapping: ∂ℓ/∂Ω += −Σ (∂ℓ/∂Σ) Σ = −2 Σ A_xy^T X^T D
+    Omega_bar -= 2.0 * temp_covariance * temp_pairwise_cross.t()
+               * discrete_observations_dbl_t_ * D;
+
+    // --- Phase 2b: Marginal PL coupling through Θ ---
+    // Θ = 2 A_xx + 2 A_xy Σ A_xy^T depends on Σ
+    // ∂Θ/∂Σ = 2 A_xy ⊗ A_xy  →  ∂ℓ/∂Σ = 2 A_xy^T Θ̄ A_xy
+    // ∂ℓ/∂Ω += −Σ (∂ℓ/∂Σ) Σ = −2 Σ A_xy^T Θ̄ A_xy Σ
+    if(use_marginal_pl_) {
+        Omega_bar -= 2.0 * temp_covariance * temp_pairwise_cross.t()
+                   * Theta_bar * temp_pairwise_cross * temp_covariance;
+    }
+
+    // --- Phase 3: Priors on precision entries ---
+    // Gamma(1, 1) on diagonal Ω_{jj}: log π(Ω_{jj}) = −Ω_{jj} + const
+    for(size_t j = 0; j < q_; ++j) {
+        Omega_bar(j, j) -= 1.0;
+        logp -= temp_precision(j, j);  // Gamma(1,1) log-density
+    }
+    // Cauchy(0, scale) on off-diagonal Ω_{ij} (upper triangle only)
+    // Only add to Omega_bar(i,j), not (j,i): the symmetrization
+    // Ω̄ + Ω̄ᵀ in Phase 4 handles the lower triangle automatically.
+    const double cont_scale_sq = pairwise_scale_ * pairwise_scale_;
+    for(size_t i = 0; i < q_ - 1; ++i) {
+        for(size_t j = i + 1; j < q_; ++j) {
+            double val = temp_precision(i, j);
+            logp += R::dcauchy(val, 0.0, pairwise_scale_, true);
+            double cauchy_grad = -2.0 * val / (val * val + cont_scale_sq);
+            Omega_bar(i, j) += cauchy_grad;
+        }
+    }
+
+    // --- Phase 4: Map Ω̄ → R̄ → position gradient ---
+    // R̄ = R (Ω̄ + Ω̄^T)
+    arma::mat Omega_bar_sym = Omega_bar + Omega_bar.t();
+    arma::mat R_bar = temp_cholesky * Omega_bar_sym;
+
+    // Cholesky Jacobian: log|det J| = q log 2 + Σ_j (q − j + 1) ψ_j
+    // where (q − j + 1) = (q − j) from Bartlett + 1 from exp(ψ_j).
+    size_t gidx = static_cast<size_t>(chol_grad_offset_);
+    for(size_t j = 0; j < q_; ++j) {
+        double psi_j = std::log(temp_cholesky(j, j));
+        double jac_weight = static_cast<double>(q_ - j + 1);
+        logp += jac_weight * psi_j;
+
+        // Off-diagonal Cholesky entries: ∂ℓ/∂R_{ij} = R̄_{ij}
+        for(size_t i = 0; i < j; ++i) {
+            grad(gidx++) = R_bar(i, j);
+        }
+        // Diagonal (log-scale): ∂ℓ/∂ψ_j = R̄_{jj} R_{jj} + (q − j + 1)
+        grad(gidx++) = R_bar(j, j) * temp_cholesky(j, j) + jac_weight;
+    }
+    // Add constant Jacobian term to logp
+    logp += static_cast<double>(q_) * std::log(2.0);
 
     return {logp, grad};
 }

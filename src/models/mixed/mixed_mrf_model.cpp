@@ -47,6 +47,7 @@ MixedMRFModel::MixedMRFModel(
     num_pairwise_xx_ = (p_ * (p_ - 1)) / 2;
     num_pairwise_yy_ = (q_ * (q_ - 1)) / 2;
     num_cross_ = p_ * q_;
+    num_cholesky_ = (q_ * (q_ + 1)) / 2;
 
     max_cats_ = num_categories_.max();
 
@@ -120,6 +121,7 @@ MixedMRFModel::MixedMRFModel(const MixedMRFModel& other)
       num_pairwise_xx_(other.num_pairwise_xx_),
       num_pairwise_yy_(other.num_pairwise_yy_),
       num_cross_(other.num_cross_),
+      num_cholesky_(other.num_cholesky_),
       discrete_observations_(other.discrete_observations_),
       discrete_observations_dbl_(other.discrete_observations_dbl_),
       continuous_observations_(other.continuous_observations_),
@@ -248,22 +250,24 @@ void MixedMRFModel::recompute_marginal_interactions() {
 // Parameter vectorization
 // =============================================================================
 
-// NUTS vectorization order (excludes pairwise_effects_continuous_ — sampled by MH separately):
+// NUTS vectorization order (includes Cholesky of precision):
 //   1. main_effects_discrete_: per-variable (ordinal: C_s thresholds; BC: 2 coefficients)
 //   2. pairwise_effects_discrete_: upper-triangular, row-major  — p(p-1)/2
 //   3. main_effects_continuous_: all q means
 //   4. pairwise_effects_cross_: all p*q entries, row-major
+//   5. Cholesky of precision: column-by-column, each column j has j off-diagonal
+//      entries R_{0j},...,R_{(j-1)j} followed by ψ_j = log(R_{jj}) — q(q+1)/2
 //
-// Storage vectorization order (includes pairwise_effects_continuous_):
-//   1–4. Same as NUTS order
+// Storage vectorization order (stores pairwise_effects_continuous_ = -Ω/2):
+//   1–4. Same as NUTS order (Cholesky block NOT stored — A_yy entries stored instead)
 //   5. pairwise_effects_continuous_: upper-triangle including diagonal — q(q+1)/2
 
 size_t MixedMRFModel::parameter_dimension() const {
     if(!edge_selection_active_) {
         return full_parameter_dimension();
     }
-    // Count active NUTS parameters only (no pairwise_effects_continuous_)
-    size_t dim = num_main_ + q_;  // main effects always active
+    // Active NUTS parameters + full Cholesky block
+    size_t dim = num_main_ + q_ + (q_ * (q_ + 1)) / 2;
 
     // Active pairwise_effects_discrete_ edges
     for(size_t i = 0; i < p_ - 1; ++i) {
@@ -283,8 +287,8 @@ size_t MixedMRFModel::parameter_dimension() const {
 }
 
 size_t MixedMRFModel::full_parameter_dimension() const {
-    // NUTS block: main + pairwise_discrete upper-tri + means + pairwise_cross (no precision)
-    return num_main_ + num_pairwise_xx_ + q_ + num_cross_;
+    // All NUTS params + Cholesky block
+    return num_main_ + num_pairwise_xx_ + q_ + num_cross_ + (q_ * (q_ + 1)) / 2;
 }
 
 size_t MixedMRFModel::storage_dimension() const {
@@ -294,7 +298,6 @@ size_t MixedMRFModel::storage_dimension() const {
 }
 
 arma::vec MixedMRFModel::get_vectorized_parameters() const {
-    // Active NUTS parameters only (excludes precision, excludes inactive edges)
     arma::vec out(parameter_dimension());
     size_t idx = 0;
 
@@ -333,11 +336,19 @@ arma::vec MixedMRFModel::get_vectorized_parameters() const {
         }
     }
 
+    // 5. Cholesky of precision: column-by-column (off-diagonal R_ij, then ψ_j = log R_jj)
+    for(size_t j = 0; j < q_; ++j) {
+        for(size_t i = 0; i < j; ++i) {
+            out(idx++) = cholesky_of_precision_(i, j);
+        }
+        out(idx++) = std::log(cholesky_of_precision_(j, j));
+    }
+
     return out;
 }
 
 arma::vec MixedMRFModel::get_full_vectorized_parameters() const {
-    // All NUTS parameters, fixed size (inactive edges are 0, no precision)
+    // All NUTS parameters + Cholesky, fixed size (inactive edges zeroed)
     arma::vec out(full_parameter_dimension(), arma::fill::zeros);
     size_t idx = 0;
 
@@ -370,6 +381,14 @@ arma::vec MixedMRFModel::get_full_vectorized_parameters() const {
         for(size_t j = 0; j < q_; ++j) {
             out(idx++) = pairwise_effects_cross_(i, j);
         }
+    }
+
+    // 5. Cholesky of precision: column-by-column
+    for(size_t j = 0; j < q_; ++j) {
+        for(size_t i = 0; i < j; ++i) {
+            out(idx++) = cholesky_of_precision_(i, j);
+        }
+        out(idx++) = std::log(cholesky_of_precision_(j, j));
     }
 
     return out;
@@ -422,7 +441,6 @@ arma::vec MixedMRFModel::get_storage_vectorized_parameters() const {
 }
 
 void MixedMRFModel::set_vectorized_parameters(const arma::vec& params) {
-    // Unpack NUTS block only (no pairwise_effects_continuous_)
     size_t idx = 0;
 
     // 1. main_effects_discrete_
@@ -462,7 +480,35 @@ void MixedMRFModel::set_vectorized_parameters(const arma::vec& params) {
         }
     }
 
-    // Refresh caches (precision unchanged, so no decomposition update needed)
+    // 5. Cholesky of precision: column-by-column
+    for(size_t j = 0; j < q_; ++j) {
+        for(size_t i = 0; i < j; ++i) {
+            cholesky_of_precision_(i, j) = params(idx++);
+        }
+        cholesky_of_precision_(j, j) = std::exp(params(idx++));
+        // Zero below diagonal (upper triangular)
+        for(size_t i = j + 1; i < q_; ++i) {
+            cholesky_of_precision_(i, j) = 0.0;
+        }
+    }
+
+    // Reconstruct precision and derived matrices from Cholesky
+    arma::mat precision = cholesky_of_precision_.t() * cholesky_of_precision_;
+    pairwise_effects_continuous_ = -0.5 * precision;
+    bool ok = arma::solve(inv_cholesky_of_precision_,
+                          arma::trimatu(cholesky_of_precision_),
+                          arma::eye(q_, q_), arma::solve_opts::fast);
+    if(!ok) {
+        // Fallback: recompute from scratch
+        recompute_pairwise_effects_continuous_decomposition();
+    } else {
+        covariance_continuous_ = inv_cholesky_of_precision_ *
+                                 inv_cholesky_of_precision_.t();
+        log_det_precision_ = 2.0 * arma::sum(arma::log(
+            cholesky_of_precision_.diag()));
+    }
+
+    // Refresh caches
     recompute_conditional_mean();
     if(use_marginal_pl_) {
         recompute_marginal_interactions();
@@ -504,6 +550,12 @@ arma::vec MixedMRFModel::get_active_inv_mass() const {
             }
             offset_full++;
         }
+    }
+
+    // Cholesky block: always full size, pass through
+    size_t num_chol = (q_ * (q_ + 1)) / 2;
+    for(size_t k = 0; k < num_chol; ++k) {
+        active(offset_active++) = inv_mass_(offset_full++);
     }
 
     return active;

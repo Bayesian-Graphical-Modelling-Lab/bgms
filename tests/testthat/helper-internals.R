@@ -11,6 +11,7 @@ if(!exists("bgm_spec", mode = "function")) {
     "compute_conditional_probs",
     "compute_scaling_factors",
     "get_explog_switch",
+    "mixed_test_logp_and_gradient",
     "rcpp_ieee754_exp",
     "rcpp_ieee754_log",
     "reformat_ordinal_data",

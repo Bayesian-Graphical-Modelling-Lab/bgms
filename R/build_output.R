@@ -751,7 +751,7 @@ build_output_mixed_mrf = function(spec, raw) {
   )
 
   # --- NUTS diagnostics -------------------------------------------------------
-  if(s$update_method == "hybrid-nuts") {
+  if(s$update_method %in% c("nuts", "hybrid-nuts")) {
     results$nuts_diag = summarize_nuts_diagnostics(
       raw,
       nuts_max_depth = s$nuts_max_depth

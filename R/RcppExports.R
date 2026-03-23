@@ -45,6 +45,10 @@ ggm_test_leapfrog_constrained <- function(x0, r0, step_size, n_steps, suf_stat, 
     .Call(`_bgms_ggm_test_leapfrog_constrained`, x0, r0, step_size, n_steps, suf_stat, n, edge_indicators, pairwise_scale)
 }
 
+mixed_test_logp_and_gradient <- function(params, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pseudolikelihood, pairwise_scale) {
+    .Call(`_bgms_mixed_test_logp_and_gradient`, params, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pseudolikelihood, pairwise_scale)
+}
+
 compute_conditional_ggm <- function(observations, predict_vars, precision) {
     .Call(`_bgms_compute_conditional_ggm`, observations, predict_vars, precision)
 }
