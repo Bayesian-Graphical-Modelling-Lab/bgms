@@ -254,8 +254,8 @@ recovery_table = function(true_blocks, est_blocks, label = "estimate") {
   # Determine block membership
   block = ifelse(grepl("^mux", names(true_flat)), "mux",
     ifelse(grepl("^muy", names(true_flat)), "muy",
-      ifelse(grepl("^pairwise_disc", names(true_flat)), "pairwise_disc",
-        ifelse(grepl("^pairwise_cross", names(true_flat)), "pairwise_cross", "pairwise_cont")
+      ifelse(grepl("^disc", names(true_flat)), "pairwise_disc",
+        ifelse(grepl("^cross", names(true_flat)), "pairwise_cross", "pairwise_cont")
       )
     )
   )

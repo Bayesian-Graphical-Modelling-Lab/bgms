@@ -451,10 +451,11 @@ na_bugfix_ids = c(
 )
 
 # Configs excluded from bitwise comparison due to confirmed algorithm changes
-# Configs excluded from bitwise comparison due to confirmed algorithm changes
 # (see header notes 4, 5, 7, 8). Checked for structural match only.
+# All configs are structure-only pending fixture regeneration after the
+# association-scale reparameterization (note 8).
 structure_only_ids = c(
-  names(all_configs) # all OMRF after association-scale reparameterization (note 8)
+  names(all_configs)
 )
 
 compare_fields = function(expected, actual, type, id) {

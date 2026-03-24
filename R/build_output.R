@@ -305,8 +305,8 @@ build_output_bgm = function(spec, raw) {
 
   # --- Parameter names --------------------------------------------------------
   if(is_continuous) {
-    # GGM: one residual variance per variable
-    names_main = paste0(data_columnnames, " (residual variance)")
+    # GGM: raw samples are on precision scale; label accordingly
+    names_main = paste0(data_columnnames, " (precision)")
     is_ordinal_variable = NULL
     num_categories = NULL
   } else {
@@ -356,7 +356,8 @@ build_output_bgm = function(spec, raw) {
   main_summary = summary_list$main[, -1]
   pairwise_summary = summary_list$pairwise[, -1]
 
-  rownames(main_summary) = names_main
+  rownames(main_summary) = sub("(precision)", "(residual variance)",
+    names_main, fixed = TRUE)
   rownames(pairwise_summary) = edge_names
 
   results = list()
@@ -595,7 +596,7 @@ build_output_mixed_mrf = function(spec, raw) {
     names_main = c(names_main, paste0(cont_names[ji], " (mean)"))
   }
   for(ji in seq_len(q)) {
-    names_main = c(names_main, paste0(cont_names[ji], " (residual variance)"))
+    names_main = c(names_main, paste0(cont_names[ji], " (precision)"))
   }
 
   # Pairwise edge names — internal order, mapped to original column names
@@ -653,7 +654,8 @@ build_output_mixed_mrf = function(spec, raw) {
   main_summary = summary_list$main[, -1]
   pairwise_summary = summary_list$pairwise[, -1]
 
-  rownames(main_summary) = names_main
+  rownames(main_summary) = sub("(precision)", "(residual variance)",
+    names_main, fixed = TRUE)
   rownames(pairwise_summary) = edge_names
 
   # Split main_summary into true main effects and quadratic (precision diagonal)
@@ -864,6 +866,39 @@ build_output_compare = function(spec, raw) {
   results$posterior_mean_associations_baseline =
     results$posterior_mean_associations_baseline +
     t(results$posterior_mean_associations_baseline)
+
+  # --- Posterior mean: main differences ---------------------------------------
+  pmm_diff = matrix(NA, nrow = num_variables, ncol = max_num_categories)
+  start = 0L
+  stop = 0L
+  for(vi in seq_len(num_variables)) {
+    if(is_ordinal_variable[vi]) {
+      start = stop + 1L
+      stop = start + num_categories[vi] - 1L
+      pmm_diff[vi, seq_len(num_categories[vi])] =
+        summary_list$main_differences$mean[start:stop]
+    } else {
+      start = stop + 1L
+      stop = start + 1L
+      pmm_diff[vi, 1:2] = summary_list$main_differences$mean[start:stop]
+    }
+  }
+  results$posterior_mean_main_differences = pmm_diff
+  rownames(results$posterior_mean_main_differences) = data_columnnames
+  colnames(results$posterior_mean_main_differences) =
+    paste0("cat (", seq_len(ncol(pmm_diff)), ")")
+
+  # --- Posterior mean: associations differences --------------------------------
+  results$posterior_mean_associations_differences = matrix(0,
+    nrow = num_variables, ncol = num_variables,
+    dimnames = list(data_columnnames, data_columnnames)
+  )
+  results$posterior_mean_associations_differences[
+    lower.tri(results$posterior_mean_associations_differences)
+  ] = summary_list$pairwise_differences$mean
+  results$posterior_mean_associations_differences =
+    results$posterior_mean_associations_differences +
+    t(results$posterior_mean_associations_differences)
 
   # --- raw_samples ------------------------------------------------------------
   results$raw_samples = list(
