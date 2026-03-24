@@ -421,9 +421,10 @@ build_output_bgm = function(spec, raw) {
   results$posterior_mean_associations = associations
 
   # --- Residual variance (GGM only) -------------------------------------------
-  # C++ stores precision diagonal; convert to residual variance = 1 / diag.
+  # C++ stores precision diagonal; residual variance = 1 / precision.
+  # Average per-sample inversions to avoid Jensen's inequality bias.
   if(is_continuous) {
-    results$posterior_mean_residual_variance = 1 / main_means
+    results$posterior_mean_residual_variance = colMeans(1 / pooled_main)
     names(results$posterior_mean_residual_variance) = data_columnnames
   }
 
@@ -718,10 +719,12 @@ build_output_mixed_mrf = function(spec, raw) {
   )
 
   # --- Residual variance (continuous diagonal) --------------------------------
-  # C++ stores negative association diagonal; convert to residual variance.
-  assoc_diag_means = main_means[nt + q + seq_len(q)]
-  names(assoc_diag_means) = cont_names
-  results$posterior_mean_residual_variance = -1 / (2 * assoc_diag_means)
+  # C++ stores negative association diagonal; residual variance = -1/(2*diag).
+  # Average per-sample inversions to avoid Jensen's inequality bias.
+  pooled_quad = pooled_main[, nt + q + seq_len(q), drop = FALSE]
+  rv = colMeans(-1 / (2 * pooled_quad))
+  names(rv) = cont_names
+  results$posterior_mean_residual_variance = rv
 
   # --- Posterior mean: indicator -----------------------------------------------
   if(edge_selection) {
