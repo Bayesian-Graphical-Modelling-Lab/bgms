@@ -26,15 +26,17 @@ mixed MRF models this is the precision matrix of the continuous
 (Gaussian) block. OMRF models have no precision matrix and return \code{NULL}.
 
 For mixed MRF models the precision matrix is reconstructed from the
-internal parameterization as \eqn{\Theta = -2K}{Theta = -2K}.
+internal association-scale parameterization.
 }
 \details{
 Extract Posterior Mean Precision Matrix
 }
 \examples{
 \donttest{
-fit = bgm(x = Wenchuan[, 1:3],
-          variable_type = rep("continuous", 3))
+fit = bgm(
+  x = Wenchuan[, 1:3],
+  variable_type = rep("continuous", 3)
+)
 extract_precision(fit)
 }
 

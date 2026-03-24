@@ -17,6 +17,18 @@ rcpp_ieee754_log <- function(x) {
     .Call(`_bgms_rcpp_ieee754_log`, x)
 }
 
+.compute_ess_cpp <- function(array3d) {
+    .Call(`_bgms_compute_ess_cpp`, array3d)
+}
+
+.compute_rhat_cpp <- function(array3d) {
+    .Call(`_bgms_compute_rhat_cpp`, array3d)
+}
+
+.compute_indicator_ess_cpp <- function(array3d) {
+    .Call(`_bgms_compute_indicator_ess_cpp`, array3d)
+}
+
 compute_conditional_ggm <- function(observations, predict_vars, precision) {
     .Call(`_bgms_compute_conditional_ggm`, observations, predict_vars, precision)
 }

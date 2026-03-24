@@ -91,6 +91,39 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// compute_ess_cpp
+Rcpp::NumericVector compute_ess_cpp(Rcpp::NumericVector array3d);
+RcppExport SEXP _bgms_compute_ess_cpp(SEXP array3dSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type array3d(array3dSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_ess_cpp(array3d));
+    return rcpp_result_gen;
+END_RCPP
+}
+// compute_rhat_cpp
+Rcpp::NumericVector compute_rhat_cpp(Rcpp::NumericVector array3d);
+RcppExport SEXP _bgms_compute_rhat_cpp(SEXP array3dSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type array3d(array3dSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_rhat_cpp(array3d));
+    return rcpp_result_gen;
+END_RCPP
+}
+// compute_indicator_ess_cpp
+Rcpp::NumericMatrix compute_indicator_ess_cpp(Rcpp::NumericVector array3d);
+RcppExport SEXP _bgms_compute_indicator_ess_cpp(SEXP array3dSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type array3d(array3dSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_indicator_ess_cpp(array3d));
+    return rcpp_result_gen;
+END_RCPP
+}
 // compute_conditional_ggm
 Rcpp::List compute_conditional_ggm(const arma::mat& observations, const arma::ivec& predict_vars, const arma::mat& precision);
 RcppExport SEXP _bgms_compute_conditional_ggm(SEXP observationsSEXP, SEXP predict_varsSEXP, SEXP precisionSEXP) {
@@ -397,6 +430,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_get_explog_switch", (DL_FUNC) &_bgms_get_explog_switch, 0},
     {"_bgms_rcpp_ieee754_exp", (DL_FUNC) &_bgms_rcpp_ieee754_exp, 1},
     {"_bgms_rcpp_ieee754_log", (DL_FUNC) &_bgms_rcpp_ieee754_log, 1},
+    {"_bgms_compute_ess_cpp", (DL_FUNC) &_bgms_compute_ess_cpp, 1},
+    {"_bgms_compute_rhat_cpp", (DL_FUNC) &_bgms_compute_rhat_cpp, 1},
+    {"_bgms_compute_indicator_ess_cpp", (DL_FUNC) &_bgms_compute_indicator_ess_cpp, 1},
     {"_bgms_compute_conditional_ggm", (DL_FUNC) &_bgms_compute_conditional_ggm, 3},
     {"_bgms_compute_conditional_probs", (DL_FUNC) &_bgms_compute_conditional_probs, 7},
     {"_bgms_compute_conditional_mixed", (DL_FUNC) &_bgms_compute_conditional_mixed, 11},

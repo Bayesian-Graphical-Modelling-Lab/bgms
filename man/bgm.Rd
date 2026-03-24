@@ -177,7 +177,7 @@ pure continuous data). Options:
 \item{\code{"conditional"}}{Conditions on the observed continuous
 variables when computing the discrete full conditionals. Faster
 because the discrete pseudo-likelihood does not depend on the
-continuous interaction matrix Kyy.}
+continuous precision matrix.}
 \item{\code{"marginal"}}{Integrates out the continuous variables,
 giving discrete full conditionals that account for induced
 interactions through the continuous block. More expensive per

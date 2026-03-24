@@ -136,10 +136,21 @@ double log_marginal_mfm_sbm(arma::uvec cluster_assign,
   for(arma::uword i = 0; i < table_cluster.n_elem; i++){
     if(table_cluster(i) > 0){ // if the cluster is empty -- table_cluster(i) = 0 == then it is the previous cluster of 'node' where 'node' was the only member - a singleton, thus skip)
       arma::uvec which_variables_cluster_i = arma::find(cluster_assign_wo_node == i); // which variables belong to cluster i
-      double sumG = arma::accu(gamma_node(which_variables_cluster_i)); // sum the indicator variables between node and those variables
-      double sumN = static_cast<double>(which_variables_cluster_i.n_elem); // take the size of the group as maximum number of relations
+      int sumG = arma::accu(gamma_node(which_variables_cluster_i)); // sum the indicator variables between node and those variables
+      int sumN = static_cast<int>(which_variables_cluster_i.n_elem); // take the size of the group as maximum number of relations
 
-      output += R::lbeta(sumG + beta_bernoulli_alpha_between, sumN - sumG + beta_bernoulli_beta_between) - R::lbeta(beta_bernoulli_alpha_between, beta_bernoulli_beta_between); // calculate log-density for cluster i and sum it to the marginal log-likelihood
+      // Compute log B(alpha + G, beta + N - G) / B(alpha, beta) using the identity
+      // Gamma(z+n)/Gamma(z) = prod_{m=0}^{n-1} (z+m), which holds since sumG and sumN are integers.
+      // This avoids lbeta/lgamma calls and is faster for small cluster sizes.
+      for(int m = 0; m < sumG; m++){
+        output += std::log(beta_bernoulli_alpha_between + m);
+      }
+      for(int m = 0; m < (sumN - sumG); m++){
+        output += std::log(beta_bernoulli_beta_between + m);
+      }
+      for(int m = 0; m < sumN; m++){
+        output -= std::log(beta_bernoulli_alpha_between + beta_bernoulli_beta_between + m);
+      }
     }
   }
   return output;

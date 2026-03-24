@@ -17,7 +17,7 @@ See \code{\link[=extract_main_effects]{extract_main_effects()}} for details.
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}}
 
 \code{extract_category_thresholds()} was renamed to \code{\link[=extract_main_effects]{extract_main_effects()}} to
-reflect that main effects include continuous means and Kyy diagonal
+reflect that main effects include continuous means and precision diagonal
 (mixed MRF), not only category thresholds.
 }
 \details{
