@@ -62,47 +62,54 @@ summary(fit)
 #> ... (use `summary(fit)$pairwise` to see full output)
 #> 
 #> Inclusion probabilities:
-#>                  parameter  mean    sd  mcse n0->0 n0->1 n1->0 n1->1
-#>               avoid (main) 1.000 0.000           0     0     0  1999
-#>  avoid-closeatt (pairwise) 0.784 0.412 0.017   282   150   150  1417
-#>  avoid-distract (pairwise) 0.384 0.486 0.013   827   404   404   364
-#>    avoid-forget (pairwise) 0.868 0.339 0.015   175    90    90  1644
-#>  avoid-instruct (pairwise) 0.991 0.094 0.004    11     7     7  1974
-#>            closeatt (main) 1.000 0.000           0     0     0  1999
-#>     n_eff  Rhat
-#>                
-#>   568.955 1.012
-#>  1491.102     1
-#>   486.829 1.007
-#>   488.216 1.214
-#>                
+#>                  parameter  mean  mcse    sd n0->0 n0->1 n1->0 n1->1
+#>               avoid (main) 1.000       0.000     0     0     0  1999
+#>  avoid-closeatt (pairwise) 0.784 0.017 0.412   282   150   150  1417
+#>  avoid-distract (pairwise) 0.384 0.013 0.486   827   404   404   364
+#>    avoid-forget (pairwise) 0.868 0.015 0.339   175    90    90  1644
+#>  avoid-instruct (pairwise) 0.991 0.004 0.094    11     7     7  1974
+#>            closeatt (main) 1.000       0.000     0     0     0  1999
+#>  n_eff_mixt  Rhat
+#>                  
+#>     568.955 1.012
+#>    1491.102     1
+#>     486.829 1.007
+#>     488.216 1.214
+#>                  
 #> ... (use `summary(fit)$indicator` to see full output)
 #> Note: NA values are suppressed in the print table. They occur when an indicator
-#> was constant (all 0 or all 1) across all iterations, so sd/mcse/n_eff/Rhat
-#> are undefined; `summary(fit)$indicator` still contains the NA values.
+#> was constant or had fewer than 5 transitions, so n_eff_mixt is unreliable;
+#> `summary(fit)$indicator` still contains all computed values.
 #> 
 #> Group differences (main effects):
-#>            parameter   mean    sd mcse n_eff  Rhat
-#>     avoid (diff1; 1) -2.559 0.746            1.000
-#>  closeatt (diff1; 1) -2.985 0.716            1.000
-#>  distract (diff1; 1) -2.508 0.687            1.000
-#>    forget (diff1; 1) -2.836 0.650            1.001
-#>  instruct (diff1; 1) -2.330 0.907            1.001
+#>            parameter   mean mcse    sd    n_eff n_eff_mixt  Rhat
+#>     avoid (diff1; 1) -2.559      0.746  959.128            1.000
+#>  closeatt (diff1; 1) -2.985      0.716 1145.333            1.000
+#>  distract (diff1; 1) -2.508      0.687  521.053            1.002
+#>    forget (diff1; 1) -2.836      0.650  640.128            1.002
+#>  instruct (diff1; 1) -2.330      0.907  468.171            1.002
 #> Note: NA values are suppressed in the print table. They occur here when an
-#> indicator was zero across all iterations, so mcse/n_eff/Rhat are undefined;
+#> indicator was zero across all iterations, so mcse/n_eff/n_eff_mixt/Rhat are undefined;
 #> `summary(fit)$main_diff` still contains the NA values.
 #> 
 #> Group differences (pairwise effects):
-#>                  parameter   mean    sd  mcse   n_eff  Rhat
-#>     avoid-closeatt (diff1)  1.235 0.930 0.035 695.812 1.003
-#>     avoid-distract (diff1)  0.220 0.375 0.014 698.647 1.002
-#>       avoid-forget (diff1)  1.355 0.819 0.033 627.154 1.002
-#>     avoid-instruct (diff1) -2.798 1.018 0.042 601.226 1.001
-#>  closeatt-distract (diff1) -0.192 0.365 0.013 752.501 1.000
-#>    closeatt-forget (diff1)  0.126 0.286 0.011 667.634 1.001
+#>                  parameter   mean  mcse    sd    n_eff n_eff_mixt
+#>     avoid-closeatt (diff1)  1.235 0.035 0.930  454.902    695.812
+#>     avoid-distract (diff1)  0.220 0.014 0.375  922.637    698.647
+#>       avoid-forget (diff1)  1.355 0.033 0.819  480.380    627.154
+#>     avoid-instruct (diff1) -2.798 0.042 1.018  621.342    601.226
+#>  closeatt-distract (diff1) -0.192 0.013 0.365  967.693    752.501
+#>    closeatt-forget (diff1)  0.126 0.011 0.286 1213.873    667.634
+#>   Rhat
+#>  1.006
+#>  1.004
+#>  1.003
+#>  1.002
+#>  1.002
+#>  1.002
 #> ... (use `summary(fit)$pairwise_diff` to see full output)
 #> Note: NA values are suppressed in the print table. They occur here when an
-#> indicator was zero across all iterations, so mcse/n_eff/Rhat are undefined;
+#> indicator was zero across all iterations, so mcse/n_eff/n_eff_mixt/Rhat are undefined;
 #> `summary(fit)$pairwise_diff` still contains the NA values.
 #> 
 #> Use `summary(fit)$<component>` to access full results.

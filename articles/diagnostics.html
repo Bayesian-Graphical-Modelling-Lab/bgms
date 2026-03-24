@@ -88,28 +88,28 @@ probabilities and Bayes factors.</p>
 diagnostics:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">$</span><span class="va">pairwise</span></span>
-<span><span class="co">#&gt;                          mean           sd         mcse      n_eff</span></span>
-<span><span class="co">#&gt; intrusion-dreams  0.316707142 0.0010098545 0.0345918840 1173.35871</span></span>
-<span><span class="co">#&gt; intrusion-flash   0.167709696 0.0009227124 0.0320985997 1210.15065</span></span>
-<span><span class="co">#&gt; intrusion-upset   0.088672349 0.0436882385 0.0056294194   60.22847</span></span>
-<span><span class="co">#&gt; intrusion-physior 0.101880020 0.0337954612 0.0024784801  185.92847</span></span>
-<span><span class="co">#&gt; dreams-flash      0.249884872 0.0008231779 0.0304023688 1364.04121</span></span>
-<span><span class="co">#&gt; dreams-upset      0.118073148 0.0013525831 0.0278851509  425.02855</span></span>
-<span><span class="co">#&gt; dreams-physior    0.001072865 0.0066034336 0.0003205022  424.49999</span></span>
-<span><span class="co">#&gt; flash-upset       0.001168627 0.0076610981 0.0004414651  301.15450</span></span>
-<span><span class="co">#&gt; flash-physior     0.152192873 0.0007852046 0.0277770152 1251.42705</span></span>
-<span><span class="co">#&gt; upset-physior     0.355534822 0.0008746934 0.0322721276 1361.26747</span></span>
-<span><span class="co">#&gt;                       Rhat</span></span>
-<span><span class="co">#&gt; intrusion-dreams  1.003034</span></span>
-<span><span class="co">#&gt; intrusion-flash   1.004751</span></span>
-<span><span class="co">#&gt; intrusion-upset   1.018105</span></span>
-<span><span class="co">#&gt; intrusion-physior 1.006861</span></span>
-<span><span class="co">#&gt; dreams-flash      1.002973</span></span>
-<span><span class="co">#&gt; dreams-upset      1.003959</span></span>
-<span><span class="co">#&gt; dreams-physior    1.000011</span></span>
-<span><span class="co">#&gt; flash-upset       1.014768</span></span>
-<span><span class="co">#&gt; flash-physior     1.001141</span></span>
-<span><span class="co">#&gt; upset-physior     1.005101</span></span></code></pre></div>
+<span><span class="co">#&gt;                          mean         mcse          sd     n_eff</span></span>
+<span><span class="co">#&gt; intrusion-dreams  0.316707142 0.0010098545 0.034591884 1173.3587</span></span>
+<span><span class="co">#&gt; intrusion-flash   0.167709696 0.0009227124 0.032098600 1210.1506</span></span>
+<span><span class="co">#&gt; intrusion-upset   0.088672349 0.0056294194 0.043688239  101.0666</span></span>
+<span><span class="co">#&gt; intrusion-physior 0.101880020 0.0024784801 0.033795461  361.6609</span></span>
+<span><span class="co">#&gt; dreams-flash      0.249884872 0.0008231779 0.030402369 1364.0412</span></span>
+<span><span class="co">#&gt; dreams-upset      0.118073148 0.0013525831 0.027885151  425.0286</span></span>
+<span><span class="co">#&gt; dreams-physior    0.001072865 0.0003205022 0.006603434  484.5981</span></span>
+<span><span class="co">#&gt; flash-upset       0.001168627 0.0004414651 0.007661098 2935.6176</span></span>
+<span><span class="co">#&gt; flash-physior     0.152192873 0.0007852046 0.027777015 1251.4270</span></span>
+<span><span class="co">#&gt; upset-physior     0.355534822 0.0008746934 0.032272128 1361.2675</span></span>
+<span><span class="co">#&gt;                   n_eff_mixt     Rhat</span></span>
+<span><span class="co">#&gt; intrusion-dreams          NA 1.003034</span></span>
+<span><span class="co">#&gt; intrusion-flash           NA 1.004751</span></span>
+<span><span class="co">#&gt; intrusion-upset     60.22847 1.047652</span></span>
+<span><span class="co">#&gt; intrusion-physior  185.92847 1.030492</span></span>
+<span><span class="co">#&gt; dreams-flash              NA 1.002973</span></span>
+<span><span class="co">#&gt; dreams-upset              NA 1.003959</span></span>
+<span><span class="co">#&gt; dreams-physior     424.49999 1.008677</span></span>
+<span><span class="co">#&gt; flash-upset        301.15450 1.297113</span></span>
+<span><span class="co">#&gt; flash-physior             NA 1.001141</span></span>
+<span><span class="co">#&gt; upset-physior             NA 1.005101</span></span></code></pre></div>
 <ul>
 <li>R-hat values close to 1 (typically below 1.01) suggest convergence
 <span class="citation">(<a href="#ref-VehtariEtAl_2021">Vehtari et al.,
@@ -123,22 +123,51 @@ MCSE relative to the posterior standard deviation indicates stable
 estimates, whereas a large MCSE suggests that more samples are
 needed.</li>
 </ul>
-<p>Advanced users can inspect traceplots by extracting raw samples and
-using external packages such as <code>coda</code> or
-<code>bayesplot</code>. Here is an example using the <code>coda</code>
-package to create a traceplot for a pairwise effect parameter.</p>
+<div class="section level3">
+<h3 id="two-ess-measures-for-edge-selected-parameters">Two ESS measures for edge-selected parameters<a class="anchor" aria-label="anchor" href="#two-ess-measures-for-edge-selected-parameters"></a>
+</h3>
+<p>With edge or difference selection active, the effect parameters are
+governed by spike-and-slab priors. The corresponding parameter is set to
+exactly zero when the effect is excluded, rather than being removed from
+the model. Because the parameter has a well-defined value at every
+iteration, the full chain — including zeros — is a valid sequence for
+computing ESS.</p>
+<ul>
+<li>
+<strong>n_eff</strong> is the unconditional ESS, computed from the
+full effect chain. It measures how precisely the overall posterior mean
+is estimated.</li>
+<li>
+<strong>n_eff_mixt</strong> is the mixture ESS. It measures how
+precisely the posterior mean of the effect is estimated while accounting
+for the additional uncertainty introduced by the spike-and-slab
+selection. When the indicator rarely switches between inclusion and
+exclusion (fewer than 5 transitions), <code>n_eff_mixt</code> is
+suppressed in the printed output.</li>
+</ul>
+</div>
+<div class="section level3">
+<h3 id="traceplots">Traceplots<a class="anchor" aria-label="anchor" href="#traceplots"></a>
+</h3>
+<p>Users can inspect traceplots by extracting raw samples directly. Here
+is an example for the pairwise effect parameter.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">coda</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">param_index</span> <span class="op">=</span> <span class="fl">1</span></span>
+<span><span class="va">chains</span> <span class="op">=</span> <span class="va">fit</span><span class="op">$</span><span class="va">raw_samples</span><span class="op">$</span><span class="va">pairwise</span></span>
+<span><span class="va">nchains</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">chains</span><span class="op">)</span></span>
+<span><span class="va">cols</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"firebrick"</span>, <span class="st">"steelblue"</span>, <span class="st">"darkgreen"</span>, <span class="st">"goldenrod"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">param_index</span> <span class="op">=</span> <span class="fl">1</span></span>
-<span><span class="va">chains</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">raw_samples</span><span class="op">$</span><span class="va">pairwise</span>, <span class="kw">function</span><span class="op">(</span><span class="va">mat</span><span class="op">)</span> <span class="va">mat</span><span class="op">[</span>, <span class="va">param_index</span><span class="op">]</span><span class="op">)</span></span>
-<span><span class="va">mcmc_obj</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/coda/man/mcmc.list.html" class="external-link">mcmc.list</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">chains</span>, <span class="va">mcmc</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/pkg/coda/man/traceplot.html" class="external-link">traceplot</a></span><span class="op">(</span><span class="va">mcmc_obj</span>,</span>
-<span>  col <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"firebrick"</span>, <span class="st">"steelblue"</span>, <span class="st">"darkgreen"</span>, <span class="st">"goldenrod"</span><span class="op">)</span>,</span>
-<span>  main <span class="op">=</span> <span class="st">"Traceplot of pairwise[1]"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">chains</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">[</span>, <span class="va">param_index</span><span class="op">]</span>, type <span class="op">=</span> <span class="st">"l"</span>, col <span class="op">=</span> <span class="va">cols</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
+<span>  xlab <span class="op">=</span> <span class="st">"Iteration"</span>, ylab <span class="op">=</span> <span class="st">"Value"</span>,</span>
+<span>  main <span class="op">=</span> <span class="st">"Traceplot of pairwise[1]"</span>,</span>
+<span>  ylim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/range.html" class="external-link">range</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">chains</span>, <span class="kw">function</span><span class="op">(</span><span class="va">ch</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/range.html" class="external-link">range</a></span><span class="op">(</span><span class="va">ch</span><span class="op">[</span>, <span class="va">param_index</span><span class="op">]</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="kw">if</span><span class="op">(</span><span class="va">nchains</span> <span class="op">&gt;</span> <span class="fl">1</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="kw">for</span><span class="op">(</span><span class="va">c</span> <span class="kw">in</span> <span class="fl">2</span><span class="op">:</span><span class="va">nchains</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/graphics/lines.html" class="external-link">lines</a></span><span class="op">(</span><span class="va">chains</span><span class="op">[[</span><span class="va">c</span><span class="op">]</span><span class="op">]</span><span class="op">[</span>, <span class="va">param_index</span><span class="op">]</span>, col <span class="op">=</span> <span class="va">cols</span><span class="op">[</span><span class="va">c</span><span class="op">]</span><span class="op">)</span></span>
+<span>  <span class="op">}</span></span>
+<span><span class="op">}</span></span></code></pre></div>
 <p><img src="diagnostics_files/figure-html/unnamed-chunk-5-1.png" class="r-plt" alt="" width="672"></p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="spike-and-slab-summaries">Spike-and-slab summaries<a class="anchor" aria-label="anchor" href="#spike-and-slab-summaries"></a>

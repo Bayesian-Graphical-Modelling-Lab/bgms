@@ -74,26 +74,26 @@ summary(fit)
 #> ... (use `summary(fit)$main` to see full output)
 #> 
 #> Pairwise interactions:
-#>                    mean    sd  mcse    n_eff  Rhat
-#> intrusion-dreams  0.317 0.001 0.035 1173.359 1.003
-#> intrusion-flash   0.168 0.001 0.032 1210.151 1.005
-#> intrusion-upset   0.089 0.044 0.006   60.228 1.018
-#> intrusion-physior 0.102 0.034 0.002  185.928 1.007
-#> dreams-flash      0.250 0.001 0.030 1364.041 1.003
-#> dreams-upset      0.118 0.001 0.028  425.029 1.004
+#>                    mean  mcse    sd    n_eff n_eff_mixt  Rhat
+#> intrusion-dreams  0.317 0.001 0.035 1173.359            1.003
+#> intrusion-flash   0.168 0.001 0.032 1210.151            1.005
+#> intrusion-upset   0.089 0.006 0.044  101.067     60.228 1.048
+#> intrusion-physior 0.102 0.002 0.034  361.661    185.928 1.030
+#> dreams-flash      0.250 0.001 0.030 1364.041            1.003
+#> dreams-upset      0.118 0.001 0.028  425.029            1.004
 #> ... (use `summary(fit)$pairwise` to see full output)
 #> Note: NA values are suppressed in the print table. They occur here when an 
-#> indicator was zero across all iterations, so mcse/n_eff/Rhat are undefined;
+#> indicator was zero across all iterations, so mcse/n_eff/n_eff_mixt/Rhat are undefined;
 #> `summary(fit)$pairwise` still contains the NA values.
 #> 
 #> Inclusion probabilities:
-#>                    mean    sd  mcse n0->0 n0->1 n1->0 n1->1  n_eff
-#> intrusion-dreams  1.000 0.000           0     0     0  1999       
-#> intrusion-flash   1.000 0.000           0     0     0  1999       
-#> intrusion-upset   0.865 0.342 0.054   261     9    10  1719 39.897
-#> intrusion-physior 0.971 0.169  0.02    55     4     4  1936 72.387
-#> dreams-flash      1.000 0.000           0     0     0  1999       
-#> dreams-upset      1.000 0.000           0     0     0  1999       
+#>                    mean  mcse    sd n0->0 n0->1 n1->0 n1->1 n_eff_mixt
+#> intrusion-dreams  1.000       0.000     0     0     0  1999           
+#> intrusion-flash   1.000       0.000     0     0     0  1999           
+#> intrusion-upset   0.865 0.054 0.342   261     9    10  1719     39.897
+#> intrusion-physior 0.971  0.02 0.169    55     4     4  1936     72.387
+#> dreams-flash      1.000       0.000     0     0     0  1999           
+#> dreams-upset      1.000       0.000     0     0     0  1999           
 #>                    Rhat
 #> intrusion-dreams       
 #> intrusion-flash        
@@ -103,8 +103,8 @@ summary(fit)
 #> dreams-upset           
 #> ... (use `summary(fit)$indicator` to see full output)
 #> Note: NA values are suppressed in the print table. They occur when an indicator
-#> was constant (all 0 or all 1) across all iterations, so sd/mcse/n_eff/Rhat
-#> are undefined; `summary(fit)$indicator` still contains the NA values.
+#> was constant or had fewer than 5 transitions, so n_eff_mixt is unreliable;
+#> `summary(fit)$indicator` still contains all computed values.
 #> 
 #> Use `summary(fit)$<component>` to access full results.
 #> See the `easybgm` package for other summary and plotting tools.

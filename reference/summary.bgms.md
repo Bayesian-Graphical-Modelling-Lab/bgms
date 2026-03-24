@@ -45,39 +45,39 @@ fit = bgm(x = Wenchuan[, 1:3])
 #> To impute missing values instead, use na_action = "impute".
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 100/2000 (5.0%)
 #> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 91/2000 (4.5%)
-#> Chain 3 (Warmup): ⦗━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 109/2000 (5.5%)
-#> Chain 4 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 96/2000 (4.8%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 396/8000 (5.0%)
+#> Chain 3 (Warmup): ⦗━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 104/2000 (5.2%)
+#> Chain 4 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 94/2000 (4.7%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 389/8000 (4.9%)
 #> Elapsed: 0s | ETA: 0s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 450/2000 (22.5%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 434/2000 (21.7%)
-#> Chain 3 (Warmup): ⦗━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 456/2000 (22.8%)
-#> Chain 4 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 449/2000 (22.4%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1789/8000 (22.4%)
-#> Elapsed: 1s | ETA: 3s
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 433/2000 (21.6%)
+#> Chain 3 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 438/2000 (21.9%)
+#> Chain 4 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 440/2000 (22.0%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1760/8000 (22.0%)
+#> Elapsed: 1s | ETA: 4s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 800/2000 (40.0%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 780/2000 (39.0%)
-#> Chain 3 (Warmup): ⦗━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━⦘ 809/2000 (40.5%)
-#> Chain 4 (Warmup): ⦗━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━⦘ 807/2000 (40.4%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 3196/8000 (40.0%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 779/2000 (39.0%)
+#> Chain 3 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 783/2000 (39.1%)
+#> Chain 4 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 795/2000 (39.8%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 3157/8000 (39.5%)
 #> Elapsed: 1s | ETA: 2s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1100/2000 (55.0%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━⦘ 1115/2000 (55.8%)
-#> Chain 3 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━⦘ 1123/2000 (56.1%)
-#> Chain 4 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━⦘ 1115/2000 (55.8%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━⦘ 4453/8000 (55.7%)
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━⦘ 1114/2000 (55.7%)
+#> Chain 3 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1092/2000 (54.6%)
+#> Chain 4 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━⦘ 1102/2000 (55.1%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━⦘ 4408/8000 (55.1%)
 #> Elapsed: 2s | ETA: 2s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1400/2000 (70.0%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1437/2000 (71.9%)
-#> Chain 3 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1438/2000 (71.9%)
-#> Chain 4 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1430/2000 (71.5%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 5705/8000 (71.3%)
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1435/2000 (71.8%)
+#> Chain 3 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1400/2000 (70.0%)
+#> Chain 4 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━⦘ 1412/2000 (70.6%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━⦘ 5647/8000 (70.6%)
 #> Elapsed: 2s | ETA: 1s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1700/2000 (85.0%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━⦘ 1768/2000 (88.4%)
-#> Chain 3 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1748/2000 (87.4%)
-#> Chain 4 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━⦘ 1759/2000 (87.9%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 6975/8000 (87.2%)
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━⦘ 1765/2000 (88.2%)
+#> Chain 3 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━⦘ 1708/2000 (85.4%)
+#> Chain 4 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1743/2000 (87.2%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 6916/8000 (86.5%)
 #> Elapsed: 3s | ETA: 0s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2000/2000 (100.0%)
 #> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2000/2000 (100.0%)
@@ -99,22 +99,22 @@ summary(fit)
 #> ... (use `summary(fit)$main` to see full output)
 #> 
 #> Pairwise interactions:
-#>                   mean    sd  mcse    n_eff  Rhat
-#> intrusion-dreams 0.349 0.001 0.033 1655.680 1.001
-#> intrusion-flash  0.214 0.001 0.031 1460.746 1.001
-#> dreams-flash     0.282 0.001 0.030 1565.252 1.009
+#>                   mean  mcse    sd    n_eff n_eff_mixt  Rhat
+#> intrusion-dreams 0.349 0.001 0.033 1655.680            1.001
+#> intrusion-flash  0.214 0.001 0.031 1460.746            1.001
+#> dreams-flash     0.282 0.001 0.030 1565.252            1.009
 #> Note: NA values are suppressed in the print table. They occur here when an 
-#> indicator was zero across all iterations, so mcse/n_eff/Rhat are undefined;
+#> indicator was zero across all iterations, so mcse/n_eff/n_eff_mixt/Rhat are undefined;
 #> `summary(fit)$pairwise` still contains the NA values.
 #> 
 #> Inclusion probabilities:
-#>                  mean sd mcse n0->0 n0->1 n1->0 n1->1 n_eff Rhat
-#> intrusion-dreams    1  0          0     0     0  3999           
-#> intrusion-flash     1  0          0     0     0  3999           
-#> dreams-flash        1  0          0     0     0  3999           
+#>                  mean mcse sd n0->0 n0->1 n1->0 n1->1 n_eff_mixt Rhat
+#> intrusion-dreams    1       0     0     0     0  3999                
+#> intrusion-flash     1       0     0     0     0  3999                
+#> dreams-flash        1       0     0     0     0  3999                
 #> Note: NA values are suppressed in the print table. They occur when an indicator
-#> was constant (all 0 or all 1) across all iterations, so sd/mcse/n_eff/Rhat
-#> are undefined; `summary(fit)$indicator` still contains the NA values.
+#> was constant or had fewer than 5 transitions, so n_eff_mixt is unreliable;
+#> `summary(fit)$indicator` still contains all computed values.
 #> 
 #> Use `summary(fit)$<component>` to access full results.
 #> See the `easybgm` package for other summary and plotting tools.

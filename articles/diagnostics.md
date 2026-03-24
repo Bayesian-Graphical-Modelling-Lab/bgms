@@ -26,28 +26,28 @@ diagnostics:
 
 ``` r
 summary(fit)$pairwise
-#>                          mean           sd         mcse      n_eff
-#> intrusion-dreams  0.316707142 0.0010098545 0.0345918840 1173.35871
-#> intrusion-flash   0.167709696 0.0009227124 0.0320985997 1210.15065
-#> intrusion-upset   0.088672349 0.0436882385 0.0056294194   60.22847
-#> intrusion-physior 0.101880020 0.0337954612 0.0024784801  185.92847
-#> dreams-flash      0.249884872 0.0008231779 0.0304023688 1364.04121
-#> dreams-upset      0.118073148 0.0013525831 0.0278851509  425.02855
-#> dreams-physior    0.001072865 0.0066034336 0.0003205022  424.49999
-#> flash-upset       0.001168627 0.0076610981 0.0004414651  301.15450
-#> flash-physior     0.152192873 0.0007852046 0.0277770152 1251.42705
-#> upset-physior     0.355534822 0.0008746934 0.0322721276 1361.26747
-#>                       Rhat
-#> intrusion-dreams  1.003034
-#> intrusion-flash   1.004751
-#> intrusion-upset   1.018105
-#> intrusion-physior 1.006861
-#> dreams-flash      1.002973
-#> dreams-upset      1.003959
-#> dreams-physior    1.000011
-#> flash-upset       1.014768
-#> flash-physior     1.001141
-#> upset-physior     1.005101
+#>                          mean         mcse          sd     n_eff
+#> intrusion-dreams  0.316707142 0.0010098545 0.034591884 1173.3587
+#> intrusion-flash   0.167709696 0.0009227124 0.032098600 1210.1506
+#> intrusion-upset   0.088672349 0.0056294194 0.043688239  101.0666
+#> intrusion-physior 0.101880020 0.0024784801 0.033795461  361.6609
+#> dreams-flash      0.249884872 0.0008231779 0.030402369 1364.0412
+#> dreams-upset      0.118073148 0.0013525831 0.027885151  425.0286
+#> dreams-physior    0.001072865 0.0003205022 0.006603434  484.5981
+#> flash-upset       0.001168627 0.0004414651 0.007661098 2935.6176
+#> flash-physior     0.152192873 0.0007852046 0.027777015 1251.4270
+#> upset-physior     0.355534822 0.0008746934 0.032272128 1361.2675
+#>                   n_eff_mixt     Rhat
+#> intrusion-dreams          NA 1.003034
+#> intrusion-flash           NA 1.004751
+#> intrusion-upset     60.22847 1.047652
+#> intrusion-physior  185.92847 1.030492
+#> dreams-flash              NA 1.002973
+#> dreams-upset              NA 1.003959
+#> dreams-physior     424.49999 1.008677
+#> flash-upset        301.15450 1.297113
+#> flash-physior             NA 1.001141
+#> upset-physior             NA 1.005101
 ```
 
 - R-hat values close to 1 (typically below 1.01) suggest convergence
@@ -60,22 +60,45 @@ summary(fit)$pairwise
   MCSE relative to the posterior standard deviation indicates stable
   estimates, whereas a large MCSE suggests that more samples are needed.
 
-Advanced users can inspect traceplots by extracting raw samples and
-using external packages such as `coda` or `bayesplot`. Here is an
-example using the `coda` package to create a traceplot for a pairwise
-effect parameter.
+### Two ESS measures for edge-selected parameters
+
+With edge or difference selection active, the effect parameters are
+governed by spike-and-slab priors. The corresponding parameter is set to
+exactly zero when the effect is excluded, rather than being removed from
+the model. Because the parameter has a well-defined value at every
+iteration, the full chain — including zeros — is a valid sequence for
+computing ESS.
+
+- **n_eff** is the unconditional ESS, computed from the full effect
+  chain. It measures how precisely the overall posterior mean is
+  estimated.
+- **n_eff_mixt** is the mixture ESS. It measures how precisely the
+  posterior mean of the effect is estimated while accounting for the
+  additional uncertainty introduced by the spike-and-slab selection.
+  When the indicator rarely switches between inclusion and exclusion
+  (fewer than 5 transitions), `n_eff_mixt` is suppressed in the printed
+  output.
+
+### Traceplots
+
+Users can inspect traceplots by extracting raw samples directly. Here is
+an example for the pairwise effect parameter.
 
 ``` r
-library(coda)
-
 param_index = 1
-chains = lapply(fit$raw_samples$pairwise, function(mat) mat[, param_index])
-mcmc_obj = mcmc.list(lapply(chains, mcmc))
+chains = fit$raw_samples$pairwise
+nchains = length(chains)
+cols = c("firebrick", "steelblue", "darkgreen", "goldenrod")
 
-traceplot(mcmc_obj,
-  col = c("firebrick", "steelblue", "darkgreen", "goldenrod"),
-  main = "Traceplot of pairwise[1]"
-)
+plot(chains[[1]][, param_index], type = "l", col = cols[1],
+  xlab = "Iteration", ylab = "Value",
+  main = "Traceplot of pairwise[1]",
+  ylim = range(sapply(chains, function(ch) range(ch[, param_index]))))
+if(nchains > 1) {
+  for(c in 2:nchains) {
+    lines(chains[[c]][, param_index], col = cols[c])
+  }
+}
 ```
 
 ![](diagnostics_files/figure-html/unnamed-chunk-5-1.png)
