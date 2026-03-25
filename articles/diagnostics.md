@@ -27,27 +27,27 @@ diagnostics:
 ``` r
 summary(fit)$pairwise
 #>                          mean         mcse          sd     n_eff
-#> intrusion-dreams  0.316707142 0.0010098545 0.034591884 1173.3587
-#> intrusion-flash   0.167709696 0.0009227124 0.032098600 1210.1506
-#> intrusion-upset   0.088672349 0.0056294194 0.043688239  101.0666
-#> intrusion-physior 0.101880020 0.0024784801 0.033795461  361.6609
-#> dreams-flash      0.249884872 0.0008231779 0.030402369 1364.0412
-#> dreams-upset      0.118073148 0.0013525831 0.027885151  425.0286
-#> dreams-physior    0.001072865 0.0003205022 0.006603434  484.5981
-#> flash-upset       0.001168627 0.0004414651 0.007661098 2935.6176
-#> flash-physior     0.152192873 0.0007852046 0.027777015 1251.4270
-#> upset-physior     0.355534822 0.0008746934 0.032272128 1361.2675
-#>                   n_eff_mixt     Rhat
-#> intrusion-dreams          NA 1.003034
-#> intrusion-flash           NA 1.004751
-#> intrusion-upset     60.22847 1.047652
-#> intrusion-physior  185.92847 1.030492
-#> dreams-flash              NA 1.002973
-#> dreams-upset              NA 1.003959
-#> dreams-physior     424.49999 1.008677
-#> flash-upset        301.15450 1.297113
-#> flash-physior             NA 1.001141
-#> upset-physior             NA 1.005101
+#> intrusion-dreams  0.315262872 0.0009987760 0.035166387 1239.7077
+#> intrusion-flash   0.169620044 0.0008705507 0.032988684 1435.9584
+#> intrusion-upset   0.099502069 0.0024611802 0.033776199  613.4641
+#> intrusion-physior 0.098047855 0.0027214306 0.034173756  172.6277
+#> dreams-flash      0.250050075 0.0008473943 0.030153729 1266.2252
+#> dreams-upset      0.114723866 0.0008302209 0.026480829 1017.3628
+#> dreams-physior    0.001696487 0.0003644944 0.008270186  779.0853
+#> flash-upset       0.003157118 0.0005840591 0.011746730  622.5182
+#> flash-physior     0.153058064 0.0007447715 0.026925616 1307.0288
+#> upset-physior     0.355353487 0.0008694551 0.031069593 1276.9586
+#>                   n_eff_mixt      Rhat
+#> intrusion-dreams          NA 1.0044625
+#> intrusion-flash           NA 1.0004411
+#> intrusion-upset     188.3366 1.0308542
+#> intrusion-physior   157.6852 1.0018830
+#> dreams-flash              NA 1.0022334
+#> dreams-upset              NA 0.9998575
+#> dreams-physior      514.8121 1.1224850
+#> flash-upset         404.5017 1.0394968
+#> flash-physior             NA 1.0002557
+#> upset-physior             NA 1.0003577
 ```
 
 - R-hat values close to 1 (typically below 1.01) suggest convergence
@@ -90,10 +90,12 @@ chains = fit$raw_samples$pairwise
 nchains = length(chains)
 cols = c("firebrick", "steelblue", "darkgreen", "goldenrod")
 
-plot(chains[[1]][, param_index], type = "l", col = cols[1],
+plot(chains[[1]][, param_index],
+  type = "l", col = cols[1],
   xlab = "Iteration", ylab = "Value",
   main = "Traceplot of pairwise[1]",
-  ylim = range(sapply(chains, function(ch) range(ch[, param_index]))))
+  ylim = range(sapply(chains, function(ch) range(ch[, param_index])))
+)
 if(nchains > 1) {
   for(c in 2:nchains) {
     lines(chains[[c]][, param_index], col = cols[c])
@@ -110,12 +112,12 @@ edges:
 
 ``` r
 coef(fit)$indicator
-#>           intrusion dreams flash  upset physior
-#> intrusion    0.0000  1.000 1.000 0.8645  0.9705
-#> dreams       1.0000  0.000 1.000 1.0000  0.0260
-#> flash        1.0000  1.000 0.000 0.0230  1.0000
-#> upset        0.8645  1.000 0.023 0.0000  1.0000
-#> physior      0.9705  0.026 1.000 1.0000  0.0000
+#>           intrusion dreams  flash  upset physior
+#> intrusion    0.0000 1.0000 1.0000 0.9725  0.9580
+#> dreams       1.0000 0.0000 1.0000 1.0000  0.0415
+#> flash        1.0000 1.0000 0.0000 0.0695  1.0000
+#> upset        0.9725 1.0000 0.0695 0.0000  1.0000
+#> physior      0.9580 0.0415 1.0000 1.0000  0.0000
 ```
 
 - Values near 1.0: strong evidence the edge is present.
@@ -135,7 +137,7 @@ vs absence:
 p = coef(fit)$indicator[1, 5]
 BF_10 = p / (1 - p)
 BF_10
-#> [1] 32.89831
+#> [1] 22.80952
 ```
 
 Here the Bayes factor in favor of inclusion (H1) is small, meaning that
@@ -145,7 +147,7 @@ transitive, we can use it to express the evidence in favor of exclusion
 
 ``` r
 1 / BF_10
-#> [1] 0.0303967
+#> [1] 0.04384134
 ```
 
 This Bayes factor shows that there is strong evidence for the absence of
@@ -166,7 +168,7 @@ fit$nuts_diag$summary
 #> [1] 0
 #> 
 #> $min_ebfmi
-#> [1] 0.9414881
+#> [1] 0.9542537
 #> 
 #> $warmup_incomplete
 #> [1] TRUE
@@ -226,24 +228,24 @@ the first and second halves of the post-warmup samples:
 ``` r
 fit$nuts_diag$warmup_check
 #> $warmup_incomplete
-#> [1] TRUE TRUE
+#> [1] FALSE  TRUE
 #> 
 #> $energy_slope
 #>     time_idx     time_idx 
-#> -0.001635190  0.004198063 
+#> -0.000186209  0.002743139 
 #> 
 #> $slope_significant
 #> time_idx time_idx 
-#>     TRUE     TRUE 
+#>    FALSE     TRUE 
 #> 
 #> $ebfmi_first_half
-#> [1] 0.9586055 0.9940538
+#> [1] 0.9127405 1.0218598
 #> 
 #> $ebfmi_second_half
-#> [1] 0.9304157 0.9690688
+#> [1] 0.9944623 1.1122781
 #> 
 #> $var_ratio
-#> [1] 1.0693025 0.9312399
+#> [1] 0.9717052 1.1007627
 ```
 
 The returned list contains the following fields (one value per chain):

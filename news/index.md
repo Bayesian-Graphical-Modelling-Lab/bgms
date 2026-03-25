@@ -21,8 +21,26 @@
   missing values during MCMC sampling for both ordinal and continuous
   models.
 
+### Other changes
+
+- default `pairwise_scale` changed from 2.5 to 1, matching the K-scale
+  reparameterization.
+- `pairwise_scale` is now forwarded to the GGM C++ sampler. Previously,
+  the argument was accepted by
+  [`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)
+  but silently ignored for continuous models, which always used 2.5.
+- [`summary()`](https://rdrr.io/r/base/summary.html) for GGM and mixed
+  MRF models reports residual variances instead of raw precision
+  diagonal values.
+- removed redundant C++ constructor defaults for prior parameters;
+  missing values now cause compile errors instead of silent fallbacks.
+
 ### Bug fixes
 
+- fixed compilation failure on Alpine/musl: `mrf_simulation.cpp` used
+  `tbb::global_control` without explicitly including
+  `<tbb/global_control.h>`, relying on a transitive include that is not
+  available on all platforms.
 - fixed Blume-Capel imputation: zero-category probability had wrong sign
   and was double-counted. Replaced with unified loop over all
   categories, matching
