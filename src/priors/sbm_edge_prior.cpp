@@ -143,13 +143,13 @@ double log_marginal_mfm_sbm(arma::uvec cluster_assign,
       // Gamma(z+n)/Gamma(z) = prod_{m=0}^{n-1} (z+m), which holds since sumG and sumN are integers.
       // This avoids lbeta/lgamma calls and is faster for small cluster sizes.
       for(int m = 0; m < sumG; m++){
-        output += std::log(beta_bernoulli_alpha_between + m);
+        output += MY_LOG(beta_bernoulli_alpha_between + m);
       }
       for(int m = 0; m < (sumN - sumG); m++){
-        output += std::log(beta_bernoulli_beta_between + m);
+        output += MY_LOG(beta_bernoulli_beta_between + m);
       }
       for(int m = 0; m < sumN; m++){
-        output -= std::log(beta_bernoulli_alpha_between + beta_bernoulli_beta_between + m);
+        output -= MY_LOG(beta_bernoulli_alpha_between + beta_bernoulli_beta_between + m);
       }
     }
   }

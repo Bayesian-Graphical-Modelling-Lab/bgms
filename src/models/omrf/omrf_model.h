@@ -46,10 +46,10 @@ public:
         const arma::imat& initial_edge_indicators,
         const arma::uvec& is_ordinal_variable,
         const arma::ivec& baseline_category,
-        double main_alpha = 1.0,
-        double main_beta = 1.0,
-        double pairwise_scale = 2.5,
-        bool edge_selection = true
+        double main_alpha,
+        double main_beta,
+        double pairwise_scale,
+        bool edge_selection
     );
 
     /**

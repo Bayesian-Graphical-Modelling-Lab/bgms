@@ -40,8 +40,8 @@ public:
             const arma::mat& observations,
             const arma::mat& inclusion_probability,
             const arma::imat& initial_edge_indicators,
-            const bool edge_selection = true,
-            const double pairwise_scale = 2.5,
+            const bool edge_selection,
+            const double pairwise_scale,
             const bool na_impute = false
     ) : n_(observations.n_rows),
         p_(observations.n_cols),
@@ -86,8 +86,8 @@ public:
             const arma::mat& suf_stat,
             const arma::mat& inclusion_probability,
             const arma::imat& initial_edge_indicators,
-            const bool edge_selection = true,
-            const double pairwise_scale = 2.5
+            const bool edge_selection,
+            const double pairwise_scale
     ) : n_(n),
         p_(suf_stat.n_cols),
         dim_((p_ * (p_ + 1)) / 2),
@@ -719,7 +719,7 @@ GGMModel createGGMModelFromR(
     const Rcpp::List& inputFromR,
     const arma::mat& inclusion_probability,
     const arma::imat& initial_edge_indicators,
-    const bool edge_selection = true,
-    const double pairwise_scale = 2.5,
+    const bool edge_selection,
+    const double pairwise_scale,
     const bool na_impute = false
 );

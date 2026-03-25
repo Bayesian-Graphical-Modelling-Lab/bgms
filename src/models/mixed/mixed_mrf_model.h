@@ -71,10 +71,10 @@ public:
         const arma::imat& initial_edge_indicators,
         bool edge_selection,
         const std::string& pseudolikelihood,
-        double main_alpha = 1.0,
-        double main_beta = 1.0,
-        double pairwise_scale = 2.5,
-        int seed = 1
+        double main_alpha,
+        double main_beta,
+        double pairwise_scale,
+        int seed
     );
 
     /** Copy constructor for cloning (required for parallel chains). */
