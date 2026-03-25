@@ -6,6 +6,13 @@
 * Gaussian graphical models (GGM): `bgm(x, variable_type = "continuous")` fits a GGM with Bayesian edge selection. Pairwise effects are partial correlations from the precision matrix.
 * Missing data imputation: `na_action = "impute"` integrates over missing values during MCMC sampling for both ordinal and continuous models.
 
+## Other changes
+
+* default `pairwise_scale` changed from 2.5 to 1, matching the K-scale reparameterization.
+* `pairwise_scale` is now forwarded to the GGM C++ sampler. Previously, the argument was accepted by `bgm()` but silently ignored for continuous models, which always used 2.5.
+* `summary()` for GGM and mixed MRF models reports residual variances instead of raw precision diagonal values.
+* removed redundant C++ constructor defaults for prior parameters; missing values now cause compile errors instead of silent fallbacks.
+
 ## Bug fixes
 
 * fixed compilation failure on Alpine/musl: `mrf_simulation.cpp` used `tbb::global_control` without explicitly including `<tbb/global_control.h>`, relying on a transitive include that is not available on all platforms.
