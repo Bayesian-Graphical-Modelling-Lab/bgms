@@ -28,6 +28,8 @@
 
 # Development helpers
 ^dev$
+^paper$
+^LICENSE$
 
 # ---- Legacy test fixtures (GitHub CI only, not shipped to CRAN) ----
 ^tests/testthat/fixtures$

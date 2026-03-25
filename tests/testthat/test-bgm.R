@@ -464,7 +464,8 @@ test_that("GGM imputation preserves posterior accuracy", {
   Omega_true[3, 4] = Omega_true[4, 3] = -0.3
 
   Sigma = solve(Omega_true)
-  x_full = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
+  L = chol(Sigma)
+  x_full = matrix(rnorm(n * p), n, p) %*% L
   colnames(x_full) = paste0("V", 1:p)
 
   # Fit on complete data

@@ -191,6 +191,39 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// compute_ess_cpp
+Rcpp::NumericVector compute_ess_cpp(Rcpp::NumericVector array3d);
+RcppExport SEXP _bgms_compute_ess_cpp(SEXP array3dSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type array3d(array3dSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_ess_cpp(array3d));
+    return rcpp_result_gen;
+END_RCPP
+}
+// compute_rhat_cpp
+Rcpp::NumericVector compute_rhat_cpp(Rcpp::NumericVector array3d);
+RcppExport SEXP _bgms_compute_rhat_cpp(SEXP array3dSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type array3d(array3dSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_rhat_cpp(array3d));
+    return rcpp_result_gen;
+END_RCPP
+}
+// compute_indicator_ess_cpp
+Rcpp::NumericMatrix compute_indicator_ess_cpp(Rcpp::NumericVector array3d);
+RcppExport SEXP _bgms_compute_indicator_ess_cpp(SEXP array3dSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type array3d(array3dSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_indicator_ess_cpp(array3d));
+    return rcpp_result_gen;
+END_RCPP
+}
 // mixed_test_logp_and_gradient
 Rcpp::List mixed_test_logp_and_gradient(const arma::vec& params, const arma::imat& discrete_observations, const arma::mat& continuous_observations, const arma::ivec& num_categories, const arma::uvec& is_ordinal_variable, const arma::ivec& baseline_category, const arma::imat& edge_indicators, const std::string& pseudolikelihood, double pairwise_scale);
 RcppExport SEXP _bgms_mixed_test_logp_and_gradient(SEXP paramsSEXP, SEXP discrete_observationsSEXP, SEXP continuous_observationsSEXP, SEXP num_categoriesSEXP, SEXP is_ordinal_variableSEXP, SEXP baseline_categorySEXP, SEXP edge_indicatorsSEXP, SEXP pseudolikelihoodSEXP, SEXP pairwise_scaleSEXP) {
@@ -609,6 +642,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_ggm_test_logp_and_gradient_full", (DL_FUNC) &_bgms_ggm_test_logp_and_gradient_full, 5},
     {"_bgms_ggm_test_project_momentum", (DL_FUNC) &_bgms_ggm_test_project_momentum, 4},
     {"_bgms_ggm_test_leapfrog_constrained", (DL_FUNC) &_bgms_ggm_test_leapfrog_constrained, 9},
+    {"_bgms_compute_ess_cpp", (DL_FUNC) &_bgms_compute_ess_cpp, 1},
+    {"_bgms_compute_rhat_cpp", (DL_FUNC) &_bgms_compute_rhat_cpp, 1},
+    {"_bgms_compute_indicator_ess_cpp", (DL_FUNC) &_bgms_compute_indicator_ess_cpp, 1},
     {"_bgms_mixed_test_logp_and_gradient", (DL_FUNC) &_bgms_mixed_test_logp_and_gradient, 9},
     {"_bgms_mixed_test_logp_and_gradient_full", (DL_FUNC) &_bgms_mixed_test_logp_and_gradient_full, 9},
     {"_bgms_mixed_test_project_position", (DL_FUNC) &_bgms_mixed_test_project_position, 10},

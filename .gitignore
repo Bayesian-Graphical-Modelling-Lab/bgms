@@ -21,3 +21,7 @@ docs/*
 /inst/doc/
 dev/
 /paper/
+
+# testthat problem artefacts
+tests/testthat/_problems/
+tests/testthat/testthat-problems.rds

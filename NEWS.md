@@ -6,8 +6,16 @@
 * Gaussian graphical models (GGM): `bgm(x, variable_type = "continuous")` fits a GGM with Bayesian edge selection. Pairwise effects are partial correlations from the precision matrix.
 * Missing data imputation: `na_action = "impute"` integrates over missing values during MCMC sampling for both ordinal and continuous models.
 
+## Other changes
+
+* default `pairwise_scale` changed from 2.5 to 1, matching the K-scale reparameterization.
+* `pairwise_scale` is now forwarded to the GGM C++ sampler. Previously, the argument was accepted by `bgm()` but silently ignored for continuous models, which always used 2.5.
+* `summary()` for GGM and mixed MRF models reports residual variances instead of raw precision diagonal values.
+* removed redundant C++ constructor defaults for prior parameters; missing values now cause compile errors instead of silent fallbacks.
+
 ## Bug fixes
 
+* fixed compilation failure on Alpine/musl: `mrf_simulation.cpp` used `tbb::global_control` without explicitly including `<tbb/global_control.h>`, relying on a transitive include that is not available on all platforms.
 * fixed Blume-Capel imputation: zero-category probability had wrong sign and was double-counted. Replaced with unified loop over all categories, matching `simulate_mrf()`.
 * fixed stale gradient cache after missing data imputation: `impute_missing()` updated sufficient statistics (`counts_per_category_`, `blume_capel_stats_`, `pairwise_stats_`) but did not invalidate the gradient cache, causing NUTS to use outdated cached values for the leapfrog integration.
 * fixed stale observation transpose after missing data imputation: the precomputed `observations_double_t_` matrix was set once in the constructor but never refreshed after `impute_missing()` changed cells in `observations_double_`, causing the pairwise gradient (`observations_double_t_ * E`) to use stale data.

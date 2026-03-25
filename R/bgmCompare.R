@@ -102,7 +102,7 @@
 #'   of the Beta prior for inclusion probabilities in the Beta–Bernoulli
 #'   model. Defaults: \code{1}.
 #' @param pairwise_scale Double. Scale of the Cauchy prior for baseline
-#'   pairwise interactions. Default: \code{2.5}.
+#'   pairwise interactions. Default: \code{1}.
 #' @param standardize Logical. If \code{TRUE}, the Cauchy prior scale for each
 #'   pairwise interaction (both baseline and difference) is adjusted based on
 #'   the range of response scores. Without standardization, pairs with more
@@ -207,7 +207,7 @@ bgmCompare = function(
   difference_probability = 0.5,
   beta_bernoulli_alpha = 1,
   beta_bernoulli_beta = 1,
-  pairwise_scale = 2.5,
+  pairwise_scale = 1,
   main_alpha = 0.5,
   main_beta = 0.5,
   iter = 1e3,

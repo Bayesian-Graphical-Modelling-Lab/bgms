@@ -308,7 +308,7 @@ build_output_bgm = function(spec, raw) {
 
   # --- Parameter names --------------------------------------------------------
   if(is_continuous) {
-    # GGM: one "precision" per variable
+    # GGM: raw samples are on precision scale; label accordingly
     names_main = paste0(data_columnnames, " (precision)")
     is_ordinal_variable = NULL
     num_categories = NULL
@@ -344,32 +344,30 @@ build_output_bgm = function(spec, raw) {
     }
   }
 
-  # --- MCMC summaries ---------------------------------------------------------
-  summary_list = summarize_fit(raw, edge_selection = edge_selection)
-  main_summary = summary_list$main[, -1]
-  pairwise_summary = summary_list$pairwise[, -1]
+  # --- Lazy MCMC diagnostics cache --------------------------------------------
+  # Store normalized raw chains and metadata so that ensure_summaries() can
+  # compute ESS/Rhat/MCSE on first demand. Posterior_summary_* fields start
+  # as NULL and are populated lazily.
+  cache = new.env(parent = emptyenv())
+  cache$raw = raw
+  cache$edge_selection = edge_selection
+  cache$names_main = names_main
+  cache$edge_names = edge_names
+  cache$is_continuous = is_continuous
+  cache$model_type = if(is_continuous) "ggm" else "omrf"
+  cache$summaries_computed = FALSE
 
-  rownames(main_summary) = names_main
-  rownames(pairwise_summary) = edge_names
+  # --- Compute posterior means from raw samples (cheap) -----------------------
+  pooled_main = do.call(rbind, lapply(raw, function(ch) ch$main_samples))
+  pooled_pair = do.call(rbind, lapply(raw, function(ch) ch$pairwise_samples))
+  main_means = colMeans(pooled_main)
+  pair_means = colMeans(pooled_pair)
 
   results = list()
 
-  if(is_continuous) {
-    # GGM has no main effects; the precision diagonal is quadratic
-    results$posterior_summary_main = NULL
-    results$posterior_summary_quadratic = main_summary
-  } else {
-    results$posterior_summary_main = main_summary
-  }
-  results$posterior_summary_pairwise = pairwise_summary
-
-  # --- Edge selection summaries -----------------------------------------------
+  # --- Edge selection summaries (deferred) ------------------------------------
   has_sbm = FALSE
   if(edge_selection) {
-    indicator_summary = summary_list$indicator[, -1]
-    rownames(indicator_summary) = edge_names
-    results$posterior_summary_indicator = indicator_summary
-
     has_sbm = identical(edge_prior, "Stochastic-Block") &&
       "allocations" %in% names(raw[[1]])
 
@@ -399,11 +397,11 @@ build_output_bgm = function(spec, raw) {
       if(is_ordinal_variable[vi]) {
         start = stop + 1L
         stop = start + num_categories[vi] - 1L
-        pmm[vi, seq_len(num_categories[vi])] = main_summary$mean[start:stop]
+        pmm[vi, seq_len(num_categories[vi])] = main_means[start:stop]
       } else {
         start = stop + 1L
         stop = start + 1L
-        pmm[vi, 1:2] = main_summary$mean[start:stop]
+        pmm[vi, 1:2] = main_means[start:stop]
       }
     }
     results$posterior_mean_main = pmm
@@ -418,7 +416,7 @@ build_output_bgm = function(spec, raw) {
     nrow = num_variables, ncol = num_variables,
     dimnames = list(data_columnnames, data_columnnames)
   )
-  associations[lower.tri(associations)] = pairwise_summary$mean
+  associations[lower.tri(associations)] = pair_means
   associations = associations + t(associations)
   if(is_continuous) {
     associations = -0.5 * associations
@@ -426,15 +424,17 @@ build_output_bgm = function(spec, raw) {
   results$posterior_mean_associations = associations
 
   # --- Residual variance (GGM only) -------------------------------------------
-  # C++ stores precision diagonal; convert to residual variance = 1 / diag.
+  # C++ stores precision diagonal; residual variance = 1 / precision.
+  # Average per-sample inversions to avoid Jensen's inequality bias.
   if(is_continuous) {
-    results$posterior_mean_residual_variance = 1 / main_summary$mean
+    results$posterior_mean_residual_variance = colMeans(1 / pooled_main)
     names(results$posterior_mean_residual_variance) = data_columnnames
   }
 
   # --- Posterior mean: indicator + SBM ----------------------------------------
   if(edge_selection) {
-    indicator_means = indicator_summary$mean
+    pooled_ind = do.call(rbind, lapply(raw, function(ch) ch$indicator_samples))
+    indicator_means = colMeans(pooled_ind)
     results$posterior_mean_indicator = matrix(0,
       nrow = num_variables, ncol = num_variables,
       dimnames = list(data_columnnames, data_columnnames)
@@ -472,7 +472,16 @@ build_output_bgm = function(spec, raw) {
     raw, edge_selection, edge_prior, names_main, edge_names, alloc_names
   )
 
-  # --- easybgm compat shim (OMRF only) ---------------------------------------
+  # --- Attach lazy cache for deferred diagnostics -----------------------------
+  # NULL placeholders ensure names(fit) lists these fields for easybgm compat.
+  # The $.bgms method routes actual access through the cache.
+  # Use list(NULL) because results$x = NULL removes the element in R.
+  results["posterior_summary_main"] = list(NULL)
+  results["posterior_summary_pairwise"] = list(NULL)
+  if(edge_selection) {
+    results["posterior_summary_indicator"] = list(NULL)
+  }
+  results$cache = cache
   if(!is_continuous && "easybgm" %in% loadedNamespaces()) {
     ebgm_version = utils::packageVersion("easybgm")
     if(ebgm_version <= "0.2.1") {
@@ -632,33 +641,35 @@ build_output_mixed_mrf = function(spec, raw) {
     }
   }
 
-  # --- MCMC summaries ---------------------------------------------------------
-  summary_list = summarize_fit(raw, edge_selection = edge_selection)
-  main_summary = summary_list$main[, -1]
-  pairwise_summary = summary_list$pairwise[, -1]
+  # --- Lazy MCMC diagnostics cache --------------------------------------------
+  cache = new.env(parent = emptyenv())
+  cache$raw = raw
+  cache$edge_selection = edge_selection
+  cache$names_main = names_main
+  cache$edge_names = edge_names
+  cache$is_continuous = FALSE
+  cache$model_type = "mixed_mrf"
+  cache$summaries_computed = FALSE
 
-  rownames(main_summary) = names_main
-  rownames(pairwise_summary) = edge_names
+  # --- Compute posterior means from raw samples (cheap) -----------------------
+  pooled_main = do.call(rbind, lapply(raw, function(ch) ch$main_samples))
+  pooled_pair = do.call(rbind, lapply(raw, function(ch) ch$pairwise_samples))
+  main_means = colMeans(pooled_main)
+  pair_means = colMeans(pooled_pair)
 
-  # Split main_summary into true main effects and quadratic (precision diagonal)
+  # Split main_means into true main effects and quadratic (precision diagonal)
   n_main = nt + q # thresholds + continuous means
   n_quad = layout$num_quadratic # precision diagonal entries
-  main_rows = seq_len(n_main)
-  quad_rows = n_main + seq_len(n_quad)
+
+  cache$n_main = n_main
+  cache$n_quad = n_quad
 
   results = list()
-  results$posterior_summary_main = main_summary[main_rows, , drop = FALSE]
-  results$posterior_summary_quadratic = main_summary[quad_rows, , drop = FALSE]
-  results$posterior_summary_pairwise = pairwise_summary
 
-  # --- Edge selection summaries -----------------------------------------------
+  # --- Edge selection summaries (deferred) ------------------------------------
   edge_prior = pr$edge_prior
   has_sbm = FALSE
   if(edge_selection) {
-    indicator_summary = summary_list$indicator[, -1]
-    rownames(indicator_summary) = edge_names
-    results$posterior_summary_indicator = indicator_summary
-
     has_sbm = identical(edge_prior, "Stochastic-Block") &&
       "allocations" %in% names(raw[[1]])
 
@@ -683,18 +694,18 @@ build_output_mixed_mrf = function(spec, raw) {
     if(is_ordinal[si]) {
       start = stop + 1L
       stop = start + num_categories[si] - 1L
-      pmm_disc[si, seq_len(num_categories[si])] = main_summary$mean[start:stop]
+      pmm_disc[si, seq_len(num_categories[si])] = main_means[start:stop]
     } else {
       start = stop + 1L
       stop = start + 1L
-      pmm_disc[si, 1:2] = main_summary$mean[start:stop]
+      pmm_disc[si, 1:2] = main_means[start:stop]
     }
   }
   rownames(pmm_disc) = disc_names
   colnames(pmm_disc) = paste0("cat (", seq_len(max_num_cats), ")")
 
   # Continuous main effects: q × 1 matrix (means only)
-  pmm_cont = matrix(main_summary$mean[nt + seq_len(q)],
+  pmm_cont = matrix(main_means[nt + seq_len(q)],
     nrow = q, ncol = 1,
     dimnames = list(cont_names, "mean")
   )
@@ -707,19 +718,23 @@ build_output_mixed_mrf = function(spec, raw) {
   # --- Posterior mean: associations (all blocks) -----------------------------
   dn = list(data_columnnames, data_columnnames)
   results$posterior_mean_associations = fill_mixed_symmetric(
-    pairwise_summary$mean, p, q, disc_idx, cont_idx, dn
+    pair_means, p, q, disc_idx, cont_idx, dn
   )
 
   # --- Residual variance (continuous diagonal) --------------------------------
-  # C++ stores negative association diagonal; convert to residual variance.
-  assoc_diag_means = main_summary$mean[nt + q + seq_len(q)]
-  names(assoc_diag_means) = cont_names
-  results$posterior_mean_residual_variance = -1 / (2 * assoc_diag_means)
+  # C++ stores negative association diagonal; residual variance = -1/(2*diag).
+  # Average per-sample inversions to avoid Jensen's inequality bias.
+  pooled_quad = pooled_main[, nt + q + seq_len(q), drop = FALSE]
+  rv = colMeans(-1 / (2 * pooled_quad))
+  names(rv) = cont_names
+  results$posterior_mean_residual_variance = rv
 
   # --- Posterior mean: indicator -----------------------------------------------
   if(edge_selection) {
+    pooled_ind = do.call(rbind, lapply(raw, function(ch) ch$indicator_samples))
+    indicator_means = colMeans(pooled_ind)
     results$posterior_mean_indicator = fill_mixed_symmetric(
-      indicator_summary$mean, p, q, disc_idx, cont_idx, dn
+      indicator_means, p, q, disc_idx, cont_idx, dn
     )
 
     if(has_sbm) {
@@ -738,6 +753,14 @@ build_output_mixed_mrf = function(spec, raw) {
 
   # --- arguments + class ------------------------------------------------------
   results$arguments = build_arguments(spec)
+  # NULL placeholders ensure names(fit) lists these fields for easybgm compat.
+  # Use list(NULL) because results$x = NULL removes the element in R.
+  results["posterior_summary_main"] = list(NULL)
+  results["posterior_summary_pairwise"] = list(NULL)
+  if(edge_selection) {
+    results["posterior_summary_indicator"] = list(NULL)
+  }
+  results$cache = cache
   class(results) = "bgms"
 
   # --- raw_samples ------------------------------------------------------------
@@ -788,31 +811,30 @@ build_output_compare = function(spec, raw) {
     num_groups          = num_groups
   )
 
-  # --- MCMC summaries ---------------------------------------------------------
-  summary_list = summarize_fit_compare(
-    fit = raw,
-    main_effect_indices = pc$main_effect_indices,
-    pairwise_effect_indices = pc$pairwise_effect_indices,
-    num_variables = num_variables,
-    num_groups = num_groups,
-    difference_selection = difference_selection,
-    param_names_main = names_all$main_baseline,
-    param_names_pairwise = names_all$pairwise_baseline,
-    param_names_main_diff = names_all$main_diff,
-    param_names_pairwise_diff = names_all$pairwise_diff,
-    param_names_indicators = names_all$indicators
-  )
+  # --- Lazy MCMC diagnostics cache --------------------------------------------
+  cache = new.env(parent = emptyenv())
+  cache$raw = raw
+  cache$difference_selection = difference_selection
+  cache$main_effect_indices = pc$main_effect_indices
+  cache$pairwise_effect_indices = pc$pairwise_effect_indices
+  cache$num_variables = num_variables
+  cache$num_groups = num_groups
+  cache$names_all = names_all
+  cache$model_type = "compare"
+  cache$summaries_computed = FALSE
 
-  results = list(
-    posterior_summary_main_baseline        = summary_list$main_baseline,
-    posterior_summary_pairwise_baseline    = summary_list$pairwise_baseline,
-    posterior_summary_main_differences     = summary_list$main_differences,
-    posterior_summary_pairwise_differences = summary_list$pairwise_differences
-  )
+  # --- Compute baseline means from raw samples (cheap) -------------------------
+  num_main = pc$main_effect_indices[nrow(pc$main_effect_indices), 2] + 1
+  num_pair = pc$pairwise_effect_indices[
+    nrow(pc$pairwise_effect_indices),
+    nrow(pc$pairwise_effect_indices) - 1
+  ] + 1
+  pooled_main_bl = do.call(rbind, lapply(raw, function(ch) ch$main_samples[, 1:num_main, drop = FALSE]))
+  pooled_pair_bl = do.call(rbind, lapply(raw, function(ch) ch$pairwise_samples[, 1:num_pair, drop = FALSE]))
+  main_bl_means = colMeans(pooled_main_bl)
+  pair_bl_means = colMeans(pooled_pair_bl)
 
-  if(difference_selection) {
-    results$posterior_summary_indicator = summary_list$indicators
-  }
+  results = list()
 
   # --- Posterior mean: main baseline ------------------------------------------
   num_params = ifelse(is_ordinal_variable, num_categories, 2L)
@@ -825,12 +847,11 @@ build_output_compare = function(spec, raw) {
     if(is_ordinal_variable[vi]) {
       start = stop + 1L
       stop = start + num_categories[vi] - 1L
-      pmm[vi, seq_len(num_categories[vi])] =
-        summary_list$main_baseline$mean[start:stop]
+      pmm[vi, seq_len(num_categories[vi])] = main_bl_means[start:stop]
     } else {
       start = stop + 1L
       stop = start + 1L
-      pmm[vi, 1:2] = summary_list$main_baseline$mean[start:stop]
+      pmm[vi, 1:2] = main_bl_means[start:stop]
     }
   }
   results$posterior_mean_main_baseline = pmm
@@ -845,10 +866,55 @@ build_output_compare = function(spec, raw) {
   )
   results$posterior_mean_associations_baseline[
     lower.tri(results$posterior_mean_associations_baseline)
-  ] = summary_list$pairwise_baseline$mean
+  ] = pair_bl_means
   results$posterior_mean_associations_baseline =
     results$posterior_mean_associations_baseline +
     t(results$posterior_mean_associations_baseline)
+
+  # --- Posterior mean: main differences ---------------------------------------
+  n_main_total = ncol(raw[[1]]$main_samples)
+  pooled_main_diff = do.call(rbind, lapply(raw, function(ch) {
+    ch$main_samples[, (num_main + 1):n_main_total, drop = FALSE]
+  }))
+  main_diff_means = colMeans(pooled_main_diff)
+
+  pmm_diff = matrix(NA, nrow = num_variables, ncol = max_num_categories)
+  start = 0L
+  stop = 0L
+  for(vi in seq_len(num_variables)) {
+    if(is_ordinal_variable[vi]) {
+      start = stop + 1L
+      stop = start + num_categories[vi] - 1L
+      pmm_diff[vi, seq_len(num_categories[vi])] =
+        main_diff_means[start:stop]
+    } else {
+      start = stop + 1L
+      stop = start + 1L
+      pmm_diff[vi, 1:2] = main_diff_means[start:stop]
+    }
+  }
+  results$posterior_mean_main_differences = pmm_diff
+  rownames(results$posterior_mean_main_differences) = data_columnnames
+  colnames(results$posterior_mean_main_differences) =
+    paste0("cat (", seq_len(ncol(pmm_diff)), ")")
+
+  # --- Posterior mean: associations differences --------------------------------
+  n_pair_total = ncol(raw[[1]]$pairwise_samples)
+  pooled_pair_diff = do.call(rbind, lapply(raw, function(ch) {
+    ch$pairwise_samples[, (num_pair + 1):n_pair_total, drop = FALSE]
+  }))
+  pair_diff_means = colMeans(pooled_pair_diff)
+
+  results$posterior_mean_associations_differences = matrix(0,
+    nrow = num_variables, ncol = num_variables,
+    dimnames = list(data_columnnames, data_columnnames)
+  )
+  results$posterior_mean_associations_differences[
+    lower.tri(results$posterior_mean_associations_differences)
+  ] = pair_diff_means
+  results$posterior_mean_associations_differences =
+    results$posterior_mean_associations_differences +
+    t(results$posterior_mean_associations_differences)
 
   # --- raw_samples ------------------------------------------------------------
   results$raw_samples = list(
@@ -866,6 +932,16 @@ build_output_compare = function(spec, raw) {
 
   # --- arguments + class ------------------------------------------------------
   results$arguments = build_arguments(spec)
+  # NULL placeholders ensure names(fit) lists these fields for easybgm compat.
+  # Use list(NULL) because results$x = NULL removes the element in R.
+  results["posterior_summary_main_baseline"] = list(NULL)
+  results["posterior_summary_pairwise_baseline"] = list(NULL)
+  results["posterior_summary_main_differences"] = list(NULL)
+  results["posterior_summary_pairwise_differences"] = list(NULL)
+  if(difference_selection) {
+    results["posterior_summary_indicator"] = list(NULL)
+  }
+  results$cache = cache
   class(results) = "bgmCompare"
 
   # --- NUTS diagnostics -------------------------------------------------------

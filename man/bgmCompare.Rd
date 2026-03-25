@@ -17,7 +17,7 @@ bgmCompare(
   difference_probability = 0.5,
   beta_bernoulli_alpha = 1,
   beta_bernoulli_beta = 1,
-  pairwise_scale = 2.5,
+  pairwise_scale = 1,
   main_alpha = 0.5,
   main_beta = 0.5,
   iter = 1000,
@@ -95,7 +95,7 @@ of the Beta prior for inclusion probabilities in the Beta–Bernoulli
 model. Defaults: \code{1}.}
 
 \item{pairwise_scale}{Double. Scale of the Cauchy prior for baseline
-pairwise interactions. Default: \code{2.5}.}
+pairwise interactions. Default: \code{1}.}
 
 \item{main_alpha, main_beta}{Doubles. Shape parameters of the beta-prime
 prior for baseline threshold parameters. Defaults: \code{0.5}.}

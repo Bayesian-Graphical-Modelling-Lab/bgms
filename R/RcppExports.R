@@ -45,6 +45,18 @@ ggm_test_leapfrog_constrained <- function(x0, r0, step_size, n_steps, suf_stat, 
     .Call(`_bgms_ggm_test_leapfrog_constrained`, x0, r0, step_size, n_steps, suf_stat, n, edge_indicators, pairwise_scale, inv_mass_in)
 }
 
+.compute_ess_cpp <- function(array3d) {
+    .Call(`_bgms_compute_ess_cpp`, array3d)
+}
+
+.compute_rhat_cpp <- function(array3d) {
+    .Call(`_bgms_compute_rhat_cpp`, array3d)
+}
+
+.compute_indicator_ess_cpp <- function(array3d) {
+    .Call(`_bgms_compute_indicator_ess_cpp`, array3d)
+}
+
 mixed_test_logp_and_gradient <- function(params, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pseudolikelihood, pairwise_scale) {
     .Call(`_bgms_mixed_test_logp_and_gradient`, params, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pseudolikelihood, pairwise_scale)
 }
