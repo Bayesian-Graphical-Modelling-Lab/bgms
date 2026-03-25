@@ -449,13 +449,13 @@ void MixedMRFModel::update_pairwise_effects_continuous_offdiag(int i, int j, int
     //   Gamma(1, 1) on negative diagonal = 1/2 * precision_jj
     double cont_prop_ij = -0.5 * theta_prop_ij;
     double cont_curr_ij = pairwise_effects_continuous_(i, j);
-    double neg_cont_prop_jj = 0.5 * theta_prop_jj;
-    double neg_cont_curr_jj = -pairwise_effects_continuous_(j, j);
 
     ln_alpha += R::dcauchy(cont_prop_ij, 0.0, pairwise_scale_, true);
     ln_alpha -= R::dcauchy(cont_curr_ij, 0.0, pairwise_scale_, true);
-    ln_alpha += R::dgamma(neg_cont_prop_jj, 1.0, 1.0, true);
-    ln_alpha -= R::dgamma(neg_cont_curr_jj, 1.0, 1.0, true);
+
+    // Gamma(1,1) prior on changed diagonal K_jj
+    ln_alpha += R::dgamma(theta_prop_jj, 1.0, 1.0, true);
+    ln_alpha -= R::dgamma(-2.0 * pairwise_effects_continuous_(j, j), 1.0, 1.0, true);
 
     if(MY_LOG(runif(rng_)) < ln_alpha) {
         // Pass old precision values to Cholesky update
@@ -523,14 +523,12 @@ void MixedMRFModel::update_pairwise_effects_continuous_diag(int i, int iteration
         marginal_interactions_ = std::move(marginal_saved);
     }
 
-    // Prior ratio: Gamma(1,1) on negative diagonal
-    double neg_cont_prop = 0.5 * theta_ii_prop;
-    double neg_cont_curr = -pairwise_effects_continuous_(i, i);
-    ln_alpha += R::dgamma(neg_cont_prop, 1.0, 1.0, true);
-    ln_alpha -= R::dgamma(neg_cont_curr, 1.0, 1.0, true);
+    // Prior ratio: Gamma(1,1) on K_ii (precision diagonal)
+    ln_alpha += R::dgamma(theta_ii_prop, 1.0, 1.0, true);
+    ln_alpha -= R::dgamma(theta_ii_curr, 1.0, 1.0, true);
 
-    // Jacobian for log-scale proposal
-    ln_alpha += theta_prop - theta_curr;
+    // Jacobian: dK_ii/dtheta = 2*exp(2*theta)
+    ln_alpha += 2.0 * (theta_prop - theta_curr);
 
     if(MY_LOG(runif(rng_)) < ln_alpha) {
         // Pass old precision value to Cholesky update
@@ -744,6 +742,11 @@ void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
     // off-diagonal = -1/2 * precision_ij
     double cont_prop_ij = -0.5 * theta_prop_ij;
     double cont_curr_ij = pairwise_effects_continuous_(i, j);
+
+    // Gamma(1,1) prior on changed diagonal K_jj (always present, not part of spike-and-slab)
+    ln_alpha += R::dgamma(theta_prop_jj, 1.0, 1.0, true);
+    ln_alpha -= R::dgamma(-2.0 * pairwise_effects_continuous_(j, j), 1.0, 1.0, true);
+
     // The proposal density is on the precision reparameterized scale:
     // theta_prop_ij = C[3] * epsilon, so epsilon = theta_prop_ij / C[3]
     if(g_prop == 1) {

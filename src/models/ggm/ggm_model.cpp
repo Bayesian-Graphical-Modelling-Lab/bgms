@@ -684,6 +684,10 @@ void GGMModel::update_edge_parameter(size_t i, size_t j, int iteration) {
     ln_alpha += R::dcauchy(precision_proposal_(i, j), 0.0, pairwise_scale_, true);
     ln_alpha -= R::dcauchy(precision_matrix_(i, j), 0.0, pairwise_scale_, true);
 
+    // Gamma(1,1) prior on changed diagonal K_jj
+    ln_alpha += R::dgamma(precision_proposal_(j, j), 1.0, 1.0, true);
+    ln_alpha -= R::dgamma(precision_matrix_(j, j), 1.0, 1.0, true);
+
     if (MY_LOG(runif(rng_)) < ln_alpha) {
         double omega_ij_old = precision_matrix_(i, j);
         double omega_jj_old = precision_matrix_(j, j);
@@ -757,9 +761,9 @@ void GGMModel::update_diagonal_parameter(size_t i, int iteration) {
 
     double ln_alpha = log_density_impl_diag(i);
 
-    ln_alpha += R::dgamma(MY_EXP(theta_prop), 1.0, 1.0, true);
-    ln_alpha -= R::dgamma(MY_EXP(theta_curr), 1.0, 1.0, true);
-    ln_alpha += theta_prop - theta_curr; // Jacobian adjustment
+    ln_alpha += R::dgamma(precision_proposal_(i, i), 1.0, 1.0, true);
+    ln_alpha -= R::dgamma(precision_matrix_(i, i), 1.0, 1.0, true);
+    ln_alpha += 2.0 * (theta_prop - theta_curr); // Jacobian: dK_ii/dtheta = 2*exp(2*theta)
 
     if (MY_LOG(runif(rng_)) < ln_alpha) {
         double omega_ii = precision_matrix_(i, i);
@@ -836,6 +840,10 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         ln_alpha += R::dnorm(precision_matrix_(i, j) / constants_[3], 0.0, proposal_sd, true) - MY_LOG(constants_[3]);
         ln_alpha -= R::dcauchy(precision_matrix_(i, j), 0.0, pairwise_scale_, true);
 
+        // Gamma(1,1) prior on changed diagonal K_jj
+        ln_alpha += R::dgamma(precision_proposal_(j, j), 1.0, 1.0, true);
+        ln_alpha -= R::dgamma(precision_matrix_(j, j), 1.0, 1.0, true);
+
         if (MY_LOG(runif(rng_)) < ln_alpha) {
 
             // Store old values for Cholesky update
@@ -886,6 +894,10 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 
         // Prior change: add slab (Cauchy prior)
         ln_alpha += R::dcauchy(omega_prop_ij, 0.0, pairwise_scale_, true);
+
+        // Gamma(1,1) prior on changed diagonal K_jj
+        ln_alpha += R::dgamma(precision_proposal_(j, j), 1.0, 1.0, true);
+        ln_alpha -= R::dgamma(precision_matrix_(j, j), 1.0, 1.0, true);
 
         // Proposal term: proposed edge value given it was generated from truncated normal
         ln_alpha -= R::dnorm(omega_prop_ij / constants_[3], 0.0, proposal_sd, true) - MY_LOG(constants_[3]);
@@ -989,6 +1001,10 @@ void GGMModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {
             ln_alpha += R::dcauchy(precision_proposal_(i, j), 0.0, pairwise_scale_, true);
             ln_alpha -= R::dcauchy(precision_matrix_(i, j), 0.0, pairwise_scale_, true);
 
+            // Gamma(1,1) prior on changed diagonal K_jj
+            ln_alpha += R::dgamma(precision_proposal_(j, j), 1.0, 1.0, true);
+            ln_alpha -= R::dgamma(precision_matrix_(j, j), 1.0, 1.0, true);
+
             if (MY_LOG(runif(rng_)) < ln_alpha) {
                 double omega_ij_old = precision_matrix_(i, j);
                 double omega_jj_old = precision_matrix_(j, j);
@@ -1020,9 +1036,9 @@ void GGMModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {
             + MY_EXP(theta_prop) * MY_EXP(theta_prop);
 
         double ln_alpha = log_density_impl_diag(i);
-        ln_alpha += R::dgamma(MY_EXP(theta_prop), 1.0, 1.0, true);
-        ln_alpha -= R::dgamma(MY_EXP(theta_curr), 1.0, 1.0, true);
-        ln_alpha += theta_prop - theta_curr;
+        ln_alpha += R::dgamma(precision_proposal_(i, i), 1.0, 1.0, true);
+        ln_alpha -= R::dgamma(precision_matrix_(i, i), 1.0, 1.0, true);
+        ln_alpha += 2.0 * (theta_prop - theta_curr); // Jacobian: dK_ii/dtheta = 2*exp(2*theta)
 
         if (MY_LOG(runif(rng_)) < ln_alpha) {
             double omega_ii = precision_matrix_(i, i);
