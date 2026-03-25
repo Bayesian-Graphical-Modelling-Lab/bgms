@@ -25,8 +25,8 @@ ggm_test_forward_map <- function(theta, edge_indicators) {
     .Call(`_bgms_ggm_test_forward_map`, theta, edge_indicators)
 }
 
-ggm_test_project_position <- function(x, edge_indicators) {
-    .Call(`_bgms_ggm_test_project_position`, x, edge_indicators)
+ggm_test_project_position <- function(x, edge_indicators, inv_mass_in = NULL) {
+    .Call(`_bgms_ggm_test_project_position`, x, edge_indicators, inv_mass_in)
 }
 
 ggm_test_get_full_position <- function(Phi, edge_indicators) {
@@ -37,12 +37,12 @@ ggm_test_logp_and_gradient_full <- function(x, suf_stat, n, edge_indicators, pai
     .Call(`_bgms_ggm_test_logp_and_gradient_full`, x, suf_stat, n, edge_indicators, pairwise_scale)
 }
 
-ggm_test_project_momentum <- function(r, x, edge_indicators) {
-    .Call(`_bgms_ggm_test_project_momentum`, r, x, edge_indicators)
+ggm_test_project_momentum <- function(r, x, edge_indicators, inv_mass_in = NULL) {
+    .Call(`_bgms_ggm_test_project_momentum`, r, x, edge_indicators, inv_mass_in)
 }
 
-ggm_test_leapfrog_constrained <- function(x0, r0, step_size, n_steps, suf_stat, n, edge_indicators, pairwise_scale) {
-    .Call(`_bgms_ggm_test_leapfrog_constrained`, x0, r0, step_size, n_steps, suf_stat, n, edge_indicators, pairwise_scale)
+ggm_test_leapfrog_constrained <- function(x0, r0, step_size, n_steps, suf_stat, n, edge_indicators, pairwise_scale, inv_mass_in = NULL) {
+    .Call(`_bgms_ggm_test_leapfrog_constrained`, x0, r0, step_size, n_steps, suf_stat, n, edge_indicators, pairwise_scale, inv_mass_in)
 }
 
 mixed_test_logp_and_gradient <- function(params, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pseudolikelihood, pairwise_scale) {
@@ -59,6 +59,10 @@ mixed_test_project_position <- function(x, inv_mass, discrete_observations, cont
 
 mixed_test_project_momentum <- function(r, x, inv_mass, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pseudolikelihood, pairwise_scale) {
     .Call(`_bgms_mixed_test_project_momentum`, r, x, inv_mass, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pseudolikelihood, pairwise_scale)
+}
+
+mixed_test_leapfrog_constrained <- function(x0, r0, step_size, n_steps, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pseudolikelihood, pairwise_scale, inv_mass_in = NULL) {
+    .Call(`_bgms_mixed_test_leapfrog_constrained`, x0, r0, step_size, n_steps, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pseudolikelihood, pairwise_scale, inv_mass_in)
 }
 
 compute_conditional_ggm <- function(observations, predict_vars, precision) {

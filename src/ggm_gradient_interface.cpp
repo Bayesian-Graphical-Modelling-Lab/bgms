@@ -57,7 +57,8 @@ Rcpp::List ggm_test_forward_map(
 // [[Rcpp::export]]
 Rcpp::List ggm_test_project_position(
     const arma::vec& x,
-    const arma::imat& edge_indicators)
+    const arma::imat& edge_indicators,
+    Rcpp::Nullable<Rcpp::NumericVector> inv_mass_in = R_NilValue)
 {
     size_t p = edge_indicators.n_rows;
 
@@ -72,7 +73,13 @@ Rcpp::List ggm_test_project_position(
 
     // Project
     arma::vec x_proj = x;
-    model.project_position(x_proj);
+    arma::vec inv_mass;
+    if(inv_mass_in.isNotNull()) {
+        inv_mass = Rcpp::as<arma::vec>(inv_mass_in);
+    } else {
+        inv_mass = arma::ones<arma::vec>(x.n_elem);
+    }
+    model.project_position(x_proj, inv_mass);
 
     // Unpack projected x to get Phi and K
     model.set_full_position(x_proj);
@@ -154,7 +161,8 @@ Rcpp::List ggm_test_logp_and_gradient_full(
 arma::vec ggm_test_project_momentum(
     const arma::vec& r,
     const arma::vec& x,
-    const arma::imat& edge_indicators)
+    const arma::imat& edge_indicators,
+    Rcpp::Nullable<Rcpp::NumericVector> inv_mass_in = R_NilValue)
 {
     size_t p = edge_indicators.n_rows;
 
@@ -163,8 +171,15 @@ arma::vec ggm_test_project_momentum(
     GGMModel model(static_cast<int>(p), suf_stat, inc_prob,
                    edge_indicators, true, 2.5);
 
+    arma::vec inv_mass;
+    if(inv_mass_in.isNotNull()) {
+        inv_mass = Rcpp::as<arma::vec>(inv_mass_in);
+    } else {
+        inv_mass = arma::ones<arma::vec>(r.n_elem);
+    }
+
     arma::vec r_proj = r;
-    model.project_momentum(r_proj, x);
+    model.project_momentum(r_proj, x, inv_mass);
 
     return r_proj;
 }
@@ -178,7 +193,8 @@ Rcpp::List ggm_test_leapfrog_constrained(
     const arma::mat& suf_stat,
     int n,
     const arma::imat& edge_indicators,
-    double pairwise_scale)
+    double pairwise_scale,
+    Rcpp::Nullable<Rcpp::NumericVector> inv_mass_in = R_NilValue)
 {
     size_t p = edge_indicators.n_rows;
 
@@ -193,16 +209,20 @@ Rcpp::List ggm_test_leapfrog_constrained(
     };
     Memoizer memo(joint);
 
-    // Projection callbacks (split for RATTLE integration)
-    ProjectPositionFn proj_pos = [&model](arma::vec& x) {
-        model.project_position(x);
-    };
-    ProjectMomentumFn proj_mom = [&model](arma::vec& r, const arma::vec& x) {
-        model.project_momentum(r, x);
-    };
+    arma::vec inv_mass;
+    if(inv_mass_in.isNotNull()) {
+        inv_mass = Rcpp::as<arma::vec>(inv_mass_in);
+    } else {
+        inv_mass = arma::ones<arma::vec>(x0.n_elem);
+    }
 
-    // Identity mass
-    arma::vec inv_mass = arma::ones<arma::vec>(x0.n_elem);
+    // Projection callbacks using mass-weighted overloads
+    ProjectPositionFn proj_pos = [&model, &inv_mass](arma::vec& x) {
+        model.project_position(x, inv_mass);
+    };
+    ProjectMomentumFn proj_mom = [&model, &inv_mass](arma::vec& r, const arma::vec& x) {
+        model.project_momentum(r, x, inv_mass);
+    };
 
     // Run n_steps constrained leapfrog steps
     arma::vec x = x0;
@@ -216,8 +236,8 @@ Rcpp::List ggm_test_leapfrog_constrained(
     }
 
     double logp_final = memo.cached_log_post(x);
-    double kin0 = 0.5 * arma::dot(r0, r0);
-    double kin_final = 0.5 * arma::dot(r, r);
+    double kin0 = 0.5 * arma::dot(r0, inv_mass % r0);
+    double kin_final = 0.5 * arma::dot(r, inv_mass % r);
     double H0 = -logp0 + kin0;
     double H_final = -logp_final + kin_final;
 
