@@ -127,13 +127,15 @@ make_mixed_scenario = function(p, q, n, edge_ind, num_cats, seed) {
 # ---- 1. Reversibility: forward N + backward N ~ identity -------------------
 
 test_that("mixed leapfrog is reversible, p=3 q=2 sparse", {
-  p = 3; q = 2; n = 50
+  p = 3
+  q = 2
+  n = 50
   total = p + q
   edge_ind = matrix(1L, total, total)
   diag(edge_ind) = 0L
-  edge_ind[1, 3] = edge_ind[3, 1] = 0L  # Kxx edge
-  edge_ind[2, 4] = edge_ind[4, 2] = 0L  # Kxy edge
-  edge_ind[4, 5] = edge_ind[5, 4] = 0L  # Kyy edge
+  edge_ind[1, 3] = edge_ind[3, 1] = 0L # Kxx edge
+  edge_ind[2, 4] = edge_ind[4, 2] = 0L # Kxy edge
+  edge_ind[4, 5] = edge_ind[5, 4] = 0L # Kyy edge
 
   num_cats = rep(2L, p)
   sc = make_mixed_scenario(p, q, n, edge_ind, num_cats, seed = 300)
@@ -167,14 +169,16 @@ test_that("mixed leapfrog is reversible, p=3 q=2 sparse", {
 })
 
 test_that("mixed leapfrog is reversible, p=3 q=3 sparse", {
-  p = 3; q = 3; n = 50
+  p = 3
+  q = 3
+  n = 50
   total = p + q
   edge_ind = matrix(1L, total, total)
   diag(edge_ind) = 0L
-  edge_ind[1, 2] = edge_ind[2, 1] = 0L  # Kxx edge
-  edge_ind[3, 5] = edge_ind[5, 3] = 0L  # Kxy edge
-  edge_ind[4, 6] = edge_ind[6, 4] = 0L  # Kyy edge
-  edge_ind[5, 6] = edge_ind[6, 5] = 0L  # Kyy edge
+  edge_ind[1, 2] = edge_ind[2, 1] = 0L # Kxx edge
+  edge_ind[3, 5] = edge_ind[5, 3] = 0L # Kxy edge
+  edge_ind[4, 6] = edge_ind[6, 4] = 0L # Kyy edge
+  edge_ind[5, 6] = edge_ind[6, 5] = 0L # Kyy edge
 
   num_cats = rep(2L, p)
   sc = make_mixed_scenario(p, q, n, edge_ind, num_cats, seed = 301)
@@ -211,11 +215,13 @@ test_that("mixed leapfrog reversibility error scales as O(eps^2)", {
 
   # exp(diagonal) terms. Edge Kyy(1,2) satisfies this: column 2 with
   # excluded index i=1 gives A_q = [Phi(0,1), exp(x_{diag_1})].
-  p = 3; q = 3; n = 50
+  p = 3
+  q = 3
+  n = 50
   total = p + q
   edge_ind = matrix(1L, total, total)
   diag(edge_ind) = 0L
-  edge_ind[5, 6] = edge_ind[6, 5] = 0L  # Kyy(1,2): excluded index i=1
+  edge_ind[5, 6] = edge_ind[6, 5] = 0L # Kyy(1,2): excluded index i=1
 
   num_cats = rep(2L, p)
   sc = make_mixed_scenario(p, q, n, edge_ind, num_cats, seed = 302)
@@ -246,7 +252,9 @@ test_that("mixed leapfrog reversibility error scales as O(eps^2)", {
 # ---- 2. Energy conservation: |DH| = O(eps^2) -------------------------------
 
 test_that("mixed leapfrog conserves energy, p=3 q=2 sparse", {
-  p = 3; q = 2; n = 50
+  p = 3
+  q = 2
+  n = 50
   total = p + q
   edge_ind = matrix(1L, total, total)
   diag(edge_ind) = 0L
@@ -270,7 +278,9 @@ test_that("mixed leapfrog conserves energy, p=3 q=2 sparse", {
 })
 
 test_that("mixed leapfrog energy conservation improves with smaller step", {
-  p = 3; q = 2; n = 50
+  p = 3
+  q = 2
+  n = 50
   total = p + q
   edge_ind = matrix(1L, total, total)
   diag(edge_ind) = 0L
@@ -301,13 +311,15 @@ test_that("mixed leapfrog energy conservation improves with smaller step", {
 # ---- 3. Constraint preservation: excluded entries stay zero -----------------
 
 test_that("excluded Kxx and Kxy entries stay zero after trajectory", {
-  p = 3; q = 2; n = 50
+  p = 3
+  q = 2
+  n = 50
   total = p + q
   edge_ind = matrix(1L, total, total)
   diag(edge_ind) = 0L
-  edge_ind[1, 3] = edge_ind[3, 1] = 0L  # Kxx
-  edge_ind[2, 4] = edge_ind[4, 2] = 0L  # Kxy
-  edge_ind[4, 5] = edge_ind[5, 4] = 0L  # Kyy
+  edge_ind[1, 3] = edge_ind[3, 1] = 0L # Kxx
+  edge_ind[2, 4] = edge_ind[4, 2] = 0L # Kxy
+  edge_ind[4, 5] = edge_ind[5, 4] = 0L # Kyy
 
   num_cats = rep(2L, p)
   sc = make_mixed_scenario(p, q, n, edge_ind, num_cats, seed = 320)
@@ -326,30 +338,36 @@ test_that("excluded Kxx and Kxy entries stay zero after trajectory", {
   # Excluded Kxx entries must be zero
   if(length(excl$kxx) > 0) {
     for(idx in excl$kxx) {
-      expect_equal(x_final[idx], 0, tolerance = 1e-10,
-        label = paste("Kxx excluded index", idx))
+      expect_equal(x_final[idx], 0,
+        tolerance = 1e-10,
+        label = paste("Kxx excluded index", idx)
+      )
     }
   }
 
   # Excluded Kxy entries must be zero
   if(length(excl$kxy) > 0) {
     for(idx in excl$kxy) {
-      expect_equal(x_final[idx], 0, tolerance = 1e-10,
-        label = paste("Kxy excluded index", idx))
+      expect_equal(x_final[idx], 0,
+        tolerance = 1e-10,
+        label = paste("Kxy excluded index", idx)
+      )
     }
   }
 })
 
 test_that("excluded entries stay zero, p=3 q=3 multiple excluded", {
-  p = 3; q = 3; n = 50
+  p = 3
+  q = 3
+  n = 50
   total = p + q
   edge_ind = matrix(1L, total, total)
   diag(edge_ind) = 0L
-  edge_ind[1, 2] = edge_ind[2, 1] = 0L  # Kxx
-  edge_ind[2, 3] = edge_ind[3, 2] = 0L  # Kxx
-  edge_ind[1, 5] = edge_ind[5, 1] = 0L  # Kxy
-  edge_ind[3, 6] = edge_ind[6, 3] = 0L  # Kxy
-  edge_ind[5, 6] = edge_ind[6, 5] = 0L  # Kyy
+  edge_ind[1, 2] = edge_ind[2, 1] = 0L # Kxx
+  edge_ind[2, 3] = edge_ind[3, 2] = 0L # Kxx
+  edge_ind[1, 5] = edge_ind[5, 1] = 0L # Kxy
+  edge_ind[3, 6] = edge_ind[6, 3] = 0L # Kxy
+  edge_ind[5, 6] = edge_ind[6, 5] = 0L # Kyy
 
   num_cats = rep(2L, p)
   sc = make_mixed_scenario(p, q, n, edge_ind, num_cats, seed = 321)
@@ -381,7 +399,9 @@ test_that("excluded entries stay zero, p=3 q=3 multiple excluded", {
 # ---- 4. Cotangent condition: excluded momentum entries stay zero ------------
 
 test_that("excluded momentum entries stay zero after trajectory", {
-  p = 3; q = 2; n = 50
+  p = 3
+  q = 2
+  n = 50
   total = p + q
   edge_ind = matrix(1L, total, total)
   diag(edge_ind) = 0L
@@ -405,14 +425,18 @@ test_that("excluded momentum entries stay zero after trajectory", {
 
   if(length(excl$kxx) > 0) {
     for(idx in excl$kxx) {
-      expect_equal(r_final[idx], 0, tolerance = 1e-10,
-        label = paste("Kxx momentum index", idx))
+      expect_equal(r_final[idx], 0,
+        tolerance = 1e-10,
+        label = paste("Kxx momentum index", idx)
+      )
     }
   }
   if(length(excl$kxy) > 0) {
     for(idx in excl$kxy) {
-      expect_equal(r_final[idx], 0, tolerance = 1e-10,
-        label = paste("Kxy momentum index", idx))
+      expect_equal(r_final[idx], 0,
+        tolerance = 1e-10,
+        label = paste("Kxy momentum index", idx)
+      )
     }
   }
 })
@@ -421,7 +445,9 @@ test_that("excluded momentum entries stay zero after trajectory", {
 # ---- 5. SPD preservation: Cholesky diagonal stays positive ------------------
 
 test_that("Cholesky diagonal stays positive after trajectory", {
-  p = 3; q = 2; n = 50
+  p = 3
+  q = 2
+  n = 50
   total = p + q
   edge_ind = matrix(1L, total, total)
   diag(edge_ind) = 0L
@@ -449,7 +475,7 @@ test_that("Cholesky diagonal stays positive after trajectory", {
   chol_diag_indices = integer(q)
   idx = 0
   for(col in seq_len(q)) {
-    idx = idx + (col - 1) + 1  # skip off-diag, land on diag
+    idx = idx + (col - 1) + 1 # skip off-diag, land on diag
     chol_diag_indices[col] = chol_offset + idx
   }
 
@@ -458,9 +484,11 @@ test_that("Cholesky diagonal stays positive after trajectory", {
   for(j in seq_len(q)) {
     log_diag = x_final[chol_diag_indices[j]]
     expect_true(is.finite(log_diag),
-      label = paste("Cholesky log-diag[", j, "] =", log_diag))
+      label = paste("Cholesky log-diag[", j, "] =", log_diag)
+    )
     expect_true(exp(log_diag) > 0,
-      label = paste("Cholesky diag[", j, "] = exp(", log_diag, ")"))
+      label = paste("Cholesky diag[", j, "] = exp(", log_diag, ")")
+    )
   }
 })
 
@@ -471,14 +499,16 @@ test_that("Cholesky diagonal stays positive after trajectory", {
 # show up here.
 
 test_that("combined trajectory: constraints hold across all three blocks", {
-  p = 3; q = 3; n = 60
+  p = 3
+  q = 3
+  n = 60
   total = p + q
   edge_ind = matrix(1L, total, total)
   diag(edge_ind) = 0L
   # Remove one edge from each block
-  edge_ind[1, 3] = edge_ind[3, 1] = 0L  # Kxx
-  edge_ind[2, 5] = edge_ind[5, 2] = 0L  # Kxy
-  edge_ind[4, 6] = edge_ind[6, 4] = 0L  # Kyy
+  edge_ind[1, 3] = edge_ind[3, 1] = 0L # Kxx
+  edge_ind[2, 5] = edge_ind[5, 2] = 0L # Kxy
+  edge_ind[4, 6] = edge_ind[6, 4] = 0L # Kyy
 
   num_cats = rep(2L, p)
   sc = make_mixed_scenario(p, q, n, edge_ind, num_cats, seed = 350)
@@ -555,7 +585,9 @@ test_that("combined trajectory: constraints hold across all three blocks", {
 # ---- 7. Full-edge graph: projection is no-op, trajectory valid --------------
 
 test_that("full-edge graph: mixed leapfrog trajectory is valid", {
-  p = 3; q = 2; n = 50
+  p = 3
+  q = 2
+  n = 50
   total = p + q
   edge_ind = matrix(1L, total, total)
   diag(edge_ind) = 0L
@@ -583,7 +615,9 @@ test_that("full-edge graph: mixed leapfrog trajectory is valid", {
 # ---- 8. Marginal PL: trajectory properties hold ----------------------------
 
 test_that("mixed leapfrog works with marginal pseudolikelihood", {
-  p = 3; q = 2; n = 50
+  p = 3
+  q = 2
+  n = 50
   total = p + q
   edge_ind = matrix(1L, total, total)
   diag(edge_ind) = 0L
@@ -669,7 +703,8 @@ test_that("mixed leapfrog works across constraint patterns", {
   )
 
   for(cfg in configs) {
-    p = cfg$p; q = cfg$q
+    p = cfg$p
+    q = cfg$q
     total = p + q
     num_cats = rep(2L, p)
 

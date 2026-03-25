@@ -133,11 +133,13 @@ test_that("SBC: GGM NUTS produces uniform ranks (p=3, no edge selection)", {
     dat = as.data.frame(X)
     colnames(dat) = paste0("V", seq_len(p))
 
-    fit = bgm(dat, variable_type = "continuous",
+    fit = bgm(dat,
+      variable_type = "continuous",
       iter = L, warmup = 1000, chains = 1,
       edge_selection = FALSE, update_method = "nuts",
       pairwise_scale = scale,
-      display_progress = "none", seed = 2026L + r)
+      display_progress = "none", seed = 2026L + r
+    )
 
     ranks[r, ] = compute_sbc_ranks(K_true, p, fit)
     if(r == 1) colnames(ranks) = names(ranks[1, ])
@@ -154,17 +156,23 @@ test_that("SBC: GGM NUTS produces uniform ranks (p=3, no edge selection)", {
   # At alpha=0.01 with 6 parameters, allow at most 1 false positive
   max_fail = max(1, ceiling(n_params * 0.01 * 2))
   expect_true(n_fail_ks <= max_fail,
-    info = sprintf("SBC KS: %d/%d parameters failed (limit %d)",
-                   n_fail_ks, n_params, max_fail))
+    info = sprintf(
+      "SBC KS: %d/%d parameters failed (limit %d)",
+      n_fail_ks, n_params, max_fail
+    )
+  )
 
   # Global chi-squared on aggregated ranks (20 bins)
   all_ranks = as.vector(ranks)
-  bins = cut(all_ranks / (L + 1), breaks = seq(0, 1, length.out = 21),
-             include.lowest = TRUE)
+  bins = cut(all_ranks / (L + 1),
+    breaks = seq(0, 1, length.out = 21),
+    include.lowest = TRUE
+  )
   counts = tabulate(bins, nbins = 20)
   chisq_p = chisq.test(counts)$p.value
   expect_true(chisq_p > 0.001,
-    info = sprintf("SBC global chi-squared p=%.4f", chisq_p))
+    info = sprintf("SBC global chi-squared p=%.4f", chisq_p)
+  )
 })
 
 
@@ -199,18 +207,24 @@ test_that("SBC: GGM MH produces uniform ranks (p=3, no edge selection)", {
     dat = as.data.frame(X)
     colnames(dat) = paste0("V", seq_len(p))
 
-    fit = bgm(dat, variable_type = "continuous",
+    fit = bgm(dat,
+      variable_type = "continuous",
       iter = L_raw, warmup = 5000, chains = 1,
       edge_selection = FALSE, update_method = "adaptive-metropolis",
       pairwise_scale = scale,
-      display_progress = "none", seed = 2027L + r)
+      display_progress = "none", seed = 2027L + r
+    )
 
     # Thin to reduce autocorrelation in MH chains
     thin_idx = seq(1, L_raw, by = thin)
-    fit$raw_samples$pairwise = lapply(fit$raw_samples$pairwise,
-      function(m) m[thin_idx, , drop = FALSE])
-    fit$raw_samples$main = lapply(fit$raw_samples$main,
-      function(m) m[thin_idx, , drop = FALSE])
+    fit$raw_samples$pairwise = lapply(
+      fit$raw_samples$pairwise,
+      function(m) m[thin_idx, , drop = FALSE]
+    )
+    fit$raw_samples$main = lapply(
+      fit$raw_samples$main,
+      function(m) m[thin_idx, , drop = FALSE]
+    )
 
     ranks[r, ] = compute_sbc_ranks(K_true, p, fit)
     if(r == 1) colnames(ranks) = names(ranks[1, ])
@@ -225,14 +239,20 @@ test_that("SBC: GGM MH produces uniform ranks (p=3, no edge selection)", {
 
   max_fail = max(1, ceiling(n_params * 0.01 * 2))
   expect_true(n_fail_ks <= max_fail,
-    info = sprintf("SBC KS: %d/%d parameters failed (limit %d)",
-                   n_fail_ks, n_params, max_fail))
+    info = sprintf(
+      "SBC KS: %d/%d parameters failed (limit %d)",
+      n_fail_ks, n_params, max_fail
+    )
+  )
 
   all_ranks = as.vector(ranks)
-  bins = cut(all_ranks / (L + 1), breaks = seq(0, 1, length.out = 21),
-             include.lowest = TRUE)
+  bins = cut(all_ranks / (L + 1),
+    breaks = seq(0, 1, length.out = 21),
+    include.lowest = TRUE
+  )
   counts = tabulate(bins, nbins = 20)
   chisq_p = chisq.test(counts)$p.value
   expect_true(chisq_p > 0.001,
-    info = sprintf("SBC global chi-squared p=%.4f", chisq_p))
+    info = sprintf("SBC global chi-squared p=%.4f", chisq_p)
+  )
 })

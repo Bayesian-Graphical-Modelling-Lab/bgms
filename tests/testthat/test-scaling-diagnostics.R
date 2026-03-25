@@ -49,17 +49,26 @@ check_nuts_health = function(fit, label,
 
   div_rate = diag$summary$total_divergences / n_samples
   expect_true(div_rate < div_rate_max,
-    info = sprintf("%s: divergence rate %.1f%% (limit %.0f%%)",
-                   label, div_rate * 100, div_rate_max * 100))
+    info = sprintf(
+      "%s: divergence rate %.1f%% (limit %.0f%%)",
+      label, div_rate * 100, div_rate_max * 100
+    )
+  )
 
   expect_true(diag$summary$min_ebfmi > ebfmi_min,
-    info = sprintf("%s: min E-BFMI %.3f (limit %.1f)",
-                   label, diag$summary$min_ebfmi, ebfmi_min))
+    info = sprintf(
+      "%s: min E-BFMI %.3f (limit %.1f)",
+      label, diag$summary$min_ebfmi, ebfmi_min
+    )
+  )
 
   tree_hit_rate = diag$summary$max_tree_depth_hits / n_samples
   expect_true(tree_hit_rate < tree_hit_rate_max,
-    info = sprintf("%s: tree depth hit rate %.1f%% (limit %.0f%%)",
-                   label, tree_hit_rate * 100, tree_hit_rate_max * 100))
+    info = sprintf(
+      "%s: tree depth hit rate %.1f%% (limit %.0f%%)",
+      label, tree_hit_rate * 100, tree_hit_rate_max * 100
+    )
+  )
 
   # ESS and Rhat are available when edge selection produces summary tables
   if(!is.null(fit$posterior_summary_pairwise)) {
@@ -69,15 +78,21 @@ check_nuts_health = function(fit, label,
     ess_finite = ess[is.finite(ess)]
     if(length(ess_finite) > 0) {
       expect_true(min(ess_finite) > ess_min,
-        info = sprintf("%s: min ESS %.0f (limit %d)",
-                       label, min(ess_finite), ess_min))
+        info = sprintf(
+          "%s: min ESS %.0f (limit %d)",
+          label, min(ess_finite), ess_min
+        )
+      )
     }
 
     rhat_finite = rhat[is.finite(rhat)]
     if(length(rhat_finite) > 0) {
       expect_true(max(rhat_finite) < rhat_max,
-        info = sprintf("%s: max Rhat %.3f (limit %.2f)",
-                       label, max(rhat_finite), rhat_max))
+        info = sprintf(
+          "%s: max Rhat %.3f (limit %.2f)",
+          label, max(rhat_finite), rhat_max
+        )
+      )
     }
   }
 }
@@ -144,7 +159,8 @@ generate_mixed_scaling_data = function(p, q, n,
   mux = matrix(0, p, max(nc) + 1)
   for(i in seq_len(p)) {
     mux[i, seq_len(nc[i])] = seq(-threshold_spread, threshold_spread,
-                                  length.out = nc[i])
+      length.out = nc[i]
+    )
   }
 
   muy = seq(-0.1, 0.1, length.out = q)
@@ -171,10 +187,12 @@ test_that("S.G1: GGM NUTS healthy at p=5, no edge selection", {
 
   dat = generate_ggm_scaling_data(p = 5, n = 200, seed = 3001)
 
-  fit = bgm(dat, variable_type = "continuous",
+  fit = bgm(dat,
+    variable_type = "continuous",
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = FALSE, update_method = "nuts",
-    pairwise_scale = 2.5, display_progress = "none", seed = 3001)
+    pairwise_scale = 2.5, display_progress = "none", seed = 3001
+  )
 
   check_nuts_health(fit, "S.G1")
 })
@@ -184,10 +202,12 @@ test_that("S.G2: GGM NUTS healthy at p=10, no edge selection", {
 
   dat = generate_ggm_scaling_data(p = 10, n = 100, seed = 3002)
 
-  fit = bgm(dat, variable_type = "continuous",
+  fit = bgm(dat,
+    variable_type = "continuous",
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = FALSE, update_method = "nuts",
-    pairwise_scale = 2.5, display_progress = "none", seed = 3002)
+    pairwise_scale = 2.5, display_progress = "none", seed = 3002
+  )
 
   check_nuts_health(fit, "S.G2")
 })
@@ -197,10 +217,12 @@ test_that("S.G3: GGM NUTS healthy at p=10 with edge selection", {
 
   dat = generate_ggm_scaling_data(p = 10, n = 100, seed = 3003)
 
-  fit = bgm(dat, variable_type = "continuous",
+  fit = bgm(dat,
+    variable_type = "continuous",
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
-    pairwise_scale = 2.5, display_progress = "none", seed = 3003)
+    pairwise_scale = 2.5, display_progress = "none", seed = 3003
+  )
 
   check_nuts_health(fit, "S.G3")
 })
@@ -210,10 +232,12 @@ test_that("S.G4: GGM NUTS healthy at p=15 with edge selection", {
 
   dat = generate_ggm_scaling_data(p = 15, n = 200, seed = 3004)
 
-  fit = bgm(dat, variable_type = "continuous",
+  fit = bgm(dat,
+    variable_type = "continuous",
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
-    pairwise_scale = 2.5, display_progress = "none", seed = 3004)
+    pairwise_scale = 2.5, display_progress = "none", seed = 3004
+  )
 
   check_nuts_health(fit, "S.G4")
 })
@@ -227,12 +251,14 @@ test_that("S.M1: Mixed NUTS healthy at p=3, q=2, no edge selection", {
   dat = generate_mixed_scaling_data(p = 3, q = 2, n = 200, seed = 3011)
   vtype = c(rep("ordinal", 3), rep("continuous", 2))
 
-  fit = bgm(dat, variable_type = vtype,
+  fit = bgm(dat,
+    variable_type = vtype,
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = FALSE, update_method = "nuts",
     pseudolikelihood = "conditional",
     pairwise_scale = 2.5, main_alpha = 0.5, main_beta = 0.5,
-    display_progress = "none", seed = 3011)
+    display_progress = "none", seed = 3011
+  )
 
   check_nuts_health(fit, "S.M1")
 })
@@ -243,12 +269,14 @@ test_that("S.M2: Mixed NUTS healthy at p=5, q=3 with edge selection", {
   dat = generate_mixed_scaling_data(p = 5, q = 3, n = 200, seed = 3012)
   vtype = c(rep("ordinal", 5), rep("continuous", 3))
 
-  fit = bgm(dat, variable_type = vtype,
+  fit = bgm(dat,
+    variable_type = vtype,
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
     pseudolikelihood = "conditional",
     pairwise_scale = 2.5, main_alpha = 0.5, main_beta = 0.5,
-    display_progress = "none", seed = 3012)
+    display_progress = "none", seed = 3012
+  )
 
   check_nuts_health(fit, "S.M2")
 })
@@ -259,12 +287,14 @@ test_that("S.M3: Mixed NUTS healthy at p=7, q=5 with edge selection", {
   dat = generate_mixed_scaling_data(p = 7, q = 5, n = 150, seed = 3013)
   vtype = c(rep("ordinal", 7), rep("continuous", 5))
 
-  fit = bgm(dat, variable_type = vtype,
+  fit = bgm(dat,
+    variable_type = vtype,
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
     pseudolikelihood = "conditional",
     pairwise_scale = 2.5, main_alpha = 0.5, main_beta = 0.5,
-    display_progress = "none", seed = 3013)
+    display_progress = "none", seed = 3013
+  )
 
   check_nuts_health(fit, "S.M3")
 })
@@ -275,12 +305,14 @@ test_that("S.M4: Mixed NUTS healthy at p=5, q=3, marginal PL", {
   dat = generate_mixed_scaling_data(p = 5, q = 3, n = 200, seed = 3014)
   vtype = c(rep("ordinal", 5), rep("continuous", 3))
 
-  fit = bgm(dat, variable_type = vtype,
+  fit = bgm(dat,
+    variable_type = vtype,
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
     pseudolikelihood = "marginal",
     pairwise_scale = 2.5, main_alpha = 0.5, main_beta = 0.5,
-    display_progress = "none", seed = 3014)
+    display_progress = "none", seed = 3014
+  )
 
   check_nuts_health(fit, "S.M4")
 })
@@ -292,17 +324,21 @@ test_that("S.M5: Mixed NUTS survives near-singular Kyy", {
   # stresses the RATTLE projection while keeping data well-behaved.
   pairwise_cont_m5 = matrix(c(-0.5, -0.025, -0.025, -0.006), 2, 2)
 
-  dat = generate_mixed_scaling_data(p = 3, q = 2, n = 300,
+  dat = generate_mixed_scaling_data(
+    p = 3, q = 2, n = 300,
     pairwise_cont_override = pairwise_cont_m5,
-    cross_strength = 0, threshold_spread = 0.3, seed = 3015)
+    cross_strength = 0, threshold_spread = 0.3, seed = 3015
+  )
   vtype = c(rep("ordinal", 3), rep("continuous", 2))
 
-  fit = bgm(dat, variable_type = vtype,
+  fit = bgm(dat,
+    variable_type = vtype,
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
     pseudolikelihood = "conditional",
     pairwise_scale = 2.5, main_alpha = 0.5, main_beta = 0.5,
-    display_progress = "none", seed = 3015)
+    display_progress = "none", seed = 3015
+  )
 
   check_nuts_health(fit, "S.M5")
 })

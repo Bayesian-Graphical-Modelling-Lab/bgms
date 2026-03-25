@@ -22,7 +22,7 @@ mixed_full_dim = function(num_cats, is_ord, p, q) {
 
 # Finite-difference gradient for logp_and_gradient_full
 mixed_fd_gradient_full = function(params, x, y, num_cats, is_ord, base_cat,
-                                   edge_ind, pl_mode, scale, eps = 1e-5) {
+                                  edge_ind, pl_mode, scale, eps = 1e-5) {
   n_total = length(params)
   fd = numeric(n_total)
   for(k in seq_len(n_total)) {
@@ -44,13 +44,15 @@ mixed_fd_gradient_full = function(params, x, y, num_cats, is_ord, base_cat,
 }
 
 mixed_check_gradient_full = function(params, x, y, num_cats, is_ord, base_cat,
-                                      edge_ind, pl_mode, scale, eps = 1e-5) {
+                                     edge_ind, pl_mode, scale, eps = 1e-5) {
   res = mixed_test_logp_and_gradient_full(
     params, x, y, num_cats, as.integer(is_ord),
     base_cat, edge_ind, pl_mode, scale
   )
-  fd = mixed_fd_gradient_full(params, x, y, num_cats, is_ord, base_cat,
-                               edge_ind, pl_mode, scale, eps)
+  fd = mixed_fd_gradient_full(
+    params, x, y, num_cats, is_ord, base_cat,
+    edge_ind, pl_mode, scale, eps
+  )
   ag = res$gradient
   denom = pmax(abs(ag), abs(fd), 1)
   rel_err = abs(ag - fd) / denom
@@ -111,8 +113,10 @@ test_that("full gradient matches FD, dense edges (p=3, q=2, conditional)", {
   dim = mixed_full_dim(num_cats, is_ord, p, q)
   set.seed(123)
   params = rnorm(dim, sd = 0.3)
-  err = mixed_check_gradient_full(params, x, y, num_cats, is_ord, base_cat,
-                                   edge_ind, "conditional", 2.5)
+  err = mixed_check_gradient_full(
+    params, x, y, num_cats, is_ord, base_cat,
+    edge_ind, "conditional", 2.5
+  )
   expect_lt(err, 1e-5)
 })
 
@@ -132,8 +136,10 @@ test_that("full gradient matches FD, dense edges (p=3, q=2, marginal)", {
   dim = mixed_full_dim(num_cats, is_ord, p, q)
   set.seed(123)
   params = rnorm(dim, sd = 0.3)
-  err = mixed_check_gradient_full(params, x, y, num_cats, is_ord, base_cat,
-                                   edge_ind, "marginal", 2.5)
+  err = mixed_check_gradient_full(
+    params, x, y, num_cats, is_ord, base_cat,
+    edge_ind, "marginal", 2.5
+  )
   expect_lt(err, 1e-5)
 })
 
@@ -156,8 +162,10 @@ test_that("full gradient matches FD, sparse edges (p=3, q=2, conditional)", {
   dim = mixed_full_dim(num_cats, is_ord, p, q)
   set.seed(4)
   params = rnorm(dim, sd = 0.3)
-  err = mixed_check_gradient_full(params, x, y, num_cats, is_ord, base_cat,
-                                   edge_ind, "conditional", 2.5)
+  err = mixed_check_gradient_full(
+    params, x, y, num_cats, is_ord, base_cat,
+    edge_ind, "conditional", 2.5
+  )
   expect_lt(err, 1e-5)
 })
 
@@ -175,12 +183,14 @@ test_that("full gradient matches FD, sparse with Gyy edges (p=3, q=3, conditiona
   # Sparse Gyy: only edge (4,5) = continuous (1,2)
   edge_ind = matrix(1L, total, total)
   diag(edge_ind) = 0L
-  edge_ind[5, 6] = edge_ind[6, 5] = 0L  # remove continuous edge (2,3)
+  edge_ind[5, 6] = edge_ind[6, 5] = 0L # remove continuous edge (2,3)
   dim = mixed_full_dim(num_cats, is_ord, p, q)
   set.seed(5)
   params = rnorm(dim, sd = 0.2)
-  err = mixed_check_gradient_full(params, x, y, num_cats, is_ord, base_cat,
-                                   edge_ind, "conditional", 2.5)
+  err = mixed_check_gradient_full(
+    params, x, y, num_cats, is_ord, base_cat,
+    edge_ind, "conditional", 2.5
+  )
   expect_lt(err, 1e-5)
 })
 
@@ -198,13 +208,15 @@ test_that("full gradient matches FD, mixed ord+BC (p=3, q=2, conditional)", {
   # Sparse: remove some edges
   edge_ind = matrix(1L, total, total)
   diag(edge_ind) = 0L
-  edge_ind[1, 3] = edge_ind[3, 1] = 0L  # remove discrete edge (1,3)
-  edge_ind[2, 4] = edge_ind[4, 2] = 0L  # remove cross edge (2,1)
+  edge_ind[1, 3] = edge_ind[3, 1] = 0L # remove discrete edge (1,3)
+  edge_ind[2, 4] = edge_ind[4, 2] = 0L # remove cross edge (2,1)
   dim = mixed_full_dim(num_cats, is_ord, p, q)
   set.seed(2)
   params = rnorm(dim, sd = 0.3)
-  err = mixed_check_gradient_full(params, x, y, num_cats, is_ord, base_cat,
-                                   edge_ind, "conditional", 2.5)
+  err = mixed_check_gradient_full(
+    params, x, y, num_cats, is_ord, base_cat,
+    edge_ind, "conditional", 2.5
+  )
   expect_lt(err, 1e-5)
 })
 

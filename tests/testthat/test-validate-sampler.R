@@ -76,8 +76,10 @@ test_that("GGM + explicit 'hamiltonian-mc' OK", {
 
 test_that("GGM + hamiltonian-mc + edge_selection warns", {
   expect_warning(
-    res <- vs(is_continuous = TRUE, edge_selection = TRUE,
-              update_method = "hamiltonian-mc"),
+    res <- vs(
+      is_continuous = TRUE, edge_selection = TRUE,
+      update_method = "hamiltonian-mc"
+    ),
     "numerically fragile"
   )
   expect_equal(res$update_method, "hamiltonian-mc")

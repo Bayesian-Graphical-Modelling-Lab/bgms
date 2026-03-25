@@ -171,7 +171,6 @@ validate_bgm_spec = function(spec) {
     if(!isTRUE(spec$variables$is_continuous)) {
       stop("bgm_spec: model_type = 'ggm' requires is_continuous = TRUE.")
     }
-
   }
 
   # Compare invariants

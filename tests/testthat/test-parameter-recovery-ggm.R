@@ -69,7 +69,7 @@ compute_coverage = function(K_true, p, n, R,
 
   # Identify off-diagonal parameters (upper triangle)
   n_off = p * (p - 1) / 2
-  covered = matrix(0L, nrow = R, ncol = n_off + p)  # off-diag + diag
+  covered = matrix(0L, nrow = R, ncol = n_off + p) # off-diag + diag
 
   # True values in column order
   true_off = numeric(n_off)
@@ -91,11 +91,13 @@ compute_coverage = function(K_true, p, n, R,
     dat = as.data.frame(X)
     colnames(dat) = paste0("V", seq_len(p))
 
-    fit = bgm(dat, variable_type = "continuous",
+    fit = bgm(dat,
+      variable_type = "continuous",
       iter = iter, warmup = warmup, chains = 2,
       edge_selection = edge_selection, update_method = "nuts",
       pairwise_scale = scale,
-      display_progress = "none", seed = base_seed + r)
+      display_progress = "none", seed = base_seed + r
+    )
 
     # Raw off-diagonal samples (precision scale)
     pw_samples = do.call(rbind, fit$raw_samples$pairwise)
@@ -135,42 +137,56 @@ compute_coverage = function(K_true, p, n, R,
 test_that("PR.1: GGM parameter recovery, dense graph (p=5)", {
   skip_unless_slow_recovery()
 
-  p = 5; n = 200; R = 50
+  p = 5
+  n = 200
+  R = 50
   K_true = make_K_dense(p)
 
   coverage = compute_coverage(K_true, p, n, R,
-    edge_selection = FALSE, base_seed = 4001)
+    edge_selection = FALSE, base_seed = 4001
+  )
 
   # Every parameter should have >= 85% coverage
   for(k in seq_along(coverage)) {
     expect_true(coverage[k] >= 0.85,
-      info = sprintf("PR.1 %s: coverage %.0f%% < 85%%",
-                     names(coverage)[k], coverage[k] * 100))
+      info = sprintf(
+        "PR.1 %s: coverage %.0f%% < 85%%",
+        names(coverage)[k], coverage[k] * 100
+      )
+    )
   }
 
   # Mean coverage should be >= 90%
   expect_true(mean(coverage) >= 0.90,
-    info = sprintf("PR.1 mean coverage %.0f%%", mean(coverage) * 100))
+    info = sprintf("PR.1 mean coverage %.0f%%", mean(coverage) * 100)
+  )
 })
 
 
 test_that("PR.2: GGM parameter recovery, sparse graph with edge selection (p=5)", {
   skip_unless_slow_recovery()
 
-  p = 5; n = 200; R = 50
+  p = 5
+  n = 200
+  R = 50
   K_true = make_K_sparse(p)
 
   coverage = compute_coverage(K_true, p, n, R,
-    edge_selection = TRUE, base_seed = 4002)
+    edge_selection = TRUE, base_seed = 4002
+  )
 
   # Every parameter should have >= 85% coverage
   for(k in seq_along(coverage)) {
     expect_true(coverage[k] >= 0.85,
-      info = sprintf("PR.2 %s: coverage %.0f%% < 85%%",
-                     names(coverage)[k], coverage[k] * 100))
+      info = sprintf(
+        "PR.2 %s: coverage %.0f%% < 85%%",
+        names(coverage)[k], coverage[k] * 100
+      )
+    )
   }
 
   # Mean coverage should be >= 90%
   expect_true(mean(coverage) >= 0.90,
-    info = sprintf("PR.2 mean coverage %.0f%%", mean(coverage) * 100))
+    info = sprintf("PR.2 mean coverage %.0f%%", mean(coverage) * 100)
+  )
 })

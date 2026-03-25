@@ -49,6 +49,7 @@ Suggests:
     coda,
     covr,
     knitr,
+    MASS,
     parallel,
     qgraph,
     rmarkdown,

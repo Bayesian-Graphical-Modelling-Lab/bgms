@@ -37,20 +37,20 @@ generate_mixed_test_data = function(seed = 2026, n = 200) {
 
   # True parameters in internal (block) order
   pairwise_disc = matrix(c(
-     0,  -0.2,  0.15,
-    -0.2,  0,   0.0,
-     0.15, 0.0, 0
+    0, -0.2, 0.15,
+    -0.2, 0, 0.0,
+    0.15, 0.0, 0
   ), p, p, byrow = TRUE)
 
   pairwise_cross = matrix(c(
-    0.25,  0.0,
-    0.0,   0.2,
-   -0.15,  0.1
+    0.25, 0.0,
+    0.0, 0.2,
+    -0.15, 0.1
   ), p, q, byrow = TRUE)
 
   pairwise_cont = matrix(c(
     -0.5, 0.0,
-     0.0, -0.5
+    0.0, -0.5
   ), q, q, byrow = TRUE)
 
   mux = matrix(0, p, max(nc) + 1)
@@ -85,7 +85,9 @@ ci_overlap = function(x, y) {
   ci_y = quantile(y, c(0.025, 0.975))
   overlap_lo = max(ci_x[1], ci_y[1])
   overlap_hi = min(ci_x[2], ci_y[2])
-  if(overlap_lo >= overlap_hi) return(0)
+  if(overlap_lo >= overlap_hi) {
+    return(0)
+  }
   overlap_width = overlap_hi - overlap_lo
   avg_width = (diff(ci_x) + diff(ci_y)) / 2
   overlap_width / avg_width
@@ -156,7 +158,8 @@ test_that("M.2A: NUTS vs MH agree (conditional PL, no ES, grouped)", {
   vtype = c(rep("ordinal", 3), rep("continuous", 2))
 
   fit_nuts = bgm(
-    dat, variable_type = vtype,
+    dat,
+    variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = FALSE, update_method = "nuts",
     pseudolikelihood = "conditional",
@@ -165,7 +168,8 @@ test_that("M.2A: NUTS vs MH agree (conditional PL, no ES, grouped)", {
   )
 
   fit_mh = bgm(
-    dat, variable_type = vtype,
+    dat,
+    variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = FALSE, update_method = "adaptive-metropolis",
     pseudolikelihood = "conditional",
@@ -192,7 +196,8 @@ test_that("M.2B: NUTS vs MH agree (marginal PL, no ES, grouped)", {
   vtype = c(rep("ordinal", 3), rep("continuous", 2))
 
   fit_nuts = bgm(
-    dat, variable_type = vtype,
+    dat,
+    variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = FALSE, update_method = "nuts",
     pseudolikelihood = "marginal",
@@ -201,7 +206,8 @@ test_that("M.2B: NUTS vs MH agree (marginal PL, no ES, grouped)", {
   )
 
   fit_mh = bgm(
-    dat, variable_type = vtype,
+    dat,
+    variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = FALSE, update_method = "adaptive-metropolis",
     pseudolikelihood = "marginal",
@@ -225,7 +231,8 @@ test_that("M.2C: NUTS vs MH agree (conditional PL, ES, grouped)", {
   vtype = c(rep("ordinal", 3), rep("continuous", 2))
 
   fit_nuts = bgm(
-    dat, variable_type = vtype,
+    dat,
+    variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = TRUE, update_method = "nuts",
     pseudolikelihood = "conditional",
@@ -234,7 +241,8 @@ test_that("M.2C: NUTS vs MH agree (conditional PL, ES, grouped)", {
   )
 
   fit_mh = bgm(
-    dat, variable_type = vtype,
+    dat,
+    variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = TRUE, update_method = "adaptive-metropolis",
     pseudolikelihood = "conditional",
@@ -268,7 +276,8 @@ test_that("M.2D: NUTS vs MH agree (marginal PL, ES, grouped)", {
   vtype = c(rep("ordinal", 3), rep("continuous", 2))
 
   fit_nuts = bgm(
-    dat, variable_type = vtype,
+    dat,
+    variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = TRUE, update_method = "nuts",
     pseudolikelihood = "marginal",
@@ -277,7 +286,8 @@ test_that("M.2D: NUTS vs MH agree (marginal PL, ES, grouped)", {
   )
 
   fit_mh = bgm(
-    dat, variable_type = vtype,
+    dat,
+    variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = TRUE, update_method = "adaptive-metropolis",
     pseudolikelihood = "marginal",
@@ -312,7 +322,8 @@ test_that("M.2E: NUTS vs MH agree (conditional PL, ES, interleaved)", {
   vtype = c("ordinal", "continuous", "ordinal", "continuous", "ordinal")
 
   fit_nuts = bgm(
-    dat, variable_type = vtype,
+    dat,
+    variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = TRUE, update_method = "nuts",
     pseudolikelihood = "conditional",
@@ -321,7 +332,8 @@ test_that("M.2E: NUTS vs MH agree (conditional PL, ES, interleaved)", {
   )
 
   fit_mh = bgm(
-    dat, variable_type = vtype,
+    dat,
+    variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = TRUE, update_method = "adaptive-metropolis",
     pseudolikelihood = "conditional",
@@ -386,7 +398,8 @@ test_that("M.2F: NUTS vs MH agree (conditional PL, no ES, interleaved)", {
   vtype = c("ordinal", "continuous", "ordinal", "continuous", "ordinal")
 
   fit_nuts = bgm(
-    dat, variable_type = vtype,
+    dat,
+    variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = FALSE, update_method = "nuts",
     pseudolikelihood = "conditional",
@@ -395,7 +408,8 @@ test_that("M.2F: NUTS vs MH agree (conditional PL, no ES, interleaved)", {
   )
 
   fit_mh = bgm(
-    dat, variable_type = vtype,
+    dat,
+    variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = FALSE, update_method = "adaptive-metropolis",
     pseudolikelihood = "conditional",
@@ -437,7 +451,8 @@ test_that("M.2G: NUTS vs MH main effects agree (conditional PL, grouped)", {
   vtype = c(rep("ordinal", 3), rep("continuous", 2))
 
   fit_nuts = bgm(
-    dat, variable_type = vtype,
+    dat,
+    variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = FALSE, update_method = "nuts",
     pseudolikelihood = "conditional",
@@ -446,7 +461,8 @@ test_that("M.2G: NUTS vs MH main effects agree (conditional PL, grouped)", {
   )
 
   fit_mh = bgm(
-    dat, variable_type = vtype,
+    dat,
+    variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = FALSE, update_method = "adaptive-metropolis",
     pseudolikelihood = "conditional",
@@ -498,7 +514,8 @@ test_that("M.2H: coef/summary/simulate/predict work on mixed NUTS fit", {
   vtype = c(rep("ordinal", 3), rep("continuous", 2))
 
   fit = bgm(
-    dat, variable_type = vtype,
+    dat,
+    variable_type = vtype,
     iter = 2000, warmup = 1000, chains = 1,
     edge_selection = FALSE, update_method = "nuts",
     pseudolikelihood = "conditional",
@@ -542,7 +559,8 @@ test_that("M.2I: simulate/predict preserve interleaved column order", {
   vtype = c("ordinal", "continuous", "ordinal", "continuous", "ordinal")
 
   fit = bgm(
-    dat, variable_type = vtype,
+    dat,
+    variable_type = vtype,
     iter = 2000, warmup = 1000, chains = 1,
     edge_selection = FALSE, update_method = "nuts",
     pseudolikelihood = "conditional",
@@ -569,7 +587,8 @@ test_that("M.2J: NUTS diagnostics are clean for mixed MRF", {
   vtype = c(rep("ordinal", 3), rep("continuous", 2))
 
   fit = bgm(
-    dat, variable_type = vtype,
+    dat,
+    variable_type = vtype,
     iter = 2000, warmup = 1000, chains = 2,
     edge_selection = FALSE, update_method = "nuts",
     pseudolikelihood = "conditional",
