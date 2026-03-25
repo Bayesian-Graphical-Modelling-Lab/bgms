@@ -26,28 +26,28 @@ diagnostics:
 
 ``` r
 summary(fit)$pairwise
-#>                          mean         mcse          sd     n_eff
-#> intrusion-dreams  0.315262872 0.0009987760 0.035166387 1239.7077
-#> intrusion-flash   0.169620044 0.0008705507 0.032988684 1435.9584
-#> intrusion-upset   0.099502069 0.0024611802 0.033776199  613.4641
-#> intrusion-physior 0.098047855 0.0027214306 0.034173756  172.6277
-#> dreams-flash      0.250050075 0.0008473943 0.030153729 1266.2252
-#> dreams-upset      0.114723866 0.0008302209 0.026480829 1017.3628
-#> dreams-physior    0.001696487 0.0003644944 0.008270186  779.0853
-#> flash-upset       0.003157118 0.0005840591 0.011746730  622.5182
-#> flash-physior     0.153058064 0.0007447715 0.026925616 1307.0288
-#> upset-physior     0.355353487 0.0008694551 0.031069593 1276.9586
+#>                          mean         mcse         sd     n_eff
+#> intrusion-dreams  0.314016539 0.0009913712 0.03385078 1165.9089
+#> intrusion-flash   0.169250494 0.0008528888 0.03229078 1433.4162
+#> intrusion-upset   0.097478982 0.0031173846 0.03705828  182.3267
+#> intrusion-physior 0.095610613 0.0033463734 0.03710007  152.0584
+#> dreams-flash      0.249094590 0.0008211943 0.03114051 1438.0021
+#> dreams-upset      0.113843953 0.0019899605 0.02976573  666.1014
+#> dreams-physior    0.004991406 0.0008923362 0.01504522  271.6522
+#> flash-upset       0.004239581 0.0008479241 0.01424560  336.0698
+#> flash-physior     0.152961036 0.0008124985 0.02737610 1135.2671
+#> upset-physior     0.355081270 0.0010677189 0.03163847  878.0456
 #>                   n_eff_mixt      Rhat
-#> intrusion-dreams          NA 1.0044625
-#> intrusion-flash           NA 1.0004411
-#> intrusion-upset     188.3366 1.0308542
-#> intrusion-physior   157.6852 1.0018830
-#> dreams-flash              NA 1.0022334
-#> dreams-upset              NA 0.9998575
-#> dreams-physior      514.8121 1.1224850
-#> flash-upset         404.5017 1.0394968
-#> flash-physior             NA 1.0002557
-#> upset-physior             NA 1.0003577
+#> intrusion-dreams          NA 0.9996738
+#> intrusion-flash           NA 1.0008031
+#> intrusion-upset     141.3155 1.0357719
+#> intrusion-physior   122.9138 1.0086513
+#> dreams-flash              NA 1.0000069
+#> dreams-upset        223.7403 1.0216024
+#> dreams-physior      284.2759 1.0236082
+#> flash-upset         282.2590 1.0228233
+#> flash-physior             NA 1.0022956
+#> upset-physior             NA 1.0019632
 ```
 
 - R-hat values close to 1 (typically below 1.01) suggest convergence
@@ -113,11 +113,11 @@ edges:
 ``` r
 coef(fit)$indicator
 #>           intrusion dreams  flash  upset physior
-#> intrusion    0.0000 1.0000 1.0000 0.9725  0.9580
-#> dreams       1.0000 0.0000 1.0000 1.0000  0.0415
-#> flash        1.0000 1.0000 0.0000 0.0695  1.0000
-#> upset        0.9725 1.0000 0.0695 0.0000  1.0000
-#> physior      0.9580 0.0415 1.0000 1.0000  0.0000
+#> intrusion    0.0000  1.000 1.0000 0.9435  0.9355
+#> dreams       1.0000  0.000 1.0000 0.9890  0.1050
+#> flash        1.0000  1.000 0.0000 0.0835  1.0000
+#> upset        0.9435  0.989 0.0835 0.0000  1.0000
+#> physior      0.9355  0.105 1.0000 1.0000  0.0000
 ```
 
 - Values near 1.0: strong evidence the edge is present.
@@ -137,7 +137,7 @@ vs absence:
 p = coef(fit)$indicator[1, 5]
 BF_10 = p / (1 - p)
 BF_10
-#> [1] 22.80952
+#> [1] 14.50388
 ```
 
 Here the Bayes factor in favor of inclusion (H1) is small, meaning that
@@ -147,7 +147,7 @@ transitive, we can use it to express the evidence in favor of exclusion
 
 ``` r
 1 / BF_10
-#> [1] 0.04384134
+#> [1] 0.06894709
 ```
 
 This Bayes factor shows that there is strong evidence for the absence of
@@ -168,7 +168,7 @@ fit$nuts_diag$summary
 #> [1] 0
 #> 
 #> $min_ebfmi
-#> [1] 0.9542537
+#> [1] 0.9170826
 #> 
 #> $warmup_incomplete
 #> [1] TRUE
@@ -228,24 +228,24 @@ the first and second halves of the post-warmup samples:
 ``` r
 fit$nuts_diag$warmup_check
 #> $warmup_incomplete
-#> [1] FALSE  TRUE
+#> [1]  TRUE FALSE
 #> 
 #> $energy_slope
-#>     time_idx     time_idx 
-#> -0.000186209  0.002743139 
+#>      time_idx      time_idx 
+#> -0.0037215825 -0.0006488636 
 #> 
 #> $slope_significant
 #> time_idx time_idx 
-#>    FALSE     TRUE 
+#>     TRUE    FALSE 
 #> 
 #> $ebfmi_first_half
-#> [1] 0.9127405 1.0218598
+#> [1] 1.0544681 0.9119725
 #> 
 #> $ebfmi_second_half
-#> [1] 0.9944623 1.1122781
+#> [1] 1.1347204 0.9167714
 #> 
 #> $var_ratio
-#> [1] 0.9717052 1.1007627
+#> [1] 1.0458509 0.8779368
 ```
 
 The returned list contains the following fields (one value per chain):

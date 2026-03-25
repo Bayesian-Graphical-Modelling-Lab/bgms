@@ -84,8 +84,8 @@ fit = bgm(
 #> Elapsed: 0s | ETA: 0s
 extract_partial_correlations(fit)
 #>           intrusion    dreams     flash
-#> intrusion 1.0000000 0.4953543 0.2998563
-#> dreams    0.4953543 1.0000000 0.4284506
-#> flash     0.2998563 0.4284506 1.0000000
+#> intrusion 1.0000000 0.4960240 0.3004812
+#> dreams    0.4960240 1.0000000 0.4244568
+#> flash     0.3004812 0.4244568 1.0000000
 # }
 ```

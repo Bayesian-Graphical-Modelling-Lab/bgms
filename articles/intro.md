@@ -64,23 +64,23 @@ summary(fit)
 #> Posterior summaries from Bayesian estimation:
 #> 
 #> Category thresholds: 
-#>                 mean  mcse    sd    n_eff  Rhat
-#> intrusion (1)  0.475 0.007 0.235 1199.616 1.002
-#> intrusion (2) -1.908 0.012 0.334  788.430 1.003
-#> intrusion (3) -4.861 0.020 0.548  724.535 1.004
-#> intrusion (4) -9.545 0.033 0.898  754.681 1.004
-#> dreams (1)    -0.590 0.007 0.201  934.188 1.006
-#> dreams (2)    -3.782 0.013 0.364  779.761 1.002
+#>                 mean  mcse    sd   n_eff  Rhat
+#> intrusion (1)  0.481 0.008 0.244 849.010 1.002
+#> intrusion (2) -1.887 0.013 0.353 685.881 1.005
+#> intrusion (3) -4.812 0.024 0.572 560.736 1.006
+#> intrusion (4) -9.467 0.037 0.906 605.623 1.005
+#> dreams (1)    -0.599 0.006 0.193 896.581 1.001
+#> dreams (2)    -3.796 0.014 0.361 697.001 1.004
 #> ... (use `summary(fit)$main` to see full output)
 #> 
 #> Pairwise interactions:
 #>                    mean  mcse    sd    n_eff n_eff_mixt  Rhat
-#> intrusion-dreams  0.315 0.001 0.035 1239.708            1.004
-#> intrusion-flash   0.170 0.001 0.033 1435.958            1.000
-#> intrusion-upset   0.100 0.002 0.034  613.464    188.337 1.031
-#> intrusion-physior 0.098 0.003 0.034  172.628    157.685 1.002
-#> dreams-flash      0.250 0.001 0.030 1266.225            1.002
-#> dreams-upset      0.115 0.001 0.026 1017.363            1.000
+#> intrusion-dreams  0.314 0.001 0.034 1165.909            1.000
+#> intrusion-flash   0.169 0.001 0.032 1433.416            1.001
+#> intrusion-upset   0.097 0.003 0.037  182.327    141.315 1.036
+#> intrusion-physior 0.096 0.003 0.037  152.058    122.914 1.009
+#> dreams-flash      0.249 0.001 0.031 1438.002            1.000
+#> dreams-upset      0.114 0.002 0.030  666.101     223.74 1.022
 #> ... (use `summary(fit)$pairwise` to see full output)
 #> Note: NA values are suppressed in the print table. They occur here when an 
 #> indicator was zero across all iterations, so mcse/n_eff/n_eff_mixt/Rhat are undefined;
@@ -90,17 +90,17 @@ summary(fit)
 #>                    mean  mcse    sd n0->0 n0->1 n1->0 n1->1 n_eff_mixt
 #> intrusion-dreams  1.000       0.000     0     0     0  1999           
 #> intrusion-flash   1.000       0.000     0     0     0  1999           
-#> intrusion-upset   0.973 0.022 0.164    52     3     3  1941     57.707
-#> intrusion-physior 0.958 0.025 0.201    79     5     5  1910     64.127
+#> intrusion-upset   0.944 0.028 0.231   106     7     7  1879     67.887
+#> intrusion-physior 0.935 0.032 0.246   122     7     7  1863      59.74
 #> dreams-flash      1.000       0.000     0     0     0  1999           
-#> dreams-upset      1.000       0.000     0     0     0  1999           
+#> dreams-upset      0.989 0.015 0.104    21     1     1  1976           
 #>                    Rhat
 #> intrusion-dreams       
 #> intrusion-flash        
-#> intrusion-upset   1.319
-#> intrusion-physior 1.001
+#> intrusion-upset    1.14
+#> intrusion-physior 1.033
 #> dreams-flash           
-#> dreams-upset           
+#> dreams-upset      1.301
 #> ... (use `summary(fit)$indicator` to see full output)
 #> Note: NA values are suppressed in the print table. They occur when an indicator
 #> was constant or had fewer than 5 transitions, so n_eff_mixt is unreliable;
@@ -117,27 +117,27 @@ You can also access posterior means or inclusion probabilities directly:
 coef(fit)
 #> $main
 #>              cat (1)   cat (2)   cat (3)    cat (4)
-#> intrusion  0.4748512 -1.908057 -4.861411  -9.545334
-#> dreams    -0.5898472 -3.781793 -7.115825 -11.543035
-#> flash     -0.1019984 -2.556490 -5.351775  -9.660627
-#> upset      0.4130183 -1.320022 -3.397623  -7.083843
-#> physior   -0.6076706 -3.155558 -6.191998 -10.524918
+#> intrusion  0.4807844 -1.887276 -4.812235  -9.466882
+#> dreams    -0.5990120 -3.796343 -7.120031 -11.554333
+#> flash     -0.1010139 -2.563203 -5.356205  -9.657865
+#> upset      0.4130636 -1.311834 -3.387882  -7.056063
+#> physior   -0.6078418 -3.157839 -6.199070 -10.534263
 #> 
 #> $pairwise
 #>            intrusion      dreams       flash       upset     physior
-#> intrusion 0.00000000 0.315262872 0.169620044 0.099502069 0.098047855
-#> dreams    0.31526287 0.000000000 0.250050075 0.114723866 0.001696487
-#> flash     0.16962004 0.250050075 0.000000000 0.003157118 0.153058064
-#> upset     0.09950207 0.114723866 0.003157118 0.000000000 0.355353487
-#> physior   0.09804786 0.001696487 0.153058064 0.355353487 0.000000000
+#> intrusion 0.00000000 0.314016539 0.169250494 0.097478982 0.095610613
+#> dreams    0.31401654 0.000000000 0.249094590 0.113843953 0.004991406
+#> flash     0.16925049 0.249094590 0.000000000 0.004239581 0.152961036
+#> upset     0.09747898 0.113843953 0.004239581 0.000000000 0.355081270
+#> physior   0.09561061 0.004991406 0.152961036 0.355081270 0.000000000
 #> 
 #> $indicator
 #>           intrusion dreams  flash  upset physior
-#> intrusion    0.0000 1.0000 1.0000 0.9725  0.9580
-#> dreams       1.0000 0.0000 1.0000 1.0000  0.0415
-#> flash        1.0000 1.0000 0.0000 0.0695  1.0000
-#> upset        0.9725 1.0000 0.0695 0.0000  1.0000
-#> physior      0.9580 0.0415 1.0000 1.0000  0.0000
+#> intrusion    0.0000  1.000 1.0000 0.9435  0.9355
+#> dreams       1.0000  0.000 1.0000 0.9890  0.1050
+#> flash        1.0000  1.000 0.0000 0.0835  1.0000
+#> upset        0.9435  0.989 0.0835 0.0000  1.0000
+#> physior      0.9355  0.105 1.0000 1.0000  0.0000
 ```
 
 ## Network plot
