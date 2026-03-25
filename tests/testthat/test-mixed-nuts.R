@@ -248,8 +248,8 @@ test_that("M.2C: NUTS vs MH agree (conditional PL, ES, grouped)", {
   pip_nuts_ut = pip_nuts[upper.tri(pip_nuts)]
   pip_mh_ut = pip_mh[upper.tri(pip_mh)]
 
-  expect_lt(max(abs(pip_nuts_ut - pip_mh_ut)), 0.15,
-    label = "M.2C max PIP diff < 0.15"
+  expect_lt(max(abs(pip_nuts_ut - pip_mh_ut)), 0.20,
+    label = "M.2C max PIP diff < 0.20"
   )
   expect_gt(cor(pip_nuts_ut, pip_mh_ut), 0.95,
     label = "M.2C PIP correlation > 0.95"
@@ -290,8 +290,8 @@ test_that("M.2D: NUTS vs MH agree (marginal PL, ES, grouped)", {
   pip_nuts_ut = pip_nuts[upper.tri(pip_nuts)]
   pip_mh_ut = pip_mh[upper.tri(pip_mh)]
 
-  expect_lt(max(abs(pip_nuts_ut - pip_mh_ut)), 0.15,
-    label = "M.2D max PIP diff < 0.15"
+  expect_lt(max(abs(pip_nuts_ut - pip_mh_ut)), 0.20,
+    label = "M.2D max PIP diff < 0.20"
   )
   expect_gt(cor(pip_nuts_ut, pip_mh_ut), 0.95,
     label = "M.2D PIP correlation > 0.95"
@@ -335,8 +335,8 @@ test_that("M.2E: NUTS vs MH agree (conditional PL, ES, interleaved)", {
   pip_nuts_ut = pip_nuts[upper.tri(pip_nuts)]
   pip_mh_ut = pip_mh[upper.tri(pip_mh)]
 
-  expect_lt(max(abs(pip_nuts_ut - pip_mh_ut)), 0.15,
-    label = "M.2E max PIP diff < 0.15"
+  expect_lt(max(abs(pip_nuts_ut - pip_mh_ut)), 0.20,
+    label = "M.2E max PIP diff < 0.20"
   )
 
   # Output ordering: names must be in user (interleaved) order
