@@ -230,7 +230,7 @@ test_that("bgm warns when using HMC with edge selection", {
         seed = 630, display_progress = "none"
       ),
       warning = function(w) {
-        if(grepl("numerically fragile", conditionMessage(w))) warned = TRUE
+        if(grepl("numerically fragile", conditionMessage(w))) warned <<- TRUE
         invokeRestart("muffleWarning")
       }
     ),
