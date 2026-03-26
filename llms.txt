@@ -1,7 +1,5 @@
 ![bgms](reference/figures/bgms-banner.svg)
 
-bgms
-
 **Bayesian analysis of graphical models**
 
 The **bgms** package provides Bayesian estimation and edge selection for
@@ -70,7 +68,7 @@ Related methodological papers:
 4.  Sekulovski, N., Arena, G., Haslbeck, J. M. B., Huth, K. B. S.,
     Friel, N., & Marsman, M. (2025). A stochastic block prior for
     clustering in graphical models.
-    [![PsyArXiv:29p3m](https://img.shields.io/badge/PsyArXiv-29p3m-blue.svg)](https://osf.io/preprints/psyarxiv/29p3m_v1)
+    [![PsyArXiv:29p3m](https://img.shields.io/badge/PsyArXiv-29p3m-blue.svg)](https://osf.io/preprints/psyarxiv/29p3m_v3)
 
 You can also retrieve the citation from R:
 
