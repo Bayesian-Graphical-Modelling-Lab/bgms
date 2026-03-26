@@ -37,10 +37,11 @@
 <h2 class="pkg-version" data-toc-text="0.2.0.0" id="bgms-0200">bgms 0.2.0.0<a class="anchor" aria-label="anchor" href="#bgms-0200"></a></h2>
 <div class="section level3">
 <h3 id="breaking-changes-0-2-0-0">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-0-2-0-0"></a></h3>
-<ul><li>Pairwise interaction parameters for ordinal MRFs are now stored on association scale (half the sigma scale used in 0.1.6.3). Code that interprets raw pairwise posterior samples or sets <code>pairwise_scale</code> explicitly will need adjustment.</li>
-<li>Default <code>pairwise_scale</code> changed from 2.5 to 1 to match the association-scale reparameterization.</li>
-<li>
-<code><a href="../reference/extract_category_thresholds.html">extract_category_thresholds()</a></code> is deprecated in favor of <code><a href="../reference/extract_main_effects.html">extract_main_effects()</a></code>, which covers category thresholds, continuous means, and precision diagonal entries.</li>
+<ul><li><p><code>update_method = "hamiltonian-mc"</code> is deprecated. Pure HMC with a fixed trajectory length will be removed in a future release. Use <code>update_method = "nuts"</code> instead. NUTS dynamically adapts trajectory length and is more reliable, especially with edge selection on GGM models.</p></li>
+<li><p>The <code>hmc_num_leapfrogs</code> argument is deprecated along with pure HMC.</p></li>
+<li><p>Pairwise interaction parameters for ordinal MRFs are now stored on association scale (half the sigma scale used in 0.1.6.3). Code that interprets raw pairwise posterior samples or sets <code>pairwise_scale</code> explicitly will need adjustment.</p></li>
+<li><p>Default <code>pairwise_scale</code> changed from 2.5 to 1 to match the association-scale reparameterization.</p></li>
+<li><p><code><a href="../reference/extract_category_thresholds.html">extract_category_thresholds()</a></code> is deprecated in favor of <code><a href="../reference/extract_main_effects.html">extract_main_effects()</a></code>, which covers category thresholds, continuous means, and precision diagonal entries.</p></li>
 </ul></div>
 <div class="section level3">
 <h3 id="new-features-0-2-0-0">New features<a class="anchor" aria-label="anchor" href="#new-features-0-2-0-0"></a></h3>

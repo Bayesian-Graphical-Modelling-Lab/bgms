@@ -155,8 +155,9 @@ bgm(
 
   "hamiltonian-mc"
 
-  :   Hamiltonian Monte Carlo with fixed path length (number of leapfrog
-      steps set by `hmc_num_leapfrogs`).
+  :   **Deprecated.** Hamiltonian Monte Carlo with fixed path length.
+      Use `"nuts"` instead. This option will be removed in a future
+      release.
 
   "nuts"
 
@@ -169,12 +170,13 @@ bgm(
 
   Numeric between 0 and 1. Target acceptance rate for the sampler.
   Defaults are set automatically if not supplied: `0.44` for adaptive
-  Metropolis, `0.65` for HMC, and `0.80` for NUTS.
+  Metropolis and `0.80` for NUTS.
 
 - hmc_num_leapfrogs:
 
-  Integer. Number of leapfrog steps for Hamiltonian Monte Carlo. Must be
-  positive. Default: `100`.
+  **\[deprecated\]** Integer. Number of leapfrog steps for Hamiltonian
+  Monte Carlo. Only relevant when `update_method = "hamiltonian-mc"`,
+  which is deprecated.
 
 - nuts_max_depth:
 
@@ -182,8 +184,8 @@ bgm(
 
 - learn_mass_matrix:
 
-  Logical. If `TRUE`, adapt a diagonal mass matrix during warmup
-  (HMC/NUTS only). If `FALSE`, use the identity matrix. Default: `TRUE`.
+  Logical. If `TRUE`, adapt a diagonal mass matrix during warmup (NUTS
+  only). If `FALSE`, use the identity matrix. Default: `TRUE`.
 
 - chains:
 
@@ -381,7 +383,7 @@ for edge selection through Bayesian variable selection. The statistical
 foundation of the model is described in Marsman et al. (2025) , where
 the ordinal MRF model and its Bayesian estimation procedure were first
 introduced. While the implementation in bgms has since been extended and
-updated (e.g., alternative priors, parallel chains, HMC/NUTS warmup), it
+updated (e.g., alternative priors, parallel chains, NUTS warmup), it
 builds on that original framework.
 
 Key components of the model are described in the sections below.
@@ -457,10 +459,9 @@ updates can be carried out using different algorithms:
   are adapted during burn–in via Robbins–Monro updates toward a target
   acceptance rate.
 
-- **Hamiltonian Monte Carlo (HMC)**: Joint updates of all parameters
-  using fixed–length leapfrog trajectories. Step size is tuned during
-  warmup via dual–averaging; the diagonal mass matrix can also be
-  adapted if `learn_mass_matrix = TRUE`.
+- **Hamiltonian Monte Carlo (HMC)** (*deprecated*): Joint updates of all
+  parameters using fixed–length leapfrog trajectories. This method is
+  deprecated; use NUTS instead.
 
 - **No–U–Turn Sampler (NUTS)**: An adaptive extension of HMC that
   dynamically chooses trajectory lengths. Warmup uses a staged
@@ -483,8 +484,8 @@ The warmup procedure in `bgm` uses a multi-stage adaptation schedule
 phases:
 
 - **Stage 1 (fast adaptation)**: A short initial interval where only
-  step size (for HMC/NUTS) is adapted, allowing the chain to move
-  quickly toward the typical set.
+  step size (for NUTS) is adapted, allowing the chain to move quickly
+  toward the typical set.
 
 - **Stage 2 (slow windows)**: A sequence of expanding, memoryless
   windows where both step size and, if `learn_mass_matrix = TRUE`, the
@@ -495,7 +496,7 @@ phases:
   core warmup where the step size is adapted one final time.
 
 - **Stage 3b (proposal–SD tuning)**: Only active when
-  `edge_selection = TRUE` under HMC/NUTS. In this phase, Robbins–Monro
+  `edge_selection = TRUE` under NUTS. In this phase, Robbins–Monro
   adaptation of proposal standard deviations is performed for the
   Metropolis steps used in edge–selection moves.
 
@@ -506,13 +507,13 @@ phases:
 
 When `edge_selection = FALSE`, the total number of warmup iterations
 equals the user–specified `burnin`. When `edge_selection = TRUE` and
-`update_method` is `"nuts"` or `"hamiltonian-mc"`, the schedule
-automatically appends additional Stage-3b and Stage-3c intervals, so the
-total warmup is strictly greater than the requested `burnin`.
+`update_method` is `"nuts"`, the schedule automatically appends
+additional Stage-3b and Stage-3c intervals, so the total warmup is
+strictly greater than the requested `burnin`.
 
 After all warmup phases, the sampler transitions to the sampling phase
-with adaptation disabled. Step size and mass matrix (for HMC/NUTS) are
-fixed at their learned values, and proposal SDs remain constant.
+with adaptation disabled. Step size and mass matrix (for NUTS) are fixed
+at their learned values, and proposal SDs remain constant.
 
 This staged design improves stability of proposals and ensures that both
 local parameters (step size) and global parameters (mass matrix,
@@ -567,36 +568,36 @@ fit = bgm(x = Wenchuan[, 1:5], chains = 2)
 #> Total   (Warmup): ⦗━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 103/4000 (2.6%)
 #> Elapsed: 0s | ETA: 0s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 150/2000 (7.5%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 138/2000 (6.9%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 288/4000 (7.2%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 139/2000 (7.0%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 289/4000 (7.2%)
 #> Elapsed: 1s | ETA: 13s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 400/2000 (20.0%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 401/2000 (20.1%)
-#> Total   (Warmup): ⦗━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 801/4000 (20.0%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 406/2000 (20.3%)
+#> Total   (Warmup): ⦗━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 806/4000 (20.2%)
 #> Elapsed: 1s | ETA: 4s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 700/2000 (35.0%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 692/2000 (34.6%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1392/4000 (34.8%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 696/2000 (34.8%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1396/4000 (34.9%)
 #> Elapsed: 2s | ETA: 4s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 950/2000 (47.5%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 949/2000 (47.4%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1899/4000 (47.5%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━⦘ 961/2000 (48.0%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━⦘ 1911/4000 (47.8%)
 #> Elapsed: 2s | ETA: 2s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1200/2000 (60.0%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━⦘ 1206/2000 (60.3%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━⦘ 2406/4000 (60.2%)
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━⦘ 1213/2000 (60.7%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━⦘ 2413/4000 (60.3%)
 #> Elapsed: 3s | ETA: 2s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1450/2000 (72.5%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━⦘ 1458/2000 (72.9%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━⦘ 2908/4000 (72.7%)
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━⦘ 1470/2000 (73.5%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━⦘ 2920/4000 (73.0%)
 #> Elapsed: 3s | ETA: 1s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1700/2000 (85.0%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1697/2000 (84.9%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 3397/4000 (84.9%)
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━⦘ 1706/2000 (85.3%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━⦘ 3406/4000 (85.2%)
 #> Elapsed: 4s | ETA: 1s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1950/2000 (97.5%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1950/2000 (97.5%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 3900/4000 (97.5%)
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺⦘ 1959/2000 (98.0%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺⦘ 3909/4000 (97.7%)
 #> Elapsed: 5s | ETA: 0s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2000/2000 (100.0%)
 #> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2000/2000 (100.0%)

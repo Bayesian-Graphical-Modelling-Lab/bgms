@@ -71,7 +71,8 @@ styler::style_pkg(style = bgms_style)
 Checked test files for styled `result =` captures that must be reverted
 to `result <-`
 
-Ran `lintr::lint_package()`
+Ran
+[`lintr::lint_package()`](https://lintr.r-lib.org/reference/lint.html)
 
 Ran
 [`roxygen2::roxygenise()`](https://roxygen2.r-lib.org/reference/roxygenize.html)
