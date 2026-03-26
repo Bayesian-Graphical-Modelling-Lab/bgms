@@ -29,6 +29,10 @@ source("inst/styler/bgms_style.R")
 styler::style_pkg(style = bgms_style)
 ```
 
+After styling, check test files for assignment captures inside function
+calls, such as `expect_message(result <- foo(), "pattern")`. These must
+remain `<-`, because `=` would be interpreted as a named argument.
+
 ## Documentation
 
 - **Exported R functions** get full roxygen2 blocks (`@title`,
