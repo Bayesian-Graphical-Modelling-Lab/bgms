@@ -109,7 +109,7 @@
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/source.html" class="external-link">source</a></span><span class="op">(</span><span class="st">"inst/styler/bgms_style.R"</span><span class="op">)</span></span>
 <span><span class="fu">styler</span><span class="fu">::</span><span class="fu">style_pkg</span><span class="op">(</span>style <span class="op">=</span> <span class="va">bgms_style</span><span class="op">)</span></span></code></pre></div>
-<p>After running, check test files for <code>expect_*(result = ...)</code> and revert those to <code>result &lt;- ...</code>.</p>
+<p>The styler preserves <code>&lt;&lt;-</code> and <code>&lt;-</code> inside function-call arguments automatically. No manual revert step is needed.</p>
 </li>
 <li>
 <p><strong>Lint</strong> — catch issues the CI lint workflow will flag:</p>
@@ -120,13 +120,13 @@
 <li>
 <p><strong>Roxygen</strong> — regenerate Rd files if any roxygen comment changed:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">roxygen2</span><span class="fu">::</span><span class="fu">roxygenise</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu">roxygen2</span><span class="fu">::</span><span class="fu"><a href="https://roxygen2.r-lib.org/reference/roxygenize.html" class="external-link">roxygenise</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p>Stage the regenerated <code>man/*.Rd</code> files in the same commit.</p>
 </li>
 <li>
 <p><strong>R CMD check</strong> — if the change is non-trivial, run:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">rcmdcheck</span><span class="fu">::</span><span class="fu">rcmdcheck</span><span class="op">(</span>args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"--no-manual"</span>, <span class="st">"--as-cran"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu">rcmdcheck</span><span class="fu">::</span><span class="fu"><a href="http://r-lib.github.io/rcmdcheck/reference/rcmdcheck.html" class="external-link">rcmdcheck</a></span><span class="op">(</span>args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"--no-manual"</span>, <span class="st">"--as-cran"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p>CI uses <code>error-on = "warning"</code>, so warnings are treated as failures.</p>
 </li>
 </ol></div>
@@ -135,7 +135,7 @@
 <ul><li>Add <code>@keywords internal</code> to exported functions.</li>
 <li>Use <code>\dontrun{}</code> when <code>\donttest{}</code> suffices.</li>
 <li>Add Doxygen blocks in <code>.cpp</code> implementation files.</li>
-<li>Use <code>&lt;-</code> for assignment in R code.</li>
+<li>Use <code>&lt;-</code> for assignment in R code (exceptions: <code>&lt;&lt;-</code> for superassignment and <code>&lt;-</code> inside function-call argument capture).</li>
 <li>Use AI-style prose: no superlatives, no hedging qualifiers, no transition phrases (“Furthermore”, “Moreover”, “Additionally”).</li>
 <li>Write session-oriented documentation (“in your R session”, “you should see”, “run this in your console”). Documentation describes what a function does and returns, not what the reader should do interactively.</li>
 </ul></div>
