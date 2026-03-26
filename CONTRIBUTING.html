@@ -37,6 +37,27 @@
 
 <p>Thank you for your interest in contributing to bgms. This document covers the practical steps for building, testing, and submitting changes.</p>
 <div class="section level2">
+<h2 id="ways-to-contribute">Ways to contribute<a class="anchor" aria-label="anchor" href="#ways-to-contribute"></a></h2>
+<p>Contributions come in many forms, and all of them are valued:</p>
+<ul><li>
+<strong>Report a bug</strong> — open an issue and the bug report template will load automatically.</li>
+<li>
+<strong>Suggest a feature</strong> — open an issue and the feature request template will load automatically.</li>
+<li>
+<strong>Improve documentation</strong> — fix a typo, clarify a vignette, or add an example.</li>
+<li>
+<strong>Write tests</strong> — help us cover edge cases and new functionality.</li>
+<li>
+<strong>Review a pull request</strong> — a second pair of eyes is always welcome.</li>
+<li>
+<strong>Contribute code</strong> — fix a bug, implement a feature, or improve performance.</li>
+</ul><p>For small changes (typos, documentation fixes), open a pull request directly. For larger work (new features, algorithm changes), open an issue first so we can discuss the approach before you invest time.</p>
+</div>
+<div class="section level2">
+<h2 id="getting-help">Getting help<a class="anchor" aria-label="anchor" href="#getting-help"></a></h2>
+<p>If you get stuck or have questions about contributing, open an issue or contact the maintainer at <a href="mailto:m.marsman@uva.nl" class="email">m.marsman@uva.nl</a>.</p>
+</div>
+<div class="section level2">
 <h2 id="getting-started">Getting started<a class="anchor" aria-label="anchor" href="#getting-started"></a></h2>
 <div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/Bayesian-Graphical-Modelling-Lab/bgms.git</span>
 <span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="bu">cd</span> bgms</span></code></pre></div>
@@ -47,11 +68,19 @@
 </div>
 <div class="section level2">
 <h2 id="code-style">Code style<a class="anchor" aria-label="anchor" href="#code-style"></a></h2>
-<p>bgms uses <code>=</code> for assignment (not <code>&lt;-</code>) and omits the space between <code>if</code>/<code>for</code>/<code>while</code> and <code>(</code>. These rules are enforced by the custom styler in <code>inst/styler/bgms_style.R</code>. Run before committing:</p>
+<p>bgms uses <code>=</code> for assignment (not <code>&lt;-</code>) and omits the space between <code>if</code>/<code>for</code>/<code>while</code> and <code>(</code>. You do not need to memorize these rules; the pre-commit checks enforce them automatically.</p>
+<p>Before committing, run the following in order:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/source.html" class="external-link">source</a></span><span class="op">(</span><span class="st">"inst/styler/bgms_style.R"</span><span class="op">)</span></span>
-<span><span class="fu">styler</span><span class="fu">::</span><span class="fu">style_pkg</span><span class="op">(</span>style <span class="op">=</span> <span class="va">bgms_style</span><span class="op">)</span></span></code></pre></div>
-<p>After styling, check test files for assignment captures inside function calls, such as <code>expect_message(result &lt;- foo(), "pattern")</code>. These must remain <code>&lt;-</code>, because <code>=</code> would be interpreted as a named argument.</p>
+<code class="sourceCode R"><span><span class="co"># 1. Enforce code style</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/source.html" class="external-link">source</a></span><span class="op">(</span><span class="st">"inst/styler/bgms_style.R"</span><span class="op">)</span></span>
+<span><span class="fu">styler</span><span class="fu">::</span><span class="fu">style_pkg</span><span class="op">(</span>style <span class="op">=</span> <span class="va">bgms_style</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># 2. Check for lint issues</span></span>
+<span><span class="fu">lintr</span><span class="fu">::</span><span class="fu">lint_package</span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># 3. Regenerate documentation (if you changed any roxygen comments)</span></span>
+<span><span class="fu">roxygen2</span><span class="fu">::</span><span class="fu"><a href="https://roxygen2.r-lib.org/reference/roxygenize.html" class="external-link">roxygenise</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<p>The pull request template includes a full checklist of these steps.</p>
 </div>
 <div class="section level2">
 <h2 id="documentation">Documentation<a class="anchor" aria-label="anchor" href="#documentation"></a></h2>
@@ -63,7 +92,7 @@
 <strong>C++ headers</strong> use Doxygen <code>/** */</code> blocks on classes and methods.</li>
 <li>
 <strong>C++ implementations</strong> use inline <code>//</code> comments only.</li>
-</ul><p>When modifying a function signature, update its documentation in the same commit. When adding a new exported function, add it to <code>_pkgdown.yml</code>.</p>
+</ul><p>When modifying a function signature, update its documentation in the same commit.</p>
 </div>
 <div class="section level2">
 <h2 id="tests">Tests<a class="anchor" aria-label="anchor" href="#tests"></a></h2>
