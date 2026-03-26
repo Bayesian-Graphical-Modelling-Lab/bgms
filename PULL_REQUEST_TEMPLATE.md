@@ -71,12 +71,9 @@ styler::style_pkg(style = bgms_style)
 Checked test files for styled `result =` captures that must be reverted
 to `result <-`
 
-Ran
-[`lintr::lint_package()`](https://lintr.r-lib.org/reference/lint.html)
+Ran `lintr::lint_package()`
 
-Ran
-[`roxygen2::roxygenise()`](https://roxygen2.r-lib.org/reference/roxygenize.html)
-if roxygen comments changed
+Ran `roxygen2::roxygenise()` if roxygen comments changed
 
 Ran `rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran"))` for
 non-trivial changes

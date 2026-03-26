@@ -82,8 +82,8 @@ fit = bgm(
 #> Elapsed: 0s | ETA: 0s
 extract_precision(fit)
 #>            intrusion     dreams      flash
-#> intrusion  1.7056605 -0.8246762 -0.4880540
-#> dreams    -0.8246762  1.6163975 -0.6681956
-#> flash     -0.4880540 -0.6681956  1.5419549
+#> intrusion  1.7031353 -0.8230416 -0.4882264
+#> dreams    -0.8230416  1.6166990 -0.6701382
+#> flash     -0.4882264 -0.6701382  1.5437290
 # }
 ```

@@ -51,7 +51,7 @@ If you use bgms in your work, please cite:
 1.  Marsman, M., van den Bergh, D., & Haslbeck, J. M. B. (2025).
     Bayesian analysis of the ordinal Markov random field.
     *Psychometrika*, *90*(1), 146–182.
-    [DOI:10.1017/psy.2024.4](https://doi.org/10.1017/psy.2024.4)
+    [![DOI:10.1017/psy.2024.4](https://zenodo.org/badge/DOI/10.1017/psy.2024.4.svg)](https://doi.org/10.1017/psy.2024.4)
 
 Related methodological papers:
 
@@ -60,17 +60,17 @@ Related methodological papers:
     conditional independence in psychometric networks: An analysis of
     three Bayesian methods. *Multivariate Behavioral Research*, *59*,
     913–933.
-    [DOI:10.1080/00273171.2024.2345915](https://doi.org/10.1080/00273171.2024.2345915)
+    [![DOI:10.1080/00273171.2024.2345915](https://zenodo.org/badge/DOI/10.1080/00273171.2024.2345915.svg)](https://doi.org/10.1080/00273171.2024.2345915)
 
 3.  Marsman, M., Waldorp, L. J., Sekulovski, N., & Haslbeck, J. M. B.
     (2025). Bayes factor tests for group differences in ordinal and
     binary graphical models. *Psychometrika*, *90*(5), 1809–1842.
-    [DOI:10.1017/psy.2025.10060](https://doi.org/10.1017/psy.2025.10060)
+    [![DOI:10.1017/psy.2025.10060](https://zenodo.org/badge/DOI/10.1017/psy.2025.10060.svg)](https://doi.org/10.1017/psy.2025.10060)
 
 4.  Sekulovski, N., Arena, G., Haslbeck, J. M. B., Huth, K. B. S.,
     Friel, N., & Marsman, M. (2025). A stochastic block prior for
     clustering in graphical models.
-    [PsyArXiv:29p3m](https://osf.io/preprints/psyarxiv/29p3m_v1)
+    [![PsyArXiv:29p3m](https://img.shields.io/badge/PsyArXiv-29p3m-blue.svg)](https://osf.io/preprints/psyarxiv/29p3m_v1)
 
 You can also retrieve the citation from R:
 
