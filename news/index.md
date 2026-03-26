@@ -1,9 +1,27 @@
 # Changelog
 
-## bgms 0.1.6.4
+## bgms 0.2.0.0
+
+### Breaking changes
+
+- Pairwise interaction parameters for ordinal MRFs are now stored on
+  association scale (half the sigma scale used in 0.1.6.3). Code that
+  interprets raw pairwise posterior samples or sets `pairwise_scale`
+  explicitly will need adjustment.
+- Default `pairwise_scale` changed from 2.5 to 1 to match the
+  association-scale reparameterization.
+- [`extract_category_thresholds()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_category_thresholds.md)
+  is deprecated in favor of
+  [`extract_main_effects()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_main_effects.md),
+  which covers category thresholds, continuous means, and precision
+  diagonal entries.
 
 ### New features
 
+- Gaussian graphical models (GGM):
+  `bgm(x, variable_type = "continuous")` fits a GGM with Bayesian edge
+  selection. Sampling uses the RATTLE constrained HMC algorithm to
+  maintain positive-definiteness of the precision matrix.
 - Mixed MRF models:
   [`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)
   accepts a per-variable `variable_type` vector that mixes `"ordinal"`,
@@ -13,48 +31,40 @@
   and
   [`predict.bgms()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/predict.bgms.md)
   also support mixed models.
-- Gaussian graphical models (GGM):
-  `bgm(x, variable_type = "continuous")` fits a GGM with Bayesian edge
-  selection. Pairwise effects are partial correlations from the
-  precision matrix.
 - Missing data imputation: `na_action = "impute"` integrates over
-  missing values during MCMC sampling for both ordinal and continuous
+  missing values during MCMC sampling for ordinal, continuous, and mixed
   models.
+- [`extract_precision()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_precision.md):
+  extract posterior precision matrix samples from GGM and mixed models.
+- [`extract_partial_correlations()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_partial_correlations.md):
+  extract posterior partial correlation samples from GGM and mixed
+  models.
+- [`extract_log_odds()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_log_odds.md):
+  extract log-odds for discrete pairwise interactions.
+- [`extract_main_effects()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_main_effects.md):
+  extract main effect samples (category thresholds, continuous means,
+  and precision diagonal).
 
 ### Other changes
 
-- default `pairwise_scale` changed from 2.5 to 1, matching the K-scale
-  reparameterization.
-- `pairwise_scale` is now forwarded to the GGM C++ sampler. Previously,
-  the argument was accepted by
-  [`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)
-  but silently ignored for continuous models, which always used 2.5.
-- [`summary()`](https://rdrr.io/r/base/summary.html) for GGM and mixed
-  MRF models reports residual variances instead of raw precision
-  diagonal values.
-- removed redundant C++ constructor defaults for prior parameters;
-  missing values now cause compile errors instead of silent fallbacks.
+- Refactored the C++ backend: unified model hierarchy (`BaseModel` →
+  `GGMModel` / `OMRFModel` / `MixedMRFModel`), shared NUTS/HMC
+  infrastructure, and fused log-posterior and gradient computation.
+- Dropped `coda` from Imports; ESS and R-hat are now computed in C++
+  with on-demand (lazy) evaluation, replacing the eager R-based
+  computation from 0.1.6.3.
+- `$` and `[[` accessors on fitted objects trigger lazy computation of
+  MCMC diagnostics on first access.
 
 ### Bug fixes
 
-- fixed compilation failure on Alpine/musl: `mrf_simulation.cpp` used
-  `tbb::global_control` without explicitly including
-  `<tbb/global_control.h>`, relying on a transitive include that is not
+- Fixed compilation failure on Alpine/musl: `mrf_simulation.cpp` relied
+  on a transitive include for `<tbb/global_control.h>` that is not
   available on all platforms.
-- fixed Blume-Capel imputation: zero-category probability had wrong sign
-  and was double-counted. Replaced with unified loop over all
-  categories, matching
-  [`simulate_mrf()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate_mrf.md).
-- fixed stale gradient cache after missing data imputation:
-  `impute_missing()` updated sufficient statistics
-  (`counts_per_category_`, `blume_capel_stats_`, `pairwise_stats_`) but
-  did not invalidate the gradient cache, causing NUTS to use outdated
-  cached values for the leapfrog integration.
-- fixed stale observation transpose after missing data imputation: the
-  precomputed `observations_double_t_` matrix was set once in the
-  constructor but never refreshed after `impute_missing()` changed cells
-  in `observations_double_`, causing the pairwise gradient
-  (`observations_double_t_ * E`) to use stale data.
+- Fixed stale gradient cache after missing data imputation caused NUTS
+  to use outdated cached values for leapfrog integration.
+- Fixed stale observation transpose after missing data imputation caused
+  the pairwise gradient to use stale data.
 
 ## bgms 0.1.6.3
 

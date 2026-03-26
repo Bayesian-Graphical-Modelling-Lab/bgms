@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">bgms</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.6.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -34,28 +34,40 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.1.6.4" id="bgms-0164">bgms 0.1.6.4<a class="anchor" aria-label="anchor" href="#bgms-0164"></a></h2>
+<h2 class="pkg-version" data-toc-text="0.2.0.0" id="bgms-0200">bgms 0.2.0.0<a class="anchor" aria-label="anchor" href="#bgms-0200"></a></h2>
 <div class="section level3">
-<h3 id="new-features-0-1-6-4">New features<a class="anchor" aria-label="anchor" href="#new-features-0-1-6-4"></a></h3>
-<ul><li>Mixed MRF models: <code><a href="../reference/bgm.html">bgm()</a></code> accepts a per-variable <code>variable_type</code> vector that mixes <code>"ordinal"</code>, <code>"blume-capel"</code>, and <code>"continuous"</code> types to estimate networks with both discrete and continuous variables. <code><a href="../reference/simulate.bgms.html">simulate.bgms()</a></code> and <code><a href="../reference/predict.bgms.html">predict.bgms()</a></code> also support mixed models.</li>
-<li>Gaussian graphical models (GGM): <code>bgm(x, variable_type = "continuous")</code> fits a GGM with Bayesian edge selection. Pairwise effects are partial correlations from the precision matrix.</li>
-<li>Missing data imputation: <code>na_action = "impute"</code> integrates over missing values during MCMC sampling for both ordinal and continuous models.</li>
+<h3 id="breaking-changes-0-2-0-0">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-0-2-0-0"></a></h3>
+<ul><li>Pairwise interaction parameters for ordinal MRFs are now stored on association scale (half the sigma scale used in 0.1.6.3). Code that interprets raw pairwise posterior samples or sets <code>pairwise_scale</code> explicitly will need adjustment.</li>
+<li>Default <code>pairwise_scale</code> changed from 2.5 to 1 to match the association-scale reparameterization.</li>
+<li>
+<code><a href="../reference/extract_category_thresholds.html">extract_category_thresholds()</a></code> is deprecated in favor of <code><a href="../reference/extract_main_effects.html">extract_main_effects()</a></code>, which covers category thresholds, continuous means, and precision diagonal entries.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="other-changes-0-1-6-4">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-0-1-6-4"></a></h3>
-<ul><li>default <code>pairwise_scale</code> changed from 2.5 to 1, matching the K-scale reparameterization.</li>
+<h3 id="new-features-0-2-0-0">New features<a class="anchor" aria-label="anchor" href="#new-features-0-2-0-0"></a></h3>
+<ul><li>Gaussian graphical models (GGM): <code>bgm(x, variable_type = "continuous")</code> fits a GGM with Bayesian edge selection. Sampling uses the RATTLE constrained HMC algorithm to maintain positive-definiteness of the precision matrix.</li>
+<li>Mixed MRF models: <code><a href="../reference/bgm.html">bgm()</a></code> accepts a per-variable <code>variable_type</code> vector that mixes <code>"ordinal"</code>, <code>"blume-capel"</code>, and <code>"continuous"</code> types to estimate networks with both discrete and continuous variables. <code><a href="../reference/simulate.bgms.html">simulate.bgms()</a></code> and <code><a href="../reference/predict.bgms.html">predict.bgms()</a></code> also support mixed models.</li>
+<li>Missing data imputation: <code>na_action = "impute"</code> integrates over missing values during MCMC sampling for ordinal, continuous, and mixed models.</li>
 <li>
-<code>pairwise_scale</code> is now forwarded to the GGM C++ sampler. Previously, the argument was accepted by <code><a href="../reference/bgm.html">bgm()</a></code> but silently ignored for continuous models, which always used 2.5.</li>
+<code><a href="../reference/extract_precision.html">extract_precision()</a></code>: extract posterior precision matrix samples from GGM and mixed models.</li>
 <li>
-<code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> for GGM and mixed MRF models reports residual variances instead of raw precision diagonal values.</li>
-<li>removed redundant C++ constructor defaults for prior parameters; missing values now cause compile errors instead of silent fallbacks.</li>
+<code><a href="../reference/extract_partial_correlations.html">extract_partial_correlations()</a></code>: extract posterior partial correlation samples from GGM and mixed models.</li>
+<li>
+<code><a href="../reference/extract_log_odds.html">extract_log_odds()</a></code>: extract log-odds for discrete pairwise interactions.</li>
+<li>
+<code><a href="../reference/extract_main_effects.html">extract_main_effects()</a></code>: extract main effect samples (category thresholds, continuous means, and precision diagonal).</li>
 </ul></div>
 <div class="section level3">
-<h3 id="bug-fixes-0-1-6-4">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-1-6-4"></a></h3>
-<ul><li>fixed compilation failure on Alpine/musl: <code>mrf_simulation.cpp</code> used <code>tbb::global_control</code> without explicitly including <code>&lt;tbb/global_control.h&gt;</code>, relying on a transitive include that is not available on all platforms.</li>
-<li>fixed Blume-Capel imputation: zero-category probability had wrong sign and was double-counted. Replaced with unified loop over all categories, matching <code><a href="../reference/simulate_mrf.html">simulate_mrf()</a></code>.</li>
-<li>fixed stale gradient cache after missing data imputation: <code>impute_missing()</code> updated sufficient statistics (<code>counts_per_category_</code>, <code>blume_capel_stats_</code>, <code>pairwise_stats_</code>) but did not invalidate the gradient cache, causing NUTS to use outdated cached values for the leapfrog integration.</li>
-<li>fixed stale observation transpose after missing data imputation: the precomputed <code>observations_double_t_</code> matrix was set once in the constructor but never refreshed after <code>impute_missing()</code> changed cells in <code>observations_double_</code>, causing the pairwise gradient (<code>observations_double_t_ * E</code>) to use stale data.</li>
+<h3 id="other-changes-0-2-0-0">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-0-2-0-0"></a></h3>
+<ul><li>Refactored the C++ backend: unified model hierarchy (<code>BaseModel</code> → <code>GGMModel</code> / <code>OMRFModel</code> / <code>MixedMRFModel</code>), shared NUTS/HMC infrastructure, and fused log-posterior and gradient computation.</li>
+<li>Dropped <code>coda</code> from Imports; ESS and R-hat are now computed in C++ with on-demand (lazy) evaluation, replacing the eager R-based computation from 0.1.6.3.</li>
+<li>
+<code>$</code> and <code>[[</code> accessors on fitted objects trigger lazy computation of MCMC diagnostics on first access.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-0-2-0-0">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-2-0-0"></a></h3>
+<ul><li>Fixed compilation failure on Alpine/musl: <code>mrf_simulation.cpp</code> relied on a transitive include for <code>&lt;tbb/global_control.h&gt;</code> that is not available on all platforms.</li>
+<li>Fixed stale gradient cache after missing data imputation caused NUTS to use outdated cached values for leapfrog integration.</li>
+<li>Fixed stale observation transpose after missing data imputation caused the pairwise gradient to use stale data.</li>
 </ul></div>
 </div>
     <div class="section level2">
