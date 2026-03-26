@@ -45,36 +45,36 @@ summary(fit)
 #> 
 #> Category thresholds:
 #>      parameter   mean  mcse    sd    n_eff  Rhat
-#> 1    avoid (1) -2.590 0.011 0.378 1199.128 1.001
-#> 2 closeatt (1) -2.237 0.011 0.369 1105.739 1.000
-#> 3 distract (1) -0.460 0.013 0.327  677.883 1.001
-#> 4   forget (1) -1.542 0.011 0.323  884.620 1.002
-#> 5 instruct (1) -2.340 0.012 0.389  980.089 1.009
+#> 1    avoid (1) -2.570 0.012 0.389 1000.548 1.001
+#> 2 closeatt (1) -2.255 0.011 0.372 1058.581 1.013
+#> 3 distract (1) -0.450 0.013 0.330  650.281 1.000
+#> 4   forget (1) -1.540 0.011 0.326  860.980 1.002
+#> 5 instruct (1) -2.334 0.014 0.394  790.011 1.005
 #> 
 #> Pairwise interactions:
 #>           parameter   mean  mcse    sd    n_eff  Rhat
-#> 1    avoid-closeatt  0.797 0.017 0.445  686.463 1.000
-#> 2    avoid-distract  1.639 0.009 0.357 1422.468 1.002
-#> 3      avoid-forget  0.452 0.013 0.372  851.489 1.002
-#> 4    avoid-instruct  0.416 0.014 0.416  943.388 1.000
-#> 5 closeatt-distract -0.181 0.010 0.363 1301.033 1.001
-#> 6   closeatt-forget  0.151 0.008 0.291 1222.684 1.004
+#> 1    avoid-closeatt  0.811 0.017 0.445  700.771 1.002
+#> 2    avoid-distract  1.622 0.012 0.372 1010.162 1.000
+#> 3      avoid-forget  0.478 0.012 0.363  846.177 1.000
+#> 4    avoid-instruct  0.381 0.014 0.431  989.191 1.003
+#> 5 closeatt-distract -0.168 0.011 0.359 1155.071 1.006
+#> 6   closeatt-forget  0.153 0.008 0.293 1373.018 1.001
 #> ... (use `summary(fit)$pairwise` to see full output)
 #> 
 #> Inclusion probabilities:
 #>                  parameter  mean  mcse    sd n0->0 n0->1 n1->0 n1->1
 #>               avoid (main) 1.000       0.000     0     0     0  1999
-#>  avoid-closeatt (pairwise) 0.674 0.018 0.469   434   217   217  1131
-#>  avoid-distract (pairwise) 0.401 0.012 0.490   762   435   435   367
-#>    avoid-forget (pairwise) 0.822 0.016 0.383   227   129   129  1514
-#>  avoid-instruct (pairwise) 0.993 0.003 0.086     4    11    11  1973
+#>  avoid-closeatt (pairwise) 0.696 0.018 0.460   397   210   211  1181
+#>  avoid-distract (pairwise) 0.386 0.012 0.487   803   425   424   347
+#>    avoid-forget (pairwise) 0.861 0.014 0.346   165   113   113  1608
+#>  avoid-instruct (pairwise) 0.996 0.002 0.067     4     5     5  1985
 #>            closeatt (main) 1.000       0.000     0     0     0  1999
 #>  n_eff_mixt  Rhat
 #>                  
-#>     656.594     1
-#>    1655.647     1
-#>     565.541     1
-#>    1171.778 1.019
+#>     662.308 1.001
+#>    1623.275     1
+#>     618.031 1.001
+#>     774.056 1.126
 #>                  
 #> ... (use `summary(fit)$indicator` to see full output)
 #> Note: NA values are suppressed in the print table. They occur when an indicator
@@ -83,30 +83,30 @@ summary(fit)
 #> 
 #> Group differences (main effects):
 #>            parameter   mean mcse    sd   n_eff n_eff_mixt  Rhat
-#>     avoid (diff1; 1) -2.541      0.738 954.171            1.000
-#>  closeatt (diff1; 1) -2.883      0.720 937.369            1.002
-#>  distract (diff1; 1) -2.575      0.673 592.628            1.003
-#>    forget (diff1; 1) -2.849      0.658 717.155            1.005
-#>  instruct (diff1; 1) -2.377      0.891 491.647            1.009
+#>     avoid (diff1; 1) -2.585      0.738 822.680            1.001
+#>  closeatt (diff1; 1) -2.884      0.719 850.621            1.000
+#>  distract (diff1; 1) -2.592      0.671 588.723            1.000
+#>    forget (diff1; 1) -2.878      0.642 646.747            1.002
+#>  instruct (diff1; 1) -2.386      0.893 521.021            1.000
 #> Note: NA values are suppressed in the print table. They occur here when an
 #> indicator was zero across all iterations, so mcse/n_eff/n_eff_mixt/Rhat are undefined;
 #> `summary(fit)$main_diff` still contains the NA values.
 #> 
 #> Group differences (pairwise effects):
 #>                  parameter   mean  mcse    sd    n_eff n_eff_mixt
-#>     avoid-closeatt (diff1)  0.894 0.033 0.839  483.038    656.029
-#>     avoid-distract (diff1)  0.216 0.012 0.362 1101.519    987.765
-#>       avoid-forget (diff1)  1.190 0.030 0.803  511.288    715.328
-#>     avoid-instruct (diff1) -2.665 0.034 0.970  769.289    832.794
-#>  closeatt-distract (diff1) -0.163 0.012 0.324  961.690    763.733
-#>    closeatt-forget (diff1)  0.166 0.012 0.324 1059.494    729.607
+#>     avoid-closeatt (diff1)  0.948 0.032 0.865  568.814    724.944
+#>     avoid-distract (diff1)  0.211 0.012 0.355  932.378    938.052
+#>       avoid-forget (diff1)  1.281 0.029 0.796  579.667    764.262
+#>     avoid-instruct (diff1) -2.745 0.034 0.990  782.659    827.328
+#>  closeatt-distract (diff1) -0.159 0.012 0.324  974.294    741.833
+#>    closeatt-forget (diff1)  0.164 0.012 0.324 1029.198    755.929
 #>   Rhat
-#>  1.003
-#>  1.003
+#>  1.004
+#>  1.001
 #>  1.000
+#>  1.003
+#>  1.007
 #>  1.001
-#>  1.001
-#>  1.002
 #> ... (use `summary(fit)$pairwise_diff` to see full output)
 #> Note: NA values are suppressed in the print table. They occur here when an
 #> indicator was zero across all iterations, so mcse/n_eff/n_eff_mixt/Rhat are undefined;
@@ -122,53 +122,53 @@ You can extract posterior means and inclusion probabilities:
 coef(fit)
 #> $main_effects_raw
 #>                baseline     diff1
-#> avoid(c1)    -2.5897605 -2.540850
-#> closeatt(c1) -2.2371412 -2.882947
-#> distract(c1) -0.4598562 -2.574924
-#> forget(c1)   -1.5422258 -2.849481
-#> instruct(c1) -2.3399811 -2.377159
+#> avoid(c1)    -2.5698070 -2.585211
+#> closeatt(c1) -2.2549973 -2.884102
+#> distract(c1) -0.4500195 -2.592396
+#> forget(c1)   -1.5397695 -2.878431
+#> instruct(c1) -2.3342186 -2.385729
 #> 
 #> $pairwise_effects_raw
 #>                     baseline      diff1
-#> avoid-closeatt     0.7965309  0.8944052
-#> avoid-distract     1.6392659  0.2163085
-#> avoid-forget       0.4522752  1.1902215
-#> avoid-instruct     0.4158560 -2.6651747
-#> closeatt-distract -0.1805078 -0.1628199
-#> closeatt-forget    0.1508933  0.1664507
-#> closeatt-instruct  1.4830774  0.5053316
-#> distract-forget    0.3773759  0.2330934
-#> distract-instruct  1.2050536  1.2045313
-#> forget-instruct    1.0588387  0.7514445
+#> avoid-closeatt     0.8106540  0.9480407
+#> avoid-distract     1.6217536  0.2109026
+#> avoid-forget       0.4775235  1.2813476
+#> avoid-instruct     0.3808413 -2.7450407
+#> closeatt-distract -0.1679917 -0.1589278
+#> closeatt-forget    0.1531440  0.1642686
+#> closeatt-instruct  1.4875764  0.4870774
+#> distract-forget    0.3755528  0.2333754
+#> distract-instruct  1.1930973  1.2431688
+#> forget-instruct    1.0594628  0.7473659
 #> 
 #> $main_effects_groups
 #>                  group1    group2
-#> avoid(c1)    -1.3193357 -3.860185
-#> closeatt(c1) -0.7956675 -3.678615
-#> distract(c1)  0.8276056 -1.747318
-#> forget(c1)   -0.1174855 -2.966966
-#> instruct(c1) -1.1514015 -3.528561
+#> avoid(c1)    -1.2772013 -3.862413
+#> closeatt(c1) -0.8129461 -3.697048
+#> distract(c1)  0.8461783 -1.746217
+#> forget(c1)   -0.1005540 -2.978985
+#> instruct(c1) -1.1413540 -3.527083
 #> 
 #> $pairwise_effects_groups
 #>                        group1     group2
-#> avoid-closeatt     0.34932830  1.2437335
-#> avoid-distract     1.53111163  1.7474202
-#> avoid-forget      -0.14283557  1.0473860
-#> avoid-instruct     1.74844335 -0.9167313
-#> closeatt-distract -0.09909781 -0.2619177
-#> closeatt-forget    0.06766800  0.2341187
-#> closeatt-instruct  1.23041161  1.7357432
-#> distract-forget    0.26082915  0.4939226
-#> distract-instruct  0.60278797  1.8073192
-#> forget-instruct    0.68311642  1.4345609
+#> avoid-closeatt     0.33663370  1.2846744
+#> avoid-distract     1.51630235  1.7272049
+#> avoid-forget      -0.16315030  1.1181973
+#> avoid-instruct     1.75336163 -0.9916790
+#> closeatt-distract -0.08852775 -0.2474556
+#> closeatt-forget    0.07100968  0.2352783
+#> closeatt-instruct  1.24403770  1.7311151
+#> distract-forget    0.25886514  0.4922405
+#> distract-instruct  0.57151284  1.8146817
+#> forget-instruct    0.68577985  1.4331458
 #> 
 #> $indicators
 #>           avoid closeatt distract forget instruct
-#> avoid    1.0000   0.6745   0.4010 0.8220   0.9925
-#> closeatt 0.6745   1.0000   0.3675 0.3730   0.5635
-#> distract 0.4010   0.3675   1.0000 0.4035   0.8170
-#> forget   0.8220   0.3730   0.4035 1.0000   0.7060
-#> instruct 0.9925   0.5635   0.8170 0.7060   1.0000
+#> avoid    1.0000   0.6960   0.3860  0.861   0.9955
+#> closeatt 0.6960   1.0000   0.3835  0.392   0.5360
+#> distract 0.3860   0.3835   1.0000  0.401   0.8335
+#> forget   0.8610   0.3920   0.4010  1.000   0.7110
+#> instruct 0.9955   0.5360   0.8335  0.711   1.0000
 ```
 
 ## Visualizing group networks
