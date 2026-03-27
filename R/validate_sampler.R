@@ -99,7 +99,8 @@ validate_sampler = function(update_method,
                             display_progress = c("per-chain", "total", "none"),
                             is_continuous = FALSE,
                             edge_selection = FALSE,
-                            verbose = TRUE) {
+                            verbose = TRUE,
+                            progress_callback = NULL) {
   # --- update_method ----------------------------------------------------------
   user_chose_method = length(update_method) == 1
   update_method = match.arg(
@@ -207,6 +208,7 @@ validate_sampler = function(update_method,
     chains            = chains,
     cores             = cores,
     seed              = seed,
-    progress_type     = progress_type
+    progress_type     = progress_type,
+    progress_callback = progress_callback
   )
 }

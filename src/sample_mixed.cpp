@@ -34,6 +34,7 @@
 // @param seed                    Random seed
 // @param no_threads              Number of threads for parallel execution
 // @param progress_type           Progress bar type
+// @param progress_callback       R function (SEXP) called as callback(completed, total) at regular intervals, or R_NilValue
 // @param edge_prior              Edge prior type
 // @param beta_bernoulli_alpha         Beta-Bernoulli alpha hyperparameter
 // @param beta_bernoulli_beta          Beta-Bernoulli beta hyperparameter
@@ -62,6 +63,7 @@ Rcpp::List sample_mixed_mrf(
     const int seed,
     const int no_threads,
     const int progress_type,
+    SEXP progress_callback = R_NilValue,
     const std::string& edge_prior = "Bernoulli",
     const double beta_bernoulli_alpha = 1.0,
     const double beta_bernoulli_beta = 1.0,
@@ -134,7 +136,7 @@ Rcpp::List sample_mixed_mrf(
     config.num_leapfrogs = num_leapfrogs;
 
     // Set up progress manager
-    ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type);
+    ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type, true, progress_callback);
 
     // Run MCMC using unified infrastructure
     std::vector<ChainResult> results = run_mcmc_sampler(

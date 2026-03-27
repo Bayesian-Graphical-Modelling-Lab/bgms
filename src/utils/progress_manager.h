@@ -41,12 +41,14 @@ inline bool checkInterrupt() {
  * - Thread-safe printing with mutex protection
  * - Console width adaptation and change detection
  * - User interrupt checking
+ * - Optional R callback for external progress reporting (e.g., JASP),
+ *   invoked as callback(completed, total)
  */
 class ProgressManager {
 
 public:
 
-    ProgressManager(int nChains_, int nIter_, int nWarmup_, int printEvery_ = 10, int progress_type = 2, bool useUnicode_ = true);
+    ProgressManager(int nChains_, int nIter_, int nWarmup_, int printEvery_ = 10, int progress_type = 2, bool useUnicode_ = true, SEXP progress_callback = R_NilValue);
     void update(size_t chainId);
     void finish();
     bool shouldExit() const;
@@ -118,6 +120,9 @@ private:
 
     // Thread synchronization
     std::mutex printMutex;          // Mutex for thread-safe printing
+
+    // R callback (called without arguments at throttled intervals)
+    Rcpp::Nullable<Rcpp::Function> callback;
 };
 
 #endif // PROGRESS_MANAGER_H

@@ -273,6 +273,14 @@
 #'   \code{"total"} (single combined bar), or \code{"none"} (no progress).
 #'   Default: \code{"per-chain"}.
 #'
+#' @param progress_callback An optional R function with signature
+#'   \code{function(completed, total)} that is called at regular intervals
+#'   during sampling, where \code{completed} is the number of iterations
+#'   completed across all chains and \code{total} is the total number of
+#'   iterations. Useful for external front-ends (e.g., JASP) that supply
+#'   their own progress reporting.
+#'   When \code{NULL} (the default), no callback is invoked.
+#'
 #' @param verbose Logical. If \code{TRUE}, prints informational messages
 #'   during data processing (e.g., missing data handling, variable recoding).
 #'   Defaults to \code{getOption("bgms.verbose", TRUE)}. Set
@@ -447,6 +455,7 @@ bgm = function(
   standardize = FALSE,
   pseudolikelihood = c("conditional", "marginal"),
   verbose = getOption("bgms.verbose", TRUE),
+  progress_callback = NULL,
   interaction_scale,
   burnin,
   save,
@@ -519,7 +528,8 @@ bgm = function(
     seed = seed,
     display_progress = display_progress,
     verbose = verbose,
-    pseudolikelihood = pseudolikelihood
+    pseudolikelihood = pseudolikelihood,
+    progress_callback = progress_callback
   )
 
   raw = run_sampler(spec)

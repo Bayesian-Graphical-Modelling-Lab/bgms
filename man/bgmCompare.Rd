@@ -34,6 +34,7 @@ bgmCompare(
   seed = NULL,
   standardize = FALSE,
   verbose = getOption("bgms.verbose", TRUE),
+  progress_callback = NULL,
   main_difference_model,
   reference_category,
   main_difference_scale,
@@ -150,6 +151,11 @@ See \code{\link{bgm}} for details on the adjustment. Default: \code{FALSE}.}
 during data processing (e.g., missing data handling, variable recoding).
 Defaults to \code{getOption("bgms.verbose", TRUE)}. Set
 \code{options(bgms.verbose = FALSE)} to suppress messages globally.}
+
+\item{progress_callback}{An optional R function (taking no arguments) that
+is called at regular intervals during sampling. Useful for external
+front-ends (e.g., JASP) that supply their own progress reporting.
+When \code{NULL} (the default), no callback is invoked.}
 
 \item{main_difference_model, reference_category, pairwise_difference_scale, main_difference_scale, pairwise_difference_prior, main_difference_prior, pairwise_difference_probability, main_difference_probability, pairwise_beta_bernoulli_alpha, pairwise_beta_bernoulli_beta, main_beta_bernoulli_alpha, main_beta_bernoulli_beta, interaction_scale, threshold_alpha, threshold_beta, burnin, save}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}}
 Deprecated arguments as of \strong{bgms 0.1.6.0}.

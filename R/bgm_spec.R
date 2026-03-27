@@ -285,7 +285,8 @@ bgm_spec = function(x,
                     seed = NULL,
                     display_progress = c("per-chain", "total", "none"),
                     verbose = TRUE,
-                    pseudolikelihood = c("conditional", "marginal")) {
+                    pseudolikelihood = c("conditional", "marginal"),
+                    progress_callback = NULL) {
   model_type = match.arg(model_type)
   na_action = tryCatch(match.arg(na_action), error = function(e) {
     stop(paste0(
@@ -340,7 +341,8 @@ bgm_spec = function(x,
     display_progress  = display_progress,
     is_continuous     = is_continuous,
     edge_selection    = if(model_type == "compare") FALSE else edge_selection,
-    verbose           = verbose
+    verbose           = verbose,
+    progress_callback = progress_callback
   )
 
   # --- Build by model type ----------------------------------------------------
@@ -1079,7 +1081,8 @@ sampler_sublist = function(s) {
     nuts_max_depth    = as.integer(s$nuts_max_depth),
     learn_mass_matrix = s$learn_mass_matrix,
     seed              = as.integer(s$seed),
-    progress_type     = as.integer(s$progress_type)
+    progress_type     = as.integer(s$progress_type),
+    progress_callback = s$progress_callback
   )
 }
 

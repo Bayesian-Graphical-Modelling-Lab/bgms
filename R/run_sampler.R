@@ -137,6 +137,7 @@ run_sampler_omrf = function(spec) {
     no_chains = s$chains,
     no_threads = s$cores,
     progress_type = s$progress_type,
+    progress_callback = s$progress_callback,
     edge_selection = p$edge_selection,
     sampler_type = s$update_method,
     seed = s$seed,
@@ -198,6 +199,7 @@ run_sampler_mixed_mrf = function(spec) {
     seed = s$seed,
     no_threads = s$cores,
     progress_type = s$progress_type,
+    progress_callback = s$progress_callback,
     edge_prior = p$edge_prior,
     beta_bernoulli_alpha = p$beta_bernoulli_alpha,
     beta_bernoulli_beta = p$beta_bernoulli_beta,
@@ -267,6 +269,7 @@ run_sampler_compare = function(spec) {
     seed = s$seed,
     update_method = s$update_method,
     hmc_num_leapfrogs = s$hmc_num_leapfrogs,
-    progress_type = s$progress_type
+    progress_type = s$progress_type,
+    progress_callback = s$progress_callback
   )
 }

@@ -329,6 +329,8 @@ struct GibbsCompareChainRunner : public Worker {
 //  - seed: Base random seed (incremented per chain).
 //  - update_method: Sampler type ("adaptive-metropolis", "hamiltonian-mc", "nuts").
 //  - hmc_num_leapfrogs: Number of leapfrog steps for HMC.
+//  - progress_type: Progress bar style (0 = none, 1 = total, 2 = per-chain).
+//  - progress_callback: R function (SEXP) called as callback(completed, total) at regular intervals, or R_NilValue.
 //
 // Returns:
 //  - Rcpp::List of length `num_chains`, where each element is either:
@@ -383,7 +385,8 @@ Rcpp::List run_bgmCompare_parallel(
     int seed,
     const std::string& update_method,
     int hmc_num_leapfrogs,
-    int progress_type
+    int progress_type,
+    SEXP progress_callback = R_NilValue
 ) {
   std::vector<bgmCompareChainResult> results(num_chains);
 
@@ -398,7 +401,7 @@ Rcpp::List run_bgmCompare_parallel(
   // only used to determine the total no. warmup iterations, a bit hacky
   WarmupSchedule warmup_schedule_temp(warmup, difference_selection, (update_method_enum != adaptive_metropolis));
   int total_warmup = warmup_schedule_temp.total_warmup;
-  ProgressManager pm(num_chains, iter, total_warmup, 50, progress_type);
+  ProgressManager pm(num_chains, iter, total_warmup, 50, progress_type, true, progress_callback);
 
   GibbsCompareChainRunner worker(
       observations, num_groups,

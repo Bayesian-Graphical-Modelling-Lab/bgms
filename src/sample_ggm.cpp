@@ -25,6 +25,7 @@ Rcpp::List sample_ggm(
     const int seed,
     const int no_threads,
     const int progress_type,
+    SEXP progress_callback = R_NilValue,
     const std::string& edge_prior = "Bernoulli",
     const double beta_bernoulli_alpha = 1.0,
     const double beta_bernoulli_beta = 1.0,
@@ -64,7 +65,7 @@ Rcpp::List sample_ggm(
     config.na_impute = na_impute;
 
     // Set up progress manager
-    ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type);
+    ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type, true, progress_callback);
 
     // Create edge prior
     EdgePrior edge_prior_enum = edge_prior_from_string(edge_prior);

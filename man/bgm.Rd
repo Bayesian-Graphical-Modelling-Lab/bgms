@@ -35,6 +35,7 @@ bgm(
   standardize = FALSE,
   pseudolikelihood = c("conditional", "marginal"),
   verbose = getOption("bgms.verbose", TRUE),
+  progress_callback = NULL,
   interaction_scale,
   burnin,
   save,
@@ -190,6 +191,11 @@ Default: \code{"conditional"}.}
 during data processing (e.g., missing data handling, variable recoding).
 Defaults to \code{getOption("bgms.verbose", TRUE)}. Set
 \code{options(bgms.verbose = FALSE)} to suppress messages globally.}
+
+\item{progress_callback}{An optional R function (taking no arguments) that
+is called at regular intervals during sampling. Useful for external
+front-ends (e.g., JASP) that supply their own progress reporting.
+When \code{NULL} (the default), no callback is invoked.}
 
 \item{interaction_scale, burnin, save, threshold_alpha, threshold_beta}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}}
 Deprecated arguments as of \strong{bgms 0.1.6.0}.

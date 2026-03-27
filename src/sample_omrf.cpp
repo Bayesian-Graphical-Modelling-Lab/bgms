@@ -27,6 +27,7 @@
 // @param seed                Random seed
 // @param no_threads          Number of threads for parallel execution
 // @param progress_type       Progress bar type
+// @param progress_callback   R function (SEXP) called as callback(completed, total) at regular intervals, or R_NilValue
 // @param edge_prior          Edge prior type: "Bernoulli", "Beta-Bernoulli", "Stochastic-Block"
 // @param na_impute           Whether to impute missing data
 // @param missing_index       Matrix of missing data indices (n_missing x 2, 0-based)
@@ -54,6 +55,7 @@ Rcpp::List sample_omrf(
     const int seed,
     const int no_threads,
     const int progress_type,
+    SEXP progress_callback = R_NilValue,
     const std::string& edge_prior = "Bernoulli",
     const bool na_impute = false,
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable = R_NilValue,
@@ -108,7 +110,7 @@ Rcpp::List sample_omrf(
     config.na_impute = na_impute;
 
     // Set up progress manager
-    ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type);
+    ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type, true, progress_callback);
 
     // Run MCMC using unified infrastructure
     std::vector<ChainResult> results = run_mcmc_sampler(

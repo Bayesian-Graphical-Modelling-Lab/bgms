@@ -122,6 +122,13 @@
 #' @param display_progress Character. Controls progress reporting:
 #'   \code{"per-chain"}, \code{"total"}, or \code{"none"}.
 #'   Default: \code{"per-chain"}.
+#' @param progress_callback An optional R function with signature
+#'   \code{function(completed, total)} that is called at regular intervals
+#'   during sampling, where \code{completed} is the number of iterations
+#'   completed across all chains and \code{total} is the total number of
+#'   iterations. Useful for external front-ends (e.g., JASP) that supply
+#'   their own progress reporting.
+#'   When \code{NULL} (the default), no callback is invoked.
 #' @param verbose Logical. If \code{TRUE}, prints informational messages
 #'   during data processing (e.g., missing data handling, variable recoding).
 #'   Defaults to \code{getOption("bgms.verbose", TRUE)}. Set
@@ -225,6 +232,7 @@ bgmCompare = function(
   seed = NULL,
   standardize = FALSE,
   verbose = getOption("bgms.verbose", TRUE),
+  progress_callback = NULL,
   main_difference_model,
   reference_category,
   main_difference_scale,
@@ -366,7 +374,8 @@ bgmCompare = function(
     cores = cores,
     seed = seed,
     display_progress = display_progress,
-    verbose = verbose
+    verbose = verbose,
+    progress_callback = progress_callback
   )
 
   raw = run_sampler(spec)

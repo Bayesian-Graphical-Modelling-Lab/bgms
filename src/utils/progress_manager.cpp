@@ -1,8 +1,11 @@
 #include "utils/progress_manager.h"
 
-ProgressManager::ProgressManager(int nChains_, int nIter_, int nWarmup_, int printEvery_, int progress_type_, bool useUnicode_)
+ProgressManager::ProgressManager(int nChains_, int nIter_, int nWarmup_, int printEvery_, int progress_type_, bool useUnicode_, SEXP progress_callback)
   : nChains(nChains_), nIter(nIter_ + nWarmup_), nWarmup(nWarmup_), printEvery(printEvery_),
-    progress_type(progress_type_), useUnicode(useUnicode_), progress(nChains_) {
+    progress_type(progress_type_), useUnicode(useUnicode_), progress(nChains_), callback(progress_callback) {
+
+  // When a callback is provided, suppress the built-in progress display
+  if (callback.isNotNull()) progress_type = 0;
 
   for (size_t i = 0; i < nChains; i++) progress[i] = 0;
   start = Clock::now();
@@ -70,9 +73,18 @@ void ProgressManager::update(size_t chainId) {
     auto now = Clock::now();
     std::chrono::duration<double> sinceLast = now - lastPrint;
 
+    bool has_output = (progress_type != 0) || callback.isNotNull();
+
     // Throttle printing to avoid spamming
-    if (progress_type != 0 && sinceLast.count() >= 0.5) {
-      print();
+    if (has_output && sinceLast.count() >= 0.5) {
+      if (progress_type != 0) {
+        print();
+      }
+      if (callback.isNotNull()) {
+        size_t done = std::reduce(progress.begin(), progress.end());
+        size_t totalWork = nChains * nIter;
+        Rcpp::Function(callback.get())(done, totalWork);
+      }
       lastPrint = now;
     }
   }
@@ -81,10 +93,11 @@ void ProgressManager::update(size_t chainId) {
 
 void ProgressManager::finish() {
 
-  if (progress_type == 0) return; // No progress display or user interrupt
+  if (progress_type == 0 && callback.isNull()) return;
 
   if (needsToExit) {
-    Rcpp::Rcout << "All chains terminated.\n";
+    if (progress_type != 0)
+      Rcpp::Rcout << "All chains terminated.\n";
     return;
   }
 
@@ -92,7 +105,12 @@ void ProgressManager::finish() {
   for (size_t i = 0; i < nChains; i++)
     progress[i] = nIter;
 
-  print();
+  if (progress_type != 0)
+    print();
+  if (callback.isNotNull()) {
+    size_t totalWork = nChains * nIter;
+    Rcpp::Function(callback.get())(totalWork, totalWork);
+  }
 
 }
 
