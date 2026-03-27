@@ -59,7 +59,8 @@
 </ul></div>
 <div class="section level3">
 <h3 id="other-changes-0-2-0-0">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-0-2-0-0"></a></h3>
-<ul><li>Refactored the C++ backend: unified model hierarchy (<code>BaseModel</code> → <code>GGMModel</code> / <code>OMRFModel</code> / <code>MixedMRFModel</code>), shared NUTS/HMC infrastructure, and fused log-posterior and gradient computation.</li>
+<ul><li>Fitted objects from <code><a href="../reference/bgm.html">bgm()</a></code> and <code><a href="../reference/bgmCompare.html">bgmCompare()</a></code> are now S7 class objects (new dependency: <code>S7</code>). All existing <code>$</code>, <code>[[</code>, and <code><a href="https://rdrr.io/r/base/names.html" class="external-link">names()</a></code> access patterns continue to work. When an incompatible <code>easybgm</code> version is loaded, bgms returns plain S3 lists for backwards compatibility; this shim will be removed in a future release.</li>
+<li>Refactored the C++ backend: unified model hierarchy (<code>BaseModel</code> → <code>GGMModel</code> / <code>OMRFModel</code> / <code>MixedMRFModel</code>), shared NUTS/HMC infrastructure, and fused log-posterior and gradient computation.</li>
 <li>Dropped <code>coda</code> from Imports; ESS and R-hat are now computed in C++ with on-demand (lazy) evaluation, replacing the eager R-based computation from 0.1.6.3.</li>
 <li>
 <code>$</code> and <code>[[</code> accessors on fitted objects trigger lazy computation of MCMC diagnostics on first access.</li>

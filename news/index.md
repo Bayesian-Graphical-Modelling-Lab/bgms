@@ -57,6 +57,15 @@
 
 ### Other changes
 
+- Fitted objects from
+  [`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)
+  and
+  [`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md)
+  are now S7 class objects (new dependency: `S7`). All existing `$`,
+  `[[`, and [`names()`](https://rdrr.io/r/base/names.html) access
+  patterns continue to work. When an incompatible `easybgm` version is
+  loaded, bgms returns plain S3 lists for backwards compatibility; this
+  shim will be removed in a future release.
 - Refactored the C++ backend: unified model hierarchy (`BaseModel` →
   `GGMModel` / `OMRFModel` / `MixedMRFModel`), shared NUTS/HMC
   infrastructure, and fused log-posterior and gradient computation.
