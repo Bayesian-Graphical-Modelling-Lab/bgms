@@ -1,8 +1,8 @@
 # Access elements of a bgmCompare object
 
-Intercepts access to `posterior_summary_*` fields and triggers lazy
-computation from cache when needed. All other fields pass through using
-standard list extraction.
+Provides `$` access to S7 properties. Lazy `posterior_summary_*`
+properties trigger computation on first access via S7 property getters.
+Also supports legacy S3 list-based fit objects.
 
 ## Usage
 
