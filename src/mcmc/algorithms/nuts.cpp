@@ -65,22 +65,60 @@ BuildTreeResult build_tree(
     const arma::vec& inv_mass_diag,
     SafeRNG& rng,
     const ProjectPositionFn* project_position,
-    const ProjectMomentumFn* project_momentum
+    const ProjectMomentumFn* project_momentum,
+    bool reverse_check,
+    double reverse_check_tol
 ) {
   constexpr double Delta_max = 1000.0;
 
   if (j == 0) {
     // Base case: take a single leapfrog step
     arma::vec theta_new, r_new;
+    bool non_reversible = false;
+    double step_max_diff = 0.0;
     if (project_position && project_momentum) {
-      std::tie(theta_new, r_new) = leapfrog_constrained(
+      // Always run the checked variant so we can observe max_diff.
+      // The reverse_check flag controls whether we ACT on the result
+      // (i.e. terminate the tree). Observation is always on.
+      auto checked = leapfrog_constrained_checked(
         theta, r, v * step_size, memo, inv_mass_diag,
-        *project_position, *project_momentum
+        *project_position, *project_momentum,
+        reverse_check_tol
       );
+      theta_new = std::move(checked.theta);
+      r_new = std::move(checked.r);
+      step_max_diff = checked.max_diff;
+      non_reversible = !checked.reversible;
     } else {
       std::tie(theta_new, r_new) = leapfrog_memo(
         theta, r, v * step_size, memo, inv_mass_diag
       );
+    }
+
+    // Non-reversible step terminates the tree only when reverse_check is on.
+    // When off (or during warmup observation mode), we record but don't act.
+    if (reverse_check && non_reversible) {
+      arma::vec p_sharp = inv_mass_diag % r_new;
+      BuildTreeResult result;
+      result.theta_min = theta_new;
+      result.theta_plus = theta_new;
+      result.r_min = r_new;
+      result.r_plus = r_new;
+      result.rho = r_new;
+      result.p_beg = r_new;
+      result.p_end = r_new;
+      result.r_prime = std::move(r_new);
+      result.theta_prime = std::move(theta_new);
+      result.p_sharp_beg = p_sharp;
+      result.p_sharp_end = std::move(p_sharp);
+      result.n_prime = 0;
+      result.s_prime = 0;
+      result.alpha = 0.0;
+      result.n_alpha = 1;
+      result.divergent = false;
+      result.non_reversible = true;
+      result.max_rev_diff = step_max_diff;
+      return result;
     }
 
     auto logp = memo.cached_log_post(theta_new);
@@ -110,13 +148,16 @@ BuildTreeResult build_tree(
     result.alpha = alpha;
     result.n_alpha = 1;
     result.divergent = divergent;
+    result.non_reversible = non_reversible;  // record even when not acting
+    result.max_rev_diff = step_max_diff;
     return result;
 
   } else {
     // Recursion: build the first subtree
     BuildTreeResult init_result = build_tree(
       theta, r, log_u, v, j - 1, step_size, theta_0, r0, logp0, kin0, memo,
-      inv_mass_diag, rng, project_position, project_momentum
+      inv_mass_diag, rng, project_position, project_momentum, reverse_check,
+      reverse_check_tol
     );
 
     if (init_result.s_prime == 0) {
@@ -125,6 +166,8 @@ BuildTreeResult build_tree(
     }
 
     bool divergent = init_result.divergent;
+    bool non_reversible = init_result.non_reversible;
+    double max_rev_diff = init_result.max_rev_diff;
 
     // Extract values from init subtree (move — init_result not used again)
     arma::vec theta_min = std::move(init_result.theta_min);
@@ -147,7 +190,8 @@ BuildTreeResult build_tree(
     if (v == -1) {
       final_result = build_tree(
         theta_min, r_min, log_u, v, j - 1, step_size, theta_0, r0, logp0,
-        kin0, memo, inv_mass_diag, rng, project_position, project_momentum
+        kin0, memo, inv_mass_diag, rng, project_position, project_momentum,
+        reverse_check, reverse_check_tol
       );
       // Update backward boundary
       theta_min = std::move(final_result.theta_min);
@@ -155,7 +199,8 @@ BuildTreeResult build_tree(
     } else {
       final_result = build_tree(
         theta_plus, r_plus, log_u, v, j - 1, step_size, theta_0, r0, logp0,
-        kin0, memo, inv_mass_diag, rng, project_position, project_momentum
+        kin0, memo, inv_mass_diag, rng, project_position, project_momentum,
+        reverse_check, reverse_check_tol
       );
       // Update forward boundary
       theta_plus = std::move(final_result.theta_plus);
@@ -182,6 +227,8 @@ BuildTreeResult build_tree(
       result.alpha = alpha_prime + final_result.alpha;
       result.n_alpha = n_alpha_prime + final_result.n_alpha;
       result.divergent = divergent || final_result.divergent;
+      result.non_reversible = non_reversible || final_result.non_reversible;
+      result.max_rev_diff = std::max(max_rev_diff, final_result.max_rev_diff);
       return result;
     }
 
@@ -195,6 +242,8 @@ BuildTreeResult build_tree(
     double alpha_double_prime = final_result.alpha;
     int n_alpha_double_prime = final_result.n_alpha;
     divergent = divergent || final_result.divergent;
+    non_reversible = non_reversible || final_result.non_reversible;
+    max_rev_diff = std::max(max_rev_diff, final_result.max_rev_diff);
 
     // Multinomial sampling from the combined subtree
     double denom = static_cast<double>(n_prime + n_double_prime);
@@ -246,6 +295,8 @@ BuildTreeResult build_tree(
     result.alpha = alpha_prime;
     result.n_alpha = n_alpha_prime;
     result.divergent = divergent;
+    result.non_reversible = non_reversible;
+    result.max_rev_diff = max_rev_diff;
     return result;
   }
 }
@@ -259,11 +310,15 @@ StepResult nuts_step(
     SafeRNG& rng,
     int max_depth,
     const ProjectPositionFn* project_position,
-    const ProjectMomentumFn* project_momentum
+    const ProjectMomentumFn* project_momentum,
+    bool reverse_check,
+    double reverse_check_tol
 ) {
   // Create Memoizer with joint function
   Memoizer memo(joint);
   bool any_divergence = false;
+  bool any_non_reversible = false;
+  double worst_rev_diff = 0.0;
 
   arma::vec r0 = arma::sqrt(1.0 / inv_mass_diag) % arma_rnorm_vec(rng, init_theta.n_elem);
 
@@ -304,7 +359,8 @@ StepResult nuts_step(
       rho_fwd = rho;
       result = build_tree(
         theta_min, r_min, log_u, v, j, step_size, init_theta, r0, logp0, kin0, memo,
-        inv_mass_diag, rng, project_position, project_momentum
+        inv_mass_diag, rng, project_position, project_momentum, reverse_check,
+        reverse_check_tol
       );
       theta_min = std::move(result.theta_min);
       r_min = std::move(result.r_min);
@@ -316,7 +372,8 @@ StepResult nuts_step(
       rho_bck = rho;
       result = build_tree(
         theta_plus, r_plus, log_u, v, j, step_size, init_theta, r0, logp0, kin0, memo,
-        inv_mass_diag, rng, project_position, project_momentum
+        inv_mass_diag, rng, project_position, project_momentum, reverse_check,
+        reverse_check_tol
       );
       theta_plus = std::move(result.theta_plus);
       r_plus = std::move(result.r_plus);
@@ -327,6 +384,8 @@ StepResult nuts_step(
     }
 
     any_divergence = any_divergence || result.divergent;
+    any_non_reversible = any_non_reversible || result.non_reversible;
+    worst_rev_diff = std::max(worst_rev_diff, result.max_rev_diff);
     alpha = result.alpha;
     n_alpha = result.n_alpha;
 
@@ -364,7 +423,9 @@ StepResult nuts_step(
   auto diag = std::make_shared<NUTSDiagnostics>();
   diag->tree_depth = j;
   diag->divergent = any_divergence;
+  diag->non_reversible = any_non_reversible;
   diag->energy = energy;
+  diag->max_rev_diff = worst_rev_diff;
 
   return {theta, accept_prob, diag};
 }

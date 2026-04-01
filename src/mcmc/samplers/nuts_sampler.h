@@ -19,7 +19,9 @@ class NUTSSampler : public GradientSamplerBase {
 public:
     explicit NUTSSampler(const SamplerConfig& config, WarmupSchedule& schedule)
         : GradientSamplerBase(config.initial_step_size, config.target_acceptance, schedule),
-          max_tree_depth_(config.max_tree_depth)
+          max_tree_depth_(config.max_tree_depth),
+          reverse_check_(config.reverse_check),
+          reverse_check_tol_(config.reverse_check_tol)
     {}
 
     bool has_nuts_diagnostics() const override { return true; }
@@ -76,7 +78,9 @@ private:
         StepResult result = nuts_step(
             x, step_size_, joint_fn,
             inv_mass, rng, max_tree_depth_,
-            &proj_pos, &proj_mom
+            &proj_pos, &proj_mom,
+            reverse_check_ && enforce_reverse_check_,
+            reverse_check_tol_
         );
 
         model.set_full_position(result.state);
@@ -84,4 +88,6 @@ private:
     }
 
     int max_tree_depth_;
+    bool reverse_check_;
+    double reverse_check_tol_;
 };

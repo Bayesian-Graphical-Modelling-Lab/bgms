@@ -251,3 +251,66 @@ Rcpp::List ggm_test_leapfrog_constrained(
         Rcpp::Named("dH") = H_final - H0
     );
 }
+
+
+// [[Rcpp::export]]
+Rcpp::List ggm_test_leapfrog_constrained_checked(
+    const arma::vec& x0,
+    const arma::vec& r0,
+    double step_size,
+    int n_steps,
+    const arma::mat& suf_stat,
+    int n,
+    const arma::imat& edge_indicators,
+    double pairwise_scale,
+    double reverse_check_factor = 0.5,
+    Rcpp::Nullable<Rcpp::NumericVector> inv_mass_in = R_NilValue)
+{
+    size_t p = edge_indicators.n_rows;
+
+    arma::mat inc_prob(p, p, arma::fill::value(0.5));
+    GGMModel model(static_cast<int>(p), suf_stat, inc_prob,
+                   edge_indicators, true, pairwise_scale);
+
+    Memoizer::JointFn joint = [&model](const arma::vec& x)
+        -> std::pair<double, arma::vec> {
+        return model.logp_and_gradient_full(x);
+    };
+    Memoizer memo(joint);
+
+    arma::vec inv_mass;
+    if(inv_mass_in.isNotNull()) {
+        inv_mass = Rcpp::as<arma::vec>(inv_mass_in);
+    } else {
+        inv_mass = arma::ones<arma::vec>(x0.n_elem);
+    }
+
+    ProjectPositionFn proj_pos = [&model, &inv_mass](arma::vec& x) {
+        model.project_position(x, inv_mass);
+    };
+    ProjectMomentumFn proj_mom = [&model, &inv_mass](arma::vec& r, const arma::vec& x) {
+        model.project_momentum(r, x, inv_mass);
+    };
+
+    arma::vec x = x0;
+    arma::vec r = r0;
+    int non_reversible_count = 0;
+
+    for (int s = 0; s < n_steps; ++s) {
+        auto result = leapfrog_constrained_checked(
+            x, r, step_size, memo, inv_mass, proj_pos, proj_mom,
+            reverse_check_factor
+        );
+        x = std::move(result.theta);
+        r = std::move(result.r);
+        if (!result.reversible) {
+            non_reversible_count++;
+        }
+    }
+
+    return Rcpp::List::create(
+        Rcpp::Named("x") = Rcpp::wrap(x),
+        Rcpp::Named("r") = Rcpp::wrap(r),
+        Rcpp::Named("non_reversible_count") = non_reversible_count
+    );
+}

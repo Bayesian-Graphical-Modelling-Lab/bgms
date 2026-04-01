@@ -150,6 +150,8 @@ StepResult hmc_step(
  * @param project_position  SHAKE position projection callback
  * @param project_momentum  RATTLE momentum projection callback
  * @param rng               Thread-safe random number generator
+ * @param reverse_check     Enable runtime reversibility check
+ * @param reverse_check_tol Factor for eps²-scaled reversibility tolerance
  * @return StepResult with accepted state and acceptance probability
  */
 StepResult hmc_step(
@@ -160,5 +162,7 @@ StepResult hmc_step(
     const arma::vec& inv_mass_diag,
     const ProjectPositionFn& project_position,
     const ProjectMomentumFn& project_momentum,
-    SafeRNG& rng
+    SafeRNG& rng,
+    bool reverse_check = true,
+    double reverse_check_tol = kReverseCheckFactor
 );

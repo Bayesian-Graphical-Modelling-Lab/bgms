@@ -319,7 +319,8 @@ for(spec in get_bgms_fixtures()) {
       # (This is safe because the fixture cache returns the same object.)
       # Instead, just verify that accessing a summary field returns data.
       summary_fields = grep(
-        "^posterior_summary_", names(fit), value = TRUE
+        "^posterior_summary_", names(fit),
+        value = TRUE
       )
       for(field in summary_fields) {
         val = fit[[field]]
@@ -345,7 +346,8 @@ for(spec in get_bgmcompare_fixtures()) {
     {
       fit = spec$get_fit()
       summary_fields = grep(
-        "^posterior_summary_", names(fit), value = TRUE
+        "^posterior_summary_", names(fit),
+        value = TRUE
       )
       for(field in summary_fields) {
         val = fit[[field]]

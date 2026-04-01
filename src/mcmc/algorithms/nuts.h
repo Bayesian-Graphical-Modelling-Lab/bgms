@@ -31,6 +31,8 @@ struct BuildTreeResult {
   double alpha;          ///< Sum of acceptance probabilities in the subtree
   int n_alpha;           ///< Number of proposals contributing to alpha
   bool divergent;        ///< Whether this subtree diverged
+  bool non_reversible;   ///< Whether a non-reversible step was detected
+  double max_rev_diff;   ///< Worst-case reversibility max_diff in this subtree
 };
 
 
@@ -53,6 +55,8 @@ struct BuildTreeResult {
  * @param max_depth         Maximum tree depth (default = 10)
  * @param project_position  SHAKE position projection (nullptr for unconstrained)
  * @param project_momentum  RATTLE momentum projection (nullptr for unconstrained)
+ * @param reverse_check     Enable runtime reversibility check (constrained only)
+ * @param reverse_check_tol Factor for eps²-scaled reversibility tolerance
  * @return StepResult with position, acceptance probability, and NUTS diagnostics
  */
 StepResult nuts_step(
@@ -63,5 +67,7 @@ StepResult nuts_step(
     SafeRNG& rng,
     int max_depth = 10,
     const ProjectPositionFn* project_position = nullptr,
-    const ProjectMomentumFn* project_momentum = nullptr
+    const ProjectMomentumFn* project_momentum = nullptr,
+    bool reverse_check = true,
+    double reverse_check_tol = kReverseCheckFactor
 );

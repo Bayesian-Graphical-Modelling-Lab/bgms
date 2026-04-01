@@ -41,6 +41,8 @@ public:
     arma::ivec  treedepth_samples;
     /// NUTS/HMC divergent transition flags (n_iter).
     arma::ivec  divergent_samples;
+    /// NUTS/HMC non-reversible step flags (n_iter).
+    arma::ivec  non_reversible_samples;
     /// NUTS/HMC energy diagnostic (n_iter).
     arma::vec   energy_samples;
     /// Whether NUTS/HMC diagnostics are stored.
@@ -82,6 +84,7 @@ public:
     void reserve_nuts_diagnostics(const size_t n_iter) {
         treedepth_samples.set_size(n_iter);
         divergent_samples.set_size(n_iter);
+        non_reversible_samples.set_size(n_iter);
         energy_samples.set_size(n_iter);
         has_nuts_diagnostics = true;
     }
@@ -120,9 +123,10 @@ public:
      * @param divergent  Whether a divergence occurred
      * @param energy     Final Hamiltonian energy
      */
-    void store_nuts_diagnostics(const size_t iter, int tree_depth, bool divergent, double energy) {
+    void store_nuts_diagnostics(const size_t iter, int tree_depth, bool divergent, bool non_reversible, double energy) {
         treedepth_samples(iter) = tree_depth;
         divergent_samples(iter) = divergent ? 1 : 0;
+        non_reversible_samples(iter) = non_reversible ? 1 : 0;
         energy_samples(iter) = energy;
     }
 };

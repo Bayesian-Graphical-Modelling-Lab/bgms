@@ -28,6 +28,7 @@ bgm(
   hmc_num_leapfrogs = 100,
   nuts_max_depth = 10,
   learn_mass_matrix = TRUE,
+  reverse_check = TRUE,
   chains = 4,
   cores = parallel::detectCores(),
   display_progress = c("per-chain", "total", "none"),
@@ -136,6 +137,12 @@ Default: \code{10}.}
 \item{learn_mass_matrix}{Logical. If \code{TRUE}, adapt a diagonal mass
 matrix during warmup (NUTS only). If \code{FALSE}, use the identity
 matrix. Default: \code{TRUE}.}
+
+\item{reverse_check}{Logical. If \code{TRUE}, run a forward-backward
+reversibility check after each constrained leapfrog step (RATTLE).
+Non-reversible steps are rejected, protecting against numerical
+integration failures. Only applies when \code{edge_selection = TRUE}
+and the sampler uses gradient-based proposals. Default: \code{TRUE}.}
 
 \item{chains}{Integer. Number of parallel chains to run. Default: \code{4}.}
 

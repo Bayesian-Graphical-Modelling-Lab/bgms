@@ -184,7 +184,9 @@ StepResult hmc_step(
     const arma::vec& inv_mass_diag,
     const ProjectPositionFn& project_position,
     const ProjectMomentumFn& project_momentum,
-    SafeRNG& rng
+    SafeRNG& rng,
+    bool reverse_check,
+    double reverse_check_tol
 ) {
   Memoizer memo(joint);
 
@@ -198,11 +200,31 @@ StepResult hmc_step(
 
   // Run num_leapfrogs constrained leapfrog steps
   arma::vec theta = init_theta;
+  bool non_reversible = false;
   for (int i = 0; i < num_leapfrogs; ++i) {
-    std::tie(theta, r) = leapfrog_constrained(
-      theta, r, step_size, memo, inv_mass_diag,
-      project_position, project_momentum
-    );
+    if (reverse_check) {
+      auto checked = leapfrog_constrained_checked(
+        theta, r, step_size, memo, inv_mass_diag,
+        project_position, project_momentum,
+        reverse_check_tol
+      );
+      theta = std::move(checked.theta);
+      r = std::move(checked.r);
+      if (!checked.reversible) {
+        non_reversible = true;
+        break;
+      }
+    } else {
+      std::tie(theta, r) = leapfrog_constrained(
+        theta, r, step_size, memo, inv_mass_diag,
+        project_position, project_momentum
+      );
+    }
+  }
+
+  // Non-reversible step forces rejection
+  if (non_reversible) {
+    return {init_theta, 0.0};
   }
 
   double logp1 = memo.cached_log_post(theta);

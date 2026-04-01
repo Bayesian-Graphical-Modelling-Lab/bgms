@@ -70,6 +70,40 @@ std::pair<arma::vec, arma::vec> leapfrog_constrained(
 }
 
 
+ConstrainedLeapfrogResult leapfrog_constrained_checked(
+    const arma::vec& theta,
+    const arma::vec& r,
+    double eps,
+    Memoizer& memo,
+    const arma::vec& inv_mass_diag,
+    const ProjectPositionFn& project_position,
+    const ProjectMomentumFn& project_momentum,
+    double reverse_check_factor
+) {
+  // --- Forward step ---
+  auto [theta_new, r_new] = leapfrog_constrained(
+    theta, r, eps, memo, inv_mass_diag,
+    project_position, project_momentum
+  );
+
+  // --- Backward step (negate momentum, step forward) ---
+  // Use a separate Memoizer so the caller's cache stays at theta_new.
+  Memoizer back_memo(memo.joint_fn);
+  arma::vec r_back = -r_new;
+  auto [theta_back, r_back_out] = leapfrog_constrained(
+    theta_new, r_back, eps, back_memo, inv_mass_diag,
+    project_position, project_momentum
+  );
+
+  // --- Reversibility check (eps^2-scaled max-norm) ---
+  double max_diff = arma::max(arma::abs(theta_back - theta));
+  double tol = reverse_check_factor * eps * eps;
+  bool reversible = (max_diff <= tol);
+
+  return {std::move(theta_new), std::move(r_new), reversible, max_diff};
+}
+
+
 LeapfrogJointResult leapfrog(
     const arma::vec& theta_init,
     const arma::vec& r_init,

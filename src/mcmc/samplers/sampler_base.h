@@ -114,6 +114,11 @@ public:
         // Use adaptation controller's current step size for this iteration
         step_size_ = adapt_->current_step_size();
 
+        // Phase-aware reverse check: observe during warmup, enforce during sampling.
+        // The check always runs (recording max_diff and non_reversible counts),
+        // but only terminates trees / rejects steps when enforcing.
+        enforce_reverse_check_ = schedule_.sampling(iteration);
+
         StepResult result = do_gradient_step(model);
 
         // Let the adaptation controller handle step-size and mass-matrix logic.
@@ -185,6 +190,10 @@ protected:
 
     double step_size_;
     double target_acceptance_;
+
+    /// Whether the reverse check should enforce (reject) this iteration.
+    /// Set in step() before do_gradient_step(). Derived classes read this.
+    bool enforce_reverse_check_ = false;
 
 public:
     /**

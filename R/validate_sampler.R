@@ -93,6 +93,7 @@ validate_sampler = function(update_method,
                             hmc_num_leapfrogs = 100,
                             nuts_max_depth = 10,
                             learn_mass_matrix = TRUE,
+                            reverse_check = TRUE,
                             chains = 4,
                             cores = parallel::detectCores(),
                             seed = NULL,
@@ -197,16 +198,17 @@ validate_sampler = function(update_method,
   progress_type = progress_type_from_display_progress(display_progress)
 
   list(
-    update_method     = update_method,
-    target_accept     = target_accept,
-    iter              = iter,
-    warmup            = warmup,
+    update_method = update_method,
+    target_accept = target_accept,
+    iter = iter,
+    warmup = warmup,
     hmc_num_leapfrogs = hmc_num_leapfrogs,
-    nuts_max_depth    = nuts_max_depth,
+    nuts_max_depth = nuts_max_depth,
     learn_mass_matrix = learn_mass_matrix,
-    chains            = chains,
-    cores             = cores,
-    seed              = seed,
-    progress_type     = progress_type
+    reverse_check = reverse_check,
+    chains = chains,
+    cores = cores,
+    seed = seed,
+    progress_type = progress_type
   )
 }

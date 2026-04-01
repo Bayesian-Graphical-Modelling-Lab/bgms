@@ -163,6 +163,80 @@ std::pair<arma::vec, arma::vec> leapfrog_constrained(
 );
 
 
+// ---------------------------------------------------------------------------
+// Constrained leapfrog with runtime reversibility check
+// ---------------------------------------------------------------------------
+
+/**
+ * Default factor for the epsilon-squared-scaled reversibility check.
+ *
+ * After each constrained leapfrog step the integrator takes a backward
+ * step and verifies that the position returns to within
+ *   factor * eps^2
+ * of the starting point in max-norm.
+ *
+ * The SHAKE direct solver's column-coupling produces O(eps^2) round-trip
+ * errors with a dimensionless coupling constant C in [0.001, 0.13]
+ * (measured on Wenchuan GGM, 18 variables, across step sizes 0.001-3.4).
+ * A factor of 0.5 provides generous headroom above the observed maximum
+ * C ~ 0.13 while catching genuine failures (divergent projection,
+ * near-singular Jacobian) where C >> 1.
+ *
+ * Using eps^2-scaling instead of an absolute tolerance avoids creating
+ * a hard ceiling on the adapted step size during warmup Stage 3c,
+ * which would otherwise cause catastrophic slowdown.
+ *
+ * See Zappa, Holmes-Cerfon & Goodman (2018).
+ */
+constexpr double kReverseCheckFactor = 0.5;
+
+
+/**
+ * Result of a constrained leapfrog step with reversibility information.
+ */
+struct ConstrainedLeapfrogResult {
+  arma::vec theta;    ///< Updated position
+  arma::vec r;        ///< Updated momentum
+  bool reversible;    ///< Whether the forward-backward check passed
+  double max_diff;    ///< Max-norm of forward-backward position difference
+};
+
+
+/**
+ * Constrained leapfrog step with a runtime reversibility check.
+ *
+ * Performs a forward constrained leapfrog step, then a backward step
+ * (negate momentum, step forward, negate again).  If the round-trip
+ * position differs from the original by more than factor * eps^2
+ * in max-norm, the step is flagged as non-reversible.
+ *
+ * This is the runtime analogue of Mici's ConstrainedLeapfrogIntegrator
+ * reverse check (Zappa et al., 2018; Lelièvre et al., 2019), adapted
+ * to use eps^2-scaled tolerance matching the O(eps^2) column-coupling
+ * error of the direct SHAKE solver.
+ *
+ * @param theta                Current position (parameter vector)
+ * @param r                    Current momentum vector
+ * @param eps                  Step size for integration
+ * @param memo                 Memoizer caching gradient evaluations
+ * @param inv_mass_diag        Diagonal of the inverse mass matrix
+ * @param project_position     SHAKE position projection callback
+ * @param project_momentum     RATTLE momentum projection callback
+ * @param reverse_check_factor Factor for eps^2-scaled tolerance
+ * @return ConstrainedLeapfrogResult with position, momentum, and reversibility flag
+ */
+ConstrainedLeapfrogResult leapfrog_constrained_checked(
+    const arma::vec& theta,
+    const arma::vec& r,
+    double eps,
+    Memoizer& memo,
+    const arma::vec& inv_mass_diag,
+    const ProjectPositionFn& project_position,
+    const ProjectMomentumFn& project_momentum,
+    double reverse_check_factor = kReverseCheckFactor
+);
+
+
 /**
  * LeapfrogJointResult - Return type for multi-step leapfrog integration.
  *

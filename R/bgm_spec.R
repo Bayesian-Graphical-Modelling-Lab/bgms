@@ -280,6 +280,7 @@ bgm_spec = function(x,
                     hmc_num_leapfrogs = 100L,
                     nuts_max_depth = 10L,
                     learn_mass_matrix = TRUE,
+                    reverse_check = TRUE,
                     chains = 4L,
                     cores = parallel::detectCores(),
                     seed = NULL,
@@ -327,20 +328,21 @@ bgm_spec = function(x,
 
   # --- Sampler (needs is_continuous and edge_selection early) ------------------
   sampler = validate_sampler(
-    update_method     = update_method,
-    target_accept     = target_accept,
-    iter              = iter,
-    warmup            = warmup,
+    update_method = update_method,
+    target_accept = target_accept,
+    iter = iter,
+    warmup = warmup,
     hmc_num_leapfrogs = hmc_num_leapfrogs,
-    nuts_max_depth    = nuts_max_depth,
+    nuts_max_depth = nuts_max_depth,
     learn_mass_matrix = learn_mass_matrix,
-    chains            = chains,
-    cores             = cores,
-    seed              = seed,
-    display_progress  = display_progress,
-    is_continuous     = is_continuous,
-    edge_selection    = if(model_type == "compare") FALSE else edge_selection,
-    verbose           = verbose
+    reverse_check = reverse_check,
+    chains = chains,
+    cores = cores,
+    seed = seed,
+    display_progress = display_progress,
+    is_continuous = is_continuous,
+    edge_selection = if(model_type == "compare") FALSE else edge_selection,
+    verbose = verbose
   )
 
   # --- Build by model type ----------------------------------------------------
@@ -1078,6 +1080,7 @@ sampler_sublist = function(s) {
     hmc_num_leapfrogs = as.integer(s$hmc_num_leapfrogs),
     nuts_max_depth    = as.integer(s$nuts_max_depth),
     learn_mass_matrix = s$learn_mass_matrix,
+    reverse_check     = s$reverse_check,
     seed              = as.integer(s$seed),
     progress_type     = as.integer(s$progress_type)
   )

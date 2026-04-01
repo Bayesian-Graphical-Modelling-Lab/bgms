@@ -19,7 +19,9 @@ class HMCSampler : public GradientSamplerBase {
 public:
     explicit HMCSampler(const SamplerConfig& config, WarmupSchedule& schedule)
         : GradientSamplerBase(config.initial_step_size, config.target_acceptance, schedule),
-          num_leapfrogs_(config.num_leapfrogs)
+          num_leapfrogs_(config.num_leapfrogs),
+          reverse_check_(config.reverse_check),
+          reverse_check_tol_(config.reverse_check_tol)
     {}
 
 protected:
@@ -74,11 +76,15 @@ private:
         StepResult result = hmc_step(
             x, step_size_, joint_fn,
             num_leapfrogs_, inv_mass,
-            proj_pos, proj_mom, rng);
+            proj_pos, proj_mom, rng,
+            reverse_check_ && enforce_reverse_check_,
+            reverse_check_tol_);
 
         model.set_full_position(result.state);
         return result;
     }
 
     int num_leapfrogs_;
+    bool reverse_check_;
+    double reverse_check_tol_;
 };

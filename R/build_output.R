@@ -305,6 +305,7 @@ build_output_bgm = function(spec, raw) {
       }
       if(!is.null(chain$treedepth)) res[["treedepth__"]] = chain$treedepth
       if(!is.null(chain$divergent)) res[["divergent__"]] = chain$divergent
+      if(!is.null(chain$non_reversible)) res[["non_reversible__"]] = chain$non_reversible
       if(!is.null(chain$energy)) res[["energy__"]] = chain$energy
       res
     })
@@ -330,6 +331,7 @@ build_output_bgm = function(spec, raw) {
       }
       if(!is.null(chain$treedepth)) res[["treedepth__"]] = chain$treedepth
       if(!is.null(chain$divergent)) res[["divergent__"]] = chain$divergent
+      if(!is.null(chain$non_reversible)) res[["non_reversible__"]] = chain$non_reversible
       if(!is.null(chain$energy)) res[["energy__"]] = chain$energy
       res
     })
@@ -593,6 +595,7 @@ build_output_mixed_mrf = function(spec, raw) {
     }
     if(!is.null(chain$treedepth)) res[["treedepth__"]] = chain$treedepth
     if(!is.null(chain$divergent)) res[["divergent__"]] = chain$divergent
+    if(!is.null(chain$non_reversible)) res[["non_reversible__"]] = chain$non_reversible
     if(!is.null(chain$energy)) res[["energy__"]] = chain$energy
     res
   })

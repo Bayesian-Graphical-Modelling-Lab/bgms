@@ -87,7 +87,7 @@ void run_mcmc_chain(
             if (chain_result.has_nuts_diagnostics && sampler->has_nuts_diagnostics()) {
                 auto* diag = dynamic_cast<NUTSDiagnostics*>(result.diagnostics.get());
                 if (diag) {
-                    chain_result.store_nuts_diagnostics(sample_index, diag->tree_depth, diag->divergent, diag->energy);
+                    chain_result.store_nuts_diagnostics(sample_index, diag->tree_depth, diag->divergent, diag->non_reversible, diag->energy);
                 }
             }
 
@@ -219,6 +219,7 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
             if (chain.has_nuts_diagnostics) {
                 chain_list["treedepth"] = chain.treedepth_samples;
                 chain_list["divergent"] = chain.divergent_samples;
+                chain_list["non_reversible"] = chain.non_reversible_samples;
                 chain_list["energy"] = chain.energy_samples;
             }
         }
