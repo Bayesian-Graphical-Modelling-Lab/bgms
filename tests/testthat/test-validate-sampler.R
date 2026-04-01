@@ -13,7 +13,6 @@ vs = function(...) {
     hmc_num_leapfrogs = 100L,
     nuts_max_depth    = 10L,
     learn_mass_matrix = TRUE,
-    reverse_check     = TRUE,
     chains            = 2L,
     cores             = 2L,
     seed              = 42L,
@@ -389,12 +388,11 @@ test_that("FALSE → 0L (none)", {
 # 11. Full return structure
 # ==============================================================================
 
-test_that("return list has all 12 expected elements", {
+test_that("return list has all 11 expected elements", {
   res = vs()
   expected_names = c(
     "update_method", "target_accept", "iter", "warmup",
     "hmc_num_leapfrogs", "nuts_max_depth", "learn_mass_matrix",
-    "reverse_check",
     "chains", "cores", "seed", "progress_type"
   )
   expect_named(res, expected_names)

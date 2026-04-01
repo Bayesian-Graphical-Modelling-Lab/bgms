@@ -95,8 +95,7 @@ run_sampler_ggm = function(spec) {
     target_acceptance = s$target_accept,
     max_tree_depth = s$nuts_max_depth,
     na_impute = m$na_impute,
-    missing_index_nullable = m$missing_index,
-    reverse_check = s$reverse_check
+    missing_index_nullable = m$missing_index
   )
 
   out_raw
@@ -153,8 +152,7 @@ run_sampler_omrf = function(spec) {
     target_acceptance = s$target_accept,
     max_tree_depth = s$nuts_max_depth,
     num_leapfrogs = s$hmc_num_leapfrogs,
-    pairwise_scaling_factors_nullable = p$pairwise_scaling_factors,
-    reverse_check = s$reverse_check
+    pairwise_scaling_factors_nullable = p$pairwise_scaling_factors
   )
 
   out_raw
@@ -213,8 +211,7 @@ run_sampler_mixed_mrf = function(spec) {
     num_leapfrogs = s$hmc_num_leapfrogs,
     na_impute = m$na_impute,
     missing_index_discrete_nullable = m$missing_index_discrete,
-    missing_index_continuous_nullable = m$missing_index_continuous,
-    reverse_check = s$reverse_check
+    missing_index_continuous_nullable = m$missing_index_continuous
   )
 
   out_raw

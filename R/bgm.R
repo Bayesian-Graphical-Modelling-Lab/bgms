@@ -306,12 +306,6 @@
 #'   matrix during warmup (NUTS only). If \code{FALSE}, use the identity
 #'   matrix. Default: \code{TRUE}.
 #'
-#' @param reverse_check Logical. If \code{TRUE}, run a forward-backward
-#'   reversibility check after each constrained leapfrog step (RATTLE).
-#'   Non-reversible steps are rejected, protecting against numerical
-#'   integration failures. Only applies when \code{edge_selection = TRUE}
-#'   and the sampler uses gradient-based proposals. Default: \code{TRUE}.
-#'
 #' @param chains Integer. Number of parallel chains to run. Default: \code{4}.
 #'
 #' @param cores Integer. Number of CPU cores for parallel execution.
@@ -446,7 +440,6 @@ bgm = function(
   hmc_num_leapfrogs = 100,
   nuts_max_depth = 10,
   learn_mass_matrix = TRUE,
-  reverse_check = TRUE,
   chains = 4,
   cores = parallel::detectCores(),
   display_progress = c("per-chain", "total", "none"),
@@ -521,7 +514,6 @@ bgm = function(
     hmc_num_leapfrogs = hmc_num_leapfrogs,
     nuts_max_depth = nuts_max_depth,
     learn_mass_matrix = learn_mass_matrix,
-    reverse_check = reverse_check,
     chains = chains,
     cores = cores,
     seed = seed,

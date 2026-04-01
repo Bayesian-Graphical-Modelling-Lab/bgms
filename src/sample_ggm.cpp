@@ -35,8 +35,7 @@ Rcpp::List sample_ggm(
     const double target_acceptance = 0.8,
     const int max_tree_depth = 10,
     const bool na_impute = false,
-    const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable = R_NilValue,
-    const bool reverse_check = true
+    const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable = R_NilValue
 ) {
 
     // Create model from R input
@@ -63,7 +62,6 @@ Rcpp::List sample_ggm(
     config.target_acceptance = target_acceptance;
     config.max_tree_depth = max_tree_depth;
     config.na_impute = na_impute;
-    config.reverse_check = reverse_check;
 
     // Set up progress manager
     ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type);

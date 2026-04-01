@@ -66,8 +66,7 @@ Rcpp::List sample_omrf(
     const double target_acceptance = 0.8,
     const int max_tree_depth = 10,
     const int num_leapfrogs = 10,
-    const Rcpp::Nullable<Rcpp::NumericMatrix> pairwise_scaling_factors_nullable = R_NilValue,
-    const bool reverse_check = true
+    const Rcpp::Nullable<Rcpp::NumericMatrix> pairwise_scaling_factors_nullable = R_NilValue
 ) {
     // Create model from R input
     OMRFModel model = createOMRFModelFromR(
@@ -107,7 +106,6 @@ Rcpp::List sample_omrf(
     config.max_tree_depth = max_tree_depth;
     config.num_leapfrogs = num_leapfrogs;
     config.na_impute = na_impute;
-    config.reverse_check = reverse_check;
 
     // Set up progress manager
     ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type);
