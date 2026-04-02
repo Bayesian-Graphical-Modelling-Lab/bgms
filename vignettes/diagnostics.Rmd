@@ -156,6 +156,12 @@ If you see a large number of divergences, consider increasing `target_accept` (w
 
 NUTS builds trajectories by repeatedly doubling their length until a "U-turn" criterion is satisfied. If the trajectory frequently reaches the maximum allowed depth (`nuts_max_depth`, default 10), it suggests the sampler may benefit from longer trajectories to explore the posterior efficiently. Hitting the maximum depth occasionally is normal; hitting it on most iterations may indicate challenging posterior geometry. If this happens, consider increasing `nuts_max_depth`.
 
+## Non-reversible steps
+
+For MRFs with continuous variables, the leapfrog integrator enforces equality constraints through a projection step. After each forward step, the integrator checks whether reversing the step returns to the starting point. When the round-trip error exceeds a tolerance scaled by the square of the step size, the step is flagged as non-reversible.
+
+A small number of non-reversible steps is not a concern. A large number indicates that the step size is too large for the constraint geometry. Because the step size is tuned during warmup, the most effective remedy is to increase `warmup` so the adapter has more time to find an appropriate step size. If non-reversible steps persist after increasing warmup, switch to `update_method = "adaptive-metropolis"`.
+
 ## Warmup and equilibration
 
 Standard HMC/NUTS warmup is designed to tune the step size and mass matrix for the continuous parameters. In models with edge selection, the discrete graph structure may take longer to reach its stationary distribution than the continuous parameters. As a result, even after warmup completes, the first portion of the sampling phase may still show transient behavior (i.e., non-stationarity).
