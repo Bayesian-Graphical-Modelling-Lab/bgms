@@ -75,7 +75,7 @@ test_that("constrained leapfrog checked passes for well-behaved steps", {
 
   result = ggm_test_leapfrog_constrained_checked(
     sc$x0, sc$r0, eps, n_steps, sc$S, sc$n, edges, sc$scale,
-    reverse_check_factor = 0.5
+    reverse_check_tol = 0.5
   )
 
   expect_equal(result$non_reversible_count, 0L)
@@ -125,7 +125,7 @@ test_that("extreme tolerance detects non-reversible steps", {
   # With an impossibly tight factor, expect some failures
   result = ggm_test_leapfrog_constrained_checked(
     sc$x0, sc$r0, eps, n_steps, sc$S, sc$n, edges, sc$scale,
-    reverse_check_factor = 1e-11
+    reverse_check_tol = 1e-11
   )
 
   expect_gt(result$non_reversible_count, 0L)
@@ -172,14 +172,14 @@ test_that("large step sizes increase reversibility error", {
   # Small step: should be reversible
   small = ggm_test_leapfrog_constrained_checked(
     sc$x0, sc$r0, 0.005, 10, sc$S, sc$n, edges, sc$scale,
-    reverse_check_factor = 0.5
+    reverse_check_tol = 0.5
   )
   expect_equal(small$non_reversible_count, 0L)
 
   # Large step (100x): near-machine-epsilon tolerance catches round-trip drift
   large = ggm_test_leapfrog_constrained_checked(
     sc$x0, sc$r0, 0.5, 20, sc$S, sc$n, edges, sc$scale,
-    reverse_check_factor = 1e-15
+    reverse_check_tol = 1e-15
   )
   expect_gt(large$non_reversible_count, 0L)
 })
@@ -198,7 +198,7 @@ test_that("long trajectory (200 steps) stays reversible at normal tolerance", {
 
   result = ggm_test_leapfrog_constrained_checked(
     sc$x0, sc$r0, 0.005, 200, sc$S, sc$n, edges, sc$scale,
-    reverse_check_factor = 0.5
+    reverse_check_tol = 0.5
   )
 
   expect_equal(result$non_reversible_count, 0L)
@@ -229,7 +229,7 @@ test_that("rank-deficient regime (n < p) stays reversible", {
 
   result = ggm_test_leapfrog_constrained_checked(
     x0, r0, 0.005, 30, S, n, edges, 2.5,
-    reverse_check_factor = 0.5
+    reverse_check_tol = 0.5
   )
 
   expect_equal(result$non_reversible_count, 0L)
@@ -266,7 +266,7 @@ test_that("ill-conditioned data (kappa ~ 1e4) stays reversible", {
 
   result = ggm_test_leapfrog_constrained_checked(
     x0, r0, 0.003, 30, S, n, edges, 2.5,
-    reverse_check_factor = 0.5
+    reverse_check_tol = 0.5
   )
 
   expect_equal(result$non_reversible_count, 0L)
