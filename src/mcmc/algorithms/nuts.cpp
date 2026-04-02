@@ -75,9 +75,8 @@ BuildTreeResult build_tree(
     // Base case: take a single leapfrog step
     arma::vec theta_new, r_new;
     bool non_reversible = false;
-    double step_max_diff = 0.0;
     if (project_position && project_momentum) {
-      // Always run the checked variant so we can observe max_diff.
+      // Always run the checked variant so we can observe reversibility.
       // The reverse_check flag controls whether we ACT on the result
       // (i.e. terminate the tree). Observation is always on.
       auto checked = leapfrog_constrained_checked(
@@ -87,7 +86,6 @@ BuildTreeResult build_tree(
       );
       theta_new = std::move(checked.theta);
       r_new = std::move(checked.r);
-      step_max_diff = checked.max_diff;
       non_reversible = !checked.reversible;
     } else {
       std::tie(theta_new, r_new) = leapfrog_memo(
@@ -96,7 +94,7 @@ BuildTreeResult build_tree(
     }
 
     // Non-reversible step terminates the tree only when reverse_check is on.
-    // When off (or during warmup observation mode), we record but don't act.
+    // During warmup, we record but don't act.
     if (reverse_check && non_reversible) {
       arma::vec p_sharp = inv_mass_diag % r_new;
       BuildTreeResult result;
@@ -117,7 +115,6 @@ BuildTreeResult build_tree(
       result.n_alpha = 1;
       result.divergent = false;
       result.non_reversible = true;
-      result.max_rev_diff = step_max_diff;
       return result;
     }
 
@@ -149,7 +146,6 @@ BuildTreeResult build_tree(
     result.n_alpha = 1;
     result.divergent = divergent;
     result.non_reversible = non_reversible;  // record even when not acting
-    result.max_rev_diff = step_max_diff;
     return result;
 
   } else {
@@ -167,7 +163,6 @@ BuildTreeResult build_tree(
 
     bool divergent = init_result.divergent;
     bool non_reversible = init_result.non_reversible;
-    double max_rev_diff = init_result.max_rev_diff;
 
     // Extract values from init subtree (move — init_result not used again)
     arma::vec theta_min = std::move(init_result.theta_min);
@@ -228,7 +223,6 @@ BuildTreeResult build_tree(
       result.n_alpha = n_alpha_prime + final_result.n_alpha;
       result.divergent = divergent || final_result.divergent;
       result.non_reversible = non_reversible || final_result.non_reversible;
-      result.max_rev_diff = std::max(max_rev_diff, final_result.max_rev_diff);
       return result;
     }
 
@@ -243,7 +237,6 @@ BuildTreeResult build_tree(
     int n_alpha_double_prime = final_result.n_alpha;
     divergent = divergent || final_result.divergent;
     non_reversible = non_reversible || final_result.non_reversible;
-    max_rev_diff = std::max(max_rev_diff, final_result.max_rev_diff);
 
     // Multinomial sampling from the combined subtree
     double denom = static_cast<double>(n_prime + n_double_prime);
@@ -296,7 +289,6 @@ BuildTreeResult build_tree(
     result.n_alpha = n_alpha_prime;
     result.divergent = divergent;
     result.non_reversible = non_reversible;
-    result.max_rev_diff = max_rev_diff;
     return result;
   }
 }
@@ -318,7 +310,6 @@ StepResult nuts_step(
   Memoizer memo(joint);
   bool any_divergence = false;
   bool any_non_reversible = false;
-  double worst_rev_diff = 0.0;
 
   arma::vec r0 = arma::sqrt(1.0 / inv_mass_diag) % arma_rnorm_vec(rng, init_theta.n_elem);
 
@@ -385,7 +376,6 @@ StepResult nuts_step(
 
     any_divergence = any_divergence || result.divergent;
     any_non_reversible = any_non_reversible || result.non_reversible;
-    worst_rev_diff = std::max(worst_rev_diff, result.max_rev_diff);
     alpha = result.alpha;
     n_alpha = result.n_alpha;
 
@@ -425,7 +415,6 @@ StepResult nuts_step(
   diag->divergent = any_divergence;
   diag->non_reversible = any_non_reversible;
   diag->energy = energy;
-  diag->max_rev_diff = worst_rev_diff;
 
   return {theta, accept_prob, diag};
 }

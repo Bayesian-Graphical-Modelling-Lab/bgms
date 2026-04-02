@@ -115,7 +115,7 @@ public:
         step_size_ = adapt_->current_step_size();
 
         // Phase-aware reverse check: observe during warmup, enforce during sampling.
-        // The check always runs (recording max_diff and non_reversible counts),
+        // The check always runs (recording non_reversible counts),
         // but only terminates trees / rejects steps when enforcing.
         enforce_reverse_check_ = schedule_.sampling(iteration);
 
