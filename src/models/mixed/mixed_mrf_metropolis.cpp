@@ -1,4 +1,5 @@
 #include <RcppArmadillo.h>
+#include <utility>
 #include "models/mixed/mixed_mrf_model.h"
 #include "rng/rng_utils.h"
 #include "mcmc/execution/step_result.h"
