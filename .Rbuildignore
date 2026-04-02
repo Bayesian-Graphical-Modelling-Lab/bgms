@@ -17,6 +17,7 @@
 # GitHub / CI
 ^\.github$
 ^CONTRIBUTING\.md$
+^CODE_OF_CONDUCT\.md$
 
 # Hidden config files (development only)
 ^\.lintr$
