@@ -78,7 +78,7 @@ ConstrainedLeapfrogResult leapfrog_constrained_checked(
     const arma::vec& inv_mass_diag,
     const ProjectPositionFn& project_position,
     const ProjectMomentumFn& project_momentum,
-    double reverse_check_factor
+    double reverse_check_tol
 ) {
   // --- Forward step ---
   auto [theta_new, r_new] = leapfrog_constrained(
@@ -97,10 +97,10 @@ ConstrainedLeapfrogResult leapfrog_constrained_checked(
 
   // --- Reversibility check (eps^2-scaled max-norm) ---
   double max_diff = arma::max(arma::abs(theta_back - theta));
-  double tol = reverse_check_factor * eps * eps;
+  double tol = reverse_check_tol * eps * eps;
   bool reversible = (max_diff <= tol);
 
-  return {std::move(theta_new), std::move(r_new), reversible, max_diff};
+  return {std::move(theta_new), std::move(r_new), reversible};
 }
 
 

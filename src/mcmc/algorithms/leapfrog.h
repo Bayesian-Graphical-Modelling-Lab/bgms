@@ -168,37 +168,12 @@ std::pair<arma::vec, arma::vec> leapfrog_constrained(
 // ---------------------------------------------------------------------------
 
 /**
- * Default factor for the epsilon-squared-scaled reversibility check.
- *
- * After each constrained leapfrog step the integrator takes a backward
- * step and verifies that the position returns to within
- *   factor * eps^2
- * of the starting point in max-norm.
- *
- * The SHAKE direct solver's column-coupling produces O(eps^2) round-trip
- * errors with a dimensionless coupling constant C in [0.001, 0.13]
- * (measured on Wenchuan GGM, 18 variables, across step sizes 0.001-3.4).
- * A factor of 0.5 provides generous headroom above the observed maximum
- * C ~ 0.13 while catching genuine failures (divergent projection,
- * near-singular Jacobian) where C >> 1.
- *
- * Using eps^2-scaling instead of an absolute tolerance avoids creating
- * a hard ceiling on the adapted step size during warmup Stage 3c,
- * which would otherwise cause catastrophic slowdown.
- *
- * See Zappa, Holmes-Cerfon & Goodman (2018).
- */
-constexpr double kReverseCheckFactor = 0.5;
-
-
-/**
  * Result of a constrained leapfrog step with reversibility information.
  */
 struct ConstrainedLeapfrogResult {
   arma::vec theta;    ///< Updated position
   arma::vec r;        ///< Updated momentum
   bool reversible;    ///< Whether the forward-backward check passed
-  double max_diff;    ///< Max-norm of forward-backward position difference
 };
 
 
@@ -222,7 +197,7 @@ struct ConstrainedLeapfrogResult {
  * @param inv_mass_diag        Diagonal of the inverse mass matrix
  * @param project_position     SHAKE position projection callback
  * @param project_momentum     RATTLE momentum projection callback
- * @param reverse_check_factor Factor for eps^2-scaled tolerance
+ * @param reverse_check_tol Factor for eps^2-scaled tolerance
  * @return ConstrainedLeapfrogResult with position, momentum, and reversibility flag
  */
 ConstrainedLeapfrogResult leapfrog_constrained_checked(
@@ -233,7 +208,7 @@ ConstrainedLeapfrogResult leapfrog_constrained_checked(
     const arma::vec& inv_mass_diag,
     const ProjectPositionFn& project_position,
     const ProjectMomentumFn& project_momentum,
-    double reverse_check_factor = kReverseCheckFactor
+    double reverse_check_tol
 );
 
 

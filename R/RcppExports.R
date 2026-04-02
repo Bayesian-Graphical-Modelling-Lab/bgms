@@ -45,8 +45,8 @@ ggm_test_leapfrog_constrained <- function(x0, r0, step_size, n_steps, suf_stat, 
     .Call(`_bgms_ggm_test_leapfrog_constrained`, x0, r0, step_size, n_steps, suf_stat, n, edge_indicators, pairwise_scale, inv_mass_in)
 }
 
-ggm_test_leapfrog_constrained_checked <- function(x0, r0, step_size, n_steps, suf_stat, n, edge_indicators, pairwise_scale, reverse_check_factor = 0.5, inv_mass_in = NULL) {
-    .Call(`_bgms_ggm_test_leapfrog_constrained_checked`, x0, r0, step_size, n_steps, suf_stat, n, edge_indicators, pairwise_scale, reverse_check_factor, inv_mass_in)
+ggm_test_leapfrog_constrained_checked <- function(x0, r0, step_size, n_steps, suf_stat, n, edge_indicators, pairwise_scale, reverse_check_tol = 0.5, inv_mass_in = NULL) {
+    .Call(`_bgms_ggm_test_leapfrog_constrained_checked`, x0, r0, step_size, n_steps, suf_stat, n, edge_indicators, pairwise_scale, reverse_check_tol, inv_mass_in)
 }
 
 .compute_ess_cpp <- function(array3d) {

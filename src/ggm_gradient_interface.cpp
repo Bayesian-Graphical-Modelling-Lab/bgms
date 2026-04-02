@@ -263,7 +263,7 @@ Rcpp::List ggm_test_leapfrog_constrained_checked(
     int n,
     const arma::imat& edge_indicators,
     double pairwise_scale,
-    double reverse_check_factor = 0.5,
+    double reverse_check_tol = 0.5,
     Rcpp::Nullable<Rcpp::NumericVector> inv_mass_in = R_NilValue)
 {
     size_t p = edge_indicators.n_rows;
@@ -299,7 +299,7 @@ Rcpp::List ggm_test_leapfrog_constrained_checked(
     for (int s = 0; s < n_steps; ++s) {
         auto result = leapfrog_constrained_checked(
             x, r, step_size, memo, inv_mass, proj_pos, proj_mom,
-            reverse_check_factor
+            reverse_check_tol
         );
         x = std::move(result.theta);
         r = std::move(result.r);

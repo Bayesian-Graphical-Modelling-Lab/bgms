@@ -29,7 +29,6 @@ struct NUTSDiagnostics : public DiagnosticsBase {
   bool divergent;        ///< Whether a divergence occurred
   bool non_reversible;   ///< Whether a non-reversible constrained step occurred
   double energy;         ///< Final Hamiltonian (-log posterior + kinetic energy)
-  double max_rev_diff;   ///< Worst-case reversibility max_diff across the tree
 };
 
 

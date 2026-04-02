@@ -192,8 +192,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // ggm_test_leapfrog_constrained_checked
-Rcpp::List ggm_test_leapfrog_constrained_checked(const arma::vec& x0, const arma::vec& r0, double step_size, int n_steps, const arma::mat& suf_stat, int n, const arma::imat& edge_indicators, double pairwise_scale, double reverse_check_factor, Rcpp::Nullable<Rcpp::NumericVector> inv_mass_in);
-RcppExport SEXP _bgms_ggm_test_leapfrog_constrained_checked(SEXP x0SEXP, SEXP r0SEXP, SEXP step_sizeSEXP, SEXP n_stepsSEXP, SEXP suf_statSEXP, SEXP nSEXP, SEXP edge_indicatorsSEXP, SEXP pairwise_scaleSEXP, SEXP reverse_check_factorSEXP, SEXP inv_mass_inSEXP) {
+Rcpp::List ggm_test_leapfrog_constrained_checked(const arma::vec& x0, const arma::vec& r0, double step_size, int n_steps, const arma::mat& suf_stat, int n, const arma::imat& edge_indicators, double pairwise_scale, double reverse_check_tol, Rcpp::Nullable<Rcpp::NumericVector> inv_mass_in);
+RcppExport SEXP _bgms_ggm_test_leapfrog_constrained_checked(SEXP x0SEXP, SEXP r0SEXP, SEXP step_sizeSEXP, SEXP n_stepsSEXP, SEXP suf_statSEXP, SEXP nSEXP, SEXP edge_indicatorsSEXP, SEXP pairwise_scaleSEXP, SEXP reverse_check_tolSEXP, SEXP inv_mass_inSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -205,9 +205,9 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type n(nSEXP);
     Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
     Rcpp::traits::input_parameter< double >::type pairwise_scale(pairwise_scaleSEXP);
-    Rcpp::traits::input_parameter< double >::type reverse_check_factor(reverse_check_factorSEXP);
+    Rcpp::traits::input_parameter< double >::type reverse_check_tol(reverse_check_tolSEXP);
     Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type inv_mass_in(inv_mass_inSEXP);
-    rcpp_result_gen = Rcpp::wrap(ggm_test_leapfrog_constrained_checked(x0, r0, step_size, n_steps, suf_stat, n, edge_indicators, pairwise_scale, reverse_check_factor, inv_mass_in));
+    rcpp_result_gen = Rcpp::wrap(ggm_test_leapfrog_constrained_checked(x0, r0, step_size, n_steps, suf_stat, n, edge_indicators, pairwise_scale, reverse_check_tol, inv_mass_in));
     return rcpp_result_gen;
 END_RCPP
 }

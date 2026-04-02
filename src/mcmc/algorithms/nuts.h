@@ -32,7 +32,6 @@ struct BuildTreeResult {
   int n_alpha;           ///< Number of proposals contributing to alpha
   bool divergent;        ///< Whether this subtree diverged
   bool non_reversible;   ///< Whether a non-reversible step was detected
-  double max_rev_diff;   ///< Worst-case reversibility max_diff in this subtree
 };
 
 
@@ -69,5 +68,5 @@ StepResult nuts_step(
     const ProjectPositionFn* project_position = nullptr,
     const ProjectMomentumFn* project_momentum = nullptr,
     bool reverse_check = true,
-    double reverse_check_tol = kReverseCheckFactor
+    double reverse_check_tol = 0.5
 );

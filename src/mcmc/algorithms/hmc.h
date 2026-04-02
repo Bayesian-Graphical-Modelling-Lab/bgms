@@ -164,5 +164,5 @@ StepResult hmc_step(
     const ProjectMomentumFn& project_momentum,
     SafeRNG& rng,
     bool reverse_check = true,
-    double reverse_check_tol = kReverseCheckFactor
+    double reverse_check_tol = 0.5
 );
