@@ -228,6 +228,9 @@ Hamiltonian Monte Carlo sampling. These can be accessed via
 <span><span class="co">#&gt; $total_divergences</span></span>
 <span><span class="co">#&gt; [1] 0</span></span>
 <span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $total_non_reversible</span></span>
+<span><span class="co">#&gt; [1] 0</span></span>
+<span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $max_tree_depth_hits</span></span>
 <span><span class="co">#&gt; [1] 0</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -276,6 +279,22 @@ posterior efficiently. Hitting the maximum depth occasionally is normal;
 hitting it on most iterations may indicate challenging posterior
 geometry. If this happens, consider increasing
 <code>nuts_max_depth</code>.</p>
+</div>
+<div class="section level3">
+<h3 id="non-reversible-steps">Non-reversible steps<a class="anchor" aria-label="anchor" href="#non-reversible-steps"></a>
+</h3>
+<p>For MRFs with continuous variables, the leapfrog integrator enforces
+equality constraints through a projection step. After each forward step,
+the integrator checks whether reversing the step returns to the starting
+point. When the round-trip error exceeds a tolerance scaled by the
+square of the step size, the step is flagged as non-reversible.</p>
+<p>A small number of non-reversible steps is not a concern. A large
+number indicates that the step size is too large for the constraint
+geometry. Because the step size is tuned during warmup, the most
+effective remedy is to increase <code>warmup</code> so the adapter has
+more time to find an appropriate step size. If non-reversible steps
+persist after increasing warmup, switch to
+<code>update_method = "adaptive-metropolis"</code>.</p>
 </div>
 <div class="section level3">
 <h3 id="warmup-and-equilibration">Warmup and equilibration<a class="anchor" aria-label="anchor" href="#warmup-and-equilibration"></a>

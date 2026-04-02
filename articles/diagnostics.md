@@ -164,6 +164,9 @@ fit$nuts_diag$summary
 #> $total_divergences
 #> [1] 0
 #> 
+#> $total_non_reversible
+#> [1] 0
+#> 
 #> $max_tree_depth_hits
 #> [1] 0
 #> 
@@ -212,6 +215,21 @@ the sampler may benefit from longer trajectories to explore the
 posterior efficiently. Hitting the maximum depth occasionally is normal;
 hitting it on most iterations may indicate challenging posterior
 geometry. If this happens, consider increasing `nuts_max_depth`.
+
+### Non-reversible steps
+
+For MRFs with continuous variables, the leapfrog integrator enforces
+equality constraints through a projection step. After each forward step,
+the integrator checks whether reversing the step returns to the starting
+point. When the round-trip error exceeds a tolerance scaled by the
+square of the step size, the step is flagged as non-reversible.
+
+A small number of non-reversible steps is not a concern. A large number
+indicates that the step size is too large for the constraint geometry.
+Because the step size is tuned during warmup, the most effective remedy
+is to increase `warmup` so the adapter has more time to find an
+appropriate step size. If non-reversible steps persist after increasing
+warmup, switch to `update_method = "adaptive-metropolis"`.
 
 ### Warmup and equilibration
 
