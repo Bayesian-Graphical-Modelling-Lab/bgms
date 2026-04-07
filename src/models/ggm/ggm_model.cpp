@@ -684,8 +684,9 @@ void GGMModel::update_edge_parameter(size_t i, size_t j, int iteration) {
     ln_alpha += interaction_prior_logp(interaction_prior_type_, precision_proposal_(i, j), pairwise_scale_);
     ln_alpha -= interaction_prior_logp(interaction_prior_type_, precision_matrix_(i, j), pairwise_scale_);
 
-    // Gamma(1,1) prior on K_jj cancels: constrained diagonal is a
-    // deterministic function of phi_{q-1,q} with phi_{q,q} fixed.
+    // Gamma(1,1) prior on changed diagonal K_jj
+    ln_alpha += R::dgamma(precision_proposal_(j, j), 1.0, 1.0, true);
+    ln_alpha -= R::dgamma(precision_matrix_(j, j), 1.0, 1.0, true);
 
     if (MY_LOG(runif(rng_)) < ln_alpha) {
         double omega_ij_old = precision_matrix_(i, j);
@@ -839,7 +840,9 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         ln_alpha += R::dnorm(precision_matrix_(i, j) / constants_[3], 0.0, proposal_sd, true) - MY_LOG(constants_[3]);
         ln_alpha -= interaction_prior_logp(interaction_prior_type_, precision_matrix_(i, j), pairwise_scale_);
 
-        // Gamma(1,1) prior on K_jj cancels: constrained parameterization.
+        // Gamma(1,1) prior on changed diagonal K_jj
+        ln_alpha += R::dgamma(precision_proposal_(j, j), 1.0, 1.0, true);
+        ln_alpha -= R::dgamma(precision_matrix_(j, j), 1.0, 1.0, true);
 
         if (MY_LOG(runif(rng_)) < ln_alpha) {
 
@@ -893,7 +896,8 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         ln_alpha += interaction_prior_logp(interaction_prior_type_, omega_prop_ij, pairwise_scale_);
 
         // Gamma(1,1) prior on changed diagonal K_jj
-        // Gamma(1,1) prior on K_jj cancels: constrained parameterization.
+        ln_alpha += R::dgamma(precision_proposal_(j, j), 1.0, 1.0, true);
+        ln_alpha -= R::dgamma(precision_matrix_(j, j), 1.0, 1.0, true);
 
         // Proposal term: proposed edge value given it was generated from truncated normal
         ln_alpha -= R::dnorm(omega_prop_ij / constants_[3], 0.0, proposal_sd, true) - MY_LOG(constants_[3]);
