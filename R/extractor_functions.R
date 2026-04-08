@@ -1174,7 +1174,7 @@ extract_precision.bgms = function(bgms_object) {
   }
 
   rv = get_posterior_mean(bgms_object, "residual_variance")
-  associations = get_posterior_mean(bgms_object, "associations")
+  associations = get_posterior_mean(bgms_object, "pairwise")
 
   if(isTRUE(arguments$is_mixed)) {
     # Mixed MRF: extract the q x q continuous block, convert to precision
@@ -1301,7 +1301,7 @@ extract_log_odds.bgms = function(bgms_object) {
     return(invisible(NULL))
   }
 
-  associations = get_posterior_mean(bgms_object, "associations")
+  associations = get_posterior_mean(bgms_object, "pairwise")
 
   if(isTRUE(arguments$is_mixed)) {
     # Mixed MRF: extract the p x p discrete block, convert to log-odds

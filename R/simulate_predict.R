@@ -707,7 +707,7 @@ simulate.bgms = function(object,
 
   if(method == "posterior-mean") {
     # Use posterior mean parameters
-    pairwise = get_posterior_mean(object, "associations")
+    pairwise = get_posterior_mean(object, "pairwise")
     main = get_posterior_mean(object, "main")
 
     # Set R's RNG for simulate_mrf
@@ -1160,7 +1160,7 @@ predict.bgms = function(object,
 
   if(method == "posterior-mean") {
     # Use posterior mean parameters
-    pairwise = get_posterior_mean(object, "associations")
+    pairwise = get_posterior_mean(object, "pairwise")
     main = get_posterior_mean(object, "main")
 
     probs = compute_conditional_probs(
@@ -1609,7 +1609,7 @@ predict_bgms_ggm = function(object, newdata, predict_vars, data_columnnames,
   if(method == "posterior-mean") {
     # Reconstruct precision matrix from posterior means
     omega = reconstruct_precision(
-      get_posterior_mean(object, "associations"),
+      get_posterior_mean(object, "pairwise"),
       get_posterior_mean(object, "residual_variance")
     )
 
@@ -1727,7 +1727,7 @@ simulate_bgms_ggm = function(object, nsim, seed, method, ndraws,
   if(method == "posterior-mean") {
     # Reconstruct precision matrix from off-diagonal + separate diagonal
     precision = reconstruct_precision(
-      get_posterior_mean(object, "associations"),
+      get_posterior_mean(object, "pairwise"),
       get_posterior_mean(object, "residual_variance")
     )
 
@@ -2054,7 +2054,7 @@ build_mixed_params_mean = function(object, arguments) {
   disc_idx = arguments$discrete_indices
   cont_idx = arguments$continuous_indices
 
-  pmat = get_posterior_mean(object, "associations")
+  pmat = get_posterior_mean(object, "pairwise")
 
   pairwise_disc = matrix(0, p, p)
   for(i in seq_len(p)) {

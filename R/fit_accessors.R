@@ -54,9 +54,9 @@ get_raw_samples = function(fit) {
 # Extracts a named posterior_mean_* field from a fit object.
 #
 # @param fit    A bgms or bgmCompare object (S7 or legacy S3).
-# @param field  The suffix after "posterior_mean_", e.g. "associations",
+# @param field  The suffix after "posterior_mean_", e.g. "pairwise",
 #   "main", "indicator", "residual_variance", "allocations",
-#   "associations_baseline", "associations_differences".
+#   "pairwise_baseline", "pairwise_differences".
 #
 # Returns: The posterior mean value (matrix, vector, or list), or NULL
 #   if the field does not exist.

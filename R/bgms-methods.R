@@ -262,7 +262,7 @@ print.summary.bgms = function(x, digits = 3, ...) {
 coef.bgms = function(object, ...) {
   out = list(
     main = get_posterior_mean(object, "main"),
-    pairwise = get_posterior_mean(object, "associations")
+    pairwise = get_posterior_mean(object, "pairwise")
   )
   if(!is.null(get_posterior_mean(object, "indicator"))) {
     out$indicator = get_posterior_mean(object, "indicator")
