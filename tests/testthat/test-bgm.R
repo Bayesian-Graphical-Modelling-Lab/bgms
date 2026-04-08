@@ -92,8 +92,8 @@ test_that("bgm GGM output has correct dimensions", {
   # pairwise: p*(p-1)/2 off-diagonal elements
   n_edges = p * (p - 1) / 2
   expect_equal(nrow(fit$posterior_summary_pairwise), n_edges)
-  expect_equal(nrow(fit$posterior_mean_associations), p)
-  expect_equal(ncol(fit$posterior_mean_associations), p)
+  expect_equal(nrow(fit$posterior_mean_pairwise), p)
+  expect_equal(ncol(fit$posterior_mean_pairwise), p)
 
   # precision diagonal stored separately (positive for GGM)
   expect_true(all(fit$posterior_mean_residual_variance > 0))
@@ -101,8 +101,8 @@ test_that("bgm GGM output has correct dimensions", {
   # pairwise: p*(p-1)/2 off-diagonal elements
   n_edges = p * (p - 1) / 2
   expect_equal(nrow(fit$posterior_summary_pairwise), n_edges)
-  expect_equal(nrow(fit$posterior_mean_associations), p)
-  expect_equal(ncol(fit$posterior_mean_associations), p)
+  expect_equal(nrow(fit$posterior_mean_pairwise), p)
+  expect_equal(ncol(fit$posterior_mean_pairwise), p)
 
   # indicators (edge selection = TRUE)
   expect_equal(nrow(fit$posterior_summary_indicator), n_edges)
@@ -242,7 +242,7 @@ test_that("bgm GGM output has correct parameter ordering", {
   expect_true(
     all(check_summary_matrix_consistency(
       summary_pairwise_k,
-      fit$posterior_mean_associations
+      fit$posterior_mean_pairwise
     )),
     info = "GGM pairwise summary names do not match matrix positions"
   )
@@ -251,7 +251,7 @@ test_that("bgm GGM output has correct parameter ordering", {
   pw_means = colMeans(extract_pairwise_interactions(fit))
   expect_true(
     all(check_extractor_matrix_consistency(
-      pw_means, fit$posterior_mean_associations
+      pw_means, fit$posterior_mean_pairwise
     )),
     info = paste(
       "GGM extract_pairwise_interactions()",
@@ -262,34 +262,34 @@ test_that("bgm GGM output has correct parameter ordering", {
   # Truth-based swap-position checks (GGM stores association-scale: A = -0.5 * precision):
   # V1-V4 (true precision = 0) should be near zero, not ~-0.125 (V3-V4's value)
   expect_true(
-    abs(fit$posterior_mean_associations["V1", "V4"]) < 0.15,
+    abs(fit$posterior_mean_pairwise["V1", "V4"]) < 0.15,
     info = sprintf(
       "V1-V4 should be ~0 but is %.3f (possible swap with V2-V3)",
-      fit$posterior_mean_associations["V1", "V4"]
+      fit$posterior_mean_pairwise["V1", "V4"]
     )
   )
   # V2-V3 (true precision = 0) should be near zero, not ~-0.3 (V1-V2's value)
   expect_true(
-    abs(fit$posterior_mean_associations["V2", "V3"]) < 0.15,
+    abs(fit$posterior_mean_pairwise["V2", "V3"]) < 0.15,
     info = sprintf(
       "V2-V3 should be ~0 but is %.3f (possible swap with V1-V4)",
-      fit$posterior_mean_associations["V2", "V3"]
+      fit$posterior_mean_pairwise["V2", "V3"]
     )
   )
   # V3-V4 (true precision = 0.25, true association = -0.125) should be negative
   expect_true(
-    fit$posterior_mean_associations["V3", "V4"] < -0.05,
+    fit$posterior_mean_pairwise["V3", "V4"] < -0.05,
     info = sprintf(
       "V3-V4 should be ~-0.125 but is %.3f (possible swap with V2-V5)",
-      fit$posterior_mean_associations["V3", "V4"]
+      fit$posterior_mean_pairwise["V3", "V4"]
     )
   )
   # V2-V4 (true precision = -0.5, true association = 0.25) should be positive
   expect_true(
-    fit$posterior_mean_associations["V2", "V4"] > 0.15,
+    fit$posterior_mean_pairwise["V2", "V4"] > 0.15,
     info = sprintf(
       "V2-V4 should be ~0.25 but is %.3f",
-      fit$posterior_mean_associations["V2", "V4"]
+      fit$posterior_mean_pairwise["V2", "V4"]
     )
   )
 })
@@ -311,7 +311,7 @@ test_that("bgm OMRF output has correct parameter ordering", {
   expect_true(
     all(check_summary_matrix_consistency(
       fit$posterior_summary_pairwise,
-      fit$posterior_mean_associations
+      fit$posterior_mean_pairwise
     )),
     info = "OMRF pairwise summary names do not match matrix positions"
   )
@@ -320,7 +320,7 @@ test_that("bgm OMRF output has correct parameter ordering", {
   pw_means = colMeans(extract_pairwise_interactions(fit))
   expect_true(
     all(check_extractor_matrix_consistency(
-      pw_means, fit$posterior_mean_associations
+      pw_means, fit$posterior_mean_pairwise
     )),
     info = paste(
       "OMRF extract_pairwise_interactions()",
@@ -524,8 +524,8 @@ test_that("GGM imputation preserves posterior accuracy", {
 
   # Posterior means should be correlated > 0.85
   cor_pairwise = cor(
-    as.numeric(fit_full$posterior_mean_associations),
-    as.numeric(fit_miss$posterior_mean_associations)
+    as.numeric(fit_full$posterior_mean_pairwise),
+    as.numeric(fit_miss$posterior_mean_pairwise)
   )
   expect_gt(cor_pairwise, 0.85)
 })
@@ -560,8 +560,8 @@ test_that("GGM imputation gives comparable results to listwise", {
   expect_s3_class(fit_impute, "bgms")
 
   cor_val = cor(
-    as.numeric(fit_listwise$posterior_mean_associations),
-    as.numeric(fit_impute$posterior_mean_associations)
+    as.numeric(fit_listwise$posterior_mean_pairwise),
+    as.numeric(fit_impute$posterior_mean_pairwise)
   )
   expect_gt(cor_val, 0.80)
 })
@@ -803,8 +803,8 @@ test_that("bgm mixed MRF output has correct dimensions", {
   # pairwise: p_total*(p_total-1)/2 edges
   n_edges = p_total * (p_total - 1) / 2
   expect_equal(nrow(fit$posterior_summary_pairwise), n_edges)
-  expect_equal(nrow(fit$posterior_mean_associations), p_total)
-  expect_equal(ncol(fit$posterior_mean_associations), p_total)
+  expect_equal(nrow(fit$posterior_mean_pairwise), p_total)
+  expect_equal(ncol(fit$posterior_mean_pairwise), p_total)
 
   # indicators (edge selection = TRUE)
   expect_equal(nrow(fit$posterior_summary_indicator), n_edges)
@@ -835,15 +835,15 @@ test_that("bgm mixed MRF pairwise matrix has correct variable names", {
 
   # Interleaved order: d1, c1, d2, c2, d3
   expected_names = c("d1", "c1", "d2", "c2", "d3")
-  expect_equal(rownames(fit$posterior_mean_associations), expected_names)
-  expect_equal(colnames(fit$posterior_mean_associations), expected_names)
+  expect_equal(rownames(fit$posterior_mean_pairwise), expected_names)
+  expect_equal(colnames(fit$posterior_mean_pairwise), expected_names)
   expect_equal(rownames(fit$posterior_mean_indicator), expected_names)
   expect_equal(colnames(fit$posterior_mean_indicator), expected_names)
 })
 
 test_that("bgm mixed MRF pairwise matrix is symmetric", {
   fit = get_bgms_fit_mixed_mrf()
-  expect_equal(fit$posterior_mean_associations, t(fit$posterior_mean_associations))
+  expect_equal(fit$posterior_mean_pairwise, t(fit$posterior_mean_pairwise))
   expect_equal(fit$posterior_mean_indicator, t(fit$posterior_mean_indicator))
 })
 
@@ -852,7 +852,7 @@ test_that("bgm mixed MRF summary-matrix consistency", {
   expect_true(
     all(check_summary_matrix_consistency(
       fit$posterior_summary_pairwise,
-      fit$posterior_mean_associations
+      fit$posterior_mean_pairwise
     )),
     info = "Mixed MRF pairwise summary names do not match matrix positions"
   )
@@ -874,16 +874,16 @@ test_that("bgm mixed MRF residual variances are positive", {
 test_that("bgm mixed MRF marginal pseudolikelihood runs", {
   fit = get_bgms_fit_mixed_mrf_marginal()
   expect_s3_class(fit, "bgms")
-  expect_equal(nrow(fit$posterior_mean_associations), 5)
-  expect_true(all(is.finite(fit$posterior_mean_associations)))
+  expect_equal(nrow(fit$posterior_mean_pairwise), 5)
+  expect_true(all(is.finite(fit$posterior_mean_pairwise)))
 })
 
 test_that("bgm mixed MRF marginal PL with edge selection runs", {
   fit = get_bgms_fit_mixed_mrf_marginal_es()
   expect_s3_class(fit, "bgms")
-  expect_equal(nrow(fit$posterior_mean_associations), 5)
-  expect_equal(ncol(fit$posterior_mean_associations), 5)
-  expect_true(all(is.finite(fit$posterior_mean_associations)))
+  expect_equal(nrow(fit$posterior_mean_pairwise), 5)
+  expect_equal(ncol(fit$posterior_mean_pairwise), 5)
+  expect_true(all(is.finite(fit$posterior_mean_pairwise)))
   # Edge selection produces indicator matrix
   expect_false(is.null(fit$posterior_mean_indicator))
   expect_equal(nrow(fit$posterior_mean_indicator), 5)
@@ -894,9 +894,9 @@ test_that("bgm mixed MRF marginal PL with edge selection runs", {
 test_that("bgm mixed MRF NUTS runs", {
   fit = get_bgms_fit_mixed_mrf_nuts()
   expect_s3_class(fit, "bgms")
-  expect_equal(nrow(fit$posterior_mean_associations), 5)
-  expect_equal(ncol(fit$posterior_mean_associations), 5)
-  expect_true(all(is.finite(fit$posterior_mean_associations)))
+  expect_equal(nrow(fit$posterior_mean_pairwise), 5)
+  expect_equal(ncol(fit$posterior_mean_pairwise), 5)
+  expect_true(all(is.finite(fit$posterior_mean_pairwise)))
   # Edge selection active
   expect_false(is.null(fit$posterior_mean_indicator))
 })
@@ -908,8 +908,8 @@ test_that("bgm mixed MRF NUTS output dimensions", {
   n_edges = p_total * (p_total - 1) / 2
 
   expect_equal(nrow(fit$posterior_summary_pairwise), n_edges)
-  expect_equal(nrow(fit$posterior_mean_associations), p_total)
-  expect_equal(ncol(fit$posterior_mean_associations), p_total)
+  expect_equal(nrow(fit$posterior_mean_pairwise), p_total)
+  expect_equal(ncol(fit$posterior_mean_pairwise), p_total)
   expect_equal(nrow(fit$posterior_summary_indicator), n_edges)
   expect_equal(ncol(fit$raw_samples$pairwise[[1]]), n_edges)
   expect_equal(nrow(fit$raw_samples$main[[1]]), args$iter)
@@ -949,8 +949,8 @@ test_that("bgm mixed MRF NUTS is reproducible", {
 test_that("bgm mixed MRF NUTS without edge selection runs", {
   fit = get_bgms_fit_mixed_mrf_nuts_no_es()
   expect_s3_class(fit, "bgms")
-  expect_equal(nrow(fit$posterior_mean_associations), 5)
-  expect_true(all(is.finite(fit$posterior_mean_associations)))
+  expect_equal(nrow(fit$posterior_mean_pairwise), 5)
+  expect_true(all(is.finite(fit$posterior_mean_pairwise)))
   expect_null(fit$posterior_summary_indicator)
   expect_null(fit$posterior_mean_indicator)
 })
@@ -958,8 +958,8 @@ test_that("bgm mixed MRF NUTS without edge selection runs", {
 test_that("bgm mixed MRF Beta-Bernoulli prior runs", {
   fit = get_bgms_fit_mixed_mrf_beta_bernoulli()
   expect_s3_class(fit, "bgms")
-  expect_equal(nrow(fit$posterior_mean_associations), 5)
-  expect_true(all(is.finite(fit$posterior_mean_associations)))
+  expect_equal(nrow(fit$posterior_mean_pairwise), 5)
+  expect_true(all(is.finite(fit$posterior_mean_pairwise)))
   expect_false(is.null(fit$posterior_mean_indicator))
   expect_true(all(fit$posterior_mean_indicator >= 0 &
     fit$posterior_mean_indicator <= 1))
@@ -968,8 +968,8 @@ test_that("bgm mixed MRF Beta-Bernoulli prior runs", {
 test_that("bgm mixed MRF Stochastic-Block prior runs", {
   fit = get_bgms_fit_mixed_mrf_sbm()
   expect_s3_class(fit, "bgms")
-  expect_equal(nrow(fit$posterior_mean_associations), 5)
-  expect_true(all(is.finite(fit$posterior_mean_associations)))
+  expect_equal(nrow(fit$posterior_mean_pairwise), 5)
+  expect_true(all(is.finite(fit$posterior_mean_pairwise)))
   expect_false(is.null(fit$posterior_mean_indicator))
   expect_true(all(fit$posterior_mean_indicator >= 0 &
     fit$posterior_mean_indicator <= 1))
@@ -979,9 +979,9 @@ test_that("bgm mixed MRF Blume-Capel + continuous runs", {
   fit = get_bgms_fit_mixed_mrf_bc()
   expect_s3_class(fit, "bgms")
   p_total = 4 # bc1, c1, bc2, c2
-  expect_equal(nrow(fit$posterior_mean_associations), p_total)
-  expect_equal(ncol(fit$posterior_mean_associations), p_total)
-  expect_true(all(is.finite(fit$posterior_mean_associations)))
+  expect_equal(nrow(fit$posterior_mean_pairwise), p_total)
+  expect_equal(ncol(fit$posterior_mean_pairwise), p_total)
+  expect_true(all(is.finite(fit$posterior_mean_pairwise)))
   expect_false(is.null(fit$posterior_mean_indicator))
 
   # Blume-Capel main effects: quadratic structure (linear + quadratic terms)
@@ -993,16 +993,16 @@ test_that("bgm mixed MRF Blume-Capel + continuous runs", {
 test_that("bgm mixed MRF imputation runs", {
   fit = get_bgms_fit_mixed_mrf_impute()
   expect_s3_class(fit, "bgms")
-  expect_equal(nrow(fit$posterior_mean_associations), 5)
-  expect_true(all(is.finite(fit$posterior_mean_associations)))
+  expect_equal(nrow(fit$posterior_mean_pairwise), 5)
+  expect_true(all(is.finite(fit$posterior_mean_pairwise)))
   expect_false(is.null(fit$posterior_mean_indicator))
 })
 
 test_that("bgm mixed MRF multi-chain R-hat and ESS", {
   fit = get_bgms_fit_mixed_mrf_multichain()
   expect_s3_class(fit, "bgms")
-  expect_equal(nrow(fit$posterior_mean_associations), 5)
-  expect_true(all(is.finite(fit$posterior_mean_associations)))
+  expect_equal(nrow(fit$posterior_mean_pairwise), 5)
+  expect_true(all(is.finite(fit$posterior_mean_pairwise)))
 
   # Multi-chain produces multiple raw sample chains
   expect_equal(length(fit$raw_samples$pairwise), 2)
@@ -1083,7 +1083,7 @@ test_that("bgm mixed MRF output has correct parameter ordering", {
   pw_means = colMeans(extract_pairwise_interactions(fit))
   expect_true(
     all(check_extractor_matrix_consistency(
-      pw_means, fit$posterior_mean_associations
+      pw_means, fit$posterior_mean_pairwise
     )),
     info = paste(
       "Mixed MRF extract_pairwise_interactions()",
@@ -1094,42 +1094,42 @@ test_that("bgm mixed MRF output has correct parameter ordering", {
   # Truth-based swap checks (user-order variable names):
   # d1-c2 (true = 0.0) should be near zero, not ~0.5 (d2-c1's value)
   expect_true(
-    abs(fit$posterior_mean_associations["d1", "c2"]) < 0.2,
+    abs(fit$posterior_mean_pairwise["d1", "c2"]) < 0.2,
     info = sprintf(
       "d1-c2 should be ~0 but is %.3f (possible swap with c1-d2)",
-      fit$posterior_mean_associations["d1", "c2"]
+      fit$posterior_mean_pairwise["d1", "c2"]
     )
   )
   # c1-d2 (true = 0.5) should be clearly positive, not ~0 (d1-c2's value)
   expect_true(
-    fit$posterior_mean_associations["c1", "d2"] > 0.15,
+    fit$posterior_mean_pairwise["c1", "d2"] > 0.15,
     info = sprintf(
       "c1-d2 should be ~0.5 but is %.3f (possible swap with d1-c2)",
-      fit$posterior_mean_associations["c1", "d2"]
+      fit$posterior_mean_pairwise["c1", "d2"]
     )
   )
   # c1-c2 (true = 0.0) should be near zero, not ~0.3 (d2-c2's value)
   expect_true(
-    abs(fit$posterior_mean_associations["c1", "c2"]) < 0.2,
+    abs(fit$posterior_mean_pairwise["c1", "c2"]) < 0.2,
     info = sprintf(
       "c1-c2 should be ~0 but is %.3f (possible swap with d2-c2)",
-      fit$posterior_mean_associations["c1", "c2"]
+      fit$posterior_mean_pairwise["c1", "c2"]
     )
   )
   # d2-d3 (true = 0.0) should be near zero
   expect_true(
-    abs(fit$posterior_mean_associations["d2", "d3"]) < 0.2,
+    abs(fit$posterior_mean_pairwise["d2", "d3"]) < 0.2,
     info = sprintf(
       "d2-d3 should be ~0 but is %.3f",
-      fit$posterior_mean_associations["d2", "d3"]
+      fit$posterior_mean_pairwise["d2", "d3"]
     )
   )
   # d1-d2 (true = -0.2) should be negative
   expect_true(
-    fit$posterior_mean_associations["d1", "d2"] < -0.08,
+    fit$posterior_mean_pairwise["d1", "d2"] < -0.08,
     info = sprintf(
       "d1-d2 should be ~-0.2 but is %.3f",
-      fit$posterior_mean_associations["d1", "d2"]
+      fit$posterior_mean_pairwise["d1", "d2"]
     )
   )
 })
@@ -1211,8 +1211,8 @@ test_that("estimate-simulate-re-estimate cycle recovers parameters (OMRF)", {
   )
 
   cor_pw = cor(
-    as.numeric(fit1$posterior_mean_associations),
-    as.numeric(fit2$posterior_mean_associations)
+    as.numeric(fit1$posterior_mean_pairwise),
+    as.numeric(fit2$posterior_mean_pairwise)
   )
   expect_gt(cor_pw, 0.7)
 })
@@ -1237,8 +1237,8 @@ test_that("estimate-simulate-re-estimate cycle recovers parameters (GGM)", {
   )
 
   cor_pw = cor(
-    as.numeric(fit1$posterior_mean_associations),
-    as.numeric(fit2$posterior_mean_associations)
+    as.numeric(fit1$posterior_mean_pairwise),
+    as.numeric(fit2$posterior_mean_pairwise)
   )
   expect_gt(cor_pw, 0.7)
 })
@@ -1269,8 +1269,8 @@ test_that("estimate-simulate-re-estimate cycle recovers parameters (mixed MRF)",
   )
 
   cor_pw = cor(
-    as.numeric(fit1$posterior_mean_associations),
-    as.numeric(fit2$posterior_mean_associations)
+    as.numeric(fit1$posterior_mean_pairwise),
+    as.numeric(fit2$posterior_mean_pairwise)
   )
   expect_gt(cor_pw, 0.7)
 })

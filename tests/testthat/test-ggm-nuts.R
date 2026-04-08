@@ -179,7 +179,7 @@ test_that("NUTS posterior means agree on p=6 tridiagonal", {
   )
 
   # Max absolute difference in posterior mean associations
-  diff = abs(fit_mh$posterior_mean_associations - fit_nuts$posterior_mean_associations)
+  diff = abs(fit_mh$posterior_mean_pairwise - fit_nuts$posterior_mean_pairwise)
   expect_lt(max(diff), 0.05, label = "max abs diff in pairwise means < 0.05")
 
   # NUTS should have clean diagnostics

@@ -249,7 +249,7 @@ parameters. \code{NULL} for GGM models. For OMRF: a matrix
 (p x max_categories) of category thresholds. For mixed MRF: a list
 with \code{$discrete} (threshold matrix) and \code{$continuous}
 (q x 1 matrix of means).
-\item \code{posterior_mean_associations}: Symmetric matrix of posterior
+\item \code{posterior_mean_pairwise}: Symmetric matrix of posterior
 mean partial associations (zero diagonal). For continuous variables
 these are unstandardized partial correlations; for discrete variables
 these are half the log adjacent-category odds ratio. Use

@@ -28,9 +28,10 @@
 
 ## Bug fixes
 
-* Fixed compilation failure on Alpine/musl: `mrf_simulation.cpp` relied on a transitive include for `<tbb/global_control.h>` that is not available on all platforms.
-* Fixed stale gradient cache after missing data imputation caused NUTS to use outdated cached values for leapfrog integration.
-* Fixed stale observation transpose after missing data imputation caused the pairwise gradient to use stale data.
+* fixed compilation failure on Alpine/musl: `mrf_simulation.cpp` relied on a transitive include for `<tbb/global_control.h>` that is not available on all platforms.
+* fixed stale gradient cache after missing data imputation caused NUTS to use outdated cached values for leapfrog integration.
+* fixed stale observation transpose after missing data imputation caused the pairwise gradient to use stale data.
+* fixed acceptance rate for nuts: parameter now correctly passed to lower level functions
 
 # bgms 0.1.6.3
 
@@ -51,7 +52,7 @@
 * fixed matrix indexing for `posterior_mean_indicator`: now correctly maps C++ row-major order to R matrices (#77)
 * fixed mass matrix adaptation: now correctly uses variance instead of precision
 * fixed step size heuristic: re-runs after mass matrix updates, resamples momentum each iteration
-* fixed E-BFMI diagnostic: now uses actual accepted trajectory momentum
+* fixed E-BFMI diagnostic: now uses accepted trajectory momentum
 * fixed Blume-Capel interaction: uses centered scores `(c - ref)` in pseudolikelihood denominator
 
 ## Other changes

@@ -180,7 +180,7 @@ test_that("M.2A: NUTS vs MH agree (conditional PL, no ES, grouped)", {
   compare_pairwise_samples(fit_nuts, fit_mh, "M.2A")
   compare_main_samples(fit_nuts, fit_mh, "M.2A")
 
-  diff = abs(fit_nuts$posterior_mean_associations - fit_mh$posterior_mean_associations)
+  diff = abs(fit_nuts$posterior_mean_pairwise - fit_mh$posterior_mean_pairwise)
   expect_lt(max(diff), 0.1, label = "M.2A max abs diff in associations < 0.1")
 
   expect_equal(fit_nuts$nuts_diag$summary$total_divergences, 0)
@@ -357,13 +357,13 @@ test_that("M.2E: NUTS vs MH agree (conditional PL, ES, interleaved)", {
   expect_identical(rownames(pip_mh), colnames(dat))
 
   # Extractor consistency: indicator-weighted raw sample means must
-  # match posterior_mean_associations at every position.
+  # match posterior_mean_pairwise at every position.
   pw_nuts = extract_pairwise_interactions(fit_nuts)
   ind_nuts = extract_indicators(fit_nuts)
   weighted_nuts = colMeans(pw_nuts * ind_nuts)
   expect_true(
     all(check_extractor_matrix_consistency(
-      weighted_nuts, fit_nuts$posterior_mean_associations
+      weighted_nuts, fit_nuts$posterior_mean_pairwise
     )),
     info = "M.2E NUTS extractor names match matrix positions"
   )
@@ -373,7 +373,7 @@ test_that("M.2E: NUTS vs MH agree (conditional PL, ES, interleaved)", {
   weighted_mh = colMeans(pw_mh * ind_mh)
   expect_true(
     all(check_extractor_matrix_consistency(
-      weighted_mh, fit_mh$posterior_mean_associations
+      weighted_mh, fit_mh$posterior_mean_pairwise
     )),
     info = "M.2E MH extractor names match matrix positions"
   )
@@ -421,14 +421,14 @@ test_that("M.2F: NUTS vs MH agree (conditional PL, no ES, interleaved)", {
   compare_main_samples(fit_nuts, fit_mh, "M.2F")
 
   # Output ordering checks
-  assoc_nuts = fit_nuts$posterior_mean_associations
+  assoc_nuts = fit_nuts$posterior_mean_pairwise
   expect_identical(rownames(assoc_nuts), colnames(dat))
   expect_identical(colnames(assoc_nuts), colnames(dat))
 
   pw_nuts_means = colMeans(extract_pairwise_interactions(fit_nuts))
   expect_true(
     all(check_extractor_matrix_consistency(
-      pw_nuts_means, fit_nuts$posterior_mean_associations
+      pw_nuts_means, fit_nuts$posterior_mean_pairwise
     )),
     info = "M.2F NUTS extractor consistency"
   )

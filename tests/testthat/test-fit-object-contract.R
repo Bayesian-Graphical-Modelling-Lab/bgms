@@ -30,8 +30,8 @@ test_that("bgms fit survives saveRDS/readRDS without prior summary access", {
   expect_equal(names(restored), names(fit))
   expect_equal(restored$arguments, fit$arguments)
   expect_equal(
-    restored$posterior_mean_associations,
-    fit$posterior_mean_associations
+    restored$posterior_mean_pairwise,
+    fit$posterior_mean_pairwise
   )
 
   # Lazy summaries must still work after deserialization
@@ -193,7 +193,7 @@ test_that("bgms fit (edge selection) has all required names", {
   # Core fields
   expect_true("arguments" %in% nm)
   expect_true("raw_samples" %in% nm)
-  expect_true("posterior_mean_associations" %in% nm)
+  expect_true("posterior_mean_pairwise" %in% nm)
   expect_true("cache" %in% nm)
 
   # Lazy summary placeholders
@@ -211,7 +211,7 @@ test_that("bgms fit (no edge selection) does not have indicator fields", {
 
   expect_true("arguments" %in% nm)
   expect_true("raw_samples" %in% nm)
-  expect_true("posterior_mean_associations" %in% nm)
+  expect_true("posterior_mean_pairwise" %in% nm)
   expect_true("posterior_summary_main" %in% nm)
   expect_true("posterior_summary_pairwise" %in% nm)
   expect_false("posterior_mean_indicator" %in% nm)
@@ -241,11 +241,11 @@ test_that("bgmCompare fit has all required names", {
 
   # Baseline fields
   expect_true("posterior_mean_main_baseline" %in% nm)
-  expect_true("posterior_mean_associations_baseline" %in% nm)
+  expect_true("posterior_mean_pairwise_baseline" %in% nm)
 
   # Difference fields
   expect_true("posterior_mean_main_differences" %in% nm)
-  expect_true("posterior_mean_associations_differences" %in% nm)
+  expect_true("posterior_mean_pairwise_differences" %in% nm)
 
   # Lazy summary placeholders
   expect_true("posterior_summary_main_baseline" %in% nm)

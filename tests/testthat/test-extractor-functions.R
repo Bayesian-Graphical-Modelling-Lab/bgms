@@ -1064,7 +1064,7 @@ make_synthetic_bgms = function(associations, residual_variance = NULL,
                                data_columnnames_continuous = NULL) {
   p = nrow(associations)
   obj = list(
-    posterior_mean_associations = associations,
+    posterior_mean_pairwise = associations,
     posterior_mean_residual_variance = residual_variance,
     arguments = list(
       num_variables = p,
@@ -1380,7 +1380,7 @@ test_that("Mixed MRF: log_odds and precision from disjoint blocks", {
 
 test_that("GGM: associations diagonal is zero", {
   fit = get_bgms_fit_ggm()
-  associations = fit$posterior_mean_associations
+  associations = fit$posterior_mean_pairwise
   expect_true(all(diag(associations) == 0))
 })
 
@@ -1412,7 +1412,7 @@ test_that("GGM: partial correlations in [-1, 1] with unit diagonal", {
 
 test_that("OMRF: associations matrix is symmetric with zero diagonal", {
   fit = get_bgms_fit()
-  associations = fit$posterior_mean_associations
+  associations = fit$posterior_mean_pairwise
   expect_equal(associations, t(associations))
   expect_true(all(diag(associations) == 0))
 })
@@ -1420,13 +1420,13 @@ test_that("OMRF: associations matrix is symmetric with zero diagonal", {
 test_that("OMRF: log_odds = 2 * associations", {
   fit = get_bgms_fit()
   lo = extract_log_odds(fit)
-  associations = fit$posterior_mean_associations
+  associations = fit$posterior_mean_pairwise
   expect_equal(lo, 2 * associations)
 })
 
 test_that("Mixed MRF: associations diagonal is zero", {
   fit = get_bgms_fit_mixed_mrf()
-  associations = fit$posterior_mean_associations
+  associations = fit$posterior_mean_pairwise
   expect_true(all(diag(associations) == 0))
 })
 
@@ -1446,7 +1446,7 @@ test_that("Mixed MRF: precision diagonal = 1/residual_variance", {
 test_that("Mixed MRF: discrete block log_odds = 2 * associations", {
   fit = get_bgms_fit_mixed_mrf()
   args = extract_arguments(fit)
-  associations = fit$posterior_mean_associations
+  associations = fit$posterior_mean_pairwise
   disc_idx = args$discrete_indices
   lo = extract_log_odds(fit)
   expected = 2 * associations[disc_idx, disc_idx]
@@ -1457,7 +1457,7 @@ test_that("Mixed MRF: discrete block log_odds = 2 * associations", {
 test_that("Mixed MRF: continuous precision = -2 * associations", {
   fit = get_bgms_fit_mixed_mrf()
   args = extract_arguments(fit)
-  associations = fit$posterior_mean_associations
+  associations = fit$posterior_mean_pairwise
   cont_idx = args$continuous_indices
   Theta = extract_precision(fit)
   rv = fit$posterior_mean_residual_variance

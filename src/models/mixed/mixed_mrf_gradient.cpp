@@ -660,14 +660,16 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
         Omega_bar(j, j) -= 1.0;
         logp -= temp_precision(j, j);  // Gamma(1,1) log-density
     }
-    // Interaction prior on off-diagonal Ω_{ij} (upper triangle only)
+    // Interaction prior on off-diagonal Kyy_{ij} = -Ω_{ij}/2 (upper triangle only)
     // Only add to Omega_bar(i,j), not (j,i): the symmetrization
     // Ω̄ + Ω̄ᵀ in Phase 4 handles the lower triangle automatically.
+    // The prior is on Kyy_{ij}, so we evaluate at -Ω_{ij}/2 and apply
+    // chain rule: ∂logπ/∂Ω_{ij} = ∂logπ/∂Kyy_{ij} · (-1/2).
     for(size_t i = 0; i < q_ - 1; ++i) {
         for(size_t j = i + 1; j < q_; ++j) {
-            double val = temp_precision(i, j);
-            logp += interaction_prior_logp(interaction_prior_type_, val, pairwise_scale_);
-            Omega_bar(i, j) += interaction_prior_grad(interaction_prior_type_, val, pairwise_scale_);
+            double kyy_val = -0.5 * temp_precision(i, j);
+            logp += interaction_prior_logp(interaction_prior_type_, kyy_val, pairwise_scale_);
+            Omega_bar(i, j) += -0.5 * interaction_prior_grad(interaction_prior_type_, kyy_val, pairwise_scale_);
         }
     }
 
@@ -1159,12 +1161,13 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
         Omega_bar(j, j) -= 1.0;
         logp -= temp_precision(j, j);
     }
-    // Interaction prior on off-diagonal precision
+    // Interaction prior on off-diagonal Kyy_{ij} = -Ω_{ij}/2
+    // Chain rule: ∂logπ/∂Ω_{ij} = ∂logπ/∂Kyy_{ij} · (-1/2)
     for(size_t i = 0; i < q_ - 1; ++i) {
         for(size_t j = i + 1; j < q_; ++j) {
-            double val = temp_precision(i, j);
-            logp += interaction_prior_logp(interaction_prior_type_, val, pairwise_scale_);
-            Omega_bar(i, j) += interaction_prior_grad(interaction_prior_type_, val, pairwise_scale_);
+            double kyy_val = -0.5 * temp_precision(i, j);
+            logp += interaction_prior_logp(interaction_prior_type_, kyy_val, pairwise_scale_);
+            Omega_bar(i, j) += -0.5 * interaction_prior_grad(interaction_prior_type_, kyy_val, pairwise_scale_);
         }
     }
 

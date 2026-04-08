@@ -452,7 +452,7 @@ build_output_bgm = function(spec, raw) {
   if(is_continuous) {
     associations = -0.5 * associations
   }
-  results$posterior_mean_associations = associations
+  results$posterior_mean_pairwise = associations
 
   # --- Residual variance (GGM only) -------------------------------------------
   # C++ stores precision diagonal; residual variance = 1 / precision.
@@ -739,7 +739,7 @@ build_output_mixed_mrf = function(spec, raw) {
 
   # --- Posterior mean: associations (all blocks) -----------------------------
   dn = list(data_columnnames, data_columnnames)
-  results$posterior_mean_associations = fill_mixed_symmetric(
+  results$posterior_mean_pairwise = fill_mixed_symmetric(
     pair_means, p, q, disc_idx, cont_idx, dn
   )
 
@@ -887,16 +887,16 @@ build_output_compare = function(spec, raw) {
     paste0("cat (", seq_len(ncol(pmm)), ")")
 
   # --- Posterior mean: associations baseline ----------------------------------
-  results$posterior_mean_associations_baseline = matrix(0,
+  results$posterior_mean_pairwise_baseline = matrix(0,
     nrow = num_variables, ncol = num_variables,
     dimnames = list(data_columnnames, data_columnnames)
   )
-  results$posterior_mean_associations_baseline[
-    lower.tri(results$posterior_mean_associations_baseline)
+  results$posterior_mean_pairwise_baseline[
+    lower.tri(results$posterior_mean_pairwise_baseline)
   ] = pair_bl_means
-  results$posterior_mean_associations_baseline =
-    results$posterior_mean_associations_baseline +
-    t(results$posterior_mean_associations_baseline)
+  results$posterior_mean_pairwise_baseline =
+    results$posterior_mean_pairwise_baseline +
+    t(results$posterior_mean_pairwise_baseline)
 
   # --- Posterior mean: main differences ---------------------------------------
   n_main_total = ncol(raw[[1]]$main_samples)
@@ -957,9 +957,9 @@ build_output_compare = function(spec, raw) {
   names(pair_diff_list) = paste0("diff", seq_len(num_contrasts))
 
   if(num_contrasts == 1L) {
-    results$posterior_mean_associations_differences = pair_diff_list[[1L]]
+    results$posterior_mean_pairwise_differences = pair_diff_list[[1L]]
   } else {
-    results$posterior_mean_associations_differences = pair_diff_list
+    results$posterior_mean_pairwise_differences = pair_diff_list
   }
 
   # --- raw_samples ------------------------------------------------------------

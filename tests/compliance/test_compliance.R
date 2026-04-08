@@ -420,12 +420,12 @@ resolve_args = function(args) {
 }
 
 # Migrate fixtures generated with pre-0.1.6.4 field names.
-# PR #84 renamed posterior_mean_pairwise → posterior_mean_associations.
+# PR #84 renamed posterior_mean_pairwise → posterior_mean_pairwise.
 migrate_fixture = function(fixture) {
   renames = c(
-    posterior_mean_pairwise              = "posterior_mean_associations",
-    posterior_mean_pairwise_baseline     = "posterior_mean_associations_baseline",
-    posterior_mean_pairwise_differences  = "posterior_mean_associations_differences"
+    posterior_mean_pairwise              = "posterior_mean_pairwise",
+    posterior_mean_pairwise_baseline     = "posterior_mean_pairwise_baseline",
+    posterior_mean_pairwise_differences  = "posterior_mean_pairwise_differences"
   )
   for(old_name in names(renames)) {
     if(old_name %in% names(fixture) && !renames[[old_name]] %in% names(fixture)) {
@@ -441,7 +441,7 @@ extract_bgm_actual = function(fit) {
     posterior_summary_pairwise = fit$posterior_summary_pairwise,
     posterior_summary_indicator = fit$posterior_summary_indicator,
     posterior_mean_main = fit$posterior_mean_main,
-    posterior_mean_associations = fit$posterior_mean_associations,
+    posterior_mean_pairwise = fit$posterior_mean_pairwise,
     posterior_mean_indicator = fit$posterior_mean_indicator,
     raw_main_chain1 = fit$raw_samples$main[[1]],
     raw_pairwise_chain1 = fit$raw_samples$pairwise[[1]],
@@ -464,9 +464,9 @@ extract_compare_actual = function(fit) {
     posterior_summary_pairwise_differences = fit$posterior_summary_pairwise_differences,
     posterior_summary_indicator = fit$posterior_summary_indicator,
     posterior_mean_main_baseline = fit$posterior_mean_main_baseline,
-    posterior_mean_associations_baseline = fit$posterior_mean_associations_baseline,
+    posterior_mean_pairwise_baseline = fit$posterior_mean_pairwise_baseline,
     posterior_mean_main_differences = fit$posterior_mean_main_differences,
-    posterior_mean_associations_differences = fit$posterior_mean_associations_differences,
+    posterior_mean_pairwise_differences = fit$posterior_mean_pairwise_differences,
     posterior_mean_indicator = fit$posterior_mean_indicator,
     raw_samples = fit$raw_samples,
     nuts_diag = fit$nuts_diag
@@ -518,7 +518,7 @@ compare_fields = function(expected, actual, type, id) {
     fields = c(
       "posterior_summary_main", "posterior_summary_pairwise",
       "posterior_summary_indicator",
-      "posterior_mean_main", "posterior_mean_associations", "posterior_mean_indicator",
+      "posterior_mean_main", "posterior_mean_pairwise", "posterior_mean_indicator",
       "raw_main_chain1", "raw_pairwise_chain1", "raw_indicator_chain1",
       "posterior_coclustering_matrix", "posterior_mean_allocations"
     )
@@ -527,8 +527,8 @@ compare_fields = function(expected, actual, type, id) {
       "posterior_summary_main_baseline", "posterior_summary_pairwise_baseline",
       "posterior_summary_main_differences", "posterior_summary_pairwise_differences",
       "posterior_summary_indicator",
-      "posterior_mean_main_baseline", "posterior_mean_associations_baseline",
-      "posterior_mean_main_differences", "posterior_mean_associations_differences",
+      "posterior_mean_main_baseline", "posterior_mean_pairwise_baseline",
+      "posterior_mean_main_differences", "posterior_mean_pairwise_differences",
       "posterior_mean_indicator",
       "raw_samples"
     )
@@ -658,7 +658,7 @@ check_structure = function(expected, actual, type) {
     fields = c(
       "posterior_summary_main", "posterior_summary_pairwise",
       "posterior_summary_indicator",
-      "posterior_mean_main", "posterior_mean_associations", "posterior_mean_indicator",
+      "posterior_mean_main", "posterior_mean_pairwise", "posterior_mean_indicator",
       "raw_main_chain1", "raw_pairwise_chain1", "raw_indicator_chain1"
     )
   } else {
@@ -666,8 +666,8 @@ check_structure = function(expected, actual, type) {
       "posterior_summary_main_baseline", "posterior_summary_pairwise_baseline",
       "posterior_summary_main_differences", "posterior_summary_pairwise_differences",
       "posterior_summary_indicator",
-      "posterior_mean_main_baseline", "posterior_mean_associations_baseline",
-      "posterior_mean_main_differences", "posterior_mean_associations_differences",
+      "posterior_mean_main_baseline", "posterior_mean_pairwise_baseline",
+      "posterior_mean_main_differences", "posterior_mean_pairwise_differences",
       "posterior_mean_indicator",
       "raw_samples"
     )

@@ -36,7 +36,7 @@ bgms_class = new_class("bgms",
 
     # --- Posterior means (set during construction, immutable) ---
     posterior_mean_main = new_property(class_any, default = NULL),
-    posterior_mean_associations = new_property(class_any, default = NULL),
+    posterior_mean_pairwise = new_property(class_any, default = NULL),
     posterior_mean_residual_variance = new_property(class_any, default = NULL),
     posterior_mean_indicator = new_property(class_any, default = NULL),
     posterior_mean_coclustering_matrix = new_property(class_any, default = NULL),
@@ -108,7 +108,7 @@ s3_list_to_bgms = function(results) {
     raw_samples = .subset2(results, "raw_samples"),
     cache = .subset2(results, "cache"),
     posterior_mean_main = .subset2(results, "posterior_mean_main"),
-    posterior_mean_associations = .subset2(results, "posterior_mean_associations"),
+    posterior_mean_pairwise = .subset2(results, "posterior_mean_pairwise"),
     posterior_mean_residual_variance = .subset2(results, "posterior_mean_residual_variance"),
     posterior_mean_indicator = .subset2(results, "posterior_mean_indicator"),
     posterior_mean_coclustering_matrix = .subset2(results, "posterior_mean_coclustering_matrix"),
@@ -140,9 +140,9 @@ bgmCompare_class = new_class("bgmCompare",
 
     # --- Posterior means (set during construction, immutable) ---
     posterior_mean_main_baseline = new_property(class_any, default = NULL),
-    posterior_mean_associations_baseline = new_property(class_any, default = NULL),
+    posterior_mean_pairwise_baseline = new_property(class_any, default = NULL),
     posterior_mean_main_differences = new_property(class_any, default = NULL),
-    posterior_mean_associations_differences = new_property(class_any, default = NULL),
+    posterior_mean_pairwise_differences = new_property(class_any, default = NULL),
 
     # --- Lazy MCMC diagnostics (computed on first access via getter) ---
     posterior_summary_main_baseline = new_property(
@@ -207,9 +207,9 @@ s3_list_to_bgmCompare = function(results) {
     raw_samples = .subset2(results, "raw_samples"),
     cache = .subset2(results, "cache"),
     posterior_mean_main_baseline = .subset2(results, "posterior_mean_main_baseline"),
-    posterior_mean_associations_baseline = .subset2(results, "posterior_mean_associations_baseline"),
+    posterior_mean_pairwise_baseline = .subset2(results, "posterior_mean_pairwise_baseline"),
     posterior_mean_main_differences = .subset2(results, "posterior_mean_main_differences"),
-    posterior_mean_associations_differences = .subset2(results, "posterior_mean_associations_differences"),
+    posterior_mean_pairwise_differences = .subset2(results, "posterior_mean_pairwise_differences"),
     nuts_diag = .subset2(results, "nuts_diag"),
     .bgm_spec = .subset2(results, ".bgm_spec"),
     .field_names = names(results)

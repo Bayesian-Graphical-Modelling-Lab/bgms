@@ -9,67 +9,18 @@
 #' selection can be applied to identify differences across groups.
 #'
 #' @details
-#' This function extends the ordinal MRF framework
-#' \insertCite{MarsmanVandenBerghHaslbeck_2025;textual}{bgms} to multiple
-#' groups. The basic idea of modeling, analyzing, and testing group
-#' differences in MRFs was introduced in
-#' \insertCite{MarsmanWaldorpSekulovskiHaslbeck_2024;textual}{bgms}, where
-#' two–group comparisons were conducted using adaptive Metropolis sampling.
-#' The present implementation generalizes that approach to more than two
-#' groups and supports additional samplers (NUTS) with staged warmup
-#' adaptation.
+#' Group-specific parameters are decomposed into a shared baseline plus
+#' group differences that sum to zero. Difference selection uses
+#' spike-and-slab priors (Bernoulli or Beta-Bernoulli). Parameters are
+#' sampled with NUTS (default) or adaptive Metropolis--Hastings, using the
+#' same multi-stage warmup schedule as \code{\link{bgm}}.
 #'
-#' Key components of the model:
+#' For full details on model specification, prior choices, and output
+#' interpretation, see the package website at
+#' \url{https://bayesian-graphical-modelling-lab.github.io/bgms-docs/}.
 #'
 #' @seealso \code{vignette("comparison", package = "bgms")} for a worked example.
 #' @family model-fitting
-#'
-#' @section Pairwise Interactions:
-#' For variables \eqn{i} and \eqn{j}, the group-specific interaction is
-#' represented as:
-#' \deqn{\theta_{ij}^{(g)} = \phi_{ij} + \delta_{ij}^{(g)},}
-#' where \eqn{\phi_{ij}} is the baseline effect and
-#' \eqn{\delta_{ij}^{(g)}} are group differences constrained to sum to zero.
-#'
-#' @section Ordinal Variables:
-#' \strong{Regular ordinal variables}: category thresholds are decomposed into a
-#' baseline plus group differences for each category.
-#'
-#' \strong{Blume–Capel variables}: category thresholds are quadratic in the
-#' category index, with both the linear and quadratic terms split into a
-#' baseline plus group differences.
-#'
-#' @section Variable Selection:
-#' When \code{difference_selection = TRUE}, spike-and-slab priors are
-#' applied to difference parameters:
-#' \itemize{
-#'   \item \strong{Bernoulli}: fixed prior inclusion probability.
-#'   \item \strong{Beta–Bernoulli}: inclusion probability given a Beta prior.
-#' }
-#'
-#' @section Sampling Algorithms and Warmup:
-#' Parameters are updated within a Gibbs framework, using the same
-#' sampling algorithms and staged warmup scheme described in
-#' \code{\link{bgm}}:
-#' \itemize{
-#'   \item \strong{Adaptive Metropolis–Hastings}: componentwise random–walk
-#'     proposals with Robbins–Monro adaptation of proposal SDs.
-#'   \item \strong{Hamiltonian Monte Carlo (HMC)} (\emph{deprecated}): joint
-#'     updates with fixed leapfrog trajectories. This method is deprecated;
-#'     use NUTS instead.
-#'   \item \strong{No–U–Turn Sampler (NUTS)}: an adaptive HMC variant with
-#'     dynamic trajectory lengths; warmup uses a staged adaptation schedule.
-#' }
-#'
-#' For details on the staged adaptation schedule (fast–slow–fast phases),
-#' see \code{\link{bgm}}. In addition, when
-#' \code{difference_selection = TRUE}, updates of inclusion indicators are
-#' delayed until late warmup. In NUTS, this appends two extra phases
-#' (Stage-3b and Stage-3c), so that the total number of warmup iterations
-#' exceeds the user-specified \code{warmup}.
-#'
-#' After warmup, adaptation is disabled: step size and mass matrix are fixed
-#' at their learned values, and proposal SDs remain constant.
 #'
 #' @param x A data frame or matrix of binary and ordinal responses for
 #'   Group 1. Variables should be coded as nonnegative integers starting at
@@ -176,7 +127,7 @@
 #'   \item \code{posterior_summary_indicator}: summaries of inclusion
 #'     indicators (if \code{difference_selection = TRUE}).
 #'   \item \code{posterior_mean_main_baseline},
-#'     \code{posterior_mean_associations_baseline}: posterior mean matrices
+#'     \code{posterior_mean_pairwise_baseline}: posterior mean matrices
 #'     (legacy style).
 #'   \item \code{raw_samples}: list of raw draws per chain for main,
 #'     pairwise, and indicator parameters.

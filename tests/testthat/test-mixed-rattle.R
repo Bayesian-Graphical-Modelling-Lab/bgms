@@ -495,5 +495,5 @@ test_that("bgm with NUTS + edge_selection runs on mixed data", {
   )
 
   expect_s3_class(fit, "bgms")
-  expect_true(!is.null(fit$posterior_mean_associations))
+  expect_true(!is.null(fit$posterior_mean_pairwise))
 })
