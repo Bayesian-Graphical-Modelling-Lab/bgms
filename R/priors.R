@@ -156,6 +156,99 @@ beta_prime_prior = function(alpha = 0.5, beta = 0.5) {
 
 
 # ==============================================================================
+# Scale priors (positive parameters: precision diagonal)
+# ==============================================================================
+
+#' Gamma Prior for Scale Parameters
+#'
+#' @description
+#' Specifies a Gamma(shape, rate) prior for positive scale parameters such as
+#' the diagonal elements of the precision matrix. The default
+#' \code{gamma_prior(1, 1)} corresponds to an Exponential(1) distribution.
+#'
+#' @param shape Positive numeric. Shape parameter of the Gamma distribution.
+#'   Default: \code{1}.
+#' @param rate Positive numeric. Rate parameter of the Gamma distribution.
+#'   Default: \code{1}.
+#'
+#' @return An object of class \code{"bgms_scale_prior"} with
+#'   \code{family = "gamma"}.
+#'
+#' @family prior-constructors
+#' @seealso \code{\link{exponential_prior}}, \code{\link{bgm}}
+#'
+#' @examples
+#' gamma_prior()
+#' gamma_prior(shape = 2, rate = 0.5)
+#'
+#' @export
+gamma_prior = function(shape = 1, rate = 1) {
+  if(!is.numeric(shape) || length(shape) != 1L || is.na(shape)) {
+    stop("'shape' must be a single positive number.")
+  }
+  if(!is.numeric(rate) || length(rate) != 1L || is.na(rate)) {
+    stop("'rate' must be a single positive number.")
+  }
+  if(shape <= 0 || rate <= 0) {
+    stop("'shape' and 'rate' must be positive.")
+  }
+  if(!is.finite(shape) || !is.finite(rate)) {
+    stop("'shape' and 'rate' must be finite.")
+  }
+
+  structure(
+    list(
+      family = "gamma",
+      hyper.parameters = list(shape = shape, rate = rate)
+    ),
+    class = "bgms_scale_prior"
+  )
+}
+
+
+#' Exponential Prior for Scale Parameters
+#'
+#' @description
+#' Specifies an Exponential(rate) prior for positive scale parameters.
+#' This is a convenience function equivalent to
+#' \code{gamma_prior(shape = 1, rate = rate)}.
+#'
+#' @param rate Positive numeric. Rate parameter of the Exponential
+#'   distribution. Default: \code{1}.
+#'
+#' @return An object of class \code{"bgms_scale_prior"} with
+#'   \code{family = "exponential"}.
+#'
+#' @family prior-constructors
+#' @seealso \code{\link{gamma_prior}}, \code{\link{bgm}}
+#'
+#' @examples
+#' exponential_prior()
+#' exponential_prior(rate = 2)
+#'
+#' @export
+exponential_prior = function(rate = 1) {
+  if(!is.numeric(rate) || length(rate) != 1L || is.na(rate)) {
+    stop("'rate' must be a single positive number.")
+  }
+  if(rate <= 0) {
+    stop("'rate' must be positive.")
+  }
+  if(!is.finite(rate)) {
+    stop("'rate' must be finite.")
+  }
+
+  structure(
+    list(
+      family = "exponential",
+      hyper.parameters = list(rate = rate)
+    ),
+    class = "bgms_scale_prior"
+  )
+}
+
+
+# ==============================================================================
 # Edge inclusion priors (structure selection)
 # ==============================================================================
 
@@ -327,6 +420,20 @@ print.bgms_parameter_prior = function(x, ...) {
 }
 
 #' @export
+print.bgms_scale_prior = function(x, ...) {
+  hp = x$hyper.parameters
+  switch(x$family,
+    "gamma" = cat(sprintf(
+      "Scale prior: Gamma(shape = %.4g, rate = %.4g)\n",
+      hp$shape, hp$rate
+    )),
+    "exponential" = cat(sprintf("Scale prior: Exponential(rate = %.4g)\n", hp$rate)),
+    cat(sprintf("Scale prior: %s\n", x$family))
+  )
+  invisible(x)
+}
+
+#' @export
 print.bgms_edge_prior = function(x, ...) {
   hp = x$hyper.parameters
   switch(x$family,
@@ -389,6 +496,33 @@ unpack_parameter_prior = function(prior) {
     scale = hp$scale %||% NA_real_,
     alpha = hp$alpha %||% NA_real_,
     beta = hp$beta %||% NA_real_
+  )
+}
+
+
+#' Unpack a scale prior into the flat parameters used by bgm_spec
+#'
+#' @param prior A \code{bgms_scale_prior} object.
+#'
+#' @return A list with \code{scale_prior_type} (character),
+#'   \code{scale_shape} (numeric), and \code{scale_rate} (numeric).
+#'
+#' @keywords internal
+unpack_scale_prior = function(prior) {
+  if(!inherits(prior, "bgms_scale_prior")) {
+    stop(
+      "Prior must be a bgms_scale_prior object.",
+      " Use gamma_prior() or exponential_prior()."
+    )
+  }
+  hp = prior$hyper.parameters
+  # Exponential is Gamma(1, rate)
+  shape = if(prior$family == "exponential") 1 else hp$shape
+  rate = hp$rate
+  list(
+    scale_prior_type = prior$family,
+    scale_shape = shape,
+    scale_rate = rate
   )
 }
 

@@ -76,7 +76,10 @@ run_sampler_ggm = function(spec) {
       pairwise_scale = p$pairwise_scale,
       interaction_prior_type = p$interaction_prior_type,
       interaction_alpha = p$interaction_alpha,
-      interaction_beta = p$interaction_beta
+      interaction_beta = p$interaction_beta,
+      scale_prior_type = p$scale_prior_type,
+      scale_shape = p$scale_shape,
+      scale_rate = p$scale_rate
     ),
     prior_inclusion_prob = p$inclusion_probability,
     initial_edge_indicators = matrix(1L,
@@ -201,6 +204,9 @@ run_sampler_mixed_mrf = function(spec) {
     means_scale             = p$means_scale,
     means_alpha             = p$means_alpha,
     means_beta              = p$means_beta,
+    scale_prior_type        = p$scale_prior_type,
+    scale_shape             = p$scale_shape,
+    scale_rate              = p$scale_rate,
     pseudolikelihood        = p$pseudolikelihood
   )
 

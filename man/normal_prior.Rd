@@ -34,6 +34,8 @@ Other prior-constructors:
 \code{\link{beta_bernoulli_prior}()},
 \code{\link{beta_prime_prior}()},
 \code{\link{cauchy_prior}()},
+\code{\link{exponential_prior}()},
+\code{\link{gamma_prior}()},
 \code{\link{sbm_prior}()}
 }
 \concept{prior-constructors}

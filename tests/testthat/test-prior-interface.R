@@ -88,6 +88,21 @@ test_that("sbm_prior creates valid prior object", {
   expect_equal(p$family, "Stochastic-Block")
 })
 
+test_that("gamma_prior creates valid prior object", {
+  p = gamma_prior(shape = 2, rate = 0.5)
+  expect_s3_class(p, "bgms_scale_prior")
+  expect_equal(p$family, "gamma")
+  expect_equal(p$hyper.parameters$shape, 2)
+  expect_equal(p$hyper.parameters$rate, 0.5)
+})
+
+test_that("exponential_prior creates valid prior object", {
+  p = exponential_prior(rate = 2)
+  expect_s3_class(p, "bgms_scale_prior")
+  expect_equal(p$family, "exponential")
+  expect_equal(p$hyper.parameters$rate, 2)
+})
+
 
 # ==============================================================================
 # 2. bgm() with Prior Objects <U+2014> Ordinal
@@ -189,6 +204,22 @@ test_that("bgm ggm works with cauchy_prior", {
     display_progress = "none"
   )
   expect_s3_class(fit, "bgms")
+})
+
+test_that("bgm ggm works with precision_scale_prior", {
+  set.seed(42)
+  Y = as.data.frame(matrix(rnorm(200), nrow = 50, ncol = 4))
+  fit = bgm(Y,
+    variable_type = "continuous",
+    precision_scale_prior = exponential_prior(rate = 2),
+    iter = 25, warmup = 50, chains = 1,
+    display_progress = "none"
+  )
+  expect_s3_class(fit, "bgms")
+  spec = fit$.bgm_spec
+  expect_equal(spec$prior$scale_prior_type, "exponential")
+  expect_equal(spec$prior$scale_shape, 1)
+  expect_equal(spec$prior$scale_rate, 2)
 })
 
 

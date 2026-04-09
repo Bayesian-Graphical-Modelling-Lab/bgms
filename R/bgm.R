@@ -85,6 +85,16 @@
 #'   pure ordinal or pure continuous (GGM) models.
 #'   Default: \code{normal_prior(scale = 1)}.
 #'
+#' @param precision_scale_prior A prior specification object for the diagonal
+#'   elements of the precision matrix, created by one of:
+#'   \itemize{
+#'     \item \code{\link{gamma_prior}()}: Gamma(shape, rate) prior (default).
+#'     \item \code{\link{exponential_prior}()}: Exponential(rate) prior.
+#'   }
+#'   Only used for models with continuous variables (GGM and mixed MRF).
+#'   Ignored for pure ordinal models.
+#'   Default: \code{gamma_prior(shape = 1, rate = 1)}.
+#'
 #' @param pairwise_scale `r lifecycle::badge("deprecated")` Double.
 #'   Scale of the Cauchy prior for pairwise
 #'   interaction parameters. Use \code{interaction_prior} instead.
@@ -329,6 +339,7 @@ bgm = function(
   interaction_prior = cauchy_prior(scale = 1),
   threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
   means_prior = normal_prior(scale = 1),
+  precision_scale_prior = gamma_prior(shape = 1, rate = 1),
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),
   na_action = c("listwise", "impute"),
@@ -473,6 +484,7 @@ bgm = function(
   ip = unpack_interaction_prior(interaction_prior)
   tp = unpack_threshold_prior(threshold_prior)
   mp = unpack_parameter_prior(means_prior)
+  sp = unpack_scale_prior(precision_scale_prior)
 
   # --- Build spec, sample, build output ----------------------------------------
   spec = bgm_spec(
@@ -493,6 +505,9 @@ bgm = function(
     means_scale = mp$scale,
     means_alpha = mp$alpha,
     means_beta = mp$beta,
+    scale_prior_type = sp$scale_prior_type,
+    scale_shape = sp$scale_shape,
+    scale_rate = sp$scale_rate,
     standardize = standardize,
     edge_selection = edge_selection,
     edge_prior = edge_prior,

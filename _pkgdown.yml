@@ -29,6 +29,18 @@ reference:
       - predict.bgms
       - predict.bgmCompare
 
+  - title: Prior constructors
+    desc: Specify priors for model parameters, precision scale, and edge inclusion.
+    contents:
+      - cauchy_prior
+      - normal_prior
+      - beta_prime_prior
+      - gamma_prior
+      - exponential_prior
+      - bernoulli_prior
+      - beta_bernoulli_prior
+      - sbm_prior
+
   - title: Extractors
     desc: Extract specific components from fitted model objects.
     contents:
