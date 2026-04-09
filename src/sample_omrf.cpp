@@ -10,6 +10,7 @@
 #include "utils/progress_manager.h"
 #include "utils/common_helpers.h"
 #include "priors/edge_prior.h"
+#include "priors/parameter_prior.h"
 #include "mcmc/execution/chain_result.h"
 #include "mcmc/execution/chain_runner.h"
 #include "mcmc/execution/sampler_config.h"
@@ -68,9 +69,31 @@ Rcpp::List sample_omrf(
     const int num_leapfrogs = 10,
     const Rcpp::Nullable<Rcpp::NumericMatrix> pairwise_scaling_factors_nullable = R_NilValue
 ) {
+    // Create parameter priors from R input
+    double pairwise_scale = Rcpp::as<double>(inputFromR["pairwise_scale"]);
+    std::string ipt_str = inputFromR.containsElementNamed("interaction_prior_type")
+        ? Rcpp::as<std::string>(inputFromR["interaction_prior_type"]) : "cauchy";
+    double ia = inputFromR.containsElementNamed("interaction_alpha")
+        ? Rcpp::as<double>(inputFromR["interaction_alpha"]) : NA_REAL;
+    double ib = inputFromR.containsElementNamed("interaction_beta")
+        ? Rcpp::as<double>(inputFromR["interaction_beta"]) : NA_REAL;
+    auto interaction_prior = create_parameter_prior(ipt_str, pairwise_scale, ia, ib);
+
+    std::string tpt_str = inputFromR.containsElementNamed("threshold_prior_type")
+        ? Rcpp::as<std::string>(inputFromR["threshold_prior_type"]) : "beta-prime";
+    double ta = inputFromR.containsElementNamed("main_alpha")
+        ? Rcpp::as<double>(inputFromR["main_alpha"]) : 0.5;
+    double tb = inputFromR.containsElementNamed("main_beta")
+        ? Rcpp::as<double>(inputFromR["main_beta"]) : 0.5;
+    double ts = inputFromR.containsElementNamed("threshold_scale")
+        ? Rcpp::as<double>(inputFromR["threshold_scale"]) : 1.0;
+    auto threshold_prior = create_parameter_prior(tpt_str, ts, ta, tb);
+
     // Create model from R input
     OMRFModel model = createOMRFModelFromR(
-        inputFromR, prior_inclusion_prob, initial_edge_indicators, edge_selection);
+        inputFromR, prior_inclusion_prob, initial_edge_indicators,
+        std::move(interaction_prior), std::move(threshold_prior),
+        edge_selection);
 
     // Set pairwise scaling factors (if provided)
     if (pairwise_scaling_factors_nullable.isNotNull()) {

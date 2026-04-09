@@ -21,8 +21,32 @@ public:
     /** Log-density log p(x) up to an additive constant. */
     virtual double logp(double x) const = 0;
 
+    /**
+     * Log-density with an additional multiplicative scale factor.
+     *
+     * For priors with a scale parameter, this evaluates the prior at x
+     * with the scale multiplied by scale_factor. Used by OMRF/mixed MRF
+     * where the prior scale is adjusted per variable pair based on score
+     * range (pairwise_scaling_factors).
+     *
+     * Default: ignores scale_factor (delegates to logp(x)).
+     */
+    virtual double logp(double x, double scale_factor) const {
+        (void)scale_factor;
+        return logp(x);
+    }
+
     /** Gradient d/dx log p(x). */
     virtual double grad(double x) const = 0;
+
+    /**
+     * Gradient with an additional multiplicative scale factor.
+     * Default: ignores scale_factor (delegates to grad(x)).
+     */
+    virtual double grad(double x, double scale_factor) const {
+        (void)scale_factor;
+        return grad(x);
+    }
 
     /** Deep copy for parallel chains. */
     virtual std::unique_ptr<BaseParameterPrior> clone() const = 0;
@@ -40,9 +64,18 @@ public:
         return R::dcauchy(x, 0.0, scale_, true);
     }
 
+    double logp(double x, double scale_factor) const override {
+        return R::dcauchy(x, 0.0, scale_ * scale_factor, true);
+    }
+
     double grad(double x) const override {
-        // d/dx log Cauchy(x; 0, s) = -2x / (s^2 + x^2)
         double s2 = scale_ * scale_;
+        return -2.0 * x / (s2 + x * x);
+    }
+
+    double grad(double x, double scale_factor) const override {
+        double s = scale_ * scale_factor;
+        double s2 = s * s;
         return -2.0 * x / (s2 + x * x);
     }
 
@@ -66,9 +99,18 @@ public:
         return R::dnorm(x, 0.0, scale_, true);
     }
 
+    double logp(double x, double scale_factor) const override {
+        return R::dnorm(x, 0.0, scale_ * scale_factor, true);
+    }
+
     double grad(double x) const override {
-        // d/dx log Normal(x; 0, s) = -x / s^2
         double s2 = scale_ * scale_;
+        return -x / s2;
+    }
+
+    double grad(double x, double scale_factor) const override {
+        double s = scale_ * scale_factor;
+        double s2 = s * s;
         return -x / s2;
     }
 

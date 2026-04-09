@@ -8,6 +8,7 @@
 #include "mcmc/execution/step_result.h"
 #include "utils/common_helpers.h"
 #include "priors/interaction_prior.h"
+#include "priors/parameter_prior.h"
 
 /**
  * OMRFModel - Ordinal Markov Random Field Model
@@ -47,13 +48,9 @@ public:
         const arma::imat& initial_edge_indicators,
         const arma::uvec& is_ordinal_variable,
         const arma::ivec& baseline_category,
-        double main_alpha,
-        double main_beta,
-        double pairwise_scale,
-        bool edge_selection,
-        InteractionPriorType interaction_prior_type = InteractionPriorType::Cauchy,
-        ThresholdPriorType threshold_prior_type = ThresholdPriorType::BetaPrime,
-        double threshold_scale = 1.0
+        std::unique_ptr<BaseParameterPrior> interaction_prior,
+        std::unique_ptr<BaseParameterPrior> threshold_prior,
+        bool edge_selection
     );
 
     /**
@@ -292,13 +289,9 @@ private:
 
     // Priors
     arma::mat inclusion_probability_;   ///< Prior inclusion probabilities
-    double main_alpha_;                 ///< Beta prior alpha
-    double main_beta_;                  ///< Beta prior beta
-    double pairwise_scale_;             ///< Cauchy scale for pairwise effects
-    arma::mat pairwise_scaling_factors_; ///< Per-pair scaling factors for Cauchy prior
-    InteractionPriorType interaction_prior_type_; ///< Prior type for pairwise interactions
-    ThresholdPriorType threshold_prior_type_;     ///< Prior type for main effects / thresholds
-    double threshold_scale_;                      ///< Scale when threshold_prior_type_ == Normal
+    std::unique_ptr<BaseParameterPrior> interaction_prior_; ///< Prior on pairwise interactions
+    std::unique_ptr<BaseParameterPrior> threshold_prior_;  ///< Prior on main effects / thresholds
+    arma::mat pairwise_scaling_factors_; ///< Per-pair scaling factors for interaction prior
 
     // Model configuration
     bool edge_selection_;               ///< Enable edge selection
@@ -499,8 +492,7 @@ OMRFModel createOMRFModelFromR(
     const Rcpp::List& inputFromR,
     const arma::mat& inclusion_probability,
     const arma::imat& initial_edge_indicators,
-    bool edge_selection = true,
-    InteractionPriorType interaction_prior_type = InteractionPriorType::Cauchy,
-    ThresholdPriorType threshold_prior_type = ThresholdPriorType::BetaPrime,
-    double threshold_scale = 1.0
+    std::unique_ptr<BaseParameterPrior> interaction_prior,
+    std::unique_ptr<BaseParameterPrior> threshold_prior,
+    bool edge_selection = true
 );

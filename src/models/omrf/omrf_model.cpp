@@ -23,13 +23,9 @@ OMRFModel::OMRFModel(
     const arma::imat& initial_edge_indicators,
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
-    double main_alpha,
-    double main_beta,
-    double pairwise_scale,
-    bool edge_selection,
-    InteractionPriorType interaction_prior_type,
-    ThresholdPriorType threshold_prior_type,
-    double threshold_scale
+    std::unique_ptr<BaseParameterPrior> interaction_prior,
+    std::unique_ptr<BaseParameterPrior> threshold_prior,
+    bool edge_selection
 ) :
     n_(observations.n_rows),
     p_(observations.n_cols),
@@ -38,12 +34,8 @@ OMRFModel::OMRFModel(
     is_ordinal_variable_(is_ordinal_variable),
     baseline_category_(baseline_category),
     inclusion_probability_(inclusion_probability),
-    main_alpha_(main_alpha),
-    main_beta_(main_beta),
-    pairwise_scale_(pairwise_scale),
-    interaction_prior_type_(interaction_prior_type),
-    threshold_prior_type_(threshold_prior_type),
-    threshold_scale_(threshold_scale),
+    interaction_prior_(std::move(interaction_prior)),
+    threshold_prior_(std::move(threshold_prior)),
     edge_selection_(edge_selection),
     edge_selection_active_(false),
     step_size_(0.1),
@@ -115,13 +107,9 @@ OMRFModel::OMRFModel(const OMRFModel& other)
       pairwise_effects_(other.pairwise_effects_),
       edge_indicators_(other.edge_indicators_),
       inclusion_probability_(other.inclusion_probability_),
-      main_alpha_(other.main_alpha_),
-      main_beta_(other.main_beta_),
-      pairwise_scale_(other.pairwise_scale_),
+      interaction_prior_(other.interaction_prior_->clone()),
+      threshold_prior_(other.threshold_prior_->clone()),
       pairwise_scaling_factors_(other.pairwise_scaling_factors_),
-      interaction_prior_type_(other.interaction_prior_type_),
-      threshold_prior_type_(other.threshold_prior_type_),
-      threshold_scale_(other.threshold_scale_),
       edge_selection_(other.edge_selection_),
       edge_selection_active_(other.edge_selection_active_),
       num_main_(other.num_main_),
@@ -600,12 +588,12 @@ double OMRFModel::log_pseudoposterior_with_state(
 
         if (is_ordinal_variable_(v)) {
             for (int c = 0; c < num_cats; ++c) {
-                log_post += threshold_prior_logp(threshold_prior_type_, main_eff(v, c), main_alpha_, main_beta_, threshold_scale_);
+                log_post += threshold_prior_->logp(main_eff(v, c));
                 log_post += main_eff(v, c) * counts_per_category_(c + 1, v);
             }
         } else {
-            log_post += threshold_prior_logp(threshold_prior_type_, main_eff(v, 0), main_alpha_, main_beta_, threshold_scale_);
-            log_post += threshold_prior_logp(threshold_prior_type_, main_eff(v, 1), main_alpha_, main_beta_, threshold_scale_);
+            log_post += threshold_prior_->logp(main_eff(v, 0));
+            log_post += threshold_prior_->logp(main_eff(v, 1));
             log_post += main_eff(v, 0) * blume_capel_stats_(0, v);
             log_post += main_eff(v, 1) * blume_capel_stats_(1, v);
         }
@@ -637,8 +625,7 @@ double OMRFModel::log_pseudoposterior_with_state(
             if (edge_indicators_(v1, v2) == 1) {
                 double effect = pairwise_eff(v1, v2);
                 log_post += 4.0 * pairwise_stats_(v1, v2) * effect;
-                double scaled_scale = pairwise_scale_ * pairwise_scaling_factors_(v1, v2);
-                log_post += interaction_prior_logp(interaction_prior_type_, effect, scaled_scale);
+                log_post += interaction_prior_->logp(effect, pairwise_scaling_factors_(v1, v2));
             }
         }
     }
@@ -661,7 +648,7 @@ double OMRFModel::log_pseudoposterior_main_component(int variable, int category,
     if (is_ordinal_variable_(variable)) {
         const double value = main_effects_(variable, category);
         log_posterior += value * counts_per_category_(category + 1, variable);
-        log_posterior += threshold_prior_logp(threshold_prior_type_, value, main_alpha_, main_beta_, threshold_scale_);
+        log_posterior += threshold_prior_->logp(value);
 
         arma::vec residual_score = residual_matrix_.col(variable);
         arma::vec main_effect_param = main_effects_.row(variable).cols(0, num_cats - 1).t();
@@ -675,7 +662,7 @@ double OMRFModel::log_pseudoposterior_main_component(int variable, int category,
         const int ref = baseline_category_(variable);
 
         log_posterior += value * blume_capel_stats_(parameter, variable);
-        log_posterior += threshold_prior_logp(threshold_prior_type_, value, main_alpha_, main_beta_, threshold_scale_);
+        log_posterior += threshold_prior_->logp(value);
 
         arma::vec residual_score = residual_matrix_.col(variable);
         arma::vec denom(n_, arma::fill::zeros);
@@ -714,8 +701,7 @@ double OMRFModel::log_pseudoposterior_pairwise_component(int var1, int var2) con
     }
 
     if (edge_indicators_(var1, var2) == 1) {
-        double scaled_scale = pairwise_scale_ * pairwise_scaling_factors_(var1, var2);
-        log_post += interaction_prior_logp(interaction_prior_type_, pairwise_effects_(var1, var2), scaled_scale);
+        log_post += interaction_prior_->logp(pairwise_effects_(var1, var2), pairwise_scaling_factors_(var1, var2));
     }
 
     return log_post;
@@ -831,8 +817,7 @@ double OMRFModel::log_pseudoposterior_pairwise_at_delta(int var1, int var2, doub
     }
 
     if (edge_indicators_(var1, var2) == 1) {
-        const double scaled_pairwise_scale = pairwise_scale_ * pairwise_scaling_factors_(var1, var2);
-        log_pseudo_posterior += interaction_prior_logp(interaction_prior_type_, proposed_value, scaled_pairwise_scale);
+        log_pseudo_posterior += interaction_prior_->logp(proposed_value, pairwise_scaling_factors_(var1, var2));
     }
 
     return log_pseudo_posterior;
@@ -971,12 +956,12 @@ arma::vec OMRFModel::gradient(const arma::vec& parameters) {
         if (is_ordinal_variable_(variable)) {
             const int num_cats = num_categories_(variable);
             for (int cat = 0; cat < num_cats; cat++) {
-                gradient(offset + cat) += threshold_prior_grad(threshold_prior_type_, temp_main(variable, cat), main_alpha_, main_beta_, threshold_scale_);
+                gradient(offset + cat) += threshold_prior_->grad(temp_main(variable, cat));
             }
             offset += num_cats;
         } else {
             for (int k = 0; k < 2; k++) {
-                gradient(offset + k) += threshold_prior_grad(threshold_prior_type_, temp_main(variable, k), main_alpha_, main_beta_, threshold_scale_);
+                gradient(offset + k) += threshold_prior_->grad(temp_main(variable, k));
             }
             offset += 2;
         }
@@ -986,8 +971,7 @@ arma::vec OMRFModel::gradient(const arma::vec& parameters) {
             if (edge_indicators_(i, j) == 0) continue;
             int location = index_matrix_cache_(i, j);
             const double effect = temp_pairwise(i, j);
-            const double scaled_scale = pairwise_scale_ * pairwise_scaling_factors_(i, j);
-            gradient(location) += interaction_prior_grad(interaction_prior_type_, effect, scaled_scale);
+            gradient(location) += interaction_prior_->grad(effect, pairwise_scaling_factors_(i, j));
         }
     }
 
@@ -1015,15 +999,15 @@ std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& param
             for (int cat = 0; cat < num_cats; cat++) {
                 double value = temp_main(variable, cat);
                 log_pp += counts_per_category_(cat + 1, variable) * value;
-                log_pp += threshold_prior_logp(threshold_prior_type_, value, main_alpha_, main_beta_, threshold_scale_);
+                log_pp += threshold_prior_->logp(value);
             }
         } else {
             double value = temp_main(variable, 0);
-            log_pp += threshold_prior_logp(threshold_prior_type_, value, main_alpha_, main_beta_, threshold_scale_);
+            log_pp += threshold_prior_->logp(value);
             log_pp += blume_capel_stats_(0, variable) * value;
 
             value = temp_main(variable, 1);
-            log_pp += threshold_prior_logp(threshold_prior_type_, value, main_alpha_, main_beta_, threshold_scale_);
+            log_pp += threshold_prior_->logp(value);
             log_pp += blume_capel_stats_(1, variable) * value;
         }
     }
@@ -1035,8 +1019,7 @@ std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& param
 
             double value = temp_pairwise(var1, var2);
             log_pp += 4.0 * pairwise_stats_(var1, var2) * value;
-            const double scaled_pairwise_scale = pairwise_scale_ * pairwise_scaling_factors_(var1, var2);
-            log_pp += interaction_prior_logp(interaction_prior_type_, value, scaled_pairwise_scale);
+            log_pp += interaction_prior_->logp(value, pairwise_scaling_factors_(var1, var2));
         }
     }
 
@@ -1111,12 +1094,12 @@ std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& param
         if (is_ordinal_variable_(variable)) {
             const int num_cats = num_categories_(variable);
             for (int cat = 0; cat < num_cats; cat++) {
-                gradient(offset + cat) += threshold_prior_grad(threshold_prior_type_, temp_main(variable, cat), main_alpha_, main_beta_, threshold_scale_);
+                gradient(offset + cat) += threshold_prior_->grad(temp_main(variable, cat));
             }
             offset += num_cats;
         } else {
             for (int k = 0; k < 2; k++) {
-                gradient(offset + k) += threshold_prior_grad(threshold_prior_type_, temp_main(variable, k), main_alpha_, main_beta_, threshold_scale_);
+                gradient(offset + k) += threshold_prior_->grad(temp_main(variable, k));
             }
             offset += 2;
         }
@@ -1126,8 +1109,7 @@ std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& param
             if (edge_indicators_(i, j) == 0) continue;
             int location = index_matrix_cache_(i, j);
             const double effect = temp_pairwise(i, j);
-            const double scaled_scale = pairwise_scale_ * pairwise_scaling_factors_(i, j);
-            gradient(location) += interaction_prior_grad(interaction_prior_type_, effect, scaled_scale);
+            gradient(location) += interaction_prior_->grad(effect, pairwise_scaling_factors_(i, j));
         }
     }
 
@@ -1200,14 +1182,14 @@ void OMRFModel::update_edge_indicator(int var1, int var2) {
 
     const double inclusion_probability_ij = inclusion_probability_(var1, var2);
     const double sd = proposal_sd_pairwise_(var1, var2);
-    const double scaled_pairwise_scale = pairwise_scale_ * pairwise_scaling_factors_(var1, var2);
+    const double sf = pairwise_scaling_factors_(var1, var2);
 
     if (proposing_addition) {
-        log_accept += interaction_prior_logp(interaction_prior_type_, proposed_state, scaled_pairwise_scale);
+        log_accept += interaction_prior_->logp(proposed_state, sf);
         log_accept -= R::dnorm(proposed_state, current_state, sd, true);
         log_accept += MY_LOG(inclusion_probability_ij) - MY_LOG(1.0 - inclusion_probability_ij);
     } else {
-        log_accept -= interaction_prior_logp(interaction_prior_type_, current_state, scaled_pairwise_scale);
+        log_accept -= interaction_prior_->logp(current_state, sf);
         log_accept += R::dnorm(current_state, proposed_state, sd, true);
         log_accept -= MY_LOG(inclusion_probability_ij) - MY_LOG(1.0 - inclusion_probability_ij);
     }
@@ -1415,39 +1397,14 @@ OMRFModel createOMRFModelFromR(
     const Rcpp::List& inputFromR,
     const arma::mat& inclusion_probability,
     const arma::imat& initial_edge_indicators,
-    bool edge_selection,
-    InteractionPriorType interaction_prior_type,
-    ThresholdPriorType threshold_prior_type,
-    double threshold_scale
+    std::unique_ptr<BaseParameterPrior> interaction_prior,
+    std::unique_ptr<BaseParameterPrior> threshold_prior,
+    bool edge_selection
 ) {
     arma::imat observations = Rcpp::as<arma::imat>(inputFromR["observations"]);
     arma::ivec num_categories = Rcpp::as<arma::ivec>(inputFromR["num_categories"]);
     arma::uvec is_ordinal_variable = Rcpp::as<arma::uvec>(inputFromR["is_ordinal_variable"]);
     arma::ivec baseline_category = Rcpp::as<arma::ivec>(inputFromR["baseline_category"]);
-
-    double main_alpha = inputFromR.containsElementNamed("main_alpha")
-        ? Rcpp::as<double>(inputFromR["main_alpha"]) : 1.0;
-    double main_beta = inputFromR.containsElementNamed("main_beta")
-        ? Rcpp::as<double>(inputFromR["main_beta"]) : 1.0;
-    double pairwise_scale = Rcpp::as<double>(inputFromR["pairwise_scale"]);
-
-    // Extract prior types from R input if provided, otherwise use defaults passed in
-    InteractionPriorType int_prior = interaction_prior_type;
-    if (inputFromR.containsElementNamed("interaction_prior_type")) {
-        std::string ipt = Rcpp::as<std::string>(inputFromR["interaction_prior_type"]);
-        int_prior = interaction_prior_from_string(ipt);
-    }
-
-    ThresholdPriorType thr_prior = threshold_prior_type;
-    if (inputFromR.containsElementNamed("threshold_prior_type")) {
-        std::string tpt = Rcpp::as<std::string>(inputFromR["threshold_prior_type"]);
-        thr_prior = threshold_prior_from_string(tpt);
-    }
-
-    double thr_scale = threshold_scale;
-    if (inputFromR.containsElementNamed("threshold_scale")) {
-        thr_scale = Rcpp::as<double>(inputFromR["threshold_scale"]);
-    }
 
     return OMRFModel(
         observations,
@@ -1456,13 +1413,9 @@ OMRFModel createOMRFModelFromR(
         initial_edge_indicators,
         is_ordinal_variable,
         baseline_category,
-        main_alpha,
-        main_beta,
-        pairwise_scale,
-        edge_selection,
-        int_prior,
-        thr_prior,
-        thr_scale
+        std::move(interaction_prior),
+        std::move(threshold_prior),
+        edge_selection
     );
 }
 
