@@ -2,10 +2,10 @@
 # build_output: assemble fit objects from bgm_spec + raw sampler output
 # ==============================================================================
 #
-# build_output()         <U+2014> thin dispatcher
-# build_output_bgm()     <U+2014> unified GGM + OMRF builder (normalizes raw C++
+# build_output()         --- thin dispatcher
+# build_output_bgm()     --- unified GGM + OMRF builder (normalizes raw C++
 #                           output, computes MCMC summaries, assembles fit)
-# build_output_compare() <U+2014> Compare-specific builder
+# build_output_compare() --- Compare-specific builder
 #
 # Both use build_arguments() from bgm_spec.R for the $arguments list.
 # ==============================================================================
@@ -229,7 +229,7 @@ needs_easybgm_s3_compat = function() {
 
 
 # ==============================================================================
-# build_output()  <U+2014> dispatcher
+# build_output()  --- dispatcher
 # ==============================================================================
 build_output = function(spec, raw) {
   stopifnot(inherits(spec, "bgm_spec"))
@@ -245,7 +245,7 @@ build_output = function(spec, raw) {
 
 
 # ==============================================================================
-# build_output_bgm()  <U+2014> unified GGM + OMRF
+# build_output_bgm()  --- unified GGM + OMRF
 # ==============================================================================
 #
 # The two paths share ~80% of logic. Differences:
@@ -267,7 +267,7 @@ build_output_bgm = function(spec, raw) {
   # --- Normalize raw C++ output -----------------------------------------------
   # The C++ GGM/OMRF backends return a flat `samples` matrix (params x iters)
   # via convert_results_to_list(). Split into main and pairwise components and
-  # transpose to (iters x params) <U+2014> the layout that MCMC summary functions
+  # transpose to (iters x params) --- the layout that MCMC summary functions
   # expect.
   if(is_continuous) {
     # GGM: samples contain the upper triangle of the precision matrix
@@ -532,7 +532,7 @@ build_output_bgm = function(spec, raw) {
 
 
 # ==============================================================================
-# build_output_mixed_mrf()  <U+2014> Mixed MRF builder
+# build_output_mixed_mrf()  --- Mixed MRF builder
 # ==============================================================================
 #
 # Handles the mixed discrete + continuous parameter layout:
@@ -576,7 +576,7 @@ build_output_mixed_mrf = function(spec, raw) {
   # --- Indicator index layout -------------------------------------------------
   # C++ indicator vector: [Gxx_ut | Gyy_ut | Gxy]
   # All are pairwise, so indicator_samples maps directly to pairwise order:
-  # Discrete, continuous, cross edges <U+2014> same order as pairwise_idx above.
+  # Discrete, continuous, cross edges --- same order as pairwise_idx above.
 
   # --- Normalize raw output per chain -----------------------------------------
   raw = lapply(raw, function(chain) {
@@ -622,7 +622,7 @@ build_output_mixed_mrf = function(spec, raw) {
     names_main = c(names_main, paste0(cont_names[ji], " (precision diag)"))
   }
 
-  # Pairwise edge names <U+2014> internal order, mapped to original column names
+  # Pairwise edge names --- internal order, mapped to original column names
   # We need a mapping from internal index to original variable name
   # Internal variables: [disc_1, ..., disc_p, cont_1, ..., cont_q]
   # Their original names: c(disc_names, cont_names)

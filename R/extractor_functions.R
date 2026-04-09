@@ -89,7 +89,7 @@ extract_indicators.bgms = function(bgms_object) {
     return(indicator_samples)
   }
 
-  # Deprecated format (0.1.4<U+2013>0.1.5): $indicator stored at top level
+  # Deprecated format (0.1.4--0.1.5): $indicator stored at top level
   if(!is.null(bgms_object$indicator)) {
     lifecycle::deprecate_warn(
       "0.1.6.0",
@@ -126,7 +126,7 @@ extract_indicators.bgmCompare = function(bgms_object) {
     return(indicator_samples)
   }
 
-  # Deprecated format (0.1.4<U+2013>0.1.5): $pairwise_difference_indicator at top level
+  # Deprecated format (0.1.4--0.1.5): $pairwise_difference_indicator at top level
   if(!is.null(bgms_object$pairwise_difference_indicator)) {
     lifecycle::deprecate_warn(
       "0.1.6.0",
@@ -184,7 +184,7 @@ extract_posterior_inclusion_probabilities.bgms = function(bgms_object) {
     indicator_samples = extract_indicators(bgms_object)
     edge_means = colMeans(indicator_samples)
   } else if(!is.null(bgms_object$indicator)) {
-    # Deprecated format (0.1.4<U+2013>0.1.5): $indicator at top level
+    # Deprecated format (0.1.4--0.1.5): $indicator at top level
     lifecycle::deprecate_warn(
       "0.1.6.0",
       I("The '$indicator' field is deprecated; please refit with bgms >= 0.1.6.0")
@@ -286,7 +286,7 @@ extract_posterior_inclusion_probabilities.bgmCompare = function(bgms_object) {
     array3d_ind = to_array3d(raw$indicator)
     mean_ind = apply(array3d_ind, 3, mean)
 
-    # reconstruct VxV matrix using the sampler<U+2019>s interleaved order:
+    # reconstruct VxV matrix using the sampler's interleaved order:
     # (1,1),(1,2),...,(1,V),(2,2),...,(2,V),...,(V,V)
     V = num_variables
     stopifnot(length(mean_ind) == V * (V + 1L) / 2L)
@@ -315,7 +315,7 @@ extract_posterior_inclusion_probabilities.bgmCompare = function(bgms_object) {
     return(ind_mat)
   }
 
-  # Deprecated format (0.1.4<U+2013>0.1.5): $pairwise_difference_indicator at top level
+  # Deprecated format (0.1.4--0.1.5): $pairwise_difference_indicator at top level
   if(!is.null(bgms_object$pairwise_difference_indicator)) {
     lifecycle::deprecate_warn(
       "0.1.6.0",
@@ -457,7 +457,7 @@ extract_pairwise_interactions.bgms = function(bgms_object) {
     return(mat)
   }
 
-  # Deprecated format (0.1.4<U+2013>0.1.5): $interactions
+  # Deprecated format (0.1.4--0.1.5): $interactions
   if(!is.null(bgms_object$interactions)) {
     lifecycle::deprecate_warn(
       "0.1.6.0",
@@ -499,7 +499,7 @@ extract_pairwise_interactions.bgmCompare = function(bgms_object) {
     return(pairwise_samples)
   }
 
-  # Deprecated format (0.1.4<U+2013>0.1.5): $interactions at top level
+  # Deprecated format (0.1.4--0.1.5): $interactions at top level
   if(!is.null(bgms_object$interactions)) {
     lifecycle::deprecate_warn(
       "0.1.6.0",
@@ -578,7 +578,7 @@ extract_main_effects.bgms = function(bgms_object) {
     return(pm_main)
   }
 
-  # Deprecated format (0.1.4<U+2013>0.1.5): $thresholds
+  # Deprecated format (0.1.4--0.1.5): $thresholds
   if(!is.null(bgms_object$thresholds)) {
     lifecycle::deprecate_warn(
       "0.1.6.0",
@@ -618,7 +618,7 @@ extract_main_effects.bgmCompare = function(bgms_object) {
     return(main_samples)
   }
 
-  # Deprecated format (0.1.4<U+2013>0.1.5): $thresholds or $thresholds_gr1/$thresholds_gr2 at top level
+  # Deprecated format (0.1.4--0.1.5): $thresholds or $thresholds_gr1/$thresholds_gr2 at top level
   if(!is.null(bgms_object$thresholds)) {
     lifecycle::deprecate_warn(
       "0.1.6.0",
@@ -699,7 +699,7 @@ extract_group_params.bgmCompare = function(bgms_object) {
     return(.extract_group_params_current(bgms_object, arguments))
   }
 
-  # Deprecated format (0.1.4<U+2013>0.1.5): separate fields for baseline and differences
+  # Deprecated format (0.1.4--0.1.5): separate fields for baseline and differences
   if(!is.null(bgms_object$interactions) && !is.null(bgms_object$pairwise_difference)) {
     lifecycle::deprecate_warn(
       "0.1.6.0",
@@ -803,7 +803,7 @@ extract_group_params.bgmCompare = function(bgms_object) {
   ))
 }
 
-# Helper for legacy format (0.1.4<U+2013>0.1.5)
+# Helper for legacy format (0.1.4--0.1.5)
 # v0.1.4.x only supported 2 groups with parameterization:
 #   group1 = baseline + diff, group2 = baseline - diff
 .extract_group_params_legacy = function(bgms_object, arguments) {

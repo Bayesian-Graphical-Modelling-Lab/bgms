@@ -25,7 +25,7 @@
 #' @param x A data frame or matrix of binary and ordinal responses for
 #'   Group 1. Variables should be coded as nonnegative integers starting at
 #'   0. For ordinal variables, unused categories are collapsed; for
-#'   Blume<U+2013>Capel variables, all categories are retained.
+#'   Blume--Capel variables, all categories are retained.
 #' @param y Optional data frame or matrix for Group 2 (two-group designs).
 #'   Must have the same variables (columns) as \code{x}.
 #' @param group_indicator Optional integer vector of group memberships for
@@ -41,7 +41,7 @@
 #' @param variable_type Character vector specifying type of each variable:
 #'   \code{"ordinal"} (default) or \code{"blume-capel"}.
 #' @param baseline_category Integer or vector giving the baseline category
-#'   for Blume<U+2013>Capel variables.
+#'   for Blume--Capel variables.
 #' @param difference_scale Double. Scale of the Cauchy prior for difference
 #'   parameters. Default: \code{1}.
 #' @param difference_prior An indicator prior specification object for
@@ -74,7 +74,7 @@
 #'   When supplied, overrides \code{main_alpha} and \code{main_beta}.
 #'   Default: \code{beta_prime_prior(alpha = 0.5, beta = 0.5)}.
 #' @param beta_bernoulli_alpha,beta_bernoulli_beta Doubles. Shape parameters
-#'   of the Beta prior for inclusion probabilities in the Beta<U+2013>Bernoulli
+#'   of the Beta prior for inclusion probabilities in the Beta--Bernoulli
 #'   model. Defaults: \code{1}.
 #' @param pairwise_scale Double. Scale of the Cauchy prior for baseline
 #'   pairwise interactions. Default: \code{1}.
@@ -88,7 +88,7 @@
 #'   See \code{\link{bgm}} for details on the adjustment. Default: \code{FALSE}.
 #' @param main_alpha,main_beta Doubles. Shape parameters of the beta-prime
 #'   prior for baseline threshold parameters. Defaults: \code{0.5}.
-#' @param iter Integer. Number of post<U+2013>warmup iterations per chain.
+#' @param iter Integer. Number of post--warmup iterations per chain.
 #'   Default: \code{1e3}.
 #' @param warmup Integer. Number of warmup iterations before sampling.
 #'   Default: \code{1e3}.

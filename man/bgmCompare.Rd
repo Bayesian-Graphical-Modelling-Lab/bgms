@@ -59,7 +59,7 @@ bgmCompare(
 \item{x}{A data frame or matrix of binary and ordinal responses for
 Group 1. Variables should be coded as nonnegative integers starting at
 0. For ordinal variables, unused categories are collapsed; for
-Blume<U+2013>Capel variables, all categories are retained.}
+Blume--Capel variables, all categories are retained.}
 
 \item{y}{Optional data frame or matrix for Group 2 (two-group designs).
 Must have the same variables (columns) as \code{x}.}
@@ -81,7 +81,7 @@ pairwise selection under the Beta-Bernoulli prior, the default is
 \code{"ordinal"} (default) or \code{"blume-capel"}.}
 
 \item{baseline_category}{Integer or vector giving the baseline category
-for Blume<U+2013>Capel variables.}
+for Blume--Capel variables.}
 
 \item{difference_scale}{Double. Scale of the Cauchy prior for difference
 parameters. Default: \code{1}.}
@@ -119,7 +119,7 @@ effect) parameters, created by one of the prior constructor functions:
 When supplied, overrides \code{main_alpha} and \code{main_beta}.
 Default: \code{beta_prime_prior(alpha = 0.5, beta = 0.5)}.}
 
-\item{iter}{Integer. Number of post<U+2013>warmup iterations per chain.
+\item{iter}{Integer. Number of post--warmup iterations per chain.
 Default: \code{1e3}.}
 
 \item{warmup}{Integer. Number of warmup iterations before sampling.
@@ -177,7 +177,7 @@ pairwise interactions. Default: \code{1}.}
 prior for baseline threshold parameters. Defaults: \code{0.5}.}
 
 \item{beta_bernoulli_alpha, beta_bernoulli_beta}{Doubles. Shape parameters
-of the Beta prior for inclusion probabilities in the Beta<U+2013>Bernoulli
+of the Beta prior for inclusion probabilities in the Beta--Bernoulli
 model. Defaults: \code{1}.}
 
 \item{main_difference_model, reference_category, pairwise_difference_scale, main_difference_scale, pairwise_difference_prior, main_difference_prior, pairwise_difference_probability, main_difference_probability, pairwise_beta_bernoulli_alpha, pairwise_beta_bernoulli_beta, main_beta_bernoulli_alpha, main_beta_bernoulli_beta, interaction_scale, threshold_alpha, threshold_beta, burnin, save}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}}

@@ -22,7 +22,7 @@ bb_between_default = function(value) {
 
 
 # ==============================================================================
-# run_sampler()  <U+2014> main dispatcher
+# run_sampler()  --- main dispatcher
 # ==============================================================================
 run_sampler = function(spec) {
   stopifnot(inherits(spec, "bgm_spec"))

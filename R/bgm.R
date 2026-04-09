@@ -23,14 +23,14 @@
 #' output interpretation, see the package website at
 #' \url{https://bayesian-graphical-modelling-lab.github.io/bgms-docs/}.
 #'
-#' @seealso \code{vignette(<U+201C>intro<U+201D>, package = <U+201C>bgms<U+201D>)} for a worked example.
+#' @seealso \code{vignette("intro", package = "bgms")} for a worked example.
 #' @family model-fitting
 #'
 #' @param x A data frame or matrix with \code{n} rows and \code{p} columns.
 #'   Columns may contain binary, ordinal, or continuous variables (see
 #'   \code{variable_type}). Discrete variables are automatically recoded to
 #'   non-negative integers (\code{0, 1, ..., m}); for regular ordinal
-#'   variables, unobserved categories are collapsed, while Blume<U+2013>Capel
+#'   variables, unobserved categories are collapsed, while Blume--Capel
 #'   variables retain all categories. Continuous variables are column-centered
 #'   internally so that the GGM likelihood is formulated with a zero-mean
 #'   assumption.
@@ -44,11 +44,11 @@
 #'   \code{"ordinal"}. Default: \code{"ordinal"}.
 #'
 #' @param baseline_category Integer or vector. Baseline category used in
-#'   Blume<U+2013>Capel variables. Can be a single integer (applied to all) or a
+#'   Blume--Capel variables. Can be a single integer (applied to all) or a
 #'   vector of length \code{p}. Required if at least one variable is of type
 #'   \code{"blume-capel"}.
 #'
-#' @param iter Integer. Number of post<U+2013>burn-in iterations (per chain).
+#' @param iter Integer. Number of post--burn-in iterations (per chain).
 #'   Default: \code{1e3}.
 #'
 #' @param warmup Integer. Number of warmup iterations before collecting
@@ -195,8 +195,8 @@
 #' @param update_method Character. Specifies how the MCMC sampler updates
 #'   the model parameters:
 #'   \describe{
-#'     \item{"adaptive-metropolis"}{Componentwise adaptive Metropolis<U+2013>Hastings
-#'       with Robbins<U+2013>Monro proposal adaptation.}
+#'     \item{"adaptive-metropolis"}{Componentwise adaptive Metropolis--Hastings
+#'       with Robbins--Monro proposal adaptation.}
 #'     \item{"hamiltonian-mc"}{\strong{Deprecated.} Hamiltonian Monte Carlo
 #'       with fixed path length. Use \code{"nuts"} instead. This option will
 #'       be removed in a future release.}
@@ -300,7 +300,7 @@
 #'       \item{\code{allocations}}{List of cluster allocations
 #'         (if SBM prior used).}
 #'       \item{\code{nchains}}{Number of chains.}
-#'       \item{\code{niter}}{Number of post<U+2013>warmup iterations per chain.}
+#'       \item{\code{niter}}{Number of post--warmup iterations per chain.}
 #'       \item{\code{parameter_names}}{Named lists of parameter labels.}
 #'     }
 #'
