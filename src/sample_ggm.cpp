@@ -8,6 +8,7 @@
 #include "utils/progress_manager.h"
 #include "utils/common_helpers.h"
 #include "priors/edge_prior.h"
+#include "priors/parameter_prior.h"
 #include "mcmc/execution/chain_result.h"
 #include "mcmc/execution/chain_runner.h"
 #include "mcmc/execution/sampler_config.h"
@@ -38,16 +39,33 @@ Rcpp::List sample_ggm(
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable = R_NilValue
 ) {
 
-    // Create model from R input
+    // Create parameter priors from R input
     double pairwise_scale = Rcpp::as<double>(inputFromR["pairwise_scale"]);
-
     std::string ipt_str = inputFromR.containsElementNamed("interaction_prior_type")
         ? Rcpp::as<std::string>(inputFromR["interaction_prior_type"]) : "cauchy";
-    InteractionPriorType interaction_prior_type = interaction_prior_from_string(ipt_str);
+    double ia = inputFromR.containsElementNamed("interaction_alpha")
+        ? Rcpp::as<double>(inputFromR["interaction_alpha"]) : NA_REAL;
+    double ib = inputFromR.containsElementNamed("interaction_beta")
+        ? Rcpp::as<double>(inputFromR["interaction_beta"]) : NA_REAL;
 
+    auto interaction_prior = create_parameter_prior(
+        ipt_str, pairwise_scale, ia, ib);
+
+    // Scale prior on precision diagonal
+    std::string spt_str = inputFromR.containsElementNamed("scale_prior_type")
+        ? Rcpp::as<std::string>(inputFromR["scale_prior_type"]) : "gamma";
+    double s_shape = inputFromR.containsElementNamed("scale_shape")
+        ? Rcpp::as<double>(inputFromR["scale_shape"]) : 1.0;
+    double s_rate = inputFromR.containsElementNamed("scale_rate")
+        ? Rcpp::as<double>(inputFromR["scale_rate"]) : 1.0;
+
+    auto diagonal_prior = create_scale_prior(spt_str, s_shape, s_rate);
+
+    // Create model from R input
     GGMModel model = createGGMModelFromR(
         inputFromR, prior_inclusion_prob, initial_edge_indicators,
-        edge_selection, pairwise_scale, na_impute, interaction_prior_type);
+        edge_selection, std::move(interaction_prior),
+        std::move(diagonal_prior), na_impute);
 
     // Set up missing data imputation (same pattern as OMRF)
     if (na_impute && missing_index_nullable.isNotNull()) {

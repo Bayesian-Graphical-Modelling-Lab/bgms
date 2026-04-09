@@ -12,7 +12,7 @@
 void GGMModel::ensure_constraint_structure() {
     if (!constraint_dirty_) return;
     constraint_structure_.build(edge_indicators_);
-    gradient_engine_.rebuild(constraint_structure_, n_, suf_stat_, pairwise_scale_, interaction_prior_type_);
+    gradient_engine_.rebuild(constraint_structure_, n_, suf_stat_, *interaction_prior_, *diagonal_prior_);
     constraint_dirty_ = false;
     theta_valid_ = false;
 }
@@ -681,12 +681,12 @@ void GGMModel::update_edge_parameter(size_t i, size_t j, int iteration) {
 
     double ln_alpha = log_density_impl_edge(i, j);
 
-    ln_alpha += interaction_prior_logp(interaction_prior_type_, precision_proposal_(i, j), pairwise_scale_);
-    ln_alpha -= interaction_prior_logp(interaction_prior_type_, precision_matrix_(i, j), pairwise_scale_);
+    ln_alpha += interaction_prior_->logp(precision_proposal_(i, j));
+    ln_alpha -= interaction_prior_->logp(precision_matrix_(i, j));
 
     // Gamma(1,1) prior on changed diagonal K_jj
-    ln_alpha += R::dgamma(precision_proposal_(j, j), 1.0, 1.0, true);
-    ln_alpha -= R::dgamma(precision_matrix_(j, j), 1.0, 1.0, true);
+    ln_alpha += diagonal_prior_->logp(precision_proposal_(j, j));
+    ln_alpha -= diagonal_prior_->logp(precision_matrix_(j, j));
 
     if (MY_LOG(runif(rng_)) < ln_alpha) {
         double omega_ij_old = precision_matrix_(i, j);
@@ -761,8 +761,8 @@ void GGMModel::update_diagonal_parameter(size_t i, int iteration) {
 
     double ln_alpha = log_density_impl_diag(i);
 
-    ln_alpha += R::dgamma(precision_proposal_(i, i), 1.0, 1.0, true);
-    ln_alpha -= R::dgamma(precision_matrix_(i, i), 1.0, 1.0, true);
+    ln_alpha += diagonal_prior_->logp(precision_proposal_(i, i));
+    ln_alpha -= diagonal_prior_->logp(precision_matrix_(i, i));
     ln_alpha += 2.0 * (theta_prop - theta_curr); // Jacobian: dK_ii/dtheta = 2*exp(2*theta)
 
     if (MY_LOG(runif(rng_)) < ln_alpha) {
@@ -838,11 +838,11 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         ln_alpha += MY_LOG(1.0 - inclusion_probability_(i, j)) - MY_LOG(inclusion_probability_(i, j));
 
         ln_alpha += R::dnorm(precision_matrix_(i, j) / constants_[3], 0.0, proposal_sd, true) - MY_LOG(constants_[3]);
-        ln_alpha -= interaction_prior_logp(interaction_prior_type_, precision_matrix_(i, j), pairwise_scale_);
+        ln_alpha -= interaction_prior_->logp(precision_matrix_(i, j));
 
         // Gamma(1,1) prior on changed diagonal K_jj
-        ln_alpha += R::dgamma(precision_proposal_(j, j), 1.0, 1.0, true);
-        ln_alpha -= R::dgamma(precision_matrix_(j, j), 1.0, 1.0, true);
+        ln_alpha += diagonal_prior_->logp(precision_proposal_(j, j));
+        ln_alpha -= diagonal_prior_->logp(precision_matrix_(j, j));
 
         if (MY_LOG(runif(rng_)) < ln_alpha) {
 
@@ -893,11 +893,11 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         ln_alpha += MY_LOG(inclusion_probability_(i, j)) - MY_LOG(1.0 - inclusion_probability_(i, j));
 
         // Prior change: add slab (Cauchy prior)
-        ln_alpha += interaction_prior_logp(interaction_prior_type_, omega_prop_ij, pairwise_scale_);
+        ln_alpha += interaction_prior_->logp(omega_prop_ij);
 
         // Gamma(1,1) prior on changed diagonal K_jj
-        ln_alpha += R::dgamma(precision_proposal_(j, j), 1.0, 1.0, true);
-        ln_alpha -= R::dgamma(precision_matrix_(j, j), 1.0, 1.0, true);
+        ln_alpha += diagonal_prior_->logp(precision_proposal_(j, j));
+        ln_alpha -= diagonal_prior_->logp(precision_matrix_(j, j));
 
         // Proposal term: proposed edge value given it was generated from truncated normal
         ln_alpha -= R::dnorm(omega_prop_ij / constants_[3], 0.0, proposal_sd, true) - MY_LOG(constants_[3]);
@@ -998,12 +998,12 @@ void GGMModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {
             precision_proposal_(j, j) = omega_prop_qq;
 
             double ln_alpha = log_density_impl_edge(i, j);
-            ln_alpha += interaction_prior_logp(interaction_prior_type_, precision_proposal_(i, j), pairwise_scale_);
-            ln_alpha -= interaction_prior_logp(interaction_prior_type_, precision_matrix_(i, j), pairwise_scale_);
+            ln_alpha += interaction_prior_->logp(precision_proposal_(i, j));
+            ln_alpha -= interaction_prior_->logp(precision_matrix_(i, j));
 
             // Gamma(1,1) prior on changed diagonal K_jj
-            ln_alpha += R::dgamma(precision_proposal_(j, j), 1.0, 1.0, true);
-            ln_alpha -= R::dgamma(precision_matrix_(j, j), 1.0, 1.0, true);
+            ln_alpha += diagonal_prior_->logp(precision_proposal_(j, j));
+            ln_alpha -= diagonal_prior_->logp(precision_matrix_(j, j));
 
             if (MY_LOG(runif(rng_)) < ln_alpha) {
                 double omega_ij_old = precision_matrix_(i, j);
@@ -1036,8 +1036,8 @@ void GGMModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {
             + MY_EXP(theta_prop) * MY_EXP(theta_prop);
 
         double ln_alpha = log_density_impl_diag(i);
-        ln_alpha += R::dgamma(precision_proposal_(i, i), 1.0, 1.0, true);
-        ln_alpha -= R::dgamma(precision_matrix_(i, i), 1.0, 1.0, true);
+        ln_alpha += diagonal_prior_->logp(precision_proposal_(i, i));
+        ln_alpha -= diagonal_prior_->logp(precision_matrix_(i, i));
         ln_alpha += 2.0 * (theta_prop - theta_curr); // Jacobian: dK_ii/dtheta = 2*exp(2*theta)
 
         if (MY_LOG(runif(rng_)) < ln_alpha) {
@@ -1200,9 +1200,9 @@ GGMModel createGGMModelFromR(
     const arma::mat& prior_inclusion_prob,
     const arma::imat& initial_edge_indicators,
     const bool edge_selection,
-    const double pairwise_scale,
-    const bool na_impute,
-    InteractionPriorType interaction_prior_type
+    std::unique_ptr<BaseParameterPrior> interaction_prior,
+    std::unique_ptr<BaseParameterPrior> diagonal_prior,
+    const bool na_impute
 ) {
 
     if (inputFromR.containsElementNamed("n") && inputFromR.containsElementNamed("suf_stat")) {
@@ -1214,8 +1214,8 @@ GGMModel createGGMModelFromR(
             prior_inclusion_prob,
             initial_edge_indicators,
             edge_selection,
-            pairwise_scale,
-            interaction_prior_type
+            std::move(interaction_prior),
+            std::move(diagonal_prior)
         );
     } else if (inputFromR.containsElementNamed("X")) {
         arma::mat X = Rcpp::as<arma::mat>(inputFromR["X"]);
@@ -1224,9 +1224,9 @@ GGMModel createGGMModelFromR(
             prior_inclusion_prob,
             initial_edge_indicators,
             edge_selection,
-            pairwise_scale,
-            na_impute,
-            interaction_prior_type
+            std::move(interaction_prior),
+            std::move(diagonal_prior),
+            na_impute
         );
     } else {
         throw std::invalid_argument("Input list must contain either 'X' or both 'n' and 'suf_stat'.");

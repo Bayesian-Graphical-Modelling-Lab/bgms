@@ -12,6 +12,7 @@
 #include "mcmc/algorithms/leapfrog.h"
 #include "mcmc/algorithms/nuts.h"
 #include "rng/rng_utils.h"
+#include "priors/parameter_prior.h"
 
 // [[Rcpp::export]]
 Rcpp::List ggm_test_logp_and_gradient(
@@ -24,8 +25,10 @@ Rcpp::List ggm_test_logp_and_gradient(
     GraphConstraintStructure cs;
     cs.build(edge_indicators);
 
+    CauchyPrior ip(pairwise_scale);
+    GammaScalePrior dp(1.0, 1.0);
     GGMGradientEngine engine;
-    engine.rebuild(cs, static_cast<size_t>(n), suf_stat, pairwise_scale);
+    engine.rebuild(cs, static_cast<size_t>(n), suf_stat, ip, dp);
 
     auto result = engine.logp_and_gradient(theta);
 
@@ -45,8 +48,10 @@ Rcpp::List ggm_test_forward_map(
 
     // Minimal engine just for forward map (no suf_stat needed)
     arma::mat dummy_S(edge_indicators.n_rows, edge_indicators.n_rows, arma::fill::zeros);
+    CauchyPrior ip(1.0);
+    GammaScalePrior dp(1.0, 1.0);
     GGMGradientEngine engine;
-    engine.rebuild(cs, 100, dummy_S, 1.0);
+    engine.rebuild(cs, 100, dummy_S, ip, dp);
 
     ForwardMapResult fm = engine.forward_map(theta);
 
@@ -70,7 +75,9 @@ Rcpp::List ggm_test_project_position(
     arma::mat suf_stat = arma::eye(p, p);
     arma::mat inc_prob(p, p, arma::fill::value(0.5));
     GGMModel model(static_cast<int>(p), suf_stat, inc_prob,
-                   edge_indicators, true, 2.5);
+                   edge_indicators, true,
+                   std::make_unique<CauchyPrior>(2.5),
+                   std::make_unique<GammaScalePrior>(1.0, 1.0));
 
     // Unpack x into the model's Cholesky factor
     model.set_full_position(x);
@@ -121,7 +128,9 @@ arma::vec ggm_test_get_full_position(
     arma::mat suf_stat = arma::eye(p, p);
     arma::mat inc_prob(p, p, arma::fill::value(0.5));
     GGMModel model(static_cast<int>(p), suf_stat, inc_prob,
-                   edge_indicators, true, 2.5);
+                   edge_indicators, true,
+                   std::make_unique<CauchyPrior>(2.5),
+                   std::make_unique<GammaScalePrior>(1.0, 1.0));
 
     // Set the model's Cholesky factor directly, then get full position
     // Use a full-edge graph to set the Cholesky (no constraints bite)
@@ -150,8 +159,10 @@ Rcpp::List ggm_test_logp_and_gradient_full(
     GraphConstraintStructure cs;
     cs.build(edge_indicators);
 
+    CauchyPrior ip(pairwise_scale);
+    GammaScalePrior dp(1.0, 1.0);
     GGMGradientEngine engine;
-    engine.rebuild(cs, static_cast<size_t>(n), suf_stat, pairwise_scale);
+    engine.rebuild(cs, static_cast<size_t>(n), suf_stat, ip, dp);
 
     auto result = engine.logp_and_gradient_full(x);
 
@@ -173,7 +184,9 @@ arma::vec ggm_test_project_momentum(
     arma::mat suf_stat = arma::eye(p, p);
     arma::mat inc_prob(p, p, arma::fill::value(0.5));
     GGMModel model(static_cast<int>(p), suf_stat, inc_prob,
-                   edge_indicators, true, 2.5);
+                   edge_indicators, true,
+                   std::make_unique<CauchyPrior>(2.5),
+                   std::make_unique<GammaScalePrior>(1.0, 1.0));
 
     arma::vec inv_mass;
     if(inv_mass_in.isNotNull()) {
@@ -204,7 +217,9 @@ Rcpp::List ggm_test_leapfrog_constrained(
 
     arma::mat inc_prob(p, p, arma::fill::value(0.5));
     GGMModel model(static_cast<int>(p), suf_stat, inc_prob,
-                   edge_indicators, true, pairwise_scale);
+                   edge_indicators, true,
+                   std::make_unique<CauchyPrior>(pairwise_scale),
+                   std::make_unique<GammaScalePrior>(1.0, 1.0));
 
     // Joint function: logp_and_gradient_full
     Memoizer::JointFn joint = [&model](const arma::vec& x)
@@ -274,7 +289,9 @@ Rcpp::List ggm_test_leapfrog_constrained_checked(
 
     arma::mat inc_prob(p, p, arma::fill::value(0.5));
     GGMModel model(static_cast<int>(p), suf_stat, inc_prob,
-                   edge_indicators, true, pairwise_scale);
+                   edge_indicators, true,
+                   std::make_unique<CauchyPrior>(pairwise_scale),
+                   std::make_unique<GammaScalePrior>(1.0, 1.0));
 
     Memoizer::JointFn joint = [&model](const arma::vec& x)
         -> std::pair<double, arma::vec> {
@@ -359,8 +376,8 @@ Rcpp::List sample_ggm_prior(
         edge_indicators.ones(p, p);
     }
 
-    InteractionPriorType prior_type = interaction_prior_from_string(
-        interaction_prior_type);
+    auto ip = create_parameter_prior(interaction_prior_type, pairwise_scale);
+    auto dp = std::make_unique<GammaScalePrior>(1.0, 1.0);
 
     // Create model with n=0, S=0 so likelihood is flat (prior-only).
     // edge_selection=false ensures the graph stays fixed throughout:
@@ -368,7 +385,7 @@ Rcpp::List sample_ggm_prior(
     arma::mat suf_stat(p, p, arma::fill::zeros);
     arma::mat inc_prob(p, p, arma::fill::value(0.5));
     GGMModel model(0, suf_stat, inc_prob, edge_indicators,
-                   false, pairwise_scale, prior_type);
+                   false, std::move(ip), std::move(dp));
 
     // Build constraint structure for K extraction (both paths use full offsets)
     GraphConstraintStructure cs;
