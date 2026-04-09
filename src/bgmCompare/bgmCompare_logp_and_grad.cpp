@@ -5,7 +5,7 @@
 #include "math/explog_macros.h"
 #include "utils/common_helpers.h"
 #include "utils/variable_helpers.h"
-#include "priors/interaction_prior.h"
+#include "priors/parameter_prior.h"
 
 
 
@@ -286,17 +286,13 @@ arma::vec gradient(
     const arma::imat& inclusion_indicator,
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
-    const double main_alpha,
-    const double main_beta,
-    const double interaction_scale,
     const arma::mat& pairwise_scaling_factors,
-    const double difference_scale,
     const arma::imat& main_index,
     const arma::imat& pair_index,
     const arma::vec& grad_obs,
-    const InteractionPriorType interaction_prior_type,
-    const ThresholdPriorType threshold_prior_type,
-    const double threshold_scale
+    const BaseParameterPrior& interaction_prior,
+    const BaseParameterPrior& difference_prior,
+    const BaseParameterPrior& threshold_prior
 ) {
   const int num_variables  = observations_double.n_cols;
   const int max_num_categories = num_categories.max();
@@ -442,35 +438,35 @@ arma::vec gradient(
       for (int c = 0; c < num_cats; ++c) {
         off = main_index(base + c, 0);
         double value = main_effects(base + c, 0);
-        grad(off) += threshold_prior_grad(threshold_prior_type, value, main_alpha, main_beta, threshold_scale);
+        grad(off) += threshold_prior.grad(value);
 
         if (inclusion_indicator(v, v) == 0) continue;
         for (int k = 1; k < num_groups; ++k) {
           off = main_index(base + c, k);
           double value = main_effects(base + c, k);
-          grad(off) += interaction_prior_grad(interaction_prior_type, value, difference_scale);
+          grad(off) += difference_prior.grad(value);
         }
 
       }
     } else {
       off = main_index(base, 0);
       double value = main_effects(base, 0);
-      grad(off) += threshold_prior_grad(threshold_prior_type, value, main_alpha, main_beta, threshold_scale);
+      grad(off) += threshold_prior.grad(value);
 
       off = main_index(base + 1, 0);
       value = main_effects(base + 1, 0);
-      grad(off) += threshold_prior_grad(threshold_prior_type, value, main_alpha, main_beta, threshold_scale);
+      grad(off) += threshold_prior.grad(value);
 
 
       if (inclusion_indicator(v, v) == 0) continue;
       for (int k = 1; k < num_groups; ++k) {
         off = main_index(base, k);
         double value = main_effects(base, k);
-        grad(off) += interaction_prior_grad(interaction_prior_type, value, difference_scale);
+        grad(off) += difference_prior.grad(value);
 
         off = main_index(base + 1, k);
         value = main_effects(base + 1, k);
-        grad(off) += interaction_prior_grad(interaction_prior_type, value, difference_scale);
+        grad(off) += difference_prior.grad(value);
       }
     }
   }
@@ -479,19 +475,17 @@ arma::vec gradient(
   for (int v1 = 0; v1 < num_variables - 1; ++v1) {
     for (int v2 = v1 + 1; v2 < num_variables; ++v2) {
       const int row = pairwise_effect_indices(v1, v2);
-      const double scaled_interaction_scale = interaction_scale * pairwise_scaling_factors(v1, v2);
-      const double scaled_difference_scale = difference_scale * pairwise_scaling_factors(v1, v2);
 
       off = pair_index(row, 0);
       double value = pairwise_effects(row, 0);
-      grad(off) += interaction_prior_grad(interaction_prior_type, value, scaled_interaction_scale);
+      grad(off) += interaction_prior.grad(value, pairwise_scaling_factors(v1, v2));
 
 
       if (inclusion_indicator(v1, v2) == 0) continue;
       for (int k = 1; k < num_groups; ++k) {
         off = pair_index(row, k);
         double value = pairwise_effects(row, k);
-        grad(off) += interaction_prior_grad(interaction_prior_type, value, scaled_difference_scale);
+        grad(off) += difference_prior.grad(value, pairwise_scaling_factors(v1, v2));
       }
     }
   }
@@ -526,17 +520,13 @@ std::pair<double, arma::vec> logp_and_gradient(
     const arma::imat& inclusion_indicator,
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
-    const double main_alpha,
-    const double main_beta,
-    const double interaction_scale,
     const arma::mat& pairwise_scaling_factors,
-    const double difference_scale,
     const arma::imat& main_index,
     const arma::imat& pair_index,
     const arma::vec& grad_obs,
-    const InteractionPriorType interaction_prior_type,
-    const ThresholdPriorType threshold_prior_type,
-    const double threshold_scale
+    const BaseParameterPrior& interaction_prior,
+    const BaseParameterPrior& difference_prior,
+    const BaseParameterPrior& threshold_prior
 ) {
   const int num_variables  = observations_double.n_cols;
   const int max_num_categories = num_categories.max();
@@ -706,35 +696,35 @@ std::pair<double, arma::vec> logp_and_gradient(
     if (is_ordinal_variable(v)) {
       for (int c = 0; c < num_cats; ++c) {
         double value = main_effects(r0 + c, 0);
-        log_pp += threshold_prior_logp(threshold_prior_type, value, main_alpha, main_beta, threshold_scale);
+        log_pp += threshold_prior.logp(value);
 
         off = main_index(base + c, 0);
-        grad(off) += threshold_prior_grad(threshold_prior_type, value, main_alpha, main_beta, threshold_scale);
+        grad(off) += threshold_prior.grad(value);
 
         if (inclusion_indicator(v, v) == 0) continue;
         for (int eff = 1; eff < num_groups; eff++) {
           double diff_val = main_effects(r0 + c, eff);
-          log_pp += interaction_prior_logp(interaction_prior_type, diff_val, difference_scale);
+          log_pp += difference_prior.logp(diff_val);
 
           off = main_index(base + c, eff);
-          grad(off) += interaction_prior_grad(interaction_prior_type, diff_val, difference_scale);
+          grad(off) += difference_prior.grad(diff_val);
         }
       }
     } else {
       for (int par = 0; par < 2; ++par) {
         double value = main_effects(r0 + par, 0);
-        log_pp += threshold_prior_logp(threshold_prior_type, value, main_alpha, main_beta, threshold_scale);
+        log_pp += threshold_prior.logp(value);
 
         off = main_index(base + par, 0);
-        grad(off) += threshold_prior_grad(threshold_prior_type, value, main_alpha, main_beta, threshold_scale);
+        grad(off) += threshold_prior.grad(value);
 
         if (inclusion_indicator(v, v) == 0) continue;
         for (int eff = 1; eff < num_groups; eff++) {
           double diff_val = main_effects(r0 + par, eff);
-          log_pp += interaction_prior_logp(interaction_prior_type, diff_val, difference_scale);
+          log_pp += difference_prior.logp(diff_val);
 
           off = main_index(base + par, eff);
-          grad(off) += interaction_prior_grad(interaction_prior_type, diff_val, difference_scale);
+          grad(off) += difference_prior.grad(diff_val);
         }
       }
     }
@@ -744,22 +734,20 @@ std::pair<double, arma::vec> logp_and_gradient(
   for (int v1 = 0; v1 < num_variables - 1; v1++) {
     for (int v2 = v1 + 1; v2 < num_variables; v2++) {
       const int idx = pairwise_effect_indices(v1, v2);
-      const double scaled_interaction_scale = interaction_scale * pairwise_scaling_factors(v1, v2);
-      const double scaled_difference_scale = difference_scale * pairwise_scaling_factors(v1, v2);
 
       double value = pairwise_effects(idx, 0);
-      log_pp += interaction_prior_logp(interaction_prior_type, value, scaled_interaction_scale);
+      log_pp += interaction_prior.logp(value, pairwise_scaling_factors(v1, v2));
 
       off = pair_index(idx, 0);
-      grad(off) += interaction_prior_grad(interaction_prior_type, value, scaled_interaction_scale);
+      grad(off) += interaction_prior.grad(value, pairwise_scaling_factors(v1, v2));
 
       if (inclusion_indicator(v1, v2) == 0) continue;
       for (int eff = 1; eff < num_groups; eff++) {
         double diff_val = pairwise_effects(idx, eff);
-        log_pp += interaction_prior_logp(interaction_prior_type, diff_val, scaled_difference_scale);
+        log_pp += difference_prior.logp(diff_val, pairwise_scaling_factors(v1, v2));
 
         off = pair_index(idx, eff);
-        grad(off) += interaction_prior_grad(interaction_prior_type, diff_val, scaled_difference_scale);
+        grad(off) += difference_prior.grad(diff_val, pairwise_scaling_factors(v1, v2));
       }
     }
   }
@@ -830,16 +818,12 @@ double log_pseudoposterior_main_component(
     const arma::imat& inclusion_indicator,
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
-    const double main_alpha,
-    const double main_beta,
-    const double difference_scale,
     int variable,
     int category, // for ordinal variables only
     int par, // for Blume-Capel variables only
     int h, // Overall = 0, differences are 1,2,...
-    const InteractionPriorType interaction_prior_type,
-    const ThresholdPriorType threshold_prior_type,
-    const double threshold_scale
+    const BaseParameterPrior& difference_prior,
+    const BaseParameterPrior& threshold_prior
 ) {
   if(h > 0 && inclusion_indicator(variable, variable) == 0) {
     return 0.0; // No contribution if differences not included
@@ -926,19 +910,19 @@ double log_pseudoposterior_main_component(
     // Main effects prior (baseline)
     if(is_ordinal_variable(variable)) {
       int r = main_effect_indices(variable, 0) + category;
-      log_pp += threshold_prior_logp(threshold_prior_type, main_effects(r, 0), main_alpha, main_beta, threshold_scale);
+      log_pp += threshold_prior.logp(main_effects(r, 0));
     } else {
       int r = main_effect_indices(variable, 0) + par;
-      log_pp += threshold_prior_logp(threshold_prior_type, main_effects(r, 0), main_alpha, main_beta, threshold_scale);
+      log_pp += threshold_prior.logp(main_effects(r, 0));
     }
   } else {
     // Group-difference prior
     if(is_ordinal_variable(variable)) {
       int r = main_effect_indices(variable, 0) + category;
-      log_pp += interaction_prior_logp(interaction_prior_type, main_effects(r, h), difference_scale);
+      log_pp += difference_prior.logp(main_effects(r, h));
     } else {
       int r = main_effect_indices(variable, 0) + par;
-      log_pp += interaction_prior_logp(interaction_prior_type, main_effects(r, h), difference_scale);
+      log_pp += difference_prior.logp(main_effects(r, h));
     }
   }
 
@@ -1006,14 +990,13 @@ double log_pseudoposterior_pair_component(
     const arma::imat& inclusion_indicator,
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
-    const double interaction_scale,
     const arma::mat& pairwise_scaling_factors,
-    const double difference_scale,
     int variable1,
     int variable2,
     int h,
     double delta,
-    const InteractionPriorType interaction_prior_type
+    const BaseParameterPrior& interaction_prior,
+    const BaseParameterPrior& difference_prior
 ) {
   if(h > 0 && inclusion_indicator(variable1, variable2) == 0) {
     return 0.0;
@@ -1087,12 +1070,10 @@ double log_pseudoposterior_pair_component(
   }
 
   // ---- priors ----
-  const double scaled_interaction_scale = interaction_scale * pairwise_scaling_factors(variable1, variable2);
-  const double scaled_difference_scale = difference_scale * pairwise_scaling_factors(variable1, variable2);
   if (h == 0) {
-    log_pp += interaction_prior_logp(interaction_prior_type, proposed_value, scaled_interaction_scale);
+    log_pp += interaction_prior.logp(proposed_value, pairwise_scaling_factors(variable1, variable2));
   } else {
-    log_pp += interaction_prior_logp(interaction_prior_type, proposed_value, scaled_difference_scale);
+    log_pp += difference_prior.logp(proposed_value, pairwise_scaling_factors(variable1, variable2));
   }
   return log_pp;
 }

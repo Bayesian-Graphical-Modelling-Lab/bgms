@@ -10,7 +10,7 @@
 #include "bgmCompare/bgmCompare_output.h"
 #include "mcmc/samplers/metropolis_adaptation.h"
 #include "utils/common_helpers.h"
-#include "priors/interaction_prior.h"
+#include "priors/parameter_prior.h"
 
 using namespace RcppParallel;
 
@@ -97,14 +97,10 @@ struct GibbsCompareChainRunner : public Worker {
   const std::vector<arma::imat>& blume_capel_stats_master;
   const std::vector<arma::mat>&  pairwise_stats_master;
   const arma::ivec& num_categories;
-  const double main_alpha;
-  const double main_beta;
-  const double pairwise_scale;
   const arma::mat& pairwise_scaling_factors;
-  const double difference_scale;
   const double difference_selection_alpha;
   const double difference_selection_beta;
-  const std::string& difference_prior;
+  const std::string& difference_prior_type;
   const int iter;
   const int warmup;
   const bool na_impute;
@@ -128,9 +124,9 @@ struct GibbsCompareChainRunner : public Worker {
   const UpdateMethod update_method;
   const int hmc_num_leapfrogs;
   ProgressManager& pm;
-  const InteractionPriorType interaction_prior_type;
-  const ThresholdPriorType threshold_prior_type;
-  const double threshold_scale;
+  const BaseParameterPrior& interaction_prior;
+  const BaseParameterPrior& difference_prior;
+  const BaseParameterPrior& threshold_prior;
   // output
   std::vector<bgmCompareChainResult>& results;
 
@@ -141,14 +137,10 @@ struct GibbsCompareChainRunner : public Worker {
     const std::vector<arma::imat>& blume_capel_stats_master,
     const std::vector<arma::mat>&  pairwise_stats_master,
     const arma::ivec& num_categories,
-    double main_alpha,
-    double main_beta,
-    double pairwise_scale,
     const arma::mat& pairwise_scaling_factors,
-    double difference_scale,
     double difference_selection_alpha,
     double difference_selection_beta,
-    const std::string& difference_prior,
+    const std::string& difference_prior_type,
     int iter,
     int warmup,
     bool na_impute,
@@ -171,9 +163,9 @@ struct GibbsCompareChainRunner : public Worker {
     const UpdateMethod update_method,
     const int hmc_num_leapfrogs,
     ProgressManager& pm,
-    const InteractionPriorType interaction_prior_type,
-    const ThresholdPriorType threshold_prior_type,
-    const double threshold_scale,
+    const BaseParameterPrior& interaction_prior,
+    const BaseParameterPrior& difference_prior,
+    const BaseParameterPrior& threshold_prior,
     std::vector<bgmCompareChainResult>& results
   ) :
     observations_master(observations_master),
@@ -182,14 +174,10 @@ struct GibbsCompareChainRunner : public Worker {
     blume_capel_stats_master(blume_capel_stats_master),
     pairwise_stats_master(pairwise_stats_master),
     num_categories(num_categories),
-    main_alpha(main_alpha),
-    main_beta(main_beta),
-    pairwise_scale(pairwise_scale),
     pairwise_scaling_factors(pairwise_scaling_factors),
-    difference_scale(difference_scale),
     difference_selection_alpha(difference_selection_alpha),
     difference_selection_beta(difference_selection_beta),
-    difference_prior(difference_prior),
+    difference_prior_type(difference_prior_type),
     iter(iter),
     warmup(warmup),
     na_impute(na_impute),
@@ -212,9 +200,9 @@ struct GibbsCompareChainRunner : public Worker {
     update_method(update_method),
     hmc_num_leapfrogs(hmc_num_leapfrogs),
     pm(pm),
-    interaction_prior_type(interaction_prior_type),
-    threshold_prior_type(threshold_prior_type),
-    threshold_scale(threshold_scale),
+    interaction_prior(interaction_prior),
+    difference_prior(difference_prior),
+    threshold_prior(threshold_prior),
     results(results)
   {}
 
@@ -244,14 +232,10 @@ struct GibbsCompareChainRunner : public Worker {
           blume_capel_stats,
           pairwise_stats,
           num_categories,
-          main_alpha,
-          main_beta,
-          pairwise_scale,
           pairwise_scaling_factors,
-          difference_scale,
           difference_selection_alpha,
           difference_selection_beta,
-          difference_prior,
+          difference_prior_type,
           iter,
           warmup,
           na_impute,
@@ -274,9 +258,9 @@ struct GibbsCompareChainRunner : public Worker {
           update_method,
           hmc_num_leapfrogs,
           pm,
-          interaction_prior_type,
-          threshold_prior_type,
-          threshold_scale
+          interaction_prior,
+          difference_prior,
+          threshold_prior
         );
 
         out.result = result;
@@ -410,8 +394,9 @@ Rcpp::List run_bgmCompare_parallel(
   }
 
   UpdateMethod update_method_enum = update_method_from_string(update_method);
-  InteractionPriorType interaction_prior_type = interaction_prior_from_string(interaction_prior_type_str);
-  ThresholdPriorType threshold_prior_type = threshold_prior_from_string(threshold_prior_type_str);
+  auto interaction_prior = create_parameter_prior(interaction_prior_type_str, pairwise_scale);
+  auto difference_prior_obj = create_parameter_prior(interaction_prior_type_str, difference_scale);
+  auto threshold_prior = create_parameter_prior(threshold_prior_type_str, threshold_scale, main_alpha, main_beta);
 
   // only used to determine the total no. warmup iterations, a bit hacky
   WarmupSchedule warmup_schedule_temp(warmup, difference_selection, (update_method_enum != adaptive_metropolis));
@@ -421,14 +406,14 @@ Rcpp::List run_bgmCompare_parallel(
   GibbsCompareChainRunner worker(
       observations, num_groups,
       counts_per_category, blume_capel_stats, pairwise_stats,
-      num_categories, main_alpha, main_beta, pairwise_scale, pairwise_scaling_factors, difference_scale,
-      difference_selection_alpha, difference_selection_beta, difference_prior,
+      num_categories, pairwise_scaling_factors,
+      difference_selection_alpha, difference_selection_beta, difference_prior, // string "Beta-Bernoulli" etc.
       iter, warmup, na_impute, missing_data_indices, is_ordinal_variable,
       baseline_category, difference_selection, main_difference_selection, main_effect_indices,
       pairwise_effect_indices, target_accept, nuts_max_depth, learn_mass_matrix,
       projection, group_membership, group_indices, interaction_index_matrix,
       inclusion_probability, chain_rngs, update_method_enum, hmc_num_leapfrogs,
-      pm, interaction_prior_type, threshold_prior_type, threshold_scale,
+      pm, *interaction_prior, *difference_prior_obj, *threshold_prior,
       results
   );
 
