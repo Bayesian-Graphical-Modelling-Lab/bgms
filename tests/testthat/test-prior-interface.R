@@ -69,14 +69,14 @@ test_that("all parameter priors are interchangeable for interaction_prior and th
 
 test_that("bernoulli_prior creates valid prior object", {
   p = bernoulli_prior(0.3)
-  expect_s3_class(p, "bgms_edge_prior")
+  expect_s3_class(p, "bgms_indicator_prior")
   expect_equal(p$family, "Bernoulli")
   expect_equal(p$hyper.parameters$inclusion_probability, 0.3)
 })
 
 test_that("beta_bernoulli_prior creates valid prior object", {
   p = beta_bernoulli_prior(alpha = 2, beta = 5)
-  expect_s3_class(p, "bgms_edge_prior")
+  expect_s3_class(p, "bgms_indicator_prior")
   expect_equal(p$family, "Beta-Bernoulli")
   expect_equal(p$hyper.parameters$alpha, 2)
   expect_equal(p$hyper.parameters$beta, 5)
@@ -84,7 +84,7 @@ test_that("beta_bernoulli_prior creates valid prior object", {
 
 test_that("sbm_prior creates valid prior object", {
   p = sbm_prior()
-  expect_s3_class(p, "bgms_edge_prior")
+  expect_s3_class(p, "bgms_indicator_prior")
   expect_equal(p$family, "Stochastic-Block")
 })
 

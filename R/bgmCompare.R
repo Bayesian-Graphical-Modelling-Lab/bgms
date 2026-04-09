@@ -44,10 +44,19 @@
 #'   for Blume<U+2013>Capel variables.
 #' @param difference_scale Double. Scale of the Cauchy prior for difference
 #'   parameters. Default: \code{1}.
-#' @param difference_prior Character. Prior for difference inclusion:
-#'   \code{"Bernoulli"} or \code{"Beta-Bernoulli"}. Default: \code{"Bernoulli"}.
-#' @param difference_probability Numeric. Prior inclusion probability for
-#'   differences (Bernoulli prior). Default: \code{0.5}.
+#' @param difference_prior An indicator prior specification object for
+#'   difference selection, created by one of:
+#'   \itemize{
+#'     \item \code{\link{bernoulli_prior}()}: Fixed inclusion probability (default).
+#'     \item \code{\link{beta_bernoulli_prior}()}: Beta-distributed inclusion.
+#'     \item \code{\link{sbm_prior}()}: Stochastic Block Model.
+#'   }
+#'   Legacy character strings \code{"Bernoulli"} and \code{"Beta-Bernoulli"}
+#'   are still accepted but deprecated.
+#'   Default: \code{bernoulli_prior(0.5)}.
+#' @param difference_probability `r lifecycle::badge("deprecated")` Numeric.
+#'   Use \code{difference_prior = bernoulli_prior(probability)} instead.
+#'   Default: \code{0.5}.
 #' @param interaction_prior A prior specification object for baseline pairwise
 #'   interaction parameters, created by one of the prior constructor functions:
 #'   \itemize{
@@ -171,8 +180,8 @@ bgmCompare = function(
   variable_type = "ordinal",
   baseline_category,
   difference_scale = 1,
-  difference_prior = c("Bernoulli", "Beta-Bernoulli"),
-  difference_probability = 0.5,
+  difference_prior = bernoulli_prior(0.5),
+  difference_probability,
   interaction_prior = cauchy_prior(scale = 1),
   threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
   iter = 1e3,
@@ -337,12 +346,39 @@ bgmCompare = function(
     lifecycle::deprecate_warn("0.1.6.0", "bgmCompare(save =)")
   }
 
+  # --- Handle difference_prior: accept both string (deprecated) and object ------
+  if(is.character(difference_prior)) {
+    lifecycle::deprecate_warn(
+      "0.3.0", "bgmCompare(difference_prior = 'must be a prior object')",
+      "bgmCompare(difference_prior = 'bernoulli_prior()')"
+    )
+    difference_prior_str = match.arg(difference_prior,
+      choices = c("Bernoulli", "Beta-Bernoulli")
+    )
+    dp_prob = if(hasArg(difference_probability)) difference_probability else 0.5
+    bba = if(hasArg(beta_bernoulli_alpha)) beta_bernoulli_alpha else 1
+    bbb = if(hasArg(beta_bernoulli_beta)) beta_bernoulli_beta else 1
+
+    difference_prior = switch(difference_prior_str,
+      "Bernoulli" = bernoulli_prior(inclusion_probability = dp_prob),
+      "Beta-Bernoulli" = beta_bernoulli_prior(alpha = bba, beta = bbb)
+    )
+  } else {
+    if(hasArg(difference_probability)) {
+      lifecycle::deprecate_warn(
+        "0.3.0", "bgmCompare(difference_probability =)",
+        "bgmCompare(difference_prior = 'bernoulli_prior()')"
+      )
+    }
+  }
+
   # --- Unpack prior objects to flat parameters ---------------------------------
   ip = unpack_interaction_prior(interaction_prior)
   tp = unpack_threshold_prior(threshold_prior)
 
-  bba = if(hasArg(beta_bernoulli_alpha)) beta_bernoulli_alpha else 1
-  bbb = if(hasArg(beta_bernoulli_beta)) beta_bernoulli_beta else 1
+  # Unpack difference prior to flat params for bgm_spec
+  num_variables = ncol(x)
+  dp = unpack_indicator_prior(difference_prior, num_variables)
 
   # --- Build spec, sample, build output ----------------------------------------
   spec = bgm_spec(
@@ -364,11 +400,11 @@ bgmCompare = function(
     standardize = standardize,
     difference_selection = difference_selection,
     main_difference_selection = main_difference_selection,
-    difference_prior = difference_prior,
+    difference_prior = dp$edge_prior,
     difference_scale = difference_scale,
-    difference_probability = difference_probability,
-    beta_bernoulli_alpha = bba,
-    beta_bernoulli_beta = bbb,
+    difference_probability = dp$inclusion_probability,
+    beta_bernoulli_alpha = dp$beta_bernoulli_alpha,
+    beta_bernoulli_beta = dp$beta_bernoulli_beta,
     update_method = update_method,
     target_accept = if(hasArg(target_accept)) target_accept else NULL,
     iter = iter,

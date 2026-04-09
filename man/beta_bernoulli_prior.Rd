@@ -14,7 +14,7 @@ distribution. Default: \code{1}.}
 distribution. Default: \code{1}.}
 }
 \value{
-An object of class \code{"bgms_edge_prior"} with
+An object of class \code{"bgms_indicator_prior"} with
 \code{family = "Beta-Bernoulli"}.
 }
 \description{

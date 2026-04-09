@@ -13,7 +13,7 @@ a matrix allows edge-specific probabilities. Must be in (0, 1).
 Default: \code{0.5}.}
 }
 \value{
-An object of class \code{"bgms_edge_prior"} with
+An object of class \code{"bgms_indicator_prior"} with
 \code{family = "Bernoulli"}.
 }
 \description{

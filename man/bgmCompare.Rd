@@ -13,8 +13,8 @@ bgmCompare(
   variable_type = "ordinal",
   baseline_category,
   difference_scale = 1,
-  difference_prior = c("Bernoulli", "Beta-Bernoulli"),
-  difference_probability = 0.5,
+  difference_prior = bernoulli_prior(0.5),
+  difference_probability,
   interaction_prior = cauchy_prior(scale = 1),
   threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
   iter = 1000,
@@ -86,11 +86,20 @@ for Blume<U+2013>Capel variables.}
 \item{difference_scale}{Double. Scale of the Cauchy prior for difference
 parameters. Default: \code{1}.}
 
-\item{difference_prior}{Character. Prior for difference inclusion:
-\code{"Bernoulli"} or \code{"Beta-Bernoulli"}. Default: \code{"Bernoulli"}.}
+\item{difference_prior}{An indicator prior specification object for
+difference selection, created by one of:
+\itemize{
+\item \code{\link{bernoulli_prior}()}: Fixed inclusion probability (default).
+\item \code{\link{beta_bernoulli_prior}()}: Beta-distributed inclusion.
+\item \code{\link{sbm_prior}()}: Stochastic Block Model.
+}
+Legacy character strings \code{"Bernoulli"} and \code{"Beta-Bernoulli"}
+are still accepted but deprecated.
+Default: \code{bernoulli_prior(0.5)}.}
 
-\item{difference_probability}{Numeric. Prior inclusion probability for
-differences (Bernoulli prior). Default: \code{0.5}.}
+\item{difference_probability}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Numeric.
+Use \code{difference_prior = bernoulli_prior(probability)} instead.
+Default: \code{0.5}.}
 
 \item{interaction_prior}{A prior specification object for baseline pairwise
 interaction parameters, created by one of the prior constructor functions:

@@ -33,7 +33,7 @@ Dirichlet prior on cluster assignments. Default: \code{1}.}
 Poisson prior on the number of clusters. Default: \code{1}.}
 }
 \value{
-An object of class \code{"bgms_edge_prior"} with
+An object of class \code{"bgms_indicator_prior"} with
 \code{family = "Stochastic-Block"}.
 }
 \description{

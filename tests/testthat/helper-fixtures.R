@@ -282,9 +282,7 @@ get_bgmcompare_fit_beta_bernoulli = function() {
       x = x, y = y,
       difference_selection = TRUE,
       main_difference_selection = TRUE,
-      difference_prior = "Beta-Bernoulli",
-      beta_bernoulli_alpha = 1,
-      beta_bernoulli_beta = 4,
+      difference_prior = beta_bernoulli_prior(alpha = 1, beta = 4),
       iter = 25, warmup = 50, chains = 1,
       seed = 55555,
       display_progress = "none"

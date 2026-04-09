@@ -9,7 +9,7 @@
 # Three prior roles:
 #   - bgms_parameter_prior   : prior on real-valued model parameters
 #                               (interactions, thresholds, means)
-#   - bgms_edge_prior        : prior on edge inclusion (structure selection)
+#   - bgms_indicator_prior        : prior on edge inclusion (structure selection)
 #
 # Legacy subclasses bgms_interaction_prior and bgms_threshold_prior are
 # retained for backward compatibility but are no longer distinct types.
@@ -263,7 +263,7 @@ exponential_prior = function(rate = 1) {
 #'   a matrix allows edge-specific probabilities. Must be in (0, 1).
 #'   Default: \code{0.5}.
 #'
-#' @return An object of class \code{"bgms_edge_prior"} with
+#' @return An object of class \code{"bgms_indicator_prior"} with
 #'   \code{family = "Bernoulli"}.
 #'
 #' @family prior-constructors
@@ -283,7 +283,7 @@ bernoulli_prior = function(inclusion_probability = 0.5) {
         inclusion_probability = inclusion_probability
       )
     ),
-    class = "bgms_edge_prior"
+    class = "bgms_indicator_prior"
   )
 }
 
@@ -300,7 +300,7 @@ bernoulli_prior = function(inclusion_probability = 0.5) {
 #' @param beta Positive numeric. Second shape parameter of the Beta
 #'   distribution. Default: \code{1}.
 #'
-#' @return An object of class \code{"bgms_edge_prior"} with
+#' @return An object of class \code{"bgms_indicator_prior"} with
 #'   \code{family = "Beta-Bernoulli"}.
 #'
 #' @family prior-constructors
@@ -331,7 +331,7 @@ beta_bernoulli_prior = function(alpha = 1, beta = 1) {
       family = "Beta-Bernoulli",
       hyper.parameters = list(alpha = alpha, beta = beta)
     ),
-    class = "bgms_edge_prior"
+    class = "bgms_indicator_prior"
   )
 }
 
@@ -356,7 +356,7 @@ beta_bernoulli_prior = function(alpha = 1, beta = 1) {
 #' @param lambda Positive numeric. Rate parameter of the zero-truncated
 #'   Poisson prior on the number of clusters. Default: \code{1}.
 #'
-#' @return An object of class \code{"bgms_edge_prior"} with
+#' @return An object of class \code{"bgms_indicator_prior"} with
 #'   \code{family = "Stochastic-Block"}.
 #'
 #' @family prior-constructors
@@ -395,7 +395,7 @@ sbm_prior = function(alpha = 1, beta = 1,
       family = "Stochastic-Block",
       hyper.parameters = params
     ),
-    class = "bgms_edge_prior"
+    class = "bgms_indicator_prior"
   )
 }
 
@@ -434,7 +434,7 @@ print.bgms_scale_prior = function(x, ...) {
 }
 
 #' @export
-print.bgms_edge_prior = function(x, ...) {
+print.bgms_indicator_prior = function(x, ...) {
   hp = x$hyper.parameters
   switch(x$family,
     "Bernoulli" = {
@@ -567,17 +567,17 @@ unpack_threshold_prior = function(prior) {
 
 #' Unpack an edge prior into the flat parameters used by bgm_spec
 #'
-#' @param prior A \code{bgms_edge_prior} object.
+#' @param prior A \code{bgms_indicator_prior} object.
 #' @param num_variables Integer. Number of variables (for inclusion matrix).
 #'
 #' @return A list matching the fields expected by \code{validate_edge_prior}
 #'   output.
 #'
 #' @keywords internal
-unpack_edge_prior = function(prior, num_variables) {
-  if(!inherits(prior, "bgms_edge_prior")) {
+unpack_indicator_prior = function(prior, num_variables) {
+  if(!inherits(prior, "bgms_indicator_prior")) {
     stop(
-      "'edge_prior' must be a bgms_edge_prior object.",
+      "'edge_prior' must be a bgms_indicator_prior object.",
       " Use bernoulli_prior(), beta_bernoulli_prior(), or sbm_prior()."
     )
   }

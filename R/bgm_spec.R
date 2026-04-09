@@ -360,8 +360,8 @@ bgm_spec = function(x,
   )
 
   # --- Resolve edge prior object -----------------------------------------------
-  if(inherits(edge_prior, "bgms_edge_prior")) {
-    ep_flat = unpack_edge_prior(edge_prior, num_variables)
+  if(inherits(edge_prior, "bgms_indicator_prior")) {
+    ep_flat = unpack_indicator_prior(edge_prior, num_variables)
   } else {
     # Legacy string path (tests and bgmCompare may call bgm_spec directly)
     edge_prior_str = match.arg(edge_prior,
