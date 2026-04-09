@@ -602,3 +602,99 @@ test_that("means_prior affects mixed MRF posterior", {
     )
   )
 })
+
+
+# ==============================================================================
+# 7. Non-default priors with edge selection
+# ==============================================================================
+
+test_that("GGM edge selection works with normal_prior interaction", {
+  set.seed(42)
+  Y = as.data.frame(matrix(rnorm(200), nrow = 50, ncol = 4))
+  fit = bgm(Y,
+    variable_type = "continuous",
+    interaction_prior = normal_prior(scale = 1),
+    edge_prior = bernoulli_prior(0.5),
+    iter = 50, warmup = 100, chains = 1,
+    display_progress = "none"
+  )
+  expect_s3_class(fit, "bgms")
+  expect_false(is.null(fit$posterior_mean_indicator))
+  expect_true(all(fit$posterior_mean_indicator >= 0 &
+    fit$posterior_mean_indicator <= 1))
+})
+
+test_that("GGM edge selection works with beta_prime_prior interaction", {
+  set.seed(42)
+  Y = as.data.frame(matrix(rnorm(200), nrow = 50, ncol = 4))
+  fit = bgm(Y,
+    variable_type = "continuous",
+    interaction_prior = beta_prime_prior(1, 1),
+    edge_prior = bernoulli_prior(0.5),
+    iter = 50, warmup = 100, chains = 1,
+    display_progress = "none"
+  )
+  expect_s3_class(fit, "bgms")
+  expect_false(is.null(fit$posterior_mean_indicator))
+})
+
+test_that("GGM edge selection works with non-default diagonal prior", {
+  set.seed(42)
+  Y = as.data.frame(matrix(rnorm(200), nrow = 50, ncol = 4))
+  fit = bgm(Y,
+    variable_type = "continuous",
+    precision_scale_prior = gamma_prior(shape = 2, rate = 0.5),
+    edge_prior = beta_bernoulli_prior(1, 1),
+    iter = 50, warmup = 100, chains = 1,
+    display_progress = "none"
+  )
+  expect_s3_class(fit, "bgms")
+  expect_false(is.null(fit$posterior_mean_indicator))
+})
+
+test_that("OMRF edge selection works with normal_prior interaction", {
+  data("Wenchuan", package = "bgms")
+  fit = bgm(Wenchuan[1:50, 1:4],
+    interaction_prior = normal_prior(scale = 0.5),
+    threshold_prior = cauchy_prior(scale = 1),
+    edge_prior = bernoulli_prior(0.5),
+    iter = 50, warmup = 100, chains = 1,
+    display_progress = "none"
+  )
+  expect_s3_class(fit, "bgms")
+  expect_false(is.null(fit$posterior_mean_indicator))
+  expect_true(all(fit$posterior_mean_indicator >= 0 &
+    fit$posterior_mean_indicator <= 1))
+})
+
+test_that("OMRF edge selection works with beta_prime_prior interaction", {
+  data("Wenchuan", package = "bgms")
+  fit = bgm(Wenchuan[1:50, 1:4],
+    interaction_prior = beta_prime_prior(0.5, 0.5),
+    edge_prior = bernoulli_prior(0.5),
+    iter = 50, warmup = 100, chains = 1,
+    display_progress = "none"
+  )
+  expect_s3_class(fit, "bgms")
+  expect_false(is.null(fit$posterior_mean_indicator))
+})
+
+test_that("Mixed MRF edge selection works with non-default priors", {
+  set.seed(42)
+  data("Wenchuan", package = "bgms")
+  dat = data.frame(Wenchuan[1:100, 1:3], V4 = rnorm(100))
+  fit = bgm(dat,
+    variable_type = c(rep("ordinal", 3), "continuous"),
+    interaction_prior = normal_prior(scale = 0.5),
+    threshold_prior = normal_prior(scale = 1),
+    means_prior = cauchy_prior(scale = 2),
+    precision_scale_prior = gamma_prior(shape = 2, rate = 1),
+    edge_prior = bernoulli_prior(0.5),
+    iter = 50, warmup = 100, chains = 1,
+    display_progress = "none"
+  )
+  expect_s3_class(fit, "bgms")
+  expect_false(is.null(fit$posterior_mean_indicator))
+  expect_true(all(fit$posterior_mean_indicator >= 0 &
+    fit$posterior_mean_indicator <= 1))
+})
