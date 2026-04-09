@@ -2,7 +2,7 @@
 % Please edit documentation in R/priors.R
 \name{bernoulli_prior}
 \alias{bernoulli_prior}
-\title{Bernoulli Prior for Edge Inclusion}
+\title{Bernoulli Prior for Inclusion Indicators}
 \usage{
 bernoulli_prior(inclusion_probability = 0.5)
 }
@@ -17,8 +17,9 @@ An object of class \code{"bgms_indicator_prior"} with
 \code{family = "Bernoulli"}.
 }
 \description{
-Specifies a Bernoulli prior for edge inclusion indicators with a fixed
-inclusion probability.
+Specifies a Bernoulli prior for inclusion indicators with a fixed
+inclusion probability. Used for edge selection in \code{\link{bgm}} and
+difference selection in \code{\link{bgmCompare}}.
 }
 \examples{
 bernoulli_prior()

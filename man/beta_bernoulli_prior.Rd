@@ -2,7 +2,7 @@
 % Please edit documentation in R/priors.R
 \name{beta_bernoulli_prior}
 \alias{beta_bernoulli_prior}
-\title{Beta-Bernoulli Prior for Edge Inclusion}
+\title{Beta-Bernoulli Prior for Inclusion Indicators}
 \usage{
 beta_bernoulli_prior(alpha = 1, beta = 1)
 }
@@ -18,7 +18,7 @@ An object of class \code{"bgms_indicator_prior"} with
 \code{family = "Beta-Bernoulli"}.
 }
 \description{
-Specifies a Beta-Bernoulli prior for edge inclusion. The inclusion
+Specifies a Beta-Bernoulli prior for inclusion indicators. The inclusion
 probability is drawn from a \eqn{\textrm{Beta}(\alpha, \beta)}{Beta(alpha, beta)}
 distribution and shared across all edges.
 }

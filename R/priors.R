@@ -9,7 +9,8 @@
 # Three prior roles:
 #   - bgms_parameter_prior   : prior on real-valued model parameters
 #                               (interactions, thresholds, means)
-#   - bgms_indicator_prior        : prior on edge inclusion (structure selection)
+#   - bgms_indicator_prior   : prior on inclusion indicators (edge selection,
+#                               difference selection)
 #
 # Legacy subclasses bgms_interaction_prior and bgms_threshold_prior are
 # retained for backward compatibility but are no longer distinct types.
@@ -249,14 +250,15 @@ exponential_prior = function(rate = 1) {
 
 
 # ==============================================================================
-# Edge inclusion priors (structure selection)
+# Indicator priors (selection: edges, differences)
 # ==============================================================================
 
-#' Bernoulli Prior for Edge Inclusion
+#' Bernoulli Prior for Inclusion Indicators
 #'
 #' @description
-#' Specifies a Bernoulli prior for edge inclusion indicators with a fixed
-#' inclusion probability.
+#' Specifies a Bernoulli prior for inclusion indicators with a fixed
+#' inclusion probability. Used for edge selection in \code{\link{bgm}} and
+#' difference selection in \code{\link{bgmCompare}}.
 #'
 #' @param inclusion_probability Numeric scalar or symmetric matrix. Prior
 #'   probability of each edge being included. A scalar applies to all edges;
@@ -288,10 +290,10 @@ bernoulli_prior = function(inclusion_probability = 0.5) {
 }
 
 
-#' Beta-Bernoulli Prior for Edge Inclusion
+#' Beta-Bernoulli Prior for Inclusion Indicators
 #'
 #' @description
-#' Specifies a Beta-Bernoulli prior for edge inclusion. The inclusion
+#' Specifies a Beta-Bernoulli prior for inclusion indicators. The inclusion
 #' probability is drawn from a \eqn{\textrm{Beta}(\alpha, \beta)}{Beta(alpha, beta)}
 #' distribution and shared across all edges.
 #'
@@ -336,10 +338,10 @@ beta_bernoulli_prior = function(alpha = 1, beta = 1) {
 }
 
 
-#' Stochastic Block Model Prior for Edge Inclusion
+#' Stochastic Block Model Prior for Inclusion Indicators
 #'
 #' @description
-#' Specifies a Stochastic Block Model (SBM) prior for edge inclusion.
+#' Specifies a Stochastic Block Model (SBM) prior for inclusion indicators.
 #' Variables are assigned to latent clusters, with separate Beta priors
 #' on within-cluster and between-cluster inclusion probabilities.
 #'

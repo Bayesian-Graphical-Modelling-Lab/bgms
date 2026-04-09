@@ -2,7 +2,7 @@
 % Please edit documentation in R/priors.R
 \name{sbm_prior}
 \alias{sbm_prior}
-\title{Stochastic Block Model Prior for Edge Inclusion}
+\title{Stochastic Block Model Prior for Inclusion Indicators}
 \usage{
 sbm_prior(
   alpha = 1,
@@ -37,7 +37,7 @@ An object of class \code{"bgms_indicator_prior"} with
 \code{family = "Stochastic-Block"}.
 }
 \description{
-Specifies a Stochastic Block Model (SBM) prior for edge inclusion.
+Specifies a Stochastic Block Model (SBM) prior for inclusion indicators.
 Variables are assigned to latent clusters, with separate Beta priors
 on within-cluster and between-cluster inclusion probabilities.
 }
