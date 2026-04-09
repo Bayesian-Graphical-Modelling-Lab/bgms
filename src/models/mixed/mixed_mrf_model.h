@@ -9,6 +9,7 @@
 #include "math/cholupdate.h"
 #include "rng/rng_utils.h"
 #include "priors/interaction_prior.h"
+#include "priors/parameter_prior.h"
 
 /**
  * MixedMRFModel - Mixed Markov Random Field Model
@@ -57,9 +58,10 @@ public:
      * @param initial_edge_indicators Initial edge inclusion matrix ((p+q) × (p+q))
      * @param edge_selection       Enable edge selection (spike-and-slab)
      * @param pseudolikelihood     "conditional" or "marginal"
-     * @param main_alpha           Beta prior hyperparameter α for main effects
-     * @param main_beta            Beta prior hyperparameter β for main effects
-     * @param pairwise_scale       Scale parameter of Cauchy prior on interactions
+     * @param interaction_prior     Polymorphic prior on pairwise interactions
+     * @param threshold_prior      Polymorphic prior on main effects / thresholds
+     * @param means_prior          Polymorphic prior on continuous means
+     * @param diagonal_prior       Polymorphic prior on precision diagonal
      * @param seed                 RNG seed for reproducibility
      */
     MixedMRFModel(
@@ -72,13 +74,11 @@ public:
         const arma::imat& initial_edge_indicators,
         bool edge_selection,
         const std::string& pseudolikelihood,
-        double main_alpha,
-        double main_beta,
-        double pairwise_scale,
-        int seed,
-        InteractionPriorType interaction_prior_type = InteractionPriorType::Cauchy,
-        ThresholdPriorType threshold_prior_type = ThresholdPriorType::BetaPrime,
-        double threshold_scale = 1.0
+        std::unique_ptr<BaseParameterPrior> interaction_prior,
+        std::unique_ptr<BaseParameterPrior> threshold_prior,
+        std::unique_ptr<BaseParameterPrior> means_prior,
+        std::unique_ptr<BaseParameterPrior> diagonal_prior,
+        int seed
     );
 
     /** Copy constructor for cloning (required for parallel chains). */
@@ -351,12 +351,10 @@ private:
     // Priors
     // =========================================================================
 
-    double main_alpha_;                 ///< Beta prior alpha for main effects
-    double main_beta_;                  ///< Beta prior beta for main effects
-    double pairwise_scale_;             ///< Cauchy scale for interaction priors
-    InteractionPriorType interaction_prior_type_;  ///< Prior type for pairwise interactions
-    ThresholdPriorType threshold_prior_type_;      ///< Prior type for main effects / thresholds
-    double threshold_scale_;            ///< Scale for Normal threshold prior (unused for BetaPrime)
+    std::unique_ptr<BaseParameterPrior> interaction_prior_;   ///< Prior on pairwise interactions
+    std::unique_ptr<BaseParameterPrior> threshold_prior_;    ///< Prior on main effects / thresholds
+    std::unique_ptr<BaseParameterPrior> means_prior_;        ///< Prior on continuous means
+    std::unique_ptr<BaseParameterPrior> diagonal_prior_;     ///< Prior on precision diagonal
 
     // =========================================================================
     // Proposal SDs (Robbins-Monro adapted)

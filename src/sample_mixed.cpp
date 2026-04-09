@@ -9,6 +9,7 @@
 
 #include "models/mixed/mixed_mrf_model.h"
 #include "priors/interaction_prior.h"
+#include "priors/parameter_prior.h"
 #include "utils/progress_manager.h"
 #include "utils/common_helpers.h"
 #include "priors/edge_prior.h"
@@ -84,28 +85,48 @@ Rcpp::List sample_mixed_mrf(
     arma::ivec num_categories = Rcpp::as<arma::ivec>(inputFromR["num_categories"]);
     arma::uvec is_ordinal = Rcpp::as<arma::uvec>(inputFromR["is_ordinal_variable"]);
     arma::ivec baseline_cat = Rcpp::as<arma::ivec>(inputFromR["baseline_category"]);
-    double main_alpha = Rcpp::as<double>(inputFromR["main_alpha"]);
-    double main_beta = Rcpp::as<double>(inputFromR["main_beta"]);
-    double pairwise_scale = Rcpp::as<double>(inputFromR["pairwise_scale"]);
     std::string pseudolikelihood = Rcpp::as<std::string>(inputFromR["pseudolikelihood"]);
 
-    // Extract prior types (with defaults for backward compatibility)
-    InteractionPriorType interaction_prior_type = InteractionPriorType::Cauchy;
-    if(inputFromR.containsElementNamed("interaction_prior_type")) {
-        interaction_prior_type = interaction_prior_from_string(
-            Rcpp::as<std::string>(inputFromR["interaction_prior_type"]));
-    }
+    // Create parameter priors from R input
+    double pairwise_scale = Rcpp::as<double>(inputFromR["pairwise_scale"]);
+    std::string ipt_str = inputFromR.containsElementNamed("interaction_prior_type")
+        ? Rcpp::as<std::string>(inputFromR["interaction_prior_type"]) : "cauchy";
+    double ia = inputFromR.containsElementNamed("interaction_alpha")
+        ? Rcpp::as<double>(inputFromR["interaction_alpha"]) : NA_REAL;
+    double ib = inputFromR.containsElementNamed("interaction_beta")
+        ? Rcpp::as<double>(inputFromR["interaction_beta"]) : NA_REAL;
+    auto interaction_prior = create_parameter_prior(ipt_str, pairwise_scale, ia, ib);
 
-    ThresholdPriorType threshold_prior_type = ThresholdPriorType::BetaPrime;
-    if(inputFromR.containsElementNamed("threshold_prior_type")) {
-        threshold_prior_type = threshold_prior_from_string(
-            Rcpp::as<std::string>(inputFromR["threshold_prior_type"]));
-    }
+    // Threshold prior
+    std::string tpt_str = inputFromR.containsElementNamed("threshold_prior_type")
+        ? Rcpp::as<std::string>(inputFromR["threshold_prior_type"]) : "beta-prime";
+    double ta = inputFromR.containsElementNamed("main_alpha")
+        ? Rcpp::as<double>(inputFromR["main_alpha"]) : 0.5;
+    double tb = inputFromR.containsElementNamed("main_beta")
+        ? Rcpp::as<double>(inputFromR["main_beta"]) : 0.5;
+    double ts = inputFromR.containsElementNamed("threshold_scale")
+        ? Rcpp::as<double>(inputFromR["threshold_scale"]) : 1.0;
+    auto threshold_prior = create_parameter_prior(tpt_str, ts, ta, tb);
 
-    double threshold_scale = 1.0;
-    if(inputFromR.containsElementNamed("threshold_scale")) {
-        threshold_scale = Rcpp::as<double>(inputFromR["threshold_scale"]);
-    }
+    // Means prior (continuous means)
+    std::string mpt_str = inputFromR.containsElementNamed("means_prior_type")
+        ? Rcpp::as<std::string>(inputFromR["means_prior_type"]) : "normal";
+    double ms = inputFromR.containsElementNamed("means_scale")
+        ? Rcpp::as<double>(inputFromR["means_scale"]) : 1.0;
+    double ma = inputFromR.containsElementNamed("means_alpha")
+        ? Rcpp::as<double>(inputFromR["means_alpha"]) : NA_REAL;
+    double mb = inputFromR.containsElementNamed("means_beta")
+        ? Rcpp::as<double>(inputFromR["means_beta"]) : NA_REAL;
+    auto means_prior = create_parameter_prior(mpt_str, ms, ma, mb);
+
+    // Diagonal prior (precision diagonal)
+    std::string spt_str = inputFromR.containsElementNamed("scale_prior_type")
+        ? Rcpp::as<std::string>(inputFromR["scale_prior_type"]) : "gamma";
+    double s_shape = inputFromR.containsElementNamed("scale_shape")
+        ? Rcpp::as<double>(inputFromR["scale_shape"]) : 1.0;
+    double s_rate = inputFromR.containsElementNamed("scale_rate")
+        ? Rcpp::as<double>(inputFromR["scale_rate"]) : 1.0;
+    auto diagonal_prior = create_scale_prior(spt_str, s_shape, s_rate);
 
     // Create model
     MixedMRFModel model(
@@ -113,9 +134,9 @@ Rcpp::List sample_mixed_mrf(
         num_categories, is_ordinal, baseline_cat,
         prior_inclusion_prob, initial_edge_indicators,
         edge_selection, pseudolikelihood,
-        main_alpha, main_beta, pairwise_scale,
-        seed,
-        interaction_prior_type, threshold_prior_type, threshold_scale
+        std::move(interaction_prior), std::move(threshold_prior),
+        std::move(means_prior), std::move(diagonal_prior),
+        seed
     );
 
     // Set up missing data imputation
