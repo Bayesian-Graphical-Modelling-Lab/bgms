@@ -8,7 +8,6 @@
 #include <RcppArmadillo.h>
 
 #include "models/mixed/mixed_mrf_model.h"
-#include "priors/interaction_prior.h"
 #include "priors/parameter_prior.h"
 #include "utils/progress_manager.h"
 #include "utils/common_helpers.h"

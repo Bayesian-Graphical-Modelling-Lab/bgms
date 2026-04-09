@@ -5,7 +5,6 @@
 
 #include <RcppArmadillo.h>
 #include "models/mixed/mixed_mrf_model.h"
-#include "priors/interaction_prior.h"
 #include "priors/parameter_prior.h"
 #include "mcmc/algorithms/leapfrog.h"
 

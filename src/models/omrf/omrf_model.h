@@ -7,7 +7,6 @@
 #include "rng/rng_utils.h"
 #include "mcmc/execution/step_result.h"
 #include "utils/common_helpers.h"
-#include "priors/interaction_prior.h"
 #include "priors/parameter_prior.h"
 
 /**

@@ -8,7 +8,6 @@
 #include "math/cholesky_helpers.h"
 #include "math/cholupdate.h"
 #include "rng/rng_utils.h"
-#include "priors/interaction_prior.h"
 #include "priors/parameter_prior.h"
 
 /**

@@ -7,7 +7,6 @@
 #include "rng/rng_utils.h"
 #include "models/ggm/graph_constraint_structure.h"
 #include "models/ggm/ggm_gradient.h"
-#include "priors/interaction_prior.h"
 #include "priors/parameter_prior.h"
 
 
