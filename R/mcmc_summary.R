@@ -822,7 +822,7 @@ summarize_fit_compare = function(
   )
 
   if(!difference_selection) {
-    # --- differences without selection <U+2192> treat as plain parameters
+    # --- differences without selection -> treat as plain parameters
     # Drop baseline columns (col 1) and keep group-difference columns
     excl_baseline = 1:num_main
     main_diff_array = array3d_main[, , -excl_baseline, drop = FALSE]
@@ -840,7 +840,7 @@ summarize_fit_compare = function(
 
     indicators = NULL
   } else {
-    # --- differences with selection <U+2192> use mixture summaries
+    # --- differences with selection -> use mixture summaries
     main_differences = summarize_main_diff_compare(
       fit, main_effect_indices, num_groups,
       param_names = param_names_main_diff

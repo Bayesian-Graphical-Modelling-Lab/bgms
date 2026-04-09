@@ -3,7 +3,7 @@
 \docType{data}
 \name{ADHD}
 \alias{ADHD}
-\title{ADHD Symptom Checklist for Children Aged 6<U+2013>8 Years}
+\title{ADHD Symptom Checklist for Children Aged 6--8 Years}
 \format{
 A matrix with 355 rows and 19 columns.
 \describe{
@@ -49,7 +49,7 @@ data("ADHD")
 }
 \description{
 This dataset includes ADHD symptom ratings for 355 children aged 6 to 8 years from the
-Children<U+2019>s Attention Project (CAP) cohort \insertCite{Silk_2019_ADHD}{bgms}. The sample
+Children's Attention Project (CAP) cohort \insertCite{Silk_2019_ADHD}{bgms}. The sample
 consists of 146 children diagnosed with ADHD and 209 without a diagnosis. Symptoms were
 assessed through structured interviews with parents using the NIMH Diagnostic Interview
 Schedule for Children IV (DISC-IV) \insertCite{Shaffer_2000_nimh}{bgms}. The checklist

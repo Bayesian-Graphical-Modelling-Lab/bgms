@@ -209,7 +209,7 @@ handle_impute = function(x, group = NULL) {
 #
 # Per-variable recoding of ordinal and Blume-Capel data to 0-based
 # contiguous categories. Single-group only (no group-conditional
-# collapsing <U+2014> see collapse_categories_across_groups() for that).
+# collapsing --- see collapse_categories_across_groups() for that).
 #
 # @param x  Numeric matrix: the data (after missing-data handling).
 # @param is_ordinal  Logical vector of length ncol(x): TRUE = regular

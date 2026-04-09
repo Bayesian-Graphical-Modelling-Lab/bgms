@@ -174,7 +174,7 @@ extract_posterior_inclusion_probabilities.bgms = function(bgms_object) {
     stop("To estimate posterior inclusion probabilities, run bgm() with edge_selection = TRUE.")
   }
 
-  # Handle legacy field name (no_variables <U+2192> num_variables in 0.1.6.0)
+  # Handle legacy field name (no_variables -> num_variables in 0.1.6.0)
   num_vars = arguments$num_variables %||% arguments$no_variables
   data_columnnames = arguments$data_columnnames
 
@@ -266,7 +266,7 @@ extract_posterior_inclusion_probabilities.bgmCompare = function(bgms_object) {
   }
 
   var_names = arguments$data_columnnames
-  # Handle legacy field name (no_variables <U+2192> num_variables in 0.1.6.0)
+  # Handle legacy field name (no_variables -> num_variables in 0.1.6.0)
   num_variables = as.integer(arguments$num_variables %||% arguments$no_variables)
 
   # ---- helper: combine chains into [iter, chain, param]
@@ -423,7 +423,7 @@ extract_pairwise_interactions = function(bgms_object) {
 #' @noRd
 extract_pairwise_interactions.bgms = function(bgms_object) {
   arguments = extract_arguments(bgms_object)
-  # Handle legacy field name (no_variables <U+2192> num_variables in 0.1.6.0)
+  # Handle legacy field name (no_variables -> num_variables in 0.1.6.0)
   num_vars = arguments$num_variables %||% arguments$no_variables
   var_names = arguments$data_columnnames
 
@@ -808,7 +808,7 @@ extract_group_params.bgmCompare = function(bgms_object) {
 #   group1 = baseline + diff, group2 = baseline - diff
 .extract_group_params_legacy = function(bgms_object, arguments) {
   var_names = arguments$data_columnnames
-  # Handle legacy field name (no_variables <U+2192> num_variables in 0.1.6.0)
+  # Handle legacy field name (no_variables -> num_variables in 0.1.6.0)
   num_variables = as.integer(arguments$num_variables %||% arguments$no_variables)
 
   # v0.1.4 format: baseline interactions and differences are separate

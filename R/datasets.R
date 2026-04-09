@@ -48,10 +48,10 @@
 #' \insertAllCited{}
 NULL
 
-#' ADHD Symptom Checklist for Children Aged 6<U+2013>8 Years
+#' ADHD Symptom Checklist for Children Aged 6--8 Years
 #'
 #' This dataset includes ADHD symptom ratings for 355 children aged 6 to 8 years from the
-#' Children<U+2019>s Attention Project (CAP) cohort \insertCite{Silk_2019_ADHD}{bgms}. The sample
+#' Children's Attention Project (CAP) cohort \insertCite{Silk_2019_ADHD}{bgms}. The sample
 #' consists of 146 children diagnosed with ADHD and 209 without a diagnosis. Symptoms were
 #' assessed through structured interviews with parents using the NIMH Diagnostic Interview
 #' Schedule for Children IV (DISC-IV) \insertCite{Shaffer_2000_nimh}{bgms}. The checklist
@@ -115,7 +115,7 @@ NULL
 #' @format A matrix with 986 rows and 9 columns. Each row corresponds to a respondent.
 #' \describe{
 #'   \item{language}{Language in which the SBPS was administered: "en" = English, "fr" = French}
-#'   \item{loose_ends}{I often find myself at <U+201C>loose ends,<U+201D> not knowing what to
+#'   \item{loose_ends}{I often find myself at "loose ends," not knowing what to
 #'   do.}
 #'   \item{entertain}{I find it hard to entertain myself.}
 #'   \item{repetitive}{Many things I have to do are repetitive and monotonous.}

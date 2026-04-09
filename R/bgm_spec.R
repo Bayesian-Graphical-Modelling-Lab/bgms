@@ -3,9 +3,9 @@
 # ==============================================================================
 #
 # Central construction point for all bgm/bgmCompare models. Three layers:
-#   bgm_spec()          <U+2014> user-facing: validates inputs, assembles sub-lists
-#   new_bgm_spec()      <U+2014> low-level: type/presence assertions per field
-#   validate_bgm_spec() <U+2014> cross-field invariant checks
+#   bgm_spec()          --- user-facing: validates inputs, assembles sub-lists
+#   new_bgm_spec()      --- low-level: type/presence assertions per field
+#   validate_bgm_spec() --- cross-field invariant checks
 #
 # The result is an S3 list of class "bgm_spec" consumed by run_sampler()
 # and build_output().
@@ -13,7 +13,7 @@
 
 
 # ==============================================================================
-# new_bgm_spec()  <U+2014> low-level constructor
+# new_bgm_spec()  --- low-level constructor
 # ==============================================================================
 #
 # Asserts presence and type of every field. Does NOT validate values
@@ -166,7 +166,7 @@ new_bgm_spec = function(model_type, data, variables, missing, prior,
 
 
 # ==============================================================================
-# validate_bgm_spec()  <U+2014> cross-field invariant checks
+# validate_bgm_spec()  --- cross-field invariant checks
 # ==============================================================================
 validate_bgm_spec = function(spec) {
   mt = spec$model_type
@@ -232,7 +232,7 @@ validate_bgm_spec = function(spec) {
 
 
 # ==============================================================================
-# bgm_spec()  <U+2014> user-facing constructor
+# bgm_spec()  --- user-facing constructor
 # ==============================================================================
 #
 # Validates all user inputs via dedicated validators, assembles sub-lists,
@@ -362,7 +362,7 @@ bgm_spec = function(x,
   # --- Resolve edge prior object -----------------------------------------------
   if(inherits(edge_prior, "bgms_indicator_prior")) {
     ep_flat = unpack_indicator_prior(edge_prior, num_variables)
-  } else {
+  } else if(is.character(edge_prior)) {
     # Legacy string path (tests and bgmCompare may call bgm_spec directly)
     edge_prior_str = match.arg(edge_prior,
       choices = c("Bernoulli", "Beta-Bernoulli", "Stochastic-Block")
@@ -383,6 +383,11 @@ bgm_spec = function(x,
     ep_flat$beta_bernoulli_beta_between = beta_bernoulli_beta_between
     ep_flat$dirichlet_alpha = dirichlet_alpha
     ep_flat$lambda = lambda
+  } else {
+    stop(
+      "'edge_prior' must be a bgms_indicator_prior object.",
+      " Use bernoulli_prior(), beta_bernoulli_prior(), or sbm_prior()."
+    )
   }
   # Override edge_selection if explicitly FALSE
   if(!edge_selection) {
@@ -1117,7 +1122,7 @@ build_spec_compare = function(x, y, group_indicator,
 
 
 # ==============================================================================
-# sampler_sublist()  <U+2014> extract validated sampler list for new_bgm_spec()
+# sampler_sublist()  --- extract validated sampler list for new_bgm_spec()
 # ==============================================================================
 sampler_sublist = function(s) {
   list(
@@ -1137,7 +1142,7 @@ sampler_sublist = function(s) {
 
 
 # ==============================================================================
-# build_arguments()  <U+2014> convert spec <U+2192> arguments list for fit object
+# build_arguments()  --- convert spec -> arguments list for fit object
 # ==============================================================================
 #
 # Produces the $arguments list stored in every bgms/bgmCompare fit object.
@@ -1312,7 +1317,7 @@ build_arguments_compare = function(spec) {
 
 
 # ==============================================================================
-# print.bgm_spec()  <U+2014> debugging summary
+# print.bgm_spec()  --- debugging summary
 # ==============================================================================
 #' @export
 print.bgm_spec = function(x, ...) {
