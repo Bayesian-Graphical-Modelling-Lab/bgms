@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------------- #
-# HMC for GGM — Integration tests for HMC sampler on GGM models.
+# HMC for GGM <U+2014> Integration tests for HMC sampler on GGM models.
 #
 # Verifies the constrained (RATTLE) and unconstrained HMC dispatch for
 # continuous variable models, including the warning for constrained HMC.
@@ -433,7 +433,7 @@ test_that("HMC trajectory is reversible (p=6)", {
 # ==============================================================================
 # 6.7  RATTLE trajectory: Hamiltonian conservation under HMC init
 #
-# For a symplectic integrator |ΔH| = O(ε²).
+# For a symplectic integrator |<U+0394>H| = O(<U+03B5><U+00B2>).
 # Inspired by mici's test_approx_hamiltonian_conservation (Matt Graham, 2024).
 # ==============================================================================
 
@@ -482,7 +482,7 @@ test_that("Hamiltonian conservation improves with smaller step size", {
     x0, r0, 0.005, 10, S, n, edges, scale
   )
 
-  # Halving step size should reduce |ΔH| (O(ε²) scaling)
+  # Halving step size should reduce |<U+0394>H| (O(<U+03B5><U+00B2>) scaling)
   expect_lt(abs(res_small$dH), abs(res_large$dH) + 0.01)
 })
 

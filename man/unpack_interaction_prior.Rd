@@ -7,8 +7,7 @@
 unpack_interaction_prior(prior)
 }
 \arguments{
-\item{prior}{A \code{bgms_interaction_prior} object, or a numeric scalar
-(for backward compatibility with \code{pairwise_scale}).}
+\item{prior}{A \code{bgms_parameter_prior} object.}
 }
 \value{
 A list with \code{interaction_prior_type} (character) and

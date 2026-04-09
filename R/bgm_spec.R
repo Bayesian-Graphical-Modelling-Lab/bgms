@@ -3,9 +3,9 @@
 # ==============================================================================
 #
 # Central construction point for all bgm/bgmCompare models. Three layers:
-#   bgm_spec()          — user-facing: validates inputs, assembles sub-lists
-#   new_bgm_spec()      — low-level: type/presence assertions per field
-#   validate_bgm_spec() — cross-field invariant checks
+#   bgm_spec()          <U+2014> user-facing: validates inputs, assembles sub-lists
+#   new_bgm_spec()      <U+2014> low-level: type/presence assertions per field
+#   validate_bgm_spec() <U+2014> cross-field invariant checks
 #
 # The result is an S3 list of class "bgm_spec" consumed by run_sampler()
 # and build_output().
@@ -13,7 +13,7 @@
 
 
 # ==============================================================================
-# new_bgm_spec()  — low-level constructor
+# new_bgm_spec()  <U+2014> low-level constructor
 # ==============================================================================
 #
 # Asserts presence and type of every field. Does NOT validate values
@@ -166,7 +166,7 @@ new_bgm_spec = function(model_type, data, variables, missing, prior,
 
 
 # ==============================================================================
-# validate_bgm_spec()  — cross-field invariant checks
+# validate_bgm_spec()  <U+2014> cross-field invariant checks
 # ==============================================================================
 validate_bgm_spec = function(spec) {
   mt = spec$model_type
@@ -232,7 +232,7 @@ validate_bgm_spec = function(spec) {
 
 
 # ==============================================================================
-# bgm_spec()  — user-facing constructor
+# bgm_spec()  <U+2014> user-facing constructor
 # ==============================================================================
 #
 # Validates all user inputs via dedicated validators, assembles sub-lists,
@@ -253,10 +253,16 @@ bgm_spec = function(x,
                     # Priors (new: prior objects unpacked by bgm())
                     interaction_prior_type = "cauchy",
                     pairwise_scale = 1,
+                    interaction_alpha = NA_real_,
+                    interaction_beta = NA_real_,
                     threshold_prior_type = "beta-prime",
                     main_alpha = 0.5,
                     main_beta = 0.5,
                     threshold_scale = NA_real_,
+                    means_prior_type = "normal",
+                    means_scale = 1,
+                    means_alpha = NA_real_,
+                    means_beta = NA_real_,
                     standardize = FALSE,
                     edge_selection = TRUE,
                     edge_prior = bernoulli_prior(0.5),
@@ -356,7 +362,8 @@ bgm_spec = function(x,
   } else {
     # Legacy string path (tests and bgmCompare may call bgm_spec directly)
     edge_prior_str = match.arg(edge_prior,
-      choices = c("Bernoulli", "Beta-Bernoulli", "Stochastic-Block"))
+      choices = c("Bernoulli", "Beta-Bernoulli", "Stochastic-Block")
+    )
     ep_flat = validate_edge_prior(
       edge_selection = edge_selection, edge_prior = edge_prior_str,
       inclusion_probability = inclusion_probability,
@@ -392,6 +399,8 @@ bgm_spec = function(x,
       na_action = na_action, sampler = sampler,
       interaction_prior_type = interaction_prior_type,
       pairwise_scale = pairwise_scale,
+      interaction_alpha = interaction_alpha,
+      interaction_beta = interaction_beta,
       edge_prior_flat = ep_flat
     )
   } else if(model_type == "mixed_mrf") {
@@ -404,9 +413,15 @@ bgm_spec = function(x,
       na_action = na_action, sampler = sampler,
       interaction_prior_type = interaction_prior_type,
       pairwise_scale = pairwise_scale,
+      interaction_alpha = interaction_alpha,
+      interaction_beta = interaction_beta,
       threshold_prior_type = threshold_prior_type,
       main_alpha = main_alpha, main_beta = main_beta,
       threshold_scale = threshold_scale,
+      means_prior_type = means_prior_type,
+      means_scale = means_scale,
+      means_alpha = means_alpha,
+      means_beta = means_beta,
       standardize = standardize,
       pseudolikelihood = pseudolikelihood,
       edge_prior_flat = ep_flat
@@ -421,6 +436,8 @@ bgm_spec = function(x,
       na_action = na_action, sampler = sampler,
       interaction_prior_type = interaction_prior_type,
       pairwise_scale = pairwise_scale,
+      interaction_alpha = interaction_alpha,
+      interaction_beta = interaction_beta,
       threshold_prior_type = threshold_prior_type,
       main_alpha = main_alpha, main_beta = main_beta,
       threshold_scale = threshold_scale,
@@ -438,6 +455,8 @@ bgm_spec = function(x,
       na_action = na_action, sampler = sampler,
       interaction_prior_type = interaction_prior_type,
       pairwise_scale = pairwise_scale,
+      interaction_alpha = interaction_alpha,
+      interaction_beta = interaction_beta,
       threshold_prior_type = threshold_prior_type,
       main_alpha = main_alpha, main_beta = main_beta,
       threshold_scale = threshold_scale,
@@ -465,6 +484,7 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
                           baseline_category,
                           na_action, sampler,
                           interaction_prior_type, pairwise_scale,
+                          interaction_alpha, interaction_beta,
                           edge_prior_flat) {
   # Missing data
   md = validate_missing_data(
@@ -500,6 +520,8 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
     prior = list(
       interaction_prior_type = interaction_prior_type,
       pairwise_scale = pairwise_scale,
+      interaction_alpha = interaction_alpha,
+      interaction_beta = interaction_beta,
       edge_selection = ep$edge_selection,
       edge_prior = ep$edge_prior,
       inclusion_probability = ep$inclusion_probability,
@@ -521,6 +543,7 @@ build_spec_omrf = function(x, data_columnnames, num_variables,
                            baseline_category,
                            na_action, sampler,
                            interaction_prior_type, pairwise_scale,
+                           interaction_alpha, interaction_beta,
                            threshold_prior_type, main_alpha, main_beta,
                            threshold_scale,
                            standardize,
@@ -591,6 +614,8 @@ build_spec_omrf = function(x, data_columnnames, num_variables,
     prior = list(
       interaction_prior_type = interaction_prior_type,
       pairwise_scale = pairwise_scale,
+      interaction_alpha = interaction_alpha,
+      interaction_beta = interaction_beta,
       threshold_prior_type = threshold_prior_type,
       main_alpha = main_alpha,
       main_beta = main_beta,
@@ -629,8 +654,11 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
                                 baseline_category,
                                 na_action, sampler,
                                 interaction_prior_type, pairwise_scale,
+                                interaction_alpha, interaction_beta,
                                 threshold_prior_type, main_alpha, main_beta,
                                 threshold_scale,
+                                means_prior_type, means_scale,
+                                means_alpha, means_beta,
                                 standardize, pseudolikelihood,
                                 edge_prior_flat) {
   # Identify discrete vs continuous columns
@@ -753,10 +781,16 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
     prior = list(
       interaction_prior_type = interaction_prior_type,
       pairwise_scale = pairwise_scale,
+      interaction_alpha = interaction_alpha,
+      interaction_beta = interaction_beta,
       threshold_prior_type = threshold_prior_type,
       main_alpha = main_alpha,
       main_beta = main_beta,
       threshold_scale = threshold_scale,
+      means_prior_type = means_prior_type,
+      means_scale = means_scale,
+      means_alpha = means_alpha,
+      means_beta = means_beta,
       standardize = standardize,
       pseudolikelihood = pseudolikelihood,
       edge_selection = ep$edge_selection,
@@ -783,6 +817,7 @@ build_spec_compare = function(x, y, group_indicator,
                               baseline_category,
                               na_action, sampler,
                               interaction_prior_type, pairwise_scale,
+                              interaction_alpha, interaction_beta,
                               threshold_prior_type, main_alpha, main_beta,
                               threshold_scale,
                               standardize,
@@ -1035,6 +1070,8 @@ build_spec_compare = function(x, y, group_indicator,
     prior = list(
       interaction_prior_type = interaction_prior_type,
       pairwise_scale = pairwise_scale,
+      interaction_alpha = interaction_alpha,
+      interaction_beta = interaction_beta,
       threshold_prior_type = threshold_prior_type,
       main_alpha = main_alpha,
       main_beta = main_beta,
@@ -1063,7 +1100,7 @@ build_spec_compare = function(x, y, group_indicator,
 
 
 # ==============================================================================
-# sampler_sublist()  — extract validated sampler list for new_bgm_spec()
+# sampler_sublist()  <U+2014> extract validated sampler list for new_bgm_spec()
 # ==============================================================================
 sampler_sublist = function(s) {
   list(
@@ -1083,7 +1120,7 @@ sampler_sublist = function(s) {
 
 
 # ==============================================================================
-# build_arguments()  — convert spec → arguments list for fit object
+# build_arguments()  <U+2014> convert spec <U+2192> arguments list for fit object
 # ==============================================================================
 #
 # Produces the $arguments list stored in every bgms/bgmCompare fit object.
@@ -1258,7 +1295,7 @@ build_arguments_compare = function(spec) {
 
 
 # ==============================================================================
-# print.bgm_spec()  — debugging summary
+# print.bgm_spec()  <U+2014> debugging summary
 # ==============================================================================
 #' @export
 print.bgm_spec = function(x, ...) {

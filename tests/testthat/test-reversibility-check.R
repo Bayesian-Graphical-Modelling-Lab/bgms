@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------------- #
-# Reversibility check — runtime forward-backward round-trip for RATTLE.
+# Reversibility check <U+2014> runtime forward-backward round-trip for RATTLE.
 #
 # Tests verify:
 #   1. Normal steps pass the reversibility check (reversible = TRUE)

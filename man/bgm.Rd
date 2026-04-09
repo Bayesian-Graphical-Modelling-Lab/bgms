@@ -12,6 +12,7 @@ bgm(
   warmup = 1000,
   interaction_prior = cauchy_prior(scale = 1),
   threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
+  means_prior = normal_prior(scale = 1),
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),
   na_action = c("listwise", "impute"),
@@ -45,11 +46,14 @@ bgm(
 )
 }
 \arguments{
-\item{x}{A data frame or matrix with \code{n} rows and \code{p} columns
-containing binary and ordinal responses. Variables are automatically
-recoded to non-negative integers (\code{0, 1, ..., m}). For regular
-ordinal variables, unobserved categories are collapsed; for
-Blume–Capel variables, all categories are retained.}
+\item{x}{A data frame or matrix with \code{n} rows and \code{p} columns.
+Columns may contain binary, ordinal, or continuous variables (see
+\code{variable_type}). Discrete variables are automatically recoded to
+non-negative integers (\code{0, 1, ..., m}); for regular ordinal
+variables, unobserved categories are collapsed, while Blume<U+2013>Capel
+variables retain all categories. Continuous variables are column-centered
+internally so that the GGM likelihood is formulated with a zero-mean
+assumption.}
 
 \item{variable_type}{Character or character vector. Specifies the type of
 each variable in \code{x}. Allowed values: \code{"ordinal"},
@@ -60,11 +64,11 @@ types fits a mixed MRF. Binary variables are automatically treated as
 \code{"ordinal"}. Default: \code{"ordinal"}.}
 
 \item{baseline_category}{Integer or vector. Baseline category used in
-Blume–Capel variables. Can be a single integer (applied to all) or a
+Blume<U+2013>Capel variables. Can be a single integer (applied to all) or a
 vector of length \code{p}. Required if at least one variable is of type
 \code{"blume-capel"}.}
 
-\item{iter}{Integer. Number of post–burn-in iterations (per chain).
+\item{iter}{Integer. Number of post<U+2013>burn-in iterations (per chain).
 Default: \code{1e3}.}
 
 \item{warmup}{Integer. Number of warmup iterations before collecting
@@ -76,18 +80,30 @@ interaction parameters, created by one of the prior constructor functions:
 \itemize{
 \item \code{\link{cauchy_prior}()}: Cauchy(0, scale) prior (default).
 \item \code{\link{normal_prior}()}: Normal(0, scale) prior.
+\item \code{\link{beta_prime_prior}()}: Beta-prime prior.
 }
-When supplied, overrides \code{pairwise_scale}.
 Default: \code{cauchy_prior(scale = 1)}.}
 
 \item{threshold_prior}{A prior specification object for threshold (main
 effect) parameters, created by one of the prior constructor functions:
 \itemize{
 \item \code{\link{beta_prime_prior}()}: Beta-prime prior (default).
-\item \code{\link{normal_threshold_prior}()}: Normal(0, scale) prior.
+\item \code{\link{cauchy_prior}()}: Cauchy(0, scale) prior.
+\item \code{\link{normal_prior}()}: Normal(0, scale) prior.
 }
-When supplied, overrides \code{main_alpha} and \code{main_beta}.
 Default: \code{beta_prime_prior(alpha = 0.5, beta = 0.5)}.}
+
+\item{means_prior}{A prior specification object for continuous variable
+means (mixed MRF models only), created by one of the prior constructor
+functions:
+\itemize{
+\item \code{\link{normal_prior}()}: Normal(0, scale) prior (default).
+\item \code{\link{cauchy_prior}()}: Cauchy(0, scale) prior.
+\item \code{\link{beta_prime_prior}()}: Beta-prime prior.
+}
+Only used when the model includes continuous variables. Ignored for
+pure ordinal or pure continuous (GGM) models.
+Default: \code{normal_prior(scale = 1)}.}
 
 \item{edge_selection}{Logical. Whether to perform Bayesian edge selection.
 If \code{FALSE}, the model estimates all edges. Default: \code{TRUE}.}
@@ -111,8 +127,8 @@ Default: \code{bernoulli_prior(0.5)}.}
 \item{update_method}{Character. Specifies how the MCMC sampler updates
 the model parameters:
 \describe{
-\item{"adaptive-metropolis"}{Componentwise adaptive Metropolis–Hastings
-with Robbins–Monro proposal adaptation.}
+\item{"adaptive-metropolis"}{Componentwise adaptive Metropolis<U+2013>Hastings
+with Robbins<U+2013>Monro proposal adaptation.}
 \item{"hamiltonian-mc"}{\strong{Deprecated.} Hamiltonian Monte Carlo
 with fixed path length. Use \code{"nuts"} instead. This option will
 be removed in a future release.}
@@ -291,7 +307,7 @@ posterior inclusion probabilities for all the possible number of clusters.
 \item{\code{allocations}}{List of cluster allocations
 (if SBM prior used).}
 \item{\code{nchains}}{Number of chains.}
-\item{\code{niter}}{Number of post–warmup iterations per chain.}
+\item{\code{niter}}{Number of post<U+2013>warmup iterations per chain.}
 \item{\code{parameter_names}}{Named lists of parameter labels.}
 }
 
@@ -314,172 +330,20 @@ mixed MRF. Optionally, it performs Bayesian edge selection using
 spike-and-slab priors to infer the network structure.
 }
 \details{
-This function models the joint distribution of binary, ordinal, continuous,
-or mixed variables using a Markov Random Field, with support for edge
-selection through Bayesian variable selection. The statistical foundation
-of the model is described in
-\insertCite{MarsmanVandenBerghHaslbeck_2025;textual}{bgms}, where the ordinal
-MRF model and its Bayesian estimation procedure were first introduced. While
-the implementation in \pkg{bgms} has since been extended and updated (e.g.,
-alternative priors, parallel chains, NUTS warmup), it builds on that
-original framework.
+Depending on the variable types, the model is an ordinal MRF, a Gaussian
+graphical model (GGM), or a mixed MRF. Both regular ordinal variables and
+Blume--Capel ordinal variables (with a baseline category) are supported.
 
-Key components of the model are described in the sections below.
+Edge selection uses spike-and-slab priors with Bernoulli, Beta-Bernoulli,
+or Stochastic-Block inclusion priors. Parameters are sampled with NUTS
+(default) or adaptive Metropolis--Hastings, with a multi-stage warmup
+schedule. Missing data can be handled via listwise deletion or Gibbs
+imputation.
+
+For full details on model specification, prior choices, warmup, and
+output interpretation, see the package website at
+\url{https://bayesian-graphical-modelling-lab.github.io/bgms-docs/}.
 }
-\section{Ordinal Variables}{
-
-The function supports two types of ordinal variables:
-
-\strong{Regular ordinal variables}:
-Assigns a category threshold parameter to each response category except the
-lowest. The model imposes no additional constraints on the distribution of
-category responses.
-
-\strong{Blume-Capel ordinal variables}:
-Assume a baseline category (e.g., a “neutral” response) and score responses
-by distance from this baseline. Category thresholds are modeled as:
-
-\deqn{\mu_{c} = \alpha \cdot (c-b) + \beta \cdot (c - b)^2}
-
-where:
-\itemize{
-\item \eqn{\mu_{c}}: category threshold for category \eqn{c}
-\item \eqn{\alpha}: linear trend across categories
-\item \eqn{\beta}: preference toward or away from the baseline
-\itemize{
-\item If \eqn{\beta < 0}, the model favors responses near the baseline
-category;
-\item if \eqn{\beta > 0}, it favors responses farther away (i.e.,
-extremes).
-}
-\item \eqn{b}: baseline category
-}
-Accordingly, pairwise interactions between Blume-Capel variables are modeled
-in terms of \eqn{c-b} scores.
-}
-
-\section{Edge Selection}{
-
-When \code{edge_selection = TRUE}, the function performs Bayesian variable
-selection on the pairwise interactions (edges) in the MRF using
-spike-and-slab priors.
-
-Supported priors for edge inclusion:
-\itemize{
-\item \strong{Bernoulli}: Fixed inclusion probability across edges.
-\item \strong{Beta-Bernoulli}: Inclusion probability is assigned a Beta
-prior distribution.
-\item \strong{Stochastic-Block}: Cluster-based edge priors with Beta,
-Dirichlet, and Poisson hyperpriors.
-}
-
-All priors operate via binary indicator variables controlling the inclusion
-or exclusion of each edge in the MRF.
-}
-
-\section{Prior Distributions}{
-
-
-\itemize{
-\item \strong{Pairwise effects}: Modeled with a Cauchy (slab) prior.
-\item \strong{Main effects}: Modeled using a beta-prime
-distribution.
-\item \strong{Edge indicators}: Use either a Bernoulli, Beta-Bernoulli, or
-Stochastic-Block prior (as above).
-}
-}
-
-\section{Sampling Algorithms and Warmup}{
-
-
-Parameters are updated within a Gibbs framework, but the conditional
-updates can be carried out using different algorithms:
-\itemize{
-\item \strong{Adaptive Metropolis–Hastings}: Componentwise random–walk
-updates for main effects and pairwise effects. Proposal standard
-deviations are adapted during burn–in via Robbins–Monro updates
-toward a target acceptance rate.
-
-\item \strong{Hamiltonian Monte Carlo (HMC)} (\emph{deprecated}): Joint
-updates of all parameters using fixed–length leapfrog trajectories.
-This method is deprecated; use NUTS instead.
-
-\item \strong{No–U–Turn Sampler (NUTS)}: An adaptive extension of HMC
-that dynamically chooses trajectory lengths. Warmup uses a staged
-adaptation schedule (fast–slow–fast) to stabilize step size and, if
-enabled, the mass matrix.
-}
-
-When \code{edge_selection = TRUE}, updates of edge–inclusion indicators
-are carried out with Metropolis–Hastings steps. These are switched on
-after the core warmup phase, ensuring that graph updates occur only once
-the samplers’ tuning parameters (step size, mass matrix, proposal SDs)
-have stabilized.
-
-After warmup, adaptation is disabled. Step size and mass matrix are
-fixed at their learned values, and proposal SDs remain constant.
-}
-
-\section{Warmup and Adaptation}{
-
-
-The warmup procedure in \code{bgm} uses a multi-stage adaptation
-schedule \insertCite{stan-manual}{bgms}. Warmup iterations are
-split into several phases:
-
-\itemize{
-\item \strong{Stage 1 (fast adaptation)}: A short initial interval
-where only step size (for NUTS) is adapted, allowing the chain
-to move quickly toward the typical set.
-
-\item \strong{Stage 2 (slow windows)}: A sequence of expanding,
-memoryless windows where both step size and, if
-\code{learn_mass_matrix = TRUE}, the diagonal mass matrix are
-adapted. Each window ends with a reset of the dual–averaging scheme
-for improved stability.
-
-\item \strong{Stage 3a (final fast interval)}: A short interval at the
-end of the core warmup where the step size is adapted one final time.
-
-\item \strong{Stage 3b (proposal–SD tuning)}: Only active when
-\code{edge_selection = TRUE} under NUTS. In this phase,
-Robbins–Monro adaptation of proposal standard deviations is
-performed for the Metropolis steps used in edge–selection moves.
-
-\item \strong{Stage 3c (graph selection warmup)}: Also only relevant
-when \code{edge_selection = TRUE}. At the start of this phase, a
-random graph structure is initialized, and Metropolis–Hastings
-updates for edge inclusion indicators are switched on.
-}
-
-When \code{edge_selection = FALSE}, the total number of warmup iterations
-equals the user–specified \code{burnin}. When \code{edge_selection = TRUE}
-and \code{update_method} is \code{"nuts"},
-the schedule automatically appends additional Stage-3b and Stage-3c
-intervals, so the total warmup is strictly greater than the requested
-\code{burnin}.
-
-After all warmup phases, the sampler transitions to the sampling phase
-with adaptation disabled. Step size and mass matrix (for NUTS) are
-fixed at their learned values, and proposal SDs remain constant.
-
-This staged design improves stability of proposals and ensures that both
-local parameters (step size) and global parameters (mass matrix, proposal
-SDs) are tuned before collecting posterior samples.
-
-For adaptive Metropolis–Hastings runs, step size and mass matrix
-adaptation are not relevant. Proposal SDs are tuned continuously during
-burn–in using Robbins–Monro updates, without staged fast/slow intervals.
-}
-
-\section{Missing Data}{
-
-
-If \code{na_action = "listwise"}, rows with missing values are removed.
-If \code{na_action = "impute"}, missing values are imputed within the
-MCMC loop via Gibbs sampling.
-}
-
 \examples{
 \donttest{
 # Run bgm on subset of the Wenchuan dataset
@@ -497,7 +361,7 @@ summary(fit)$pairwise
 \insertAllCited{}
 }
 \seealso{
-\code{vignette("intro", package = "bgms")} for a worked example.
+\code{vignette(<U+201C>intro<U+201D>, package = <U+201C>bgms<U+201D>)} for a worked example.
 
 Other model-fitting: 
 \code{\link{bgmCompare}()}

@@ -8,29 +8,29 @@
 #' mixed MRF. Optionally, it performs Bayesian edge selection using
 #' spike-and-slab priors to infer the network structure.
 #'
-#’ @details
-#’ Depending on the variable types, the model is an ordinal MRF, a Gaussian
-#’ graphical model (GGM), or a mixed MRF. Both regular ordinal variables and
-#’ Blume--Capel ordinal variables (with a baseline category) are supported.
-#’
-#’ Edge selection uses spike-and-slab priors with Bernoulli, Beta-Bernoulli,
-#’ or Stochastic-Block inclusion priors. Parameters are sampled with NUTS
-#’ (default) or adaptive Metropolis--Hastings, with a multi-stage warmup
-#’ schedule. Missing data can be handled via listwise deletion or Gibbs
-#’ imputation.
-#’
-#’ For full details on model specification, prior choices, warmup, and
-#’ output interpretation, see the package website at
-#’ \url{https://bayesian-graphical-modelling-lab.github.io/bgms-docs/}.
-#’
-#’ @seealso \code{vignette(“intro”, package = “bgms”)} for a worked example.
-#’ @family model-fitting
+#' @details
+#' Depending on the variable types, the model is an ordinal MRF, a Gaussian
+#' graphical model (GGM), or a mixed MRF. Both regular ordinal variables and
+#' Blume--Capel ordinal variables (with a baseline category) are supported.
+#'
+#' Edge selection uses spike-and-slab priors with Bernoulli, Beta-Bernoulli,
+#' or Stochastic-Block inclusion priors. Parameters are sampled with NUTS
+#' (default) or adaptive Metropolis--Hastings, with a multi-stage warmup
+#' schedule. Missing data can be handled via listwise deletion or Gibbs
+#' imputation.
+#'
+#' For full details on model specification, prior choices, warmup, and
+#' output interpretation, see the package website at
+#' \url{https://bayesian-graphical-modelling-lab.github.io/bgms-docs/}.
+#'
+#' @seealso \code{vignette(<U+201C>intro<U+201D>, package = <U+201C>bgms<U+201D>)} for a worked example.
+#' @family model-fitting
 #'
 #' @param x A data frame or matrix with \code{n} rows and \code{p} columns.
 #'   Columns may contain binary, ordinal, or continuous variables (see
 #'   \code{variable_type}). Discrete variables are automatically recoded to
 #'   non-negative integers (\code{0, 1, ..., m}); for regular ordinal
-#'   variables, unobserved categories are collapsed, while Blume–Capel
+#'   variables, unobserved categories are collapsed, while Blume<U+2013>Capel
 #'   variables retain all categories. Continuous variables are column-centered
 #'   internally so that the GGM likelihood is formulated with a zero-mean
 #'   assumption.
@@ -44,11 +44,11 @@
 #'   \code{"ordinal"}. Default: \code{"ordinal"}.
 #'
 #' @param baseline_category Integer or vector. Baseline category used in
-#'   Blume–Capel variables. Can be a single integer (applied to all) or a
+#'   Blume<U+2013>Capel variables. Can be a single integer (applied to all) or a
 #'   vector of length \code{p}. Required if at least one variable is of type
 #'   \code{"blume-capel"}.
 #'
-#' @param iter Integer. Number of post–burn-in iterations (per chain).
+#' @param iter Integer. Number of post<U+2013>burn-in iterations (per chain).
 #'   Default: \code{1e3}.
 #'
 #' @param warmup Integer. Number of warmup iterations before collecting
@@ -60,18 +60,30 @@
 #'   \itemize{
 #'     \item \code{\link{cauchy_prior}()}: Cauchy(0, scale) prior (default).
 #'     \item \code{\link{normal_prior}()}: Normal(0, scale) prior.
+#'     \item \code{\link{beta_prime_prior}()}: Beta-prime prior.
 #'   }
-#'   When supplied, overrides \code{pairwise_scale}.
 #'   Default: \code{cauchy_prior(scale = 1)}.
 #'
 #' @param threshold_prior A prior specification object for threshold (main
 #'   effect) parameters, created by one of the prior constructor functions:
 #'   \itemize{
 #'     \item \code{\link{beta_prime_prior}()}: Beta-prime prior (default).
-#'     \item \code{\link{normal_threshold_prior}()}: Normal(0, scale) prior.
+#'     \item \code{\link{cauchy_prior}()}: Cauchy(0, scale) prior.
+#'     \item \code{\link{normal_prior}()}: Normal(0, scale) prior.
 #'   }
-#'   When supplied, overrides \code{main_alpha} and \code{main_beta}.
 #'   Default: \code{beta_prime_prior(alpha = 0.5, beta = 0.5)}.
+#'
+#' @param means_prior A prior specification object for continuous variable
+#'   means (mixed MRF models only), created by one of the prior constructor
+#'   functions:
+#'   \itemize{
+#'     \item \code{\link{normal_prior}()}: Normal(0, scale) prior (default).
+#'     \item \code{\link{cauchy_prior}()}: Cauchy(0, scale) prior.
+#'     \item \code{\link{beta_prime_prior}()}: Beta-prime prior.
+#'   }
+#'   Only used when the model includes continuous variables. Ignored for
+#'   pure ordinal or pure continuous (GGM) models.
+#'   Default: \code{normal_prior(scale = 1)}.
 #'
 #' @param pairwise_scale `r lifecycle::badge("deprecated")` Double.
 #'   Scale of the Cauchy prior for pairwise
@@ -173,8 +185,8 @@
 #' @param update_method Character. Specifies how the MCMC sampler updates
 #'   the model parameters:
 #'   \describe{
-#'     \item{"adaptive-metropolis"}{Componentwise adaptive Metropolis–Hastings
-#'       with Robbins–Monro proposal adaptation.}
+#'     \item{"adaptive-metropolis"}{Componentwise adaptive Metropolis<U+2013>Hastings
+#'       with Robbins<U+2013>Monro proposal adaptation.}
 #'     \item{"hamiltonian-mc"}{\strong{Deprecated.} Hamiltonian Monte Carlo
 #'       with fixed path length. Use \code{"nuts"} instead. This option will
 #'       be removed in a future release.}
@@ -278,7 +290,7 @@
 #'       \item{\code{allocations}}{List of cluster allocations
 #'         (if SBM prior used).}
 #'       \item{\code{nchains}}{Number of chains.}
-#'       \item{\code{niter}}{Number of post–warmup iterations per chain.}
+#'       \item{\code{niter}}{Number of post<U+2013>warmup iterations per chain.}
 #'       \item{\code{parameter_names}}{Named lists of parameter labels.}
 #'     }
 #'
@@ -316,6 +328,7 @@ bgm = function(
   warmup = 1e3,
   interaction_prior = cauchy_prior(scale = 1),
   threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
+  means_prior = normal_prior(scale = 1),
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),
   na_action = c("listwise", "impute"),
@@ -357,10 +370,12 @@ bgm = function(
 
   # --- Legacy deprecation: v0.1.6.0 renames -----------------------------------
   if(hasArg(interaction_scale)) {
-    lifecycle::deprecate_warn("0.1.6.0", "bgm(interaction_scale =)",
-                              "bgm(interaction_prior =)")
+    lifecycle::deprecate_warn(
+      "0.1.6.0", "bgm(interaction_scale =)",
+      "bgm(interaction_prior =)"
+    )
     if(!hasArg(pairwise_scale) &&
-       identical(interaction_prior, cauchy_prior(scale = 1))) {
+      identical(interaction_prior, cauchy_prior(scale = 1))) {
       interaction_prior = cauchy_prior(scale = interaction_scale)
     }
   }
@@ -389,17 +404,21 @@ bgm = function(
 
   # --- Legacy deprecation: scalar prior parameters ----------------------------
   if(hasArg(pairwise_scale)) {
-    lifecycle::deprecate_warn("0.3.0", "bgm(pairwise_scale =)",
-                              "bgm(interaction_prior =)")
+    lifecycle::deprecate_warn(
+      "0.3.0", "bgm(pairwise_scale =)",
+      "bgm(interaction_prior =)"
+    )
     if(identical(interaction_prior, cauchy_prior(scale = 1))) {
       interaction_prior = cauchy_prior(scale = pairwise_scale)
     }
   }
 
   if(hasArg(main_alpha) || hasArg(main_beta)) {
-    lifecycle::deprecate_warn("0.3.0",
-                              "bgm(main_alpha =)",
-                              "bgm(threshold_prior =)")
+    lifecycle::deprecate_warn(
+      "0.3.0",
+      "bgm(main_alpha =)",
+      "bgm(threshold_prior =)"
+    )
     if(identical(threshold_prior, beta_prime_prior(0.5, 0.5))) {
       ma = if(hasArg(main_alpha)) main_alpha else 0.5
       mb = if(hasArg(main_beta)) main_beta else 0.5
@@ -409,10 +428,13 @@ bgm = function(
 
   # Handle edge_prior: accept both string (deprecated) and object (new)
   if(is.character(edge_prior)) {
-    lifecycle::deprecate_warn("0.3.0", "bgm(edge_prior = 'must be a prior object')",
-                              "bgm(edge_prior = 'bernoulli_prior()')")
+    lifecycle::deprecate_warn(
+      "0.3.0", "bgm(edge_prior = 'must be a prior object')",
+      "bgm(edge_prior = 'bernoulli_prior()')"
+    )
     edge_prior_str = match.arg(edge_prior,
-      choices = c("Bernoulli", "Beta-Bernoulli", "Stochastic-Block"))
+      choices = c("Bernoulli", "Beta-Bernoulli", "Stochastic-Block")
+    )
 
     ip = if(hasArg(inclusion_probability)) inclusion_probability else 0.5
     bba = if(hasArg(beta_bernoulli_alpha)) beta_bernoulli_alpha else 1
@@ -434,18 +456,23 @@ bgm = function(
   } else {
     # Warn if loose edge params are also supplied alongside an object
     if(hasArg(inclusion_probability)) {
-      lifecycle::deprecate_warn("0.3.0", "bgm(inclusion_probability =)",
-                                "bgm(edge_prior = 'bernoulli_prior()')")
+      lifecycle::deprecate_warn(
+        "0.3.0", "bgm(inclusion_probability =)",
+        "bgm(edge_prior = 'bernoulli_prior()')"
+      )
     }
     if(hasArg(beta_bernoulli_alpha)) {
-      lifecycle::deprecate_warn("0.3.0", "bgm(beta_bernoulli_alpha =)",
-                                "bgm(edge_prior = 'beta_bernoulli_prior()')")
+      lifecycle::deprecate_warn(
+        "0.3.0", "bgm(beta_bernoulli_alpha =)",
+        "bgm(edge_prior = 'beta_bernoulli_prior()')"
+      )
     }
   }
 
   # --- Unpack prior objects to flat parameters for bgm_spec -------------------
   ip = unpack_interaction_prior(interaction_prior)
   tp = unpack_threshold_prior(threshold_prior)
+  mp = unpack_parameter_prior(means_prior)
 
   # --- Build spec, sample, build output ----------------------------------------
   spec = bgm_spec(
@@ -456,10 +483,16 @@ bgm = function(
     na_action = na_action,
     interaction_prior_type = ip$interaction_prior_type,
     pairwise_scale = ip$pairwise_scale,
+    interaction_alpha = ip$interaction_alpha,
+    interaction_beta = ip$interaction_beta,
     threshold_prior_type = tp$threshold_prior_type,
     main_alpha = tp$main_alpha,
     main_beta = tp$main_beta,
     threshold_scale = tp$threshold_scale,
+    means_prior_type = mp$prior_type,
+    means_scale = mp$scale,
+    means_alpha = mp$alpha,
+    means_beta = mp$beta,
     standardize = standardize,
     edge_selection = edge_selection,
     edge_prior = edge_prior,

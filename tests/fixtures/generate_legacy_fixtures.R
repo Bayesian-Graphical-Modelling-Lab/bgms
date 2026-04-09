@@ -27,7 +27,7 @@ set.seed(42)
 test_data = matrix(sample(0:1, 60, replace = TRUE), ncol = 3)
 colnames(test_data) = c("X1", "X2", "X3")
 
-# Version → snapshot date mapping (use date when version was current)
+# Version <U+2192> snapshot date mapping (use date when version was current)
 # Dates derived from CRAN archive release dates
 version_snapshots = list(
   "0.1.3"   = "2024-03-15", # Released 2024-02-25

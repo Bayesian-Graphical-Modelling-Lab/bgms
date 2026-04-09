@@ -25,7 +25,7 @@
 #' @param x A data frame or matrix of binary and ordinal responses for
 #'   Group 1. Variables should be coded as nonnegative integers starting at
 #'   0. For ordinal variables, unused categories are collapsed; for
-#'   Blume–Capel variables, all categories are retained.
+#'   Blume<U+2013>Capel variables, all categories are retained.
 #' @param y Optional data frame or matrix for Group 2 (two-group designs).
 #'   Must have the same variables (columns) as \code{x}.
 #' @param group_indicator Optional integer vector of group memberships for
@@ -41,7 +41,7 @@
 #' @param variable_type Character vector specifying type of each variable:
 #'   \code{"ordinal"} (default) or \code{"blume-capel"}.
 #' @param baseline_category Integer or vector giving the baseline category
-#'   for Blume–Capel variables.
+#'   for Blume<U+2013>Capel variables.
 #' @param difference_scale Double. Scale of the Cauchy prior for difference
 #'   parameters. Default: \code{1}.
 #' @param difference_prior Character. Prior for difference inclusion:
@@ -60,12 +60,12 @@
 #'   effect) parameters, created by one of the prior constructor functions:
 #'   \itemize{
 #'     \item \code{\link{beta_prime_prior}()}: Beta-prime prior (default).
-#'     \item \code{\link{normal_threshold_prior}()}: Normal(0, scale) prior.
+#'     \item \code{\link{normal_prior}()}: Normal(0, scale) prior.
 #'   }
 #'   When supplied, overrides \code{main_alpha} and \code{main_beta}.
 #'   Default: \code{beta_prime_prior(alpha = 0.5, beta = 0.5)}.
 #' @param beta_bernoulli_alpha,beta_bernoulli_beta Doubles. Shape parameters
-#'   of the Beta prior for inclusion probabilities in the Beta–Bernoulli
+#'   of the Beta prior for inclusion probabilities in the Beta<U+2013>Bernoulli
 #'   model. Defaults: \code{1}.
 #' @param pairwise_scale Double. Scale of the Cauchy prior for baseline
 #'   pairwise interactions. Default: \code{1}.
@@ -79,7 +79,7 @@
 #'   See \code{\link{bgm}} for details on the adjustment. Default: \code{FALSE}.
 #' @param main_alpha,main_beta Doubles. Shape parameters of the beta-prime
 #'   prior for baseline threshold parameters. Defaults: \code{0.5}.
-#' @param iter Integer. Number of post–warmup iterations per chain.
+#' @param iter Integer. Number of post<U+2013>warmup iterations per chain.
 #'   Default: \code{1e3}.
 #' @param warmup Integer. Number of warmup iterations before sampling.
 #'   Default: \code{1e3}.
@@ -283,26 +283,32 @@ bgmCompare = function(
   }
 
   if(hasArg(interaction_scale)) {
-    lifecycle::deprecate_warn("0.1.6.0", "bgmCompare(interaction_scale =)",
-                              "bgmCompare(interaction_prior =)")
+    lifecycle::deprecate_warn(
+      "0.1.6.0", "bgmCompare(interaction_scale =)",
+      "bgmCompare(interaction_prior =)"
+    )
     if(!hasArg(pairwise_scale) &&
-       identical(interaction_prior, cauchy_prior(scale = 1))) {
+      identical(interaction_prior, cauchy_prior(scale = 1))) {
       interaction_prior = cauchy_prior(scale = interaction_scale)
     }
   }
 
   if(hasArg(pairwise_scale)) {
-    lifecycle::deprecate_warn("0.3.0", "bgmCompare(pairwise_scale =)",
-                              "bgmCompare(interaction_prior =)")
+    lifecycle::deprecate_warn(
+      "0.3.0", "bgmCompare(pairwise_scale =)",
+      "bgmCompare(interaction_prior =)"
+    )
     if(identical(interaction_prior, cauchy_prior(scale = 1))) {
       interaction_prior = cauchy_prior(scale = pairwise_scale)
     }
   }
 
   if(hasArg(threshold_alpha) || hasArg(threshold_beta)) {
-    lifecycle::deprecate_warn("0.1.6.0",
+    lifecycle::deprecate_warn(
+      "0.1.6.0",
       "bgmCompare(threshold_alpha =, threshold_beta =)",
-      "bgmCompare(threshold_prior =)")
+      "bgmCompare(threshold_prior =)"
+    )
     if(identical(threshold_prior, beta_prime_prior(0.5, 0.5))) {
       ta = if(hasArg(threshold_alpha)) threshold_alpha else 0.5
       tb = if(hasArg(threshold_beta)) threshold_beta else 0.5
@@ -311,8 +317,10 @@ bgmCompare = function(
   }
 
   if(hasArg(main_alpha) || hasArg(main_beta)) {
-    lifecycle::deprecate_warn("0.3.0", "bgmCompare(main_alpha =)",
-                              "bgmCompare(threshold_prior =)")
+    lifecycle::deprecate_warn(
+      "0.3.0", "bgmCompare(main_alpha =)",
+      "bgmCompare(threshold_prior =)"
+    )
     if(identical(threshold_prior, beta_prime_prior(0.5, 0.5))) {
       ma = if(hasArg(main_alpha)) main_alpha else 0.5
       mb = if(hasArg(main_beta)) main_beta else 0.5
@@ -347,6 +355,8 @@ bgmCompare = function(
     na_action = na_action,
     interaction_prior_type = ip$interaction_prior_type,
     pairwise_scale = ip$pairwise_scale,
+    interaction_alpha = ip$interaction_alpha,
+    interaction_beta = ip$interaction_beta,
     threshold_prior_type = tp$threshold_prior_type,
     main_alpha = tp$main_alpha,
     main_beta = tp$main_beta,

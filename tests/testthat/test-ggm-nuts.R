@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------------- #
-# Phase 3 — Correctness validation for GGM NUTS sampler.
+# Phase 3 <U+2014> Correctness validation for GGM NUTS sampler.
 #
 # Tests compare NUTS posterior to MH baseline using long chains.
 # Gated behind BGMS_RUN_SLOW_TESTS because they take several minutes.
@@ -209,7 +209,7 @@ test_that("Geweke: one NUTS transition preserves joint distribution (p=4)", {
     set.seed(r + 1000)
 
     # Draw K from Wishart prior (df = p, Scale = I)
-    # The bgms prior on K is: log p(K) ∝ (n/2) log det K - (1/2) tr(S K)
+    # The bgms prior on K is: log p(K) <U+221D> (n/2) log det K - (1/2) tr(S K)
     # with a Wishart(df=1, I) base measure on K.
     # For Geweke, simply draw K ~ Wishart(p+1, I) so it's PD.
     K = stats::rWishart(1, df = p + 1, Sigma = diag(p))[, , 1]

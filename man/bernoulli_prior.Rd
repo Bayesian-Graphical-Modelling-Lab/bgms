@@ -34,7 +34,6 @@ Other prior-constructors:
 \code{\link{beta_prime_prior}()},
 \code{\link{cauchy_prior}()},
 \code{\link{normal_prior}()},
-\code{\link{normal_threshold_prior}()},
 \code{\link{sbm_prior}()}
 }
 \concept{prior-constructors}

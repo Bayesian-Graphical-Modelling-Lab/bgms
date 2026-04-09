@@ -7,13 +7,11 @@
 unpack_threshold_prior(prior)
 }
 \arguments{
-\item{prior}{A \code{bgms_threshold_prior} object, or numeric values
-(for backward compatibility with \code{main_alpha}, \code{main_beta}).}
+\item{prior}{A \code{bgms_parameter_prior} object.}
 }
 \value{
 A list with \code{threshold_prior_type} (character),
-\code{main_alpha}, \code{main_beta} (for beta-prime), or
-\code{threshold_scale} (for normal).
+\code{main_alpha}, \code{main_beta}, and \code{threshold_scale}.
 }
 \description{
 Unpack a threshold prior into the flat parameters used by bgm_spec

@@ -14,7 +14,7 @@
 #   Rscript tests/compliance/generate_fixtures.R
 #
 # Output:
-#   tests/compliance/fixtures/  — one .rds per configuration + manifest.rds
+#   tests/compliance/fixtures/  <U+2014> one .rds per configuration + manifest.rds
 #
 # ==============================================================================
 
@@ -52,7 +52,7 @@ if(installed_version != "0.1.6.3") {
 }
 
 # ==============================================================================
-# Configuration matrix — OMRF/Blume-Capel bgm() configurations
+# Configuration matrix <U+2014> OMRF/Blume-Capel bgm() configurations
 # ==============================================================================
 #
 # Covers:
@@ -63,7 +63,7 @@ if(installed_version != "0.1.6.3") {
 #   Edge selection: TRUE, FALSE
 #   Missing data:   listwise, impute
 #
-# Short iterations (200 iter / 200 warmup / 2 chains) — bitwise identity does
+# Short iterations (200 iter / 200 warmup / 2 chains) <U+2014> bitwise identity does
 # not require convergence.
 # ==============================================================================
 

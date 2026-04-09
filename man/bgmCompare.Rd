@@ -59,7 +59,7 @@ bgmCompare(
 \item{x}{A data frame or matrix of binary and ordinal responses for
 Group 1. Variables should be coded as nonnegative integers starting at
 0. For ordinal variables, unused categories are collapsed; for
-Blume–Capel variables, all categories are retained.}
+Blume<U+2013>Capel variables, all categories are retained.}
 
 \item{y}{Optional data frame or matrix for Group 2 (two-group designs).
 Must have the same variables (columns) as \code{x}.}
@@ -81,7 +81,7 @@ pairwise selection under the Beta-Bernoulli prior, the default is
 \code{"ordinal"} (default) or \code{"blume-capel"}.}
 
 \item{baseline_category}{Integer or vector giving the baseline category
-for Blume–Capel variables.}
+for Blume<U+2013>Capel variables.}
 
 \item{difference_scale}{Double. Scale of the Cauchy prior for difference
 parameters. Default: \code{1}.}
@@ -105,12 +105,12 @@ Default: \code{cauchy_prior(scale = 1)}.}
 effect) parameters, created by one of the prior constructor functions:
 \itemize{
 \item \code{\link{beta_prime_prior}()}: Beta-prime prior (default).
-\item \code{\link{normal_threshold_prior}()}: Normal(0, scale) prior.
+\item \code{\link{normal_prior}()}: Normal(0, scale) prior.
 }
 When supplied, overrides \code{main_alpha} and \code{main_beta}.
 Default: \code{beta_prime_prior(alpha = 0.5, beta = 0.5)}.}
 
-\item{iter}{Integer. Number of post–warmup iterations per chain.
+\item{iter}{Integer. Number of post<U+2013>warmup iterations per chain.
 Default: \code{1e3}.}
 
 \item{warmup}{Integer. Number of warmup iterations before sampling.
@@ -168,7 +168,7 @@ pairwise interactions. Default: \code{1}.}
 prior for baseline threshold parameters. Defaults: \code{0.5}.}
 
 \item{beta_bernoulli_alpha, beta_bernoulli_beta}{Doubles. Shape parameters
-of the Beta prior for inclusion probabilities in the Beta–Bernoulli
+of the Beta prior for inclusion probabilities in the Beta<U+2013>Bernoulli
 model. Defaults: \code{1}.}
 
 \item{main_difference_model, reference_category, pairwise_difference_scale, main_difference_scale, pairwise_difference_prior, main_difference_prior, pairwise_difference_probability, main_difference_probability, pairwise_beta_bernoulli_alpha, pairwise_beta_bernoulli_beta, main_beta_bernoulli_alpha, main_beta_bernoulli_beta, interaction_scale, threshold_alpha, threshold_beta, burnin, save}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}}
@@ -212,73 +212,16 @@ Groups can be defined either by supplying two separate datasets (\code{x} and
 selection can be applied to identify differences across groups.
 }
 \details{
-This function extends the ordinal MRF framework
-\insertCite{MarsmanVandenBerghHaslbeck_2025;textual}{bgms} to multiple
-groups. The basic idea of modeling, analyzing, and testing group
-differences in MRFs was introduced in
-\insertCite{MarsmanWaldorpSekulovskiHaslbeck_2024;textual}{bgms}, where
-two–group comparisons were conducted using adaptive Metropolis sampling.
-The present implementation generalizes that approach to more than two
-groups and supports additional samplers (NUTS) with staged warmup
-adaptation.
+Group-specific parameters are decomposed into a shared baseline plus
+group differences that sum to zero. Difference selection uses
+spike-and-slab priors (Bernoulli or Beta-Bernoulli). Parameters are
+sampled with NUTS (default) or adaptive Metropolis--Hastings, using the
+same multi-stage warmup schedule as \code{\link{bgm}}.
 
-Key components of the model:
+For full details on model specification, prior choices, and output
+interpretation, see the package website at
+\url{https://bayesian-graphical-modelling-lab.github.io/bgms-docs/}.
 }
-\section{Pairwise Interactions}{
-
-For variables \eqn{i} and \eqn{j}, the group-specific interaction is
-represented as:
-\deqn{\theta_{ij}^{(g)} = \phi_{ij} + \delta_{ij}^{(g)},}
-where \eqn{\phi_{ij}} is the baseline effect and
-\eqn{\delta_{ij}^{(g)}} are group differences constrained to sum to zero.
-}
-
-\section{Ordinal Variables}{
-
-\strong{Regular ordinal variables}: category thresholds are decomposed into a
-baseline plus group differences for each category.
-
-\strong{Blume–Capel variables}: category thresholds are quadratic in the
-category index, with both the linear and quadratic terms split into a
-baseline plus group differences.
-}
-
-\section{Variable Selection}{
-
-When \code{difference_selection = TRUE}, spike-and-slab priors are
-applied to difference parameters:
-\itemize{
-\item \strong{Bernoulli}: fixed prior inclusion probability.
-\item \strong{Beta–Bernoulli}: inclusion probability given a Beta prior.
-}
-}
-
-\section{Sampling Algorithms and Warmup}{
-
-Parameters are updated within a Gibbs framework, using the same
-sampling algorithms and staged warmup scheme described in
-\code{\link{bgm}}:
-\itemize{
-\item \strong{Adaptive Metropolis–Hastings}: componentwise random–walk
-proposals with Robbins–Monro adaptation of proposal SDs.
-\item \strong{Hamiltonian Monte Carlo (HMC)} (\emph{deprecated}): joint
-updates with fixed leapfrog trajectories. This method is deprecated;
-use NUTS instead.
-\item \strong{No–U–Turn Sampler (NUTS)}: an adaptive HMC variant with
-dynamic trajectory lengths; warmup uses a staged adaptation schedule.
-}
-
-For details on the staged adaptation schedule (fast–slow–fast phases),
-see \code{\link{bgm}}. In addition, when
-\code{difference_selection = TRUE}, updates of inclusion indicators are
-delayed until late warmup. In NUTS, this appends two extra phases
-(Stage-3b and Stage-3c), so that the total number of warmup iterations
-exceeds the user-specified \code{warmup}.
-
-After warmup, adaptation is disabled: step size and mass matrix are fixed
-at their learned values, and proposal SDs remain constant.
-}
-
 \examples{
 \dontrun{
 # Run bgmCompare on subset of the Boredom dataset

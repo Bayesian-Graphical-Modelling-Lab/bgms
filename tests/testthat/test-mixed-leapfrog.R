@@ -479,7 +479,7 @@ test_that("Cholesky diagonal stays positive after trajectory", {
     chol_diag_indices[col] = chol_offset + idx
   }
 
-  # log(L_cc) values — exp should be positive (always true for real values,
+  # log(L_cc) values <U+2014> exp should be positive (always true for real values,
   # but check finiteness)
   for(j in seq_len(q)) {
     log_diag = x_final[chol_diag_indices[j]]

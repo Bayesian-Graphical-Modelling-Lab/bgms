@@ -374,7 +374,7 @@ coef.bgmCompare = function(object, ...) {
   if(!is.null(array3d_ind)) {
     mean_ind = apply(array3d_ind, 3, mean)
 
-    # reconstruct VxV matrix using the sampler’s interleaved order:
+    # reconstruct VxV matrix using the sampler<U+2019>s interleaved order:
     # (1,1),(1,2),...,(1,V),(2,2),...,(2,V),...,(V,V)
     V = num_variables
     stopifnot(length(mean_ind) == V * (V + 1L) / 2L)

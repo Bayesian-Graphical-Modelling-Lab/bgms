@@ -2,7 +2,7 @@
 % Please edit documentation in R/priors.R
 \name{cauchy_prior}
 \alias{cauchy_prior}
-\title{Cauchy Prior for Pairwise Interactions}
+\title{Cauchy Prior for Model Parameters}
 \usage{
 cauchy_prior(scale = 1)
 }
@@ -11,13 +11,13 @@ cauchy_prior(scale = 1)
 Cauchy distribution. Default: \code{1}.}
 }
 \value{
-An object of class \code{"bgms_interaction_prior"} with
+An object of class \code{"bgms_parameter_prior"} with
 \code{family = "cauchy"}.
 }
 \description{
-Specifies a Cauchy(0, scale) prior on pairwise interaction parameters.
-This is the default prior in \code{\link{bgm}} and produces heavy-tailed
-shrinkage toward zero.
+Specifies a Cauchy(0, scale) prior on model parameters.
+This is the default prior for pairwise interactions in \code{\link{bgm}}
+and produces heavy-tailed shrinkage toward zero.
 }
 \examples{
 cauchy_prior()
@@ -25,14 +25,14 @@ cauchy_prior(scale = 2.5)
 
 }
 \seealso{
-\code{\link{normal_prior}}, \code{\link{bgm}}
+\code{\link{normal_prior}}, \code{\link{beta_prime_prior}},
+\code{\link{bgm}}
 
 Other prior-constructors: 
 \code{\link{bernoulli_prior}()},
 \code{\link{beta_bernoulli_prior}()},
 \code{\link{beta_prime_prior}()},
 \code{\link{normal_prior}()},
-\code{\link{normal_threshold_prior}()},
 \code{\link{sbm_prior}()}
 }
 \concept{prior-constructors}

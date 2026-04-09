@@ -8,7 +8,7 @@
 A matrix with 986 rows and 9 columns. Each row corresponds to a respondent.
 \describe{
 \item{language}{Language in which the SBPS was administered: "en" = English, "fr" = French}
-\item{loose_ends}{I often find myself at “loose ends,” not knowing what to
+\item{loose_ends}{I often find myself at <U+201C>loose ends,<U+201D> not knowing what to
 do.}
 \item{entertain}{I find it hard to entertain myself.}
 \item{repetitive}{Many things I have to do are repetitive and monotonous.}

@@ -1,9 +1,9 @@
 # --------------------------------------------------------------------------- #
-# Phase S — Scaling and stress diagnostics for NUTS sampler.
+# Phase S <U+2014> Scaling and stress diagnostics for NUTS sampler.
 #
 # Checks that NUTS diagnostics (divergences, E-BFMI, tree depth, ESS, Rhat)
 # remain healthy as problem size increases. Does NOT verify posterior
-# correctness — see test-ggm-nuts.R and test-mixed-nuts.R for that.
+# correctness <U+2014> see test-ggm-nuts.R and test-mixed-nuts.R for that.
 #
 # GGM:
 #   G1  p=5,  n=200, no edge selection    (easy)

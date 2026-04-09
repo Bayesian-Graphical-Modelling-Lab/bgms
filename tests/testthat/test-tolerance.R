@@ -69,7 +69,7 @@ test_that("bgms outputs are numerically sane (stochastic-robust)", {
         warmup           = 100,
         chains           = 2,
         edge_selection   = TRUE,
-        edge_prior       = "Bernoulli",
+        edge_prior       = bernoulli_prior(0.5),
         na_action        = "listwise",
         update_method    = "adaptive-metropolis",
         display_progress = "none"

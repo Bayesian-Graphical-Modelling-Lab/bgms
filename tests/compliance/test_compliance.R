@@ -19,8 +19,8 @@
 # ------------------------------------------------------------------------------
 #
 # 1. NUTS target_accept defaults changed between 0.1.6.3 and current:
-#    - bgm():        0.60 → 0.80
-#    - bgmCompare(): 0.65 → 0.80
+#    - bgm():        0.60 <U+2192> 0.80
+#    - bgmCompare(): 0.65 <U+2192> 0.80
 #    DualAveraging receives a different target acceptance rate, changing the
 #    adapted step size from iteration 1 onward and cascading into different
 #    NUTS trajectories. MH and HMC defaults did not change.
@@ -36,7 +36,7 @@
 #    of constant or near-constant parameters. Current code computes values
 #    in those cells. The comparison ignores cells that are NA in the fixture.
 #
-# 4. SBM RNG ordering (CONFIRMED, NOT FIXED — not a bug):
+# 4. SBM RNG ordering (CONFIRMED, NOT FIXED <U+2014> not a bug):
 #    The SBM algorithm itself is unchanged. However, old code initialized
 #    cluster allocations (runif + block_probs_mfm_sbm) BEFORE the NUTS
 #    step-size search; new code does step-size search first, then lazily
@@ -71,7 +71,7 @@
 #    never in a CRAN release.
 #
 # 7. Intermediate-overflow guard in compute_logZ_and_probs_ordinal and
-#    compute_logZ_and_probs_blume_capel (ACCEPTED — not a bug):
+#    compute_logZ_and_probs_blume_capel (ACCEPTED <U+2014> not a bug):
 #    Commit 04b9562 tightened the fast/slow block threshold from EXP_BOUND
 #    (709) to FAST_LIM = max(0, EXP_BOUND - max_abs_main) to prevent
 #    intermediate overflow in exp(main_param(c) + (c+1)*rest) before the
@@ -85,9 +85,9 @@
 #    where Theta_ss is absorbed into main_param. The affected configs use
 #    structure-only comparison against CRAN fixtures.
 #
-# 8. Association-scale reparameterization (stored A = σ/2):
+# 8. Association-scale reparameterization (stored A = <U+03C3>/2):
 #    OMRF pairwise effects are now stored on association scale (half the old
-#    conditional rest-score coefficient σ). The Cauchy prior scale is halved
+#    conditional rest-score coefficient <U+03C3>). The Cauchy prior scale is halved
 #    to keep the posterior equivalent, but the MCMC sampler operates on
 #    association scale with different proposal/step-size scales, so MCMC
 #    trajectories diverge from CRAN 0.1.6.3 fixtures. All configs use
@@ -420,7 +420,7 @@ resolve_args = function(args) {
 }
 
 # Migrate fixtures generated with pre-0.1.6.4 field names.
-# PR #84 renamed posterior_mean_pairwise → posterior_mean_pairwise.
+# PR #84 renamed posterior_mean_pairwise <U+2192> posterior_mean_pairwise.
 migrate_fixture = function(fixture) {
   renames = c(
     posterior_mean_pairwise              = "posterior_mean_pairwise",
@@ -475,7 +475,7 @@ extract_compare_actual = function(fit) {
 
 # Configs where 0.1.6.3 returned NA in posterior_summary/posterior_mean for
 # constant or near-constant parameters, and the current code computes values
-# (bug fix). Only these are allowed to have NA→value differences.
+# (bug fix). Only these are allowed to have NA<U+2192>value differences.
 na_bugfix_ids = c(
   "bgm_wenchuan_nuts_bernoulli",
   "bgm_wenchuan_hmc_bernoulli",

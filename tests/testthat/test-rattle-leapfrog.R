@@ -1,11 +1,11 @@
 # --------------------------------------------------------------------------- #
-# RATTLE Phase 4 — Constrained leapfrog integration tests.
+# RATTLE Phase 4 <U+2014> Constrained leapfrog integration tests.
 #
 # Tests verify:
 #   1. Reversibility (forward + backward = identity)
-#   2. Energy conservation (|ΔH| = O(ε²))
+#   2. Energy conservation (|<U+0394>H| = O(<U+03B5><U+00B2>))
 #   3. Constraint preservation (K_{iq} = 0 after trajectory)
-#   4. Cotangent condition (J·r = 0 after trajectory)
+#   4. Cotangent condition (J<U+00B7>r = 0 after trajectory)
 #   5. Full-edge graph: constrained matches unconstrained leapfrog
 # --------------------------------------------------------------------------- #
 
@@ -114,7 +114,7 @@ make_scenario = function(p, edges, seed) {
 }
 
 
-# ---- 1. Reversibility: forward N + backward N ≈ identity -------------------
+# ---- 1. Reversibility: forward N + backward N <U+2248> identity -------------------
 
 test_that("constrained leapfrog is reversible, p=4 constrained", {
   p = 4
@@ -144,7 +144,7 @@ test_that("constrained leapfrog is reversible, p=4 constrained", {
   r_return = -as.vector(bwd$r)
 
   # Position and momentum should return to start
-  # O(ε²) reversibility error from per-column position projection
+  # O(<U+03B5><U+00B2>) reversibility error from per-column position projection
   pos_err = max(abs(x_return - sc$x0))
   mom_err = max(abs(r_return - sc$r0))
 
@@ -208,7 +208,7 @@ test_that("single-constraint reversibility is machine-precise", {
   x_return = as.vector(bwd$x)
   r_return = -as.vector(bwd$r)
 
-  # Single-constraint: no cross-column terms, exact RATTLE → machine precision
+  # Single-constraint: no cross-column terms, exact RATTLE <U+2192> machine precision
   expect_lt(max(abs(x_return - sc$x0)), 1e-12)
   expect_lt(max(abs(r_return - sc$r0)), 1e-12)
 })
@@ -239,13 +239,13 @@ test_that("reversibility error scales as O(eps^2)", {
   err_large = rev_err(0.01)
   err_small = rev_err(0.005)
 
-  # Halving ε should reduce reversibility error by ~4× (O(ε²))
+  # Halving <U+03B5> should reduce reversibility error by ~4<U+00D7> (O(<U+03B5><U+00B2>))
   ratio = err_large / max(err_small, 1e-16)
-  expect_gt(ratio, 2.0, label = paste("ε² scaling ratio:", ratio))
+  expect_gt(ratio, 2.0, label = paste("<U+03B5><U+00B2> scaling ratio:", ratio))
 })
 
 
-# ---- 2. Energy conservation: |ΔH| = O(ε²) ---------------------------------
+# ---- 2. Energy conservation: |<U+0394>H| = O(<U+03B5><U+00B2>) ---------------------------------
 
 test_that("energy is approximately conserved, p=4 constrained", {
   p = 4
@@ -262,7 +262,7 @@ test_that("energy is approximately conserved, p=4 constrained", {
     sc$x0, sc$r0, eps, n_steps, sc$S, sc$n, edges, sc$scale
   )
 
-  # |ΔH| should be small (O(ε²) per step, O(N·ε²) total)
+  # |<U+0394>H| should be small (O(<U+03B5><U+00B2>) per step, O(N<U+00B7><U+03B5><U+00B2>) total)
   expect_lt(abs(res$dH), 1.0,
     label = paste("|dH| =", abs(res$dH))
   )
@@ -289,7 +289,7 @@ test_that("energy conservation improves with smaller step size", {
     sc$x0, sc$r0, 0.005, n_steps, sc$S, sc$n, edges, sc$scale
   )
 
-  # Halving ε should reduce |ΔH| by ~4× (O(ε²))
+  # Halving <U+03B5> should reduce |<U+0394>H| by ~4<U+00D7> (O(<U+03B5><U+00B2>))
   expect_lt(abs(res_small$dH), abs(res_large$dH) + 0.01,
     label = "smaller step should give better energy conservation"
   )
@@ -319,7 +319,7 @@ test_that("constraints preserved after trajectory, p=4", {
   Phi = full_position_to_phi(x_final, p)
   K = t(Phi) %*% Phi
 
-  # Excluded edges should have K_{iq} ≈ 0
+  # Excluded edges should have K_{iq} <U+2248> 0
   expect_equal(K[1, 3], 0, tolerance = 1e-10)
   expect_equal(K[2, 4], 0, tolerance = 1e-10)
 })
@@ -356,7 +356,7 @@ test_that("constraints preserved after trajectory, p=6", {
 })
 
 
-# ---- 4. Cotangent condition: J·r = 0 after trajectory ----------------------
+# ---- 4. Cotangent condition: J<U+00B7>r = 0 after trajectory ----------------------
 
 test_that("momentum stays in cotangent space, p=4", {
   p = 4

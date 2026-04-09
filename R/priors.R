@@ -7,31 +7,35 @@
 # to bgm() and bgmCompare() instead of loose numeric parameters.
 #
 # Three prior roles:
-#   - bgms_interaction_prior : prior on pairwise interaction parameters
-#   - bgms_threshold_prior   : prior on main-effect / threshold parameters
+#   - bgms_parameter_prior   : prior on real-valued model parameters
+#                               (interactions, thresholds, means)
 #   - bgms_edge_prior        : prior on edge inclusion (structure selection)
+#
+# Legacy subclasses bgms_interaction_prior and bgms_threshold_prior are
+# retained for backward compatibility but are no longer distinct types.
 # ==============================================================================
 
 
 # ==============================================================================
-# Interaction priors (pairwise effects)
+# Parameter priors (interactions, thresholds, means)
 # ==============================================================================
 
-#' Cauchy Prior for Pairwise Interactions
+#' Cauchy Prior for Model Parameters
 #'
 #' @description
-#' Specifies a Cauchy(0, scale) prior on pairwise interaction parameters.
-#' This is the default prior in \code{\link{bgm}} and produces heavy-tailed
-#' shrinkage toward zero.
+#' Specifies a Cauchy(0, scale) prior on model parameters.
+#' This is the default prior for pairwise interactions in \code{\link{bgm}}
+#' and produces heavy-tailed shrinkage toward zero.
 #'
 #' @param scale Positive numeric. Scale (half-width at half-maximum) of the
 #'   Cauchy distribution. Default: \code{1}.
 #'
-#' @return An object of class \code{"bgms_interaction_prior"} with
+#' @return An object of class \code{"bgms_parameter_prior"} with
 #'   \code{family = "cauchy"}.
 #'
 #' @family prior-constructors
-#' @seealso \code{\link{normal_prior}}, \code{\link{bgm}}
+#' @seealso \code{\link{normal_prior}}, \code{\link{beta_prime_prior}},
+#'   \code{\link{bgm}}
 #'
 #' @examples
 #' cauchy_prior()
@@ -54,26 +58,28 @@ cauchy_prior = function(scale = 1) {
       family = "cauchy",
       hyper.parameters = list(scale = scale)
     ),
-    class = "bgms_interaction_prior"
+    class = c("bgms_interaction_prior", "bgms_parameter_prior")
   )
 }
 
 
-#' Normal Prior for Pairwise Interactions
+#' Normal Prior for Model Parameters
 #'
 #' @description
-#' Specifies a Normal(0, scale) prior on pairwise interaction parameters.
+#' Specifies a Normal(0, scale) prior on model parameters.
 #' Produces lighter-tailed shrinkage than the Cauchy prior and is better
-#' suited for simulation-based calibration (SBC) studies.
+#' suited for simulation-based calibration (SBC) studies. Can be used for
+#' interactions, thresholds, or continuous means.
 #'
 #' @param scale Positive numeric. Standard deviation of the normal
 #'   distribution. Default: \code{1}.
 #'
-#' @return An object of class \code{"bgms_interaction_prior"} with
+#' @return An object of class \code{"bgms_parameter_prior"} with
 #'   \code{family = "normal"}.
 #'
 #' @family prior-constructors
-#' @seealso \code{\link{cauchy_prior}}, \code{\link{bgm}}
+#' @seealso \code{\link{cauchy_prior}}, \code{\link{beta_prime_prior}},
+#'   \code{\link{bgm}}
 #'
 #' @examples
 #' normal_prior()
@@ -96,19 +102,15 @@ normal_prior = function(scale = 1) {
       family = "normal",
       hyper.parameters = list(scale = scale)
     ),
-    class = "bgms_interaction_prior"
+    class = c("bgms_interaction_prior", "bgms_parameter_prior")
   )
 }
 
 
-# ==============================================================================
-# Threshold priors (main effects)
-# ==============================================================================
-
-#' Beta-Prime Prior for Threshold Parameters
+#' Beta-Prime Prior for Model Parameters
 #'
 #' @description
-#' Specifies a beta-prime prior on threshold (main-effect) parameters.
+#' Specifies a beta-prime prior on model parameters.
 #' The parameterization follows the logistic transformation:
 #' \eqn{\sigma(\mu) \sim \textrm{Beta}(\alpha, \beta)}{sigma(mu) ~ Beta(alpha, beta)},
 #' so \eqn{\mu = \textrm{logit}(Y)}{mu = logit(Y)} where
@@ -117,11 +119,12 @@ normal_prior = function(scale = 1) {
 #' @param alpha Positive numeric. First shape parameter. Default: \code{0.5}.
 #' @param beta Positive numeric. Second shape parameter. Default: \code{0.5}.
 #'
-#' @return An object of class \code{"bgms_threshold_prior"} with
+#' @return An object of class \code{"bgms_parameter_prior"} with
 #'   \code{family = "beta-prime"}.
 #'
 #' @family prior-constructors
-#' @seealso \code{\link{normal_threshold_prior}}, \code{\link{bgm}}
+#' @seealso \code{\link{cauchy_prior}}, \code{\link{normal_prior}},
+#'   \code{\link{bgm}}
 #'
 #' @examples
 #' beta_prime_prior()
@@ -147,49 +150,7 @@ beta_prime_prior = function(alpha = 0.5, beta = 0.5) {
       family = "beta-prime",
       hyper.parameters = list(alpha = alpha, beta = beta)
     ),
-    class = "bgms_threshold_prior"
-  )
-}
-
-
-#' Normal Prior for Threshold Parameters
-#'
-#' @description
-#' Specifies a Normal(0, scale) prior on threshold (main-effect) parameters.
-#' A lighter-tailed alternative to the beta-prime prior, particularly useful
-#' for simulation-based calibration (SBC) studies.
-#'
-#' @param scale Positive numeric. Standard deviation of the normal
-#'   distribution. Default: \code{1}.
-#'
-#' @return An object of class \code{"bgms_threshold_prior"} with
-#'   \code{family = "normal"}.
-#'
-#' @family prior-constructors
-#' @seealso \code{\link{beta_prime_prior}}, \code{\link{bgm}}
-#'
-#' @examples
-#' normal_threshold_prior()
-#' normal_threshold_prior(scale = 2)
-#'
-#' @export
-normal_threshold_prior = function(scale = 1) {
-  if(!is.numeric(scale) || length(scale) != 1L || is.na(scale)) {
-    stop("'scale' must be a single positive number.")
-  }
-  if(scale <= 0) {
-    stop("'scale' must be positive.")
-  }
-  if(!is.finite(scale)) {
-    stop("'scale' must be finite.")
-  }
-
-  structure(
-    list(
-      family = "normal",
-      hyper.parameters = list(scale = scale)
-    ),
-    class = "bgms_threshold_prior"
+    class = c("bgms_threshold_prior", "bgms_parameter_prior")
   )
 }
 
@@ -351,29 +312,17 @@ sbm_prior = function(alpha = 1, beta = 1,
 # ==============================================================================
 
 #' @export
-print.bgms_interaction_prior = function(x, ...) {
-  if(x$family == "cauchy") {
-    cat(sprintf("Interaction prior: Cauchy(0, %.4g)\n", x$hyper.parameters$scale))
-  } else if(x$family == "normal") {
-    cat(sprintf("Interaction prior: Normal(0, %.4g)\n", x$hyper.parameters$scale))
-  } else {
-    cat(sprintf("Interaction prior: %s\n", x$family))
-  }
-  invisible(x)
-}
-
-#' @export
-print.bgms_threshold_prior = function(x, ...) {
-  if(x$family == "beta-prime") {
-    cat(sprintf(
-      "Threshold prior: Beta-prime(alpha = %.4g, beta = %.4g)\n",
-      x$hyper.parameters$alpha, x$hyper.parameters$beta
-    ))
-  } else if(x$family == "normal") {
-    cat(sprintf("Threshold prior: Normal(0, %.4g)\n", x$hyper.parameters$scale))
-  } else {
-    cat(sprintf("Threshold prior: %s\n", x$family))
-  }
+print.bgms_parameter_prior = function(x, ...) {
+  hp = x$hyper.parameters
+  switch(x$family,
+    "cauchy" = cat(sprintf("Parameter prior: Cauchy(0, %.4g)\n", hp$scale)),
+    "normal" = cat(sprintf("Parameter prior: Normal(0, %.4g)\n", hp$scale)),
+    "beta-prime" = cat(sprintf(
+      "Parameter prior: Beta-prime(alpha = %.4g, beta = %.4g)\n",
+      hp$alpha, hp$beta
+    )),
+    cat(sprintf("Parameter prior: %s\n", x$family))
+  )
   invisible(x)
 }
 
@@ -396,11 +345,13 @@ print.bgms_edge_prior = function(x, ...) {
       ))
     },
     "Stochastic-Block" = {
-      cat(sprintf(paste0(
-        "Edge prior: Stochastic-Block\n",
-        "  Within:    Beta(%.4g, %.4g)\n",
-        "  Between:   Beta(%.4g, %.4g)\n",
-        "  Dirichlet: %.4g, Lambda: %.4g\n"),
+      cat(sprintf(
+        paste0(
+          "Edge prior: Stochastic-Block\n",
+          "  Within:    Beta(%.4g, %.4g)\n",
+          "  Between:   Beta(%.4g, %.4g)\n",
+          "  Dirichlet: %.4g, Lambda: %.4g\n"
+        ),
         hp$alpha, hp$beta,
         hp$alpha_between, hp$beta_between,
         hp$dirichlet_alpha, hp$lambda
@@ -416,59 +367,67 @@ print.bgms_edge_prior = function(x, ...) {
 # Internal: extract prior parameters for spec / C++ interface
 # ==============================================================================
 
+#' Unpack a parameter prior into the flat parameters used by bgm_spec
+#'
+#' @param prior A \code{bgms_parameter_prior} object.
+#'
+#' @return A list with \code{prior_type} (character), \code{scale} (numeric),
+#'   \code{alpha} (numeric), and \code{beta} (numeric). Unused hyperparameters
+#'   are set to \code{NA_real_}.
+#'
+#' @keywords internal
+unpack_parameter_prior = function(prior) {
+  if(!inherits(prior, "bgms_parameter_prior")) {
+    stop(
+      "Prior must be a bgms_parameter_prior object.",
+      " Use cauchy_prior(), normal_prior(), or beta_prime_prior()."
+    )
+  }
+  hp = prior$hyper.parameters
+  list(
+    prior_type = prior$family,
+    scale = hp$scale %||% NA_real_,
+    alpha = hp$alpha %||% NA_real_,
+    beta = hp$beta %||% NA_real_
+  )
+}
+
+
 #' Unpack an interaction prior into the flat parameters used by bgm_spec
 #'
-#' @param prior A \code{bgms_interaction_prior} object, or a numeric scalar
-#'   (for backward compatibility with \code{pairwise_scale}).
+#' @param prior A \code{bgms_parameter_prior} object.
 #'
 #' @return A list with \code{interaction_prior_type} (character) and
 #'   \code{pairwise_scale} (numeric).
 #'
 #' @keywords internal
 unpack_interaction_prior = function(prior) {
-  if(inherits(prior, "bgms_interaction_prior")) {
-    list(
-      interaction_prior_type = prior$family,
-      pairwise_scale = prior$hyper.parameters$scale
-    )
-  } else {
-    stop("'interaction_prior' must be a bgms_interaction_prior object.",
-         " Use cauchy_prior() or normal_prior().")
-  }
+  pp = unpack_parameter_prior(prior)
+  list(
+    interaction_prior_type = pp$prior_type,
+    pairwise_scale = pp$scale,
+    interaction_alpha = pp$alpha,
+    interaction_beta = pp$beta
+  )
 }
 
 
 #' Unpack a threshold prior into the flat parameters used by bgm_spec
 #'
-#' @param prior A \code{bgms_threshold_prior} object, or numeric values
-#'   (for backward compatibility with \code{main_alpha}, \code{main_beta}).
+#' @param prior A \code{bgms_parameter_prior} object.
 #'
 #' @return A list with \code{threshold_prior_type} (character),
-#'   \code{main_alpha}, \code{main_beta} (for beta-prime), or
-#'   \code{threshold_scale} (for normal).
+#'   \code{main_alpha}, \code{main_beta}, and \code{threshold_scale}.
 #'
 #' @keywords internal
 unpack_threshold_prior = function(prior) {
-  if(inherits(prior, "bgms_threshold_prior")) {
-    if(prior$family == "beta-prime") {
-      list(
-        threshold_prior_type = "beta-prime",
-        main_alpha = prior$hyper.parameters$alpha,
-        main_beta = prior$hyper.parameters$beta,
-        threshold_scale = NA_real_
-      )
-    } else if(prior$family == "normal") {
-      list(
-        threshold_prior_type = "normal",
-        main_alpha = NA_real_,
-        main_beta = NA_real_,
-        threshold_scale = prior$hyper.parameters$scale
-      )
-    }
-  } else {
-    stop("'threshold_prior' must be a bgms_threshold_prior object.",
-         " Use beta_prime_prior() or normal_threshold_prior().")
-  }
+  pp = unpack_parameter_prior(prior)
+  list(
+    threshold_prior_type = pp$prior_type,
+    main_alpha = pp$alpha,
+    main_beta = pp$beta,
+    threshold_scale = pp$scale
+  )
 }
 
 
@@ -483,8 +442,10 @@ unpack_threshold_prior = function(prior) {
 #' @keywords internal
 unpack_edge_prior = function(prior, num_variables) {
   if(!inherits(prior, "bgms_edge_prior")) {
-    stop("'edge_prior' must be a bgms_edge_prior object.",
-         " Use bernoulli_prior(), beta_bernoulli_prior(), or sbm_prior().")
+    stop(
+      "'edge_prior' must be a bgms_edge_prior object.",
+      " Use bernoulli_prior(), beta_bernoulli_prior(), or sbm_prior()."
+    )
   }
 
   hp = prior$hyper.parameters

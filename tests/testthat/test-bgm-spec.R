@@ -3,7 +3,7 @@
 # Phase B.5 of the R scaffolding refactor.
 # ==============================================================================
 
-# These are internal (non-exported) functions — bind via ::: for testing.
+# These are internal (non-exported) functions <U+2014> bind via ::: for testing.
 bgm_spec = bgms:::bgm_spec
 validate_bgm_spec = bgms:::validate_bgm_spec
 new_bgm_spec = bgms:::new_bgm_spec
@@ -21,7 +21,7 @@ make_continuous_data = function(n = 20, p = 3) {
   x
 }
 
-# Minimal ordinal data (OMRF / Compare) — values 0,1,2
+# Minimal ordinal data (OMRF / Compare) <U+2014> values 0,1,2
 make_ordinal_data = function(n = 30, p = 3, max_cat = 2) {
   set.seed(99)
   x = matrix(sample(0:max_cat, n * p, replace = TRUE), nrow = n, ncol = p)

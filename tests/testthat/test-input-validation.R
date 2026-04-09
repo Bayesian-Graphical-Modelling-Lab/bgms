@@ -42,7 +42,9 @@ test_that("bgm errors on invalid edge_prior", {
   data = generate_test_data(n = 20, p = 3)
 
   expect_error(
-    bgm(x = data, edge_selection = TRUE, edge_prior = "Invalid"),
+    suppressWarnings(
+      bgm(x = data, edge_selection = TRUE, edge_prior = "Invalid")
+    ),
     regexp = "should be one of|edge_prior"
   )
 })

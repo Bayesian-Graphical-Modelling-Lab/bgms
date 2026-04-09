@@ -12,7 +12,7 @@
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
-# Fixture Specifications — defined in helper-fixtures.R
+# Fixture Specifications <U+2014> defined in helper-fixtures.R
 # get_extractor_fixtures()
 # ------------------------------------------------------------------------------
 
@@ -768,18 +768,18 @@ categorize_version = function(version, type = "bgm") {
 
   if(type == "bgm") {
     if(v < "0.1.4") {
-      return("pre-0.1.4") # Defunct: $gamma field → error
+      return("pre-0.1.4") # Defunct: $gamma field <U+2192> error
     } else if(v < "0.1.6") {
-      return("0.1.4-0.1.5") # Deprecated: $indicator at top level → warning
+      return("0.1.4-0.1.5") # Deprecated: $indicator at top level <U+2192> warning
     } else {
-      return("0.1.6+") # Current: $raw_samples$indicator → no warning
+      return("0.1.6+") # Current: $raw_samples$indicator <U+2192> no warning
     }
   } else {
     # bgmCompare (introduced in 0.1.4)
     if(v < "0.1.6") {
-      return("0.1.4-0.1.5") # Deprecated: top-level fields → warning
+      return("0.1.4-0.1.5") # Deprecated: top-level fields <U+2192> warning
     } else {
-      return("0.1.6+") # Current: $raw_samples$* → no warning
+      return("0.1.6+") # Current: $raw_samples$* <U+2192> no warning
     }
   }
 }

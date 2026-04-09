@@ -4,7 +4,7 @@
 # ==============================================================================
 
 # ==============================================================================
-# 1. edge_selection = FALSE  →  bypass
+# 1. edge_selection = FALSE  <U+2192>  bypass
 # ==============================================================================
 
 test_that("edge_selection = FALSE returns Not Applicable with 1x1 theta", {
@@ -25,7 +25,7 @@ test_that("edge_selection coerced to logical; NA errors", {
 })
 
 # ==============================================================================
-# 2. Bernoulli — scalar inclusion_probability
+# 2. Bernoulli <U+2014> scalar inclusion_probability
 # ==============================================================================
 
 test_that("Bernoulli with scalar 0.5 builds p x p matrix", {
@@ -91,7 +91,7 @@ test_that("Bernoulli scalar: exactly 1 errors", {
 })
 
 # ==============================================================================
-# 3. Bernoulli — matrix inclusion_probability
+# 3. Bernoulli <U+2014> matrix inclusion_probability
 # ==============================================================================
 
 test_that("Bernoulli with symmetric matrix accepted", {

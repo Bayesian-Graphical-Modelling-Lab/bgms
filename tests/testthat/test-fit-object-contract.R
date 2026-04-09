@@ -147,7 +147,7 @@ test_that("second access returns cached result without recomputation (bgms)", {
   # First access
   s1 = fit$posterior_summary_pairwise
 
-  # Second access — should be identical (same object from cache)
+  # Second access <U+2014> should be identical (same object from cache)
   s2 = fit$posterior_summary_pairwise
   expect_identical(s1, s2)
 })

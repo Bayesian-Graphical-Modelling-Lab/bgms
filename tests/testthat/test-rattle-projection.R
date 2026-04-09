@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------------- #
-# RATTLE Phase 1 — Position projection tests.
+# RATTLE Phase 1 <U+2014> Position projection tests.
 #
 # Tests verify:
 #   1. Full-position pack/unpack round-trips correctly
@@ -84,7 +84,7 @@ test_that("project_position enforces K_{iq} = 0 for excluded edges (p=4)", {
   dat = make_test_phi(p = 4, seed = 10)
   x = phi_to_full_position(dat$Phi)
 
-  # Exclude edges (1,3) and (2,4) — R 1-indexed
+  # Exclude edges (1,3) and (2,4) <U+2014> R 1-indexed
   edge_ind = matrix(1L, 4, 4)
   edge_ind[1, 3] = 0L
   edge_ind[3, 1] = 0L

@@ -41,7 +41,7 @@ test_that("ordinal: 1-based values are recoded to 0-based", {
 })
 
 test_that("ordinal: gaps in observed values are collapsed", {
-  # Values 0, 2, 4 → should become 0, 1, 2
+  # Values 0, 2, 4 <U+2192> should become 0, 1, 2
   x = matrix(c(
     0, 2, 4, 0, 2, 4,
     0, 2, 4, 0, 2, 4
@@ -133,7 +133,7 @@ test_that("BC: verbose=FALSE suppresses shift message", {
 
 test_that("BC: non-integer values are recoded to integer", {
   x = matrix(c(0.0, 1.0, 2.0, 3.0, 0.0, 1.0, 2.0, 3.0), nrow = 4, ncol = 2)
-  # These are already representable as integers — just stored as double
+  # These are already representable as integers <U+2014> just stored as double
   is_ordinal = c(FALSE, FALSE)
   bc = c(1, 1)
 
@@ -157,23 +157,23 @@ test_that("BC: > 10 categories triggers warning", {
 
 
 # ==============================================================================
-# 3. Error conditions — Blume-Capel
+# 3. Error conditions <U+2014> Blume-Capel
 # ==============================================================================
 
-test_that("BC: truly non-integer values that can't round to integer → error", {
+test_that("BC: truly non-integer values that can't round to integer <U+2192> error", {
   x = matrix(c(0.3, 1.7, 2.3, 3.7, 0, 1, 2, 3), nrow = 4, ncol = 2)
   is_ordinal = c(FALSE, TRUE)
   bc = c(1, 0)
 
-  # 0.3, 1.7, 2.3, 3.7 → as.integer gives 0, 1, 2, 3 (truncation)
-  # unique(as.integer) = {0, 1, 2, 3} but length(unique original) = 4 → ok
+  # 0.3, 1.7, 2.3, 3.7 <U+2192> as.integer gives 0, 1, 2, 3 (truncation)
+  # unique(as.integer) = {0, 1, 2, 3} but length(unique original) = 4 <U+2192> ok
   # But abs(val - round(val)) > eps triggers the check
   # Actually unique(as.integer(c(0.3, 1.7, 2.3, 3.7))) = c(0, 1, 2, 3), length 4
-  # and length(c(0.3, 1.7, 2.3, 3.7)) = 4, so lengths match → no error there.
+  # and length(c(0.3, 1.7, 2.3, 3.7)) = 4, so lengths match <U+2192> no error there.
   # The integer conversion succeeds. Let me craft a case that actually fails.
   x2 = matrix(c(0.3, 0.7, 2.3, 3.7, 0, 1, 2, 3), nrow = 4, ncol = 2)
   # as.integer(c(0.3, 0.7, 2.3, 3.7)) = c(0, 0, 2, 3), unique = c(0, 2, 3)
-  # length unique int = 3 ≠ length unique original = 4
+  # length unique int = 3 <U+2260> length unique original = 4
 
   expect_error(
     reformat_ordinal_data(x2, c(FALSE, TRUE), c(1, 0)),
@@ -181,8 +181,8 @@ test_that("BC: truly non-integer values that can't round to integer → error", 
   )
 })
 
-test_that("BC: baseline outside range → error", {
-  # Non-integer values → triggers integer recode → then baseline check
+test_that("BC: baseline outside range <U+2192> error", {
+  # Non-integer values <U+2192> triggers integer recode <U+2192> then baseline check
   x = matrix(c(0.1, 1.1, 2.1, 3.1, 0, 1, 2, 3), nrow = 4, ncol = 2)
   is_ordinal = c(FALSE, TRUE)
   bc = c(10, 0) # baseline 10 is out of range [0, 3]
@@ -193,7 +193,7 @@ test_that("BC: baseline outside range → error", {
   )
 })
 
-test_that("BC: fewer than 3 unique values → error", {
+test_that("BC: fewer than 3 unique values <U+2192> error", {
   x = matrix(c(0, 1, 0, 1, 0, 1, 2, 3), nrow = 4, ncol = 2)
   is_ordinal = c(FALSE, TRUE)
   bc = c(0, 0)
@@ -206,12 +206,12 @@ test_that("BC: fewer than 3 unique values → error", {
 
 
 # ==============================================================================
-# 4. Error conditions — general
+# 4. Error conditions <U+2014> general
 # ==============================================================================
 
-test_that("all unique responses → error", {
+test_that("all unique responses <U+2192> error", {
   # max(unique) must equal nrow for the check to trigger
-  # nrow = 4, so values {0, 1, 2, 4} => max = 4 = nrow → triggers
+  # nrow = 4, so values {0, 1, 2, 4} => max = 4 = nrow <U+2192> triggers
   x = matrix(c(0, 1, 2, 4, 0, 1, 2, 4), nrow = 4, ncol = 2)
   is_ordinal = c(TRUE, TRUE)
   bc = c(0, 0)
@@ -222,7 +222,7 @@ test_that("all unique responses → error", {
   )
 })
 
-test_that("single category only → error", {
+test_that("single category only <U+2192> error", {
   x = matrix(c(0, 0, 0, 0, 0, 1, 0, 1), nrow = 4, ncol = 2)
   is_ordinal = c(TRUE, TRUE)
   bc = c(0, 0)
@@ -239,9 +239,9 @@ test_that("single category only → error", {
 # ==============================================================================
 
 test_that("mixed ordinal and BC variables processed correctly", {
-  # Variable 1: ordinal, values 1,2,3 → recode to 0,1,2
-  # Variable 2: BC, values 2,3,4,5 → shift to 0,1,2,3, baseline adjusted
-  # Variable 3: ordinal, values 0,1,2 → already contiguous
+  # Variable 1: ordinal, values 1,2,3 <U+2192> recode to 0,1,2
+  # Variable 2: BC, values 2,3,4,5 <U+2192> shift to 0,1,2,3, baseline adjusted
+  # Variable 3: ordinal, values 0,1,2 <U+2192> already contiguous
   x = matrix(c(
     1, 2, 3, 1, 2, 3,
     2, 3, 4, 5, 2, 3,

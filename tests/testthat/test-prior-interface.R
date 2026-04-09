@@ -18,33 +18,53 @@
 # 1. Prior Constructor Tests
 # ==============================================================================
 
-test_that("cauchy_prior creates valid prior object", {
+test_that("cauchy_prior creates valid prior object with dual class", {
   p = cauchy_prior(scale = 2.5)
+  expect_s3_class(p, "bgms_parameter_prior")
   expect_s3_class(p, "bgms_interaction_prior")
   expect_equal(p$family, "cauchy")
   expect_equal(p$hyper.parameters$scale, 2.5)
 })
 
-test_that("normal_prior creates valid prior object", {
+test_that("normal_prior creates valid prior object with dual class", {
   p = normal_prior(scale = 0.5)
+  expect_s3_class(p, "bgms_parameter_prior")
   expect_s3_class(p, "bgms_interaction_prior")
   expect_equal(p$family, "normal")
   expect_equal(p$hyper.parameters$scale, 0.5)
 })
 
-test_that("beta_prime_prior creates valid prior object", {
+test_that("beta_prime_prior creates valid prior object with dual class", {
   p = beta_prime_prior(alpha = 1, beta = 1)
+  expect_s3_class(p, "bgms_parameter_prior")
   expect_s3_class(p, "bgms_threshold_prior")
   expect_equal(p$family, "beta-prime")
   expect_equal(p$hyper.parameters$alpha, 1)
   expect_equal(p$hyper.parameters$beta, 1)
 })
 
-test_that("normal_threshold_prior creates valid prior object", {
-  p = normal_threshold_prior(scale = 2)
-  expect_s3_class(p, "bgms_threshold_prior")
+test_that("normal_prior works for threshold_prior argument", {
+  p = normal_prior(scale = 2)
+  expect_s3_class(p, "bgms_parameter_prior")
   expect_equal(p$family, "normal")
   expect_equal(p$hyper.parameters$scale, 2)
+  # Can be unpacked as threshold prior
+  tp = unpack_threshold_prior(p)
+  expect_equal(tp$threshold_prior_type, "normal")
+  expect_equal(tp$threshold_scale, 2)
+})
+
+test_that("all parameter priors are interchangeable for interaction_prior and threshold_prior", {
+  # cauchy_prior works for threshold_prior
+  pp = unpack_threshold_prior(cauchy_prior(scale = 2))
+  expect_equal(pp$threshold_prior_type, "cauchy")
+  expect_equal(pp$threshold_scale, 2)
+
+  # beta_prime_prior works for interaction_prior
+  pp = unpack_interaction_prior(beta_prime_prior(1, 1))
+  expect_equal(pp$interaction_prior_type, "beta-prime")
+  expect_equal(pp$interaction_alpha, 1)
+  expect_equal(pp$interaction_beta, 1)
 })
 
 test_that("bernoulli_prior creates valid prior object", {
@@ -70,7 +90,7 @@ test_that("sbm_prior creates valid prior object", {
 
 
 # ==============================================================================
-# 2. bgm() with Prior Objects — Ordinal
+# 2. bgm() with Prior Objects <U+2014> Ordinal
 # ==============================================================================
 
 test_that("bgm ordinal works with cauchy_prior", {
@@ -78,7 +98,8 @@ test_that("bgm ordinal works with cauchy_prior", {
   fit = bgm(Wenchuan[1:50, 1:4],
     interaction_prior = cauchy_prior(scale = 2.5),
     iter = 25, warmup = 50, chains = 1,
-    display_progress = "none")
+    display_progress = "none"
+  )
   expect_s3_class(fit, "bgms")
   expect_true(all(is.finite(do.call(rbind, fit$raw_samples$pairwise))))
 })
@@ -88,17 +109,19 @@ test_that("bgm ordinal works with normal_prior", {
   fit = bgm(Wenchuan[1:50, 1:4],
     interaction_prior = normal_prior(scale = 1),
     iter = 25, warmup = 50, chains = 1,
-    display_progress = "none")
+    display_progress = "none"
+  )
   expect_s3_class(fit, "bgms")
   expect_true(all(is.finite(do.call(rbind, fit$raw_samples$pairwise))))
 })
 
-test_that("bgm ordinal works with normal_threshold_prior", {
+test_that("bgm ordinal works with normal_prior", {
   data("Wenchuan", package = "bgms")
   fit = bgm(Wenchuan[1:50, 1:4],
-    threshold_prior = normal_threshold_prior(scale = 1),
+    threshold_prior = normal_prior(scale = 1),
     iter = 25, warmup = 50, chains = 1,
-    display_progress = "none")
+    display_progress = "none"
+  )
   expect_s3_class(fit, "bgms")
   expect_true(all(is.finite(do.call(rbind, fit$raw_samples$main))))
 })
@@ -107,9 +130,10 @@ test_that("bgm ordinal works with both normal priors", {
   data("Wenchuan", package = "bgms")
   fit = bgm(Wenchuan[1:50, 1:4],
     interaction_prior = normal_prior(scale = 0.5),
-    threshold_prior = normal_threshold_prior(scale = 0.5),
+    threshold_prior = normal_prior(scale = 0.5),
     iter = 25, warmup = 50, chains = 1,
-    display_progress = "none")
+    display_progress = "none"
+  )
   expect_s3_class(fit, "bgms")
 })
 
@@ -117,10 +141,11 @@ test_that("bgm ordinal works with normal priors + edge selection", {
   data("Wenchuan", package = "bgms")
   fit = bgm(Wenchuan[1:50, 1:4],
     interaction_prior = normal_prior(scale = 0.5),
-    threshold_prior = normal_threshold_prior(scale = 0.5),
+    threshold_prior = normal_prior(scale = 0.5),
     edge_prior = bernoulli_prior(0.5),
     iter = 25, warmup = 50, chains = 1,
-    display_progress = "none")
+    display_progress = "none"
+  )
   expect_s3_class(fit, "bgms")
 })
 
@@ -128,16 +153,17 @@ test_that("bgm ordinal works with normal priors + beta_bernoulli edge prior", {
   data("Wenchuan", package = "bgms")
   fit = bgm(Wenchuan[1:50, 1:4],
     interaction_prior = normal_prior(scale = 0.5),
-    threshold_prior = normal_threshold_prior(scale = 0.5),
+    threshold_prior = normal_prior(scale = 0.5),
     edge_prior = beta_bernoulli_prior(1, 1),
     iter = 25, warmup = 50, chains = 1,
-    display_progress = "none")
+    display_progress = "none"
+  )
   expect_s3_class(fit, "bgms")
 })
 
 
 # ==============================================================================
-# 3. bgm() with Prior Objects — GGM (Continuous)
+# 3. bgm() with Prior Objects <U+2014> GGM (Continuous)
 # ==============================================================================
 
 test_that("bgm ggm works with normal_prior", {
@@ -147,7 +173,8 @@ test_that("bgm ggm works with normal_prior", {
     variable_type = "continuous",
     interaction_prior = normal_prior(scale = 1),
     iter = 25, warmup = 50, chains = 1,
-    display_progress = "none")
+    display_progress = "none"
+  )
   expect_s3_class(fit, "bgms")
   expect_true(all(is.finite(do.call(rbind, fit$raw_samples$pairwise))))
 })
@@ -159,13 +186,14 @@ test_that("bgm ggm works with cauchy_prior", {
     variable_type = "continuous",
     interaction_prior = cauchy_prior(scale = 2.5),
     iter = 25, warmup = 50, chains = 1,
-    display_progress = "none")
+    display_progress = "none"
+  )
   expect_s3_class(fit, "bgms")
 })
 
 
 # ==============================================================================
-# 4. bgm() with Prior Objects — Mixed MRF
+# 4. bgm() with Prior Objects <U+2014> Mixed MRF
 # ==============================================================================
 
 test_that("bgm mixed works with default priors", {
@@ -175,7 +203,8 @@ test_that("bgm mixed works with default priors", {
   fit = bgm(dat,
     variable_type = c(rep("ordinal", 4), rep("continuous", 2)),
     iter = 25, warmup = 100, chains = 1,
-    display_progress = "none")
+    display_progress = "none"
+  )
   expect_s3_class(fit, "bgms")
   expect_true(all(is.finite(do.call(rbind, fit$raw_samples$pairwise))))
 })
@@ -188,20 +217,22 @@ test_that("bgm mixed works with normal_prior", {
     variable_type = c(rep("ordinal", 4), rep("continuous", 2)),
     interaction_prior = normal_prior(scale = 0.5),
     iter = 25, warmup = 100, chains = 1,
-    display_progress = "none")
+    display_progress = "none"
+  )
   expect_s3_class(fit, "bgms")
   expect_true(all(is.finite(do.call(rbind, fit$raw_samples$pairwise))))
 })
 
-test_that("bgm mixed works with normal_threshold_prior", {
+test_that("bgm mixed works with normal_prior", {
   set.seed(42)
   data("Wenchuan", package = "bgms")
   dat = data.frame(Wenchuan[1:100, 1:4], V5 = rnorm(100), V6 = rnorm(100))
   fit = bgm(dat,
     variable_type = c(rep("ordinal", 4), rep("continuous", 2)),
-    threshold_prior = normal_threshold_prior(scale = 1),
+    threshold_prior = normal_prior(scale = 1),
     iter = 25, warmup = 100, chains = 1,
-    display_progress = "none")
+    display_progress = "none"
+  )
   expect_s3_class(fit, "bgms")
   expect_true(all(is.finite(do.call(rbind, fit$raw_samples$main))))
 })
@@ -213,15 +244,32 @@ test_that("bgm mixed works with both normal priors", {
   fit = bgm(dat,
     variable_type = c(rep("ordinal", 4), rep("continuous", 2)),
     interaction_prior = normal_prior(scale = 0.5),
-    threshold_prior = normal_threshold_prior(scale = 0.5),
+    threshold_prior = normal_prior(scale = 0.5),
     iter = 25, warmup = 100, chains = 1,
-    display_progress = "none")
+    display_progress = "none"
+  )
   expect_s3_class(fit, "bgms")
+})
+
+test_that("bgm mixed works with means_prior", {
+  set.seed(42)
+  data("Wenchuan", package = "bgms")
+  dat = data.frame(Wenchuan[1:100, 1:4], V5 = rnorm(100), V6 = rnorm(100))
+  fit = bgm(dat,
+    variable_type = c(rep("ordinal", 4), rep("continuous", 2)),
+    means_prior = cauchy_prior(scale = 2),
+    iter = 25, warmup = 100, chains = 1,
+    display_progress = "none"
+  )
+  expect_s3_class(fit, "bgms")
+  # Verify means_prior is stored in spec
+  expect_equal(fit$.bgm_spec$prior$means_prior_type, "cauchy")
+  expect_equal(fit$.bgm_spec$prior$means_scale, 2)
 })
 
 
 # ==============================================================================
-# 5. bgm() with Prior Objects — Blume-Capel
+# 5. bgm() with Prior Objects <U+2014> Blume-Capel
 # ==============================================================================
 
 test_that("bgm blume-capel works with normal priors", {
@@ -230,9 +278,10 @@ test_that("bgm blume-capel works with normal priors", {
     variable_type = "blume-capel",
     baseline_category = 2,
     interaction_prior = normal_prior(scale = 0.5),
-    threshold_prior = normal_threshold_prior(scale = 0.5),
+    threshold_prior = normal_prior(scale = 0.5),
     iter = 25, warmup = 50, chains = 1,
-    display_progress = "none")
+    display_progress = "none"
+  )
   expect_s3_class(fit, "bgms")
   main_names = fit$raw_samples$parameter_names$main
   expect_true(any(grepl("linear", main_names)))
@@ -248,13 +297,15 @@ test_that("bgmCompare works with normal priors", {
   data("Wenchuan", package = "bgms")
   x = Wenchuan[1:25, 1:4]
   y = Wenchuan[26:50, 1:4]
-  fit = bgmCompare(x = x, y = y,
+  fit = bgmCompare(
+    x = x, y = y,
     interaction_prior = normal_prior(scale = 0.5),
-    threshold_prior = normal_threshold_prior(scale = 0.5),
+    threshold_prior = normal_prior(scale = 0.5),
     difference_selection = FALSE,
     iter = 25, warmup = 100, chains = 1,
     update_method = "adaptive-metropolis",
-    display_progress = "none")
+    display_progress = "none"
+  )
   expect_s3_class(fit, "bgmCompare")
 })
 
@@ -262,19 +313,21 @@ test_that("bgmCompare works with normal priors + difference selection", {
   data("Wenchuan", package = "bgms")
   x = Wenchuan[1:25, 1:4]
   y = Wenchuan[26:50, 1:4]
-  fit = bgmCompare(x = x, y = y,
+  fit = bgmCompare(
+    x = x, y = y,
     interaction_prior = normal_prior(scale = 0.5),
-    threshold_prior = normal_threshold_prior(scale = 0.5),
+    threshold_prior = normal_prior(scale = 0.5),
     difference_selection = TRUE,
     iter = 25, warmup = 100, chains = 1,
     update_method = "adaptive-metropolis",
-    display_progress = "none")
+    display_progress = "none"
+  )
   expect_s3_class(fit, "bgmCompare")
 })
 
 
 # ==============================================================================
-# 7. Backward Compatibility — Deprecated Scalar Parameters
+# 7. Backward Compatibility <U+2014> Deprecated Scalar Parameters
 # ==============================================================================
 
 test_that("deprecated pairwise_scale still works", {
@@ -283,7 +336,8 @@ test_that("deprecated pairwise_scale still works", {
     fit <- bgm(Wenchuan[1:50, 1:4],
       pairwise_scale = 2.5,
       iter = 25, warmup = 50, chains = 1,
-      display_progress = "none"),
+      display_progress = "none"
+    ),
     "pairwise_scale"
   )
   expect_s3_class(fit, "bgms")
@@ -295,7 +349,8 @@ test_that("deprecated main_alpha/main_beta still works", {
     fit <- bgm(Wenchuan[1:50, 1:4],
       main_alpha = 1, main_beta = 1,
       iter = 25, warmup = 50, chains = 1,
-      display_progress = "none"),
+      display_progress = "none"
+    ),
     "main_alpha"
   )
   expect_s3_class(fit, "bgms")
@@ -303,16 +358,118 @@ test_that("deprecated main_alpha/main_beta still works", {
 
 
 # ==============================================================================
-# 8. Prior Object Stored in Fit
+# 8. Backward Compatibility <U+2014> Deprecated String Edge Priors
+# ==============================================================================
+
+test_that("deprecated string edge_prior 'Bernoulli' warns", {
+  data("Wenchuan", package = "bgms")
+  expect_warning(
+    fit <- bgm(Wenchuan[1:50, 1:4],
+      edge_prior = "Bernoulli",
+      iter = 25, warmup = 50, chains = 1,
+      display_progress = "none"
+    ),
+    "edge_prior"
+  )
+  expect_s3_class(fit, "bgms")
+})
+
+test_that("deprecated string edge_prior 'Beta-Bernoulli' warns", {
+  data("Wenchuan", package = "bgms")
+  expect_warning(
+    fit <- bgm(Wenchuan[1:50, 1:4],
+      edge_prior = "Beta-Bernoulli",
+      beta_bernoulli_alpha = 1, beta_bernoulli_beta = 1,
+      iter = 25, warmup = 50, chains = 1,
+      display_progress = "none"
+    ),
+    "edge_prior"
+  )
+  expect_s3_class(fit, "bgms")
+})
+
+test_that("deprecated string edge_prior 'Stochastic-Block' warns", {
+  data("Wenchuan", package = "bgms")
+  expect_warning(
+    fit <- bgm(Wenchuan[1:50, 1:4],
+      edge_prior = "Stochastic-Block",
+      iter = 25, warmup = 50, chains = 1,
+      display_progress = "none"
+    ),
+    "edge_prior"
+  )
+  expect_s3_class(fit, "bgms")
+})
+
+
+# ==============================================================================
+# 9. Edge Prior Objects <U+2014> Correct Plumbing
+# ==============================================================================
+
+test_that("bernoulli_prior object is correctly plumbed", {
+  data("Wenchuan", package = "bgms")
+  fit = bgm(Wenchuan[1:50, 1:4],
+    edge_prior = bernoulli_prior(0.3),
+    iter = 25, warmup = 50, chains = 1,
+    display_progress = "none"
+  )
+  expect_s3_class(fit, "bgms")
+  spec = fit$.bgm_spec
+  expect_equal(spec$prior$edge_prior, "Bernoulli")
+  expect_true(all(spec$prior$inclusion_probability[
+    upper.tri(spec$prior$inclusion_probability)
+  ] == 0.3))
+})
+
+test_that("beta_bernoulli_prior object is correctly plumbed", {
+  data("Wenchuan", package = "bgms")
+  fit = bgm(Wenchuan[1:50, 1:4],
+    edge_prior = beta_bernoulli_prior(alpha = 2, beta = 5),
+    iter = 25, warmup = 50, chains = 1,
+    display_progress = "none"
+  )
+  expect_s3_class(fit, "bgms")
+  spec = fit$.bgm_spec
+  expect_equal(spec$prior$edge_prior, "Beta-Bernoulli")
+  expect_equal(spec$prior$beta_bernoulli_alpha, 2)
+  expect_equal(spec$prior$beta_bernoulli_beta, 5)
+})
+
+test_that("sbm_prior object is correctly plumbed", {
+  data("Wenchuan", package = "bgms")
+  fit = bgm(Wenchuan[1:50, 1:4],
+    edge_prior = sbm_prior(
+      alpha = 2, beta = 3,
+      alpha_between = 1, beta_between = 4,
+      dirichlet_alpha = 0.5, lambda = 2
+    ),
+    iter = 25, warmup = 50, chains = 1,
+    display_progress = "none"
+  )
+  expect_s3_class(fit, "bgms")
+  spec = fit$.bgm_spec
+  expect_equal(spec$prior$edge_prior, "Stochastic-Block")
+  expect_equal(spec$prior$beta_bernoulli_alpha, 2)
+  expect_equal(spec$prior$beta_bernoulli_beta, 3)
+  expect_equal(spec$prior$beta_bernoulli_alpha_between, 1)
+  expect_equal(spec$prior$beta_bernoulli_beta_between, 4)
+  expect_equal(spec$prior$dirichlet_alpha, 0.5)
+  expect_equal(spec$prior$lambda, 2)
+})
+
+
+# ==============================================================================
+# 10. Prior Object Stored in Fit
 # ==============================================================================
 
 test_that("prior info is stored in .bgm_spec", {
   data("Wenchuan", package = "bgms")
   fit = bgm(Wenchuan[1:50, 1:4],
     interaction_prior = normal_prior(scale = 0.5),
-    threshold_prior = normal_threshold_prior(scale = 0.5),
+    threshold_prior = normal_prior(scale = 0.5),
     iter = 25, warmup = 50, chains = 1,
-    display_progress = "none")
+    display_progress = "none"
+  )
   spec = fit$.bgm_spec
   expect_equal(spec$prior$interaction_prior_type, "normal")
   expect_equal(spec$prior$pairwise_scale, 0.5)

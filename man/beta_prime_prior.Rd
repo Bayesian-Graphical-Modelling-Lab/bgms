@@ -2,7 +2,7 @@
 % Please edit documentation in R/priors.R
 \name{beta_prime_prior}
 \alias{beta_prime_prior}
-\title{Beta-Prime Prior for Threshold Parameters}
+\title{Beta-Prime Prior for Model Parameters}
 \usage{
 beta_prime_prior(alpha = 0.5, beta = 0.5)
 }
@@ -12,11 +12,11 @@ beta_prime_prior(alpha = 0.5, beta = 0.5)
 \item{beta}{Positive numeric. Second shape parameter. Default: \code{0.5}.}
 }
 \value{
-An object of class \code{"bgms_threshold_prior"} with
+An object of class \code{"bgms_parameter_prior"} with
 \code{family = "beta-prime"}.
 }
 \description{
-Specifies a beta-prime prior on threshold (main-effect) parameters.
+Specifies a beta-prime prior on model parameters.
 The parameterization follows the logistic transformation:
 \eqn{\sigma(\mu) \sim \textrm{Beta}(\alpha, \beta)}{sigma(mu) ~ Beta(alpha, beta)},
 so \eqn{\mu = \textrm{logit}(Y)}{mu = logit(Y)} where
@@ -28,14 +28,14 @@ beta_prime_prior(alpha = 1, beta = 1)
 
 }
 \seealso{
-\code{\link{normal_threshold_prior}}, \code{\link{bgm}}
+\code{\link{cauchy_prior}}, \code{\link{normal_prior}},
+\code{\link{bgm}}
 
 Other prior-constructors: 
 \code{\link{bernoulli_prior}()},
 \code{\link{beta_bernoulli_prior}()},
 \code{\link{cauchy_prior}()},
 \code{\link{normal_prior}()},
-\code{\link{normal_threshold_prior}()},
 \code{\link{sbm_prior}()}
 }
 \concept{prior-constructors}

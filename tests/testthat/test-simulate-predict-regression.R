@@ -5,18 +5,18 @@
 # produced by the refactored bgm() / bgmCompare() pipeline.
 #
 # Test groups:
-#   1. $arguments contract — every field simulate/predict extract is present
-#   2. Fit-object structure — posterior_mean_*, raw_samples present
-#   3. Golden fixture cross-check — simulate/predict-critical $arguments
+#   1. $arguments contract <U+2014> every field simulate/predict extract is present
+#   2. Fit-object structure <U+2014> posterior_mean_*, raw_samples present
+#   3. Golden fixture cross-check <U+2014> simulate/predict-critical $arguments
 #      values match old pipeline output recorded in golden .rds files
-#   4. Functional roundtrip — simulate → predict for each model type
+#   4. Functional roundtrip <U+2014> simulate <U+2192> predict for each model type
 #   5. Posterior-sample method regression
 #   6. Field type and value invariants
 # ==============================================================================
 
 
 # ------------------------------------------------------------------------------
-# Fixture Specifications — defined in helper-fixtures.R
+# Fixture Specifications <U+2014> defined in helper-fixtures.R
 # get_bgms_fixtures(), get_bgmcompare_fixtures()
 # ------------------------------------------------------------------------------
 
@@ -369,12 +369,12 @@ test_that("golden fixtures: compare specs produce correct baseline_category", {
 # ==============================================================================
 # 4. Functional roundtrip tests
 # ==============================================================================
-# For every cached fixture type: simulate data → predict on it → verify
+# For every cached fixture type: simulate data <U+2192> predict on it <U+2192> verify
 # structural soundness. This catches any mismatch between $arguments and
 # the actual simulate/predict code paths after refactoring.
 # ==============================================================================
 
-test_that("simulate → predict roundtrip works for all bgms fixtures", {
+test_that("simulate <U+2192> predict roundtrip works for all bgms fixtures", {
   for(spec in get_bgms_fixtures()) {
     ctx = sprintf("[bgms %s]", spec$label)
     fit = spec$get_fit()
@@ -499,7 +499,7 @@ test_that("simulate → predict roundtrip works for all bgms fixtures", {
   }
 })
 
-test_that("simulate → predict roundtrip works for all bgmCompare fixtures", {
+test_that("simulate <U+2192> predict roundtrip works for all bgmCompare fixtures", {
   for(spec in get_bgmcompare_fixtures()) {
     ctx = sprintf("[bgmCompare %s]", spec$label)
     fit = spec$get_fit()

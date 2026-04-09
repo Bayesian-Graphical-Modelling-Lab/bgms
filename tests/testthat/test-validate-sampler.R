@@ -36,7 +36,7 @@ suppress_hmc_deprecation = function(expr) {
 
 
 # ==============================================================================
-# 1. update_method  — match.arg
+# 1. update_method  <U+2014> match.arg
 # ==============================================================================
 
 test_that("default triple resolves to 'nuts'", {
@@ -70,7 +70,7 @@ test_that("invalid update_method errors", {
 # 2. GGM guard  (is_continuous = TRUE)
 # ==============================================================================
 
-test_that("GGM defaults → nuts silently", {
+test_that("GGM defaults <U+2192> nuts silently", {
   res = vs(is_continuous = TRUE)
   expect_equal(res$update_method, "nuts")
 })
@@ -107,22 +107,22 @@ test_that("GGM + hamiltonian-mc + edge_selection warns", {
 
 
 # ==============================================================================
-# 3. target_accept  — defaults and clamping
+# 3. target_accept  <U+2014> defaults and clamping
 # ==============================================================================
 
-test_that("NULL target_accept → 0.44 for adaptive-metropolis", {
+test_that("NULL target_accept <U+2192> 0.44 for adaptive-metropolis", {
   res = vs(update_method = "adaptive-metropolis", target_accept = NULL)
   expect_equal(res$target_accept, 0.44)
 })
 
-test_that("NULL target_accept → 0.65 for hamiltonian-mc", {
+test_that("NULL target_accept <U+2192> 0.65 for hamiltonian-mc", {
   res = suppress_hmc_deprecation(
     vs(update_method = "hamiltonian-mc", target_accept = NULL)
   )
   expect_equal(res$target_accept, 0.65)
 })
 
-test_that("NULL target_accept → 0.80 for nuts", {
+test_that("NULL target_accept <U+2192> 0.80 for nuts", {
   res = vs(update_method = "nuts", target_accept = NULL)
   expect_equal(res$target_accept, 0.80)
 })
@@ -355,30 +355,30 @@ test_that("NA seed errors", {
 
 
 # ==============================================================================
-# 10. display_progress  →  progress_type
+# 10. display_progress  <U+2192>  progress_type
 # ==============================================================================
 
-test_that("'per-chain' → 2L", {
+test_that("'per-chain' <U+2192> 2L", {
   res = vs(display_progress = "per-chain")
   expect_equal(res$progress_type, 2L)
 })
 
-test_that("'total' → 1L", {
+test_that("'total' <U+2192> 1L", {
   res = vs(display_progress = "total")
   expect_equal(res$progress_type, 1L)
 })
 
-test_that("'none' → 0L", {
+test_that("'none' <U+2192> 0L", {
   res = vs(display_progress = "none")
   expect_equal(res$progress_type, 0L)
 })
 
-test_that("TRUE → 2L (per-chain)", {
+test_that("TRUE <U+2192> 2L (per-chain)", {
   res = vs(display_progress = TRUE)
   expect_equal(res$progress_type, 2L)
 })
 
-test_that("FALSE → 0L (none)", {
+test_that("FALSE <U+2192> 0L (none)", {
   res = vs(display_progress = FALSE)
   expect_equal(res$progress_type, 0L)
 })

@@ -5,7 +5,7 @@
 
 
 # ==============================================================================
-# 1. standardize = FALSE  →  ones matrix
+# 1. standardize = FALSE  <U+2192>  ones matrix
 # ==============================================================================
 
 test_that("standardize = FALSE returns all-ones matrix with names", {
@@ -38,7 +38,7 @@ test_that("standardize = FALSE with NULL varnames gives default names", {
 
 
 # ==============================================================================
-# 2. Both ordinal  →  M_i * M_j
+# 2. Both ordinal  <U+2192>  M_i * M_j
 # ==============================================================================
 
 test_that("two ordinal variables: scaling = M1 * M2", {
@@ -77,11 +77,11 @@ test_that("three ordinal variables: all pairs", {
 
 
 # ==============================================================================
-# 3. Both Blume-Capel  →  max |endpoints|
+# 3. Both Blume-Capel  <U+2192>  max |endpoints|
 # ==============================================================================
 
 test_that("two Blume-Capel: baseline at 0, range is (-0, M-0) = (0, M)", {
-  # M1=4, b1=0 → endpoints (-0, 4); M2=3, b2=0 → endpoints (0, 3)
+  # M1=4, b1=0 <U+2192> endpoints (-0, 4); M2=3, b2=0 <U+2192> endpoints (0, 3)
   # max(|outer|) = max(0*0, 0*3, 4*0, 4*3) = 12
   res = compute_scaling_factors(
     num_variables     = 2,
@@ -96,7 +96,7 @@ test_that("two Blume-Capel: baseline at 0, range is (-0, M-0) = (0, M)", {
 })
 
 test_that("two Blume-Capel: non-zero baselines", {
-  # M1=4, b1=2 → endpoints (-2, 2); M2=5, b2=1 → endpoints (-1, 4)
+  # M1=4, b1=2 <U+2192> endpoints (-2, 2); M2=5, b2=1 <U+2192> endpoints (-1, 4)
   # outer: (-2)*(-1)=2, (-2)*4=-8, 2*(-1)=-2, 2*4=8
   # max(abs) = 8
   res = compute_scaling_factors(
@@ -153,9 +153,9 @@ test_that("Blume-Capel + ordinal: v1 BC, v2 ordinal", {
 # 5. Mixed 3-variable scenario (all branch combos)
 # ==============================================================================
 
-test_that("3 variables: ordinal, BC, ordinal — covers all mixed pairs", {
+test_that("3 variables: ordinal, BC, ordinal <U+2014> covers all mixed pairs", {
   # V1: ordinal, M=3
-  # V2: BC, M=5, b=2 → range (-2, 3)
+  # V2: BC, M=5, b=2 <U+2192> range (-2, 3)
   # V3: ordinal, M=2
   #
   # (1,2) ordinal+BC: endpoints1=(0,3), endpoints2=(-2,3)

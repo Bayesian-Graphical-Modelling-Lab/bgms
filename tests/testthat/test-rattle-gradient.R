@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------------- #
-# RATTLE Phase 2 — Full-space gradient tests.
+# RATTLE Phase 2 <U+2014> Full-space gradient tests.
 #
 # Tests verify:
 #   1. Full-edge graph: logp_and_gradient_full agrees with logp_and_gradient
@@ -199,7 +199,7 @@ test_that("constrained p=4: full gradient has nonzero excluded-edge entries", {
 
   # The gradient should have all entries (included AND excluded)
   # For a p=4 problem, the full gradient has 10 entries
-  # Not all will be zero — the excluded edge gradient is the normal
+  # Not all will be zero <U+2014> the excluded edge gradient is the normal
   # component that RATTLE uses for momentum projection
   expect_true(any(grad != 0))
 })
@@ -406,7 +406,7 @@ test_that("full gradient returns -Inf for degenerate Phi", {
   S = diag(p) * n
   scale = 2.5
 
-  # Set psi_0 = -1000 -> Phi_{00} = exp(-1000) ≈ 0
+  # Set psi_0 = -1000 -> Phi_{00} = exp(-1000) <U+2248> 0
   x = c(-1000, 0.5, 0.3, 0.2, -0.1, 0.4)
 
   res = ggm_test_logp_and_gradient_full(x, S, n, edges, scale)

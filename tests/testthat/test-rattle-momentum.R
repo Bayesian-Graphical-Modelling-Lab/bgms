@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------------- #
-# RATTLE Phase 3 — Momentum projection tests.
+# RATTLE Phase 3 <U+2014> Momentum projection tests.
 #
 # Tests verify:
 #   1. J r = 0 after projection (cotangent space condition)
@@ -143,7 +143,7 @@ test_that("projected momentum satisfies J*r = 0, p=4", {
 
   r_proj = as.vector(ggm_test_project_momentum(r, x, edges))
 
-  # Build J in R and verify J * r_proj ≈ 0
+  # Build J in R and verify J * r_proj <U+2248> 0
   Phi = full_position_to_phi(x, p)
   J = build_constraint_jacobian(Phi, edges)
   Jr = J %*% r_proj
@@ -296,7 +296,7 @@ test_that("projection change is in row space of J, p=4", {
 
   # delta_r should be in row space of J: delta_r = J^T lambda
   # Verify by checking that projecting delta_r onto null(J) gives 0
-  # Equivalently, delta_r - J^T (J J^T)^{-1} J delta_r ≈ 0
+  # Equivalently, delta_r - J^T (J J^T)^{-1} J delta_r <U+2248> 0
   G = J %*% t(J)
   lambda = solve(G, J %*% delta_r)
   reconstructed = as.vector(t(J) %*% lambda)

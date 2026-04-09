@@ -5,7 +5,7 @@
 # ==============================================================================
 
 # ==============================================================================
-# 1. difference_selection = FALSE  →  bypass
+# 1. difference_selection = FALSE  <U+2192>  bypass
 # ==============================================================================
 
 test_that("difference_selection = FALSE returns Not applicable with 1x1 matrix", {
@@ -26,7 +26,7 @@ test_that("difference_selection NA errors", {
 })
 
 # ==============================================================================
-# 2. Bernoulli — scalar difference_probability
+# 2. Bernoulli <U+2014> scalar difference_probability
 # ==============================================================================
 
 test_that("Bernoulli with scalar 0.5 builds p x p matrix", {
@@ -72,7 +72,7 @@ test_that("Bernoulli scalar: >= 1 errors", {
 })
 
 # ==============================================================================
-# 3. Bernoulli — matrix difference_probability
+# 3. Bernoulli <U+2014> matrix difference_probability
 # ==============================================================================
 
 test_that("Bernoulli with symmetric matrix accepted", {

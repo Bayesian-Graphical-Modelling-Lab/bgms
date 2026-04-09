@@ -4,7 +4,7 @@
 # ==============================================================================
 
 # ==============================================================================
-# 1. Listwise — no NAs
+# 1. Listwise <U+2014> no NAs
 # ==============================================================================
 
 test_that("listwise with no NAs returns data unchanged", {
@@ -17,7 +17,7 @@ test_that("listwise with no NAs returns data unchanged", {
 })
 
 # ==============================================================================
-# 2. Listwise — some NAs removed
+# 2. Listwise <U+2014> some NAs removed
 # ==============================================================================
 
 test_that("listwise removes rows with NAs and messages", {
@@ -48,7 +48,7 @@ test_that("listwise suppresses message when bgms.verbose is FALSE", {
 })
 
 # ==============================================================================
-# 3. Listwise — all rows have NAs
+# 3. Listwise <U+2014> all rows have NAs
 # ==============================================================================
 
 test_that("listwise errors when all rows have NAs", {
@@ -60,7 +60,7 @@ test_that("listwise errors when all rows have NAs", {
 })
 
 # ==============================================================================
-# 4. Listwise — too few rows after removal
+# 4. Listwise <U+2014> too few rows after removal
 # ==============================================================================
 
 test_that("listwise errors when < 2 rows remain", {
@@ -76,7 +76,7 @@ test_that("listwise errors when < 2 rows remain", {
 })
 
 # ==============================================================================
-# 5. Impute — no NAs
+# 5. Impute <U+2014> no NAs
 # ==============================================================================
 
 test_that("impute with no NAs returns data unchanged", {
@@ -88,7 +88,7 @@ test_that("impute with no NAs returns data unchanged", {
 })
 
 # ==============================================================================
-# 6. Impute — with NAs
+# 6. Impute <U+2014> with NAs
 # ==============================================================================
 
 test_that("impute fills NAs and builds missing_index", {

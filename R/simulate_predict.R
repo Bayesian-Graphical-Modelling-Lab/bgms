@@ -238,7 +238,7 @@ simulate_mrf = function(num_states,
   }
 
   # ===========================================================================
-  #   Continuous (GGM) path — direct multivariate normal sampling
+  #   Continuous (GGM) path <U+2014> direct multivariate normal sampling
   # ===========================================================================
   if(is_continuous) {
     # Check pairwise (full precision matrix, including diagonal)
@@ -293,7 +293,7 @@ simulate_mrf = function(num_states,
   }
 
   # ===========================================================================
-  #   Ordinal / Blume-Capel path — Gibbs sampling
+  #   Ordinal / Blume-Capel path <U+2014> Gibbs sampling
   # ===========================================================================
   check_positive_integer(iter, "iter")
 

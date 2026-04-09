@@ -1,10 +1,10 @@
 # --------------------------------------------------------------------------- #
-# RATTLE — NUTS initial momentum projection tests.
+# RATTLE <U+2014> NUTS initial momentum projection tests.
 #
 # Tests verify the initialization pattern used in nuts_step():
 #   1. ProjectFn pattern preserves the original position
 #   2. Projected initial momentum satisfies cotangent constraint
-#   3. Kinetic energy after projection follows chi²(d-m)/2
+#   3. Kinetic energy after projection follows chi<U+00B2>(d-m)/2
 #
 # These tests verify the fix for the missing initial momentum projection
 # bug, where r0 was sampled from N(0,M) but not projected onto the
@@ -223,9 +223,9 @@ test_that("NUTS init pattern: projected r0 satisfies J*r=0, p=9", {
 })
 
 
-# ---- 3. Kinetic energy after projection follows chi²(d-m)/2 ---------------
+# ---- 3. Kinetic energy after projection follows chi<U+00B2>(d-m)/2 ---------------
 # When r0 ~ N(0, I) and is projected onto the (d-m)-dimensional cotangent
-# space, kin0 = 0.5 * ||r_proj||² ~ chi²(d-m) / 2, so E[kin0] = (d-m)/2.
+# space, kin0 = 0.5 * ||r_proj||<U+00B2> ~ chi<U+00B2>(d-m) / 2, so E[kin0] = (d-m)/2.
 #
 # This test generates many projected momenta and checks that the mean
 # kinetic energy is consistent with (d-m)/2. A systematic deviation
@@ -264,7 +264,7 @@ test_that("mean kin0 after projection consistent with d-m DoF, p=5", {
   expected_mean = (d - m) / 2
   observed_mean = mean(kin_vals)
 
-  # With identity mass, kin ~ chi²(d-m)/2, so Var[kin] = (d-m)/2.
+  # With identity mass, kin ~ chi<U+00B2>(d-m)/2, so Var[kin] = (d-m)/2.
   # SE of mean = sqrt((d-m)/2) / sqrt(n_samples).
   se = sqrt((d - m) / 2) / sqrt(n_samples)
 

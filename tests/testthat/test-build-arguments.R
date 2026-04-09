@@ -85,7 +85,7 @@ spec_compare = function(...) {
 
 
 # ==============================================================================
-# 1.  GGM arguments — field names match prepare_output_ggm
+# 1.  GGM arguments <U+2014> field names match prepare_output_ggm
 # ==============================================================================
 
 test_that("GGM build_arguments: all expected field names present", {
@@ -145,7 +145,7 @@ test_that("GGM build_arguments: edge_selection = FALSE", {
 
 
 # ==============================================================================
-# 2.  OMRF arguments — field names match prepare_output_bgm
+# 2.  OMRF arguments <U+2014> field names match prepare_output_bgm
 # ==============================================================================
 
 test_that("OMRF build_arguments: all expected field names present", {
@@ -206,7 +206,7 @@ test_that("OMRF build_arguments: Beta-Bernoulli prior params preserved", {
 
 
 # ==============================================================================
-# 3.  Compare arguments — field names match prepare_output_bgmCompare
+# 3.  Compare arguments <U+2014> field names match prepare_output_bgmCompare
 # ==============================================================================
 
 test_that("Compare build_arguments: all expected field names present", {

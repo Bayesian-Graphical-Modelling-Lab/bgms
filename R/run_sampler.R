@@ -22,7 +22,7 @@ bb_between_default = function(value) {
 
 
 # ==============================================================================
-# run_sampler()  — main dispatcher
+# run_sampler()  <U+2014> main dispatcher
 # ==============================================================================
 run_sampler = function(spec) {
   stopifnot(inherits(spec, "bgm_spec"))
@@ -74,7 +74,9 @@ run_sampler_ggm = function(spec) {
     inputFromR = list(
       X = d$x,
       pairwise_scale = p$pairwise_scale,
-      interaction_prior_type = p$interaction_prior_type
+      interaction_prior_type = p$interaction_prior_type,
+      interaction_alpha = p$interaction_alpha,
+      interaction_beta = p$interaction_beta
     ),
     prior_inclusion_prob = p$inclusion_probability,
     initial_edge_indicators = matrix(1L,
@@ -126,6 +128,8 @@ run_sampler_omrf = function(spec) {
     baseline_category      = v$baseline_category,
     interaction_prior_type = p$interaction_prior_type,
     pairwise_scale         = p$pairwise_scale,
+    interaction_alpha      = p$interaction_alpha,
+    interaction_beta       = p$interaction_beta,
     threshold_prior_type   = p$threshold_prior_type,
     main_alpha             = p$main_alpha,
     main_beta              = p$main_beta,
@@ -187,10 +191,16 @@ run_sampler_mixed_mrf = function(spec) {
     baseline_category       = v$baseline_category,
     interaction_prior_type  = p$interaction_prior_type,
     pairwise_scale          = p$pairwise_scale,
+    interaction_alpha       = p$interaction_alpha,
+    interaction_beta        = p$interaction_beta,
     threshold_prior_type    = p$threshold_prior_type,
     main_alpha              = p$main_alpha,
     main_beta               = p$main_beta,
     threshold_scale         = p$threshold_scale,
+    means_prior_type        = p$means_prior_type,
+    means_scale             = p$means_scale,
+    means_alpha             = p$means_alpha,
+    means_beta              = p$means_beta,
     pseudolikelihood        = p$pseudolikelihood
   )
 

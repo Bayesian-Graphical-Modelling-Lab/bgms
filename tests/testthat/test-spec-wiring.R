@@ -34,7 +34,7 @@ assert_arguments_match = function(fit, skip = "version") {
 
 
 # ==============================================================================
-# 1.  bgm() — spec attached
+# 1.  bgm() <U+2014> spec attached
 # ==============================================================================
 
 test_that("bgm() attaches .bgm_spec to output (binary/ordinal)", {
@@ -51,7 +51,7 @@ test_that("bgm() attaches .bgm_spec to output (ordinal)", {
 
 
 # ==============================================================================
-# 2.  bgm() — build_arguments matches output$arguments
+# 2.  bgm() <U+2014> build_arguments matches output$arguments
 # ==============================================================================
 
 test_that("bgm() binary: build_arguments matches output$arguments", {
@@ -86,7 +86,7 @@ test_that("bgm() standardize: build_arguments matches output$arguments", {
 
 
 # ==============================================================================
-# 3.  bgmCompare() — spec attached
+# 3.  bgmCompare() <U+2014> spec attached
 # ==============================================================================
 
 test_that("bgmCompare() attaches .bgm_spec (group_indicator)", {
@@ -103,7 +103,7 @@ test_that("bgmCompare() attaches .bgm_spec (x/y interface)", {
 
 
 # ==============================================================================
-# 4.  bgmCompare() — build_arguments matches output$arguments
+# 4.  bgmCompare() <U+2014> build_arguments matches output$arguments
 # ==============================================================================
 
 test_that("bgmCompare() group_indicator: build_arguments matches", {
@@ -131,17 +131,17 @@ test_that("bgmCompare() Beta-Bernoulli: build_arguments matches", {
 # 5.  Spec model_type correctness
 # ==============================================================================
 
-test_that("bgm() binary → model_type = 'omrf'", {
+test_that("bgm() binary <U+2192> model_type = 'omrf'", {
   fit = get_bgms_fit()
   expect_equal(fit$.bgm_spec$model_type, "omrf")
 })
 
-test_that("bgm() ordinal → model_type = 'omrf'", {
+test_that("bgm() ordinal <U+2192> model_type = 'omrf'", {
   fit = get_bgms_fit_ordinal()
   expect_equal(fit$.bgm_spec$model_type, "omrf")
 })
 
-test_that("bgmCompare() → model_type = 'compare'", {
+test_that("bgmCompare() <U+2192> model_type = 'compare'", {
   fit = get_bgmcompare_fit()
   expect_equal(fit$.bgm_spec$model_type, "compare")
 })

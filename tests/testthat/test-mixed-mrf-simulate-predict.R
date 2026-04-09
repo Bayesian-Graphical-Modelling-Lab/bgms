@@ -9,7 +9,7 @@
 #   Mixed-specific structural tests for simulate.bgms / predict.bgms
 #   Edge cases: p=1, q=1, binary-only ordinal
 #
-# PATTERN: Stochastic-robust testing — dimensions, ranges, invariants,
+# PATTERN: Stochastic-robust testing <U+2014> dimensions, ranges, invariants,
 # coarse distributional checks. No exact moment matching.
 # ==============================================================================
 

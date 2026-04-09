@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------------- #
-# Phase M.2 — NUTS vs MH posterior agreement for Mixed MRF.
+# Phase M.2 <U+2014> NUTS vs MH posterior agreement for Mixed MRF.
 #
 # Verifies that NUTS and adaptive-MH target the same pseudo-posterior by
 # comparing posterior summaries across six conditions:

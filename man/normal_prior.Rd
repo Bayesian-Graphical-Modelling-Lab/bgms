@@ -2,7 +2,7 @@
 % Please edit documentation in R/priors.R
 \name{normal_prior}
 \alias{normal_prior}
-\title{Normal Prior for Pairwise Interactions}
+\title{Normal Prior for Model Parameters}
 \usage{
 normal_prior(scale = 1)
 }
@@ -11,13 +11,14 @@ normal_prior(scale = 1)
 distribution. Default: \code{1}.}
 }
 \value{
-An object of class \code{"bgms_interaction_prior"} with
+An object of class \code{"bgms_parameter_prior"} with
 \code{family = "normal"}.
 }
 \description{
-Specifies a Normal(0, scale) prior on pairwise interaction parameters.
+Specifies a Normal(0, scale) prior on model parameters.
 Produces lighter-tailed shrinkage than the Cauchy prior and is better
-suited for simulation-based calibration (SBC) studies.
+suited for simulation-based calibration (SBC) studies. Can be used for
+interactions, thresholds, or continuous means.
 }
 \examples{
 normal_prior()
@@ -25,14 +26,14 @@ normal_prior(scale = 0.5)
 
 }
 \seealso{
-\code{\link{cauchy_prior}}, \code{\link{bgm}}
+\code{\link{cauchy_prior}}, \code{\link{beta_prime_prior}},
+\code{\link{bgm}}
 
 Other prior-constructors: 
 \code{\link{bernoulli_prior}()},
 \code{\link{beta_bernoulli_prior}()},
 \code{\link{beta_prime_prior}()},
 \code{\link{cauchy_prior}()},
-\code{\link{normal_threshold_prior}()},
 \code{\link{sbm_prior}()}
 }
 \concept{prior-constructors}
