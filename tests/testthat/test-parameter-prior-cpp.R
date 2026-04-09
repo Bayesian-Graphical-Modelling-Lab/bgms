@@ -379,7 +379,159 @@ test_that("GGM full gradient correct with NormalPrior + Gamma(2,1)", {
 
 
 # ==============================================================================
-# 5. Means prior and diagonal prior consumption tests
+# 5. Numerical gradient verification for Mixed MRF with non-default priors
+# ==============================================================================
+
+mixed_fd_gradient_prior = function(params, x, y, num_cats, is_ord, base_cat,
+                                   edge_ind, pl_mode, scale,
+                                   main_alpha, main_beta,
+                                   ipt, tpt, ts,
+                                   mpt, ms, dpt, dsh, dr,
+                                   eps = 1e-5) {
+  n_total = length(params)
+  fd = numeric(n_total)
+  for(k in seq_len(n_total)) {
+    p_plus = params
+    p_minus = params
+    p_plus[k] = p_plus[k] + eps
+    p_minus[k] = p_minus[k] - eps
+    fp = mixed_test_logp_and_gradient(
+      p_plus, x, y, num_cats, as.integer(is_ord),
+      base_cat, edge_ind, pl_mode, scale,
+      main_alpha, main_beta, ipt, tpt, ts,
+      mpt, ms, dpt, dsh, dr
+    )$value
+    fm = mixed_test_logp_and_gradient(
+      p_minus, x, y, num_cats, as.integer(is_ord),
+      base_cat, edge_ind, pl_mode, scale,
+      main_alpha, main_beta, ipt, tpt, ts,
+      mpt, ms, dpt, dsh, dr
+    )$value
+    fd[k] = (fp - fm) / (2 * eps)
+  }
+  fd
+}
+
+test_that("Mixed MRF gradient correct with NormalPrior interactions", {
+  set.seed(42)
+  n = 80
+  p = 3
+  q = 2
+  x = matrix(sample(0:2, n * p, replace = TRUE), n, p)
+  y = matrix(rnorm(n * q), n, q)
+  num_cats = rep(2L, p)
+  is_ord = rep(1L, p)
+  base_cat = rep(0L, p)
+  total = p + q
+  edge_ind = matrix(1L, total, total)
+  diag(edge_ind) = 0L
+  n_main = sum(num_cats)
+  n_pw = p * (p - 1) / 2
+  n_chol = q * (q + 1) / 2
+  set.seed(123)
+  params = rnorm(n_main + n_pw + q + p * q + n_chol, sd = 0.3)
+
+  ag = mixed_test_logp_and_gradient(
+    params, x, y, num_cats, as.integer(is_ord),
+    base_cat, edge_ind, "conditional", 2.5,
+    1.0, 1.0, "normal", "beta-prime", 1.0,
+    "normal", 1.0, "gamma", 1.0, 1.0
+  )
+  fd = mixed_fd_gradient_prior(
+    params, x, y, num_cats, is_ord, base_cat,
+    edge_ind, "conditional", 2.5,
+    1.0, 1.0, "normal", "beta-prime", 1.0,
+    "normal", 1.0, "gamma", 1.0, 1.0
+  )
+
+  denom = pmax(abs(ag$gradient), abs(fd), 1)
+  rel_err = abs(ag$gradient - fd) / denom
+  expect_lt(max(rel_err), 1e-4,
+    label = sprintf("max relative error: %g", max(rel_err))
+  )
+})
+
+test_that("Mixed MRF gradient correct with Cauchy means + Gamma(2,1) diagonal", {
+  set.seed(42)
+  n = 80
+  p = 3
+  q = 2
+  x = matrix(sample(0:2, n * p, replace = TRUE), n, p)
+  y = matrix(rnorm(n * q), n, q)
+  num_cats = rep(2L, p)
+  is_ord = rep(1L, p)
+  base_cat = rep(0L, p)
+  total = p + q
+  edge_ind = matrix(1L, total, total)
+  diag(edge_ind) = 0L
+  n_main = sum(num_cats)
+  n_pw = p * (p - 1) / 2
+  n_chol = q * (q + 1) / 2
+  set.seed(456)
+  params = rnorm(n_main + n_pw + q + p * q + n_chol, sd = 0.3)
+
+  ag = mixed_test_logp_and_gradient(
+    params, x, y, num_cats, as.integer(is_ord),
+    base_cat, edge_ind, "conditional", 1.5,
+    0.5, 0.5, "cauchy", "beta-prime", 1.0,
+    "cauchy", 2.0, "gamma", 2.0, 1.0
+  )
+  fd = mixed_fd_gradient_prior(
+    params, x, y, num_cats, is_ord, base_cat,
+    edge_ind, "conditional", 1.5,
+    0.5, 0.5, "cauchy", "beta-prime", 1.0,
+    "cauchy", 2.0, "gamma", 2.0, 1.0
+  )
+
+  denom = pmax(abs(ag$gradient), abs(fd), 1)
+  rel_err = abs(ag$gradient - fd) / denom
+  expect_lt(max(rel_err), 1e-4,
+    label = sprintf("max relative error: %g", max(rel_err))
+  )
+})
+
+test_that("Mixed MRF gradient correct with Normal threshold + all non-default priors", {
+  set.seed(42)
+  n = 80
+  p = 3
+  q = 2
+  x = matrix(sample(0:2, n * p, replace = TRUE), n, p)
+  y = matrix(rnorm(n * q), n, q)
+  num_cats = rep(2L, p)
+  is_ord = rep(1L, p)
+  base_cat = rep(0L, p)
+  total = p + q
+  edge_ind = matrix(1L, total, total)
+  diag(edge_ind) = 0L
+  n_main = sum(num_cats)
+  n_pw = p * (p - 1) / 2
+  n_chol = q * (q + 1) / 2
+  set.seed(789)
+  params = rnorm(n_main + n_pw + q + p * q + n_chol, sd = 0.3)
+
+  ag = mixed_test_logp_and_gradient(
+    params, x, y, num_cats, as.integer(is_ord),
+    base_cat, edge_ind, "conditional", 1.0,
+    1.0, 1.0, "normal", "normal", 2.0,
+    "cauchy", 1.5, "gamma", 0.5, 2.0
+  )
+  fd = mixed_fd_gradient_prior(
+    params, x, y, num_cats, is_ord, base_cat,
+    edge_ind, "conditional", 1.0,
+    1.0, 1.0, "normal", "normal", 2.0,
+    "cauchy", 1.5, "gamma", 0.5, 2.0
+  )
+
+  denom = pmax(abs(ag$gradient), abs(fd), 1)
+  rel_err = abs(ag$gradient - fd) / denom
+  expect_lt(max(rel_err), 1e-4,
+    label = sprintf("max relative error: %g", max(rel_err))
+  )
+})
+
+
+# ==============================================================================
+# 6. Means prior and diagonal prior consumption tests
 # ==============================================================================
 
 test_that("precision_scale_prior affects GGM posterior", {

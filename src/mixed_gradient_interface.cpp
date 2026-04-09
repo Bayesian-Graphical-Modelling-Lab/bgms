@@ -23,7 +23,12 @@ Rcpp::List mixed_test_logp_and_gradient(
     double main_beta = 1.0,
     std::string interaction_prior_type = "cauchy",
     std::string threshold_prior_type = "beta-prime",
-    double threshold_scale = 1.0)
+    double threshold_scale = 1.0,
+    std::string means_prior_type = "normal",
+    double means_scale = 1.0,
+    std::string diagonal_prior_type = "gamma",
+    double diagonal_shape = 1.0,
+    double diagonal_rate = 1.0)
 {
     size_t p = discrete_observations.n_cols;
     size_t q = continuous_observations.n_cols;
@@ -39,8 +44,8 @@ Rcpp::List mixed_test_logp_and_gradient(
         pseudolikelihood,
         create_parameter_prior(interaction_prior_type, pairwise_scale),
         create_parameter_prior(threshold_prior_type, threshold_scale, main_alpha, main_beta),
-        std::make_unique<NormalPrior>(1.0),
-        std::make_unique<GammaScalePrior>(1.0, 1.0),
+        create_parameter_prior(means_prior_type, means_scale),
+        create_scale_prior(diagonal_prior_type, diagonal_shape, diagonal_rate),
         42
     );
 
@@ -68,7 +73,12 @@ Rcpp::List mixed_test_logp_and_gradient_full(
     double main_beta = 1.0,
     std::string interaction_prior_type = "cauchy",
     std::string threshold_prior_type = "beta-prime",
-    double threshold_scale = 1.0)
+    double threshold_scale = 1.0,
+    std::string means_prior_type = "normal",
+    double means_scale = 1.0,
+    std::string diagonal_prior_type = "gamma",
+    double diagonal_shape = 1.0,
+    double diagonal_rate = 1.0)
 {
     size_t p = discrete_observations.n_cols;
     size_t q = continuous_observations.n_cols;
@@ -84,8 +94,8 @@ Rcpp::List mixed_test_logp_and_gradient_full(
         pseudolikelihood,
         create_parameter_prior(interaction_prior_type, pairwise_scale),
         create_parameter_prior(threshold_prior_type, threshold_scale, main_alpha, main_beta),
-        std::make_unique<NormalPrior>(1.0),
-        std::make_unique<GammaScalePrior>(1.0, 1.0),
+        create_parameter_prior(means_prior_type, means_scale),
+        create_scale_prior(diagonal_prior_type, diagonal_shape, diagonal_rate),
         42
     );
 
