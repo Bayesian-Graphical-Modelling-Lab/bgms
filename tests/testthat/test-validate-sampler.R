@@ -389,11 +389,11 @@ test_that("FALSE <U+2192> 0L (none)", {
 # ==============================================================================
 
 test_that("return list has all 11 expected elements", {
-  res = vs()
-  expected_names = c(
+  res <- vs()
+  expected_names <- c(
     "update_method", "target_accept", "iter", "warmup",
     "hmc_num_leapfrogs", "nuts_max_depth", "learn_mass_matrix",
-    "chains", "cores", "seed", "progress_type"
+    "chains", "cores", "seed", "progress_type", "progress_callback"
   )
   expect_named(res, expected_names)
 })

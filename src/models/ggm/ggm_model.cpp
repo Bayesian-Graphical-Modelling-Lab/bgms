@@ -1055,38 +1055,6 @@ void GGMModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {
     theta_valid_ = false;
 }
 
-void GGMModel::initialize_graph() {
-    for (size_t i = 0; i < p_ - 1; ++i) {
-        for (size_t j = i + 1; j < p_; ++j) {
-            double p = inclusion_probability_(i, j);
-            int draw = (runif(rng_) < p) ? 1 : 0;
-            edge_indicators_(i, j) = draw;
-            edge_indicators_(j, i) = draw;
-            if (!draw) {
-                precision_proposal_ = precision_matrix_;
-                precision_proposal_(i, j) = 0.0;
-                precision_proposal_(j, i) = 0.0;
-                get_constants(i, j);
-                precision_proposal_(j, j) = constrained_diagonal(0.0);
-
-                double omega_ij_old = precision_matrix_(i, j);
-                double omega_jj_old = precision_matrix_(j, j);
-                precision_matrix_(j, j) = precision_proposal_(j, j);
-                precision_matrix_(i, j) = 0.0;
-                precision_matrix_(j, i) = 0.0;
-                cholesky_update_after_edge(omega_ij_old, omega_jj_old, i, j);
-            }
-        }
-    }
-    constraint_dirty_ = true;
-    theta_valid_ = false;
-
-    // Recompute Cholesky from scratch after bulk edge changes to avoid
-    // accumulated numerical drift from many rank-1 updates/downdates.
-    refresh_cholesky();
-}
-
-
 void GGMModel::refresh_cholesky() {
     cholesky_of_precision_ = arma::chol(precision_matrix_, "upper");
     arma::solve(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_),

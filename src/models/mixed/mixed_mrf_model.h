@@ -148,9 +148,6 @@ public:
     /** Perform one sweep of Metropolis-Hastings edge add-delete moves. */
     void update_edge_indicators() override;
 
-    /** Initialize a random graph structure for starting edge selection. */
-    void initialize_graph() override;
-
     /**
      * Enable or disable edge-selection proposals.
      * @param active  true to enable edge add-delete moves

@@ -98,6 +98,13 @@
 #' @param display_progress Character. Controls progress reporting:
 #'   \code{"per-chain"}, \code{"total"}, or \code{"none"}.
 #'   Default: \code{"per-chain"}.
+#' @param progress_callback An optional R function with signature
+#'   \code{function(completed, total)} that is called at regular intervals
+#'   during sampling, where \code{completed} is the number of iterations
+#'   completed across all chains and \code{total} is the total number of
+#'   iterations. Useful for external front-ends (e.g., JASP) that supply
+#'   their own progress reporting.
+#'   When \code{NULL} (the default), no callback is invoked.
 #' @param verbose Logical. If \code{TRUE}, prints informational messages
 #'   during data processing (e.g., missing data handling, variable recoding).
 #'   Defaults to \code{getOption("bgms.verbose", TRUE)}. Set
@@ -171,7 +178,7 @@
 #' }
 #'
 #' @export
-bgmCompare = function(
+bgmCompare <- function(
   x,
   y,
   group_indicator,
@@ -198,6 +205,7 @@ bgmCompare = function(
   seed = NULL,
   standardize = FALSE,
   verbose = getOption("bgms.verbose", TRUE),
+  progress_callback = NULL,
   # Deprecated prior arguments
   pairwise_scale,
   main_alpha,
@@ -224,147 +232,147 @@ bgmCompare = function(
   save
 ) {
   # Set verbose option for internal functions, restore on exit
-  old_verbose = getOption("bgms.verbose")
+  old_verbose <- getOption("bgms.verbose")
   options(bgms.verbose = verbose)
   on.exit(options(bgms.verbose = old_verbose), add = TRUE)
 
-  if(hasArg(main_difference_model)) {
+  if (hasArg(main_difference_model)) {
     lifecycle::deprecate_warn("0.1.6.0", "bgmCompare(main_difference_model =)")
   }
 
-  if(hasArg(reference_category)) {
+  if (hasArg(reference_category)) {
     lifecycle::deprecate_warn("0.1.6.0", "bgmCompare(reference_category =)", "bgmCompare(baseline_category =)")
-    if(!hasArg(baseline_category)) baseline_category = reference_category
+    if (!hasArg(baseline_category)) baseline_category <- reference_category
   }
 
-  if(hasArg(pairwise_difference_scale) || hasArg(main_difference_scale)) {
+  if (hasArg(pairwise_difference_scale) || hasArg(main_difference_scale)) {
     lifecycle::deprecate_warn(
       "0.1.6.0", "bgmCompare(pairwise_difference_scale =, main_difference_scale =)",
       "bgmCompare(difference_scale =)"
     )
-    if(!hasArg(difference_scale)) {
-      difference_scale = if(!missing(pairwise_difference_scale)) pairwise_difference_scale else main_difference_scale
+    if (!hasArg(difference_scale)) {
+      difference_scale <- if (!missing(pairwise_difference_scale)) pairwise_difference_scale else main_difference_scale
     }
   }
 
-  if(hasArg(pairwise_difference_prior) || hasArg(main_difference_prior)) {
+  if (hasArg(pairwise_difference_prior) || hasArg(main_difference_prior)) {
     lifecycle::deprecate_warn(
       "0.1.6.0",
       "bgmCompare(pairwise_difference_prior =, main_difference_prior =)",
       "bgmCompare(difference_prior =)"
     )
-    if(!hasArg(difference_prior)) {
-      difference_prior = if(!missing(pairwise_difference_prior)) pairwise_difference_prior else main_difference_prior
+    if (!hasArg(difference_prior)) {
+      difference_prior <- if (!missing(pairwise_difference_prior)) pairwise_difference_prior else main_difference_prior
     }
   }
 
-  if(hasArg(pairwise_difference_probability) || hasArg(main_difference_probability)) {
+  if (hasArg(pairwise_difference_probability) || hasArg(main_difference_probability)) {
     lifecycle::deprecate_warn(
       "0.1.6.0",
       "bgmCompare(pairwise_difference_probability =, main_difference_probability =)",
       "bgmCompare(difference_probability =)"
     )
-    if(!hasArg(difference_probability)) {
-      difference_probability = if(!missing(pairwise_difference_probability)) pairwise_difference_probability else main_difference_probability
+    if (!hasArg(difference_probability)) {
+      difference_probability <- if (!missing(pairwise_difference_probability)) pairwise_difference_probability else main_difference_probability
     }
   }
 
-  if(hasArg(pairwise_beta_bernoulli_alpha) || hasArg(main_beta_bernoulli_alpha)) {
+  if (hasArg(pairwise_beta_bernoulli_alpha) || hasArg(main_beta_bernoulli_alpha)) {
     lifecycle::deprecate_warn(
       "0.1.6.0",
       "bgmCompare(pairwise_beta_bernoulli_alpha =, main_beta_bernoulli_alpha =)",
       "bgmCompare(beta_bernoulli_alpha =)"
     )
-    if(!hasArg(beta_bernoulli_alpha)) {
-      beta_bernoulli_alpha = if(!missing(pairwise_beta_bernoulli_alpha)) pairwise_beta_bernoulli_alpha else main_beta_bernoulli_alpha
+    if (!hasArg(beta_bernoulli_alpha)) {
+      beta_bernoulli_alpha <- if (!missing(pairwise_beta_bernoulli_alpha)) pairwise_beta_bernoulli_alpha else main_beta_bernoulli_alpha
     }
   }
 
-  if(hasArg(pairwise_beta_bernoulli_beta) || hasArg(main_beta_bernoulli_beta)) {
+  if (hasArg(pairwise_beta_bernoulli_beta) || hasArg(main_beta_bernoulli_beta)) {
     lifecycle::deprecate_warn(
       "0.1.6.0",
       "bgmCompare(pairwise_beta_bernoulli_beta =, main_beta_bernoulli_beta =)",
       "bgmCompare(beta_bernoulli_beta =)"
     )
-    if(!hasArg(beta_bernoulli_beta)) {
-      beta_bernoulli_beta = if(!missing(pairwise_beta_bernoulli_beta)) pairwise_beta_bernoulli_beta else main_beta_bernoulli_beta
+    if (!hasArg(beta_bernoulli_beta)) {
+      beta_bernoulli_beta <- if (!missing(pairwise_beta_bernoulli_beta)) pairwise_beta_bernoulli_beta else main_beta_bernoulli_beta
     }
   }
 
-  if(hasArg(interaction_scale)) {
+  if (hasArg(interaction_scale)) {
     lifecycle::deprecate_warn(
       "0.1.6.0", "bgmCompare(interaction_scale =)",
       "bgmCompare(interaction_prior =)"
     )
-    if(!hasArg(pairwise_scale) &&
+    if (!hasArg(pairwise_scale) &&
       identical(interaction_prior, cauchy_prior(scale = 1))) {
-      interaction_prior = cauchy_prior(scale = interaction_scale)
+      interaction_prior <- cauchy_prior(scale = interaction_scale)
     }
   }
 
-  if(hasArg(pairwise_scale)) {
+  if (hasArg(pairwise_scale)) {
     lifecycle::deprecate_warn(
       "0.3.0", "bgmCompare(pairwise_scale =)",
       "bgmCompare(interaction_prior =)"
     )
-    if(identical(interaction_prior, cauchy_prior(scale = 1))) {
-      interaction_prior = cauchy_prior(scale = pairwise_scale)
+    if (identical(interaction_prior, cauchy_prior(scale = 1))) {
+      interaction_prior <- cauchy_prior(scale = pairwise_scale)
     }
   }
 
-  if(hasArg(threshold_alpha) || hasArg(threshold_beta)) {
+  if (hasArg(threshold_alpha) || hasArg(threshold_beta)) {
     lifecycle::deprecate_warn(
       "0.1.6.0",
       "bgmCompare(threshold_alpha =, threshold_beta =)",
       "bgmCompare(threshold_prior =)"
     )
-    if(identical(threshold_prior, beta_prime_prior(0.5, 0.5))) {
-      ta = if(hasArg(threshold_alpha)) threshold_alpha else 0.5
-      tb = if(hasArg(threshold_beta)) threshold_beta else 0.5
-      threshold_prior = beta_prime_prior(alpha = ta, beta = tb)
+    if (identical(threshold_prior, beta_prime_prior(0.5, 0.5))) {
+      ta <- if (hasArg(threshold_alpha)) threshold_alpha else 0.5
+      tb <- if (hasArg(threshold_beta)) threshold_beta else 0.5
+      threshold_prior <- beta_prime_prior(alpha = ta, beta = tb)
     }
   }
 
-  if(hasArg(main_alpha) || hasArg(main_beta)) {
+  if (hasArg(main_alpha) || hasArg(main_beta)) {
     lifecycle::deprecate_warn(
       "0.3.0", "bgmCompare(main_alpha =)",
       "bgmCompare(threshold_prior =)"
     )
-    if(identical(threshold_prior, beta_prime_prior(0.5, 0.5))) {
-      ma = if(hasArg(main_alpha)) main_alpha else 0.5
-      mb = if(hasArg(main_beta)) main_beta else 0.5
-      threshold_prior = beta_prime_prior(alpha = ma, beta = mb)
+    if (identical(threshold_prior, beta_prime_prior(0.5, 0.5))) {
+      ma <- if (hasArg(main_alpha)) main_alpha else 0.5
+      mb <- if (hasArg(main_beta)) main_beta else 0.5
+      threshold_prior <- beta_prime_prior(alpha = ma, beta = mb)
     }
   }
 
-  if(hasArg(burnin)) {
+  if (hasArg(burnin)) {
     lifecycle::deprecate_warn("0.1.6.0", "bgmCompare(burnin =)", "bgmCompare(warmup =)")
-    if(!hasArg(warmup)) warmup = burnin
+    if (!hasArg(warmup)) warmup <- burnin
   }
 
-  if(hasArg(save)) {
+  if (hasArg(save)) {
     lifecycle::deprecate_warn("0.1.6.0", "bgmCompare(save =)")
   }
 
   # --- Handle difference_prior: accept both string (deprecated) and object ------
-  if(is.character(difference_prior)) {
+  if (is.character(difference_prior)) {
     lifecycle::deprecate_warn(
       "0.3.0", "bgmCompare(difference_prior = 'must be a prior object')",
       "bgmCompare(difference_prior = 'bernoulli_prior()')"
     )
-    difference_prior_str = match.arg(difference_prior,
+    difference_prior_str <- match.arg(difference_prior,
       choices = c("Bernoulli", "Beta-Bernoulli")
     )
-    dp_prob = if(hasArg(difference_probability)) difference_probability else 0.5
-    bba = if(hasArg(beta_bernoulli_alpha)) beta_bernoulli_alpha else 1
-    bbb = if(hasArg(beta_bernoulli_beta)) beta_bernoulli_beta else 1
+    dp_prob <- if (hasArg(difference_probability)) difference_probability else 0.5
+    bba <- if (hasArg(beta_bernoulli_alpha)) beta_bernoulli_alpha else 1
+    bbb <- if (hasArg(beta_bernoulli_beta)) beta_bernoulli_beta else 1
 
-    difference_prior = switch(difference_prior_str,
+    difference_prior <- switch(difference_prior_str,
       "Bernoulli" = bernoulli_prior(inclusion_probability = dp_prob),
       "Beta-Bernoulli" = beta_bernoulli_prior(alpha = bba, beta = bbb)
     )
   } else {
-    if(hasArg(difference_probability)) {
+    if (hasArg(difference_probability)) {
       lifecycle::deprecate_warn(
         "0.3.0", "bgmCompare(difference_probability =)",
         "bgmCompare(difference_prior = 'bernoulli_prior()')"
@@ -373,21 +381,21 @@ bgmCompare = function(
   }
 
   # --- Unpack prior objects to flat parameters ---------------------------------
-  ip = unpack_interaction_prior(interaction_prior)
-  tp = unpack_threshold_prior(threshold_prior)
+  ip <- unpack_interaction_prior(interaction_prior)
+  tp <- unpack_threshold_prior(threshold_prior)
 
   # Unpack difference prior to flat params for bgm_spec
-  num_variables = ncol(x)
-  dp = unpack_indicator_prior(difference_prior, num_variables)
+  num_variables <- ncol(x)
+  dp <- unpack_indicator_prior(difference_prior, num_variables)
 
   # --- Build spec, sample, build output ----------------------------------------
-  spec = bgm_spec(
+  spec <- bgm_spec(
     x = x,
     model_type = "compare",
     variable_type = variable_type,
-    baseline_category = if(hasArg(baseline_category)) baseline_category else 0L,
-    y = if(hasArg(y)) y else NULL,
-    group_indicator = if(hasArg(group_indicator)) group_indicator else NULL,
+    baseline_category = if (hasArg(baseline_category)) baseline_category else 0L,
+    y = if (hasArg(y)) y else NULL,
+    group_indicator = if (hasArg(group_indicator)) group_indicator else NULL,
     na_action = na_action,
     interaction_prior_type = ip$interaction_prior_type,
     pairwise_scale = ip$pairwise_scale,
@@ -406,7 +414,7 @@ bgmCompare = function(
     beta_bernoulli_alpha = dp$beta_bernoulli_alpha,
     beta_bernoulli_beta = dp$beta_bernoulli_beta,
     update_method = update_method,
-    target_accept = if(hasArg(target_accept)) target_accept else NULL,
+    target_accept = if (hasArg(target_accept)) target_accept else NULL,
     iter = iter,
     warmup = warmup,
     hmc_num_leapfrogs = hmc_num_leapfrogs,
@@ -416,11 +424,12 @@ bgmCompare = function(
     cores = cores,
     seed = seed,
     display_progress = display_progress,
-    verbose = verbose
+    verbose = verbose,
+    progress_callback = progress_callback
   )
 
-  raw = run_sampler(spec)
-  output = build_output(spec, raw)
+  raw <- run_sampler(spec)
+  output <- build_output(spec, raw)
 
   return(output)
 }

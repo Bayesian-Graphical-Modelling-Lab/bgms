@@ -58,7 +58,6 @@ void run_mcmc_chain(
         if (schedule.selection_enabled(iter) && model.has_edge_selection()) {
             if (iter == schedule.stage3c_start) {
                 model.set_edge_selection_active(true);
-                model.initialize_graph();
             }
             model.update_edge_indicators();
         }

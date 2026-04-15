@@ -1275,24 +1275,6 @@ void OMRFModel::update_edge_indicators() {
 }
 
 
-void OMRFModel::initialize_graph() {
-    for (size_t v1 = 0; v1 < p_ - 1; ++v1) {
-        for (size_t v2 = v1 + 1; v2 < p_; ++v2) {
-            double p = inclusion_probability_(v1, v2);
-            int draw = (runif(rng_) < p) ? 1 : 0;
-            edge_indicators_(v1, v2) = draw;
-            edge_indicators_(v2, v1) = draw;
-            if (!draw) {
-                pairwise_effects_(v1, v2) = 0.0;
-                pairwise_effects_(v2, v1) = 0.0;
-            }
-        }
-    }
-    update_residual_matrix();
-    invalidate_gradient_cache();
-}
-
-
 
 void OMRFModel::impute_missing() {
     if (!has_missing_) return;

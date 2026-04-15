@@ -28,7 +28,7 @@ struct WarmupSchedule;
  *     — samplers inspect these to choose the right algorithm.
  *   - **Sampling steps** (do_one_metropolis_step, gradient, logp_and_gradient)
  *     — called by the sampler each iteration.
- *   - **Edge selection** (update_edge_indicators, initialize_graph)
+ *   - **Edge selection** (update_edge_indicators)
  *     — spike-and-slab structure learning.
  *   - **Parameter access** (get/set_vectorized_parameters, get_full_vectorized_parameters)
  *     — used by NUTS for momentum-based proposals and by the runner for output.
@@ -355,9 +355,6 @@ public:
     virtual void set_edge_selection_active(bool active) {
         (void)active;
     }
-
-    /** Draw initial edge states from prior inclusion probabilities. */
-    virtual void initialize_graph() {}
 
     // =========================================================================
     // Missing data

@@ -29,6 +29,7 @@ bgm(
   standardize = FALSE,
   pseudolikelihood = c("conditional", "marginal"),
   verbose = getOption("bgms.verbose", TRUE),
+  progress_callback = NULL,
   pairwise_scale,
   main_alpha,
   main_beta,
@@ -216,6 +217,14 @@ Default: \code{"conditional"}.}
 during data processing (e.g., missing data handling, variable recoding).
 Defaults to \code{getOption("bgms.verbose", TRUE)}. Set
 \code{options(bgms.verbose = FALSE)} to suppress messages globally.}
+
+\item{progress_callback}{An optional R function with signature
+\code{function(completed, total)} that is called at regular intervals
+during sampling, where \code{completed} is the number of iterations
+completed across all chains and \code{total} is the total number of
+iterations. Useful for external front-ends (e.g., JASP) that supply
+their own progress reporting.
+When \code{NULL} (the default), no callback is invoked.}
 
 \item{pairwise_scale}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Double.
 Scale of the Cauchy prior for pairwise

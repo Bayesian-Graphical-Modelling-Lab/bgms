@@ -114,17 +114,17 @@ run_sampler_ggm = function(spec) {
 # ==============================================================================
 # run_sampler_omrf()
 # ==============================================================================
-run_sampler_omrf = function(spec) {
-  d = spec$data
-  v = spec$variables
-  m = spec$missing
-  p = spec$prior
-  s = spec$sampler
+run_sampler_omrf <- function(spec) {
+  d <- spec$data
+  v <- spec$variables
+  m <- spec$missing
+  p <- spec$prior
+  s <- spec$sampler
 
-  bb_alpha_between = bb_between_default(p$beta_bernoulli_alpha_between)
-  bb_beta_between = bb_between_default(p$beta_bernoulli_beta_between)
+  bb_alpha_between <- bb_between_default(p$beta_bernoulli_alpha_between)
+  bb_beta_between <- bb_between_default(p$beta_bernoulli_beta_between)
 
-  input_list = list(
+  input_list <- list(
     observations           = d$x,
     num_categories         = d$num_categories,
     is_ordinal_variable    = v$is_ordinal,
@@ -139,7 +139,7 @@ run_sampler_omrf = function(spec) {
     threshold_scale        = p$threshold_scale
   )
 
-  out_raw = sample_omrf(
+  out_raw <- sample_omrf(
     inputFromR = input_list,
     prior_inclusion_prob = p$inclusion_probability,
     initial_edge_indicators = matrix(1L,
@@ -151,6 +151,7 @@ run_sampler_omrf = function(spec) {
     no_chains = s$chains,
     no_threads = s$cores,
     progress_type = s$progress_type,
+    progress_callback = s$progress_callback,
     edge_selection = p$edge_selection,
     sampler_type = s$update_method,
     seed = s$seed,
@@ -176,17 +177,17 @@ run_sampler_omrf = function(spec) {
 # ==============================================================================
 # run_sampler_mixed_mrf()
 # ==============================================================================
-run_sampler_mixed_mrf = function(spec) {
-  d = spec$data
-  v = spec$variables
-  m = spec$missing
-  p = spec$prior
-  s = spec$sampler
+run_sampler_mixed_mrf <- function(spec) {
+  d <- spec$data
+  v <- spec$variables
+  m <- spec$missing
+  p <- spec$prior
+  s <- spec$sampler
 
-  bb_alpha_between = bb_between_default(p$beta_bernoulli_alpha_between)
-  bb_beta_between = bb_between_default(p$beta_bernoulli_beta_between)
+  bb_alpha_between <- bb_between_default(p$beta_bernoulli_alpha_between)
+  bb_beta_between <- bb_between_default(p$beta_bernoulli_beta_between)
 
-  input_list = list(
+  input_list <- list(
     discrete_observations   = d$x_discrete,
     continuous_observations = d$x_continuous,
     num_categories          = d$num_categories,
@@ -210,7 +211,7 @@ run_sampler_mixed_mrf = function(spec) {
     pseudolikelihood        = p$pseudolikelihood
   )
 
-  out_raw = sample_mixed_mrf(
+  out_raw <- sample_mixed_mrf(
     inputFromR = input_list,
     prior_inclusion_prob = p$inclusion_probability,
     initial_edge_indicators = matrix(1L,
@@ -224,6 +225,7 @@ run_sampler_mixed_mrf = function(spec) {
     seed = s$seed,
     no_threads = s$cores,
     progress_type = s$progress_type,
+    progress_callback = s$progress_callback,
     edge_prior = p$edge_prior,
     beta_bernoulli_alpha = p$beta_bernoulli_alpha,
     beta_bernoulli_beta = p$beta_bernoulli_beta,
@@ -247,13 +249,13 @@ run_sampler_mixed_mrf = function(spec) {
 # ==============================================================================
 # run_sampler_compare()
 # ==============================================================================
-run_sampler_compare = function(spec) {
-  d = spec$data
-  v = spec$variables
-  m = spec$missing
-  p = spec$prior
-  s = spec$sampler
-  pc = spec$precomputed
+run_sampler_compare <- function(spec) {
+  d <- spec$data
+  v <- spec$variables
+  m <- spec$missing
+  p <- spec$prior
+  s <- spec$sampler
+  pc <- spec$precomputed
 
   run_bgmCompare_parallel(
     observations = d$x,
@@ -296,6 +298,7 @@ run_sampler_compare = function(spec) {
     progress_type = s$progress_type,
     interaction_prior_type_str = p$interaction_prior_type,
     threshold_prior_type_str = p$threshold_prior_type,
-    threshold_scale = if(is.na(p$threshold_scale)) 1.0 else p$threshold_scale
+    threshold_scale = if (is.na(p$threshold_scale)) 1.0 else p$threshold_scale,
+    progress_callback = s$progress_callback
   )
 }

@@ -190,8 +190,6 @@ public:
         edge_selection_active_ = active;
     }
 
-    /** Draw initial edge states from prior inclusion probabilities. */
-    void initialize_graph() override;
     /** Store warmup length for Robbins-Monro proposal-SD adaptation. */
     void init_metropolis_adaptation(const WarmupSchedule& schedule) override;
 

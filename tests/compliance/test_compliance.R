@@ -420,7 +420,7 @@ resolve_args = function(args) {
 }
 
 # Migrate fixtures generated with pre-0.1.6.4 field names.
-# PR #84 renamed posterior_mean_pairwise <U+2192> posterior_mean_pairwise.
+# PR #84 renamed posterior_mean_pairwise -> posterior_mean_pairwise.
 migrate_fixture = function(fixture) {
   renames = c(
     posterior_mean_pairwise              = "posterior_mean_pairwise",

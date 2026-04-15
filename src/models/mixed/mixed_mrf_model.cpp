@@ -256,7 +256,7 @@ void MixedMRFModel::recompute_conditional_mean() {
 void MixedMRFModel::recompute_pairwise_effects_continuous_decomposition() {
     // Cholesky on precision = -2 * pairwise_effects_continuous_
     arma::mat precision = -2.0 * pairwise_effects_continuous_;
-    cholesky_of_precision_ = arma::chol(precision);            // upper Cholesky: Precision = R'R
+    cholesky_of_precision_ = arma::chol(precision, "upper");
     arma::inv(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_));
     covariance_continuous_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
     log_det_precision_ = cholesky_helpers::get_log_det(cholesky_of_precision_);
@@ -1260,44 +1260,6 @@ void MixedMRFModel::update_edge_indicators() {
         size_t j = idx % q_;
         update_edge_indicator_cross(i, j);
     }
-}
-
-void MixedMRFModel::initialize_graph() {
-    // Draw initial graph from prior inclusion probabilities.
-    // Zero out parameters for excluded edges.
-    for(size_t i = 0; i < p_ - 1; ++i) {
-        for(size_t j = i + 1; j < p_; ++j) {
-            if(runif(rng_) >= inclusion_probability_(i, j)) {
-                set_gxx(i, j, 0);
-                pairwise_effects_discrete_(i, j) = 0.0;
-                pairwise_effects_discrete_(j, i) = 0.0;
-            }
-        }
-    }
-
-    for(size_t i = 0; i < q_ - 1; ++i) {
-        for(size_t j = i + 1; j < q_; ++j) {
-            if(runif(rng_) >= inclusion_probability_(p_ + i, p_ + j)) {
-                set_gyy(i, j, 0);
-                pairwise_effects_continuous_(i, j) = 0.0;
-                pairwise_effects_continuous_(j, i) = 0.0;
-            }
-        }
-    }
-    // Recompute precision decomposition after potential zeroing
-    recompute_pairwise_effects_continuous_decomposition();
-    recompute_conditional_mean();
-
-    for(size_t i = 0; i < p_; ++i) {
-        for(size_t j = 0; j < q_; ++j) {
-            if(runif(rng_) >= inclusion_probability_(i, p_ + j)) {
-                set_gxy(i, j, 0);
-                pairwise_effects_cross_(i, j) = 0.0;
-            }
-        }
-    }
-    recompute_conditional_mean();
-    if(use_marginal_pl_) recompute_marginal_interactions();
 }
 
 void MixedMRFModel::prepare_iteration() {

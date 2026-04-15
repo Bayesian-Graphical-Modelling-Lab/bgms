@@ -151,11 +151,6 @@ public:
     void update_edge_indicators() override;
 
     /**
-     * Initialize random graph structure (for starting edge selection)
-     */
-    void initialize_graph() override;
-
-    /**
      * Impute missing values (if any)
      */
     void impute_missing() override;

@@ -86,28 +86,29 @@ progress_type_from_display_progress = function(display_progress = c("per-chain",
 #   list(update_method, target_accept, iter, warmup, hmc_num_leapfrogs,
 #        nuts_max_depth, learn_mass_matrix, chains, cores, seed, progress_type)
 # ------------------------------------------------------------------------------
-validate_sampler = function(update_method,
-                            target_accept = NULL,
-                            iter,
-                            warmup,
-                            hmc_num_leapfrogs = 100,
-                            nuts_max_depth = 10,
-                            learn_mass_matrix = TRUE,
-                            chains = 4,
-                            cores = parallel::detectCores(),
-                            seed = NULL,
-                            display_progress = c("per-chain", "total", "none"),
-                            is_continuous = FALSE,
-                            edge_selection = FALSE,
-                            verbose = TRUE) {
+validate_sampler <- function(update_method,
+                             target_accept = NULL,
+                             iter,
+                             warmup,
+                             hmc_num_leapfrogs = 100,
+                             nuts_max_depth = 10,
+                             learn_mass_matrix = TRUE,
+                             chains = 4,
+                             cores = parallel::detectCores(),
+                             seed = NULL,
+                             display_progress = c("per-chain", "total", "none"),
+                             is_continuous = FALSE,
+                             edge_selection = FALSE,
+                             verbose = TRUE,
+                             progress_callback = NULL) {
   # --- update_method ----------------------------------------------------------
-  user_chose_method = length(update_method) == 1
-  update_method = match.arg(
+  user_chose_method <- length(update_method) == 1
+  update_method <- match.arg(
     update_method,
     choices = c("nuts", "adaptive-metropolis", "hamiltonian-mc")
   )
 
-  if(update_method == "hamiltonian-mc") {
+  if (update_method == "hamiltonian-mc") {
     .Deprecated(
       msg = paste(
         "update_method = \"hamiltonian-mc\" is deprecated and will be",
@@ -117,7 +118,7 @@ validate_sampler = function(update_method,
   }
 
   # --- target_accept ----------------------------------------------------------
-  if(is_continuous && edge_selection && update_method == "hamiltonian-mc") {
+  if (is_continuous && edge_selection && update_method == "hamiltonian-mc") {
     warning(
       "hamiltonian-mc with edge selection on a GGM uses constrained ",
       "integration (RATTLE), which can be numerically fragile with a ",
@@ -127,11 +128,11 @@ validate_sampler = function(update_method,
     )
   }
 
-  if(!is.null(target_accept)) {
-    target_accept = min(target_accept, 1 - sqrt(.Machine$double.eps))
-    target_accept = max(target_accept, 0 + sqrt(.Machine$double.eps))
+  if (!is.null(target_accept)) {
+    target_accept <- min(target_accept, 1 - sqrt(.Machine$double.eps))
+    target_accept <- max(target_accept, 0 + sqrt(.Machine$double.eps))
   } else {
-    target_accept = switch(update_method,
+    target_accept <- switch(update_method,
       "adaptive-metropolis" = 0.44,
       "hamiltonian-mc"      = 0.65,
       "nuts"                = 0.80
@@ -143,31 +144,31 @@ validate_sampler = function(update_method,
   check_non_negative_integer(warmup, "warmup")
 
   # --- warmup warnings --------------------------------------------------------
-  if(verbose && update_method %in% c("hamiltonian-mc", "nuts")) {
-    if(edge_selection) {
-      if(warmup < 50) {
+  if (verbose && update_method %in% c("hamiltonian-mc", "nuts")) {
+    if (edge_selection) {
+      if (warmup < 50) {
         warning(
           "warmup = ", warmup,
           " is very short for edge selection. Consider >= 300."
         )
-      } else if(warmup < 200) {
+      } else if (warmup < 200) {
         warning(
           "warmup = ", warmup,
           ": proposal SD tuning skipped (needs >= 200). Consider >= 300."
         )
-      } else if(warmup < 300) {
+      } else if (warmup < 300) {
         warning(
           "warmup = ", warmup,
           ": limited proposal SD tuning. Consider >= 300."
         )
       }
     } else {
-      if(warmup < 20) {
+      if (warmup < 20) {
         warning(
           "warmup = ", warmup,
           ": no mass matrix estimation (needs >= 20)."
         )
-      } else if(warmup < 150) {
+      } else if (warmup < 150) {
         warning(
           "warmup = ", warmup,
           ": using proportional allocation (needs >= 150 for fixed buffers)."
@@ -178,23 +179,23 @@ validate_sampler = function(update_method,
 
   # --- hmc_num_leapfrogs / nuts_max_depth -------------------------------------
   check_positive_integer(hmc_num_leapfrogs, "hmc_num_leapfrogs")
-  hmc_num_leapfrogs = max(hmc_num_leapfrogs, 1L)
+  hmc_num_leapfrogs <- max(hmc_num_leapfrogs, 1L)
 
   check_positive_integer(nuts_max_depth, "nuts_max_depth")
-  nuts_max_depth = max(nuts_max_depth, 1L)
+  nuts_max_depth <- max(nuts_max_depth, 1L)
 
   # --- learn_mass_matrix ------------------------------------------------------
-  learn_mass_matrix = check_logical(learn_mass_matrix, "learn_mass_matrix")
+  learn_mass_matrix <- check_logical(learn_mass_matrix, "learn_mass_matrix")
 
   # --- chains / cores ---------------------------------------------------------
   check_positive_integer(chains, "chains")
   check_positive_integer(cores, "cores")
 
   # --- seed -------------------------------------------------------------------
-  seed = check_seed(seed)
+  seed <- check_seed(seed)
 
   # --- display_progress -------------------------------------------------------
-  progress_type = progress_type_from_display_progress(display_progress)
+  progress_type <- progress_type_from_display_progress(display_progress)
 
   list(
     update_method = update_method,
@@ -207,6 +208,7 @@ validate_sampler = function(update_method,
     chains = chains,
     cores = cores,
     seed = seed,
-    progress_type = progress_type
+    progress_type = progress_type,
+    progress_callback = progress_callback
   )
 }
