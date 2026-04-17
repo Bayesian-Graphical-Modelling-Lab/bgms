@@ -160,6 +160,52 @@ test_that("bgm() nuts_diag includes non_reversible field", {
 })
 
 
+# ---- 3b. accept_prob accumulated across full trajectory --------------------
+# Regression guard for a prior bug where the top-level NUTS loop overwrote the
+# Metropolis contribution with the last subtree's value per iteration instead
+# of accumulating across the trajectory. If that bug returns, mean reported
+# accept_prob drops well below the dual-averaging target (~0.8 default).
+
+test_that("bgm() nuts_diag reports accept_prob accumulated across trajectory", {
+  skip_on_cran()
+
+  set.seed(777)
+  p = 5
+  n = 150
+  K = diag(2, p)
+  for(i in seq_len(p - 1)) {
+    K[i, i + 1] = -0.5
+    K[i + 1, i] = -0.5
+  }
+  x = MASS::mvrnorm(n, mu = rep(0, p), Sigma = solve(K))
+  colnames(x) = paste0("V", seq_len(p))
+
+  fit = bgm(
+    x = x,
+    variable_type = "continuous",
+    edge_selection = FALSE,
+    iter = 400,
+    warmup = 800,
+    chains = 1,
+    seed = 1,
+    display_progress = "none"
+  )
+
+  ap = fit$nuts_diag$accept_prob
+  expect_true("accept_prob" %in% names(fit$nuts_diag))
+  expect_equal(dim(ap), c(1L, 400L))
+  expect_true(all(is.finite(ap)))
+  expect_true(all(ap >= 0 & ap <= 1))
+
+  # With the accumulator in place, mean reported acceptance on a well-tuned
+  # GGM should sit comfortably above the dual-averaging target. The buggy
+  # variant reported means around 0.5 on this configuration.
+  expect_gt(mean(ap), 0.75)
+  expect_true("mean_accept_prob" %in% names(fit$nuts_diag$summary))
+  expect_equal(fit$nuts_diag$summary$mean_accept_prob, mean(ap))
+})
+
+
 # ---- 4. Stress: large step sizes -------------------------------------------
 
 test_that("large step sizes increase reversibility error", {

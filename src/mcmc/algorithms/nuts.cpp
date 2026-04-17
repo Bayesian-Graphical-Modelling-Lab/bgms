@@ -419,6 +419,7 @@ StepResult nuts_step(
   diag->divergent = any_divergence;
   diag->non_reversible = any_non_reversible;
   diag->energy = energy;
+  diag->accept_prob = accept_prob;
 
   return {theta, accept_prob, diag};
 }
