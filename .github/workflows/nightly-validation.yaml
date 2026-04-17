@@ -25,5 +25,5 @@ jobs:
           extra-packages: any::devtools
 
       - name: Run full test suite (including slow tests)
-        run: Rscript -e 'devtools::test()'
+        run: Rscript -e 'devtools::test(stop_on_failure = TRUE)'
 
