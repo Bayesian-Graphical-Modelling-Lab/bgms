@@ -22,6 +22,7 @@
 # Hidden config files (development only)
 ^\.lintr$
 ^\.editorconfig$
+^\.claude$
 
 # R CMD build artifacts
 ^doc$
