@@ -1,13 +1,13 @@
 bibentry(
   bibtype = "Manual",
-  title = "bgms: Bayesian Analysis of Networks of Binary and/or Ordinal Variables",
+  title = "bgms: Bayesian Analysis of Graphical Models",
   author = c(person("Maarten", "Marsman"),
              person("Don", "van den Bergh")),
   year = "2026",
-  note = "R package version 0.1.6.3",
+  note = "R package version 0.2.0.0",
   url = "https://CRAN.R-project.org/package=bgms",
   key = "bgms-package",
-  textVersion = "Marsman, M., & van den Bergh, D. (2026). bgms: Bayesian Analysis of Networks of Binary and/or Ordinal Variables. R package version 0.1.6.3."
+  textVersion = "Marsman, M., & van den Bergh, D. (2026). bgms: Bayesian Analysis of Graphical Models. R package version 0.2.0.0."
 )
 
 bibentry(
