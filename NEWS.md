@@ -31,6 +31,8 @@
 * Fixed compilation failure on Alpine/musl: `mrf_simulation.cpp` relied on a transitive include for `<tbb/global_control.h>` that is not available on all platforms.
 * Fixed stale gradient cache after missing data imputation caused NUTS to use outdated cached values for leapfrog integration.
 * Fixed stale observation transpose after missing data imputation caused the pairwise gradient to use stale data.
+* Fixed NUTS acceptance probability: target_accept now correctly passed to lower-level NUTS functions.
+* Fixed NUTS acceptance probability accumulation: the top-level trajectory loop overwrote the Metropolis contribution with the last subtree's value instead of summing across the full trajectory, biasing the signal used by dual-averaging step-size adaptation.
 
 # bgms 0.1.6.3
 
