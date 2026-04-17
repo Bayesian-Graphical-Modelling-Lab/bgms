@@ -112,30 +112,15 @@ struct WarmupSchedule {
     /* ---------- Stage-3a start ---------- */
     stage3a_start = warmup_core - term_buffer;
 
-    /* ---------- Stage-2: build doubling windows ---------- *
-     * Matches Stan's windowed_adaptation::compute_next_window: when the
-     * window AFTER the next would overshoot stage3a_start, STRETCH the
-     * current next window to absorb the remaining stage-2 budget instead
-     * of emitting a small trailing window. Each window_ends entry triggers
-     * a mass-matrix update + step-size reinit, so an extra small final
-     * window disrupts dual averaging and hurts ESS.
-     */
+    /* ---------- Stage-2: build doubling windows ---------- */
     if (base_window > 0 && stage3a_start > stage1_end) {
-      int cur = stage1_end;
+      int cur   = stage1_end;
       int wsize = base_window;
-      int next_end = cur + wsize;
-      while (next_end <= stage3a_start) {
-        window_ends.push_back(next_end);
-        cur = next_end;
-        if (next_end == stage3a_start) break;
-        wsize *= 2;
-        next_end = cur + wsize;
-        // Peek at the window after next; if it would overshoot, absorb the
-        // remaining stage-2 budget into the current next_end.
-        int after_next = next_end + 2 * wsize;
-        if (after_next > stage3a_start) {
-          next_end = stage3a_start;
-        }
+      while (cur < stage3a_start) {
+        int win = std::min(wsize, stage3a_start - cur);
+        window_ends.push_back(cur + win);
+        cur   += win;
+        wsize  = std::min(wsize * 2, stage3a_start - cur);
       }
     }
 
