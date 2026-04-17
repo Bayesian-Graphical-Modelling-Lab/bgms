@@ -5,9 +5,12 @@
 # Gated behind BGMS_RUN_SLOW_TESTS because they take several minutes.
 #
 # 3.1  Posterior moment comparison (means, variances, KS, bivariate)
-# 3.2  Geweke-style forward-sampling test
-# 3.3  Edge selection accuracy (PIPs)
-# 3.4  Gradient near PD boundary
+# 3.2  Edge selection accuracy (PIPs)
+# 3.3  Gradient near PD boundary
+# 3.4  NUTS diagnostics are well-behaved
+#
+# TODO: add a proper Geweke JDT or SBC test for one-transition correctness
+# using the bgms prior directly and a fixed-kernel NUTS step (issue #TBD).
 # --------------------------------------------------------------------------- #
 
 
@@ -187,88 +190,7 @@ test_that("NUTS posterior means agree on p=6 tridiagonal", {
 })
 
 
-# ---- 3.2  Geweke-style forward-sampling test ---------------------------------
-# Draw K from the prior, generate X | K, run one MCMC transition,
-# check that the joint (K, X) distribution is preserved.
-
-test_that("Geweke: one NUTS transition preserves joint distribution (p=4)", {
-  skip_unless_slow()
-
-  p = 4
-  n = 50
-  n_reps = 200
-
-  # Storage for prior draws and post-transition draws
-  prior_diag = matrix(NA, n_reps, p)
-  post_diag = matrix(NA, n_reps, p)
-  n_offdiag = p * (p - 1) / 2
-  prior_offdiag = matrix(NA, n_reps, n_offdiag)
-  post_offdiag = matrix(NA, n_reps, n_offdiag)
-
-  for(r in seq_len(n_reps)) {
-    set.seed(r + 1000)
-
-    # Draw K from Wishart prior (df = p, Scale = I)
-    # The bgms prior on K is: log p(K) <U+221D> (n/2) log det K - (1/2) tr(S K)
-    # with a Wishart(df=1, I) base measure on K.
-    # For Geweke, simply draw K ~ Wishart(p+1, I) so it's PD.
-    K = stats::rWishart(1, df = p + 1, Sigma = diag(p))[, , 1]
-    Sigma = solve(K)
-
-    # Extract upper triangle (to compare with bgm output)
-    diag_vals = diag(K)
-    offdiag_vals = K[upper.tri(K)]
-    prior_diag[r, ] = diag_vals
-    prior_offdiag[r, ] = offdiag_vals
-
-    # Generate data from K
-    x = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
-    colnames(x) = paste0("V", seq_len(p))
-
-    # Run one NUTS transition (iter=1, warmup=0 is not possible,
-    # so use iter=1, warmup=50 to let NUTS initialize)
-    fit = tryCatch(
-      bgm(
-        x = x, variable_type = "continuous",
-        update_method = "nuts",
-        edge_selection = FALSE,
-        iter = 1, warmup = 50, chains = 1,
-        seed = r, display_progress = "none"
-      ),
-      error = function(e) NULL
-    )
-
-    if(is.null(fit)) {
-      post_diag[r, ] = NA
-      post_offdiag[r, ] = NA
-      next
-    }
-
-    # Extract the single post-transition sample
-    post_main = do.call(rbind, fit$raw_samples$main)
-    post_pair = do.call(rbind, fit$raw_samples$pairwise)
-    post_diag[r, ] = post_main[1, ]
-    post_offdiag[r, ] = post_pair[1, ]
-  }
-
-  # Remove failed reps
-  ok = complete.cases(post_diag)
-  expect_gt(sum(ok), n_reps * 0.8, label = "at least 80% of reps succeeded")
-
-  # The post-transition diagonal means should be in the right ballpark
-  # relative to the prior. We don't expect exact agreement (one transition
-  # doesn't fully mix), but the distributions should overlap substantially.
-  for(j in seq_len(p)) {
-    ks = ks.test(prior_diag[ok, j], post_diag[ok, j])
-    # Loose threshold: we expect overlap, not identity
-    expect_gt(ks$p.value, 0.001,
-      label = paste0("Geweke diag[", j, "] KS p-value")
-    )
-  }
-})
-
-
-# ---- 3.3  Edge selection accuracy --------------------------------------------
+# ---- 3.2  Edge selection accuracy --------------------------------------------
 
 test_that("NUTS edge selection recovers true graph structure (p=6)", {
   skip_unless_slow()
@@ -344,7 +266,7 @@ test_that("NUTS edge selection recovers true graph structure (p=6)", {
 })
 
 
-# ---- 3.4  Gradient near PD boundary -----------------------------------------
+# ---- 3.3  Gradient near PD boundary -----------------------------------------
 
 # Helpers (same as test-ggm-gradient.R, repeated for test isolation)
 theta_dim_local = function(edge_mat) {
@@ -432,7 +354,7 @@ test_that("gradient is accurate with sparse graph near PD boundary", {
 })
 
 
-# ---- 3.5  NUTS diagnostics are well-behaved ----------------------------------
+# ---- 3.4  NUTS diagnostics are well-behaved ----------------------------------
 
 test_that("NUTS diagnostics are clean for well-specified model", {
   skip_unless_slow()
