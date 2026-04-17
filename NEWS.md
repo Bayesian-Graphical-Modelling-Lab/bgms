@@ -32,6 +32,7 @@
 * fixed stale gradient cache after missing data imputation caused NUTS to use outdated cached values for leapfrog integration.
 * fixed stale observation transpose after missing data imputation caused the pairwise gradient to use stale data.
 * fixed acceptance rate for nuts: parameter now correctly passed to lower level functions
+* fixed NUTS acceptance probability accumulation: the top-level trajectory loop overwrote the Metropolis contribution with the last subtree's value instead of summing across the full trajectory, biasing the signal used by dual-averaging step-size adaptation.
 
 # bgms 0.1.6.3
 

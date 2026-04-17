@@ -338,8 +338,12 @@ StepResult nuts_step(
 
   int j = 0;
   int n = 1, s = 1;
-  double alpha = 0.5;
-  int n_alpha = 1;
+  // Accumulate Metropolis contributions across every leapfrog step taken in
+  // the trajectory — including steps inside subtrees that terminated. The
+  // reported accept_prob must reflect the full trajectory, not just the last
+  // subtree. Matches Stan's by-reference accumulation in base_nuts.hpp.
+  double sum_metro_prob = 0.0;
+  int n_leapfrog_total = 0;
 
   while (s == 1 && j < max_depth) {
     int v = runif(rng) < 0.5 ? -1 : 1;
@@ -376,8 +380,8 @@ StepResult nuts_step(
 
     any_divergence = any_divergence || result.divergent;
     any_non_reversible = any_non_reversible || result.non_reversible;
-    alpha = result.alpha;
-    n_alpha = result.n_alpha;
+    sum_metro_prob += result.alpha;
+    n_leapfrog_total += result.n_alpha;
 
     if (result.s_prime == 1) {
       double prob = static_cast<double>(result.n_prime) / static_cast<double>(n);
@@ -405,7 +409,7 @@ StepResult nuts_step(
     j++;
   }
 
-  double accept_prob = alpha / static_cast<double>(n_alpha);
+  double accept_prob = sum_metro_prob / static_cast<double>(n_leapfrog_total);
   auto logp_final = memo.cached_log_post(theta);
   double kin_final = kinetic_energy(r, inv_mass_diag);
   double energy = -logp_final + kin_final;
