@@ -112,10 +112,13 @@ check_warmup_complete = function(energy_mat) {
 #   - divergent:  Integer matrix (chains x iterations), 0/1.
 #   - non_reversible: Integer matrix (chains x iterations), 0/1.
 #   - energy:     Numeric matrix (chains x iterations).
+#   - accept_prob: Numeric matrix (chains x iterations) of mean
+#       per-trajectory Metropolis acceptance (Stan's accept_stat__).
 #   - ebfmi:      Numeric vector of per-chain E-BFMI values.
 #   - warmup_check: Output of check_warmup_complete().
 #   - summary:    List with total_divergences, max_tree_depth_hits,
-#       min_ebfmi, total_non_reversible, and warmup_incomplete (logical).
+#       min_ebfmi, mean_accept_prob, total_non_reversible, and
+#       warmup_incomplete (logical).
 # ------------------------------------------------------------------------------
 summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) {
   nuts_chains = Filter(function(chain) {
@@ -139,6 +142,12 @@ summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) 
     combine_diag("non_reversible__")
   } else {
     matrix(0L, nrow = nrow(divergent_mat), ncol = ncol(divergent_mat))
+  }
+
+  accept_prob_mat = if("accept_prob__" %in% names(nuts_chains[[1]])) {
+    combine_diag("accept_prob__")
+  } else {
+    matrix(NA_real_, nrow = nrow(divergent_mat), ncol = ncol(divergent_mat))
   }
 
   # E-BFMI per chain
@@ -216,11 +225,14 @@ summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) 
     }
   }
 
+  mean_accept_prob = mean(accept_prob_mat, na.rm = TRUE)
+
   invisible(list(
     treedepth = treedepth_mat,
     divergent = divergent_mat,
     non_reversible = non_reversible_mat,
     energy = energy_mat,
+    accept_prob = accept_prob_mat,
     ebfmi = ebfmi_per_chain,
     warmup_check = warmup_check,
     summary = list(
@@ -228,6 +240,7 @@ summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) 
       total_non_reversible = total_non_reversible,
       max_tree_depth_hits = max_tree_depth_hits,
       min_ebfmi = min_ebfmi,
+      mean_accept_prob = mean_accept_prob,
       warmup_incomplete = any(warmup_check$warmup_incomplete)
     )
   ))

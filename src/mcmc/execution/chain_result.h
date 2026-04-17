@@ -45,6 +45,8 @@ public:
     arma::ivec  non_reversible_samples;
     /// NUTS/HMC energy diagnostic (n_iter).
     arma::vec   energy_samples;
+    /// NUTS/HMC mean per-trajectory Metropolis acceptance (n_iter).
+    arma::vec   accept_prob_samples;
     /// Whether NUTS/HMC diagnostics are stored.
     bool        has_nuts_diagnostics = false;
 
@@ -86,6 +88,7 @@ public:
         divergent_samples.set_size(n_iter);
         non_reversible_samples.set_size(n_iter);
         energy_samples.set_size(n_iter);
+        accept_prob_samples.set_size(n_iter);
         has_nuts_diagnostics = true;
     }
 
@@ -118,15 +121,18 @@ public:
 
     /**
      * Store NUTS diagnostics for one iteration
-     * @param iter       Iteration index (0-based)
-     * @param tree_depth Tree depth from NUTS
-     * @param divergent  Whether a divergence occurred
-     * @param energy     Final Hamiltonian energy
+     * @param iter         Iteration index (0-based)
+     * @param tree_depth   Tree depth from NUTS
+     * @param divergent    Whether a divergence occurred
+     * @param non_reversible Whether a non-reversible constrained step occurred
+     * @param energy       Final Hamiltonian energy
+     * @param accept_prob  Mean Metropolis acceptance over the trajectory
      */
-    void store_nuts_diagnostics(const size_t iter, int tree_depth, bool divergent, bool non_reversible, double energy) {
+    void store_nuts_diagnostics(const size_t iter, int tree_depth, bool divergent, bool non_reversible, double energy, double accept_prob) {
         treedepth_samples(iter) = tree_depth;
         divergent_samples(iter) = divergent ? 1 : 0;
         non_reversible_samples(iter) = non_reversible ? 1 : 0;
         energy_samples(iter) = energy;
+        accept_prob_samples(iter) = accept_prob;
     }
 };

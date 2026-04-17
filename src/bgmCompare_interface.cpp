@@ -431,6 +431,7 @@ Rcpp::List run_bgmCompare_parallel(
         Rcpp::Named("treedepth__") = r.treedepth_samples,
         Rcpp::Named("divergent__") = r.divergent_samples,
         Rcpp::Named("energy__") = r.energy_samples,
+        Rcpp::Named("accept_prob__") = r.accept_prob_samples,
         Rcpp::Named("chain_id") = r.chain_id
       );
       if (r.has_indicator) {

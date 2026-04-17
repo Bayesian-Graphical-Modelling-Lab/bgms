@@ -25,6 +25,8 @@ struct bgmCompareOutput {
   arma::ivec divergent_samples;
   /// Energy diagnostic [iter] (NUTS only).
   arma::vec energy_samples;
+  /// Mean per-trajectory Metropolis acceptance [iter] (NUTS only).
+  arma::vec accept_prob_samples;
 
   /// Identifier of the chain.
   int chain_id;
