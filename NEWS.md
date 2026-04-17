@@ -24,6 +24,7 @@
 
 * Fitted objects from `bgm()` and `bgmCompare()` are now S7 class objects (new dependency: `S7`). All existing `$`, `[[`, and `names()` access patterns continue to work. When an incompatible `easybgm` version is loaded, bgms returns plain S3 lists for backwards compatibility; this shim will be removed in a future release.
 * Refactored the C++ backend: unified model hierarchy (`BaseModel` → `GGMModel` / `OMRFModel` / `MixedMRFModel`), shared NUTS/HMC infrastructure, and fused log-posterior and gradient computation.
+* NUTS now uses Stan's multinomial candidate weighting (log-sum-exp of `H0 - h` per leaf, biased progressive sampling at the top level) in place of the Hoffman-Gelman slice variable. The two schemes target the same posterior; the multinomial variant produces lower-variance candidate selection and has been Stan's default since 2017. User-facing output is unchanged apart from the new `accept_prob` diagnostic.
 * Dropped `coda` from Imports; ESS and R-hat are now computed in C++ with on-demand (lazy) evaluation, replacing the eager R-based computation from 0.1.6.3.
 * `$` and `[[` accessors on fitted objects trigger lazy computation of MCMC diagnostics on first access.
 
