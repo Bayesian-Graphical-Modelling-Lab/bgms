@@ -807,7 +807,7 @@ void GGMModel::cholesky_update_after_diag(double omega_ii_old, size_t i)
 }
 
 
-void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
+double GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 
     size_t e = j * (j + 1) / 2 + i; // parameter index in vectorized form (column-major upper triangle)
     double proposal_sd = proposal_sds_(e);
@@ -844,6 +844,8 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         ln_alpha += diagonal_prior_->logp(precision_proposal_(j, j));
         ln_alpha -= diagonal_prior_->logp(precision_matrix_(j, j));
 
+        const double alpha = MY_EXP(std::min(0.0, ln_alpha));
+
         if (MY_LOG(runif(rng_)) < ln_alpha) {
 
             // Store old values for Cholesky update
@@ -864,6 +866,8 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
             constraint_dirty_ = true;
             theta_valid_ = false;
         }
+
+        return alpha;
 
     } else {
         // Propose to turn ON the edge
@@ -902,6 +906,8 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         // Proposal term: proposed edge value given it was generated from truncated normal
         ln_alpha -= R::dnorm(omega_prop_ij / constants_[3], 0.0, proposal_sd, true) - MY_LOG(constants_[3]);
 
+        const double alpha = MY_EXP(std::min(0.0, ln_alpha));
+
         if (MY_LOG(runif(rng_)) < ln_alpha) {
             // Accept: turn ON the edge
             // Store old values for Cholesky update
@@ -922,6 +928,8 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
             constraint_dirty_ = true;
             theta_valid_ = false;
         }
+
+        return alpha;
     }
 }
 
@@ -966,7 +974,13 @@ void GGMModel::update_edge_indicators() {
             }
             acc += cols_in_row;
         }
-        update_edge_indicator_parameter_pair(i, j);
+        double alpha = update_edge_indicator_parameter_pair(i, j);
+        // Store at the column-major upper-triangle index so the output vector
+        // is aligned with get_vectorized_indicator_parameters().
+        if (indicator_accept_prob_.n_elem > 0) {
+            size_t e = j * (j + 1) / 2 + i;
+            indicator_accept_prob_(e) = alpha;
+        }
     }
 }
 

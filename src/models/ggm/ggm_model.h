@@ -60,6 +60,7 @@ public:
         edge_indicators_(initial_edge_indicators),
         vectorized_parameters_(dim_),
         vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
+        indicator_accept_prob_(edge_selection_ ? arma::zeros<arma::vec>(dim_) : arma::vec()),
         proposal_sds_(arma::vec(dim_, arma::fill::ones) * 0.25),
         num_pairwise_(p_ * (p_ - 1) / 2),
         observations_(na_impute ? observations : arma::mat()),
@@ -108,6 +109,7 @@ public:
         edge_indicators_(initial_edge_indicators),
         vectorized_parameters_(dim_),
         vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
+        indicator_accept_prob_(edge_selection_ ? arma::zeros<arma::vec>(dim_) : arma::vec()),
         proposal_sds_(arma::vec(dim_, arma::fill::ones) * 0.25),
         num_pairwise_(p_ * (p_ - 1) / 2),
         precision_proposal_(arma::mat(p_, p_, arma::fill::none))
@@ -137,6 +139,7 @@ public:
           edge_indicators_(other.edge_indicators_),
           vectorized_parameters_(other.vectorized_parameters_),
           vectorized_indicator_parameters_(other.vectorized_indicator_parameters_),
+          indicator_accept_prob_(other.indicator_accept_prob_),
           proposal_sds_(other.proposal_sds_),
           total_warmup_(other.total_warmup_),
           shuffled_edge_order_(other.shuffled_edge_order_),
@@ -317,6 +320,17 @@ public:
         return vectorized_indicator_parameters_;
     }
 
+    /**
+     * @return Per-element MH acceptance probabilities from the last
+     *         update_edge_indicators() sweep, ordered to match
+     *         get_vectorized_indicator_parameters().
+     *
+     * Diagonal positions (self-loops) are not proposed and remain at zero.
+     */
+    arma::vec get_vectorized_indicator_accept_prob() override {
+        return indicator_accept_prob_;
+    }
+
     /** @return Reference to the model's random number generator. */
     SafeRNG& get_rng() override { return rng_; }
 
@@ -484,6 +498,11 @@ private:
     arma::vec vectorized_parameters_;
     /// Pre-allocated storage returned by get_vectorized_indicator_parameters().
     arma::ivec vectorized_indicator_parameters_;
+    /// RB-proxy storage: per-element MH acceptance probability from the last
+    /// update_edge_indicators() sweep. Same indexing (column-major upper
+    /// triangle of size dim_) as vectorized_indicator_parameters_; diagonal
+    /// entries are never proposed and are left at zero.
+    arma::vec indicator_accept_prob_;
 
     /// Proposal standard deviations for Metropolis updates (one per element).
     arma::vec proposal_sds_;
@@ -572,8 +591,9 @@ private:
      *
      * @param i  Row index (i < j)
      * @param j  Column index
+     * @return MH acceptance probability alpha = exp(min(0, log_accept))
      */
-    void update_edge_indicator_parameter_pair(size_t i, size_t j);
+    double update_edge_indicator_parameter_pair(size_t i, size_t j);
 
     /**
      * Precompute reparameterization constants for the (i, j) element.
