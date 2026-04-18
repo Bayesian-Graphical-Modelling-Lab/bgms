@@ -180,6 +180,12 @@ build_raw_samples_list = function(raw, edge_selection, edge_prior,
     } else {
       NULL
     },
+    indicator_accept_prob = if(edge_selection &&
+      !is.null(raw[[1]]$indicator_accept_prob_samples)) {
+      lapply(raw, function(chain) chain$indicator_accept_prob_samples)
+    } else {
+      NULL
+    },
     allocations = if(edge_selection &&
       identical(edge_prior, "Stochastic-Block") &&
       "allocations" %in% names(raw[[1]])) {
@@ -193,6 +199,7 @@ build_raw_samples_list = function(raw, edge_selection, edge_prior,
       main = names_main,
       pairwise = edge_names,
       indicator = if(edge_selection) edge_names else NULL,
+      indicator_accept_prob = if(edge_selection) edge_names else NULL,
       allocations = allocation_names
     )
   )
@@ -300,6 +307,10 @@ build_output_bgm = function(spec, raw) {
       if(!is.null(chain$indicator_samples)) {
         res$indicator_samples = t(chain$indicator_samples)[, offdiag_idx, drop = FALSE]
       }
+      if(!is.null(chain$indicator_accept_prob_samples)) {
+        res$indicator_accept_prob_samples =
+          t(chain$indicator_accept_prob_samples)[, offdiag_idx, drop = FALSE]
+      }
       if(!is.null(chain$allocation_samples)) {
         res$allocations = t(chain$allocation_samples)
       }
@@ -326,6 +337,9 @@ build_output_bgm = function(spec, raw) {
       )
       if(!is.null(chain$indicator_samples)) {
         res$indicator_samples = t(chain$indicator_samples)
+      }
+      if(!is.null(chain$indicator_accept_prob_samples)) {
+        res$indicator_accept_prob_samples = t(chain$indicator_accept_prob_samples)
       }
       if(!is.null(chain$allocation_samples)) {
         res$allocations = t(chain$allocation_samples)
@@ -591,6 +605,9 @@ build_output_mixed_mrf = function(spec, raw) {
     )
     if(!is.null(chain$indicator_samples)) {
       res$indicator_samples = t(chain$indicator_samples)
+    }
+    if(!is.null(chain$indicator_accept_prob_samples)) {
+      res$indicator_accept_prob_samples = t(chain$indicator_accept_prob_samples)
     }
     if(!is.null(chain$allocation_samples)) {
       res$allocations = t(chain$allocation_samples)
