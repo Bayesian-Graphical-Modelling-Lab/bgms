@@ -975,10 +975,11 @@ void GGMModel::update_edge_indicators() {
             acc += cols_in_row;
         }
         double alpha = update_edge_indicator_parameter_pair(i, j);
-        // Store at the column-major upper-triangle index so the output vector
-        // is aligned with get_vectorized_indicator_parameters().
+        // Store at the row-major upper-triangle index so the output vector
+        // is aligned with get_vectorized_indicator_parameters(), which
+        // iterates (i=0..p-1, j=i..p-1).
         if (indicator_accept_prob_.n_elem > 0) {
-            size_t e = j * (j + 1) / 2 + i;
+            size_t e = i * p_ - i * (i - 1) / 2 + (j - i);
             indicator_accept_prob_(e) = alpha;
         }
     }

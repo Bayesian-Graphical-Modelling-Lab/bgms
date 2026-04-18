@@ -499,7 +499,7 @@ private:
     /// Pre-allocated storage returned by get_vectorized_indicator_parameters().
     arma::ivec vectorized_indicator_parameters_;
     /// RB-proxy storage: per-element MH acceptance probability from the last
-    /// update_edge_indicators() sweep. Same indexing (column-major upper
+    /// update_edge_indicators() sweep. Same indexing (row-major upper
     /// triangle of size dim_) as vectorized_indicator_parameters_; diagonal
     /// entries are never proposed and are left at zero.
     arma::vec indicator_accept_prob_;
