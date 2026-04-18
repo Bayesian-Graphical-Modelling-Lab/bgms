@@ -352,6 +352,11 @@ StepResult nuts_step(
   arma::vec p_sharp_fwd_bck = p_sharp_bck_bck;
   arma::vec p_bck_fwd = r0;
   arma::vec p_sharp_bck_fwd = p_sharp_bck_bck;
+  // Regular (non-sharp) boundary momenta for the extreme ends of the
+  // trajectory. Needed for the Stan-style "save old end as new inner
+  // boundary" maintenance before each extension.
+  arma::vec p_bck_bck = r0;
+  arma::vec p_fwd_fwd = r0;
   arma::vec rho = r0;
 
   int j = 0;
@@ -373,6 +378,10 @@ StepResult nuts_step(
     BuildTreeResult result;
     if (v == -1) {
       rho_fwd = rho;
+      // Save old backward-end as the forward half's new backward boundary.
+      // Matches Stan base_nuts.hpp: p_fwd_bck = p_bck_bck before building.
+      p_fwd_bck = p_bck_bck;
+      p_sharp_fwd_bck = p_sharp_bck_bck;
       result = build_tree(
         theta_min, r_min, v, j, step_size, H0, memo, inv_mass_diag, rng,
         project_position, project_momentum, reverse_check, reverse_check_tol
@@ -380,11 +389,18 @@ StepResult nuts_step(
       theta_min = std::move(result.theta_min);
       r_min = std::move(result.r_min);
       rho_bck = std::move(result.rho);
-      p_sharp_bck_bck = std::move(result.p_sharp_beg);
-      p_bck_fwd = std::move(result.p_end);
-      p_sharp_bck_fwd = std::move(result.p_sharp_end);
+      // For a backward subtree, p_beg = first leaf built = interior (closest
+      // to origin), p_end = last leaf built = outer-leftmost. Map accordingly.
+      p_sharp_bck_bck = std::move(result.p_sharp_end);
+      p_bck_bck = std::move(result.p_end);
+      p_sharp_bck_fwd = std::move(result.p_sharp_beg);
+      p_bck_fwd = std::move(result.p_beg);
     } else {
       rho_bck = rho;
+      // Save old forward-end as the backward half's new forward boundary.
+      // Matches Stan base_nuts.hpp: p_bck_fwd = p_fwd_fwd before building.
+      p_bck_fwd = p_fwd_fwd;
+      p_sharp_bck_fwd = p_sharp_fwd_fwd;
       result = build_tree(
         theta_plus, r_plus, v, j, step_size, H0, memo, inv_mass_diag, rng,
         project_position, project_momentum, reverse_check, reverse_check_tol
@@ -393,6 +409,7 @@ StepResult nuts_step(
       r_plus = std::move(result.r_plus);
       rho_fwd = std::move(result.rho);
       p_sharp_fwd_fwd = std::move(result.p_sharp_end);
+      p_fwd_fwd = std::move(result.p_end);
       p_fwd_bck = std::move(result.p_beg);
       p_sharp_fwd_bck = std::move(result.p_sharp_beg);
     }
