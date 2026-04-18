@@ -82,6 +82,9 @@ OMRFModel::OMRFModel(
 
     // Build interaction index
     build_interaction_index();
+
+    // RB-proxy storage: one slot per candidate edge
+    indicator_accept_prob_ = arma::zeros<arma::vec>(num_pairwise_);
 }
 
 
@@ -125,7 +128,8 @@ OMRFModel::OMRFModel(const OMRFModel& other)
       index_matrix_cache_(other.index_matrix_cache_),
       gradient_cache_valid_(other.gradient_cache_valid_),
       interaction_index_(other.interaction_index_),
-      shuffled_edge_order_(other.shuffled_edge_order_)
+      shuffled_edge_order_(other.shuffled_edge_order_),
+      indicator_accept_prob_(other.indicator_accept_prob_)
 {
 }
 
@@ -1168,7 +1172,7 @@ double OMRFModel::update_pairwise_effect(int var1, int var2) {
 }
 
 
-void OMRFModel::update_edge_indicator(int var1, int var2) {
+double OMRFModel::update_edge_indicator(int var1, int var2) {
     const double current_state = pairwise_effects_(var1, var2);
 
     const bool proposing_addition = (edge_indicators_(var1, var2) == 0);
@@ -1194,6 +1198,9 @@ void OMRFModel::update_edge_indicator(int var1, int var2) {
         log_accept -= MY_LOG(inclusion_probability_ij) - MY_LOG(1.0 - inclusion_probability_ij);
     }
 
+    // MH acceptance probability for RB-proxy exposure (capped at 1).
+    const double alpha = MY_EXP(std::min(0.0, log_accept));
+
     if (MY_LOG(runif(rng_)) < log_accept) {
         const int updated_indicator = 1 - edge_indicators_(var1, var2);
         edge_indicators_(var1, var2) = updated_indicator;
@@ -1206,6 +1213,8 @@ void OMRFModel::update_edge_indicator(int var1, int var2) {
         residual_matrix_.col(var1) += 2.0 * observations_double_.col(var2) * delta;
         residual_matrix_.col(var2) += 2.0 * observations_double_.col(var1) * delta;
     }
+
+    return alpha;
 }
 
 
@@ -1270,8 +1279,15 @@ void OMRFModel::update_edge_indicators() {
         int idx = shuffled_edge_order_(i);
         int var1 = interaction_index_(idx, 1);
         int var2 = interaction_index_(idx, 2);
-        update_edge_indicator(var1, var2);
+        // Store alpha at the canonical edge index so the output vector is
+        // aligned with get_vectorized_indicator_parameters().
+        indicator_accept_prob_(idx) = update_edge_indicator(var1, var2);
     }
+}
+
+
+arma::vec OMRFModel::get_vectorized_indicator_accept_prob() {
+    return indicator_accept_prob_;
 }
 
 

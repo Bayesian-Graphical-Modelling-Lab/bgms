@@ -124,6 +124,14 @@ public:
     arma::ivec get_vectorized_indicator_parameters() override;
 
     /**
+     * Get per-edge MH acceptance probabilities from the most recent
+     * update_edge_indicators() sweep, ordered to match
+     * get_vectorized_indicator_parameters(). Entries for edges that
+     * were not proposed since the last sweep are zero.
+     */
+    arma::vec get_vectorized_indicator_accept_prob() override;
+
+    /**
      * Clone the model for parallel execution.
      */
     std::unique_ptr<BaseModel> clone() const override;
@@ -323,6 +331,11 @@ private:
     arma::imat interaction_index_;      ///< Maps edge pair to index
     arma::uvec shuffled_edge_order_;    ///< Pre-shuffled order (set in prepare_iteration)
 
+    // RB-proxy storage: per-edge MH acceptance probability from the last
+    // update_edge_indicators() sweep, indexed in canonical (row-major upper
+    // triangle) order to match get_vectorized_indicator_parameters().
+    arma::vec indicator_accept_prob_;
+
     // =========================================================================
     // Private helper methods
     // =========================================================================
@@ -474,8 +487,9 @@ private:
 
     /**
      * Update single edge indicator (spike-and-slab)
+     * @return MH acceptance probability alpha = exp(min(0, log_accept))
      */
-    void update_edge_indicator(int var1, int var2);
+    double update_edge_indicator(int var1, int var2);
 };
 
 
