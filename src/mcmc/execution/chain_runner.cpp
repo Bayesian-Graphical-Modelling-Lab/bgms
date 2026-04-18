@@ -96,6 +96,10 @@ void run_mcmc_chain(
                 chain_result.store_indicators(sample_index, model.get_vectorized_indicator_parameters());
             }
 
+            if (chain_result.has_indicator_accept_prob) {
+                chain_result.store_indicator_accept_prob(sample_index, model.get_vectorized_indicator_accept_prob());
+            }
+
             if (chain_result.has_allocations && edge_prior.has_allocations()) {
                 chain_result.store_allocations(sample_index, edge_prior.get_allocations());
             }
@@ -150,6 +154,7 @@ std::vector<ChainResult> run_mcmc_sampler(
         if (config.edge_selection) {
             size_t n_edges = model.get_vectorized_indicator_parameters().n_elem;
             results[c].reserve_indicators(n_edges, config.no_iter);
+            results[c].reserve_indicator_accept_prob(n_edges, config.no_iter);
         }
 
         if (has_sbm_alloc) {
@@ -209,6 +214,10 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
 
             if (chain.has_indicators) {
                 chain_list["indicator_samples"] = chain.indicator_samples;
+            }
+
+            if (chain.has_indicator_accept_prob) {
+                chain_list["indicator_accept_prob_samples"] = chain.indicator_accept_prob_samples;
             }
 
             if (chain.has_allocations) {

@@ -32,6 +32,13 @@ public:
     /// Whether indicator samples are stored.
     bool        has_indicators = false;
 
+    /// Per-edge MH acceptance probabilities alpha_{e,t} = exp(min(0, log_accept))
+    /// from the joint-flip proposal for each edge at each iteration
+    /// (n_edges x n_iter), only if edge_selection = true.
+    arma::mat   indicator_accept_prob_samples;
+    /// Whether indicator acceptance probabilities are stored.
+    bool        has_indicator_accept_prob = false;
+
     /// SBM allocation samples (n_variables x n_iter), only if SBM edge prior.
     arma::imat  allocation_samples;
     /// Whether allocation samples are stored.
@@ -67,6 +74,16 @@ public:
     void reserve_indicators(const size_t n_edges, const size_t n_iter) {
         indicator_samples.set_size(n_edges, n_iter);
         has_indicators = true;
+    }
+
+    /**
+     * Reserve storage for per-edge MH acceptance probabilities (RB-proxy input).
+     * @param n_edges  Number of edges (matches indicator vector length)
+     * @param n_iter   Number of sampling iterations
+     */
+    void reserve_indicator_accept_prob(const size_t n_edges, const size_t n_iter) {
+        indicator_accept_prob_samples.set_size(n_edges, n_iter);
+        has_indicator_accept_prob = true;
     }
 
     /**
@@ -108,6 +125,15 @@ public:
      */
     void store_indicators(const size_t iter, const arma::ivec& indicators) {
         indicator_samples.col(iter) = indicators;
+    }
+
+    /**
+     * Store per-edge MH acceptance probabilities for one iteration.
+     * @param iter         Iteration index (0-based)
+     * @param accept_prob  Vector of acceptance probabilities per edge
+     */
+    void store_indicator_accept_prob(const size_t iter, const arma::vec& accept_prob) {
+        indicator_accept_prob_samples.col(iter) = accept_prob;
     }
 
     /**

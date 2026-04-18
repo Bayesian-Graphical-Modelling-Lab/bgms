@@ -151,6 +151,20 @@ public:
     virtual arma::ivec get_vectorized_indicator_parameters() = 0;
 
     /**
+     * @return Per-edge MH acceptance probabilities from the last
+     *         update_edge_indicators() sweep, ordered to match
+     *         get_vectorized_indicator_parameters().
+     *
+     * Each entry is alpha_{e} = exp(min(0, log_accept_{e})) for the
+     * joint-flip proposal at that edge. Default implementation returns
+     * an empty vector (models without edge selection, or that have not
+     * yet run an edge-indicator sweep).
+     */
+    virtual arma::vec get_vectorized_indicator_accept_prob() {
+        return arma::vec();
+    }
+
+    /**
      * @return Full parameter dimension (fixed size, includes inactive parameters).
      *
      * Used by GradientSamplerBase for mass-matrix sizing and adaptation.
