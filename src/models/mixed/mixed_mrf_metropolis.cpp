@@ -603,7 +603,7 @@ void MixedMRFModel::update_pairwise_cross(int i, int j, int iteration) {
 //   Delete (G=1→0): set k = 0, accept with reverse terms.
 // =============================================================================
 
-void MixedMRFModel::update_edge_indicator_discrete(int i, int j) {
+double MixedMRFModel::update_edge_indicator_discrete(int i, int j) {
     double k_curr = pairwise_effects_discrete_(i, j);
     double prop_sd = proposal_sd_pairwise_discrete_(i, j);
 
@@ -663,6 +663,8 @@ void MixedMRFModel::update_edge_indicator_discrete(int i, int j) {
                   - MY_LOG(1.0 - inclusion_probability_(i, j));
     }
 
+    const double alpha = MY_EXP(std::min(0.0, ln_alpha));
+
     if(MY_LOG(runif(rng_)) < ln_alpha) {
         pairwise_effects_discrete_(i, j) = k_prop;
         pairwise_effects_discrete_(j, i) = k_prop;
@@ -670,6 +672,8 @@ void MixedMRFModel::update_edge_indicator_discrete(int i, int j) {
         constraint_dirty_ = true;
         if(use_marginal_pl_) recompute_marginal_interactions();
     }
+
+    return alpha;
 }
 
 
@@ -683,7 +687,7 @@ void MixedMRFModel::update_edge_indicator_discrete(int i, int j) {
 //   Delete (G=1→0): set precision_ij = 0, constrain diagonal.
 // =============================================================================
 
-void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
+double MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
     get_precision_constants(i, j);
 
     int g_curr = gyy(i, j);
@@ -762,6 +766,8 @@ void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
                   - MY_LOG(1.0 - inclusion_probability_(p_ + i, p_ + j));
     }
 
+    const double alpha = MY_EXP(std::min(0.0, ln_alpha));
+
     if(MY_LOG(runif(rng_)) < ln_alpha) {
         // Pass old precision values to Cholesky update
         double old_theta_ij = -2.0 * pairwise_effects_continuous_(i, j);
@@ -778,6 +784,8 @@ void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
         recompute_conditional_mean();
         if(use_marginal_pl_) recompute_marginal_interactions();
     }
+
+    return alpha;
 }
 
 
@@ -789,7 +797,7 @@ void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
 //   Delete (G=1→0): set k = 0.
 // =============================================================================
 
-void MixedMRFModel::update_edge_indicator_cross(int i, int j) {
+double MixedMRFModel::update_edge_indicator_cross(int i, int j) {
     double k_curr = pairwise_effects_cross_(i, j);
     double prop_sd = proposal_sd_pairwise_cross_(i, j);
 
@@ -854,6 +862,8 @@ void MixedMRFModel::update_edge_indicator_cross(int i, int j) {
                   - MY_LOG(1.0 - inclusion_probability_(i, p_ + j));
     }
 
+    const double alpha = MY_EXP(std::min(0.0, ln_alpha));
+
     if(MY_LOG(runif(rng_)) < ln_alpha) {
         pairwise_effects_cross_(i, j) = k_prop;
         set_gxy(i, j, g_prop);
@@ -861,4 +871,6 @@ void MixedMRFModel::update_edge_indicator_cross(int i, int j) {
         recompute_conditional_mean();
         if(use_marginal_pl_) recompute_marginal_interactions();
     }
+
+    return alpha;
 }

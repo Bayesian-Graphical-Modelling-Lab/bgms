@@ -109,6 +109,10 @@ MixedMRFModel::MixedMRFModel(
     edge_order_yy_ = arma::regspace<arma::uvec>(0, num_pairwise_yy_ - 1);
     edge_order_xy_ = arma::regspace<arma::uvec>(0, num_cross_ - 1);
 
+    // RB-proxy storage: one slot per candidate edge across all three blocks.
+    indicator_accept_prob_ = arma::zeros<arma::vec>(
+        num_pairwise_xx_ + num_pairwise_yy_ + num_cross_);
+
     // Detect sparse initial graph (constraints without edge selection)
     if(!edge_selection_) {
         size_t max_edges = num_pairwise_xx_ + num_pairwise_yy_ + num_cross_;
@@ -193,7 +197,8 @@ MixedMRFModel::MixedMRFModel(const MixedMRFModel& other)
       rng_(other.rng_),
       edge_order_xx_(other.edge_order_xx_),
       edge_order_yy_(other.edge_order_yy_),
-      edge_order_xy_(other.edge_order_xy_)
+      edge_order_xy_(other.edge_order_xy_),
+      indicator_accept_prob_(other.indicator_accept_prob_)
 {
 }
 
@@ -1220,6 +1225,9 @@ void MixedMRFModel::update_edge_indicators() {
 
     invalidate_gradient_cache();
 
+    const size_t yy_offset = num_pairwise_xx_;
+    const size_t xy_offset = num_pairwise_xx_ + num_pairwise_yy_;
+
     // Discrete-discrete edges (shuffled order)
     for(size_t e = 0; e < num_pairwise_xx_; ++e) {
         size_t idx = edge_order_xx_(e);
@@ -1234,7 +1242,9 @@ void MixedMRFModel::update_edge_indicators() {
             }
             count += row_len;
         }
-        update_edge_indicator_discrete(i, j);
+        // Store alpha at the canonical block index so the output vector is
+        // aligned with get_vectorized_indicator_parameters().
+        indicator_accept_prob_(idx) = update_edge_indicator_discrete(i, j);
     }
 
     // Continuous-continuous edges (shuffled order)
@@ -1250,7 +1260,8 @@ void MixedMRFModel::update_edge_indicators() {
             }
             count += row_len;
         }
-        update_edge_indicator_continuous(i, j);
+        indicator_accept_prob_(yy_offset + idx) =
+            update_edge_indicator_continuous(i, j);
     }
 
     // Cross edges (shuffled order)
@@ -1258,8 +1269,14 @@ void MixedMRFModel::update_edge_indicators() {
         size_t idx = edge_order_xy_(e);
         size_t i = idx / q_;
         size_t j = idx % q_;
-        update_edge_indicator_cross(i, j);
+        indicator_accept_prob_(xy_offset + idx) =
+            update_edge_indicator_cross(i, j);
     }
+}
+
+
+arma::vec MixedMRFModel::get_vectorized_indicator_accept_prob() {
+    return indicator_accept_prob_;
 }
 
 void MixedMRFModel::prepare_iteration() {

@@ -194,6 +194,14 @@ public:
     /** Get vectorized edge indicators (Gxx upper-tri, Gyy upper-tri, Gxy full). */
     arma::ivec get_vectorized_indicator_parameters() override;
 
+    /**
+     * Get per-edge MH acceptance probabilities from the last
+     * update_edge_indicators() sweep. Uses the same ordering as
+     * get_vectorized_indicator_parameters(): Gxx upper-tri, Gyy
+     * upper-tri, Gxy full.
+     */
+    arma::vec get_vectorized_indicator_accept_prob() override;
+
     /** Get active subset of inverse mass diagonal (includes Cholesky block). */
     arma::vec get_active_inv_mass() const override;
 
@@ -430,6 +438,12 @@ private:
     arma::uvec edge_order_yy_;          ///< Shuffled yy-edge pair indices
     arma::uvec edge_order_xy_;          ///< Shuffled xy-edge pair indices
 
+    /// RB-proxy storage: per-edge MH acceptance probability from the most
+    /// recent update_edge_indicators() sweep, concatenated in the same order
+    /// as get_vectorized_indicator_parameters() (Gxx upper-tri, Gyy upper-tri,
+    /// Gxy full row-major). Zero when edge selection has not yet been active.
+    arma::vec indicator_accept_prob_;
+
     // =========================================================================
     // Private helpers
     // =========================================================================
@@ -533,14 +547,17 @@ private:
 
     // --- Edge-indicator update sweeps ---
 
-    /** Metropolis-Hastings add-delete move for one discrete-discrete edge. */
-    void update_edge_indicator_discrete(int i, int j);
+    /** Metropolis-Hastings add-delete move for one discrete-discrete edge.
+     *  @return MH acceptance probability alpha = exp(min(0, log_accept)). */
+    double update_edge_indicator_discrete(int i, int j);
 
-    /** Metropolis-Hastings add-delete move for one continuous-continuous edge. */
-    void update_edge_indicator_continuous(int i, int j);
+    /** Metropolis-Hastings add-delete move for one continuous-continuous edge.
+     *  @return MH acceptance probability alpha = exp(min(0, log_accept)). */
+    double update_edge_indicator_continuous(int i, int j);
 
-    /** Metropolis-Hastings add-delete move for one cross-type edge. */
-    void update_edge_indicator_cross(int i, int j);
+    /** Metropolis-Hastings add-delete move for one cross-type edge.
+     *  @return MH acceptance probability alpha = exp(min(0, log_accept)). */
+    double update_edge_indicator_cross(int i, int j);
 
     // =========================================================================
     // Edge-indicator accessor helpers
