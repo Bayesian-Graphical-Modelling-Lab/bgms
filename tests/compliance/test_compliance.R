@@ -118,11 +118,11 @@ library(bgms)
 
 fixture_dir = file.path("tests", "compliance", "fixtures")
 
-if(!file.exists(file.path(fixture_dir, "manifest.rds"))) {
+if (!file.exists(file.path(fixture_dir, "manifest.rds"))) {
   stop("No fixtures found. Run tests/compliance/generate_fixtures.R first.")
 }
 
-manifest = readRDS(file.path(fixture_dir, "manifest.rds"))
+manifest <- readRDS(file.path(fixture_dir, "manifest.rds"))
 cat(sprintf("Testing %d compliance fixtures against current build...\n", length(manifest)))
 cat("Current bgms version:", as.character(packageVersion("bgms")), "\n\n")
 
@@ -134,37 +134,37 @@ data(Wenchuan)
 data(ADHD)
 data(Boredom)
 
-wenchuan_small = Wenchuan[, 1:6]
-adhd_small = ADHD[, 2:7]
-boredom_small = Boredom[, 2:7]
+wenchuan_small <- Wenchuan[, 1:6]
+adhd_small <- ADHD[, 2:7]
+boredom_small <- Boredom[, 2:7]
 
-wenchuan_na = wenchuan_small
+wenchuan_na <- wenchuan_small
 set.seed(999)
-na_idx = sample(length(wenchuan_na), size = 20)
-wenchuan_na[na_idx] = NA
+na_idx <- sample(length(wenchuan_na), size = 20)
+wenchuan_na[na_idx] <- NA
 
-n_w = nrow(wenchuan_small)
-wenchuan_g1 = wenchuan_small[1:floor(n_w / 2), ]
-wenchuan_g2 = wenchuan_small[(floor(n_w / 2) + 1):n_w, ]
+n_w <- nrow(wenchuan_small)
+wenchuan_g1 <- wenchuan_small[1:floor(n_w / 2), ]
+wenchuan_g2 <- wenchuan_small[(floor(n_w / 2) + 1):n_w, ]
 
-n_a = nrow(adhd_small)
-adhd_g1 = adhd_small[1:floor(n_a / 2), ]
-adhd_g2 = adhd_small[(floor(n_a / 2) + 1):n_a, ]
+n_a <- nrow(adhd_small)
+adhd_g1 <- adhd_small[1:floor(n_a / 2), ]
+adhd_g2 <- adhd_small[(floor(n_a / 2) + 1):n_a, ]
 
-n_b = nrow(boredom_small)
-boredom_g1 = boredom_small[1:floor(n_b / 2), ]
-boredom_g2 = boredom_small[(floor(n_b / 2) + 1):n_b, ]
+n_b <- nrow(boredom_small)
+boredom_g1 <- boredom_small[1:floor(n_b / 2), ]
+boredom_g2 <- boredom_small[(floor(n_b / 2) + 1):n_b, ]
 
-wenchuan_g1_na = wenchuan_g1
-wenchuan_g2_na = wenchuan_g2
+wenchuan_g1_na <- wenchuan_g1
+wenchuan_g2_na <- wenchuan_g2
 set.seed(998)
-na_idx1 = sample(length(wenchuan_g1_na), size = 10)
-wenchuan_g1_na[na_idx1] = NA
+na_idx1 <- sample(length(wenchuan_g1_na), size = 10)
+wenchuan_g1_na[na_idx1] <- NA
 set.seed(997)
-na_idx2 = sample(length(wenchuan_g2_na), size = 10)
-wenchuan_g2_na[na_idx2] = NA
+na_idx2 <- sample(length(wenchuan_g2_na), size = 10)
+wenchuan_g2_na[na_idx2] <- NA
 
-datasets = list(
+datasets <- list(
   wenchuan_small = wenchuan_small,
   adhd_small     = adhd_small,
   boredom_small  = boredom_small,
@@ -183,7 +183,7 @@ datasets = list(
 # Configuration rebuild (mirrors generate_fixtures.R)
 # ==============================================================================
 
-bgm_configs = list(
+bgm_configs <- list(
   bgm_wenchuan_nuts_bernoulli = list(
     x = "wenchuan_small", iter = 200, warmup = 200, chains = 2,
     edge_selection = TRUE, edge_prior = "Bernoulli",
@@ -309,7 +309,7 @@ bgm_configs = list(
   )
 )
 
-compare_configs = list(
+compare_configs <- list(
   cmp_wenchuan_nuts_bernoulli = list(
     x = "wenchuan_g1", y = "wenchuan_g2",
     iter = 200, warmup = 200, chains = 2,
@@ -403,17 +403,17 @@ compare_configs = list(
   )
 )
 
-all_configs = c(bgm_configs, compare_configs)
+all_configs <- c(bgm_configs, compare_configs)
 
 # ==============================================================================
 # Comparison helpers
 # ==============================================================================
 
-resolve_args = function(args) {
-  resolved = args
-  for(nm in names(resolved)) {
-    if(is.character(resolved[[nm]]) && resolved[[nm]] %in% names(datasets)) {
-      resolved[[nm]] = datasets[[resolved[[nm]]]]
+resolve_args <- function(args) {
+  resolved <- args
+  for (nm in names(resolved)) {
+    if (is.character(resolved[[nm]]) && resolved[[nm]] %in% names(datasets)) {
+      resolved[[nm]] <- datasets[[resolved[[nm]]]]
     }
   }
   resolved
@@ -421,21 +421,21 @@ resolve_args = function(args) {
 
 # Migrate fixtures generated with pre-0.1.6.4 field names.
 # PR #84 renamed posterior_mean_pairwise -> posterior_mean_pairwise.
-migrate_fixture = function(fixture) {
-  renames = c(
+migrate_fixture <- function(fixture) {
+  renames <- c(
     posterior_mean_pairwise              = "posterior_mean_pairwise",
     posterior_mean_pairwise_baseline     = "posterior_mean_pairwise_baseline",
     posterior_mean_pairwise_differences  = "posterior_mean_pairwise_differences"
   )
-  for(old_name in names(renames)) {
-    if(old_name %in% names(fixture) && !renames[[old_name]] %in% names(fixture)) {
-      names(fixture)[names(fixture) == old_name] = renames[[old_name]]
+  for (old_name in names(renames)) {
+    if (old_name %in% names(fixture) && !renames[[old_name]] %in% names(fixture)) {
+      names(fixture)[names(fixture) == old_name] <- renames[[old_name]]
     }
   }
   fixture
 }
 
-extract_bgm_actual = function(fit) {
+extract_bgm_actual <- function(fit) {
   list(
     posterior_summary_main = fit$posterior_summary_main,
     posterior_summary_pairwise = fit$posterior_summary_pairwise,
@@ -445,7 +445,7 @@ extract_bgm_actual = function(fit) {
     posterior_mean_indicator = fit$posterior_mean_indicator,
     raw_main_chain1 = fit$raw_samples$main[[1]],
     raw_pairwise_chain1 = fit$raw_samples$pairwise[[1]],
-    raw_indicator_chain1 = if(!is.null(fit$raw_samples$indicator)) {
+    raw_indicator_chain1 = if (!is.null(fit$raw_samples$indicator)) {
       fit$raw_samples$indicator[[1]]
     } else {
       NULL
@@ -456,7 +456,7 @@ extract_bgm_actual = function(fit) {
   )
 }
 
-extract_compare_actual = function(fit) {
+extract_compare_actual <- function(fit) {
   list(
     posterior_summary_main_baseline = fit$posterior_summary_main_baseline,
     posterior_summary_pairwise_baseline = fit$posterior_summary_pairwise_baseline,
@@ -476,7 +476,7 @@ extract_compare_actual = function(fit) {
 # Configs where 0.1.6.3 returned NA in posterior_summary/posterior_mean for
 # constant or near-constant parameters, and the current code computes values
 # (bug fix). Only these are allowed to have NA<U+2192>value differences.
-na_bugfix_ids = c(
+na_bugfix_ids <- c(
   "bgm_wenchuan_nuts_bernoulli",
   "bgm_wenchuan_hmc_bernoulli",
   "bgm_wenchuan_nuts_blumecapel",
@@ -489,7 +489,7 @@ na_bugfix_ids = c(
 # (see header notes 4, 5, 7, 8, 9, 10). Checked for structural match only.
 # All configs are structure-only pending fixture regeneration after the
 # association-scale reparameterization (note 8).
-structure_only_ids = c(
+structure_only_ids <- c(
   names(all_configs)
 )
 
@@ -498,24 +498,24 @@ structure_only_ids = c(
 # are derived from the raw chains (which ARE compared bitwise).
 # sd is included because CRAN 0.1.6.3 had sd/mcse values swapped in
 # the edge-selected pairwise summaries (note 9).
-diag_cols = c("n_eff", "n_eff_mixt", "Rhat", "mcse", "sd", "parameter")
+diag_cols <- c("n_eff", "n_eff_mixt", "Rhat", "mcse", "sd", "parameter")
 
 # Strip diagnostic / derived columns from a data.frame/matrix, keeping only
 # shared non-diagnostic columns between expected and actual.
-strip_diag_cols = function(exp_df, act_df) {
-  exp_names = if(is.data.frame(exp_df)) names(exp_df) else colnames(exp_df)
-  act_names = if(is.data.frame(act_df)) names(act_df) else colnames(act_df)
-  shared = intersect(exp_names, act_names)
-  keep = setdiff(shared, diag_cols)
+strip_diag_cols <- function(exp_df, act_df) {
+  exp_names <- if (is.data.frame(exp_df)) names(exp_df) else colnames(exp_df)
+  act_names <- if (is.data.frame(act_df)) names(act_df) else colnames(act_df)
+  shared <- intersect(exp_names, act_names)
+  keep <- setdiff(shared, diag_cols)
   list(
     exp = as.matrix(exp_df[, keep, drop = FALSE]),
     act = as.matrix(act_df[, keep, drop = FALSE])
   )
 }
 
-compare_fields = function(expected, actual, type, id) {
-  if(type == "bgm") {
-    fields = c(
+compare_fields <- function(expected, actual, type, id) {
+  if (type == "bgm") {
+    fields <- c(
       "posterior_summary_main", "posterior_summary_pairwise",
       "posterior_summary_indicator",
       "posterior_mean_main", "posterior_mean_pairwise", "posterior_mean_indicator",
@@ -523,7 +523,7 @@ compare_fields = function(expected, actual, type, id) {
       "posterior_coclustering_matrix", "posterior_mean_allocations"
     )
   } else {
-    fields = c(
+    fields <- c(
       "posterior_summary_main_baseline", "posterior_summary_pairwise_baseline",
       "posterior_summary_main_differences", "posterior_summary_pairwise_differences",
       "posterior_summary_indicator",
@@ -534,49 +534,49 @@ compare_fields = function(expected, actual, type, id) {
     )
   }
 
-  allow_na_skip = id %in% na_bugfix_ids
-  mismatches = character()
+  allow_na_skip <- id %in% na_bugfix_ids
+  mismatches <- character()
 
-  for(field in fields) {
-    exp_val = expected[[field]]
-    act_val = actual[[field]]
+  for (field in fields) {
+    exp_val <- expected[[field]]
+    act_val <- actual[[field]]
 
-    if(is.null(exp_val) && is.null(act_val)) next
-    if(is.null(exp_val) != is.null(act_val)) {
-      mismatches = c(mismatches, sprintf("  %s: one is NULL, the other is not", field))
+    if (is.null(exp_val) && is.null(act_val)) next
+    if (is.null(exp_val) != is.null(act_val)) {
+      mismatches <- c(mismatches, sprintf("  %s: one is NULL, the other is not", field))
       next
     }
 
-    is_summary = grepl("^posterior_summary", field)
-    is_mean = grepl("^posterior_mean", field)
+    is_summary <- grepl("^posterior_summary", field)
+    is_mean <- grepl("^posterior_mean", field)
 
     # posterior_summary: strip diagnostic columns before comparing (notes 8-9)
-    if(is_summary && (is.data.frame(exp_val) || is.data.frame(act_val))) {
-      stripped = strip_diag_cols(exp_val, act_val)
-      exp_m = stripped$exp
-      act_m = stripped$act
+    if (is_summary && (is.data.frame(exp_val) || is.data.frame(act_val))) {
+      stripped <- strip_diag_cols(exp_val, act_val)
+      exp_m <- stripped$exp
+      act_m <- stripped$act
 
-      if(!identical(dim(exp_m), dim(act_m))) {
-        mismatches = c(mismatches, sprintf(
+      if (!identical(dim(exp_m), dim(act_m))) {
+        mismatches <- c(mismatches, sprintf(
           "  %s: dim mismatch after stripping diag cols (%s vs %s)", field,
           paste(dim(exp_m), collapse = "x"), paste(dim(act_m), collapse = "x")
         ))
         next
       }
 
-      if(allow_na_skip) {
-        non_na = !is.na(exp_m)
-        if(!isTRUE(all.equal(exp_m[non_na], act_m[non_na], tolerance = 1e-12))) {
-          max_diff = max(abs(exp_m[non_na] - act_m[non_na]), na.rm = TRUE)
-          mismatches = c(mismatches, sprintf(
+      if (allow_na_skip) {
+        non_na <- !is.na(exp_m)
+        if (!isTRUE(all.equal(exp_m[non_na], act_m[non_na], tolerance = 1e-12))) {
+          max_diff <- max(abs(exp_m[non_na] - act_m[non_na]), na.rm = TRUE)
+          mismatches <- c(mismatches, sprintf(
             "  %s: NOT identical (max |diff| = %.2e, ignoring diag cols + fixture NAs)",
             field, max_diff
           ))
         }
       } else {
-        if(!isTRUE(all.equal(exp_m, act_m, tolerance = 1e-12))) {
-          max_diff = max(abs(exp_m - act_m), na.rm = TRUE)
-          mismatches = c(mismatches, sprintf(
+        if (!isTRUE(all.equal(exp_m, act_m, tolerance = 1e-12))) {
+          max_diff <- max(abs(exp_m - act_m), na.rm = TRUE)
+          mismatches <- c(mismatches, sprintf(
             "  %s: NOT identical (max |diff| = %.2e, ignoring diag cols)", field, max_diff
           ))
         }
@@ -585,28 +585,28 @@ compare_fields = function(expected, actual, type, id) {
     }
 
     # posterior_mean: allow tolerance for colMeans vs mean() differences (note 8)
-    if(is_mean && (is.data.frame(exp_val) || is.matrix(exp_val))) {
-      exp_m = as.matrix(exp_val)
-      act_m = as.matrix(act_val)
-      if(!identical(dim(exp_m), dim(act_m))) {
-        mismatches = c(mismatches, sprintf(
+    if (is_mean && (is.data.frame(exp_val) || is.matrix(exp_val))) {
+      exp_m <- as.matrix(exp_val)
+      act_m <- as.matrix(act_val)
+      if (!identical(dim(exp_m), dim(act_m))) {
+        mismatches <- c(mismatches, sprintf(
           "  %s: dim mismatch (%s vs %s)", field,
           paste(dim(exp_m), collapse = "x"), paste(dim(act_m), collapse = "x")
         ))
         next
       }
-      if(allow_na_skip) {
-        non_na = !is.na(exp_m)
-        if(!isTRUE(all.equal(exp_m[non_na], act_m[non_na], tolerance = 1e-12))) {
-          max_diff = max(abs(exp_m[non_na] - act_m[non_na]), na.rm = TRUE)
-          mismatches = c(mismatches, sprintf(
+      if (allow_na_skip) {
+        non_na <- !is.na(exp_m)
+        if (!isTRUE(all.equal(exp_m[non_na], act_m[non_na], tolerance = 1e-12))) {
+          max_diff <- max(abs(exp_m[non_na] - act_m[non_na]), na.rm = TRUE)
+          mismatches <- c(mismatches, sprintf(
             "  %s: NOT identical (max |diff| = %.2e, ignoring fixture NAs)", field, max_diff
           ))
         }
       } else {
-        if(!isTRUE(all.equal(exp_m, act_m, tolerance = 1e-12))) {
-          max_diff = max(abs(exp_m - act_m), na.rm = TRUE)
-          mismatches = c(mismatches, sprintf(
+        if (!isTRUE(all.equal(exp_m, act_m, tolerance = 1e-12))) {
+          max_diff <- max(abs(exp_m - act_m), na.rm = TRUE)
+          mismatches <- c(mismatches, sprintf(
             "  %s: NOT identical (max |diff| = %.2e)", field, max_diff
           ))
         }
@@ -615,37 +615,37 @@ compare_fields = function(expected, actual, type, id) {
     }
 
     # Everything else: bitwise identical
-    if(!identical(dim(exp_val), dim(act_val))) {
-      mismatches = c(mismatches, sprintf(
+    if (!identical(dim(exp_val), dim(act_val))) {
+      mismatches <- c(mismatches, sprintf(
         "  %s: dim mismatch (%s vs %s)", field,
         paste(dim(exp_val), collapse = "x"), paste(dim(act_val), collapse = "x")
       ))
       next
     }
 
-    if(!identical(exp_val, act_val)) {
-      if(is.numeric(exp_val) && is.numeric(act_val)) {
-        max_diff = max(abs(as.numeric(exp_val) - as.numeric(act_val)), na.rm = TRUE)
-        mismatches = c(mismatches, sprintf(
+    if (!identical(exp_val, act_val)) {
+      if (is.numeric(exp_val) && is.numeric(act_val)) {
+        max_diff <- max(abs(as.numeric(exp_val) - as.numeric(act_val)), na.rm = TRUE)
+        mismatches <- c(mismatches, sprintf(
           "  %s: NOT identical (max |diff| = %.2e)", field, max_diff
         ))
       } else {
-        mismatches = c(mismatches, sprintf("  %s: NOT identical (non-numeric)", field))
+        mismatches <- c(mismatches, sprintf("  %s: NOT identical (non-numeric)", field))
       }
     }
   }
 
   # nuts_diag: compare only the shared core fields (new code adds warmup_check)
-  exp_nd = expected[["nuts_diag"]]
-  act_nd = actual[["nuts_diag"]]
-  if(!is.null(exp_nd) && !is.null(act_nd)) {
-    for(nd_field in c("treedepth", "divergent", "energy", "ebfmi")) {
-      if(!identical(exp_nd[[nd_field]], act_nd[[nd_field]])) {
-        mismatches = c(mismatches, sprintf("  nuts_diag$%s: NOT identical", nd_field))
+  exp_nd <- expected[["nuts_diag"]]
+  act_nd <- actual[["nuts_diag"]]
+  if (!is.null(exp_nd) && !is.null(act_nd)) {
+    for (nd_field in c("treedepth", "divergent", "energy", "ebfmi")) {
+      if (!identical(exp_nd[[nd_field]], act_nd[[nd_field]])) {
+        mismatches <- c(mismatches, sprintf("  nuts_diag$%s: NOT identical", nd_field))
       }
     }
-  } else if(!is.null(exp_nd) != !is.null(act_nd)) {
-    mismatches = c(mismatches, "  nuts_diag: one is NULL, the other is not")
+  } else if (!is.null(exp_nd) != !is.null(act_nd)) {
+    mismatches <- c(mismatches, "  nuts_diag: one is NULL, the other is not")
   }
 
   mismatches
@@ -653,16 +653,16 @@ compare_fields = function(expected, actual, type, id) {
 
 # Structure-only check: verifies that output fields
 # have matching names, dimensions, and types without requiring identical values.
-check_structure = function(expected, actual, type) {
-  if(type == "bgm") {
-    fields = c(
+check_structure <- function(expected, actual, type) {
+  if (type == "bgm") {
+    fields <- c(
       "posterior_summary_main", "posterior_summary_pairwise",
       "posterior_summary_indicator",
       "posterior_mean_main", "posterior_mean_pairwise", "posterior_mean_indicator",
       "raw_main_chain1", "raw_pairwise_chain1", "raw_indicator_chain1"
     )
   } else {
-    fields = c(
+    fields <- c(
       "posterior_summary_main_baseline", "posterior_summary_pairwise_baseline",
       "posterior_summary_main_differences", "posterior_summary_pairwise_differences",
       "posterior_summary_indicator",
@@ -673,17 +673,17 @@ check_structure = function(expected, actual, type) {
     )
   }
 
-  mismatches = character()
-  for(field in fields) {
-    exp_val = expected[[field]]
-    act_val = actual[[field]]
-    if(is.null(exp_val) && is.null(act_val)) next
-    if(is.null(exp_val) != is.null(act_val)) {
-      mismatches = c(mismatches, sprintf("  %s: one is NULL, the other is not", field))
+  mismatches <- character()
+  for (field in fields) {
+    exp_val <- expected[[field]]
+    act_val <- actual[[field]]
+    if (is.null(exp_val) && is.null(act_val)) next
+    if (is.null(exp_val) != is.null(act_val)) {
+      mismatches <- c(mismatches, sprintf("  %s: one is NULL, the other is not", field))
       next
     }
-    if(!identical(class(exp_val), class(act_val))) {
-      mismatches = c(mismatches, sprintf(
+    if (!identical(class(exp_val), class(act_val))) {
+      mismatches <- c(mismatches, sprintf(
         "  %s: class mismatch (%s vs %s)",
         field, paste(class(exp_val), collapse = "/"), paste(class(act_val), collapse = "/")
       ))
@@ -691,18 +691,18 @@ check_structure = function(expected, actual, type) {
     }
     # For posterior_summary fields: allow extra columns (note 8) and check
     # row count only. For everything else: require identical dimensions.
-    is_summary = grepl("^posterior_summary", field)
-    if(is_summary && (is.data.frame(exp_val) || is.data.frame(act_val))) {
-      exp_nr = nrow(exp_val)
-      act_nr = nrow(act_val)
-      if(!identical(exp_nr, act_nr)) {
-        mismatches = c(mismatches, sprintf(
+    is_summary <- grepl("^posterior_summary", field)
+    if (is_summary && (is.data.frame(exp_val) || is.data.frame(act_val))) {
+      exp_nr <- nrow(exp_val)
+      act_nr <- nrow(act_val)
+      if (!identical(exp_nr, act_nr)) {
+        mismatches <- c(mismatches, sprintf(
           "  %s: row count mismatch (%d vs %d)", field, exp_nr, act_nr
         ))
       }
-    } else if(!identical(dim(exp_val), dim(act_val)) &&
+    } else if (!identical(dim(exp_val), dim(act_val)) &&
       !identical(length(exp_val), length(act_val))) {
-      mismatches = c(mismatches, sprintf(
+      mismatches <- c(mismatches, sprintf(
         "  %s: dim mismatch (%s vs %s)",
         field, paste(dim(exp_val), collapse = "x"), paste(dim(act_val), collapse = "x")
       ))
@@ -715,39 +715,39 @@ check_structure = function(expected, actual, type) {
 # Run all comparisons
 # ==============================================================================
 
-pass_count = 0
-fail_count = 0
-skip_count = 0
-error_count = 0
-failures = list()
+pass_count <- 0
+fail_count <- 0
+skip_count <- 0
+error_count <- 0
+failures <- list()
 
-for(entry in manifest) {
-  id = entry$id
-  type = entry$type
+for (entry in manifest) {
+  id <- entry$id
+  type <- entry$type
   cat(sprintf("  [%s] %s ... ", id, entry$desc))
 
   # Load expected fixture
-  fixture_path = file.path(fixture_dir, entry$file)
-  if(!file.exists(fixture_path)) {
+  fixture_path <- file.path(fixture_dir, entry$file)
+  if (!file.exists(fixture_path)) {
     cat("SKIP (fixture file missing)\n")
-    skip_count = skip_count + 1
+    skip_count <- skip_count + 1
     next
   }
-  expected = migrate_fixture(readRDS(fixture_path))
+  expected <- migrate_fixture(readRDS(fixture_path))
 
   # Get config
-  if(!id %in% names(all_configs)) {
+  if (!id %in% names(all_configs)) {
     cat("SKIP (config not found)\n")
-    skip_count = skip_count + 1
+    skip_count <- skip_count + 1
     next
   }
-  args = resolve_args(all_configs[[id]])
+  args <- resolve_args(all_configs[[id]])
 
   # Run current build
   set.seed(args$seed)
-  fit = tryCatch(
+  fit <- tryCatch(
     suppressWarnings({
-      if(type == "bgm") {
+      if (type == "bgm") {
         do.call(bgm, args)
       } else {
         do.call(bgmCompare, args)
@@ -759,38 +759,38 @@ for(entry in manifest) {
     }
   )
 
-  if(is.null(fit)) {
-    error_count = error_count + 1
-    failures[[id]] = "model fitting errored"
+  if (is.null(fit)) {
+    error_count <- error_count + 1
+    failures[[id]] <- "model fitting errored"
     next
   }
 
   # Extract comparable output
-  if(type == "bgm") {
-    actual = extract_bgm_actual(fit)
+  if (type == "bgm") {
+    actual <- extract_bgm_actual(fit)
   } else {
-    actual = extract_compare_actual(fit)
+    actual <- extract_compare_actual(fit)
   }
 
   # Compare: structure-only for all configs pending fixture regeneration
   # (note 8: association-scale reparameterization breaks bitwise identity
   # with CRAN 0.1.6.3 fixtures)
-  if(id %in% structure_only_ids) {
-    mismatches = check_structure(expected, actual, type)
-    label = "PASS (structure)"
+  if (id %in% structure_only_ids) {
+    mismatches <- check_structure(expected, actual, type)
+    label <- "PASS (structure)"
   } else {
-    mismatches = compare_fields(expected, actual, type, id)
-    label = "PASS"
+    mismatches <- compare_fields(expected, actual, type, id)
+    label <- "PASS"
   }
 
-  if(length(mismatches) == 0) {
+  if (length(mismatches) == 0) {
     cat(label, "\n")
-    pass_count = pass_count + 1
+    pass_count <- pass_count + 1
   } else {
     cat("FAIL\n")
-    for(m in mismatches) cat(m, "\n")
-    fail_count = fail_count + 1
-    failures[[id]] = mismatches
+    for (m in mismatches) cat(m, "\n")
+    fail_count <- fail_count + 1
+    failures[[id]] <- mismatches
   }
 }
 
@@ -798,20 +798,20 @@ for(entry in manifest) {
 # Summary
 # ==============================================================================
 
-total = length(manifest)
+total <- length(manifest)
 cat(sprintf(
   "\n=== Results: %d PASS, %d FAIL, %d ERROR, %d SKIP (of %d) ===\n",
   pass_count, fail_count, error_count, skip_count, total
 ))
 
-if(fail_count > 0 || error_count > 0) {
+if (fail_count > 0 || error_count > 0) {
   cat("\nFailed/errored fixtures:\n")
-  for(id in names(failures)) {
+  for (id in names(failures)) {
     cat(sprintf("  %s:\n", id))
-    msgs = failures[[id]]
-    for(m in msgs) cat("   ", m, "\n")
+    msgs <- failures[[id]]
+    for (m in msgs) cat("   ", m, "\n")
   }
   quit(status = 1)
-} else if(pass_count == total) {
+} else if (pass_count == total) {
   cat("All fixtures match (structure-only pending association-scale fixture regeneration).\n")
 }

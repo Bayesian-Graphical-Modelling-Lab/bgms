@@ -4,8 +4,8 @@
 # ==============================================================================
 
 # Helper: minimal valid call with sensible defaults
-vs = function(...) {
-  defaults = list(
+vs <- function(...) {
+  defaults <- list(
     update_method     = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
     target_accept     = NULL,
     iter              = 1000L,
@@ -21,14 +21,14 @@ vs = function(...) {
     edge_selection    = FALSE,
     verbose           = FALSE
   )
-  args = modifyList(defaults, list(...))
+  args <- modifyList(defaults, list(...))
   do.call(validate_sampler, args)
 }
 
 # Suppress only deprecation warnings, let others through
-suppress_hmc_deprecation = function(expr) {
+suppress_hmc_deprecation <- function(expr) {
   withCallingHandlers(expr, warning = function(w) {
-    if(grepl("deprecated", conditionMessage(w), ignore.case = TRUE)) {
+    if (grepl("deprecated", conditionMessage(w), ignore.case = TRUE)) {
       invokeRestart("muffleWarning")
     }
   })
@@ -40,17 +40,17 @@ suppress_hmc_deprecation = function(expr) {
 # ==============================================================================
 
 test_that("default triple resolves to 'nuts'", {
-  res = vs()
+  res <- vs()
   expect_equal(res$update_method, "nuts")
 })
 
 test_that("explicit 'adaptive-metropolis' passes through", {
-  res = vs(update_method = "adaptive-metropolis")
+  res <- vs(update_method = "adaptive-metropolis")
   expect_equal(res$update_method, "adaptive-metropolis")
 })
 
 test_that("explicit 'hamiltonian-mc' passes through", {
-  res = suppress_hmc_deprecation(vs(update_method = "hamiltonian-mc"))
+  res <- suppress_hmc_deprecation(vs(update_method = "hamiltonian-mc"))
   expect_equal(res$update_method, "hamiltonian-mc")
 })
 
@@ -71,22 +71,22 @@ test_that("invalid update_method errors", {
 # ==============================================================================
 
 test_that("GGM defaults <U+2192> nuts silently", {
-  res = vs(is_continuous = TRUE)
+  res <- vs(is_continuous = TRUE)
   expect_equal(res$update_method, "nuts")
 })
 
 test_that("GGM + explicit 'adaptive-metropolis' OK", {
-  res = vs(is_continuous = TRUE, update_method = "adaptive-metropolis")
+  res <- vs(is_continuous = TRUE, update_method = "adaptive-metropolis")
   expect_equal(res$update_method, "adaptive-metropolis")
 })
 
 test_that("GGM + explicit 'nuts' OK", {
-  res = vs(is_continuous = TRUE, update_method = "nuts")
+  res <- vs(is_continuous = TRUE, update_method = "nuts")
   expect_equal(res$update_method, "nuts")
 })
 
 test_that("GGM + explicit 'hamiltonian-mc' OK", {
-  res = suppress_hmc_deprecation(
+  res <- suppress_hmc_deprecation(
     vs(is_continuous = TRUE, update_method = "hamiltonian-mc")
   )
   expect_equal(res$update_method, "hamiltonian-mc")
@@ -111,34 +111,34 @@ test_that("GGM + hamiltonian-mc + edge_selection warns", {
 # ==============================================================================
 
 test_that("NULL target_accept <U+2192> 0.44 for adaptive-metropolis", {
-  res = vs(update_method = "adaptive-metropolis", target_accept = NULL)
+  res <- vs(update_method = "adaptive-metropolis", target_accept = NULL)
   expect_equal(res$target_accept, 0.44)
 })
 
 test_that("NULL target_accept <U+2192> 0.65 for hamiltonian-mc", {
-  res = suppress_hmc_deprecation(
+  res <- suppress_hmc_deprecation(
     vs(update_method = "hamiltonian-mc", target_accept = NULL)
   )
   expect_equal(res$target_accept, 0.65)
 })
 
 test_that("NULL target_accept <U+2192> 0.80 for nuts", {
-  res = vs(update_method = "nuts", target_accept = NULL)
+  res <- vs(update_method = "nuts", target_accept = NULL)
   expect_equal(res$target_accept, 0.80)
 })
 
 test_that("user-supplied target_accept passes through", {
-  res = vs(target_accept = 0.8)
+  res <- vs(target_accept = 0.8)
   expect_equal(res$target_accept, 0.8)
 })
 
 test_that("target_accept clamped below epsilon", {
-  res = vs(target_accept = 0)
+  res <- vs(target_accept = 0)
   expect_gt(res$target_accept, 0)
 })
 
 test_that("target_accept clamped above 1 - epsilon", {
-  res = vs(target_accept = 1)
+  res <- vs(target_accept = 1)
   expect_lt(res$target_accept, 1)
 })
 
@@ -148,7 +148,7 @@ test_that("target_accept clamped above 1 - epsilon", {
 # ==============================================================================
 
 test_that("valid iter accepted", {
-  res = vs(iter = 500L)
+  res <- vs(iter = 500L)
   expect_equal(res$iter, 500L)
 })
 
@@ -161,7 +161,7 @@ test_that("negative iter errors", {
 })
 
 test_that("valid warmup accepted (including 0)", {
-  res = vs(warmup = 0L)
+  res <- vs(warmup = 0L)
   expect_equal(res$warmup, 0L)
 })
 
@@ -272,22 +272,22 @@ test_that("verbose = FALSE suppresses all warmup warnings", {
 # ==============================================================================
 
 test_that("hmc_num_leapfrogs passes through", {
-  res = vs(hmc_num_leapfrogs = 50L)
+  res <- vs(hmc_num_leapfrogs = 50L)
   expect_equal(res$hmc_num_leapfrogs, 50L)
 })
 
 test_that("hmc_num_leapfrogs clamped to >= 1", {
-  res = vs(hmc_num_leapfrogs = 1L)
+  res <- vs(hmc_num_leapfrogs = 1L)
   expect_equal(res$hmc_num_leapfrogs, 1L)
 })
 
 test_that("nuts_max_depth passes through", {
-  res = vs(nuts_max_depth = 8L)
+  res <- vs(nuts_max_depth = 8L)
   expect_equal(res$nuts_max_depth, 8L)
 })
 
 test_that("nuts_max_depth clamped to >= 1", {
-  res = vs(nuts_max_depth = 1L)
+  res <- vs(nuts_max_depth = 1L)
   expect_equal(res$nuts_max_depth, 1L)
 })
 
@@ -297,12 +297,12 @@ test_that("nuts_max_depth clamped to >= 1", {
 # ==============================================================================
 
 test_that("learn_mass_matrix TRUE passes through", {
-  res = vs(learn_mass_matrix = TRUE)
+  res <- vs(learn_mass_matrix = TRUE)
   expect_true(res$learn_mass_matrix)
 })
 
 test_that("learn_mass_matrix FALSE passes through", {
-  res = vs(learn_mass_matrix = FALSE)
+  res <- vs(learn_mass_matrix = FALSE)
   expect_false(res$learn_mass_matrix)
 })
 
@@ -312,7 +312,7 @@ test_that("learn_mass_matrix FALSE passes through", {
 # ==============================================================================
 
 test_that("valid chains accepted", {
-  res = vs(chains = 4L)
+  res <- vs(chains = 4L)
   expect_equal(res$chains, 4L)
 })
 
@@ -321,7 +321,7 @@ test_that("zero chains errors", {
 })
 
 test_that("valid cores accepted", {
-  res = vs(cores = 1L)
+  res <- vs(cores = 1L)
   expect_equal(res$cores, 1L)
 })
 
@@ -335,12 +335,12 @@ test_that("zero cores errors", {
 # ==============================================================================
 
 test_that("integer seed passes through", {
-  res = vs(seed = 123L)
+  res <- vs(seed = 123L)
   expect_equal(res$seed, 123L)
 })
 
 test_that("NULL seed generates a random integer", {
-  res = vs(seed = NULL)
+  res <- vs(seed = NULL)
   expect_true(is.integer(res$seed))
   expect_length(res$seed, 1L)
 })
@@ -359,27 +359,27 @@ test_that("NA seed errors", {
 # ==============================================================================
 
 test_that("'per-chain' <U+2192> 2L", {
-  res = vs(display_progress = "per-chain")
+  res <- vs(display_progress = "per-chain")
   expect_equal(res$progress_type, 2L)
 })
 
 test_that("'total' <U+2192> 1L", {
-  res = vs(display_progress = "total")
+  res <- vs(display_progress = "total")
   expect_equal(res$progress_type, 1L)
 })
 
 test_that("'none' <U+2192> 0L", {
-  res = vs(display_progress = "none")
+  res <- vs(display_progress = "none")
   expect_equal(res$progress_type, 0L)
 })
 
 test_that("TRUE <U+2192> 2L (per-chain)", {
-  res = vs(display_progress = TRUE)
+  res <- vs(display_progress = TRUE)
   expect_equal(res$progress_type, 2L)
 })
 
 test_that("FALSE <U+2192> 0L (none)", {
-  res = vs(display_progress = FALSE)
+  res <- vs(display_progress = FALSE)
   expect_equal(res$progress_type, 0L)
 })
 

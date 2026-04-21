@@ -215,10 +215,10 @@ test_that("HMC + GGM output has expected components", {
 
 test_that("bgm warns when using HMC with edge selection", {
   set.seed(63)
-  p = 3
-  n = 50
-  x = matrix(rnorm(n * p), nrow = n)
-  colnames(x) = paste0("V", seq_len(p))
+  p <- 3
+  n <- 50
+  x <- matrix(rnorm(n * p), nrow = n)
+  colnames(x) <- paste0("V", seq_len(p))
 
   # The warning is emitted during validation, before sampling starts.
   # Constrained HMC may subsequently crash (known fragility), so we
@@ -231,11 +231,11 @@ test_that("bgm warns when using HMC with edge selection", {
   # is rejected by the HMC energy criterion so this is benign, but the
   # raw stderr output clutters test logs.  Redirect R's message stream
   # into a scratch file while the sampler runs.
-  sink_path = tempfile()
-  sink_con = file(sink_path, open = "wt")
+  sink_path <- tempfile()
+  sink_con <- file(sink_path, open = "wt")
   sink(sink_con, type = "message")
 
-  warned = FALSE
+  warned <- FALSE
   tryCatch(
     withCallingHandlers(
       bgm(
@@ -246,7 +246,7 @@ test_that("bgm warns when using HMC with edge selection", {
         seed = 630, display_progress = "none"
       ),
       warning = function(w) {
-        if(grepl("numerically fragile", conditionMessage(w))) warned <<- TRUE
+        if (grepl("numerically fragile", conditionMessage(w))) warned <<- TRUE
         invokeRestart("muffleWarning")
       }
     ),

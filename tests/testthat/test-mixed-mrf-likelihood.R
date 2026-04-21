@@ -627,20 +627,30 @@ test_that("predicting all variables at once matches individual predictions", {
 # (specifically the 2 A_xy Sigma A_xy' block) is mis-scaled.
 
 test_that("marginal PL matches direct Gaussian integration of the joint", {
-  p <- 2L; q <- 2L
-  x_obs <- matrix(c(0L, 1L,
-                    1L, 1L,
-                    0L, 0L),
-                  nrow = 3L, byrow = TRUE)
-  y_obs <- matrix(c(0.4, -0.2,
-                    -0.3, 0.9,
-                    0.1, 0.25),
-                  nrow = 3L, byrow = TRUE)
+  p <- 2L
+  q <- 2L
+  x_obs <- matrix(
+    c(
+      0L, 1L,
+      1L, 1L,
+      0L, 0L
+    ),
+    nrow = 3L, byrow = TRUE
+  )
+  y_obs <- matrix(
+    c(
+      0.4, -0.2,
+      -0.3, 0.9,
+      0.1, 0.25
+    ),
+    nrow = 3L, byrow = TRUE
+  )
   num_cats <- rep(1L, p)
   is_ord <- rep(1L, p)
   base_cat <- rep(0L, p)
   total <- p + q
-  edge_ind <- matrix(1L, total, total); diag(edge_ind) <- 0L
+  edge_ind <- matrix(1L, total, total)
+  diag(edge_ind) <- 0L
 
   mu_x <- c(-0.4, 0.2)
   A_xx <- matrix(c(0, 0.3, 0.3, 0), p, p)
@@ -651,8 +661,10 @@ test_that("marginal PL matches direct Gaussian integration of the joint", {
 
   # NUTS-vector packing: mu_x, A_xx upper-triangle, mu_y, A_xy row-major,
   # then (log(R_11), R_12, log(R_22)) for the upper-triangular Cholesky.
-  params <- c(mu_x, A_xx[1, 2], mu_y, as.vector(t(A_xy)),
-              log(R_chol[1, 1]), R_chol[1, 2], log(R_chol[2, 2]))
+  params <- c(
+    mu_x, A_xx[1, 2], mu_y, as.vector(t(A_xy)),
+    log(R_chol[1, 1]), R_chol[1, 2], log(R_chol[2, 2])
+  )
 
   Sigma <- solve(Lambda)
   bias_cross <- as.numeric(A_xy %*% mu_y)
@@ -660,9 +672,9 @@ test_that("marginal PL matches direct Gaussian integration of the joint", {
 
   direct_marginal_pl <- function() {
     out <- 0
-    for(i in seq_len(nrow(x_obs))) {
+    for (i in seq_len(nrow(x_obs))) {
       xi <- x_obs[i, ]
-      for(s in seq_len(p)) {
+      for (s in seq_len(p)) {
         rest <- 2 * sum(M[s, -s] * xi[-s]) + 2 * bias_cross[s]
         logit <- mu_x[s] + rest + M[s, s]
         out <- out + ifelse(xi[s] == 1, logit, 0) - log1p(exp(logit))
@@ -673,9 +685,10 @@ test_that("marginal PL matches direct Gaussian integration of the joint", {
 
   direct_conditional_pl <- function() {
     out <- 0
-    for(i in seq_len(nrow(x_obs))) {
-      xi <- x_obs[i, ]; yi <- y_obs[i, ]
-      for(s in seq_len(p)) {
+    for (i in seq_len(nrow(x_obs))) {
+      xi <- x_obs[i, ]
+      yi <- y_obs[i, ]
+      for (s in seq_len(p)) {
         rest <- 2 * sum(A_xx[s, -s] * xi[-s]) + 2 * sum(A_xy[s, ] * yi)
         logit <- mu_x[s] + rest
         out <- out + ifelse(xi[s] == 1, logit, 0) - log1p(exp(logit))
