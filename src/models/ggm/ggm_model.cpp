@@ -681,8 +681,9 @@ void GGMModel::update_edge_parameter(size_t i, size_t j, int iteration) {
 
     double ln_alpha = log_density_impl_edge(i, j);
 
-    ln_alpha += interaction_prior_->logp(precision_proposal_(i, j));
-    ln_alpha -= interaction_prior_->logp(precision_matrix_(i, j));
+    // Interaction prior on K_yy_{ij} = -0.5 * Omega_{ij}
+    ln_alpha += interaction_prior_->logp(-0.5 * precision_proposal_(i, j));
+    ln_alpha -= interaction_prior_->logp(-0.5 * precision_matrix_(i, j));
 
     // Gamma(1,1) prior on changed diagonal K_jj
     ln_alpha += diagonal_prior_->logp(precision_proposal_(j, j));
@@ -838,7 +839,8 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         ln_alpha += MY_LOG(1.0 - inclusion_probability_(i, j)) - MY_LOG(inclusion_probability_(i, j));
 
         ln_alpha += R::dnorm(precision_matrix_(i, j) / constants_[3], 0.0, proposal_sd, true) - MY_LOG(constants_[3]);
-        ln_alpha -= interaction_prior_->logp(precision_matrix_(i, j));
+        // Interaction prior on K_yy_{ij} = -0.5 * Omega_{ij}
+        ln_alpha -= interaction_prior_->logp(-0.5 * precision_matrix_(i, j));
 
         // Gamma(1,1) prior on changed diagonal K_jj
         ln_alpha += diagonal_prior_->logp(precision_proposal_(j, j));
@@ -892,8 +894,8 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         // }
         ln_alpha += MY_LOG(inclusion_probability_(i, j)) - MY_LOG(1.0 - inclusion_probability_(i, j));
 
-        // Prior change: add slab (Cauchy prior)
-        ln_alpha += interaction_prior_->logp(omega_prop_ij);
+        // Prior change: add slab (interaction prior on K_yy_{ij} = -0.5 * Omega_{ij})
+        ln_alpha += interaction_prior_->logp(-0.5 * omega_prop_ij);
 
         // Gamma(1,1) prior on changed diagonal K_jj
         ln_alpha += diagonal_prior_->logp(precision_proposal_(j, j));
@@ -998,8 +1000,9 @@ void GGMModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {
             precision_proposal_(j, j) = omega_prop_qq;
 
             double ln_alpha = log_density_impl_edge(i, j);
-            ln_alpha += interaction_prior_->logp(precision_proposal_(i, j));
-            ln_alpha -= interaction_prior_->logp(precision_matrix_(i, j));
+            // Interaction prior on K_yy_{ij} = -0.5 * Omega_{ij}
+            ln_alpha += interaction_prior_->logp(-0.5 * precision_proposal_(i, j));
+            ln_alpha -= interaction_prior_->logp(-0.5 * precision_matrix_(i, j));
 
             // Gamma(1,1) prior on changed diagonal K_jj
             ln_alpha += diagonal_prior_->logp(precision_proposal_(j, j));

@@ -348,9 +348,15 @@ Rcpp::List ggm_test_leapfrog_constrained_checked(
 // -----------------------------------------------------------------------------
 // Uses the Cholesky parameterization with NUTS. By setting n=0 and S=0,
 // the likelihood vanishes and the sampler targets the prior:
-//   K_ij | graph ~ Cauchy(0, scale) or Normal(0, scale)  (included edges)
-//   K_ij = 0                                             (excluded edges)
-//   K_ii ~ Gamma(1, 1)                                   (diagonal)
+//   -K_ij/2 | graph ~ Cauchy(0, scale) or Normal(0, scale)  (included edges)
+//   K_ij = 0                                                (excluded edges)
+//   K_ii ~ Gamma(1, 1)                                      (diagonal)
+//
+// Note on convention: `interaction_prior` is applied on the association scale
+// K_yy_{ij} = -K_{ij}/2 (consistent with the mixed-MRF continuous block),
+// NOT on the precision entry K_{ij} directly. A `Normal(0, scale)` prior
+// therefore constrains K_yy off-diagonals with standard deviation `scale`,
+// equivalent to Normal(0, 2*scale) on K_{ij}.
 //
 // edge_indicators: p x p integer matrix with 1 = edge included, 0 = excluded.
 //   Defaults to all-ones (full graph). For edge selection SBC, pass the

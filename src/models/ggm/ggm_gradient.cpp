@@ -266,11 +266,14 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
     double log_det_K = 2.0 * arma::accu(fm.psi);
     double log_lik = (n / 2.0) * log_det_K - 0.5 * arma::accu(Phi % P);
 
-    // Interaction prior on included off-diagonal K entries
+    // Interaction prior on included off-diagonal K entries.
+    // Applied on the K_yy = -K/2 scale to match the mixed-MRF convention,
+    // so that `interaction_prior` refers to the same quantity across all
+    // bgms model families (pure GGM and mixed MRF continuous blocks).
     double log_slab = 0.0;
     for (size_t q = 1; q < p_; ++q) {
         for (size_t i : structure_->columns[q].included_indices) {
-            log_slab += interaction_prior_->logp(K(i, q));
+            log_slab += interaction_prior_->logp(-0.5 * K(i, q));
         }
     }
 
@@ -297,11 +300,13 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
         Phi_bar.col(i).head(i + 1) += 2.0 * dg * Phi.col(i).head(i + 1);
     }
 
-    // Interaction prior adjoint on included edges
+    // Interaction prior adjoint on included edges.
+    // Prior is on K_yy_{ij} = -0.5 * K_{ij}, so the chain rule gives
+    //   d/dK_{ij} log p(-0.5 K_{ij}) = -0.5 * prior'(-0.5 K_{ij})
     for (size_t q = 1; q < p_; ++q) {
         for (size_t i : structure_->columns[q].included_indices) {
-            double kij = K(i, q);
-            double d = interaction_prior_->grad(kij);
+            double kyy_ij = -0.5 * K(i, q);
+            double d = -0.5 * interaction_prior_->grad(kyy_ij);
             Phi_bar.col(q).head(i + 1) += d * Phi.col(i).head(i + 1);
             Phi_bar.col(i).head(i + 1) += d * Phi.col(q).head(i + 1);
         }
@@ -489,14 +494,15 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient_full(
     double log_det_K = 2.0 * arma::accu(psi);
     double log_lik = (n / 2.0) * log_det_K - 0.5 * tr_KS;
 
-    // Interaction prior on included off-diagonal K entries
+    // Interaction prior on included off-diagonal K entries.
+    // Applied on the K_yy = -K/2 scale to match the mixed-MRF convention.
     double log_slab = 0.0;
     for (size_t q = 1; q < p_; ++q) {
         for (size_t i : structure_->columns[q].included_indices) {
             double kij = arma::dot(
                 Phi.col(i).head(i + 1),
                 Phi.col(q).head(i + 1));
-            log_slab += interaction_prior_->logp(kij);
+            log_slab += interaction_prior_->logp(-0.5 * kij);
         }
     }
 
@@ -540,13 +546,13 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient_full(
         P.col(i).head(i + 1) += 2.0 * dg * Phi.col(i).head(i + 1);
     }
 
-    // Interaction prior adjoint on included edges
+    // Interaction prior adjoint on included edges (K_yy scale).
     for (size_t q = 1; q < p_; ++q) {
         for (size_t i : structure_->columns[q].included_indices) {
             double kij = arma::dot(
                 Phi.col(i).head(i + 1),
                 Phi.col(q).head(i + 1));
-            double d = interaction_prior_->grad(kij);
+            double d = -0.5 * interaction_prior_->grad(-0.5 * kij);
             P.col(q).head(i + 1) += d * Phi.col(i).head(i + 1);
             P.col(i).head(i + 1) += d * Phi.col(q).head(i + 1);
         }

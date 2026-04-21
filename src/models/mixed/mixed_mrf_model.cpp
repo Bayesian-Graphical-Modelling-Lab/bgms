@@ -263,8 +263,12 @@ void MixedMRFModel::recompute_pairwise_effects_continuous_decomposition() {
 }
 
 void MixedMRFModel::recompute_marginal_interactions() {
-    // Marginal PL effective interaction: disc_int + 2 * cross_int * Sigma_yy * cross_int'
-    marginal_interactions_ = 2.0 * pairwise_effects_discrete_ + 2.0 * pairwise_effects_cross_ * covariance_continuous_ * pairwise_effects_cross_.t();
+    // Marginal PL effective interaction after integrating y from the joint:
+    //   M = A_xx + 2 A_xy Σ_yy A_xy'
+    // The log-marginal has x'Mx, so the x_s-conditional rest score carries
+    // a factor 2 on M.col(s) (consumed at the call site in log_marginal_omrf).
+    marginal_interactions_ = pairwise_effects_discrete_
+                           + 2.0 * pairwise_effects_cross_ * covariance_continuous_ * pairwise_effects_cross_.t();
 }
 
 

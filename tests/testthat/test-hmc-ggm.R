@@ -224,6 +224,17 @@ test_that("bgm warns when using HMC with edge selection", {
   # Constrained HMC may subsequently crash (known fragility), so we
   # capture the warning separately from any downstream error.
   # The deprecation warning for hamiltonian-mc is also emitted.
+  #
+  # NUTS/HMC leapfrog in the edge-selection path can push the Cholesky
+  # near singularity, at which point Armadillo prints a "system is
+  # singular; attempting approx solution" message to stderr.  The step
+  # is rejected by the HMC energy criterion so this is benign, but the
+  # raw stderr output clutters test logs.  Redirect R's message stream
+  # into a scratch file while the sampler runs.
+  sink_path = tempfile()
+  sink_con = file(sink_path, open = "wt")
+  sink(sink_con, type = "message")
+
   warned = FALSE
   tryCatch(
     withCallingHandlers(
@@ -241,6 +252,11 @@ test_that("bgm warns when using HMC with edge selection", {
     ),
     error = function(e) NULL
   )
+
+  sink(type = "message")
+  close(sink_con)
+  unlink(sink_path)
+
   expect_true(warned)
 })
 

@@ -61,22 +61,30 @@ double MixedMRFModel::log_conditional_omrf(int s) const {
 // log_marginal_omrf
 // =============================================================================
 // Marginal OMRF pseudolikelihood for discrete variable s:
-//   log f(x_s | x_{-s}) using marginal_interactions = A_xx + 2 A_xy Σ_yy A_xy'
+//   log f(x_s | x_{-s}) using M = A_xx + 2 A_xy Σ_yy A_xy'
 //
-// Differs from conditional form in three ways:
-//   1. rest score uses marginal_interactions_ instead of pairwise_effects_discrete_, minus self-interaction
-//   2. scalar bias 2 A_xy(s,:) μ_y added to rest
-//   3. numerator includes marginal(s,s) * sum(x_s^2)
-//   4. denominator offsets include c^2 * marginal(s,s)
+// After integrating y out of the joint density L(x,y) = m_x(x) + x'A_xx x
+// + 2 x'A_xy y + b_y' y + y'A_yy y with A_yy = -Λ/2, the marginal log-density
+// is m_x(x) + x'M x + 2 (A_xy μ_y)' x + const.  Reading off the x_s-conditional:
+//
+//   log p(x_s=c | x_{-s}) ∝ main_x_s(c) + c² M_ss + c · rest_s,
+//   rest_s = 2 Σ_{j≠s} M_{sj} x_j + 2 (A_xy μ_y)_s.
+//
+// Differs from the conditional form in three ways:
+//   1. rest score uses M = marginal_interactions_ (not pairwise_effects_discrete_)
+//   2. scalar bias 2 A_xy(s,:) μ_y replaces 2 A_xy(s,:) y_i
+//   3. numerator includes M(s,s) · sum(x_s²)
+//   4. denominator offsets include c² · M(s,s)
 // =============================================================================
 
 double MixedMRFModel::log_marginal_omrf(int s) const {
     int C_s = num_categories_(s);
 
-    // Rest score: marginal-interaction-based + cross * μ_y bias
+    // Rest score: 2 · M · x minus self-interaction, plus cross-bias.
+    // Mirrors the conditional PL structure (factor 2 from x'Mx derivative).
     double precision_ss = marginal_interactions_(s, s);
-    arma::vec rest = discrete_observations_dbl_ * marginal_interactions_.col(s)
-                   - discrete_observations_dbl_.col(s) * precision_ss
+    arma::vec rest = 2.0 * (discrete_observations_dbl_ * marginal_interactions_.col(s)
+                          - discrete_observations_dbl_.col(s) * precision_ss)
                    + 2.0 * arma::dot(pairwise_effects_cross_.row(s), main_effects_continuous_);
 
     // Numerator: dot(x_s, rest) + precision_ss * dot(x_s, x_s) + main effects
