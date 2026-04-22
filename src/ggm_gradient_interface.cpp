@@ -348,9 +348,9 @@ Rcpp::List ggm_test_leapfrog_constrained_checked(
 // -----------------------------------------------------------------------------
 // Uses the Cholesky parameterization with NUTS. By setting n=0 and S=0,
 // the likelihood vanishes and the sampler targets the prior:
-//   -K_ij/2 | graph ~ Cauchy(0, scale) or Normal(0, scale)  (included edges)
-//   K_ij = 0                                                (excluded edges)
-//   K_ii ~ Gamma(1, 1)                                      (diagonal)
+//   -K_ij/2 | graph ~ Cauchy(0, scale) or Normal(0, scale)       (included edges)
+//   K_ij = 0                                                      (excluded edges)
+//   K_ii ~ Gamma(gamma_shape, gamma_rate)                         (diagonal)
 //
 // Note on convention: `interaction_prior` is applied on the association scale
 // K_yy_{ij} = -K_{ij}/2 (consistent with the mixed-MRF continuous block),
@@ -369,13 +369,16 @@ Rcpp::List ggm_test_leapfrog_constrained_checked(
 // adaptation, Welford diagonal mass-matrix adaptation) as sample_ggm and bgm.
 // -----------------------------------------------------------------------------
 
-// [[Rcpp::export]]
+// [[Rcpp::export(name = "sample_ggm_prior_cpp")]]
 Rcpp::List sample_ggm_prior(
     int p,
     int n_samples,
     int n_warmup = 1000,
     double pairwise_scale = 2.5,
     const std::string& interaction_prior_type = "cauchy",
+    const std::string& scale_prior_type = "gamma",
+    double gamma_shape = 1.0,
+    double gamma_rate = 1.0,
     double step_size = 0.1,
     int max_depth = 10,
     int seed = 1,
@@ -392,7 +395,7 @@ Rcpp::List sample_ggm_prior(
     }
 
     auto ip = create_parameter_prior(interaction_prior_type, pairwise_scale);
-    auto dp = std::make_unique<GammaScalePrior>(1.0, 1.0);
+    auto dp = create_scale_prior(scale_prior_type, gamma_shape, gamma_rate);
 
     // Create model with n=0, S=0 so likelihood is flat (prior-only).
     // edge_selection=false ensures the graph stays fixed throughout:
@@ -423,8 +426,10 @@ Rcpp::List sample_ggm_prior(
     auto edge_prior_obj = create_edge_prior(
         Bernoulli, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
 
-    // Silent progress manager (no R console spam). progress_type=0 => none.
-    ProgressManager pm(1, n_samples, n_warmup, 0, 0, false, R_NilValue);
+    // Progress manager: progress_type 2 = full bar (when verbose), 0 = silent.
+    int progress_type = verbose ? 2 : 0;
+    ProgressManager pm(1, n_samples, n_warmup, 10, progress_type,
+                       verbose, R_NilValue);
 
     // Run a single chain.
     std::vector<ChainResult> results = run_mcmc_sampler(
