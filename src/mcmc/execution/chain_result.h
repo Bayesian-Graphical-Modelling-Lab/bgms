@@ -7,7 +7,7 @@
  * ChainResult - Storage for a single MCMC chain's output
  *
  * Holds samples, diagnostics, and error state for one chain.
- * Designed for use with both Metropolis and NUTS/HMC samplers.
+ * Designed for use with both Metropolis and NUTS samplers.
  */
 class ChainResult {
 
@@ -37,15 +37,15 @@ public:
     /// Whether allocation samples are stored.
     bool        has_allocations = false;
 
-    /// NUTS/HMC tree depth diagnostics (n_iter).
+    /// NUTS tree depth diagnostics (n_iter).
     arma::ivec  treedepth_samples;
-    /// NUTS/HMC divergent transition flags (n_iter).
+    /// NUTS divergent transition flags (n_iter).
     arma::ivec  divergent_samples;
-    /// NUTS/HMC non-reversible step flags (n_iter).
+    /// NUTS non-reversible step flags (n_iter).
     arma::ivec  non_reversible_samples;
-    /// NUTS/HMC energy diagnostic (n_iter).
+    /// NUTS energy diagnostic (n_iter).
     arma::vec   energy_samples;
-    /// Whether NUTS/HMC diagnostics are stored.
+    /// Whether NUTS diagnostics are stored.
     bool        has_nuts_diagnostics = false;
 
     /**
