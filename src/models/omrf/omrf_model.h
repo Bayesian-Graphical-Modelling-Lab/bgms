@@ -17,7 +17,7 @@
  *   - Sufficient statistics computation
  *   - Log-pseudoposterior and gradient evaluations
  *   - Adaptive Metropolis-Hastings updates for individual parameters
- *   - NUTS/HMC updates for joint parameter sampling
+ *   - NUTS updates for joint parameter sampling
  *   - Edge selection (spike-and-slab) with asymmetric proposals
  *
  * Inherits from BaseModel for compatibility with the generic MCMC framework.
@@ -210,14 +210,14 @@ public:
     size_t get_n() const { return n_; }
 
     /**
-     * Set the NUTS/HMC leapfrog step size.
+     * Set the NUTS leapfrog step size.
      * @param step_size  New step size
      */
     void set_step_size(double step_size) override { step_size_ = step_size; }
-    /** @return Current NUTS/HMC leapfrog step size. */
+    /** @return Current NUTS leapfrog step size. */
     double get_step_size() const override { return step_size_; }
     /**
-     * Set the inverse mass matrix diagonal for NUTS/HMC.
+     * Set the inverse mass matrix diagonal for NUTS.
      * @param inv_mass  Diagonal elements of the inverse mass matrix
      */
     void set_inv_mass(const arma::vec& inv_mass) override { inv_mass_ = inv_mass; }
@@ -307,7 +307,7 @@ private:
     // RNG
     SafeRNG rng_;                       ///< Per-chain random number generator
 
-    // NUTS/HMC settings
+    // NUTS settings
     double step_size_;                  ///< Current step size for gradient-based samplers
     arma::vec inv_mass_;                ///< Inverse mass diagonal
 
