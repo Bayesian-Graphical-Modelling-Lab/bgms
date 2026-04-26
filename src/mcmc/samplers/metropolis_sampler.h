@@ -13,7 +13,7 @@
  * instances, initialized lazily on the first step.
  *
  * This is a thin wrapper that provides a uniform interface consistent
- * with other samplers (NUTS, HMC), but the actual sampling logic
+ * with other samplers (NUTS), but the actual sampling logic
  * (component-wise updates, Gibbs sweeps, etc.) is model-specific.
  */
 class MetropolisSampler : public SamplerBase {

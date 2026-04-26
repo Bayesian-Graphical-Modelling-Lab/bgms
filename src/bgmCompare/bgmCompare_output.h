@@ -9,7 +9,7 @@
  * Container for the output of a single MCMC chain.
  *
  * Stores posterior samples of main and pairwise effects, optional
- * inclusion indicators, and diagnostics for HMC/NUTS runs.
+ * inclusion indicators, and diagnostics for NUTS runs.
  */
 struct bgmCompareOutput {
   /// Main-effect samples [iter x (#main x groups)].
