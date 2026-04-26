@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include "math/explog_macros.h"
 
 // Numerically stable log(exp(a) + exp(b)).
 //
@@ -14,5 +15,5 @@ inline double log_sum_exp(double a, double b) {
   if (a == neg_inf) return b;
   if (b == neg_inf) return a;
   const double m = std::max(a, b);
-  return m + std::log1p(std::exp(-std::abs(a - b)));
+  return m + MY_LOG1P(MY_EXP(-std::abs(a - b)));
 }
