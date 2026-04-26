@@ -14,10 +14,11 @@
 double MixedMRFModel::log_marginal_omrf(int s) const {
     int C_s = num_categories_(s);
 
-    // Rest score: marginal-interaction-based + cross * μ_y bias
+    // Rest score: 2 · M · x minus self-interaction, plus cross-bias.
+    // Factor 2 mirrors the conditional PL structure (from x'Mx derivative).
     double precision_ss = marginal_interactions_(s, s);
-    arma::vec rest = discrete_observations_dbl_ * marginal_interactions_.col(s)
-                   - discrete_observations_dbl_.col(s) * precision_ss
+    arma::vec rest = 2.0 * (discrete_observations_dbl_ * marginal_interactions_.col(s)
+                          - discrete_observations_dbl_.col(s) * precision_ss)
                    + 2.0 * arma::dot(pairwise_effects_cross_.row(s), main_effects_continuous_);
 
     // Numerator: dot(x_s, rest) + precision_ss * dot(x_s, x_s) + main effects

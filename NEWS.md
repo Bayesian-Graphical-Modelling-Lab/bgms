@@ -31,6 +31,10 @@
 * Fixed compilation failure on Alpine/musl: `mrf_simulation.cpp` relied on a transitive include for `<tbb/global_control.h>` that is not available on all platforms.
 * Fixed stale gradient cache after missing data imputation caused NUTS to use outdated cached values for leapfrog integration.
 * Fixed stale observation transpose after missing data imputation caused the pairwise gradient to use stale data.
+* Fixed GGM likelihood degrees of freedom: centered observations have `n-1` effective degrees of freedom, not `n`. Previously caused systematic overestimation of diagonal precision elements.
+* Guarded `initialize_precision_from_mle()` against `n=0` (prior-only sampling).
+* Removed three redundant `Gamma(1, 1)` priors on the constrained Cholesky diagonal `K_jj` in GGM edge-parameter and edge-indicator updates. The diagonal is a deterministic function of the off-diagonal under the constrained parameterization, so the prior cancels.
+* Fixed mixed-MRF marginal pseudo-likelihood: the `2 * pairwise_effects_discrete_` term in `recompute_marginal_interactions()` and the dropped factor of 2 in the rest score together produced a factor-of-2 mismatch between the analytic gradient and finite differences. The corrected effective interaction matrix is `M = A_xx + 2 A_xy Σ_yy A_xy'`, with the factor of 2 entering the rest-score derivative `2 · M · x_{-s}`.
 
 # bgms 0.1.6.3
 
