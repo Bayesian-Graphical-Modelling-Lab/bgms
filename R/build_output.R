@@ -307,6 +307,7 @@ build_output_bgm = function(spec, raw) {
       if(!is.null(chain$divergent)) res[["divergent__"]] = chain$divergent
       if(!is.null(chain$non_reversible)) res[["non_reversible__"]] = chain$non_reversible
       if(!is.null(chain$energy)) res[["energy__"]] = chain$energy
+      if(!is.null(chain$accept_prob)) res[["accept_prob__"]] = chain$accept_prob
       res
     })
   } else {
@@ -333,6 +334,7 @@ build_output_bgm = function(spec, raw) {
       if(!is.null(chain$divergent)) res[["divergent__"]] = chain$divergent
       if(!is.null(chain$non_reversible)) res[["non_reversible__"]] = chain$non_reversible
       if(!is.null(chain$energy)) res[["energy__"]] = chain$energy
+      if(!is.null(chain$accept_prob)) res[["accept_prob__"]] = chain$accept_prob
       res
     })
   }
@@ -597,6 +599,7 @@ build_output_mixed_mrf = function(spec, raw) {
     if(!is.null(chain$divergent)) res[["divergent__"]] = chain$divergent
     if(!is.null(chain$non_reversible)) res[["non_reversible__"]] = chain$non_reversible
     if(!is.null(chain$energy)) res[["energy__"]] = chain$energy
+    if(!is.null(chain$accept_prob)) res[["accept_prob__"]] = chain$accept_prob
     res
   })
 

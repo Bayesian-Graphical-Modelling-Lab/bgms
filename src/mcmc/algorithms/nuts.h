@@ -15,23 +15,23 @@ struct SafeRNG;
  * candidate samples or indicate when the trajectory should terminate.
  */
 struct BuildTreeResult {
-  arma::vec theta_min;   ///< Leftmost position in the trajectory
-  arma::vec r_min;       ///< Corresponding momentum at theta_min
-  arma::vec theta_plus;  ///< Rightmost position in the trajectory
-  arma::vec r_plus;      ///< Corresponding momentum at theta_plus
-  arma::vec theta_prime; ///< Current proposed sample (to possibly accept)
-  arma::vec r_prime;     ///< Momentum at theta_prime (for energy diagnostics)
-  arma::vec rho;         ///< Sum of momenta along the subtree (for U-turn criterion)
-  arma::vec p_sharp_beg; ///< Sharp momentum (M^{-1} p) at subtree beginning
-  arma::vec p_sharp_end; ///< Sharp momentum (M^{-1} p) at subtree end
-  arma::vec p_beg;       ///< Momentum at subtree beginning
-  arma::vec p_end;       ///< Momentum at subtree end
-  int n_prime;           ///< Number of valid proposals from this subtree
-  int s_prime;           ///< Stop flag (1 = continue, 0 = stop expansion)
-  double alpha;          ///< Sum of acceptance probabilities in the subtree
-  int n_alpha;           ///< Number of proposals contributing to alpha
-  bool divergent;        ///< Whether this subtree diverged
-  bool non_reversible;   ///< Whether a non-reversible step was detected
+  arma::vec theta_min;     ///< Leftmost position in the trajectory
+  arma::vec r_min;         ///< Corresponding momentum at theta_min
+  arma::vec theta_plus;    ///< Rightmost position in the trajectory
+  arma::vec r_plus;        ///< Corresponding momentum at theta_plus
+  arma::vec theta_prime;   ///< Current proposed sample (to possibly accept)
+  arma::vec r_prime;       ///< Momentum at theta_prime (for energy diagnostics)
+  arma::vec rho;           ///< Sum of momenta along the subtree (for U-turn criterion)
+  arma::vec p_sharp_beg;   ///< Sharp momentum (M^{-1} p) at subtree beginning
+  arma::vec p_sharp_end;   ///< Sharp momentum (M^{-1} p) at subtree end
+  arma::vec p_beg;         ///< Momentum at subtree beginning
+  arma::vec p_end;         ///< Momentum at subtree end
+  double log_sum_weight;   ///< log sum_i exp(H0 - h_i) across this subtree
+  int s_prime;             ///< Stop flag (1 = continue, 0 = stop expansion)
+  double alpha;            ///< Sum of min(1, exp(H0 - h)) across leapfrog steps
+  int n_leapfrog;          ///< Number of leapfrog steps contributing to alpha
+  bool divergent;          ///< Whether this subtree diverged
+  bool non_reversible;     ///< Whether a non-reversible step was detected
 };
 
 

@@ -1351,6 +1351,7 @@ void gibbs_update_step_bgmcompare (
     arma::ivec& treedepth_samples,
     arma::ivec& divergent_samples,
     arma::vec& energy_samples,
+    arma::vec& accept_prob_samples,
     const arma::imat& main_effect_indices,
     const arma::mat& projection,
     const int num_groups,
@@ -1421,6 +1422,7 @@ void gibbs_update_step_bgmcompare (
         treedepth_samples(sample_index) = diag->tree_depth;
         divergent_samples(sample_index) = diag->divergent ? 1 : 0;
         energy_samples(sample_index) = diag->energy;
+        accept_prob_samples(sample_index) = diag->accept_prob;
       }
     }
   }
@@ -1564,6 +1566,7 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
   arma::ivec treedepth_samples(iter, arma::fill::zeros);
   arma::ivec divergent_samples(iter, arma::fill::zeros);
   arma::vec energy_samples(iter, arma::fill::zeros);
+  arma::vec accept_prob_samples(iter, arma::fill::zeros);
 
   // Edge update shuffling setup
   arma::uvec v = arma::regspace<arma::uvec>(0, num_pair - 1);
@@ -1640,7 +1643,7 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
         iteration, pairwise_effect_indices, pairwise_stats, nuts_max_depth,
         nuts_adapt, metropolis_adapt_main, metropolis_adapt_pair, learn_mass_matrix,
         warmup_schedule, treedepth_samples, divergent_samples, energy_samples,
-        main_effect_indices, projection, num_groups, group_indices,
+        accept_prob_samples, main_effect_indices, projection, num_groups, group_indices,
         difference_scale, rng, inclusion_probability,
         update_method, proposal_sd_main, proposal_sd_pair, index,
         main_difference_selection
@@ -1712,6 +1715,7 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
   out.treedepth_samples = treedepth_samples;
   out.divergent_samples = divergent_samples;
   out.energy_samples = energy_samples;
+  out.accept_prob_samples = accept_prob_samples;
   out.has_indicator = difference_selection;
   if (difference_selection) {
     out.indicator_samples = indicator_samples;

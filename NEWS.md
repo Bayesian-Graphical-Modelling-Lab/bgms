@@ -18,11 +18,14 @@
 * `extract_partial_correlations()`: extract posterior partial correlation samples from GGM and mixed models.
 * `extract_log_odds()`: extract log-odds for discrete pairwise interactions.
 * `extract_main_effects()`: extract main effect samples (category thresholds, continuous means, and precision diagonal).
+* NUTS diagnostics now include the per-iteration mean Metropolis acceptance probability (`fit$nuts_diag$accept_prob`, paralleling Stan's `accept_stat__`) and a per-chain `mean_accept_prob` summary.
 
 ## Other changes
 
 * Fitted objects from `bgm()` and `bgmCompare()` are now S7 class objects (new dependency: `S7`). All existing `$`, `[[`, and `names()` access patterns continue to work. When an incompatible `easybgm` version is loaded, bgms returns plain S3 lists for backwards compatibility; this shim will be removed in a future release.
 * Refactored the C++ backend: unified model hierarchy (`BaseModel` → `GGMModel` / `OMRFModel` / `MixedMRFModel`), shared NUTS/HMC infrastructure, and fused log-posterior and gradient computation.
+* NUTS now uses Stan's multinomial candidate weighting (log-sum-exp of `H0 - h` per leaf, biased progressive sampling at the top level) in place of the Hoffman-Gelman slice variable. The two schemes target the same posterior; the multinomial variant produces lower-variance candidate selection and has been Stan's default since 2017. User-facing output is unchanged apart from the new `accept_prob` diagnostic.
+* NUTS Stage-2 warmup windowing now matches Stan's `windowed_adaptation::compute_next_window`: when the window after the next would overshoot the Stage-3a boundary, the current next window is stretched to absorb the remaining Stage-2 budget instead of emitting a small trailing window. This eliminates a disruptive mass-matrix update + step-size reinit at the end of warmup and improves dual-averaging convergence.
 * Dropped `coda` from Imports; ESS and R-hat are now computed in C++ with on-demand (lazy) evaluation, replacing the eager R-based computation from 0.1.6.3.
 * `$` and `[[` accessors on fitted objects trigger lazy computation of MCMC diagnostics on first access.
 
@@ -31,10 +34,8 @@
 * Fixed compilation failure on Alpine/musl: `mrf_simulation.cpp` relied on a transitive include for `<tbb/global_control.h>` that is not available on all platforms.
 * Fixed stale gradient cache after missing data imputation caused NUTS to use outdated cached values for leapfrog integration.
 * Fixed stale observation transpose after missing data imputation caused the pairwise gradient to use stale data.
-* Fixed GGM likelihood degrees of freedom: centered observations have `n-1` effective degrees of freedom, not `n`. Previously caused systematic overestimation of diagonal precision elements.
-* Guarded `initialize_precision_from_mle()` against `n=0` (prior-only sampling).
-* Removed three redundant `Gamma(1, 1)` priors on the constrained Cholesky diagonal `K_jj` in GGM edge-parameter and edge-indicator updates. The diagonal is a deterministic function of the off-diagonal under the constrained parameterization, so the prior cancels.
-* Fixed mixed-MRF marginal pseudo-likelihood: the `2 * pairwise_effects_discrete_` term in `recompute_marginal_interactions()` and the dropped factor of 2 in the rest score together produced a factor-of-2 mismatch between the analytic gradient and finite differences. The corrected effective interaction matrix is `M = A_xx + 2 A_xy Σ_yy A_xy'`, with the factor of 2 entering the rest-score derivative `2 · M · x_{-s}`.
+* Fixed NUTS acceptance probability: target_accept now correctly passed to lower-level NUTS functions.
+* Fixed NUTS acceptance probability accumulation: the top-level trajectory loop overwrote the Metropolis contribution with the last subtree's value instead of summing across the full trajectory, biasing the signal used by dual-averaging step-size adaptation.
 
 # bgms 0.1.6.3
 
