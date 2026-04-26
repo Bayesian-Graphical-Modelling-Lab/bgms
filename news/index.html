@@ -56,11 +56,14 @@
 <code><a href="../reference/extract_log_odds.html">extract_log_odds()</a></code>: extract log-odds for discrete pairwise interactions.</li>
 <li>
 <code><a href="../reference/extract_main_effects.html">extract_main_effects()</a></code>: extract main effect samples (category thresholds, continuous means, and precision diagonal).</li>
+<li>NUTS diagnostics now include the per-iteration mean Metropolis acceptance probability (<code>fit$nuts_diag$accept_prob</code>, paralleling Stan’s <code>accept_stat__</code>) and a per-chain <code>mean_accept_prob</code> summary.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="other-changes-0-2-0-0">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-0-2-0-0"></a></h3>
 <ul><li>Fitted objects from <code><a href="../reference/bgm.html">bgm()</a></code> and <code><a href="../reference/bgmCompare.html">bgmCompare()</a></code> are now S7 class objects (new dependency: <code>S7</code>). All existing <code>$</code>, <code>[[</code>, and <code><a href="https://rdrr.io/r/base/names.html" class="external-link">names()</a></code> access patterns continue to work. When an incompatible <code>easybgm</code> version is loaded, bgms returns plain S3 lists for backwards compatibility; this shim will be removed in a future release.</li>
 <li>Refactored the C++ backend: unified model hierarchy (<code>BaseModel</code> → <code>GGMModel</code> / <code>OMRFModel</code> / <code>MixedMRFModel</code>), shared NUTS/HMC infrastructure, and fused log-posterior and gradient computation.</li>
+<li>NUTS now uses Stan’s multinomial candidate weighting (log-sum-exp of <code>H0 - h</code> per leaf, biased progressive sampling at the top level) in place of the Hoffman-Gelman slice variable. The two schemes target the same posterior; the multinomial variant produces lower-variance candidate selection and has been Stan’s default since 2017. User-facing output is unchanged apart from the new <code>accept_prob</code> diagnostic.</li>
+<li>NUTS Stage-2 warmup windowing now matches Stan’s <code>windowed_adaptation::compute_next_window</code>: when the window after the next would overshoot the Stage-3a boundary, the current next window is stretched to absorb the remaining Stage-2 budget instead of emitting a small trailing window. This eliminates a disruptive mass-matrix update + step-size reinit at the end of warmup and improves dual-averaging convergence.</li>
 <li>Dropped <code>coda</code> from Imports; ESS and R-hat are now computed in C++ with on-demand (lazy) evaluation, replacing the eager R-based computation from 0.1.6.3.</li>
 <li>
 <code>$</code> and <code>[[</code> accessors on fitted objects trigger lazy computation of MCMC diagnostics on first access.</li>
@@ -70,6 +73,8 @@
 <ul><li>Fixed compilation failure on Alpine/musl: <code>mrf_simulation.cpp</code> relied on a transitive include for <code>&lt;tbb/global_control.h&gt;</code> that is not available on all platforms.</li>
 <li>Fixed stale gradient cache after missing data imputation caused NUTS to use outdated cached values for leapfrog integration.</li>
 <li>Fixed stale observation transpose after missing data imputation caused the pairwise gradient to use stale data.</li>
+<li>Fixed NUTS acceptance probability: target_accept now correctly passed to lower-level NUTS functions.</li>
+<li>Fixed NUTS acceptance probability accumulation: the top-level trajectory loop overwrote the Metropolis contribution with the last subtree’s value instead of summing across the full trajectory, biasing the signal used by dual-averaging step-size adaptation.</li>
 </ul></div>
 </div>
     <div class="section level2">

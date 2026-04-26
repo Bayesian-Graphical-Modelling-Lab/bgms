@@ -53,6 +53,9 @@
 - [`extract_main_effects()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_main_effects.md):
   extract main effect samples (category thresholds, continuous means,
   and precision diagonal).
+- NUTS diagnostics now include the per-iteration mean Metropolis
+  acceptance probability (`fit$nuts_diag$accept_prob`, paralleling
+  Stan’s `accept_stat__`) and a per-chain `mean_accept_prob` summary.
 
 ### Other changes
 
@@ -68,6 +71,20 @@
 - Refactored the C++ backend: unified model hierarchy (`BaseModel` →
   `GGMModel` / `OMRFModel` / `MixedMRFModel`), shared NUTS/HMC
   infrastructure, and fused log-posterior and gradient computation.
+- NUTS now uses Stan’s multinomial candidate weighting (log-sum-exp of
+  `H0 - h` per leaf, biased progressive sampling at the top level) in
+  place of the Hoffman-Gelman slice variable. The two schemes target the
+  same posterior; the multinomial variant produces lower-variance
+  candidate selection and has been Stan’s default since 2017.
+  User-facing output is unchanged apart from the new `accept_prob`
+  diagnostic.
+- NUTS Stage-2 warmup windowing now matches Stan’s
+  `windowed_adaptation::compute_next_window`: when the window after the
+  next would overshoot the Stage-3a boundary, the current next window is
+  stretched to absorb the remaining Stage-2 budget instead of emitting a
+  small trailing window. This eliminates a disruptive mass-matrix
+  update + step-size reinit at the end of warmup and improves
+  dual-averaging convergence.
 - Dropped `coda` from Imports; ESS and R-hat are now computed in C++
   with on-demand (lazy) evaluation, replacing the eager R-based
   computation from 0.1.6.3.
@@ -83,6 +100,12 @@
   to use outdated cached values for leapfrog integration.
 - Fixed stale observation transpose after missing data imputation caused
   the pairwise gradient to use stale data.
+- Fixed NUTS acceptance probability: target_accept now correctly passed
+  to lower-level NUTS functions.
+- Fixed NUTS acceptance probability accumulation: the top-level
+  trajectory loop overwrote the Metropolis contribution with the last
+  subtree’s value instead of summing across the full trajectory, biasing
+  the signal used by dual-averaging step-size adaptation.
 
 ## bgms 0.1.6.3
 
