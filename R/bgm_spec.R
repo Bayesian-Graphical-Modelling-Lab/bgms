@@ -101,7 +101,6 @@ new_bgm_spec = function(model_type, data, variables, missing, prior,
     stopifnot(is.numeric(prior$main_alpha), length(prior$main_alpha) == 1L)
     stopifnot(is.numeric(prior$main_beta), length(prior$main_beta) == 1L)
     stopifnot(is.logical(prior$standardize), length(prior$standardize) == 1L)
-    stopifnot(is.character(prior$pseudolikelihood), length(prior$pseudolikelihood) == 1L)
   }
   if(model_type %in% c("ggm", "omrf", "mixed_mrf")) {
     stopifnot(is.logical(prior$edge_selection), length(prior$edge_selection) == 1L)
@@ -282,7 +281,6 @@ bgm_spec = function(x,
                     seed = NULL,
                     display_progress = c("per-chain", "total", "none"),
                     verbose = TRUE,
-                    pseudolikelihood = c("conditional", "marginal"),
                     progress_callback = NULL) {
   model_type = match.arg(model_type)
   na_action = tryCatch(match.arg(na_action), error = function(e) {
@@ -362,7 +360,6 @@ bgm_spec = function(x,
       lambda = lambda
     )
   } else if(model_type == "mixed_mrf") {
-    pseudolikelihood = match.arg(pseudolikelihood)
     spec = build_spec_mixed_mrf(
       x = x, data_columnnames = data_columnnames,
       num_variables = num_variables,
@@ -371,7 +368,6 @@ bgm_spec = function(x,
       na_action = na_action, sampler = sampler,
       pairwise_scale = pairwise_scale, main_alpha = main_alpha,
       main_beta = main_beta, standardize = standardize,
-      pseudolikelihood = pseudolikelihood,
       edge_selection = edge_selection,
       edge_prior = edge_prior,
       inclusion_probability = inclusion_probability,
@@ -624,7 +620,7 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
                                 baseline_category,
                                 na_action, sampler,
                                 pairwise_scale, main_alpha, main_beta,
-                                standardize, pseudolikelihood,
+                                standardize,
                                 edge_selection, edge_prior,
                                 inclusion_probability,
                                 beta_bernoulli_alpha, beta_bernoulli_beta,
@@ -763,7 +759,6 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
       main_alpha = main_alpha,
       main_beta = main_beta,
       standardize = standardize,
-      pseudolikelihood = pseudolikelihood,
       edge_selection = ep$edge_selection,
       edge_prior = ep$edge_prior,
       inclusion_probability = ep$inclusion_probability,
@@ -1189,7 +1184,6 @@ build_arguments_mixed_mrf = function(spec) {
     warmup                       = spec$sampler$warmup,
     pairwise_scale               = spec$prior$pairwise_scale,
     standardize                  = spec$prior$standardize,
-    pseudolikelihood             = spec$prior$pseudolikelihood,
     main_alpha                   = spec$prior$main_alpha,
     main_beta                    = spec$prior$main_beta,
     edge_selection               = spec$prior$edge_selection,

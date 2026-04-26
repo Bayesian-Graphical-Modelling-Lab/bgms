@@ -255,7 +255,6 @@ test_that("S.M1: Mixed NUTS healthy at p=3, q=2, no edge selection", {
     variable_type = vtype,
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = FALSE, update_method = "nuts",
-    pseudolikelihood = "conditional",
     pairwise_scale = 2.5, main_alpha = 0.5, main_beta = 0.5,
     display_progress = "none", seed = 3011
   )
@@ -273,7 +272,6 @@ test_that("S.M2: Mixed NUTS healthy at p=5, q=3 with edge selection", {
     variable_type = vtype,
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
-    pseudolikelihood = "conditional",
     pairwise_scale = 2.5, main_alpha = 0.5, main_beta = 0.5,
     display_progress = "none", seed = 3012
   )
@@ -291,7 +289,6 @@ test_that("S.M3: Mixed NUTS healthy at p=7, q=5 with edge selection", {
     variable_type = vtype,
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
-    pseudolikelihood = "conditional",
     pairwise_scale = 2.5, main_alpha = 0.5, main_beta = 0.5,
     display_progress = "none", seed = 3013
   )
@@ -309,7 +306,6 @@ test_that("S.M4: Mixed NUTS healthy at p=5, q=3, marginal PL", {
     variable_type = vtype,
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
-    pseudolikelihood = "marginal",
     pairwise_scale = 2.5, main_alpha = 0.5, main_beta = 0.5,
     display_progress = "none", seed = 3014
   )
@@ -335,7 +331,6 @@ test_that("S.M5: Mixed NUTS survives near-singular Kyy", {
     variable_type = vtype,
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
-    pseudolikelihood = "conditional",
     pairwise_scale = 2.5, main_alpha = 0.5, main_beta = 0.5,
     display_progress = "none", seed = 3015
   )

@@ -23,8 +23,7 @@
 //                                  num_categories (integer vector, length p),
 //                                  is_ordinal_variable (integer vector, length p),
 //                                  baseline_category (integer vector, length p),
-//                                  main_alpha, main_beta, pairwise_scale (doubles),
-//                                  pseudolikelihood (string: "conditional" or "marginal")
+//                                  main_alpha, main_beta, pairwise_scale (doubles)
 // @param prior_inclusion_prob    Prior inclusion probabilities ((p+q) x (p+q) matrix)
 // @param initial_edge_indicators Initial edge indicators ((p+q) x (p+q) integer matrix)
 // @param no_iter                 Number of post-warmup iterations
@@ -86,14 +85,13 @@ Rcpp::List sample_mixed_mrf(
     double main_alpha = Rcpp::as<double>(inputFromR["main_alpha"]);
     double main_beta = Rcpp::as<double>(inputFromR["main_beta"]);
     double pairwise_scale = Rcpp::as<double>(inputFromR["pairwise_scale"]);
-    std::string pseudolikelihood = Rcpp::as<std::string>(inputFromR["pseudolikelihood"]);
 
     // Create model
     MixedMRFModel model(
         discrete_obs, continuous_obs,
         num_categories, is_ordinal, baseline_cat,
         prior_inclusion_prob, initial_edge_indicators,
-        edge_selection, pseudolikelihood,
+        edge_selection,
         main_alpha, main_beta, pairwise_scale,
         seed
     );

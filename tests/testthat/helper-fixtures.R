@@ -559,7 +559,6 @@ get_bgms_fit_mixed_mrf_marginal = function() {
         "continuous", "ordinal"
       ),
       edge_selection = FALSE,
-      pseudolikelihood = "marginal",
       iter = 50, warmup = 100, chains = 1,
       seed = 77773,
       display_progress = "none"
@@ -587,7 +586,6 @@ get_bgms_fit_mixed_mrf_marginal_es = function() {
         "continuous", "ordinal"
       ),
       edge_selection = TRUE,
-      pseudolikelihood = "marginal",
       iter = 50, warmup = 100, chains = 1,
       seed = 77774,
       display_progress = "none"

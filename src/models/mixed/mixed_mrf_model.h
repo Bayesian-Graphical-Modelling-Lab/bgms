@@ -55,7 +55,6 @@ public:
      * @param inclusion_probability Prior inclusion probabilities ((p+q) × (p+q))
      * @param initial_edge_indicators Initial edge inclusion matrix ((p+q) × (p+q))
      * @param edge_selection       Enable edge selection (spike-and-slab)
-     * @param pseudolikelihood     "conditional" or "marginal"
      * @param main_alpha           Beta prior hyperparameter α for main effects
      * @param main_beta            Beta prior hyperparameter β for main effects
      * @param pairwise_scale       Scale parameter of Cauchy prior on interactions
@@ -70,7 +69,6 @@ public:
         const arma::mat& inclusion_probability,
         const arma::imat& initial_edge_indicators,
         bool edge_selection,
-        const std::string& pseudolikelihood,
         double main_alpha,
         double main_beta,
         double pairwise_scale,
@@ -412,12 +410,6 @@ private:
     mutable arma::vec pcg_lambda_cache_;
 
     // =========================================================================
-    // Configuration
-    // =========================================================================
-
-    bool use_marginal_pl_;              ///< true = marginal, false = conditional
-
-    // =========================================================================
     // RNG and edge-update order
     // =========================================================================
 
@@ -470,9 +462,6 @@ private:
     // =========================================================================
     // Likelihood functions (implemented in mixed_mrf_likelihoods.cpp)
     // =========================================================================
-
-    /** Conditional OMRF pseudolikelihood for discrete variable s, summed over all n. */
-    double log_conditional_omrf(int s) const;
 
     /** Marginal OMRF pseudolikelihood for discrete variable s, using marginal_interactions_. */
     double log_marginal_omrf(int s) const;

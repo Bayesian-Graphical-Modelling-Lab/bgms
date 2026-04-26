@@ -180,8 +180,7 @@ run_sampler_mixed_mrf = function(spec) {
     baseline_category       = v$baseline_category,
     main_alpha              = p$main_alpha,
     main_beta               = p$main_beta,
-    pairwise_scale          = p$pairwise_scale,
-    pseudolikelihood        = p$pseudolikelihood
+    pairwise_scale          = p$pairwise_scale
   )
 
   out_raw = sample_mixed_mrf(

@@ -16,7 +16,6 @@ Rcpp::List mixed_test_logp_and_gradient(
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
     const arma::imat& edge_indicators,
-    const std::string& pseudolikelihood,
     double pairwise_scale)
 {
     size_t p = discrete_observations.n_cols;
@@ -30,7 +29,6 @@ Rcpp::List mixed_test_logp_and_gradient(
         discrete_observations, continuous_observations,
         num_categories, is_ordinal_variable, baseline_category,
         inc_prob, edge_indicators, edge_selection,
-        pseudolikelihood,
         1.0, 1.0,   // main_alpha, main_beta
         pairwise_scale,
         42           // seed
@@ -54,7 +52,6 @@ Rcpp::List mixed_test_logp_and_gradient_full(
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
     const arma::imat& edge_indicators,
-    const std::string& pseudolikelihood,
     double pairwise_scale)
 {
     size_t p = discrete_observations.n_cols;
@@ -68,7 +65,6 @@ Rcpp::List mixed_test_logp_and_gradient_full(
         discrete_observations, continuous_observations,
         num_categories, is_ordinal_variable, baseline_category,
         inc_prob, edge_indicators, edge_selection,
-        pseudolikelihood,
         1.0, 1.0,
         pairwise_scale,
         42
@@ -93,7 +89,6 @@ Rcpp::List mixed_test_project_position(
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
     const arma::imat& edge_indicators,
-    const std::string& pseudolikelihood,
     double pairwise_scale)
 {
     size_t p = discrete_observations.n_cols;
@@ -107,7 +102,6 @@ Rcpp::List mixed_test_project_position(
         discrete_observations, continuous_observations,
         num_categories, is_ordinal_variable, baseline_category,
         inc_prob, edge_indicators, edge_selection,
-        pseudolikelihood,
         1.0, 1.0,
         pairwise_scale,
         42
@@ -133,7 +127,6 @@ Rcpp::List mixed_test_project_momentum(
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
     const arma::imat& edge_indicators,
-    const std::string& pseudolikelihood,
     double pairwise_scale)
 {
     size_t p = discrete_observations.n_cols;
@@ -147,7 +140,6 @@ Rcpp::List mixed_test_project_momentum(
         discrete_observations, continuous_observations,
         num_categories, is_ordinal_variable, baseline_category,
         inc_prob, edge_indicators, edge_selection,
-        pseudolikelihood,
         1.0, 1.0,
         pairwise_scale,
         42
@@ -174,7 +166,6 @@ Rcpp::List mixed_test_leapfrog_constrained(
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
     const arma::imat& edge_indicators,
-    const std::string& pseudolikelihood,
     double pairwise_scale,
     Rcpp::Nullable<Rcpp::NumericVector> inv_mass_in = R_NilValue)
 {
@@ -189,7 +180,6 @@ Rcpp::List mixed_test_leapfrog_constrained(
         discrete_observations, continuous_observations,
         num_categories, is_ordinal_variable, baseline_category,
         inc_prob, edge_indicators, edge_selection,
-        pseudolikelihood,
         1.0, 1.0,
         pairwise_scale,
         42

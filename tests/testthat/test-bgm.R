@@ -813,14 +813,14 @@ test_that("bgm mixed MRF residual variances are positive", {
   expect_true(all(fit$posterior_mean_residual_variance > 0))
 })
 
-test_that("bgm mixed MRF marginal pseudolikelihood runs", {
+test_that("bgm mixed MRF (no edge selection) runs", {
   fit = get_bgms_fit_mixed_mrf_marginal()
   expect_s3_class(fit, "bgms")
   expect_equal(nrow(fit$posterior_mean_pairwise), 5)
   expect_true(all(is.finite(fit$posterior_mean_pairwise)))
 })
 
-test_that("bgm mixed MRF marginal PL with edge selection runs", {
+test_that("bgm mixed MRF with edge selection runs", {
   fit = get_bgms_fit_mixed_mrf_marginal_es()
   expect_s3_class(fit, "bgms")
   expect_equal(nrow(fit$posterior_mean_pairwise), 5)

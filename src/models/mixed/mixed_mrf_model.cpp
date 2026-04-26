@@ -18,7 +18,6 @@ MixedMRFModel::MixedMRFModel(
     const arma::mat& inclusion_probability,
     const arma::imat& initial_edge_indicators,
     bool edge_selection,
-    const std::string& pseudolikelihood,
     double main_alpha,
     double main_beta,
     double pairwise_scale,
@@ -39,7 +38,6 @@ MixedMRFModel::MixedMRFModel(
     main_alpha_(main_alpha),
     main_beta_(main_beta),
     pairwise_scale_(pairwise_scale),
-    use_marginal_pl_(pseudolikelihood == "marginal"),
     rng_(seed)
 {
     // Dimension counts
@@ -96,11 +94,9 @@ MixedMRFModel::MixedMRFModel(
     //   With cross_int = 0 and precision = I, this reduces to 0.
     conditional_mean_ = arma::zeros<arma::mat>(n_, q_);
 
-    // Initialize marginal interactions (marginal PL only): disc_int + 2 * cross_int * Sigma_yy * cross_int'
+    // Initialize marginal interactions: disc_int + 2 * cross_int * Sigma_yy * cross_int'
     //   With cross_int = 0, this is zero.
-    if(use_marginal_pl_) {
-        marginal_interactions_ = arma::zeros<arma::mat>(p_, p_);
-    }
+    marginal_interactions_ = arma::zeros<arma::mat>(p_, p_);
 
     // Initialize edge-order permutation vectors
     edge_order_xx_ = arma::regspace<arma::uvec>(0, num_pairwise_xx_ - 1);
@@ -186,7 +182,6 @@ MixedMRFModel::MixedMRFModel(const MixedMRFModel& other)
       constraint_dirty_(other.constraint_dirty_),
       has_sparse_graph_(other.has_sparse_graph_),
       pcg_lambda_cache_(other.pcg_lambda_cache_),
-      use_marginal_pl_(other.use_marginal_pl_),
       rng_(other.rng_),
       edge_order_xx_(other.edge_order_xx_),
       edge_order_yy_(other.edge_order_yy_),
@@ -397,9 +392,7 @@ void MixedMRFModel::set_full_position(const arma::vec& x) {
     }
 
     recompute_conditional_mean();
-    if(use_marginal_pl_) {
-        recompute_marginal_interactions();
-    }
+    recompute_marginal_interactions();
 }
 
 void MixedMRFModel::reset_projection_cache() {
@@ -944,9 +937,7 @@ void MixedMRFModel::set_vectorized_parameters(const arma::vec& params) {
 
     // Refresh caches
     recompute_conditional_mean();
-    if(use_marginal_pl_) {
-        recompute_marginal_interactions();
-    }
+    recompute_marginal_interactions();
 }
 
 arma::vec MixedMRFModel::get_active_inv_mass() const {
