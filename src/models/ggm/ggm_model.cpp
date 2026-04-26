@@ -684,9 +684,8 @@ void GGMModel::update_edge_parameter(size_t i, size_t j, int iteration) {
     ln_alpha += R::dcauchy(precision_proposal_(i, j), 0.0, pairwise_scale_, true);
     ln_alpha -= R::dcauchy(precision_matrix_(i, j), 0.0, pairwise_scale_, true);
 
-    // Gamma(1,1) prior on changed diagonal K_jj
-    ln_alpha += R::dgamma(precision_proposal_(j, j), 1.0, 1.0, true);
-    ln_alpha -= R::dgamma(precision_matrix_(j, j), 1.0, 1.0, true);
+    // Gamma(1,1) prior on K_jj cancels: constrained diagonal is a
+    // deterministic function of phi_{q-1,q} with phi_{q,q} fixed.
 
     if (MY_LOG(runif(rng_)) < ln_alpha) {
         double omega_ij_old = precision_matrix_(i, j);
@@ -840,9 +839,7 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         ln_alpha += R::dnorm(precision_matrix_(i, j) / constants_[3], 0.0, proposal_sd, true) - MY_LOG(constants_[3]);
         ln_alpha -= R::dcauchy(precision_matrix_(i, j), 0.0, pairwise_scale_, true);
 
-        // Gamma(1,1) prior on changed diagonal K_jj
-        ln_alpha += R::dgamma(precision_proposal_(j, j), 1.0, 1.0, true);
-        ln_alpha -= R::dgamma(precision_matrix_(j, j), 1.0, 1.0, true);
+        // Gamma(1,1) prior on K_jj cancels: constrained parameterization.
 
         if (MY_LOG(runif(rng_)) < ln_alpha) {
 
@@ -895,9 +892,7 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         // Prior change: add slab (Cauchy prior)
         ln_alpha += R::dcauchy(omega_prop_ij, 0.0, pairwise_scale_, true);
 
-        // Gamma(1,1) prior on changed diagonal K_jj
-        ln_alpha += R::dgamma(precision_proposal_(j, j), 1.0, 1.0, true);
-        ln_alpha -= R::dgamma(precision_matrix_(j, j), 1.0, 1.0, true);
+        // Gamma(1,1) prior on K_jj cancels: constrained parameterization.
 
         // Proposal term: proposed edge value given it was generated from truncated normal
         ln_alpha -= R::dnorm(omega_prop_ij / constants_[3], 0.0, proposal_sd, true) - MY_LOG(constants_[3]);
@@ -1064,6 +1059,9 @@ void GGMModel::refresh_cholesky() {
 
 
 void GGMModel::initialize_precision_from_mle() {
+    // With n=0 there is no data; keep the identity initialization.
+    if (n_ == 0) return;
+
     // Regularized MLE: K = n * inv(S + delta * I).
     // delta = trace(S) / (p * n) gives scale-appropriate shrinkage toward I.
     double trace_s = arma::trace(suf_stat_);
