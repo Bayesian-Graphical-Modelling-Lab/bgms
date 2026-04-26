@@ -18,7 +18,6 @@
  *
  * Provides a unified interface for all MCMC sampling algorithms:
  * - MetropolisSampler (component-wise random-walk Metropolis)
- * - HMCSampler (Hamiltonian Monte Carlo)
  * - NUTSSampler (No-U-Turn Sampler)
  *
  * The sampler internally decides whether to adapt based on the iteration

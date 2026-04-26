@@ -3,15 +3,12 @@
 #include <exception>
 #include <tbb/global_control.h>
 #include "mcmc/samplers/nuts_sampler.h"
-#include "mcmc/samplers/hmc_sampler.h"
 #include "mcmc/samplers/metropolis_sampler.h"
 
 
 std::unique_ptr<SamplerBase> create_sampler(const SamplerConfig& config, WarmupSchedule& schedule) {
     if (config.sampler_type == "nuts") {
         return std::make_unique<NUTSSampler>(config, schedule);
-    } else if (config.sampler_type == "hmc" || config.sampler_type == "hamiltonian-mc") {
-        return std::make_unique<HMCSampler>(config, schedule);
     } else if (config.sampler_type == "mh" || config.sampler_type == "adaptive-metropolis") {
         return std::make_unique<MetropolisSampler>(config, schedule);
     } else {
@@ -31,9 +28,7 @@ void run_mcmc_chain(
     chain_result.chain_id = chain_id + 1;
 
     // Construct warmup schedule (shared by runner and sampler)
-    const bool learn_sd = (config.sampler_type == "nuts" ||
-                           config.sampler_type == "hmc" ||
-                           config.sampler_type == "hamiltonian-mc");
+    const bool learn_sd = (config.sampler_type == "nuts");
     WarmupSchedule schedule(config.no_warmup, config.edge_selection, learn_sd);
 
     auto sampler = create_sampler(config, schedule);

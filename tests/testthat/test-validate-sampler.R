@@ -6,11 +6,10 @@
 # Helper: minimal valid call with sensible defaults
 vs = function(...) {
   defaults = list(
-    update_method     = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
+    update_method     = c("nuts", "adaptive-metropolis"),
     target_accept     = NULL,
     iter              = 1000L,
     warmup            = 250L,
-    hmc_num_leapfrogs = 100L,
     nuts_max_depth    = 10L,
     learn_mass_matrix = TRUE,
     chains            = 2L,
@@ -25,21 +24,12 @@ vs = function(...) {
   do.call(validate_sampler, args)
 }
 
-# Suppress only deprecation warnings, let others through
-suppress_hmc_deprecation = function(expr) {
-  withCallingHandlers(expr, warning = function(w) {
-    if(grepl("deprecated", conditionMessage(w), ignore.case = TRUE)) {
-      invokeRestart("muffleWarning")
-    }
-  })
-}
-
 
 # ==============================================================================
 # 1. update_method  — match.arg
 # ==============================================================================
 
-test_that("default triple resolves to 'nuts'", {
+test_that("default pair resolves to 'nuts'", {
   res = vs()
   expect_equal(res$update_method, "nuts")
 })
@@ -49,20 +39,12 @@ test_that("explicit 'adaptive-metropolis' passes through", {
   expect_equal(res$update_method, "adaptive-metropolis")
 })
 
-test_that("explicit 'hamiltonian-mc' passes through", {
-  res = suppress_hmc_deprecation(vs(update_method = "hamiltonian-mc"))
-  expect_equal(res$update_method, "hamiltonian-mc")
-})
-
-test_that("hamiltonian-mc emits deprecation warning", {
-  expect_warning(
-    vs(update_method = "hamiltonian-mc"),
-    "deprecated"
-  )
-})
-
 test_that("invalid update_method errors", {
   expect_error(vs(update_method = "bogus"), "arg")
+})
+
+test_that("removed 'hamiltonian-mc' errors", {
+  expect_error(vs(update_method = "hamiltonian-mc"), "arg")
 })
 
 
@@ -85,26 +67,6 @@ test_that("GGM + explicit 'nuts' OK", {
   expect_equal(res$update_method, "nuts")
 })
 
-test_that("GGM + explicit 'hamiltonian-mc' OK", {
-  res = suppress_hmc_deprecation(
-    vs(is_continuous = TRUE, update_method = "hamiltonian-mc")
-  )
-  expect_equal(res$update_method, "hamiltonian-mc")
-})
-
-test_that("GGM + hamiltonian-mc + edge_selection warns", {
-  expect_warning(
-    suppress_hmc_deprecation(
-      res <- vs(
-        is_continuous = TRUE, edge_selection = TRUE,
-        update_method = "hamiltonian-mc"
-      )
-    ),
-    "numerically fragile"
-  )
-  expect_equal(res$update_method, "hamiltonian-mc")
-})
-
 
 # ==============================================================================
 # 3. target_accept  — defaults and clamping
@@ -113,13 +75,6 @@ test_that("GGM + hamiltonian-mc + edge_selection warns", {
 test_that("NULL target_accept → 0.44 for adaptive-metropolis", {
   res = vs(update_method = "adaptive-metropolis", target_accept = NULL)
   expect_equal(res$target_accept, 0.44)
-})
-
-test_that("NULL target_accept → 0.65 for hamiltonian-mc", {
-  res = suppress_hmc_deprecation(
-    vs(update_method = "hamiltonian-mc", target_accept = NULL)
-  )
-  expect_equal(res$target_accept, 0.65)
 })
 
 test_that("NULL target_accept → 0.80 for nuts", {
@@ -174,37 +129,31 @@ test_that("negative warmup errors", {
 # 5. warmup warnings  (verbose = TRUE)
 # ==============================================================================
 
-test_that("no-edge-selection: warmup < 20 warns (HMC)", {
+test_that("no-edge-selection: warmup < 20 warns (NUTS)", {
   expect_warning(
-    suppress_hmc_deprecation(
-      vs(
-        update_method = "hamiltonian-mc", warmup = 10L,
-        edge_selection = FALSE, verbose = TRUE
-      )
+    vs(
+      update_method = "nuts", warmup = 10L,
+      edge_selection = FALSE, verbose = TRUE
     ),
     "no mass matrix"
   )
 })
 
-test_that("no-edge-selection: 20 <= warmup < 150 warns (HMC)", {
+test_that("no-edge-selection: 20 <= warmup < 150 warns (NUTS)", {
   expect_warning(
-    suppress_hmc_deprecation(
-      vs(
-        update_method = "hamiltonian-mc", warmup = 50L,
-        edge_selection = FALSE, verbose = TRUE
-      )
+    vs(
+      update_method = "nuts", warmup = 50L,
+      edge_selection = FALSE, verbose = TRUE
     ),
     "proportional allocation"
   )
 })
 
-test_that("no-edge-selection: warmup >= 150 no warning (HMC)", {
+test_that("no-edge-selection: warmup >= 150 no warning (NUTS)", {
   expect_silent(
-    suppress_hmc_deprecation(
-      vs(
-        update_method = "hamiltonian-mc", warmup = 200L,
-        edge_selection = FALSE, verbose = TRUE
-      )
+    vs(
+      update_method = "nuts", warmup = 200L,
+      edge_selection = FALSE, verbose = TRUE
     )
   )
 })
@@ -268,18 +217,8 @@ test_that("verbose = FALSE suppresses all warmup warnings", {
 
 
 # ==============================================================================
-# 6. hmc_num_leapfrogs / nuts_max_depth
+# 6. nuts_max_depth
 # ==============================================================================
-
-test_that("hmc_num_leapfrogs passes through", {
-  res = vs(hmc_num_leapfrogs = 50L)
-  expect_equal(res$hmc_num_leapfrogs, 50L)
-})
-
-test_that("hmc_num_leapfrogs clamped to >= 1", {
-  res = vs(hmc_num_leapfrogs = 1L)
-  expect_equal(res$hmc_num_leapfrogs, 1L)
-})
 
 test_that("nuts_max_depth passes through", {
   res = vs(nuts_max_depth = 8L)
@@ -388,11 +327,11 @@ test_that("FALSE → 0L (none)", {
 # 11. Full return structure
 # ==============================================================================
 
-test_that("return list has all 11 expected elements", {
+test_that("return list has all expected elements", {
   res = vs()
   expected_names = c(
     "update_method", "target_accept", "iter", "warmup",
-    "hmc_num_leapfrogs", "nuts_max_depth", "learn_mass_matrix",
+    "nuts_max_depth", "learn_mass_matrix",
     "chains", "cores", "seed", "progress_type", "progress_callback"
   )
   expect_named(res, expected_names)

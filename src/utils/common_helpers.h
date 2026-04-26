@@ -29,22 +29,18 @@ inline int count_num_main_effects(const arma::ivec& num_categories,
 /// MCMC update method.
 enum UpdateMethod {
   adaptive_metropolis, ///< Robbins-Monro adaptive Metropolis-Hastings
-  hamiltonian_mc,      ///< Fixed-trajectory Hamiltonian Monte Carlo
   nuts                 ///< No-U-Turn Sampler
 };
 
 /**
  * Convert a string identifier to an UpdateMethod enum value.
  *
- * @param update_method  One of "adaptive-metropolis", "hamiltonian-mc", "nuts".
+ * @param update_method  One of "adaptive-metropolis", "nuts".
  * @return Corresponding UpdateMethod value.
  */
 inline UpdateMethod update_method_from_string(const std::string& update_method) {
   if (update_method == "adaptive-metropolis")
     return adaptive_metropolis;
-
-  if (update_method == "hamiltonian-mc")
-    return hamiltonian_mc;
 
   if (update_method == "nuts")
     return nuts;

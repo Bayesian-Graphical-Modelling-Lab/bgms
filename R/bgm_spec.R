@@ -136,7 +136,6 @@ new_bgm_spec = function(model_type, data, variables, missing, prior,
   stopifnot(is.integer(sampler$warmup), length(sampler$warmup) == 1L)
   stopifnot(is.integer(sampler$chains), length(sampler$chains) == 1L)
   stopifnot(is.integer(sampler$cores), length(sampler$cores) == 1L)
-  stopifnot(is.integer(sampler$hmc_num_leapfrogs), length(sampler$hmc_num_leapfrogs) == 1L)
   stopifnot(is.integer(sampler$nuts_max_depth), length(sampler$nuts_max_depth) == 1L)
   stopifnot(is.logical(sampler$learn_mass_matrix), length(sampler$learn_mass_matrix) == 1L)
   stopifnot(is.integer(sampler$seed), length(sampler$seed) == 1L)
@@ -271,13 +270,11 @@ bgm_spec = function(x,
                     # Sampler
                     update_method = c(
                       "nuts",
-                      "adaptive-metropolis",
-                      "hamiltonian-mc"
+                      "adaptive-metropolis"
                     ),
                     target_accept = NULL,
                     iter = 10000L,
                     warmup = 1000L,
-                    hmc_num_leapfrogs = 100L,
                     nuts_max_depth = 10L,
                     learn_mass_matrix = TRUE,
                     chains = 4L,
@@ -332,7 +329,6 @@ bgm_spec = function(x,
     target_accept = target_accept,
     iter = iter,
     warmup = warmup,
-    hmc_num_leapfrogs = hmc_num_leapfrogs,
     nuts_max_depth = nuts_max_depth,
     learn_mass_matrix = learn_mass_matrix,
     chains = chains,
@@ -1077,7 +1073,6 @@ sampler_sublist = function(s) {
     warmup            = as.integer(s$warmup),
     chains            = as.integer(s$chains),
     cores             = as.integer(s$cores),
-    hmc_num_leapfrogs = as.integer(s$hmc_num_leapfrogs),
     nuts_max_depth    = as.integer(s$nuts_max_depth),
     learn_mass_matrix = s$learn_mass_matrix,
     seed              = as.integer(s$seed),
@@ -1170,7 +1165,6 @@ build_arguments_omrf = function(spec) {
     version                      = packageVersion("bgms"),
     update_method                = spec$sampler$update_method,
     target_accept                = spec$sampler$target_accept,
-    hmc_num_leapfrogs            = spec$sampler$hmc_num_leapfrogs,
     nuts_max_depth               = spec$sampler$nuts_max_depth,
     learn_mass_matrix            = spec$sampler$learn_mass_matrix,
     num_chains                   = spec$sampler$chains,
@@ -1246,7 +1240,6 @@ build_arguments_compare = function(spec) {
     version                      = packageVersion("bgms"),
     update_method                = spec$sampler$update_method,
     target_accept                = spec$sampler$target_accept,
-    hmc_num_leapfrogs            = spec$sampler$hmc_num_leapfrogs,
     nuts_max_depth               = spec$sampler$nuts_max_depth,
     learn_mass_matrix            = spec$sampler$learn_mass_matrix,
     num_chains                   = spec$sampler$chains,

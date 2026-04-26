@@ -71,7 +71,6 @@ progress_type_from_display_progress = function(display_progress = c("per-chain",
 #   will be set to a method-specific default.
 # @param iter  Integer: post-warmup iterations.
 # @param warmup  Integer: warmup iterations.
-# @param hmc_num_leapfrogs  Integer: leapfrog steps for HMC.
 # @param nuts_max_depth  Integer: max tree depth for NUTS.
 # @param learn_mass_matrix  Logical: adapt diagonal mass matrix during warmup.
 # @param chains  Integer: number of parallel chains.
@@ -83,14 +82,13 @@ progress_type_from_display_progress = function(display_progress = c("per-chain",
 # @param verbose  Logical: whether to emit warmup warnings.
 #
 # Returns:
-#   list(update_method, target_accept, iter, warmup, hmc_num_leapfrogs,
+#   list(update_method, target_accept, iter, warmup,
 #        nuts_max_depth, learn_mass_matrix, chains, cores, seed, progress_type)
 # ------------------------------------------------------------------------------
 validate_sampler = function(update_method,
                             target_accept = NULL,
                             iter,
                             warmup,
-                            hmc_num_leapfrogs = 100,
                             nuts_max_depth = 10,
                             learn_mass_matrix = TRUE,
                             chains = 4,
@@ -102,39 +100,18 @@ validate_sampler = function(update_method,
                             verbose = TRUE,
                             progress_callback = NULL) {
   # --- update_method ----------------------------------------------------------
-  user_chose_method = length(update_method) == 1
   update_method = match.arg(
     update_method,
-    choices = c("nuts", "adaptive-metropolis", "hamiltonian-mc")
+    choices = c("nuts", "adaptive-metropolis")
   )
 
-  if(update_method == "hamiltonian-mc") {
-    .Deprecated(
-      msg = paste(
-        "update_method = \"hamiltonian-mc\" is deprecated and will be",
-        "removed in a future release. Use update_method = \"nuts\" instead."
-      )
-    )
-  }
-
   # --- target_accept ----------------------------------------------------------
-  if(is_continuous && edge_selection && update_method == "hamiltonian-mc") {
-    warning(
-      "hamiltonian-mc with edge selection on a GGM uses constrained ",
-      "integration (RATTLE), which can be numerically fragile with a ",
-      "fixed trajectory length. Consider using 'nuts' instead, which ",
-      "adapts trajectory length and avoids degenerate regions.",
-      call. = FALSE
-    )
-  }
-
   if(!is.null(target_accept)) {
     target_accept = min(target_accept, 1 - sqrt(.Machine$double.eps))
     target_accept = max(target_accept, 0 + sqrt(.Machine$double.eps))
   } else {
     target_accept = switch(update_method,
       "adaptive-metropolis" = 0.44,
-      "hamiltonian-mc"      = 0.65,
       "nuts"                = 0.80
     )
   }
@@ -144,7 +121,7 @@ validate_sampler = function(update_method,
   check_non_negative_integer(warmup, "warmup")
 
   # --- warmup warnings --------------------------------------------------------
-  if(verbose && update_method %in% c("hamiltonian-mc", "nuts")) {
+  if(verbose && update_method == "nuts") {
     if(edge_selection) {
       if(warmup < 50) {
         warning(
@@ -177,10 +154,7 @@ validate_sampler = function(update_method,
     }
   }
 
-  # --- hmc_num_leapfrogs / nuts_max_depth -------------------------------------
-  check_positive_integer(hmc_num_leapfrogs, "hmc_num_leapfrogs")
-  hmc_num_leapfrogs = max(hmc_num_leapfrogs, 1L)
-
+  # --- nuts_max_depth ---------------------------------------------------------
   check_positive_integer(nuts_max_depth, "nuts_max_depth")
   nuts_max_depth = max(nuts_max_depth, 1L)
 
@@ -202,7 +176,6 @@ validate_sampler = function(update_method,
     target_accept = target_accept,
     iter = iter,
     warmup = warmup,
-    hmc_num_leapfrogs = hmc_num_leapfrogs,
     nuts_max_depth = nuts_max_depth,
     learn_mass_matrix = learn_mass_matrix,
     chains = chains,

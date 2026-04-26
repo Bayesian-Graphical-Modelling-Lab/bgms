@@ -376,19 +376,6 @@ test_that("validate: GGM requires is_continuous = TRUE", {
   )
 })
 
-test_that("validate: GGM allows hamiltonian-mc", {
-  expect_silent(
-    validate_bgm_spec(
-      structure(list(
-        model_type = "ggm",
-        variables  = list(is_continuous = TRUE),
-        sampler    = list(update_method = "hamiltonian-mc"),
-        prior      = list(edge_selection = TRUE, edge_prior = "Bernoulli")
-      ), class = "bgm_spec")
-    )
-  )
-})
-
 test_that("validate: GGM allows nuts", {
   expect_silent(
     validate_bgm_spec(
@@ -487,7 +474,7 @@ test_that("new_bgm_spec: rejects invalid model_type", {
       sampler = list(
         update_method = "nuts", target_accept = 0.8,
         iter = 100L, warmup = 50L, chains = 2L, cores = 1L,
-        hmc_num_leapfrogs = 100L, nuts_max_depth = 10L,
+        nuts_max_depth = 10L,
         learn_mass_matrix = TRUE, seed = 1L, progress_type = 0L
       )
     ),
@@ -521,7 +508,7 @@ test_that("new_bgm_spec: rejects non-matrix x", {
       sampler = list(
         update_method = "nuts", target_accept = 0.8,
         iter = 100L, warmup = 50L, chains = 2L, cores = 1L,
-        hmc_num_leapfrogs = 100L, nuts_max_depth = 10L,
+        nuts_max_depth = 10L,
         learn_mass_matrix = TRUE, seed = 1L, progress_type = 0L
       )
     ),
@@ -542,7 +529,6 @@ test_that("sampler_sublist coerces to integer", {
     warmup            = 250,
     chains            = 2,
     cores             = 1,
-    hmc_num_leapfrogs = 100,
     nuts_max_depth    = 10,
     learn_mass_matrix = TRUE,
     seed              = 42,

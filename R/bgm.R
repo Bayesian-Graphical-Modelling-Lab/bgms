@@ -8,23 +8,23 @@
 #' mixed MRF. Optionally, it performs Bayesian edge selection using
 #' spike-and-slab priors to infer the network structure.
 #'
-#’ @details
-#’ Depending on the variable types, the model is an ordinal MRF, a Gaussian
-#’ graphical model (GGM), or a mixed MRF. Both regular ordinal variables and
-#’ Blume--Capel ordinal variables (with a baseline category) are supported.
-#’
-#’ Edge selection uses spike-and-slab priors with Bernoulli, Beta-Bernoulli,
-#’ or Stochastic-Block inclusion priors. Parameters are sampled with NUTS
-#’ (default) or adaptive Metropolis--Hastings, with a multi-stage warmup
-#’ schedule. Missing data can be handled via listwise deletion or Gibbs
-#’ imputation.
-#’
-#’ For full details on model specification, prior choices, warmup, and
-#’ output interpretation, see the package website at
-#’ \url{https://bayesian-graphical-modelling-lab.github.io/bgms-docs/}.
-#’
-#’ @seealso \code{vignette(“intro”, package = “bgms”)} for a worked example.
-#’ @family model-fitting
+# ’ @details
+# ’ Depending on the variable types, the model is an ordinal MRF, a Gaussian
+# ’ graphical model (GGM), or a mixed MRF. Both regular ordinal variables and
+# ’ Blume--Capel ordinal variables (with a baseline category) are supported.
+# ’
+# ’ Edge selection uses spike-and-slab priors with Bernoulli, Beta-Bernoulli,
+# ’ or Stochastic-Block inclusion priors. Parameters are sampled with NUTS
+# ’ (default) or adaptive Metropolis--Hastings, with a multi-stage warmup
+# ’ schedule. Missing data can be handled via listwise deletion or Gibbs
+# ’ imputation.
+# ’
+# ’ For full details on model specification, prior choices, warmup, and
+# ’ output interpretation, see the package website at
+# ’ \url{https://bayesian-graphical-modelling-lab.github.io/bgms-docs/}.
+# ’
+# ’ @seealso \code{vignette(“intro”, package = “bgms”)} for a worked example.
+# ’ @family model-fitting
 #'
 #' @param x A data frame or matrix with \code{n} rows and \code{p} columns.
 #'   Columns may contain binary, ordinal, or continuous variables (see
@@ -154,9 +154,6 @@
 #'   \describe{
 #'     \item{"adaptive-metropolis"}{Componentwise adaptive Metropolis–Hastings
 #'       with Robbins–Monro proposal adaptation.}
-#'     \item{"hamiltonian-mc"}{\strong{Deprecated.} Hamiltonian Monte Carlo
-#'       with fixed path length. Use \code{"nuts"} instead. This option will
-#'       be removed in a future release.}
 #'     \item{"nuts"}{The No-U-Turn Sampler with RATTLE constrained integration
 #'       for Gaussian models with edge selection.}
 #'   }
@@ -165,10 +162,6 @@
 #' @param target_accept Numeric between 0 and 1. Target acceptance rate for
 #'   the sampler. Defaults are set automatically if not supplied:
 #'   \code{0.44} for adaptive Metropolis and \code{0.80} for NUTS.
-#'
-#' @param hmc_num_leapfrogs `r lifecycle::badge("deprecated")` Integer.
-#'   Number of leapfrog steps for Hamiltonian Monte Carlo. Only relevant when
-#'   \code{update_method = "hamiltonian-mc"}, which is deprecated.
 #'
 #' @param nuts_max_depth Integer. Maximum tree depth in NUTS. Must be positive.
 #'   Default: \code{10}.
@@ -306,9 +299,8 @@ bgm = function(
   dirichlet_alpha = 1,
   lambda = 1,
   na_action = c("listwise", "impute"),
-  update_method = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
+  update_method = c("nuts", "adaptive-metropolis"),
   target_accept,
-  hmc_num_leapfrogs = 100,
   nuts_max_depth = 10,
   learn_mass_matrix = TRUE,
   chains = 4,
@@ -383,7 +375,6 @@ bgm = function(
     target_accept = if(hasArg(target_accept)) target_accept else NULL,
     iter = iter,
     warmup = warmup,
-    hmc_num_leapfrogs = hmc_num_leapfrogs,
     nuts_max_depth = nuts_max_depth,
     learn_mass_matrix = learn_mass_matrix,
     chains = chains,

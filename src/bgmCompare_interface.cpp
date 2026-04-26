@@ -78,8 +78,7 @@ struct bgmCompareChainResult {
 //  - interaction_index_matrix: Lookup table of variable pairs.
 //  - inclusion_probability_master: Prior inclusion probabilities for pairwise effects.
 //  - chain_rngs: Pre-initialized RNG engines (one per chain).
-//  - update_method: Sampler type ("adaptive-metropolis", "hamiltonian-mc", "nuts").
-//  - hmc_num_leapfrogs: Number of leapfrog steps (HMC).
+//  - update_method: Sampler type ("adaptive-metropolis", "nuts").
 //
 // Output:
 //  - results: Vector of `bgmCompareChainResult` objects, one per chain, filled in place.
@@ -125,7 +124,6 @@ struct GibbsCompareChainRunner : public Worker {
   // RNG seeds
   const std::vector<SafeRNG>& chain_rngs;
   const UpdateMethod update_method;
-  const int hmc_num_leapfrogs;
   ProgressManager& pm;
   // output
   std::vector<bgmCompareChainResult>& results;
@@ -165,7 +163,6 @@ struct GibbsCompareChainRunner : public Worker {
     const arma::mat& inclusion_probability_master,
     const std::vector<SafeRNG>& chain_rngs,
     const UpdateMethod update_method,
-    const int hmc_num_leapfrogs,
     ProgressManager& pm,
     std::vector<bgmCompareChainResult>& results
   ) :
@@ -203,7 +200,6 @@ struct GibbsCompareChainRunner : public Worker {
     inclusion_probability_master(inclusion_probability_master),
     chain_rngs(chain_rngs),
     update_method(update_method),
-    hmc_num_leapfrogs(hmc_num_leapfrogs),
     pm(pm),
     results(results)
   {}
@@ -262,7 +258,6 @@ struct GibbsCompareChainRunner : public Worker {
           inclusion_probability,
           rng,
           update_method,
-          hmc_num_leapfrogs,
           pm
         );
 
@@ -327,8 +322,7 @@ struct GibbsCompareChainRunner : public Worker {
 //  - num_chains: Number of chains to run.
 //  - nThreads: Maximum number of threads for parallel execution.
 //  - seed: Base random seed (incremented per chain).
-//  - update_method: Sampler type ("adaptive-metropolis", "hamiltonian-mc", "nuts").
-//  - hmc_num_leapfrogs: Number of leapfrog steps for HMC.
+//  - update_method: Sampler type ("adaptive-metropolis", "nuts").
 //  - progress_type: Progress bar style (0 = none, 1 = total, 2 = per-chain).
 //  - progress_callback: R function (SEXP) called as callback(completed, total) at regular intervals, or R_NilValue.
 //
@@ -384,7 +378,6 @@ Rcpp::List run_bgmCompare_parallel(
     int nThreads,
     int seed,
     const std::string& update_method,
-    int hmc_num_leapfrogs,
     int progress_type,
     SEXP progress_callback = R_NilValue
 ) {
@@ -412,7 +405,7 @@ Rcpp::List run_bgmCompare_parallel(
       baseline_category, difference_selection, main_difference_selection, main_effect_indices,
       pairwise_effect_indices, target_accept, nuts_max_depth, learn_mass_matrix,
       projection, group_membership, group_indices, interaction_index_matrix,
-      inclusion_probability, chain_rngs, update_method_enum, hmc_num_leapfrogs,
+      inclusion_probability, chain_rngs, update_method_enum,
       pm, results
   );
 

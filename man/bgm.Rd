@@ -23,9 +23,8 @@ bgm(
   dirichlet_alpha = 1,
   lambda = 1,
   na_action = c("listwise", "impute"),
-  update_method = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
+  update_method = c("nuts", "adaptive-metropolis"),
   target_accept,
-  hmc_num_leapfrogs = 100,
   nuts_max_depth = 10,
   learn_mass_matrix = TRUE,
   chains = 4,
@@ -44,11 +43,14 @@ bgm(
 )
 }
 \arguments{
-\item{x}{A data frame or matrix with \code{n} rows and \code{p} columns
-containing binary and ordinal responses. Variables are automatically
-recoded to non-negative integers (\code{0, 1, ..., m}). For regular
-ordinal variables, unobserved categories are collapsed; for
-Blume–Capel variables, all categories are retained.}
+\item{x}{A data frame or matrix with \code{n} rows and \code{p} columns.
+Columns may contain binary, ordinal, or continuous variables (see
+\code{variable_type}). Discrete variables are automatically recoded to
+non-negative integers (\code{0, 1, ..., m}); for regular ordinal
+variables, unobserved categories are collapsed, while Blume–Capel
+variables retain all categories. Continuous variables are column-centered
+internally so that the GGM likelihood is formulated with a zero-mean
+assumption.}
 
 \item{variable_type}{Character or character vector. Specifies the type of
 each variable in \code{x}. Allowed values: \code{"ordinal"},
@@ -115,9 +117,6 @@ the model parameters:
 \describe{
 \item{"adaptive-metropolis"}{Componentwise adaptive Metropolis–Hastings
 with Robbins–Monro proposal adaptation.}
-\item{"hamiltonian-mc"}{\strong{Deprecated.} Hamiltonian Monte Carlo
-with fixed path length. Use \code{"nuts"} instead. This option will
-be removed in a future release.}
 \item{"nuts"}{The No-U-Turn Sampler with RATTLE constrained integration
 for Gaussian models with edge selection.}
 }
@@ -126,10 +125,6 @@ Default: \code{"nuts"}.}
 \item{target_accept}{Numeric between 0 and 1. Target acceptance rate for
 the sampler. Defaults are set automatically if not supplied:
 \code{0.44} for adaptive Metropolis and \code{0.80} for NUTS.}
-
-\item{hmc_num_leapfrogs}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Integer.
-Number of leapfrog steps for Hamiltonian Monte Carlo. Only relevant when
-\code{update_method = "hamiltonian-mc"}, which is deprecated.}
 
 \item{nuts_max_depth}{Integer. Maximum tree depth in NUTS. Must be positive.
 Default: \code{10}.}
@@ -192,9 +187,12 @@ during data processing (e.g., missing data handling, variable recoding).
 Defaults to \code{getOption("bgms.verbose", TRUE)}. Set
 \code{options(bgms.verbose = FALSE)} to suppress messages globally.}
 
-\item{progress_callback}{An optional R function (taking no arguments) that
-is called at regular intervals during sampling. Useful for external
-front-ends (e.g., JASP) that supply their own progress reporting.
+\item{progress_callback}{An optional R function with signature
+\code{function(completed, total)} that is called at regular intervals
+during sampling, where \code{completed} is the number of iterations
+completed across all chains and \code{total} is the total number of
+iterations. Useful for external front-ends (e.g., JASP) that supply
+their own progress reporting.
 When \code{NULL} (the default), no callback is invoked.}
 
 \item{interaction_scale, burnin, save, threshold_alpha, threshold_beta}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}}
@@ -290,173 +288,6 @@ types, the model is an ordinal MRF, a Gaussian graphical model (GGM), or a
 mixed MRF. Optionally, it performs Bayesian edge selection using
 spike-and-slab priors to infer the network structure.
 }
-\details{
-This function models the joint distribution of binary, ordinal, continuous,
-or mixed variables using a Markov Random Field, with support for edge
-selection through Bayesian variable selection. The statistical foundation
-of the model is described in
-\insertCite{MarsmanVandenBerghHaslbeck_2025;textual}{bgms}, where the ordinal
-MRF model and its Bayesian estimation procedure were first introduced. While
-the implementation in \pkg{bgms} has since been extended and updated (e.g.,
-alternative priors, parallel chains, NUTS warmup), it builds on that
-original framework.
-
-Key components of the model are described in the sections below.
-}
-\section{Ordinal Variables}{
-
-The function supports two types of ordinal variables:
-
-\strong{Regular ordinal variables}:
-Assigns a category threshold parameter to each response category except the
-lowest. The model imposes no additional constraints on the distribution of
-category responses.
-
-\strong{Blume-Capel ordinal variables}:
-Assume a baseline category (e.g., a “neutral” response) and score responses
-by distance from this baseline. Category thresholds are modeled as:
-
-\deqn{\mu_{c} = \alpha \cdot (c-b) + \beta \cdot (c - b)^2}
-
-where:
-\itemize{
-\item \eqn{\mu_{c}}: category threshold for category \eqn{c}
-\item \eqn{\alpha}: linear trend across categories
-\item \eqn{\beta}: preference toward or away from the baseline
-\itemize{
-\item If \eqn{\beta < 0}, the model favors responses near the baseline
-category;
-\item if \eqn{\beta > 0}, it favors responses farther away (i.e.,
-extremes).
-}
-\item \eqn{b}: baseline category
-}
-Accordingly, pairwise interactions between Blume-Capel variables are modeled
-in terms of \eqn{c-b} scores.
-}
-
-\section{Edge Selection}{
-
-When \code{edge_selection = TRUE}, the function performs Bayesian variable
-selection on the pairwise interactions (edges) in the MRF using
-spike-and-slab priors.
-
-Supported priors for edge inclusion:
-\itemize{
-\item \strong{Bernoulli}: Fixed inclusion probability across edges.
-\item \strong{Beta-Bernoulli}: Inclusion probability is assigned a Beta
-prior distribution.
-\item \strong{Stochastic-Block}: Cluster-based edge priors with Beta,
-Dirichlet, and Poisson hyperpriors.
-}
-
-All priors operate via binary indicator variables controlling the inclusion
-or exclusion of each edge in the MRF.
-}
-
-\section{Prior Distributions}{
-
-
-\itemize{
-\item \strong{Pairwise effects}: Modeled with a Cauchy (slab) prior.
-\item \strong{Main effects}: Modeled using a beta-prime
-distribution.
-\item \strong{Edge indicators}: Use either a Bernoulli, Beta-Bernoulli, or
-Stochastic-Block prior (as above).
-}
-}
-
-\section{Sampling Algorithms and Warmup}{
-
-
-Parameters are updated within a Gibbs framework, but the conditional
-updates can be carried out using different algorithms:
-\itemize{
-\item \strong{Adaptive Metropolis–Hastings}: Componentwise random–walk
-updates for main effects and pairwise effects. Proposal standard
-deviations are adapted during burn–in via Robbins–Monro updates
-toward a target acceptance rate.
-
-\item \strong{Hamiltonian Monte Carlo (HMC)} (\emph{deprecated}): Joint
-updates of all parameters using fixed–length leapfrog trajectories.
-This method is deprecated; use NUTS instead.
-
-\item \strong{No–U–Turn Sampler (NUTS)}: An adaptive extension of HMC
-that dynamically chooses trajectory lengths. Warmup uses a staged
-adaptation schedule (fast–slow–fast) to stabilize step size and, if
-enabled, the mass matrix.
-}
-
-When \code{edge_selection = TRUE}, updates of edge–inclusion indicators
-are carried out with Metropolis–Hastings steps. These are switched on
-after the core warmup phase, ensuring that graph updates occur only once
-the samplers’ tuning parameters (step size, mass matrix, proposal SDs)
-have stabilized.
-
-After warmup, adaptation is disabled. Step size and mass matrix are
-fixed at their learned values, and proposal SDs remain constant.
-}
-
-\section{Warmup and Adaptation}{
-
-
-The warmup procedure in \code{bgm} uses a multi-stage adaptation
-schedule \insertCite{stan-manual}{bgms}. Warmup iterations are
-split into several phases:
-
-\itemize{
-\item \strong{Stage 1 (fast adaptation)}: A short initial interval
-where only step size (for NUTS) is adapted, allowing the chain
-to move quickly toward the typical set.
-
-\item \strong{Stage 2 (slow windows)}: A sequence of expanding,
-memoryless windows where both step size and, if
-\code{learn_mass_matrix = TRUE}, the diagonal mass matrix are
-adapted. Each window ends with a reset of the dual–averaging scheme
-for improved stability.
-
-\item \strong{Stage 3a (final fast interval)}: A short interval at the
-end of the core warmup where the step size is adapted one final time.
-
-\item \strong{Stage 3b (proposal–SD tuning)}: Only active when
-\code{edge_selection = TRUE} under NUTS. In this phase,
-Robbins–Monro adaptation of proposal standard deviations is
-performed for the Metropolis steps used in edge–selection moves.
-
-\item \strong{Stage 3c (graph selection warmup)}: Also only relevant
-when \code{edge_selection = TRUE}. At the start of this phase, a
-random graph structure is initialized, and Metropolis–Hastings
-updates for edge inclusion indicators are switched on.
-}
-
-When \code{edge_selection = FALSE}, the total number of warmup iterations
-equals the user–specified \code{burnin}. When \code{edge_selection = TRUE}
-and \code{update_method} is \code{"nuts"},
-the schedule automatically appends additional Stage-3b and Stage-3c
-intervals, so the total warmup is strictly greater than the requested
-\code{burnin}.
-
-After all warmup phases, the sampler transitions to the sampling phase
-with adaptation disabled. Step size and mass matrix (for NUTS) are
-fixed at their learned values, and proposal SDs remain constant.
-
-This staged design improves stability of proposals and ensures that both
-local parameters (step size) and global parameters (mass matrix, proposal
-SDs) are tuned before collecting posterior samples.
-
-For adaptive Metropolis–Hastings runs, step size and mass matrix
-adaptation are not relevant. Proposal SDs are tuned continuously during
-burn–in using Robbins–Monro updates, without staged fast/slow intervals.
-}
-
-\section{Missing Data}{
-
-
-If \code{na_action = "listwise"}, rows with missing values are removed.
-If \code{na_action = "impute"}, missing values are imputed within the
-MCMC loop via Gibbs sampling.
-}
-
 \examples{
 \donttest{
 # Run bgm on subset of the Wenchuan dataset
@@ -473,10 +304,3 @@ summary(fit)$pairwise
 \references{
 \insertAllCited{}
 }
-\seealso{
-\code{vignette("intro", package = "bgms")} for a worked example.
-
-Other model-fitting: 
-\code{\link{bgmCompare}()}
-}
-\concept{model-fitting}

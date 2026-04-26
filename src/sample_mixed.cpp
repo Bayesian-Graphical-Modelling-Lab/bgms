@@ -45,7 +45,6 @@
 // @param sampler_type            Sampler type string ("mh", "nuts", etc.)
 // @param target_acceptance       Target acceptance rate for gradient-based samplers
 // @param max_tree_depth          Maximum tree depth for NUTS
-// @param num_leapfrogs           Number of leapfrog steps for HMC
 // @param na_impute               Whether to impute missing data
 // @param missing_index_discrete  Matrix of missing discrete indices (n_miss x 2, 0-based)
 // @param missing_index_continuous Matrix of missing continuous indices (n_miss x 2, 0-based)
@@ -74,7 +73,6 @@ Rcpp::List sample_mixed_mrf(
     const std::string& sampler_type = "mh",
     const double target_acceptance = 0.80,
     const int max_tree_depth = 10,
-    const int num_leapfrogs = 100,
     const bool na_impute = false,
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_discrete_nullable = R_NilValue,
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_continuous_nullable = R_NilValue
@@ -133,7 +131,6 @@ Rcpp::List sample_mixed_mrf(
     config.na_impute = na_impute;
     config.target_acceptance = target_acceptance;
     config.max_tree_depth = max_tree_depth;
-    config.num_leapfrogs = num_leapfrogs;
 
     // Set up progress manager
     ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type, true, progress_callback);

@@ -55,8 +55,7 @@ class ProgressManager;
  * @param interaction_index_matrix   Edge-pair index matrix
  * @param inclusion_probability      Prior inclusion probabilities (V x V)
  * @param rng                        Random number generator
- * @param update_method              Sampler type (adaptive_metropolis, hamiltonian_mc, nuts)
- * @param hmc_num_leapfrogs          Number of leapfrog steps (HMC only)
+ * @param update_method              Sampler type (adaptive_metropolis, nuts)
  * @param pm                         Progress manager for user feedback
  * @return bgmCompareOutput containing posterior samples and diagnostics
  */
@@ -97,6 +96,5 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
     arma::mat inclusion_probability,
     SafeRNG& rng,
     const UpdateMethod update_method,
-    const int hmc_num_leapfrogs,
     ProgressManager& pm
 );

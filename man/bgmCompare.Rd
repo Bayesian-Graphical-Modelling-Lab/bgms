@@ -23,9 +23,8 @@ bgmCompare(
   iter = 1000,
   warmup = 1000,
   na_action = c("listwise", "impute"),
-  update_method = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
+  update_method = c("nuts", "adaptive-metropolis"),
   target_accept,
-  hmc_num_leapfrogs = 100,
   nuts_max_depth = 10,
   learn_mass_matrix = TRUE,
   chains = 4,
@@ -112,15 +111,10 @@ Default: \code{1e3}.}
 Default: \code{"listwise"}.}
 
 \item{update_method}{Character. Sampling algorithm:
-\code{"adaptive-metropolis"} or \code{"nuts"}.
-\code{"hamiltonian-mc"} is accepted but deprecated; use \code{"nuts"}
-instead. Default: \code{"nuts"}.}
+\code{"adaptive-metropolis"} or \code{"nuts"}. Default: \code{"nuts"}.}
 
 \item{target_accept}{Numeric between 0 and 1. Target acceptance rate.
 Defaults: 0.44 (Metropolis), 0.80 (NUTS).}
-
-\item{hmc_num_leapfrogs}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Integer.
-Leapfrog steps for HMC (deprecated). Default: \code{100}.}
 
 \item{nuts_max_depth}{Integer. Maximum tree depth for NUTS. Default: \code{10}.}
 
@@ -152,9 +146,12 @@ during data processing (e.g., missing data handling, variable recoding).
 Defaults to \code{getOption("bgms.verbose", TRUE)}. Set
 \code{options(bgms.verbose = FALSE)} to suppress messages globally.}
 
-\item{progress_callback}{An optional R function (taking no arguments) that
-is called at regular intervals during sampling. Useful for external
-front-ends (e.g., JASP) that supply their own progress reporting.
+\item{progress_callback}{An optional R function with signature
+\code{function(completed, total)} that is called at regular intervals
+during sampling, where \code{completed} is the number of iterations
+completed across all chains and \code{total} is the total number of
+iterations. Useful for external front-ends (e.g., JASP) that supply
+their own progress reporting.
 When \code{NULL} (the default), no callback is invoked.}
 
 \item{main_difference_model, reference_category, pairwise_difference_scale, main_difference_scale, pairwise_difference_prior, main_difference_prior, pairwise_difference_probability, main_difference_probability, pairwise_beta_bernoulli_alpha, pairwise_beta_bernoulli_beta, main_beta_bernoulli_alpha, main_beta_bernoulli_beta, interaction_scale, threshold_alpha, threshold_beta, burnin, save}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}}
@@ -198,73 +195,16 @@ Groups can be defined either by supplying two separate datasets (\code{x} and
 selection can be applied to identify differences across groups.
 }
 \details{
-This function extends the ordinal MRF framework
-\insertCite{MarsmanVandenBerghHaslbeck_2025;textual}{bgms} to multiple
-groups. The basic idea of modeling, analyzing, and testing group
-differences in MRFs was introduced in
-\insertCite{MarsmanWaldorpSekulovskiHaslbeck_2024;textual}{bgms}, where
-two–group comparisons were conducted using adaptive Metropolis sampling.
-The present implementation generalizes that approach to more than two
-groups and supports additional samplers (NUTS) with staged warmup
-adaptation.
+Group-specific parameters are decomposed into a shared baseline plus
+group differences that sum to zero. Difference selection uses
+spike-and-slab priors (Bernoulli or Beta-Bernoulli). Parameters are
+sampled with NUTS (default) or adaptive Metropolis--Hastings, using the
+same multi-stage warmup schedule as \code{\link{bgm}}.
 
-Key components of the model:
+For full details on model specification, prior choices, and output
+interpretation, see the package website at
+\url{https://bayesian-graphical-modelling-lab.github.io/bgms-docs/}.
 }
-\section{Pairwise Interactions}{
-
-For variables \eqn{i} and \eqn{j}, the group-specific interaction is
-represented as:
-\deqn{\theta_{ij}^{(g)} = \phi_{ij} + \delta_{ij}^{(g)},}
-where \eqn{\phi_{ij}} is the baseline effect and
-\eqn{\delta_{ij}^{(g)}} are group differences constrained to sum to zero.
-}
-
-\section{Ordinal Variables}{
-
-\strong{Regular ordinal variables}: category thresholds are decomposed into a
-baseline plus group differences for each category.
-
-\strong{Blume–Capel variables}: category thresholds are quadratic in the
-category index, with both the linear and quadratic terms split into a
-baseline plus group differences.
-}
-
-\section{Variable Selection}{
-
-When \code{difference_selection = TRUE}, spike-and-slab priors are
-applied to difference parameters:
-\itemize{
-\item \strong{Bernoulli}: fixed prior inclusion probability.
-\item \strong{Beta–Bernoulli}: inclusion probability given a Beta prior.
-}
-}
-
-\section{Sampling Algorithms and Warmup}{
-
-Parameters are updated within a Gibbs framework, using the same
-sampling algorithms and staged warmup scheme described in
-\code{\link{bgm}}:
-\itemize{
-\item \strong{Adaptive Metropolis–Hastings}: componentwise random–walk
-proposals with Robbins–Monro adaptation of proposal SDs.
-\item \strong{Hamiltonian Monte Carlo (HMC)} (\emph{deprecated}): joint
-updates with fixed leapfrog trajectories. This method is deprecated;
-use NUTS instead.
-\item \strong{No–U–Turn Sampler (NUTS)}: an adaptive HMC variant with
-dynamic trajectory lengths; warmup uses a staged adaptation schedule.
-}
-
-For details on the staged adaptation schedule (fast–slow–fast phases),
-see \code{\link{bgm}}. In addition, when
-\code{difference_selection = TRUE}, updates of inclusion indicators are
-delayed until late warmup. In NUTS, this appends two extra phases
-(Stage-3b and Stage-3c), so that the total number of warmup iterations
-exceeds the user-specified \code{warmup}.
-
-After warmup, adaptation is disabled: step size and mass matrix are fixed
-at their learned values, and proposal SDs remain constant.
-}
-
 \examples{
 \dontrun{
 # Run bgmCompare on subset of the Boredom dataset
@@ -289,8 +229,5 @@ coef(fit)$pairwise_effects_groups
 }
 \seealso{
 \code{vignette("comparison", package = "bgms")} for a worked example.
-
-Other model-fitting: 
-\code{\link{bgm}()}
 }
 \concept{model-fitting}
