@@ -4,13 +4,12 @@
 
 ### Breaking changes
 
-- `update_method = "hamiltonian-mc"` is deprecated. Pure HMC with a
-  fixed trajectory length will be removed in a future release. Use
+- `update_method = "hamiltonian-mc"` has been removed. Use
   `update_method = "nuts"` instead. NUTS dynamically adapts trajectory
   length and is more reliable, especially with edge selection on GGM
   models.
 
-- The `hmc_num_leapfrogs` argument is deprecated along with pure HMC.
+- The `hmc_num_leapfrogs` argument has been removed along with pure HMC.
 
 - Pairwise interaction parameters for ordinal MRFs are now stored on
   association scale (half the sigma scale used in 0.1.6.3). Code that

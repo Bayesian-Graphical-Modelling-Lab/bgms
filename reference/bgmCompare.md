@@ -30,9 +30,8 @@ bgmCompare(
   iter = 1000,
   warmup = 1000,
   na_action = c("listwise", "impute"),
-  update_method = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
+  update_method = c("nuts", "adaptive-metropolis"),
   target_accept,
-  hmc_num_leapfrogs = 100,
   nuts_max_depth = 10,
   learn_mass_matrix = TRUE,
   chains = 4,
@@ -151,18 +150,12 @@ bgmCompare(
 - update_method:
 
   Character. Sampling algorithm: `"adaptive-metropolis"` or `"nuts"`.
-  `"hamiltonian-mc"` is accepted but deprecated; use `"nuts"` instead.
   Default: `"nuts"`.
 
 - target_accept:
 
   Numeric between 0 and 1. Target acceptance rate. Defaults: 0.44
   (Metropolis), 0.80 (NUTS).
-
-- hmc_num_leapfrogs:
-
-  **\[deprecated\]** Integer. Leapfrog steps for HMC (deprecated).
-  Default: `100`.
 
 - nuts_max_depth:
 
@@ -213,10 +206,12 @@ bgmCompare(
 
 - progress_callback:
 
-  An optional R function (taking no arguments) that is called at regular
-  intervals during sampling. Useful for external front-ends (e.g., JASP)
-  that supply their own progress reporting. When `NULL` (the default),
-  no callback is invoked.
+  An optional R function with signature `function(completed, total)`
+  that is called at regular intervals during sampling, where `completed`
+  is the number of iterations completed across all chains and `total` is
+  the total number of iterations. Useful for external front-ends (e.g.,
+  JASP) that supply their own progress reporting. When `NULL` (the
+  default), no callback is invoked.
 
 - main_difference_model, reference_category, pairwise_difference_scale,
   main_difference_scale, pairwise_difference_prior,
@@ -264,86 +259,26 @@ in `fit$nuts_diag` if `update_method = "nuts"`.
 
 ## Details
 
-This function extends the ordinal MRF framework Marsman et al. (2025) to
-multiple groups. The basic idea of modeling, analyzing, and testing
-group differences in MRFs was introduced in Marsman et al. (2025) ,
-where two–group comparisons were conducted using adaptive Metropolis
-sampling. The present implementation generalizes that approach to more
-than two groups and supports additional samplers (NUTS) with staged
-warmup adaptation.
-
-Key components of the model:
-
-## Pairwise Interactions
-
-For variables \\i\\ and \\j\\, the group-specific interaction is
-represented as: \$\$\theta\_{ij}^{(g)} = \phi\_{ij} +
-\delta\_{ij}^{(g)},\$\$ where \\\phi\_{ij}\\ is the baseline effect and
-\\\delta\_{ij}^{(g)}\\ are group differences constrained to sum to zero.
-
-## Ordinal Variables
-
-**Regular ordinal variables**: category thresholds are decomposed into a
-baseline plus group differences for each category.
-
-**Blume–Capel variables**: category thresholds are quadratic in the
-category index, with both the linear and quadratic terms split into a
-baseline plus group differences.
-
-## Variable Selection
-
-When `difference_selection = TRUE`, spike-and-slab priors are applied to
-difference parameters:
-
-- **Bernoulli**: fixed prior inclusion probability.
-
-- **Beta–Bernoulli**: inclusion probability given a Beta prior.
-
-## Sampling Algorithms and Warmup
-
-Parameters are updated within a Gibbs framework, using the same sampling
-algorithms and staged warmup scheme described in
-[`bgm`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md):
-
-- **Adaptive Metropolis–Hastings**: componentwise random–walk proposals
-  with Robbins–Monro adaptation of proposal SDs.
-
-- **Hamiltonian Monte Carlo (HMC)** (*deprecated*): joint updates with
-  fixed leapfrog trajectories. This method is deprecated; use NUTS
-  instead.
-
-- **No–U–Turn Sampler (NUTS)**: an adaptive HMC variant with dynamic
-  trajectory lengths; warmup uses a staged adaptation schedule.
-
-For details on the staged adaptation schedule (fast–slow–fast phases),
-see
+Group-specific parameters are decomposed into a shared baseline plus
+group differences that sum to zero. Difference selection uses
+spike-and-slab priors (Bernoulli or Beta-Bernoulli). Parameters are
+sampled with NUTS (default) or adaptive Metropolis–Hastings, using the
+same multi-stage warmup schedule as
 [`bgm`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md).
-In addition, when `difference_selection = TRUE`, updates of inclusion
-indicators are delayed until late warmup. In NUTS, this appends two
-extra phases (Stage-3b and Stage-3c), so that the total number of warmup
-iterations exceeds the user-specified `warmup`.
 
-After warmup, adaptation is disabled: step size and mass matrix are
-fixed at their learned values, and proposal SDs remain constant.
+For full details on model specification, prior choices, and output
+interpretation, see the package website at
+<https://bayesian-graphical-modelling-lab.github.io/bgms-docs/>.
 
 ## References
 
-Marsman M, van den Bergh D, Haslbeck JMB (2025). “Bayesian analysis of
-the ordinal Markov random field.” *Psychometrika*, **90**(1), 146–182.
-[doi:10.1017/psy.2024.4](https://doi.org/10.1017/psy.2024.4) .  
-  
-Marsman M, Waldorp LJ, Sekulovski N, Haslbeck JMB (2025). “Bayes factor
-tests for group differences in ordinal and binary graphical models.”
-*Psychometrika*, **90**(5), 1809–1842.
-[doi:10.1017/psy.2025.10060](https://doi.org/10.1017/psy.2025.10060) .
+There are no references for Rd macro `\insertAllCites` on this help
+page.
 
 ## See also
 
 [`vignette("comparison", package = "bgms")`](https://bayesian-graphical-modelling-lab.github.io/bgms/articles/comparison.md)
 for a worked example.
-
-Other model-fitting:
-[`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)
 
 ## Examples
 
@@ -359,20 +294,20 @@ fit = bgmCompare(x, y, chains = 2)
 #> Total   (Warmup): ⦗━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 115/4000 (2.9%)
 #> Elapsed: 2s | ETA: 1m 7s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 100/2000 (5.0%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 132/2000 (6.6%)
-#> Total   (Warmup): ⦗━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 232/4000 (5.8%)
-#> Elapsed: 4s | ETA: 1m 4s
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 140/2000 (7.0%)
+#> Total   (Warmup): ⦗━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 240/4000 (6.0%)
+#> Elapsed: 4s | ETA: 1m 2s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 150/2000 (7.5%)
 #> Chain 2 (Warmup): ⦗━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 153/2000 (7.6%)
 #> Total   (Warmup): ⦗━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 303/4000 (7.6%)
 #> Elapsed: 5s | ETA: 1m 1s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 300/2000 (15.0%)
-#> Chain 2 (Warmup): ⦗━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 156/2000 (7.8%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 456/4000 (11.4%)
+#> Chain 2 (Warmup): ⦗━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 157/2000 (7.8%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 457/4000 (11.4%)
 #> Elapsed: 6s | ETA: 47s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 450/2000 (22.5%)
-#> Chain 2 (Warmup): ⦗━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 159/2000 (8.0%)
-#> Total   (Warmup): ⦗━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 609/4000 (15.2%)
+#> Chain 2 (Warmup): ⦗━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 160/2000 (8.0%)
+#> Total   (Warmup): ⦗━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 610/4000 (15.2%)
 #> Elapsed: 6s | ETA: 33s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 600/2000 (30.0%)
 #> Chain 2 (Warmup): ⦗━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 163/2000 (8.2%)
@@ -381,43 +316,47 @@ fit = bgmCompare(x, y, chains = 2)
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 750/2000 (37.5%)
 #> Chain 2 (Warmup): ⦗━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 251/2000 (12.6%)
 #> Total   (Warmup): ⦗━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1001/4000 (25.0%)
-#> Elapsed: 7s | ETA: 21s
+#> Elapsed: 8s | ETA: 24s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 850/2000 (42.5%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 328/2000 (16.4%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1178/4000 (29.4%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 345/2000 (17.2%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1195/4000 (29.9%)
 #> Elapsed: 11s | ETA: 26s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 950/2000 (47.5%)
 #> Chain 2 (Warmup): ⦗━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 453/2000 (22.7%)
 #> Total   (Warmup): ⦗━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1403/4000 (35.1%)
 #> Elapsed: 12s | ETA: 22s
-#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1100/2000 (55.0%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 456/2000 (22.8%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1556/4000 (38.9%)
-#> Elapsed: 12s | ETA: 19s
-#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1200/2000 (60.0%)
+#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1050/2000 (52.5%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 455/2000 (22.8%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1505/4000 (37.6%)
+#> Elapsed: 12s | ETA: 20s
+#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1150/2000 (57.5%)
 #> Chain 2 (Warmup): ⦗━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 458/2000 (22.9%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1658/4000 (41.4%)
-#> Elapsed: 13s | ETA: 18s
-#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1300/2000 (65.0%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 461/2000 (23.1%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1761/4000 (44.0%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━⦘ 1608/4000 (40.2%)
+#> Elapsed: 13s | ETA: 19s
+#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1250/2000 (62.5%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 460/2000 (23.0%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━⦘ 1710/4000 (42.8%)
 #> Elapsed: 13s | ETA: 17s
-#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1400/2000 (70.0%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 463/2000 (23.2%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1863/4000 (46.6%)
-#> Elapsed: 14s | ETA: 16s
-#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1550/2000 (77.5%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 586/2000 (29.3%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━⦘ 2136/4000 (53.4%)
-#> Elapsed: 15s | ETA: 13s
-#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1700/2000 (85.0%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━⦘ 767/2000 (38.4%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2467/4000 (61.7%)
-#> Elapsed: 15s | ETA: 9s
-#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1800/2000 (90.0%)
+#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1350/2000 (67.5%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 462/2000 (23.1%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━⦘ 1812/4000 (45.3%)
+#> Elapsed: 14s | ETA: 17s
+#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1500/2000 (75.0%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 552/2000 (27.6%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2052/4000 (51.3%)
+#> Elapsed: 15s | ETA: 14s
+#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1600/2000 (80.0%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 672/2000 (33.6%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2272/4000 (56.8%)
+#> Elapsed: 15s | ETA: 11s
+#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1750/2000 (87.5%)
 #> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━⦘ 802/2000 (40.1%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━⦘ 2602/4000 (65.0%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2552/4000 (63.8%)
 #> Elapsed: 16s | ETA: 9s
+#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1850/2000 (92.5%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━⦘ 804/2000 (40.2%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2654/4000 (66.3%)
+#> Elapsed: 16s | ETA: 8s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1950/2000 (97.5%)
 #> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━⦘ 806/2000 (40.3%)
 #> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2756/4000 (68.9%)

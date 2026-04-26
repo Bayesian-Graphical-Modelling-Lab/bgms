@@ -117,7 +117,7 @@ description, differences from previous versions, and reliability of some
 common diagnoses.” *Journal of the American Academy of Child &
 Adolescent Psychiatry*, **39**, 28–38.
 [doi:10.1097/00004583-200001000-00014](https://doi.org/10.1097/00004583-200001000-00014)
-, PMID: 10638065.  
+. PMID: 10638065.  
   
 Silk TJ, Malpas CB, Beare R, Efron D, Anderson V, Hazell P, Jongeling B,
 Nicholson JM, Sciberras E (2019). “A network analysis approach to ADHD

@@ -29,9 +29,8 @@ bgm(
   dirichlet_alpha = 1,
   lambda = 1,
   na_action = c("listwise", "impute"),
-  update_method = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
+  update_method = c("nuts", "adaptive-metropolis"),
   target_accept,
-  hmc_num_leapfrogs = 100,
   nuts_max_depth = 10,
   learn_mass_matrix = TRUE,
   chains = 4,
@@ -54,11 +53,14 @@ bgm(
 
 - x:
 
-  A data frame or matrix with `n` rows and `p` columns containing binary
-  and ordinal responses. Variables are automatically recoded to
-  non-negative integers (`0, 1, ..., m`). For regular ordinal variables,
-  unobserved categories are collapsed; for Blume–Capel variables, all
-  categories are retained.
+  A data frame or matrix with `n` rows and `p` columns. Columns may
+  contain binary, ordinal, or continuous variables (see
+  `variable_type`). Discrete variables are automatically recoded to
+  non-negative integers (`0, 1, ..., m`); for regular ordinal variables,
+  unobserved categories are collapsed, while Blume–Capel variables
+  retain all categories. Continuous variables are column-centered
+  internally so that the GGM likelihood is formulated with a zero-mean
+  assumption.
 
 - variable_type:
 
@@ -154,12 +156,6 @@ bgm(
   :   Componentwise adaptive Metropolis–Hastings with Robbins–Monro
       proposal adaptation.
 
-  "hamiltonian-mc"
-
-  :   **Deprecated.** Hamiltonian Monte Carlo with fixed path length.
-      Use `"nuts"` instead. This option will be removed in a future
-      release.
-
   "nuts"
 
   :   The No-U-Turn Sampler with RATTLE constrained integration for
@@ -172,12 +168,6 @@ bgm(
   Numeric between 0 and 1. Target acceptance rate for the sampler.
   Defaults are set automatically if not supplied: `0.44` for adaptive
   Metropolis and `0.80` for NUTS.
-
-- hmc_num_leapfrogs:
-
-  **\[deprecated\]** Integer. Number of leapfrog steps for Hamiltonian
-  Monte Carlo. Only relevant when `update_method = "hamiltonian-mc"`,
-  which is deprecated.
 
 - nuts_max_depth:
 
@@ -260,10 +250,12 @@ bgm(
 
 - progress_callback:
 
-  An optional R function (taking no arguments) that is called at regular
-  intervals during sampling. Useful for external front-ends (e.g., JASP)
-  that supply their own progress reporting. When `NULL` (the default),
-  no callback is invoked.
+  An optional R function with signature `function(completed, total)`
+  that is called at regular intervals during sampling, where `completed`
+  is the number of iterations completed across all chains and `total` is
+  the total number of iterations. Useful for external front-ends (e.g.,
+  JASP) that supply their own progress reporting. When `NULL` (the
+  default), no callback is invoked.
 
 - interaction_scale, burnin, save, threshold_alpha, threshold_beta:
 
@@ -383,185 +375,16 @@ matrices.
 NUTS diagnostics (tree depth, divergences, energy, E-BFMI) are included
 in `fit$nuts_diag` if `update_method = "nuts"`.
 
-## Details
-
-This function models the joint distribution of binary, ordinal,
-continuous, or mixed variables using a Markov Random Field, with support
-for edge selection through Bayesian variable selection. The statistical
-foundation of the model is described in Marsman et al. (2025) , where
-the ordinal MRF model and its Bayesian estimation procedure were first
-introduced. While the implementation in bgms has since been extended and
-updated (e.g., alternative priors, parallel chains, NUTS warmup), it
-builds on that original framework.
-
-Key components of the model are described in the sections below.
-
-## Ordinal Variables
-
-The function supports two types of ordinal variables:
-
-**Regular ordinal variables**: Assigns a category threshold parameter to
-each response category except the lowest. The model imposes no
-additional constraints on the distribution of category responses.
-
-**Blume-Capel ordinal variables**: Assume a baseline category (e.g., a
-“neutral” response) and score responses by distance from this baseline.
-Category thresholds are modeled as:
-
-\$\$\mu\_{c} = \alpha \cdot (c-b) + \beta \cdot (c - b)^2\$\$
-
-where:
-
-- \\\mu\_{c}\\: category threshold for category \\c\\
-
-- \\\alpha\\: linear trend across categories
-
-- \\\beta\\: preference toward or away from the baseline
-
-  - If \\\beta \< 0\\, the model favors responses near the baseline
-    category;
-
-  - if \\\beta \> 0\\, it favors responses farther away (i.e.,
-    extremes).
-
-- \\b\\: baseline category
-
-Accordingly, pairwise interactions between Blume-Capel variables are
-modeled in terms of \\c-b\\ scores.
-
-## Edge Selection
-
-When `edge_selection = TRUE`, the function performs Bayesian variable
-selection on the pairwise interactions (edges) in the MRF using
-spike-and-slab priors.
-
-Supported priors for edge inclusion:
-
-- **Bernoulli**: Fixed inclusion probability across edges.
-
-- **Beta-Bernoulli**: Inclusion probability is assigned a Beta prior
-  distribution.
-
-- **Stochastic-Block**: Cluster-based edge priors with Beta, Dirichlet,
-  and Poisson hyperpriors.
-
-All priors operate via binary indicator variables controlling the
-inclusion or exclusion of each edge in the MRF.
-
-## Prior Distributions
-
-- **Pairwise effects**: Modeled with a Cauchy (slab) prior.
-
-- **Main effects**: Modeled using a beta-prime distribution.
-
-- **Edge indicators**: Use either a Bernoulli, Beta-Bernoulli, or
-  Stochastic-Block prior (as above).
-
-## Sampling Algorithms and Warmup
-
-Parameters are updated within a Gibbs framework, but the conditional
-updates can be carried out using different algorithms:
-
-- **Adaptive Metropolis–Hastings**: Componentwise random–walk updates
-  for main effects and pairwise effects. Proposal standard deviations
-  are adapted during burn–in via Robbins–Monro updates toward a target
-  acceptance rate.
-
-- **Hamiltonian Monte Carlo (HMC)** (*deprecated*): Joint updates of all
-  parameters using fixed–length leapfrog trajectories. This method is
-  deprecated; use NUTS instead.
-
-- **No–U–Turn Sampler (NUTS)**: An adaptive extension of HMC that
-  dynamically chooses trajectory lengths. Warmup uses a staged
-  adaptation schedule (fast–slow–fast) to stabilize step size and, if
-  enabled, the mass matrix.
-
-When `edge_selection = TRUE`, updates of edge–inclusion indicators are
-carried out with Metropolis–Hastings steps. These are switched on after
-the core warmup phase, ensuring that graph updates occur only once the
-samplers’ tuning parameters (step size, mass matrix, proposal SDs) have
-stabilized.
-
-After warmup, adaptation is disabled. Step size and mass matrix are
-fixed at their learned values, and proposal SDs remain constant.
-
-## Warmup and Adaptation
-
-The warmup procedure in `bgm` uses a multi-stage adaptation schedule
-(Stan Development Team 2023) . Warmup iterations are split into several
-phases:
-
-- **Stage 1 (fast adaptation)**: A short initial interval where only
-  step size (for NUTS) is adapted, allowing the chain to move quickly
-  toward the typical set.
-
-- **Stage 2 (slow windows)**: A sequence of expanding, memoryless
-  windows where both step size and, if `learn_mass_matrix = TRUE`, the
-  diagonal mass matrix are adapted. Each window ends with a reset of the
-  dual–averaging scheme for improved stability.
-
-- **Stage 3a (final fast interval)**: A short interval at the end of the
-  core warmup where the step size is adapted one final time.
-
-- **Stage 3b (proposal–SD tuning)**: Only active when
-  `edge_selection = TRUE` under NUTS. In this phase, Robbins–Monro
-  adaptation of proposal standard deviations is performed for the
-  Metropolis steps used in edge–selection moves.
-
-- **Stage 3c (graph selection warmup)**: Also only relevant when
-  `edge_selection = TRUE`. At the start of this phase, a random graph
-  structure is initialized, and Metropolis–Hastings updates for edge
-  inclusion indicators are switched on.
-
-When `edge_selection = FALSE`, the total number of warmup iterations
-equals the user–specified `burnin`. When `edge_selection = TRUE` and
-`update_method` is `"nuts"`, the schedule automatically appends
-additional Stage-3b and Stage-3c intervals, so the total warmup is
-strictly greater than the requested `burnin`.
-
-After all warmup phases, the sampler transitions to the sampling phase
-with adaptation disabled. Step size and mass matrix (for NUTS) are fixed
-at their learned values, and proposal SDs remain constant.
-
-This staged design improves stability of proposals and ensures that both
-local parameters (step size) and global parameters (mass matrix,
-proposal SDs) are tuned before collecting posterior samples.
-
-For adaptive Metropolis–Hastings runs, step size and mass matrix
-adaptation are not relevant. Proposal SDs are tuned continuously during
-burn–in using Robbins–Monro updates, without staged fast/slow intervals.
-
-## Missing Data
-
-If `na_action = "listwise"`, rows with missing values are removed. If
-`na_action = "impute"`, missing values are imputed within the MCMC loop
-via Gibbs sampling.
-
 ## References
 
 Dahl DB (2009). “Modal clustering in a class of product partition
 models.” *Bayesian Analysis*, **4**(2), 243–264.
 [doi:10.1214/09-BA409](https://doi.org/10.1214/09-BA409) .  
   
-Marsman M, van den Bergh D, Haslbeck JMB (2025). “Bayesian analysis of
-the ordinal Markov random field.” *Psychometrika*, **90**(1), 146–182.
-[doi:10.1017/psy.2024.4](https://doi.org/10.1017/psy.2024.4) .  
-  
 Sekulovski N, Arena G, Haslbeck JMB, Huth KBS, Friel N, Marsman M
 (2025). “A Stochastic Block Prior for Clustering in Graphical Models.”
 *Retrieved from <https://osf.io/preprints/psyarxiv/29p3m_v1>*. OSF
-preprint.  
-  
-Stan Development Team (2023). *Stan Modeling Language Users Guide and
-Reference Manual*. Version 2.33, <https://mc-stan.org/docs/>.
-
-## See also
-
-[`vignette("intro", package = "bgms")`](https://bayesian-graphical-modelling-lab.github.io/bgms/articles/intro.md)
-for a worked example.
-
-Other model-fitting:
-[`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md)
+preprint.
 
 ## Examples
 
@@ -580,12 +403,12 @@ fit = bgm(x = Wenchuan[, 1:5], chains = 2)
 #> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 200/4000 (5.0%)
 #> Elapsed: 1s | ETA: 19s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 300/2000 (15.0%)
-#> Chain 2 (Warmup): ⦗━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 303/2000 (15.2%)
-#> Total   (Warmup): ⦗━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 603/4000 (15.1%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 293/2000 (14.6%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 593/4000 (14.8%)
 #> Elapsed: 2s | ETA: 11s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 550/2000 (27.5%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 559/2000 (28.0%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1109/4000 (27.7%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 548/2000 (27.4%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1098/4000 (27.5%)
 #> Elapsed: 2s | ETA: 5s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 850/2000 (42.5%)
 #> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━⦘ 801/2000 (40.1%)
@@ -596,16 +419,16 @@ fit = bgm(x = Wenchuan[, 1:5], chains = 2)
 #> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━⦘ 1910/4000 (47.8%)
 #> Elapsed: 4s | ETA: 4s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1350/2000 (67.5%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 991/2000 (49.5%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━⦘ 2341/4000 (58.5%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 976/2000 (48.8%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━⦘ 2326/4000 (58.1%)
 #> Elapsed: 4s | ETA: 3s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1600/2000 (80.0%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1249/2000 (62.5%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━⦘ 2849/4000 (71.2%)
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1232/2000 (61.6%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━⦘ 2831/4000 (70.8%)
 #> Elapsed: 5s | ETA: 2s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1850/2000 (92.5%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1499/2000 (75.0%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━⦘ 3349/4000 (83.7%)
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1483/2000 (74.2%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━⦘ 3333/4000 (83.3%)
 #> Elapsed: 5s | ETA: 1s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2000/2000 (100.0%)
 #> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2000/2000 (100.0%)

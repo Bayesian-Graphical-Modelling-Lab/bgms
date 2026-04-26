@@ -74,9 +74,8 @@ spike-and-slab priors to infer the network structure.</p>
 <span>  dirichlet_alpha <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  lambda <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  na_action <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"listwise"</span>, <span class="st">"impute"</span><span class="op">)</span>,</span>
-<span>  update_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"nuts"</span>, <span class="st">"adaptive-metropolis"</span>, <span class="st">"hamiltonian-mc"</span><span class="op">)</span>,</span>
+<span>  update_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"nuts"</span>, <span class="st">"adaptive-metropolis"</span><span class="op">)</span>,</span>
 <span>  <span class="va">target_accept</span>,</span>
-<span>  hmc_num_leapfrogs <span class="op">=</span> <span class="fl">100</span>,</span>
 <span>  nuts_max_depth <span class="op">=</span> <span class="fl">10</span>,</span>
 <span>  learn_mass_matrix <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  chains <span class="op">=</span> <span class="fl">4</span>,</span>
@@ -100,11 +99,14 @@ spike-and-slab priors to infer the network structure.</p>
 
 
 <dl><dt id="arg-x">x<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
-<dd><p>A data frame or matrix with <code>n</code> rows and <code>p</code> columns
-containing binary and ordinal responses. Variables are automatically
-recoded to non-negative integers (<code>0, 1, ..., m</code>). For regular
-ordinal variables, unobserved categories are collapsed; for
-Blume–Capel variables, all categories are retained.</p></dd>
+<dd><p>A data frame or matrix with <code>n</code> rows and <code>p</code> columns.
+Columns may contain binary, ordinal, or continuous variables (see
+<code>variable_type</code>). Discrete variables are automatically recoded to
+non-negative integers (<code>0, 1, ..., m</code>); for regular ordinal
+variables, unobserved categories are collapsed, while Blume–Capel
+variables retain all categories. Continuous variables are column-centered
+internally so that the GGM likelihood is formulated with a zero-mean
+assumption.</p></dd>
 
 
 <dt id="arg-variable-type">variable_type<a class="anchor" aria-label="anchor" href="#arg-variable-type"></a></dt>
@@ -201,11 +203,6 @@ the model parameters:</p><dl><dt>"adaptive-metropolis"</dt>
 <dd><p>Componentwise adaptive Metropolis–Hastings
 with Robbins–Monro proposal adaptation.</p></dd>
 
-<dt>"hamiltonian-mc"</dt>
-<dd><p><strong>Deprecated.</strong> Hamiltonian Monte Carlo
-with fixed path length. Use <code>"nuts"</code> instead. This option will
-be removed in a future release.</p></dd>
-
 <dt>"nuts"</dt>
 <dd><p>The No-U-Turn Sampler with RATTLE constrained integration
 for Gaussian models with edge selection.</p></dd>
@@ -218,12 +215,6 @@ for Gaussian models with edge selection.</p></dd>
 <dd><p>Numeric between 0 and 1. Target acceptance rate for
 the sampler. Defaults are set automatically if not supplied:
 <code>0.44</code> for adaptive Metropolis and <code>0.80</code> for NUTS.</p></dd>
-
-
-<dt id="arg-hmc-num-leapfrogs">hmc_num_leapfrogs<a class="anchor" aria-label="anchor" href="#arg-hmc-num-leapfrogs"></a></dt>
-<dd><p><a href="https://lifecycle.r-lib.org/articles/stages.html#deprecated" class="external-link"><img src="figures/lifecycle-deprecated.svg" alt="[Deprecated]"></a> Integer.
-Number of leapfrog steps for Hamiltonian Monte Carlo. Only relevant when
-<code>update_method = "hamiltonian-mc"</code>, which is deprecated.</p></dd>
 
 
 <dt id="arg-nuts-max-depth">nuts_max_depth<a class="anchor" aria-label="anchor" href="#arg-nuts-max-depth"></a></dt>
@@ -308,9 +299,12 @@ Defaults to <code>getOption("bgms.verbose", TRUE)</code>. Set
 
 
 <dt id="arg-progress-callback">progress_callback<a class="anchor" aria-label="anchor" href="#arg-progress-callback"></a></dt>
-<dd><p>An optional R function (taking no arguments) that
-is called at regular intervals during sampling. Useful for external
-front-ends (e.g., JASP) that supply their own progress reporting.
+<dd><p>An optional R function with signature
+<code>function(completed, total)</code> that is called at regular intervals
+during sampling, where <code>completed</code> is the number of iterations
+completed across all chains and <code>total</code> is the total number of
+iterations. Useful for external front-ends (e.g., JASP) that supply
+their own progress reporting.
 When <code>NULL</code> (the default), no callback is invoked.</p></dd>
 
 
@@ -407,168 +401,15 @@ posterior inclusion probabilities for all the possible number of clusters.</p></
 in <code>fit$nuts_diag</code> if <code>update_method = "nuts"</code>.</p>
     </div>
     <div class="section level2">
-    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>This function models the joint distribution of binary, ordinal, continuous,
-or mixed variables using a Markov Random Field, with support for edge
-selection through Bayesian variable selection. The statistical foundation
-of the model is described in
-Marsman et al. (2025)
-, where the ordinal
-MRF model and its Bayesian estimation procedure were first introduced. While
-the implementation in <span class="pkg">bgms</span> has since been extended and updated (e.g.,
-alternative priors, parallel chains, NUTS warmup), it builds on that
-original framework.</p>
-<p>Key components of the model are described in the sections below.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="ordinal-variables">Ordinal Variables<a class="anchor" aria-label="anchor" href="#ordinal-variables"></a></h2>
-
-
-<p>The function supports two types of ordinal variables:</p>
-<p><strong>Regular ordinal variables</strong>:
-Assigns a category threshold parameter to each response category except the
-lowest. The model imposes no additional constraints on the distribution of
-category responses.</p>
-<p><strong>Blume-Capel ordinal variables</strong>:
-Assume a baseline category (e.g., a “neutral” response) and score responses
-by distance from this baseline. Category thresholds are modeled as:</p>
-<p>$$\mu_{c} = \alpha \cdot (c-b) + \beta \cdot (c - b)^2$$</p>
-<p>where:</p><ul><li><p>\(\mu_{c}\): category threshold for category \(c\)</p></li>
-<li><p>\(\alpha\): linear trend across categories</p></li>
-<li><p>\(\beta\): preference toward or away from the baseline</p><ul><li><p>If \(\beta &lt; 0\), the model favors responses near the baseline
-category;</p></li>
-<li><p>if \(\beta &gt; 0\), it favors responses farther away (i.e.,
-extremes).</p></li>
-</ul></li>
-<li><p>\(b\): baseline category</p></li>
-</ul><p>Accordingly, pairwise interactions between Blume-Capel variables are modeled
-in terms of \(c-b\) scores.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="edge-selection">Edge Selection<a class="anchor" aria-label="anchor" href="#edge-selection"></a></h2>
-
-
-<p>When <code>edge_selection = TRUE</code>, the function performs Bayesian variable
-selection on the pairwise interactions (edges) in the MRF using
-spike-and-slab priors.</p>
-<p>Supported priors for edge inclusion:</p><ul><li><p><strong>Bernoulli</strong>: Fixed inclusion probability across edges.</p></li>
-<li><p><strong>Beta-Bernoulli</strong>: Inclusion probability is assigned a Beta
-prior distribution.</p></li>
-<li><p><strong>Stochastic-Block</strong>: Cluster-based edge priors with Beta,
-Dirichlet, and Poisson hyperpriors.</p></li>
-</ul><p>All priors operate via binary indicator variables controlling the inclusion
-or exclusion of each edge in the MRF.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="prior-distributions">Prior Distributions<a class="anchor" aria-label="anchor" href="#prior-distributions"></a></h2>
-
-
-
-<ul><li><p><strong>Pairwise effects</strong>: Modeled with a Cauchy (slab) prior.</p></li>
-<li><p><strong>Main effects</strong>: Modeled using a beta-prime
-distribution.</p></li>
-<li><p><strong>Edge indicators</strong>: Use either a Bernoulli, Beta-Bernoulli, or
-Stochastic-Block prior (as above).</p></li>
-</ul></div>
-    <div class="section level2">
-    <h2 id="sampling-algorithms-and-warmup">Sampling Algorithms and Warmup<a class="anchor" aria-label="anchor" href="#sampling-algorithms-and-warmup"></a></h2>
-
-
-
-<p>Parameters are updated within a Gibbs framework, but the conditional
-updates can be carried out using different algorithms:</p><ul><li><p><strong>Adaptive Metropolis–Hastings</strong>: Componentwise random–walk
-updates for main effects and pairwise effects. Proposal standard
-deviations are adapted during burn–in via Robbins–Monro updates
-toward a target acceptance rate.</p></li>
-<li><p><strong>Hamiltonian Monte Carlo (HMC)</strong> (<em>deprecated</em>): Joint
-updates of all parameters using fixed–length leapfrog trajectories.
-This method is deprecated; use NUTS instead.</p></li>
-<li><p><strong>No–U–Turn Sampler (NUTS)</strong>: An adaptive extension of HMC
-that dynamically chooses trajectory lengths. Warmup uses a staged
-adaptation schedule (fast–slow–fast) to stabilize step size and, if
-enabled, the mass matrix.</p></li>
-</ul><p>When <code>edge_selection = TRUE</code>, updates of edge–inclusion indicators
-are carried out with Metropolis–Hastings steps. These are switched on
-after the core warmup phase, ensuring that graph updates occur only once
-the samplers’ tuning parameters (step size, mass matrix, proposal SDs)
-have stabilized.</p>
-<p>After warmup, adaptation is disabled. Step size and mass matrix are
-fixed at their learned values, and proposal SDs remain constant.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="warmup-and-adaptation">Warmup and Adaptation<a class="anchor" aria-label="anchor" href="#warmup-and-adaptation"></a></h2>
-
-
-
-<p>The warmup procedure in <code>bgm</code> uses a multi-stage adaptation
-schedule (Stan Development Team 2023)
-. Warmup iterations are
-split into several phases:</p>
-<ul><li><p><strong>Stage 1 (fast adaptation)</strong>: A short initial interval
-where only step size (for NUTS) is adapted, allowing the chain
-to move quickly toward the typical set.</p></li>
-<li><p><strong>Stage 2 (slow windows)</strong>: A sequence of expanding,
-memoryless windows where both step size and, if
-<code>learn_mass_matrix = TRUE</code>, the diagonal mass matrix are
-adapted. Each window ends with a reset of the dual–averaging scheme
-for improved stability.</p></li>
-<li><p><strong>Stage 3a (final fast interval)</strong>: A short interval at the
-end of the core warmup where the step size is adapted one final time.</p></li>
-<li><p><strong>Stage 3b (proposal–SD tuning)</strong>: Only active when
-<code>edge_selection = TRUE</code> under NUTS. In this phase,
-Robbins–Monro adaptation of proposal standard deviations is
-performed for the Metropolis steps used in edge–selection moves.</p></li>
-<li><p><strong>Stage 3c (graph selection warmup)</strong>: Also only relevant
-when <code>edge_selection = TRUE</code>. At the start of this phase, a
-random graph structure is initialized, and Metropolis–Hastings
-updates for edge inclusion indicators are switched on.</p></li>
-</ul><p>When <code>edge_selection = FALSE</code>, the total number of warmup iterations
-equals the user–specified <code>burnin</code>. When <code>edge_selection = TRUE</code>
-and <code>update_method</code> is <code>"nuts"</code>,
-the schedule automatically appends additional Stage-3b and Stage-3c
-intervals, so the total warmup is strictly greater than the requested
-<code>burnin</code>.</p>
-<p>After all warmup phases, the sampler transitions to the sampling phase
-with adaptation disabled. Step size and mass matrix (for NUTS) are
-fixed at their learned values, and proposal SDs remain constant.</p>
-<p>This staged design improves stability of proposals and ensures that both
-local parameters (step size) and global parameters (mass matrix, proposal
-SDs) are tuned before collecting posterior samples.</p>
-<p>For adaptive Metropolis–Hastings runs, step size and mass matrix
-adaptation are not relevant. Proposal SDs are tuned continuously during
-burn–in using Robbins–Monro updates, without staged fast/slow intervals.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="missing-data">Missing Data<a class="anchor" aria-label="anchor" href="#missing-data"></a></h2>
-
-
-
-<p>If <code>na_action = "listwise"</code>, rows with missing values are removed.
-If <code>na_action = "impute"</code>, missing values are imputed within the
-MCMC loop via Gibbs sampling.</p>
-    </div>
-    <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p>Dahl DB (2009).
 “Modal clustering in a class of product partition models.”
 <em>Bayesian Analysis</em>, <b>4</b>(2), 243–264.
 <a href="https://doi.org/10.1214/09-BA409" class="external-link">doi:10.1214/09-BA409</a>
-.<br><br> Marsman M, van den Bergh D, Haslbeck JMB (2025).
-“Bayesian analysis of the ordinal Markov random field.”
-<em>Psychometrika</em>, <b>90</b>(1), 146–182.
-<a href="https://doi.org/10.1017/psy.2024.4" class="external-link">doi:10.1017/psy.2024.4</a>
 .<br><br> Sekulovski N, Arena G, Haslbeck JMB, Huth KBS, Friel N, Marsman M (2025).
 “A Stochastic Block Prior for Clustering in Graphical Models.”
 <em>Retrieved from <a href="https://osf.io/preprints/psyarxiv/29p3m_v1" class="external-link">https://osf.io/preprints/psyarxiv/29p3m_v1</a></em>.
-OSF preprint.<br><br> Stan Development Team (2023).
-<em>Stan Modeling Language Users Guide and Reference Manual</em>.
-Version 2.33, <a href="https://mc-stan.org/docs/" class="external-link">https://mc-stan.org/docs/</a>.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
-    <div class="dont-index"><p><code><a href="../articles/intro.html">vignette("intro", package = "bgms")</a></code> for a worked example.</p>
-<p>Other model-fitting:
-<code><a href="bgmCompare.html">bgmCompare()</a></code></p></div>
+OSF preprint.</p>
     </div>
 
     <div class="section level2">
@@ -587,12 +428,12 @@ Version 2.33, <a href="https://mc-stan.org/docs/" class="external-link">https://
 <span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Warmup): ⦗<span style="color: #5FAFAF;">━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 200/4000 (5.0%)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 1s | ETA: 19s</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 300/2000 (15.0%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 303/2000 (15.2%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 603/4000 (15.1%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 293/2000 (14.6%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 593/4000 (14.8%)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 2s | ETA: 11s</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 550/2000 (27.5%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 559/2000 (28.0%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 1109/4000 (27.7%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 548/2000 (27.4%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 1098/4000 (27.5%)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 2s | ETA: 5s</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 850/2000 (42.5%)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 801/2000 (40.1%)</span>
@@ -603,16 +444,16 @@ Version 2.33, <a href="https://mc-stan.org/docs/" class="external-link">https://
 <span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━━━━━</span>⦘ 1910/4000 (47.8%)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 4s | ETA: 4s</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━</span>⦘ 1350/2000 (67.5%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━</span>⦘ 991/2000 (49.5%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━</span>⦘ 2341/4000 (58.5%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━━━━━━</span>⦘ 976/2000 (48.8%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Warmup): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━━━━━━</span>⦘ 2326/4000 (58.1%)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 4s | ETA: 3s</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━</span>⦘ 1600/2000 (80.0%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━</span>⦘ 1249/2000 (62.5%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━</span>⦘ 2849/4000 (71.2%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━━━━━━</span>⦘ 1232/2000 (61.6%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━━━━━━</span>⦘ 2831/4000 (70.8%)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 5s | ETA: 2s</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━</span>⦘ 1850/2000 (92.5%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━</span>⦘ 1499/2000 (75.0%)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━</span>⦘ 3349/4000 (83.7%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">━━━━━━━━━━</span>⦘ 1483/2000 (74.2%)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Total   (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span style="color: #BBBBBB;">╺━━━━━━</span>⦘ 3333/4000 (83.3%)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Elapsed: 5s | ETA: 1s</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Chain 1 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 2000/2000 (100.0%)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Chain 2 (Sampling): ⦗<span style="color: #5FAFAF;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>⦘ 2000/2000 (100.0%)</span>
