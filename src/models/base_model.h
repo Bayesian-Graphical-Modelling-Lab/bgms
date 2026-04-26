@@ -21,7 +21,7 @@ struct WarmupSchedule;
  *
  * Subclass hierarchy:
  *   - GGMModel  — Gaussian Graphical Model (precision matrix, Metropolis only)
- *   - OMRFModel — Ordinal Markov Random Field (Metropolis + NUTS/HMC)
+ *   - OMRFModel — Ordinal Markov Random Field (Metropolis + NUTS)
  *
  * Methods fall into several groups:
  *   - **Capability queries** (has_gradient, has_adaptive_metropolis, etc.)
@@ -45,7 +45,7 @@ public:
     // Capability queries
     // =========================================================================
 
-    /** @return true if the model provides a gradient (enables NUTS/HMC). */
+    /** @return true if the model provides a gradient (enables NUTS). */
     virtual bool has_gradient() const { return false; }
     /** @return true if the model supports adaptive Metropolis. */
     virtual bool has_adaptive_metropolis() const { return false; }
@@ -153,7 +153,7 @@ public:
     /**
      * @return Full parameter dimension (fixed size, includes inactive parameters).
      *
-     * Used by GradientSamplerBase for mass-matrix sizing and adaptation.
+     * Used by NUTSSampler for mass-matrix sizing and adaptation.
      * For most models this equals the storage dimension. For models where
      * some parameters are not sampled by NUTS (e.g., MixedMRFModel's
      * continuous precision),
@@ -167,7 +167,7 @@ public:
     /**
      * @return All parameters in a fixed-size vector (inactive edges are 0).
      *
-     * Used by GradientSamplerBase for adaptation (online covariance).
+     * Used by NUTSSampler for adaptation (online covariance).
      * Dimension must match full_parameter_dimension().
      */
     virtual arma::vec get_full_vectorized_parameters() const = 0;
@@ -213,7 +213,7 @@ public:
     virtual SafeRNG& get_rng() = 0;
 
     // =========================================================================
-    // NUTS/HMC adaptation
+    // NUTS adaptation
     // =========================================================================
 
     /**
@@ -225,7 +225,7 @@ public:
     virtual double get_step_size() const { return step_size_; }
 
     /**
-     * Set the inverse mass matrix diagonal for HMC/NUTS.
+     * Set the inverse mass matrix diagonal for NUTS.
      * @param inv_mass  Diagonal elements of the inverse mass matrix
      */
     virtual void set_inv_mass(const arma::vec& inv_mass) { inv_mass_ = inv_mass; }
@@ -384,8 +384,8 @@ public:
 
 protected:
     BaseModel() = default;
-    /// Leapfrog step size for NUTS/HMC.
+    /// Leapfrog step size for NUTS.
     double step_size_ = 0.1;
-    /// Inverse mass matrix diagonal for NUTS/HMC.
+    /// Inverse mass matrix diagonal for NUTS.
     arma::vec inv_mass_;
 };
