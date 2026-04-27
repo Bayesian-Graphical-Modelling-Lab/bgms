@@ -1,4 +1,4 @@
-#' Sample from the GGM Prior
+#' Sample Precision Matrices from the GGM Prior
 #'
 #' Draws precision matrices \eqn{K} from the prior of a Gaussian graphical
 #' model using the same constrained NUTS sampler that drives \code{\link{bgm}}
@@ -61,7 +61,7 @@
 #' @examples
 #' \donttest{
 #' # Default Cauchy(0, 2.5) off-diagonal, Gamma(1, 1) diagonal, p = 4.
-#' draws = sample_ggm_prior(
+#' draws = sample_precision_prior(
 #'   p = 4, n_samples = 200, n_warmup = 200,
 #'   verbose = FALSE
 #' )
@@ -72,7 +72,7 @@
 #' # Sparser graph: drop the (1, 4) edge.
 #' E = matrix(1L, 4, 4)
 #' E[1, 4] = E[4, 1] = 0L
-#' draws = sample_ggm_prior(
+#' draws = sample_precision_prior(
 #'   p = 4, n_samples = 200, n_warmup = 200,
 #'   edge_indicators = E, verbose = FALSE
 #' )
@@ -80,7 +80,7 @@
 #' all(draws$K_offdiag[, "K_1_4"] == 0) # TRUE
 #' }
 #' @export
-sample_ggm_prior = function(
+sample_precision_prior = function(
   p,
   n_samples,
   n_warmup = 1000L,
@@ -106,14 +106,14 @@ sample_ggm_prior = function(
   if(identical(ip$interaction_prior_type, "beta-prime")) {
     stop(
       "beta_prime_prior() is not supported for 'interaction_prior' in ",
-      "sample_ggm_prior(). Use cauchy_prior() or normal_prior()."
+      "sample_precision_prior(). Use cauchy_prior() or normal_prior()."
     )
   }
   sp = unpack_scale_prior(precision_scale_prior)
 
   edge_indicators = validate_ggm_prior_edge_indicators(edge_indicators, p)
 
-  sample_ggm_prior_cpp(
+  sample_precision_prior_cpp(
     p                        = as.integer(p),
     n_samples                = as.integer(n_samples),
     n_warmup                 = as.integer(n_warmup),

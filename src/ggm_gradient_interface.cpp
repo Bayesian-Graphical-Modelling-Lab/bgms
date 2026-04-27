@@ -2,7 +2,7 @@
 //
 // Exposes logp_and_gradient, forward_map, project_position,
 // project_momentum, and constrained leapfrog to R for validation.
-// Also exposes sample_ggm_prior() for sampling precision matrices
+// Also exposes sample_precision_prior() for sampling precision matrices
 // from the GGM prior using NUTS.
 
 #include <RcppArmadillo.h>
@@ -344,7 +344,7 @@ Rcpp::List ggm_test_leapfrog_constrained_checked(
 
 
 // -----------------------------------------------------------------------------
-// sample_ggm_prior: Sample precision matrices from the GGM prior using NUTS
+// sample_precision_prior: Sample precision matrices from the GGM prior using NUTS
 // -----------------------------------------------------------------------------
 // Uses the Cholesky parameterization with NUTS. By setting n=0 and S=0,
 // the likelihood vanishes and the sampler targets the prior:
@@ -369,8 +369,8 @@ Rcpp::List ggm_test_leapfrog_constrained_checked(
 // adaptation, Welford diagonal mass-matrix adaptation) as sample_ggm and bgm.
 // -----------------------------------------------------------------------------
 
-// [[Rcpp::export(name = "sample_ggm_prior_cpp")]]
-Rcpp::List sample_ggm_prior(
+// [[Rcpp::export(name = "sample_precision_prior_cpp")]]
+Rcpp::List sample_precision_prior(
     int p,
     int n_samples,
     int n_warmup = 1000,
@@ -438,7 +438,7 @@ Rcpp::List sample_ggm_prior(
 
     if(results.empty() || results[0].error) {
         std::string msg = results.empty() ? "empty result" : results[0].error_msg;
-        Rcpp::stop("sample_ggm_prior: chain failed (%s)", msg.c_str());
+        Rcpp::stop("sample_precision_prior: chain failed (%s)", msg.c_str());
     }
 
     // Samples are stored as the upper triangle of K (p(p+1)/2 elements per
