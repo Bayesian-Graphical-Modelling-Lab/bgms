@@ -207,31 +207,19 @@ build_raw_samples_list = function(raw, edge_selection, edge_prior,
 # incompatible with S7 objects. In that case the builder returns a
 # plain S3 list instead of converting to S7.
 #
-# Detection is by source-code fingerprint rather than package version
-# because both the CRAN release and the in-development rewrite are
-# stamped 0.4.0. The CRAN body of `bgm_extract.package_bgms` calls
-# `extract_category_thresholds()` (renamed to `extract_main_effects()`
-# in bgms 0.2.0) and reads `fit$arguments$...` directly; the rewrite
-# uses `extract_arguments()` and `extract_main_effects()`. We probe
-# for the old function name as the discriminator.
+# easybgm >= 0.5.0 uses extractor functions and no longer overwrites
+# class(fit), so it is S7-compatible.
 # ------------------------------------------------------------------
 needs_easybgm_s3_compat = function() {
   if(!"easybgm" %in% loadedNamespaces()) {
     return(FALSE)
   }
-  ns = asNamespace("easybgm")
-  if(!exists("bgm_extract.package_bgms", envir = ns, inherits = FALSE)) {
-    return(FALSE)
-  }
-  fn = get("bgm_extract.package_bgms", envir = ns)
-  src = paste(deparse(body(fn)), collapse = "\n")
-  if(grepl("extract_category_thresholds", src, fixed = TRUE)) {
+  ebgm_version = utils::packageVersion("easybgm")
+  if(ebgm_version < "0.5.0") {
     warning(
-      "easybgm ", utils::packageVersion("easybgm"),
-      " uses deprecated bgms accessors. ",
+      "easybgm ", ebgm_version, " is not compatible with S7-based bgms objects. ",
       "Running in S3 compatibility mode. ",
-      "Please install the development version from ",
-      "https://github.com/Bayesian-Graphical-Modelling-Lab/easybgm.",
+      "Please update easybgm to version 0.5.0 or later.",
       call. = FALSE
     )
     return(TRUE)
