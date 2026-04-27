@@ -42,7 +42,10 @@ Inspect and summarize fitted models.
 
 ## Simulation and prediction
 
-Simulate from Markov random fields and predict new observations.
+Generate observations or predict new ones. `simulate_*` functions draw
+data given known parameters (forward simulation, exact draws);
+`sample_*` functions run an MCMC sampler to draw from a target
+distribution (e.g. the prior on the precision matrix).
 
 - [`simulate_mrf()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate_mrf.md)
   : Simulate Observations from a Markov Random Field
@@ -54,6 +57,30 @@ Simulate from Markov random fields and predict new observations.
   : Predict Conditional Probabilities from a Fitted bgms Model
 - [`predict(`*`<bgmCompare>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/predict.bgmCompare.md)
   : Predict Conditional Probabilities from a Fitted bgmCompare Model
+- [`sample_precision_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/sample_precision_prior.md)
+  : Sample Precision Matrices from the GGM Prior
+
+## Prior constructors
+
+Specify priors for model parameters, precision scale, and edge
+inclusion.
+
+- [`cauchy_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/cauchy_prior.md)
+  : Cauchy Prior for Model Parameters
+- [`normal_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/normal_prior.md)
+  : Normal Prior for Model Parameters
+- [`beta_prime_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/beta_prime_prior.md)
+  : Beta-Prime Prior for Model Parameters
+- [`gamma_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/gamma_prior.md)
+  : Gamma Prior for Scale Parameters
+- [`exponential_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/exponential_prior.md)
+  : Exponential Prior for Scale Parameters
+- [`bernoulli_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bernoulli_prior.md)
+  : Bernoulli Prior for Inclusion Indicators
+- [`beta_bernoulli_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/beta_bernoulli_prior.md)
+  : Beta-Bernoulli Prior for Inclusion Indicators
+- [`sbm_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/sbm_prior.md)
+  : Stochastic Block Model Prior for Inclusion Indicators
 
 ## Extractors
 

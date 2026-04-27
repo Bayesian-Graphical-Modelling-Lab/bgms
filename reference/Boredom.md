@@ -25,7 +25,7 @@ respondent.
 
 - loose_ends:
 
-  I often find myself at “loose ends,” not knowing what to do.
+  I often find myself at "loose ends," not knowing what to do.
 
 - entertain:
 

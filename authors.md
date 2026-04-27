@@ -24,13 +24,13 @@ Source:
 [`inst/CITATION`](https://github.com/Bayesian-Graphical-Modelling-Lab/bgms/blob/main/inst/CITATION)
 
 Marsman, M., & van den Bergh, D. (2026). bgms: Bayesian Analysis of
-Networks of Binary and/or Ordinal Variables. R package version 0.1.6.3.
+Graphical Models. R package version 0.2.0.0.
 
     @Manual{bgms-package,
-      title = {bgms: Bayesian Analysis of Networks of Binary and/or Ordinal Variables},
+      title = {bgms: Bayesian Analysis of Graphical Models},
       author = {Maarten Marsman and Don {van den Bergh}},
       year = {2026},
-      note = {R package version 0.1.6.3},
+      note = {R package version 0.2.0.0},
       url = {https://CRAN.R-project.org/package=bgms},
     }
 

@@ -16,18 +16,12 @@ bgm(
   baseline_category,
   iter = 1000,
   warmup = 1000,
-  pairwise_scale = 1,
-  main_alpha = 0.5,
-  main_beta = 0.5,
+  interaction_prior = cauchy_prior(scale = 1),
+  threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
+  means_prior = normal_prior(scale = 1),
+  precision_scale_prior = gamma_prior(shape = 1, rate = 1),
   edge_selection = TRUE,
-  edge_prior = c("Bernoulli", "Beta-Bernoulli", "Stochastic-Block"),
-  inclusion_probability = 0.5,
-  beta_bernoulli_alpha = 1,
-  beta_bernoulli_beta = 1,
-  beta_bernoulli_alpha_between = 1,
-  beta_bernoulli_beta_between = 1,
-  dirichlet_alpha = 1,
-  lambda = 1,
+  edge_prior = bernoulli_prior(0.5),
   na_action = c("listwise", "impute"),
   update_method = c("nuts", "adaptive-metropolis"),
   target_accept,
@@ -40,6 +34,16 @@ bgm(
   standardize = FALSE,
   verbose = getOption("bgms.verbose", TRUE),
   progress_callback = NULL,
+  pairwise_scale,
+  main_alpha,
+  main_beta,
+  inclusion_probability,
+  beta_bernoulli_alpha,
+  beta_bernoulli_beta,
+  beta_bernoulli_alpha_between,
+  beta_bernoulli_beta_between,
+  dirichlet_alpha,
+  lambda,
   interaction_scale,
   burnin,
   save,
@@ -87,16 +91,70 @@ bgm(
   minimum of 1000 iterations is enforced, with a warning if a smaller
   value is requested. Default: `1e3`.
 
-- pairwise_scale:
+- interaction_prior:
 
-  Double. Scale of the Cauchy prior for pairwise interaction parameters.
-  Default: `1`.
+  A prior specification object for pairwise interaction parameters,
+  created by one of the prior constructor functions:
 
-- main_alpha, main_beta:
+  - [`cauchy_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/cauchy_prior.md):
+    Cauchy(0, scale) prior (default).
 
-  Double. Shape parameters of the beta-prime prior for threshold
-  parameters. Must be positive. If equal, the prior is symmetric.
-  Defaults: `main_alpha = 0.5` and `main_beta = 0.5`.
+  - [`normal_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/normal_prior.md):
+    Normal(0, scale) prior.
+
+  - [`beta_prime_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/beta_prime_prior.md):
+    Beta-prime prior.
+
+  Default: `cauchy_prior(scale = 1)`.
+
+- threshold_prior:
+
+  A prior specification object for threshold (main effect) parameters,
+  created by one of the prior constructor functions:
+
+  - [`beta_prime_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/beta_prime_prior.md):
+    Beta-prime prior (default).
+
+  - [`cauchy_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/cauchy_prior.md):
+    Cauchy(0, scale) prior.
+
+  - [`normal_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/normal_prior.md):
+    Normal(0, scale) prior.
+
+  Default: `beta_prime_prior(alpha = 0.5, beta = 0.5)`.
+
+- means_prior:
+
+  A prior specification object for continuous variable means (mixed MRF
+  models only), created by one of the prior constructor functions:
+
+  - [`normal_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/normal_prior.md):
+    Normal(0, scale) prior (default).
+
+  - [`cauchy_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/cauchy_prior.md):
+    Cauchy(0, scale) prior.
+
+  - [`beta_prime_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/beta_prime_prior.md):
+    Beta-prime prior.
+
+  Only used when the model includes continuous variables. Ignored for
+  pure ordinal or pure continuous (GGM) models. Default:
+  `normal_prior(scale = 1)`.
+
+- precision_scale_prior:
+
+  A prior specification object for the diagonal elements of the
+  precision matrix, created by one of:
+
+  - [`gamma_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/gamma_prior.md):
+    Gamma(shape, rate) prior (default).
+
+  - [`exponential_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/exponential_prior.md):
+    Exponential(rate) prior.
+
+  Only used for models with continuous variables (GGM and mixed MRF).
+  Ignored for pure ordinal models. Default:
+  `gamma_prior(shape = 1, rate = 1)`.
 
 - edge_selection:
 
@@ -105,39 +163,22 @@ bgm(
 
 - edge_prior:
 
-  Character. Specifies the prior for edge inclusion. Options:
-  `"Bernoulli"`, `"Beta-Bernoulli"`, or `"Stochastic-Block"`. Default:
-  `"Bernoulli"`.
+  An edge prior specification object, or a character string
+  (deprecated). Specifies the prior for edge inclusion. Preferred: pass
+  an object from one of:
 
-- inclusion_probability:
+  - [`bernoulli_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bernoulli_prior.md):
+    Fixed inclusion probability (default).
 
-  Numeric scalar. Prior inclusion probability of each edge (used with
-  the Bernoulli prior). Default: `0.5`.
+  - [`beta_bernoulli_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/beta_bernoulli_prior.md):
+    Beta-distributed inclusion.
 
-- beta_bernoulli_alpha, beta_bernoulli_beta:
+  - [`sbm_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/sbm_prior.md):
+    Stochastic Block Model.
 
-  Double. Shape parameters for the beta distribution in the
-  Beta–Bernoulli and the Stochastic-Block priors. Must be positive. For
-  the Stochastic-Block prior these are the shape parameters for the
-  within-cluster edge inclusion probabilities. Defaults:
-  `beta_bernoulli_alpha = 1` and `beta_bernoulli_beta = 1`.
-
-- beta_bernoulli_alpha_between, beta_bernoulli_beta_between:
-
-  Double. Shape parameters for the between-cluster edge inclusion
-  probabilities in the Stochastic-Block prior. Must be positive.
-  Default: `beta_bernoulli_alpha_between = 1` and
-  `beta_bernoulli_beta_between = 1`
-
-- dirichlet_alpha:
-
-  Double. Concentration parameter of the Dirichlet prior on block
-  assignments (used with the Stochastic Block model). Default: `1`.
-
-- lambda:
-
-  Double. Rate of the zero-truncated Poisson prior on the number of
-  clusters in the Stochastic Block Model. Default: `1`.
+  Legacy character strings `"Bernoulli"`, `"Beta-Bernoulli"`,
+  `"Stochastic-Block"` are still accepted but deprecated. Default:
+  `bernoulli_prior(0.5)`.
 
 - na_action:
 
@@ -199,18 +240,18 @@ bgm(
 
 - standardize:
 
-  Logical. If `TRUE`, the Cauchy prior scale for each pairwise
-  interaction is adjusted based on the range of response scores.
-  Variables with more response categories have larger score products
-  \\x_i \cdot x_j\\, which typically correspond to smaller interaction
-  effects \\\sigma\_{ij}\\. Without standardization, a fixed prior scale
-  is relatively wide for these smaller effects, resulting in less
-  shrinkage for high-category pairs and more shrinkage for low-category
-  pairs. Standardization scales the prior proportionally to the maximum
-  score product, ensuring equivalent relative shrinkage across all
-  pairs. After internal recoding, regular ordinal variables have scores
-  \\0, 1, \ldots, m\\. The adjusted scale for the interaction between
-  variables \\i\\ and \\j\\ is `pairwise_scale * m_i * m_j`, so that
+  Logical. If `TRUE`, the prior scale for each pairwise interaction is
+  adjusted based on the range of response scores. Variables with more
+  response categories have larger score products \\x_i \cdot x_j\\,
+  which typically correspond to smaller interaction effects
+  \\\sigma\_{ij}\\. Without standardization, a fixed prior scale is
+  relatively wide for these smaller effects, resulting in less shrinkage
+  for high-category pairs and more shrinkage for low-category pairs.
+  Standardization scales the prior proportionally to the maximum score
+  product, ensuring equivalent relative shrinkage across all pairs.
+  After internal recoding, regular ordinal variables have scores \\0, 1,
+  \ldots, m\\. The adjusted scale for the interaction between variables
+  \\i\\ and \\j\\ is `pairwise_scale * m_i * m_j`, so that
   `pairwise_scale` itself applies to the unit interval case (binary
   variables where \\m_i = m_j = 1\\). For Blume-Capel variables with
   reference category \\b\\, scores are centered as \\-b, \ldots, m-b\\,
@@ -234,6 +275,45 @@ bgm(
   the total number of iterations. Useful for external front-ends (e.g.,
   JASP) that supply their own progress reporting. When `NULL` (the
   default), no callback is invoked.
+
+- pairwise_scale:
+
+  **\[deprecated\]** Double. Scale of the Cauchy prior for pairwise
+  interaction parameters. Use `interaction_prior` instead. Default: `1`.
+
+- main_alpha, main_beta:
+
+  **\[deprecated\]** Double. Shape parameters of the beta-prime prior
+  for threshold parameters. Use `threshold_prior` instead. Defaults:
+  `main_alpha = 0.5` and `main_beta = 0.5`.
+
+- inclusion_probability:
+
+  **\[deprecated\]** Numeric scalar. Use
+  `edge_prior = bernoulli_prior(inclusion_probability)` instead.
+  Default: `0.5`.
+
+- beta_bernoulli_alpha, beta_bernoulli_beta:
+
+  **\[deprecated\]** Double. Use
+  `edge_prior = beta_bernoulli_prior(alpha, beta)` instead. Defaults:
+  `1`.
+
+- beta_bernoulli_alpha_between, beta_bernoulli_beta_between:
+
+  **\[deprecated\]** Double. Use
+  `edge_prior = sbm_prior(alpha_between, beta_between)` instead.
+  Defaults: `1`.
+
+- dirichlet_alpha:
+
+  **\[deprecated\]** Double. Use
+  `edge_prior = sbm_prior(dirichlet_alpha = ...)` instead. Default: `1`.
+
+- lambda:
+
+  **\[deprecated\]** Double. Use `edge_prior = sbm_prior(lambda = ...)`
+  instead. Default: `1`.
 
 - interaction_scale, burnin, save, threshold_alpha, threshold_beta:
 
@@ -353,6 +433,23 @@ matrices.
 NUTS diagnostics (tree depth, divergences, energy, E-BFMI) are included
 in `fit$nuts_diag` if `update_method = "nuts"`.
 
+## Details
+
+Depending on the variable types, the model is an ordinal MRF, a Gaussian
+graphical model (GGM), or a mixed MRF. Both regular ordinal variables
+and Blume–Capel ordinal variables (with a baseline category) are
+supported.
+
+Edge selection uses spike-and-slab priors with Bernoulli,
+Beta-Bernoulli, or Stochastic-Block inclusion priors. Parameters are
+sampled with NUTS (default) or adaptive Metropolis–Hastings, with a
+multi-stage warmup schedule. Missing data can be handled via listwise
+deletion or Gibbs imputation.
+
+For full details on model specification, prior choices, warmup, and
+output interpretation, see the package website at
+<https://bayesian-graphical-modelling-lab.github.io/bgms-docs/>.
+
 ## References
 
 Dahl DB (2009). “Modal clustering in a class of product partition
@@ -364,6 +461,14 @@ Sekulovski N, Arena G, Haslbeck JMB, Huth KBS, Friel N, Marsman M
 *Retrieved from <https://osf.io/preprints/psyarxiv/29p3m_v1>*. OSF
 preprint.
 
+## See also
+
+[`vignette("intro", package = "bgms")`](https://bayesian-graphical-modelling-lab.github.io/bgms/articles/intro.md)
+for a worked example.
+
+Other model-fitting:
+[`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md)
+
 ## Examples
 
 ``` r
@@ -373,114 +478,106 @@ fit = bgm(x = Wenchuan[, 1:5], chains = 2)
 #> 7 rows with missing values excluded (n = 355 remaining).
 #> To impute missing values instead, use na_action = "impute".
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 50/2000 (2.5%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 49/2000 (2.5%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 99/4000 (2.5%)
-#> Elapsed: 1s | ETA: 39s
+#> Chain 2 (Warmup): ⦗━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 52/2000 (2.6%)
+#> Total   (Warmup): ⦗━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 102/4000 (2.5%)
+#> Elapsed: 1s | ETA: 38s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 100/2000 (5.0%)
-#> Chain 2 (Warmup): ⦗━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 121/2000 (6.0%)
-#> Total   (Warmup): ⦗━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 221/4000 (5.5%)
-#> Elapsed: 2s | ETA: 34s
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 95/2000 (4.8%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 195/4000 (4.9%)
+#> Elapsed: 2s | ETA: 39s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 250/2000 (12.5%)
-#> Chain 2 (Warmup): ⦗━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 251/2000 (12.6%)
-#> Total   (Warmup): ⦗━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 501/4000 (12.5%)
-#> Elapsed: 3s | ETA: 21s
+#> Chain 2 (Warmup): ⦗━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 205/2000 (10.2%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 455/4000 (11.4%)
+#> Elapsed: 2s | ETA: 16s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 400/2000 (20.0%)
-#> Chain 2 (Warmup): ⦗━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 257/2000 (12.8%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 657/4000 (16.4%)
-#> Elapsed: 4s | ETA: 20s
+#> Chain 2 (Warmup): ⦗━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 370/2000 (18.5%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 770/4000 (19.2%)
+#> Elapsed: 3s | ETA: 13s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 600/2000 (30.0%)
-#> Chain 2 (Warmup): ⦗━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 301/2000 (15.0%)
-#> Total   (Warmup): ⦗━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 901/4000 (22.5%)
-#> Elapsed: 4s | ETA: 14s
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 560/2000 (28.0%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1160/4000 (29.0%)
+#> Elapsed: 3s | ETA: 7s
 #> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 800/2000 (40.0%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 482/2000 (24.1%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1282/4000 (32.0%)
-#> Elapsed: 5s | ETA: 11s
-#> Chain 1 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 950/2000 (47.5%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 664/2000 (33.2%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━⦘ 1614/4000 (40.4%)
-#> Elapsed: 5s | ETA: 7s
-#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1100/2000 (55.0%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 839/2000 (41.9%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━⦘ 1939/4000 (48.5%)
-#> Elapsed: 6s | ETA: 6s
-#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1250/2000 (62.5%)
-#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 986/2000 (49.3%)
-#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━⦘ 2236/4000 (55.9%)
-#> Elapsed: 7s | ETA: 6s
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━⦘ 763/2000 (38.1%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1563/4000 (39.1%)
+#> Elapsed: 4s | ETA: 6s
+#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1000/2000 (50.0%)
+#> Chain 2 (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 985/2000 (49.2%)
+#> Total   (Warmup): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1985/4000 (49.6%)
+#> Elapsed: 5s | ETA: 5s
+#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1200/2000 (60.0%)
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1183/2000 (59.2%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2383/4000 (59.6%)
+#> Elapsed: 5s | ETA: 3s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1400/2000 (70.0%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1145/2000 (57.2%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━⦘ 2545/4000 (63.6%)
-#> Elapsed: 7s | ETA: 4s
-#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1550/2000 (77.5%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━⦘ 1302/2000 (65.1%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2852/4000 (71.3%)
-#> Elapsed: 8s | ETA: 3s
-#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1700/2000 (85.0%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━⦘ 1465/2000 (73.2%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 3165/4000 (79.1%)
-#> Elapsed: 8s | ETA: 2s
-#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1850/2000 (92.5%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1626/2000 (81.3%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 3476/4000 (86.9%)
-#> Elapsed: 9s | ETA: 1s
-#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2000/2000 (100.0%)
-#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━⦘ 1773/2000 (88.6%)
-#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 3773/4000 (94.3%)
-#> Elapsed: 9s | ETA: 1s
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1391/2000 (69.5%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2791/4000 (69.8%)
+#> Elapsed: 6s | ETA: 3s
+#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1600/2000 (80.0%)
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1590/2000 (79.5%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 3190/4000 (79.8%)
+#> Elapsed: 6s | ETA: 2s
+#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 1800/2000 (90.0%)
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━⦘ 1808/2000 (90.4%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━⦘ 3608/4000 (90.2%)
+#> Elapsed: 7s | ETA: 1s
 #> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2000/2000 (100.0%)
 #> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2000/2000 (100.0%)
 #> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 4000/4000 (100.0%)
-#> Elapsed: 10s | ETA: 0s
+#> Elapsed: 8s | ETA: 0s
+#> Chain 1 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2000/2000 (100.0%)
+#> Chain 2 (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 2000/2000 (100.0%)
+#> Total   (Sampling): ⦗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━⦘ 4000/4000 (100.0%)
+#> Elapsed: 8s | ETA: 0s
 
 # Posterior inclusion probabilities
 summary(fit)$indicator
-#>                     mean       mcse         sd n0->0 n0->1 n1->0 n1->1
-#> intrusion-dreams  1.0000         NA 0.00000000     0     0     0  1999
-#> intrusion-flash   1.0000         NA 0.00000000     0     0     0  1999
-#> intrusion-upset   0.9785 0.01686819 0.14504396    40     3     3  1953
-#> intrusion-physior 0.9310 0.03161494 0.25345414   130     8     8  1853
-#> dreams-flash      1.0000         NA 0.00000000     0     0     0  1999
-#> dreams-upset      0.9905 0.01312940 0.09700387    18     1     1  1979
-#> dreams-physior    0.1070 0.01967130 0.30911325  1743    42    42   172
-#> flash-upset       0.0705 0.01150602 0.25598779  1806    52    52    89
-#> flash-physior     1.0000         NA 0.00000000     0     0     0  1999
-#> upset-physior     1.0000         NA 0.00000000     0     0     0  1999
+#>                     mean       mcse        sd n0->0 n0->1 n1->0 n1->1
+#> intrusion-dreams  1.0000         NA 0.0000000     0     0     0  1999
+#> intrusion-flash   1.0000         NA 0.0000000     0     0     0  1999
+#> intrusion-upset   0.9225 0.03316719 0.2673832   146     9     9  1835
+#> intrusion-physior 0.9610 0.03029343 0.1935949    75     3     3  1918
+#> dreams-flash      1.0000         NA 0.0000000     0     0     0  1999
+#> dreams-upset      1.0000         NA 0.0000000     0     0     0  1999
+#> dreams-physior    0.0705 0.01224573 0.2559878  1811    47    47    94
+#> flash-upset       0.1000 0.01845787 0.3000000  1757    42    42   158
+#> flash-physior     1.0000         NA 0.0000000     0     0     0  1999
+#> upset-physior     1.0000         NA 0.0000000     0     0     0  1999
 #>                   n_eff_mixt     Rhat
 #> intrusion-dreams          NA       NA
 #> intrusion-flash           NA       NA
-#> intrusion-upset     73.93709 1.158511
-#> intrusion-physior   64.27084 1.000519
+#> intrusion-upset     64.99063 1.059712
+#> intrusion-physior   40.84051 1.032319
 #> dreams-flash              NA       NA
-#> dreams-upset        54.58691 1.299312
-#> dreams-physior     246.92731 1.023105
-#> flash-upset        494.98105 1.000179
+#> dreams-upset              NA       NA
+#> dreams-physior     436.98765 1.065612
+#> flash-upset        264.16757 1.036468
 #> flash-physior             NA       NA
 #> upset-physior             NA       NA
 
 # Posterior pairwise effects
 summary(fit)$pairwise
 #>                          mean         mcse         sd     n_eff
-#> intrusion-dreams  0.314503857 0.0007346667 0.03277968 1990.8048
-#> intrusion-flash   0.168737949 0.0007595850 0.03218127 1794.9545
-#> intrusion-upset   0.100814888 0.0020004680 0.03220720  512.8043
-#> intrusion-physior 0.094454205 0.0032675270 0.03653265  156.3676
-#> dreams-flash      0.249154680 0.0005951231 0.03007591 2554.0180
-#> dreams-upset      0.111944591 0.0016570651 0.02891952  610.7461
-#> dreams-physior    0.005161725 0.0009817649 0.01519639  208.5053
-#> flash-upset       0.002813570 0.0004886639 0.01040716  475.4309
-#> flash-physior     0.153835523 0.0005817084 0.02690679 2139.5038
-#> upset-physior     0.354728946 0.0007122993 0.02942063 1706.0001
+#> intrusion-dreams  0.315460315 0.0007353635 0.03307888 2023.4738
+#> intrusion-flash   0.169161166 0.0007573100 0.03153593 1734.0595
+#> intrusion-upset   0.094150831 0.0034594985 0.03813840  169.1742
+#> intrusion-physior 0.098191572 0.0032820615 0.03402813  102.2910
+#> dreams-flash      0.249082635 0.0006431619 0.03090911 2309.5769
+#> dreams-upset      0.114451971 0.0008532150 0.02632796  952.1768
+#> dreams-physior    0.003229652 0.0006385884 0.01191130  420.4337
+#> flash-upset       0.004883800 0.0009718080 0.01490559  245.7671
+#> flash-physior     0.153591843 0.0006541902 0.02674780 1671.7375
+#> upset-physior     0.354969417 0.0007180776 0.03017608 1765.9686
 #>                   n_eff_mixt      Rhat
-#> intrusion-dreams          NA 1.0016355
-#> intrusion-flash           NA 0.9995401
-#> intrusion-upset     259.2047 1.0090286
-#> intrusion-physior   125.0040 1.0003540
-#> dreams-flash              NA 1.0004376
-#> dreams-upset        304.5812 1.0043932
-#> dreams-physior      239.5884 1.0151082
-#> flash-upset         453.5695 0.9997131
-#> flash-physior             NA 0.9997872
-#> upset-physior             NA 0.9996597
+#> intrusion-dreams          NA 0.9998070
+#> intrusion-flash           NA 0.9996906
+#> intrusion-upset     121.5343 1.0172826
+#> intrusion-physior   107.4937 1.0092418
+#> dreams-flash              NA 1.0002065
+#> dreams-upset              NA 1.0001689
+#> dreams-physior      347.9176 1.1204133
+#> flash-upset         235.2541 1.0485150
+#> flash-physior             NA 1.0037151
+#> upset-physior             NA 1.0011650
 # }
 ```

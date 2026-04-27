@@ -68,7 +68,9 @@ styler::style_pkg(style = bgms_style)
 
 Ran `lintr::lint_package()`
 
-Ran `roxygen2::roxygenise()` if roxygen comments changed
+Ran
+[`roxygen2::roxygenise()`](https://roxygen2.r-lib.org/reference/roxygenize.html)
+if roxygen comments changed
 
 Ran `rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran"))` for
 non-trivial changes

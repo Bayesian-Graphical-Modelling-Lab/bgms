@@ -109,7 +109,7 @@
       </dl></div><div class="section level2">
       <h2 id="simulation-and-prediction">Simulation and prediction<a class="anchor" aria-label="anchor" href="#simulation-and-prediction"></a></h2>
 
-      <div class="section-desc"><p>Simulate from Markov random fields and predict new observations.</p></div>
+      <div class="section-desc"><p>Generate observations or predict new ones. <code>simulate_*</code> functions draw data given known parameters (forward simulation, exact draws); <code>sample_*</code> functions run an MCMC sampler to draw from a target distribution (e.g. the prior on the precision matrix).</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -150,6 +150,78 @@
 
         </dt>
         <dd>Predict Conditional Probabilities from a Fitted bgmCompare Model</dd>
+
+        <dt>
+
+          <code><a href="sample_precision_prior.html">sample_precision_prior()</a></code>
+
+        </dt>
+        <dd>Sample Precision Matrices from the GGM Prior</dd>
+      </dl></div><div class="section level2">
+      <h2 id="prior-constructors">Prior constructors<a class="anchor" aria-label="anchor" href="#prior-constructors"></a></h2>
+
+      <div class="section-desc"><p>Specify priors for model parameters, precision scale, and edge inclusion.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="cauchy_prior.html">cauchy_prior()</a></code>
+
+        </dt>
+        <dd>Cauchy Prior for Model Parameters</dd>
+
+        <dt>
+
+          <code><a href="normal_prior.html">normal_prior()</a></code>
+
+        </dt>
+        <dd>Normal Prior for Model Parameters</dd>
+
+        <dt>
+
+          <code><a href="beta_prime_prior.html">beta_prime_prior()</a></code>
+
+        </dt>
+        <dd>Beta-Prime Prior for Model Parameters</dd>
+
+        <dt>
+
+          <code><a href="gamma_prior.html">gamma_prior()</a></code>
+
+        </dt>
+        <dd>Gamma Prior for Scale Parameters</dd>
+
+        <dt>
+
+          <code><a href="exponential_prior.html">exponential_prior()</a></code>
+
+        </dt>
+        <dd>Exponential Prior for Scale Parameters</dd>
+
+        <dt>
+
+          <code><a href="bernoulli_prior.html">bernoulli_prior()</a></code>
+
+        </dt>
+        <dd>Bernoulli Prior for Inclusion Indicators</dd>
+
+        <dt>
+
+          <code><a href="beta_bernoulli_prior.html">beta_bernoulli_prior()</a></code>
+
+        </dt>
+        <dd>Beta-Bernoulli Prior for Inclusion Indicators</dd>
+
+        <dt>
+
+          <code><a href="sbm_prior.html">sbm_prior()</a></code>
+
+        </dt>
+        <dd>Stochastic Block Model Prior for Inclusion Indicators</dd>
       </dl></div><div class="section level2">
       <h2 id="extractors">Extractors<a class="anchor" aria-label="anchor" href="#extractors"></a></h2>
 
