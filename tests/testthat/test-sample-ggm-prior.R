@@ -2,7 +2,7 @@
 # and input validation. Sampling correctness (uniform SBC ranks) is covered
 # in test-sbc-ggm.R.
 
-short_run <- function(p, n_samples = 50L, n_warmup = 50L, seed = 1L, ...) {
+short_run = function(p, n_samples = 50L, n_warmup = 50L, seed = 1L, ...) {
   sample_ggm_prior(
     p = p, n_samples = n_samples, n_warmup = n_warmup,
     seed = seed, verbose = FALSE, ...
@@ -13,9 +13,9 @@ short_run <- function(p, n_samples = 50L, n_warmup = 50L, seed = 1L, ...) {
 # ---- Return value structure --------------------------------------------------
 
 test_that("sample_ggm_prior returns the documented list shape", {
-  p <- 4L
-  n_samples <- 60L
-  draws <- short_run(p = p, n_samples = n_samples)
+  p = 4L
+  n_samples = 60L
+  draws = short_run(p = p, n_samples = n_samples)
 
   expect_named(
     draws,
@@ -25,7 +25,7 @@ test_that("sample_ggm_prior returns the documented list shape", {
     )
   )
 
-  n_edges <- p * (p - 1L) / 2L
+  n_edges = p * (p - 1L) / 2L
   expect_equal(dim(draws$K_offdiag), c(n_samples, n_edges))
   expect_equal(dim(draws$K_diag), c(n_samples, p))
   expect_length(draws$offdiag_names, n_edges)
@@ -45,15 +45,15 @@ test_that("sample_ggm_prior returns the documented list shape", {
 # ---- edge_indicators constraint ----------------------------------------------
 
 test_that("excluded edges are exactly zero in K_offdiag", {
-  p <- 4L
-  E <- matrix(1L, p, p)
+  p = 4L
+  E = matrix(1L, p, p)
   # Drop edges (1, 4) and (2, 3) on both triangles.
-  E[1, 4] <- E[4, 1] <- 0L
-  E[2, 3] <- E[3, 2] <- 0L
+  E[1, 4] = E[4, 1] = 0L
+  E[2, 3] = E[3, 2] = 0L
 
-  draws <- short_run(p = p, n_samples = 80L, edge_indicators = E)
+  draws = short_run(p = p, n_samples = 80L, edge_indicators = E)
 
-  colnames(draws$K_offdiag) <- draws$offdiag_names
+  colnames(draws$K_offdiag) = draws$offdiag_names
   # Excluded edges are zeroed out by the constraint structure / RATTLE
   # projection; with the Cholesky parameterization "structural" zeros
   # (Phi[i, j] = 0 directly) are exact, while quadratic constraints are
@@ -77,10 +77,10 @@ test_that("gamma_prior(shape, rate) shifts diagonal mean toward shape/rate", {
   # With p = 3 the prior on K_ii is exactly the supplied scale prior, so
   # the empirical mean of the diagonal across draws should track shape/rate
   # within Monte Carlo error.
-  draws_default <- short_run(
+  draws_default = short_run(
     p = 3L, n_samples = 400L, n_warmup = 200L
   )
-  draws_heavy <- short_run(
+  draws_heavy = short_run(
     p = 3L, n_samples = 400L, n_warmup = 200L,
     precision_scale_prior = gamma_prior(shape = 4, rate = 2)
   )
@@ -91,11 +91,11 @@ test_that("gamma_prior(shape, rate) shifts diagonal mean toward shape/rate", {
 
 
 test_that("exponential_prior(rate) is equivalent to gamma_prior(1, rate)", {
-  d_exp <- short_run(
+  d_exp = short_run(
     p = 3L, n_samples = 200L, n_warmup = 100L,
     precision_scale_prior = exponential_prior(rate = 2)
   )
-  d_gamma <- short_run(
+  d_gamma = short_run(
     p = 3L, n_samples = 200L, n_warmup = 100L,
     precision_scale_prior = gamma_prior(shape = 1, rate = 2)
   )
@@ -108,11 +108,11 @@ test_that("exponential_prior(rate) is equivalent to gamma_prior(1, rate)", {
 # ---- Interaction prior plumbing ---------------------------------------------
 
 test_that("normal_prior shrinks off-diagonals more than the default Cauchy", {
-  draws_cauchy <- short_run(
+  draws_cauchy = short_run(
     p = 3L, n_samples = 300L, n_warmup = 200L,
     interaction_prior = cauchy_prior(scale = 2.5)
   )
-  draws_normal <- short_run(
+  draws_normal = short_run(
     p = 3L, n_samples = 300L, n_warmup = 200L,
     interaction_prior = normal_prior(scale = 0.1)
   )
@@ -186,7 +186,7 @@ test_that("malformed edge_indicators are rejected", {
     ),
     "p x p matrix"
   )
-  E_asym <- matrix(c(
+  E_asym = matrix(c(
     1, 1, 0,
     0, 1, 1,
     0, 1, 1
@@ -195,14 +195,14 @@ test_that("malformed edge_indicators are rejected", {
     short_run(p = 3L, n_samples = 10L, edge_indicators = E_asym),
     "symmetric"
   )
-  E_baddiag <- matrix(1L, 3, 3)
-  E_baddiag[1, 1] <- 0L
+  E_baddiag = matrix(1L, 3, 3)
+  E_baddiag[1, 1] = 0L
   expect_error(
     short_run(p = 3L, n_samples = 10L, edge_indicators = E_baddiag),
     "diagonal"
   )
-  E_bad <- matrix(1L, 3, 3)
-  E_bad[1, 2] <- E_bad[2, 1] <- 2L
+  E_bad = matrix(1L, 3, 3)
+  E_bad[1, 2] = E_bad[2, 1] = 2L
   expect_error(
     short_run(p = 3L, n_samples = 10L, edge_indicators = E_bad),
     "0 or 1"

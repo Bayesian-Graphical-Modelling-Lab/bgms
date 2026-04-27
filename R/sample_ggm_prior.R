@@ -61,26 +61,26 @@
 #' @examples
 #' \donttest{
 #' # Default Cauchy(0, 2.5) off-diagonal, Gamma(1, 1) diagonal, p = 4.
-#' draws <- sample_ggm_prior(
+#' draws = sample_ggm_prior(
 #'   p = 4, n_samples = 200, n_warmup = 200,
 #'   verbose = FALSE
 #' )
 #' dim(draws$K_offdiag) # 200 x 6
-#' colnames(draws$K_offdiag) <- draws$offdiag_names
+#' colnames(draws$K_offdiag) = draws$offdiag_names
 #' head(draws$K_offdiag)
 #'
 #' # Sparser graph: drop the (1, 4) edge.
-#' E <- matrix(1L, 4, 4)
-#' E[1, 4] <- E[4, 1] <- 0L
-#' draws <- sample_ggm_prior(
+#' E = matrix(1L, 4, 4)
+#' E[1, 4] = E[4, 1] = 0L
+#' draws = sample_ggm_prior(
 #'   p = 4, n_samples = 200, n_warmup = 200,
 #'   edge_indicators = E, verbose = FALSE
 #' )
-#' colnames(draws$K_offdiag) <- draws$offdiag_names
+#' colnames(draws$K_offdiag) = draws$offdiag_names
 #' all(draws$K_offdiag[, "K_1_4"] == 0) # TRUE
 #' }
 #' @export
-sample_ggm_prior <- function(
+sample_ggm_prior = function(
   p,
   n_samples,
   n_warmup = 1000L,
@@ -98,20 +98,20 @@ sample_ggm_prior <- function(
   validate_positive_integer(max_depth, "max_depth", min_value = 1L)
   validate_finite_scalar(step_size, "step_size", positive = TRUE)
   validate_positive_integer(seed, "seed", min_value = 0L)
-  if (!is.logical(verbose) || length(verbose) != 1L || is.na(verbose)) {
+  if(!is.logical(verbose) || length(verbose) != 1L || is.na(verbose)) {
     stop("'verbose' must be TRUE or FALSE.")
   }
 
-  ip <- unpack_interaction_prior(interaction_prior)
-  if (identical(ip$interaction_prior_type, "beta-prime")) {
+  ip = unpack_interaction_prior(interaction_prior)
+  if(identical(ip$interaction_prior_type, "beta-prime")) {
     stop(
       "beta_prime_prior() is not supported for 'interaction_prior' in ",
       "sample_ggm_prior(). Use cauchy_prior() or normal_prior()."
     )
   }
-  sp <- unpack_scale_prior(precision_scale_prior)
+  sp = unpack_scale_prior(precision_scale_prior)
 
-  edge_indicators <- validate_ggm_prior_edge_indicators(edge_indicators, p)
+  edge_indicators = validate_ggm_prior_edge_indicators(edge_indicators, p)
 
   sample_ggm_prior_cpp(
     p                        = as.integer(p),
@@ -133,49 +133,49 @@ sample_ggm_prior <- function(
 
 # Internal helpers -------------------------------------------------------------
 
-validate_positive_integer <- function(x, name, min_value = 1L) {
-  if (!is.numeric(x) || length(x) != 1L || is.na(x) || !is.finite(x)) {
+validate_positive_integer = function(x, name, min_value = 1L) {
+  if(!is.numeric(x) || length(x) != 1L || is.na(x) || !is.finite(x)) {
     stop(sprintf("'%s' must be a single finite integer.", name))
   }
-  if (x != as.integer(x)) {
+  if(x != as.integer(x)) {
     stop(sprintf("'%s' must be an integer (got %s).", name, format(x)))
   }
-  if (x < min_value) {
+  if(x < min_value) {
     stop(sprintf("'%s' must be >= %d.", name, as.integer(min_value)))
   }
   invisible(as.integer(x))
 }
 
-validate_finite_scalar <- function(x, name, positive = FALSE) {
-  if (!is.numeric(x) || length(x) != 1L || is.na(x) || !is.finite(x)) {
+validate_finite_scalar = function(x, name, positive = FALSE) {
+  if(!is.numeric(x) || length(x) != 1L || is.na(x) || !is.finite(x)) {
     stop(sprintf("'%s' must be a single finite numeric.", name))
   }
-  if (positive && x <= 0) {
+  if(positive && x <= 0) {
     stop(sprintf("'%s' must be positive.", name))
   }
   invisible(x)
 }
 
-validate_ggm_prior_edge_indicators <- function(edge_indicators, p) {
-  if (is.null(edge_indicators)) {
+validate_ggm_prior_edge_indicators = function(edge_indicators, p) {
+  if(is.null(edge_indicators)) {
     return(NULL)
   }
-  if (!is.matrix(edge_indicators) ||
+  if(!is.matrix(edge_indicators) ||
     nrow(edge_indicators) != p || ncol(edge_indicators) != p) {
     stop("'edge_indicators' must be a p x p matrix.")
   }
-  if (any(is.na(edge_indicators))) {
+  if(any(is.na(edge_indicators))) {
     stop("'edge_indicators' must not contain NA values.")
   }
-  vals <- as.integer(edge_indicators)
-  if (any(!vals %in% c(0L, 1L))) {
+  vals = as.integer(edge_indicators)
+  if(any(!vals %in% c(0L, 1L))) {
     stop("'edge_indicators' must contain only 0 or 1.")
   }
-  E <- matrix(vals, nrow = p, ncol = p)
-  if (!isTRUE(all.equal(E, t(E)))) {
+  E = matrix(vals, nrow = p, ncol = p)
+  if(!isTRUE(all.equal(E, t(E)))) {
     stop("'edge_indicators' must be symmetric.")
   }
-  if (!all(diag(E) == 1L)) {
+  if(!all(diag(E) == 1L)) {
     stop("'edge_indicators' must have 1s on the diagonal.")
   }
   E
