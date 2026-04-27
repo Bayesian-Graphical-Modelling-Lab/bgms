@@ -20,9 +20,8 @@ bgmCompare(
   iter = 1000,
   warmup = 1000,
   na_action = c("listwise", "impute"),
-  update_method = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
+  update_method = c("nuts", "adaptive-metropolis"),
   target_accept,
-  hmc_num_leapfrogs = 100,
   nuts_max_depth = 10,
   learn_mass_matrix = TRUE,
   chains = 4,
@@ -131,15 +130,10 @@ Default: \code{1e3}.}
 Default: \code{"listwise"}.}
 
 \item{update_method}{Character. Sampling algorithm:
-\code{"adaptive-metropolis"} or \code{"nuts"}.
-\code{"hamiltonian-mc"} is accepted but deprecated; use \code{"nuts"}
-instead. Default: \code{"nuts"}.}
+\code{"adaptive-metropolis"} or \code{"nuts"}. Default: \code{"nuts"}.}
 
 \item{target_accept}{Numeric between 0 and 1. Target acceptance rate.
 Defaults: 0.44 (Metropolis), 0.80 (NUTS).}
-
-\item{hmc_num_leapfrogs}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Integer.
-Leapfrog steps for HMC (deprecated). Default: \code{100}.}
 
 \item{nuts_max_depth}{Integer. Maximum tree depth for NUTS. Default: \code{10}.}
 

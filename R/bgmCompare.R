@@ -110,13 +110,9 @@
 #'   Defaults to \code{getOption("bgms.verbose", TRUE)}. Set
 #'   \code{options(bgms.verbose = FALSE)} to suppress messages globally.
 #' @param update_method Character. Sampling algorithm:
-#'   \code{"adaptive-metropolis"} or \code{"nuts"}.
-#'   \code{"hamiltonian-mc"} is accepted but deprecated; use \code{"nuts"}
-#'   instead. Default: \code{"nuts"}.
+#'   \code{"adaptive-metropolis"} or \code{"nuts"}. Default: \code{"nuts"}.
 #' @param target_accept Numeric between 0 and 1. Target acceptance rate.
 #'   Defaults: 0.44 (Metropolis), 0.80 (NUTS).
-#' @param hmc_num_leapfrogs `r lifecycle::badge("deprecated")` Integer.
-#'   Leapfrog steps for HMC (deprecated). Default: \code{100}.
 #' @param nuts_max_depth Integer. Maximum tree depth for NUTS. Default: \code{10}.
 #' @param learn_mass_matrix Logical. If \code{TRUE}, adapts a diagonal mass
 #' matrix during warmup (NUTS only). Default: \code{TRUE}.
@@ -194,9 +190,8 @@ bgmCompare <- function(
   iter = 1e3,
   warmup = 1e3,
   na_action = c("listwise", "impute"),
-  update_method = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
+  update_method = c("nuts", "adaptive-metropolis"),
   target_accept,
-  hmc_num_leapfrogs = 100,
   nuts_max_depth = 10,
   learn_mass_matrix = TRUE,
   chains = 4,
@@ -417,7 +412,6 @@ bgmCompare <- function(
     target_accept = if (hasArg(target_accept)) target_accept else NULL,
     iter = iter,
     warmup = warmup,
-    hmc_num_leapfrogs = hmc_num_leapfrogs,
     nuts_max_depth = nuts_max_depth,
     learn_mass_matrix = learn_mass_matrix,
     chains = chains,

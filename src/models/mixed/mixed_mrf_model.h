@@ -27,8 +27,8 @@
  * Internally the Cholesky decomposition and covariance
  * cache operate on Precision.
  *
- * Supports both conditional and marginal pseudo-likelihood, with and
- * without edge selection via spike-and-slab priors.
+ * Uses the marginal pseudo-likelihood, with and without edge selection
+ * via spike-and-slab priors.
  *
  * Discrete variables are either ordinal (free category thresholds, category
  * 0 as reference) or Blume-Capel (linear α + quadratic β, user-specified
@@ -56,7 +56,6 @@ public:
      * @param inclusion_probability Prior inclusion probabilities ((p+q) × (p+q))
      * @param initial_edge_indicators Initial edge inclusion matrix ((p+q) × (p+q))
      * @param edge_selection       Enable edge selection (spike-and-slab)
-     * @param pseudolikelihood     "conditional" or "marginal"
      * @param interaction_prior     Polymorphic prior on pairwise interactions
      * @param threshold_prior      Polymorphic prior on main effects / thresholds
      * @param means_prior          Polymorphic prior on continuous means
@@ -72,7 +71,6 @@ public:
         const arma::mat& inclusion_probability,
         const arma::imat& initial_edge_indicators,
         bool edge_selection,
-        const std::string& pseudolikelihood,
         std::unique_ptr<BaseParameterPrior> interaction_prior,
         std::unique_ptr<BaseParameterPrior> threshold_prior,
         std::unique_ptr<BaseParameterPrior> means_prior,
@@ -416,12 +414,6 @@ private:
     mutable arma::vec pcg_lambda_cache_;
 
     // =========================================================================
-    // Configuration
-    // =========================================================================
-
-    bool use_marginal_pl_;              ///< true = marginal, false = conditional
-
-    // =========================================================================
     // RNG and edge-update order
     // =========================================================================
 
@@ -474,9 +466,6 @@ private:
     // =========================================================================
     // Likelihood functions (implemented in mixed_mrf_likelihoods.cpp)
     // =========================================================================
-
-    /** Conditional OMRF pseudolikelihood for discrete variable s, summed over all n. */
-    double log_conditional_omrf(int s) const;
 
     /** Marginal OMRF pseudolikelihood for discrete variable s, using marginal_interactions_. */
     double log_marginal_omrf(int s) const;

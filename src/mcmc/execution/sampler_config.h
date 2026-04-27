@@ -6,13 +6,13 @@
  * SamplerConfig - Configuration for MCMC sampling
  *
  * Holds all settings for the generic MCMC runner, including:
- * - Sampler type selection (Metropolis, NUTS, HMC)
+ * - Sampler type selection (Metropolis or NUTS)
  * - Iteration counts
- * - NUTS/HMC specific parameters
+ * - NUTS-specific parameters
  * - Edge selection settings
  */
 struct SamplerConfig {
-    /// Sampler type: "adaptive_metropolis", "nuts", or "hmc".
+    /// Sampler type: "adaptive_metropolis" or "nuts".
     std::string sampler_type = "adaptive_metropolis";
 
     /// Number of post-warmup iterations.
@@ -22,8 +22,6 @@ struct SamplerConfig {
 
     /// Maximum NUTS tree depth.
     int max_tree_depth = 10;
-    /// Number of leapfrog steps (HMC only).
-    int num_leapfrogs = 10;
     /// Initial step size for gradient-based samplers.
     double initial_step_size = 0.1;
     /// Target acceptance rate for dual-averaging adaptation.

@@ -172,20 +172,20 @@ arma::vec MixedMRFModel::gradient(const arma::vec& parameters) {
 
 
 // =============================================================================
-// logp_and_gradient — conditional pseudo-likelihood
+// logp_and_gradient — marginal pseudo-likelihood
 // =============================================================================
 // Computes the log pseudo-posterior and its gradient with respect to the
 // NUTS parameters (μ_x, A_xx, μ_y, A_xy, R) where R is the Cholesky
 // factor of the continuous precision matrix Ω = R^T R.
 //
 // The pseudo-log-posterior is:
-//   l(θ) = sum_s log p(x_s | x_{-s}, y)   [OMRF conditionals]
-//            + log p(y | x)                [GGM conditional]
-//            + log π(θ)                    [priors on all params]
-//            + log |det J|                 [Cholesky Jacobian]
+//   l(θ) = sum_s log p(x_s | x_{-s})       [OMRF conditionals — marginal]
+//            + log p(y | x)                 [GGM conditional]
+//            + log π(θ)                     [priors on all params]
+//            + log |det J|                  [Cholesky Jacobian]
 //
-// For marginal PL, the OMRF conditionals use Θ = A_xx + 2 A_xy Σ_yy A_xy'
-// instead of A_xx directly.  The GGM conditional is the same in both modes.
+// The OMRF conditionals use the marginal effective-interaction matrix
+// Θ = A_xx + 2 A_xy Σ_yy A_xy' (continuous block integrated out).
 // =============================================================================
 
 std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
@@ -240,9 +240,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     //   M = A_xx + 2 A_xy Σ_yy A_xy'
     // (see recompute_marginal_interactions in mixed_mrf_model.cpp).
     arma::mat temp_marginal;
-    if(use_marginal_pl_) {
-        temp_marginal = temp_pairwise_discrete + 2.0 * temp_pairwise_cross * temp_covariance * temp_pairwise_cross.t();
-    }
+    temp_marginal = temp_pairwise_discrete + 2.0 * temp_pairwise_cross * temp_covariance * temp_pairwise_cross.t();
 
     // Start gradient from observed-statistics cache
     arma::vec grad = grad_obs_cache_;
@@ -252,10 +250,8 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     // For marginal PL: precompute A_xy Σ_yy (used in cross-contributions)
     arma::mat cross_times_cov;  // p x q
     arma::mat Theta_bar;        // p x p marginal-PL coupling for precision gradient
-    if(use_marginal_pl_) {
-        cross_times_cov = temp_pairwise_cross * temp_covariance;
-        Theta_bar = arma::zeros<arma::mat>(p_, p_);
-    }
+    cross_times_cov = temp_pairwise_cross * temp_covariance;
+    Theta_bar = arma::zeros<arma::mat>(p_, p_);
 
     // =========================================================================
     // Part 1: OMRF conditionals
@@ -267,28 +263,19 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
 
         // --- Rest score for variable s ---
         arma::vec rest;
-        if(use_marginal_pl_) {
-            // Marginal: 2·M rest (minus self-interaction) + 2·A_xy·μ_y bias
-            double precision_ss = temp_marginal(s, s);
-            rest = 2.0 * (discrete_observations_dbl_ * temp_marginal.col(s)
-                        - discrete_observations_dbl_.col(s) * precision_ss)
-                 + 2.0 * arma::dot(temp_pairwise_cross.row(s), temp_main_continuous);
-        } else {
-            // Conditional: 2 * discrete_int rest + 2 * cross_int * y
-            rest = 2.0 * (discrete_observations_dbl_ * temp_pairwise_discrete.col(s)
-                 - discrete_observations_dbl_.col(s) * temp_pairwise_discrete(s, s))
-                 + 2.0 * continuous_observations_ * temp_pairwise_cross.row(s).t();
-        }
+        // Marginal: Θ-based rest + A_xy μ_y bias
+        double precision_ss = temp_marginal(s, s);
+        rest = 2.0 * (discrete_observations_dbl_ * temp_marginal.col(s)
+                    - discrete_observations_dbl_.col(s) * precision_ss)
+             + 2.0 * arma::dot(temp_pairwise_cross.row(s), temp_main_continuous);
 
         if(is_ordinal_variable_(s)) {
             arma::vec main_param = temp_main_discrete.row(s).cols(0, C_s - 1).t();
 
             // Marginal PL: absorb marginal self-interaction into main_param
-            if(use_marginal_pl_) {
-                double precision_ss = temp_marginal(s, s);
-                for(int c = 0; c < C_s; ++c) {
-                    main_param(c) += static_cast<double>((c + 1) * (c + 1)) * precision_ss;
-                }
+            double precision_ss = temp_marginal(s, s);
+            for(int c = 0; c < C_s; ++c) {
+                main_param(c) += static_cast<double>((c + 1) * (c + 1)) * precision_ss;
             }
 
             // bound = per-observation upper bound on log-scores for numerical
@@ -324,81 +311,65 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
                 grad(loc) -= 2.0 * pw_grad(t);
             }
 
-            if(use_marginal_pl_) {
-                // Pairwise_cross gradient from marginal OMRF through M = A_xx + 2 A_xy Σ A_xy'
-                // For var s:
-                //   rest_s = 2 Σ_{j≠s} M_{sj} x_j + 2 (A_xy μ_y)_s
-                //   numer contains M_{ss} x_s² additionally.
-                // Derivatives (A_xy is p×q):
-                //   ∂M_{sj}/∂A_xy_{s,k} = 2 [A_xy Σ]_{j,k}   (j ≠ s)
-                //   ∂M_{ss}/∂A_xy_{s,k} = 4 [A_xy Σ]_{s,k}
-                //   ∂M_{st}/∂A_xy_{t,k} = 2 [A_xy Σ]_{s,k}   (t ≠ s)
-                // Rest-score bias: ∂(2 A_xy_{s,:} μ_y)/∂A_xy_{s,j} = 2 μ_y_j
+            // Additional pairwise_discrete gradient from Θ_ss in denominator:
+            // ∂/∂pairwise_effects_discrete_{st} through Θ_ss: zero (∂Θ_ss/∂pairwise_effects_discrete_st = δ_{st})
+            // So pairwise_discrete gradient from Θ rest scores is already handled above.
 
-                arma::vec weights_sq = arma::square(weights);
-                arma::vec E_sq = result.probs.cols(1, C_s) * weights_sq;
+            // Pairwise_cross gradient from marginal OMRF (through Θ):
+            // ∂marginal_{st}/∂pairwise_effects_cross_{a,j} has two terms:
+            //   = 2 [Σyy pairwise_effects_cross_t']_j δ_{as} + 2 [pairwise_effects_cross_s Σyy]_j δ_{at}
+            // Self-contribution (a=s): from rest_s → pairwise_effects_cross_s
+            // Cross-contribution (a=t): from rest_s → pairwise_effects_cross_t for each t≠s
 
-                arma::vec diff_pw = discrete_observations_dbl_t_ *
-                    (discrete_observations_dbl_.col(s) - E);
-                diff_pw(s) = 0.0;
+            arma::vec weights_sq = arma::square(weights);
+            arma::vec E_sq = result.probs.cols(1, C_s) * weights_sq;
 
-                double diff_diag = arma::dot(
-                    discrete_observations_dbl_.col(s),
-                    discrete_observations_dbl_.col(s)) - arma::accu(E_sq);
+            arma::vec diff_pw = discrete_observations_dbl_t_ *
+                (discrete_observations_dbl_.col(s) - E);
+            diff_pw(s) = 0.0;
 
-                double sum_obs_minus_E = arma::accu(discrete_observations_dbl_.col(s)) - arma::accu(E);
+            double diff_diag = arma::dot(
+                discrete_observations_dbl_.col(s),
+                discrete_observations_dbl_.col(s)) - arma::accu(E_sq);
 
-                // Accumulate Θ̄ = ∂l_s/∂M for precision gradient coupling.
-                // Off-diagonal enters rest_s with coefficient 2, hence factor 2;
-                // diagonal enters numer as M_{ss} x_s², hence factor 1.
-                for(size_t t = 0; t < p_; ++t) {
-                    if(t != s) Theta_bar(s, t) += 2.0 * diff_pw(t);
-                }
-                Theta_bar(s, s) += diff_diag;
+            double sum_obs_minus_E = arma::accu(discrete_observations_dbl_.col(s)) - arma::accu(E);
 
-                // Self-contribution (a = s): from var s's rest + M_ss numer.
-                //   4 (diff_pw' A_xy) Σ  (off-diagonal M)
-                // + 4 diff_diag (A_xy Σ)_{s,:}   (diagonal M_ss)
-                // + 2 sum_obs_minus_E μ_y'       (rest-score bias)
-                arma::rowvec cross_self = 4.0 * (diff_pw.t() * temp_pairwise_cross) * temp_covariance
-                                      + 4.0 * diff_diag * cross_times_cov.row(s)
-                                      + 2.0 * sum_obs_minus_E * temp_main_continuous.t();
+            // Accumulate Θ̄ for precision gradient coupling
+            for(size_t t = 0; t < p_; ++t) {
+                if(t != s) Theta_bar(s, t) += 2.0 * diff_pw(t);
+            }
+            Theta_bar(s, s) += diff_diag;
 
+            // Self-contribution: a = s
+            // Off-diagonal effective interaction: ∂Θ_{st}/∂pairwise_effects_cross_{s,j} = 2 [Σyy pairwise_effects_cross_t']_j
+            // Diagonal effective interaction: ∂Θ_{ss}/∂pairwise_effects_cross_{s,j} = 4 [Σyy pairwise_effects_cross_s']_j
+            // Rest-score bias: ∂(2 pairwise_effects_cross_s μy)/∂pairwise_effects_cross_{s,j} = 2 μy_j
+            arma::rowvec cross_self = 4.0 * (diff_pw.t() * temp_pairwise_cross) * temp_covariance
+                                  + 4.0 * diff_diag * cross_times_cov.row(s)
+                                  + 2.0 * sum_obs_minus_E * temp_main_continuous.t();
+
+            for(size_t j = 0; j < q_; ++j) {
+                if(edge_indicators_(s, p_ + j) == 0) continue;
+                int loc = cross_index_cache_(s, j);
+                grad(loc) += cross_self(j);
+            }
+
+            // Cross-contribution: a = t, for each t ≠ s
+            // ∂l_s/∂pairwise_effects_cross_{t,:} = diff_pw(t) * 2 * pairwise_effects_cross_s * Σyy
+            arma::rowvec V_s = 4.0 * cross_times_cov.row(s);
+            for(size_t t = 0; t < p_; ++t) {
+                if(t == s || std::abs(diff_pw(t)) < 1e-300) continue;
                 for(size_t j = 0; j < q_; ++j) {
-                    if(edge_indicators_(s, p_ + j) == 0) continue;
-                    int loc = cross_index_cache_(s, j);
-                    grad(loc) += cross_self(j);
+                    if(edge_indicators_(t, p_ + j) == 0) continue;
+                    int loc = cross_index_cache_(t, j);
+                    grad(loc) += diff_pw(t) * V_s(j);
                 }
+            }
 
-                // Cross-contribution (a = t, t ≠ s): from var s's rest via M_{st}.
-                //   ∂l_s/∂A_xy_{t,:} = diff_pw(t) * 4 (A_xy Σ)_{s,:}
-                arma::rowvec V_s = 4.0 * cross_times_cov.row(s);
-                for(size_t t = 0; t < p_; ++t) {
-                    if(t == s || std::abs(diff_pw(t)) < 1e-300) continue;
-                    for(size_t j = 0; j < q_; ++j) {
-                        if(edge_indicators_(t, p_ + j) == 0) continue;
-                        int loc = cross_index_cache_(t, j);
-                        grad(loc) += diff_pw(t) * V_s(j);
-                    }
-                }
-
-                // Continuous mean gradient from marginal OMRF:
-                // ∂l_s/∂main_effects_continuous_j = 2 A_xy_{s,j} * sum_i (x_{is} - E_s)
-                for(size_t j = 0; j < q_; ++j) {
-                    grad(main_effects_continuous_grad_offset_ + j) += 2.0 * temp_pairwise_cross(s, j) * sum_obs_minus_E;
-                }
-            } else {
-                // Conditional PL: pairwise_cross gradient from OMRF rest score
-                // ∂/∂pairwise_effects_cross_{s,j} = 2 sum_i y_{ij} (x_{is}+1 - E_s)
-                arma::rowvec cross_grad_s = 2.0 * (
-                    discrete_observations_dbl_.col(s) - E
-                ).t() * continuous_observations_;
-
-                for(size_t j = 0; j < q_; ++j) {
-                    if(edge_indicators_(s, p_ + j) == 0) continue;
-                    int loc = cross_index_cache_(s, j);
-                    grad(loc) += cross_grad_s(j);
-                }
+            // Continuous mean gradient from marginal OMRF:
+            // ∂l_s/∂main_effects_continuous_j = 2 pairwise_effects_cross_{sj} * sum_i (x_{is} - E_s)
+            for(size_t j = 0; j < q_; ++j) {
+                grad(main_effects_continuous_grad_offset_ + j) += 2.0 * temp_pairwise_cross(s, j) * sum_obs_minus_E;
             }
 
             main_effects_discrete_offset += C_s;
@@ -410,9 +381,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
 
             // Marginal PL: absorb marginal self-interaction into quadratic effect
             double effective_quad = quad_eff;
-            if(use_marginal_pl_) {
-                effective_quad += temp_marginal(s, s);
-            }
+            effective_quad += temp_marginal(s, s);
 
             arma::vec bc_bound;
             LogZAndProbs result = compute_logZ_and_probs_blume_capel(
@@ -440,64 +409,50 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
                 grad(loc) -= 2.0 * pw_grad(t);
             }
 
-            if(use_marginal_pl_) {
-                // Pairwise_cross gradient from marginal OMRF (same structure as ordinal).
-                // See the ordinal branch for the derivation of the factors.
-                arma::vec E_sq = result.probs * sq_score;
+            // Pairwise_cross gradient from marginal OMRF (same structure as ordinal)
+            arma::vec E_sq = result.probs * sq_score;
 
-                arma::vec diff_pw = discrete_observations_dbl_t_ *
-                    (discrete_observations_dbl_.col(s) - E);
-                diff_pw(s) = 0.0;
+            arma::vec diff_pw = discrete_observations_dbl_t_ *
+                (discrete_observations_dbl_.col(s) - E);
+            diff_pw(s) = 0.0;
 
-                double diff_diag = arma::dot(
-                    discrete_observations_dbl_.col(s),
-                    discrete_observations_dbl_.col(s)) - arma::accu(E_sq);
+            double diff_diag = arma::dot(
+                discrete_observations_dbl_.col(s),
+                discrete_observations_dbl_.col(s)) - arma::accu(E_sq);
 
-                double sum_obs_minus_E = arma::accu(discrete_observations_dbl_.col(s)) - arma::accu(E);
+            double sum_obs_minus_E = arma::accu(discrete_observations_dbl_.col(s)) - arma::accu(E);
 
-                // Accumulate Θ̄ = ∂l_s/∂M: factor 2 off-diagonal, factor 1 diagonal.
-                for(size_t t = 0; t < p_; ++t) {
-                    if(t != s) Theta_bar(s, t) += 2.0 * diff_pw(t);
-                }
-                Theta_bar(s, s) += diff_diag;
+            // Accumulate Θ̄ for precision gradient coupling
+            for(size_t t = 0; t < p_; ++t) {
+                if(t != s) Theta_bar(s, t) += 2.0 * diff_pw(t);
+            }
+            Theta_bar(s, s) += diff_diag;
 
-                // Self-contribution: a = s
-                arma::rowvec cross_self = 4.0 * (diff_pw.t() * temp_pairwise_cross) * temp_covariance
-                                      + 4.0 * diff_diag * cross_times_cov.row(s)
-                                      + 2.0 * sum_obs_minus_E * temp_main_continuous.t();
+            // Self-contribution: a = s
+            arma::rowvec cross_self = 4.0 * (diff_pw.t() * temp_pairwise_cross) * temp_covariance
+                                  + 4.0 * diff_diag * cross_times_cov.row(s)
+                                  + 2.0 * sum_obs_minus_E * temp_main_continuous.t();
 
+            for(size_t j = 0; j < q_; ++j) {
+                if(edge_indicators_(s, p_ + j) == 0) continue;
+                int loc = cross_index_cache_(s, j);
+                grad(loc) += cross_self(j);
+            }
+
+            // Cross-contribution: a = t, for each t ≠ s
+            arma::rowvec V_s = 4.0 * cross_times_cov.row(s);
+            for(size_t t = 0; t < p_; ++t) {
+                if(t == s || std::abs(diff_pw(t)) < 1e-300) continue;
                 for(size_t j = 0; j < q_; ++j) {
-                    if(edge_indicators_(s, p_ + j) == 0) continue;
-                    int loc = cross_index_cache_(s, j);
-                    grad(loc) += cross_self(j);
+                    if(edge_indicators_(t, p_ + j) == 0) continue;
+                    int loc = cross_index_cache_(t, j);
+                    grad(loc) += diff_pw(t) * V_s(j);
                 }
+            }
 
-                // Cross-contribution: a = t, for each t ≠ s
-                arma::rowvec V_s = 4.0 * cross_times_cov.row(s);
-                for(size_t t = 0; t < p_; ++t) {
-                    if(t == s || std::abs(diff_pw(t)) < 1e-300) continue;
-                    for(size_t j = 0; j < q_; ++j) {
-                        if(edge_indicators_(t, p_ + j) == 0) continue;
-                        int loc = cross_index_cache_(t, j);
-                        grad(loc) += diff_pw(t) * V_s(j);
-                    }
-                }
-
-                // Continuous mean gradient from marginal OMRF
-                for(size_t j = 0; j < q_; ++j) {
-                    grad(main_effects_continuous_grad_offset_ + j) += 2.0 * temp_pairwise_cross(s, j) * sum_obs_minus_E;
-                }
-            } else {
-                // Conditional PL: pairwise_cross gradient from OMRF rest score
-                arma::rowvec cross_grad_s = 2.0 * (
-                    discrete_observations_dbl_.col(s) - E
-                ).t() * continuous_observations_;
-
-                for(size_t j = 0; j < q_; ++j) {
-                    if(edge_indicators_(s, p_ + j) == 0) continue;
-                    int loc = cross_index_cache_(s, j);
-                    grad(loc) += cross_grad_s(j);
-                }
+            // Continuous mean gradient from marginal OMRF
+            for(size_t j = 0; j < q_; ++j) {
+                grad(main_effects_continuous_grad_offset_ + j) += 2.0 * temp_pairwise_cross(s, j) * sum_obs_minus_E;
             }
 
             main_effects_discrete_offset += 2;
@@ -510,20 +465,14 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     for(size_t s = 0; s < p_; ++s) {
         int C_s = num_categories_(s);
         arma::vec rest;
-        if(use_marginal_pl_) {
-            double precision_ss = temp_marginal(s, s);
-            rest = 2.0 * (discrete_observations_dbl_ * temp_marginal.col(s)
-                        - discrete_observations_dbl_.col(s) * precision_ss)
-                 + 2.0 * arma::dot(temp_pairwise_cross.row(s), temp_main_continuous);
-            // Marginal self-interaction quadratic contribution
-            logp += precision_ss * arma::dot(
-                discrete_observations_dbl_.col(s),
-                discrete_observations_dbl_.col(s));
-        } else {
-            rest = 2.0 * (discrete_observations_dbl_ * temp_pairwise_discrete.col(s)
-                 - discrete_observations_dbl_.col(s) * temp_pairwise_discrete(s, s))
-                 + 2.0 * continuous_observations_ * temp_pairwise_cross.row(s).t();
-        }
+        double precision_ss = temp_marginal(s, s);
+        rest = 2.0 * (discrete_observations_dbl_ * temp_marginal.col(s)
+                    - discrete_observations_dbl_.col(s) * precision_ss)
+             + 2.0 * arma::dot(temp_pairwise_cross.row(s), temp_main_continuous);
+        // Marginal self-interaction quadratic contribution
+        logp += precision_ss * arma::dot(
+            discrete_observations_dbl_.col(s),
+            discrete_observations_dbl_.col(s));
         // Numerator: dot(x_s, rest) + main-effect sums
         logp += arma::dot(discrete_observations_dbl_.col(s), rest);
 
@@ -654,10 +603,8 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     // ∂M_{st}/∂Σ_{ab} = 2 A_xy_{s,a} A_xy_{t,b}
     //   →  ∂ℓ/∂Σ = 2 A_xy^T Θ̄ A_xy,  Θ̄_{s,t} = ∂l_s/∂M_{s,t}
     // ∂ℓ/∂Ω += −Σ (∂ℓ/∂Σ) Σ = −2 Σ A_xy^T Θ̄ A_xy Σ
-    if(use_marginal_pl_) {
-        Omega_bar -= 2.0 * temp_covariance * temp_pairwise_cross.t()
-                   * Theta_bar * temp_pairwise_cross * temp_covariance;
-    }
+    Omega_bar -= 2.0 * temp_covariance * temp_pairwise_cross.t()
+               * Theta_bar * temp_pairwise_cross * temp_covariance;
 
     // --- Phase 3: Priors on precision entries ---
     // Diagonal prior on Ω_{jj}
@@ -793,10 +740,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
     arma::mat D = continuous_observations_ - temp_cond_mean;
 
     arma::mat temp_marginal;
-    if(use_marginal_pl_) {
-        // M = A_xx + 2 A_xy Σ_yy A_xy' (see mixed_mrf_model.cpp)
-        temp_marginal = temp_pairwise_discrete + 2.0 * temp_pairwise_cross * temp_covariance * temp_pairwise_cross.t();
-    }
+    temp_marginal = temp_pairwise_discrete + 2.0 * temp_pairwise_cross * temp_covariance * temp_pairwise_cross.t();
 
     // Initialize gradient (full dimension)
     arma::vec grad(full_dim, arma::fill::zeros);
@@ -811,10 +755,8 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
     // For marginal PL: precompute helpers
     arma::mat cross_times_cov;
     arma::mat Theta_bar;
-    if(use_marginal_pl_) {
-        cross_times_cov = temp_pairwise_cross * temp_covariance;
-        Theta_bar = arma::zeros<arma::mat>(p_, p_);
-    }
+    cross_times_cov = temp_pairwise_cross * temp_covariance;
+    Theta_bar = arma::zeros<arma::mat>(p_, p_);
 
     // =========================================================================
     // Part 1: OMRF conditionals (same as active-space but full indexing)
@@ -864,25 +806,17 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
 
         // Rest score
         arma::vec rest;
-        if(use_marginal_pl_) {
-            double precision_ss = temp_marginal(s, s);
-            rest = 2.0 * (discrete_observations_dbl_ * temp_marginal.col(s)
-                        - discrete_observations_dbl_.col(s) * precision_ss)
-                 + 2.0 * arma::dot(temp_pairwise_cross.row(s), temp_main_continuous);
-        } else {
-            rest = 2.0 * (discrete_observations_dbl_ * temp_pairwise_discrete.col(s)
-                 - discrete_observations_dbl_.col(s) * temp_pairwise_discrete(s, s))
-                 + 2.0 * continuous_observations_ * temp_pairwise_cross.row(s).t();
-        }
+        double precision_ss = temp_marginal(s, s);
+        rest = 2.0 * (discrete_observations_dbl_ * temp_marginal.col(s)
+                    - discrete_observations_dbl_.col(s) * precision_ss)
+             + 2.0 * arma::dot(temp_pairwise_cross.row(s), temp_main_continuous);
 
         if(is_ordinal_variable_(s)) {
             arma::vec main_param = temp_main_discrete.row(s).cols(0, C_s - 1).t();
 
-            if(use_marginal_pl_) {
-                double precision_ss = temp_marginal(s, s);
-                for(int c = 0; c < C_s; ++c) {
-                    main_param(c) += static_cast<double>((c + 1) * (c + 1)) * precision_ss;
-                }
+            double precision_ss = temp_marginal(s, s);
+            for(int c = 0; c < C_s; ++c) {
+                main_param(c) += static_cast<double>((c + 1) * (c + 1)) * precision_ss;
             }
 
             arma::vec bound = main_param(C_s - 1) + static_cast<double>(C_s) * rest;
@@ -910,52 +844,42 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
                 grad(loc) -= 2.0 * pw_grad(t);
             }
 
-            if(use_marginal_pl_) {
-                arma::vec weights_sq = arma::square(weights);
-                arma::vec E_sq = result.probs.cols(1, C_s) * weights_sq;
+            arma::vec weights_sq = arma::square(weights);
+            arma::vec E_sq = result.probs.cols(1, C_s) * weights_sq;
 
-                arma::vec diff_pw = discrete_observations_dbl_t_ *
-                    (discrete_observations_dbl_.col(s) - E);
-                diff_pw(s) = 0.0;
+            arma::vec diff_pw = discrete_observations_dbl_t_ *
+                (discrete_observations_dbl_.col(s) - E);
+            diff_pw(s) = 0.0;
 
-                double diff_diag = arma::dot(
-                    discrete_observations_dbl_.col(s),
-                    discrete_observations_dbl_.col(s)) - arma::accu(E_sq);
+            double diff_diag = arma::dot(
+                discrete_observations_dbl_.col(s),
+                discrete_observations_dbl_.col(s)) - arma::accu(E_sq);
 
-                double sum_obs_minus_E = arma::accu(discrete_observations_dbl_.col(s)) - arma::accu(E);
+            double sum_obs_minus_E = arma::accu(discrete_observations_dbl_.col(s)) - arma::accu(E);
 
-                for(size_t t = 0; t < p_; ++t) {
-                    if(t != s) Theta_bar(s, t) += 2.0 * diff_pw(t);
-                }
-                Theta_bar(s, s) += diff_diag;
+            for(size_t t = 0; t < p_; ++t) {
+                if(t != s) Theta_bar(s, t) += 2.0 * diff_pw(t);
+            }
+            Theta_bar(s, s) += diff_diag;
 
-                arma::rowvec cross_self = 4.0 * (diff_pw.t() * temp_pairwise_cross) * temp_covariance
-                                      + 4.0 * diff_diag * cross_times_cov.row(s)
-                                      + 2.0 * sum_obs_minus_E * temp_main_continuous.t();
+            arma::rowvec cross_self = 4.0 * (diff_pw.t() * temp_pairwise_cross) * temp_covariance
+                                  + 4.0 * diff_diag * cross_times_cov.row(s)
+                                  + 2.0 * sum_obs_minus_E * temp_main_continuous.t();
 
+            for(size_t j = 0; j < q_; ++j) {
+                grad(kxy_idx(s, j)) += cross_self(j);
+            }
+
+            arma::rowvec V_s = 4.0 * cross_times_cov.row(s);
+            for(size_t t = 0; t < p_; ++t) {
+                if(t == s || std::abs(diff_pw(t)) < 1e-300) continue;
                 for(size_t j = 0; j < q_; ++j) {
-                    grad(kxy_idx(s, j)) += cross_self(j);
+                    grad(kxy_idx(t, j)) += diff_pw(t) * V_s(j);
                 }
+            }
 
-                arma::rowvec V_s = 4.0 * cross_times_cov.row(s);
-                for(size_t t = 0; t < p_; ++t) {
-                    if(t == s || std::abs(diff_pw(t)) < 1e-300) continue;
-                    for(size_t j = 0; j < q_; ++j) {
-                        grad(kxy_idx(t, j)) += diff_pw(t) * V_s(j);
-                    }
-                }
-
-                for(size_t j = 0; j < q_; ++j) {
-                    grad(mean_offset + j) += 2.0 * temp_pairwise_cross(s, j) * sum_obs_minus_E;
-                }
-            } else {
-                arma::rowvec cross_grad_s = 2.0 * (
-                    discrete_observations_dbl_.col(s) - E
-                ).t() * continuous_observations_;
-
-                for(size_t j = 0; j < q_; ++j) {
-                    grad(kxy_idx(s, j)) += cross_grad_s(j);
-                }
+            for(size_t j = 0; j < q_; ++j) {
+                grad(mean_offset + j) += 2.0 * temp_pairwise_cross(s, j) * sum_obs_minus_E;
             }
 
             main_effects_discrete_offset += C_s;
@@ -966,9 +890,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
             double quad_eff = temp_main_discrete(s, 1);
 
             double effective_quad = quad_eff;
-            if(use_marginal_pl_) {
-                effective_quad += temp_marginal(s, s);
-            }
+            effective_quad += temp_marginal(s, s);
 
             arma::vec bc_bound;
             LogZAndProbs result = compute_logZ_and_probs_blume_capel(
@@ -992,51 +914,41 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
                 grad(loc) -= 2.0 * pw_grad(t);
             }
 
-            if(use_marginal_pl_) {
-                arma::vec E_sq = result.probs * sq_score;
+            arma::vec E_sq = result.probs * sq_score;
 
-                arma::vec diff_pw = discrete_observations_dbl_t_ *
-                    (discrete_observations_dbl_.col(s) - E);
-                diff_pw(s) = 0.0;
+            arma::vec diff_pw = discrete_observations_dbl_t_ *
+                (discrete_observations_dbl_.col(s) - E);
+            diff_pw(s) = 0.0;
 
-                double diff_diag = arma::dot(
-                    discrete_observations_dbl_.col(s),
-                    discrete_observations_dbl_.col(s)) - arma::accu(E_sq);
+            double diff_diag = arma::dot(
+                discrete_observations_dbl_.col(s),
+                discrete_observations_dbl_.col(s)) - arma::accu(E_sq);
 
-                double sum_obs_minus_E = arma::accu(discrete_observations_dbl_.col(s)) - arma::accu(E);
+            double sum_obs_minus_E = arma::accu(discrete_observations_dbl_.col(s)) - arma::accu(E);
 
-                for(size_t t = 0; t < p_; ++t) {
-                    if(t != s) Theta_bar(s, t) += 2.0 * diff_pw(t);
-                }
-                Theta_bar(s, s) += diff_diag;
+            for(size_t t = 0; t < p_; ++t) {
+                if(t != s) Theta_bar(s, t) += 2.0 * diff_pw(t);
+            }
+            Theta_bar(s, s) += diff_diag;
 
-                arma::rowvec cross_self = 4.0 * (diff_pw.t() * temp_pairwise_cross) * temp_covariance
-                                      + 4.0 * diff_diag * cross_times_cov.row(s)
-                                      + 2.0 * sum_obs_minus_E * temp_main_continuous.t();
+            arma::rowvec cross_self = 4.0 * (diff_pw.t() * temp_pairwise_cross) * temp_covariance
+                                  + 4.0 * diff_diag * cross_times_cov.row(s)
+                                  + 2.0 * sum_obs_minus_E * temp_main_continuous.t();
 
+            for(size_t j = 0; j < q_; ++j) {
+                grad(kxy_idx(s, j)) += cross_self(j);
+            }
+
+            arma::rowvec V_s = 4.0 * cross_times_cov.row(s);
+            for(size_t t = 0; t < p_; ++t) {
+                if(t == s || std::abs(diff_pw(t)) < 1e-300) continue;
                 for(size_t j = 0; j < q_; ++j) {
-                    grad(kxy_idx(s, j)) += cross_self(j);
+                    grad(kxy_idx(t, j)) += diff_pw(t) * V_s(j);
                 }
+            }
 
-                arma::rowvec V_s = 4.0 * cross_times_cov.row(s);
-                for(size_t t = 0; t < p_; ++t) {
-                    if(t == s || std::abs(diff_pw(t)) < 1e-300) continue;
-                    for(size_t j = 0; j < q_; ++j) {
-                        grad(kxy_idx(t, j)) += diff_pw(t) * V_s(j);
-                    }
-                }
-
-                for(size_t j = 0; j < q_; ++j) {
-                    grad(mean_offset + j) += 2.0 * temp_pairwise_cross(s, j) * sum_obs_minus_E;
-                }
-            } else {
-                arma::rowvec cross_grad_s = 2.0 * (
-                    discrete_observations_dbl_.col(s) - E
-                ).t() * continuous_observations_;
-
-                for(size_t j = 0; j < q_; ++j) {
-                    grad(kxy_idx(s, j)) += cross_grad_s(j);
-                }
+            for(size_t j = 0; j < q_; ++j) {
+                grad(mean_offset + j) += 2.0 * temp_pairwise_cross(s, j) * sum_obs_minus_E;
             }
 
             main_effects_discrete_offset += 2;
@@ -1048,19 +960,13 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
     for(size_t s = 0; s < p_; ++s) {
         int C_s = num_categories_(s);
         arma::vec rest;
-        if(use_marginal_pl_) {
-            double precision_ss = temp_marginal(s, s);
-            rest = 2.0 * (discrete_observations_dbl_ * temp_marginal.col(s)
-                        - discrete_observations_dbl_.col(s) * precision_ss)
-                 + 2.0 * arma::dot(temp_pairwise_cross.row(s), temp_main_continuous);
-            logp += precision_ss * arma::dot(
-                discrete_observations_dbl_.col(s),
-                discrete_observations_dbl_.col(s));
-        } else {
-            rest = 2.0 * (discrete_observations_dbl_ * temp_pairwise_discrete.col(s)
-                 - discrete_observations_dbl_.col(s) * temp_pairwise_discrete(s, s))
-                 + 2.0 * continuous_observations_ * temp_pairwise_cross.row(s).t();
-        }
+        double precision_ss = temp_marginal(s, s);
+        rest = 2.0 * (discrete_observations_dbl_ * temp_marginal.col(s)
+                    - discrete_observations_dbl_.col(s) * precision_ss)
+             + 2.0 * arma::dot(temp_pairwise_cross.row(s), temp_main_continuous);
+        logp += precision_ss * arma::dot(
+            discrete_observations_dbl_.col(s),
+            discrete_observations_dbl_.col(s));
         logp += arma::dot(discrete_observations_dbl_.col(s), rest);
 
         if(is_ordinal_variable_(s)) {
@@ -1156,10 +1062,8 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
     Omega_bar -= 2.0 * temp_covariance * temp_pairwise_cross.t()
                * discrete_observations_dbl_t_ * D;
 
-    if(use_marginal_pl_) {
-        Omega_bar -= 2.0 * temp_covariance * temp_pairwise_cross.t()
-                   * Theta_bar * temp_pairwise_cross * temp_covariance;
-    }
+    Omega_bar -= 2.0 * temp_covariance * temp_pairwise_cross.t()
+               * Theta_bar * temp_pairwise_cross * temp_covariance;
 
     // Diagonal prior on Ω_{jj}
     for(size_t j = 0; j < q_; ++j) {

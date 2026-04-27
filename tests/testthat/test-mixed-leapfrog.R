@@ -103,7 +103,7 @@ make_mixed_scenario = function(p, q, n, edge_ind, num_cats, seed) {
   # Project position to satisfy constraints
   proj = mixed_test_project_position(
     params, inv_mass, x_obs, y_obs, num_cats, as.integer(is_ord),
-    base_cat, edge_ind, "conditional", scale
+    base_cat, edge_ind, scale
   )
   x0 = as.vector(proj$projected)
 
@@ -112,7 +112,7 @@ make_mixed_scenario = function(p, q, n, edge_ind, num_cats, seed) {
   r_raw = rnorm(dim)
   r_proj = mixed_test_project_momentum(
     r_raw, x0, inv_mass, x_obs, y_obs, num_cats, as.integer(is_ord),
-    base_cat, edge_ind, "conditional", scale
+    base_cat, edge_ind, scale
   )
   r0 = as.vector(r_proj$projected)
 
@@ -145,13 +145,13 @@ test_that("mixed leapfrog is reversible, p=3 q=2 sparse", {
   fwd = mixed_test_leapfrog_constrained(
     sc$x0, sc$r0, eps, n_steps, sc$x_obs, sc$y_obs,
     sc$num_cats, as.integer(sc$is_ord), sc$base_cat,
-    sc$edge_ind, "conditional", sc$scale
+    sc$edge_ind, sc$scale
   )
 
   bwd = mixed_test_leapfrog_constrained(
     as.vector(fwd$x), -as.vector(fwd$r), eps, n_steps, sc$x_obs, sc$y_obs,
     sc$num_cats, as.integer(sc$is_ord), sc$base_cat,
-    sc$edge_ind, "conditional", sc$scale
+    sc$edge_ind, sc$scale
   )
 
   x_return = as.vector(bwd$x)
@@ -188,13 +188,13 @@ test_that("mixed leapfrog is reversible, p=3 q=3 sparse", {
   fwd = mixed_test_leapfrog_constrained(
     sc$x0, sc$r0, eps, n_steps, sc$x_obs, sc$y_obs,
     sc$num_cats, as.integer(sc$is_ord), sc$base_cat,
-    sc$edge_ind, "conditional", sc$scale
+    sc$edge_ind, sc$scale
   )
 
   bwd = mixed_test_leapfrog_constrained(
     as.vector(fwd$x), -as.vector(fwd$r), eps, n_steps, sc$x_obs, sc$y_obs,
     sc$num_cats, as.integer(sc$is_ord), sc$base_cat,
-    sc$edge_ind, "conditional", sc$scale
+    sc$edge_ind, sc$scale
   )
 
   x_return = as.vector(bwd$x)
@@ -231,12 +231,12 @@ test_that("mixed leapfrog reversibility error scales as O(eps^2)", {
     fwd = mixed_test_leapfrog_constrained(
       sc$x0, sc$r0, eps, n_steps, sc$x_obs, sc$y_obs,
       sc$num_cats, as.integer(sc$is_ord), sc$base_cat,
-      sc$edge_ind, "conditional", sc$scale
+      sc$edge_ind, sc$scale
     )
     bwd = mixed_test_leapfrog_constrained(
       as.vector(fwd$x), -as.vector(fwd$r), eps, n_steps, sc$x_obs, sc$y_obs,
       sc$num_cats, as.integer(sc$is_ord), sc$base_cat,
-      sc$edge_ind, "conditional", sc$scale
+      sc$edge_ind, sc$scale
     )
     max(abs(as.vector(bwd$x) - sc$x0))
   }
@@ -269,7 +269,7 @@ test_that("mixed leapfrog conserves energy, p=3 q=2 sparse", {
   res = mixed_test_leapfrog_constrained(
     sc$x0, sc$r0, eps, n_steps, sc$x_obs, sc$y_obs,
     sc$num_cats, as.integer(sc$is_ord), sc$base_cat,
-    sc$edge_ind, "conditional", sc$scale
+    sc$edge_ind, sc$scale
   )
 
   expect_lt(abs(res$dH), 1.0,
@@ -294,12 +294,12 @@ test_that("mixed leapfrog energy conservation improves with smaller step", {
   res_large = mixed_test_leapfrog_constrained(
     sc$x0, sc$r0, 0.01, n_steps, sc$x_obs, sc$y_obs,
     sc$num_cats, as.integer(sc$is_ord), sc$base_cat,
-    sc$edge_ind, "conditional", sc$scale
+    sc$edge_ind, sc$scale
   )
   res_small = mixed_test_leapfrog_constrained(
     sc$x0, sc$r0, 0.005, n_steps, sc$x_obs, sc$y_obs,
     sc$num_cats, as.integer(sc$is_ord), sc$base_cat,
-    sc$edge_ind, "conditional", sc$scale
+    sc$edge_ind, sc$scale
   )
 
   expect_lt(abs(res_small$dH), abs(res_large$dH) + 0.01,
@@ -329,7 +329,7 @@ test_that("excluded Kxx and Kxy entries stay zero after trajectory", {
   res = mixed_test_leapfrog_constrained(
     sc$x0, sc$r0, eps, n_steps, sc$x_obs, sc$y_obs,
     sc$num_cats, as.integer(sc$is_ord), sc$base_cat,
-    sc$edge_ind, "conditional", sc$scale
+    sc$edge_ind, sc$scale
   )
 
   x_final = as.vector(res$x)
@@ -377,7 +377,7 @@ test_that("excluded entries stay zero, p=3 q=3 multiple excluded", {
   res = mixed_test_leapfrog_constrained(
     sc$x0, sc$r0, eps, n_steps, sc$x_obs, sc$y_obs,
     sc$num_cats, as.integer(sc$is_ord), sc$base_cat,
-    sc$edge_ind, "conditional", sc$scale
+    sc$edge_ind, sc$scale
   )
 
   x_final = as.vector(res$x)
@@ -417,7 +417,7 @@ test_that("excluded momentum entries stay zero after trajectory", {
   res = mixed_test_leapfrog_constrained(
     sc$x0, sc$r0, eps, n_steps, sc$x_obs, sc$y_obs,
     sc$num_cats, as.integer(sc$is_ord), sc$base_cat,
-    sc$edge_ind, "conditional", sc$scale
+    sc$edge_ind, sc$scale
   )
 
   r_final = as.vector(res$r)
@@ -462,7 +462,7 @@ test_that("Cholesky diagonal stays positive after trajectory", {
   res = mixed_test_leapfrog_constrained(
     sc$x0, sc$r0, eps, n_steps, sc$x_obs, sc$y_obs,
     sc$num_cats, as.integer(sc$is_ord), sc$base_cat,
-    sc$edge_ind, "conditional", sc$scale
+    sc$edge_ind, sc$scale
   )
 
   x_final = as.vector(res$x)
@@ -520,7 +520,7 @@ test_that("combined trajectory: constraints hold across all three blocks", {
   res = mixed_test_leapfrog_constrained(
     sc$x0, sc$r0, eps, n_steps, sc$x_obs, sc$y_obs,
     sc$num_cats, as.integer(sc$is_ord), sc$base_cat,
-    sc$edge_ind, "conditional", sc$scale
+    sc$edge_ind, sc$scale
   )
 
   # Check energy conservation
@@ -546,7 +546,7 @@ test_that("combined trajectory: constraints hold across all three blocks", {
   bwd = mixed_test_leapfrog_constrained(
     as.vector(res$x), -as.vector(res$r), eps, n_steps, sc$x_obs, sc$y_obs,
     sc$num_cats, as.integer(sc$is_ord), sc$base_cat,
-    sc$edge_ind, "conditional", sc$scale
+    sc$edge_ind, sc$scale
   )
 
   x_return = as.vector(bwd$x)
@@ -600,7 +600,7 @@ test_that("full-edge graph: mixed leapfrog trajectory is valid", {
   res = mixed_test_leapfrog_constrained(
     sc$x0, sc$r0, eps, n_steps, sc$x_obs, sc$y_obs,
     sc$num_cats, as.integer(sc$is_ord), sc$base_cat,
-    sc$edge_ind, "conditional", sc$scale
+    sc$edge_ind, sc$scale
   )
 
   # Energy should be approximately conserved
@@ -612,9 +612,9 @@ test_that("full-edge graph: mixed leapfrog trajectory is valid", {
 })
 
 
-# ---- 8. Marginal PL: trajectory properties hold ----------------------------
+# ---- 8. Trajectory properties hold (additional configuration) -------------
 
-test_that("mixed leapfrog works with marginal pseudolikelihood", {
+test_that("mixed leapfrog: alternative scenario trajectory is valid", {
   p = 3
   q = 2
   n = 50
@@ -649,7 +649,7 @@ test_that("mixed leapfrog works with marginal pseudolikelihood", {
   inv_mass = rep(1.0, dim)
   proj = mixed_test_project_position(
     params, inv_mass, x_obs, y_obs, num_cats, as.integer(is_ord),
-    base_cat, edge_ind, "marginal", scale
+    base_cat, edge_ind, scale
   )
   x0 = as.vector(proj$projected)
 
@@ -657,7 +657,7 @@ test_that("mixed leapfrog works with marginal pseudolikelihood", {
   r_raw = rnorm(dim)
   r_proj = mixed_test_project_momentum(
     r_raw, x0, inv_mass, x_obs, y_obs, num_cats, as.integer(is_ord),
-    base_cat, edge_ind, "marginal", scale
+    base_cat, edge_ind, scale
   )
   r0 = as.vector(r_proj$projected)
 
@@ -667,7 +667,7 @@ test_that("mixed leapfrog works with marginal pseudolikelihood", {
   res = mixed_test_leapfrog_constrained(
     x0, r0, eps, n_steps, x_obs, y_obs,
     num_cats, as.integer(is_ord), base_cat,
-    edge_ind, "marginal", scale
+    edge_ind, scale
   )
 
   # Energy conservation
@@ -686,7 +686,7 @@ test_that("mixed leapfrog works with marginal pseudolikelihood", {
   bwd = mixed_test_leapfrog_constrained(
     as.vector(res$x), -as.vector(res$r), eps, n_steps, x_obs, y_obs,
     num_cats, as.integer(is_ord), base_cat,
-    edge_ind, "marginal", scale
+    edge_ind, scale
   )
   expect_lt(max(abs(as.vector(bwd$x) - x0)), 1e-2)
 })
@@ -728,7 +728,7 @@ test_that("mixed leapfrog works across constraint patterns", {
     res = mixed_test_leapfrog_constrained(
       sc$x0, sc$r0, eps, n_steps, sc$x_obs, sc$y_obs,
       sc$num_cats, as.integer(sc$is_ord), sc$base_cat,
-      sc$edge_ind, "conditional", sc$scale
+      sc$edge_ind, sc$scale
     )
 
     expect_lt(abs(res$dH), 2.0,

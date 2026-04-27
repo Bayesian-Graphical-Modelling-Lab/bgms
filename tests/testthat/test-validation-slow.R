@@ -50,7 +50,7 @@ test_that("mixed MRF parameter recovery: cor > 0.8 (small network)", {
 
   fit = bgm(dat,
     variable_type = vt,
-    pseudolikelihood = "conditional", edge_selection = FALSE,
+    edge_selection = FALSE,
     iter = 10000, warmup = 5000, chains = 2, seed = 301,
     display_progress = "none"
   )
@@ -85,7 +85,6 @@ test_that("MH vs NUTS posterior agreement: cor > 0.95", {
 
   fit_mh = bgm(dat,
     variable_type = vt,
-    pseudolikelihood = "conditional",
     update_method = "adaptive-metropolis",
     edge_selection = FALSE,
     iter = 15000, warmup = 10000, chains = 2, seed = 401,
@@ -94,7 +93,6 @@ test_that("MH vs NUTS posterior agreement: cor > 0.95", {
 
   fit_nuts = bgm(dat,
     variable_type = vt,
-    pseudolikelihood = "conditional",
     update_method = "nuts",
     edge_selection = FALSE,
     iter = 5000, warmup = 3000, chains = 2, seed = 402,
@@ -112,43 +110,7 @@ test_that("MH vs NUTS posterior agreement: cor > 0.95", {
 
 
 # ==============================================================================
-# 3. Conditional vs marginal PL agreement (adapted from group3)
-# ==============================================================================
-
-test_that("conditional vs marginal PL agreement: cor > 0.90", {
-  skip_slow()
-  source(helpers_path, local = TRUE)
-
-  net = make_network(p = 2, q = 2, n_cat = c(1L, 2L), density = 1.0, seed = 101)
-  dat = generate_data(net, n = 2000, source = "bgms", seed = 201)
-  vt = c(rep("ordinal", 2), rep("continuous", 2))
-
-  fit_cond = bgm(dat,
-    variable_type = vt,
-    pseudolikelihood = "conditional", edge_selection = FALSE,
-    iter = 10000, warmup = 5000, chains = 2, seed = 501,
-    display_progress = "none"
-  )
-
-  fit_marg = bgm(dat,
-    variable_type = vt,
-    pseudolikelihood = "marginal", edge_selection = FALSE,
-    iter = 10000, warmup = 5000, chains = 2, seed = 502,
-    display_progress = "none"
-  )
-
-  est_cond = flatten_params(extract_bgms_blocks(fit_cond, net))
-  est_marg = flatten_params(extract_bgms_blocks(fit_marg, net))
-
-  r = cor(est_cond, est_marg)
-  expect_gt(r, 0.90,
-    label = sprintf("cond vs marg PL agreement (%.4f)", r)
-  )
-})
-
-
-# ==============================================================================
-# 4. Estimate-simulate-re-estimate cycle (mixed MRF)
+# 3. Estimate-simulate-re-estimate cycle (mixed MRF)
 # ==============================================================================
 
 test_that("estimate-simulate-re-estimate cycle: cor > 0.7 (mixed MRF)", {

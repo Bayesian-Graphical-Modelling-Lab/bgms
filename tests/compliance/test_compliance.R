@@ -199,12 +199,6 @@ bgm_configs <- list(
     edge_selection = TRUE, edge_prior = "Bernoulli",
     update_method = "adaptive-metropolis", seed = 103, display_progress = "none"
   ),
-  bgm_wenchuan_hmc_bernoulli = list(
-    x = "wenchuan_small", iter = 200, warmup = 200, chains = 2,
-    edge_selection = TRUE, edge_prior = "Bernoulli",
-    update_method = "hamiltonian-mc", hmc_num_leapfrogs = 20,
-    seed = 104, display_progress = "none"
-  ),
   bgm_wenchuan_nuts_betabern = list(
     x = "wenchuan_small", iter = 200, warmup = 200, chains = 2,
     edge_selection = TRUE, edge_prior = "Beta-Bernoulli",
@@ -233,13 +227,6 @@ bgm_configs <- list(
     variable_type = "blume-capel", baseline_category = 2,
     edge_selection = TRUE, edge_prior = "Bernoulli",
     update_method = "adaptive-metropolis", seed = 402, display_progress = "none"
-  ),
-  bgm_wenchuan_hmc_blumecapel = list(
-    x = "wenchuan_small", iter = 200, warmup = 200, chains = 2,
-    variable_type = "blume-capel", baseline_category = 2,
-    edge_selection = TRUE, edge_prior = "Bernoulli",
-    update_method = "hamiltonian-mc", hmc_num_leapfrogs = 20,
-    seed = 403, display_progress = "none"
   ),
   bgm_wenchuan_nuts_blumecapel_no_edgesel = list(
     x = "wenchuan_small", iter = 200, warmup = 200, chains = 2,
@@ -283,12 +270,6 @@ bgm_configs <- list(
     edge_selection = TRUE, edge_prior = "Beta-Bernoulli",
     update_method = "adaptive-metropolis", seed = 302, display_progress = "none"
   ),
-  bgm_boredom_hmc_bernoulli = list(
-    x = "boredom_small", iter = 200, warmup = 200, chains = 2,
-    edge_selection = TRUE, edge_prior = "Bernoulli",
-    update_method = "hamiltonian-mc", hmc_num_leapfrogs = 20,
-    seed = 303, display_progress = "none"
-  ),
   bgm_boredom_nuts_no_edgesel = list(
     x = "boredom_small", iter = 200, warmup = 200, chains = 2,
     edge_selection = FALSE,
@@ -321,13 +302,6 @@ compare_configs <- list(
     iter = 200, warmup = 200, chains = 2,
     difference_selection = TRUE,
     update_method = "adaptive-metropolis", seed = 602, display_progress = "none"
-  ),
-  cmp_wenchuan_hmc_bernoulli = list(
-    x = "wenchuan_g1", y = "wenchuan_g2",
-    iter = 200, warmup = 200, chains = 2,
-    difference_selection = TRUE,
-    update_method = "hamiltonian-mc", hmc_num_leapfrogs = 20,
-    seed = 603, display_progress = "none"
   ),
   cmp_wenchuan_nuts_no_diffsel = list(
     x = "wenchuan_g1", y = "wenchuan_g2",
@@ -478,9 +452,7 @@ extract_compare_actual <- function(fit) {
 # (bug fix). Only these are allowed to have NA<U+2192>value differences.
 na_bugfix_ids <- c(
   "bgm_wenchuan_nuts_bernoulli",
-  "bgm_wenchuan_hmc_bernoulli",
   "bgm_wenchuan_nuts_blumecapel",
-  "bgm_boredom_hmc_bernoulli",
   "bgm_wenchuan_nuts_blumecapel_baseline1",
   "bgm_wenchuan_nuts_impute"
 )

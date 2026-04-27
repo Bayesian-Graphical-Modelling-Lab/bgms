@@ -383,7 +383,7 @@ test_that("GGM full gradient correct with NormalPrior + Gamma(2,1)", {
 # ==============================================================================
 
 mixed_fd_gradient_prior = function(params, x, y, num_cats, is_ord, base_cat,
-                                   edge_ind, pl_mode, scale,
+                                   edge_ind, scale,
                                    main_alpha, main_beta,
                                    ipt, tpt, ts,
                                    mpt, ms, dpt, dsh, dr,
@@ -397,13 +397,13 @@ mixed_fd_gradient_prior = function(params, x, y, num_cats, is_ord, base_cat,
     p_minus[k] = p_minus[k] - eps
     fp = mixed_test_logp_and_gradient(
       p_plus, x, y, num_cats, as.integer(is_ord),
-      base_cat, edge_ind, pl_mode, scale,
+      base_cat, edge_ind, scale,
       main_alpha, main_beta, ipt, tpt, ts,
       mpt, ms, dpt, dsh, dr
     )$value
     fm = mixed_test_logp_and_gradient(
       p_minus, x, y, num_cats, as.integer(is_ord),
-      base_cat, edge_ind, pl_mode, scale,
+      base_cat, edge_ind, scale,
       main_alpha, main_beta, ipt, tpt, ts,
       mpt, ms, dpt, dsh, dr
     )$value
@@ -433,13 +433,13 @@ test_that("Mixed MRF gradient correct with NormalPrior interactions", {
 
   ag = mixed_test_logp_and_gradient(
     params, x, y, num_cats, as.integer(is_ord),
-    base_cat, edge_ind, "conditional", 2.5,
+    base_cat, edge_ind, 2.5,
     1.0, 1.0, "normal", "beta-prime", 1.0,
     "normal", 1.0, "gamma", 1.0, 1.0
   )
   fd = mixed_fd_gradient_prior(
     params, x, y, num_cats, is_ord, base_cat,
-    edge_ind, "conditional", 2.5,
+    edge_ind, 2.5,
     1.0, 1.0, "normal", "beta-prime", 1.0,
     "normal", 1.0, "gamma", 1.0, 1.0
   )
@@ -472,13 +472,13 @@ test_that("Mixed MRF gradient correct with Cauchy means + Gamma(2,1) diagonal", 
 
   ag = mixed_test_logp_and_gradient(
     params, x, y, num_cats, as.integer(is_ord),
-    base_cat, edge_ind, "conditional", 1.5,
+    base_cat, edge_ind, 1.5,
     0.5, 0.5, "cauchy", "beta-prime", 1.0,
     "cauchy", 2.0, "gamma", 2.0, 1.0
   )
   fd = mixed_fd_gradient_prior(
     params, x, y, num_cats, is_ord, base_cat,
-    edge_ind, "conditional", 1.5,
+    edge_ind, 1.5,
     0.5, 0.5, "cauchy", "beta-prime", 1.0,
     "cauchy", 2.0, "gamma", 2.0, 1.0
   )
@@ -511,13 +511,13 @@ test_that("Mixed MRF gradient correct with Normal threshold + all non-default pr
 
   ag = mixed_test_logp_and_gradient(
     params, x, y, num_cats, as.integer(is_ord),
-    base_cat, edge_ind, "conditional", 1.0,
+    base_cat, edge_ind, 1.0,
     1.0, 1.0, "normal", "normal", 2.0,
     "cauchy", 1.5, "gamma", 0.5, 2.0
   )
   fd = mixed_fd_gradient_prior(
     params, x, y, num_cats, is_ord, base_cat,
-    edge_ind, "conditional", 1.0,
+    edge_ind, 1.0,
     1.0, 1.0, "normal", "normal", 2.0,
     "cauchy", 1.5, "gamma", 0.5, 2.0
   )

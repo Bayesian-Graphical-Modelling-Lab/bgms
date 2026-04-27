@@ -202,48 +202,6 @@ get_bgmcompare_fit_adaptive_metropolis = function() {
   .test_cache$bgmcompare_fit_am
 }
 
-#' @description Get cached bgmCompare fit using HMC sampler (1 chain)
-get_bgmcompare_fit_hmc = function() {
-  if(is.null(.test_cache$bgmcompare_fit_hmc)) {
-    data("ADHD", package = "bgms")
-    .test_cache$bgmcompare_fit_hmc = suppressWarnings(
-      bgmCompare(
-        x = ADHD[, 2:5],
-        group_indicator = ADHD[, "group"],
-        update_method = "hamiltonian-mc",
-        iter = 25, warmup = 50, chains = 1,
-        seed = 88889,
-        display_progress = "none"
-      )
-    )
-  }
-  .test_cache$bgmcompare_fit_hmc
-}
-
-#' @description Get cached bgmCompare fit with HMC + Blume-Capel (1 chain)
-get_bgmcompare_fit_hmc_blumecapel = function() {
-  if(is.null(.test_cache$bgmcompare_fit_hmc_bc)) {
-    data("Boredom", package = "bgms")
-    # Select 25 rows from each language group
-    rows = c(1:25, 491:515)
-    # Convert language to integer: 1 for first level, 2 for second
-    lang = as.integer(as.factor(Boredom[rows, "language"]))
-    .test_cache$bgmcompare_fit_hmc_bc = suppressWarnings(
-      bgmCompare(
-        x = Boredom[rows, 2:5], # 4 ordinal variables (7 categories)
-        group_indicator = lang,
-        update_method = "hamiltonian-mc",
-        variable_type = "blume-capel",
-        baseline_category = 3,
-        iter = 25, warmup = 50, chains = 1,
-        seed = 88890,
-        display_progress = "none"
-      )
-    )
-  }
-  .test_cache$bgmcompare_fit_hmc_bc
-}
-
 #' @description Get cached bgmCompare fit with
 #' main_difference_selection = TRUE +
 #' Blume-Capel (1 chain)
@@ -320,23 +278,6 @@ get_bgms_fit_sbm = function() {
     )
   }
   .test_cache$bgms_fit_sbm
-}
-
-#' @description Get cached bgms fit with HMC sampler (1 chain)
-get_bgms_fit_hmc = function() {
-  if(is.null(.test_cache$bgms_fit_hmc)) {
-    data("Wenchuan", package = "bgms")
-    .test_cache$bgms_fit_hmc = suppressWarnings(
-      bgm(
-        Wenchuan[1:50, 1:4],
-        update_method = "hamiltonian-mc",
-        iter = 25, warmup = 50, chains = 1,
-        seed = 55555,
-        display_progress = "none"
-      )
-    )
-  }
-  .test_cache$bgms_fit_hmc
 }
 
 #' @description Get cached bgms fit with
@@ -611,7 +552,6 @@ get_bgms_fit_mixed_mrf_marginal = function() {
         "continuous", "ordinal"
       ),
       edge_selection = FALSE,
-      pseudolikelihood = "marginal",
       iter = 50, warmup = 100, chains = 1,
       seed = 77773,
       display_progress = "none"
@@ -639,7 +579,6 @@ get_bgms_fit_mixed_mrf_marginal_es = function() {
         "continuous", "ordinal"
       ),
       edge_selection = TRUE,
-      pseudolikelihood = "marginal",
       iter = 50, warmup = 100, chains = 1,
       seed = 77774,
       display_progress = "none"
@@ -1162,13 +1101,6 @@ get_bgms_fixtures = function() {
       is_continuous = FALSE
     ),
     list(
-      label = "hmc",
-      get_fit = get_bgms_fit_hmc,
-      get_prediction_data = get_prediction_data_ordinal,
-      var_type = "ordinal",
-      is_continuous = FALSE
-    ),
-    list(
       label = "am-blumecapel",
       get_fit = get_bgms_fit_am_blumecapel,
       get_prediction_data = get_prediction_data_ordinal,
@@ -1334,18 +1266,6 @@ get_bgmcompare_fixtures = function() {
       get_fit = get_bgmcompare_fit_adaptive_metropolis,
       get_prediction_data = get_prediction_data_bgmcompare_binary,
       var_type = "binary"
-    ),
-    list(
-      label = "hmc",
-      get_fit = get_bgmcompare_fit_hmc,
-      get_prediction_data = get_prediction_data_bgmcompare_binary,
-      var_type = "binary"
-    ),
-    list(
-      label = "hmc-blume-capel",
-      get_fit = get_bgmcompare_fit_hmc_blumecapel,
-      get_prediction_data = get_prediction_data_bgmcompare_blumecapel,
-      var_type = "blume-capel"
     ),
     list(
       label = "blume-capel",

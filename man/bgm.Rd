@@ -17,9 +17,8 @@ bgm(
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),
   na_action = c("listwise", "impute"),
-  update_method = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
+  update_method = c("nuts", "adaptive-metropolis"),
   target_accept,
-  hmc_num_leapfrogs = 100,
   nuts_max_depth = 10,
   learn_mass_matrix = TRUE,
   chains = 4,
@@ -27,7 +26,6 @@ bgm(
   display_progress = c("per-chain", "total", "none"),
   seed = NULL,
   standardize = FALSE,
-  pseudolikelihood = c("conditional", "marginal"),
   verbose = getOption("bgms.verbose", TRUE),
   progress_callback = NULL,
   pairwise_scale,
@@ -141,9 +139,6 @@ the model parameters:
 \describe{
 \item{"adaptive-metropolis"}{Componentwise adaptive Metropolis--Hastings
 with Robbins--Monro proposal adaptation.}
-\item{"hamiltonian-mc"}{\strong{Deprecated.} Hamiltonian Monte Carlo
-with fixed path length. Use \code{"nuts"} instead. This option will
-be removed in a future release.}
 \item{"nuts"}{The No-U-Turn Sampler with RATTLE constrained integration
 for Gaussian models with edge selection.}
 }
@@ -152,10 +147,6 @@ Default: \code{"nuts"}.}
 \item{target_accept}{Numeric between 0 and 1. Target acceptance rate for
 the sampler. Defaults are set automatically if not supplied:
 \code{0.44} for adaptive Metropolis and \code{0.80} for NUTS.}
-
-\item{hmc_num_leapfrogs}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Integer.
-Number of leapfrog steps for Hamiltonian Monte Carlo. Only relevant when
-\code{update_method = "hamiltonian-mc"}, which is deprecated.}
 
 \item{nuts_max_depth}{Integer. Maximum tree depth in NUTS. Must be positive.
 Default: \code{10}.}
@@ -197,21 +188,6 @@ product of the score endpoints. For mixed pairs, ordinal variables use
 raw score endpoints \eqn{(0, m)} and Blume-Capel variables use centered
 score endpoints \eqn{(-b, m-b)}.
 Default: \code{FALSE}.}
-
-\item{pseudolikelihood}{Character. Specifies the pseudo-likelihood
-approximation used for mixed MRF models (ignored for pure ordinal or
-pure continuous data). Options:
-\describe{
-\item{\code{"conditional"}}{Conditions on the observed continuous
-variables when computing the discrete full conditionals. Faster
-because the discrete pseudo-likelihood does not depend on the
-continuous precision matrix.}
-\item{\code{"marginal"}}{Integrates out the continuous variables,
-giving discrete full conditionals that account for induced
-interactions through the continuous block. More expensive per
-iteration.}
-}
-Default: \code{"conditional"}.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints informational messages
 during data processing (e.g., missing data handling, variable recoding).

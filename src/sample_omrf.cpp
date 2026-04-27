@@ -1,7 +1,7 @@
 // sample_omrf.cpp - R interface for OMRF model sampling
 //
 // Uses the unified MCMC runner infrastructure to sample from OMRF models.
-// Supports MH, NUTS, and HMC samplers with optional edge selection.
+// Supports MH and NUTS samplers with optional edge selection.
 #include <vector>
 #include <memory>
 #include <RcppArmadillo.h>
@@ -24,7 +24,7 @@
 // @param no_warmup           Number of warmup iterations
 // @param no_chains           Number of parallel chains
 // @param edge_selection      Whether to do edge selection (spike-and-slab)
-// @param sampler_type        "mh", "nuts", or "hmc"
+// @param sampler_type        "mh" or "nuts"
 // @param seed                Random seed
 // @param no_threads          Number of threads for parallel execution
 // @param progress_type       Progress bar type
@@ -38,9 +38,8 @@
 // @param beta_bernoulli_beta_between  SBM between-cluster beta
 // @param dirichlet_alpha     Dirichlet alpha for SBM
 // @param lambda              Lambda for SBM
-// @param target_acceptance   Target acceptance rate for NUTS/HMC (default: 0.8)
+// @param target_acceptance   Target acceptance rate for NUTS (default: 0.8)
 // @param max_tree_depth      Maximum tree depth for NUTS (default: 10)
-// @param num_leapfrogs       Number of leapfrog steps for HMC (default: 10)
 //
 // @return List with per-chain results including samples and diagnostics
 // [[Rcpp::export]]
@@ -68,7 +67,6 @@ Rcpp::List sample_omrf(
     const double lambda = 1.0,
     const double target_acceptance = 0.8,
     const int max_tree_depth = 10,
-    const int num_leapfrogs = 10,
     const Rcpp::Nullable<Rcpp::NumericMatrix> pairwise_scaling_factors_nullable = R_NilValue
 ) {
     // Create parameter priors from R input
@@ -129,7 +127,6 @@ Rcpp::List sample_omrf(
     config.seed = seed;
     config.target_acceptance = target_acceptance;
     config.max_tree_depth = max_tree_depth;
-    config.num_leapfrogs = num_leapfrogs;
     config.na_impute = na_impute;
 
     // Set up progress manager

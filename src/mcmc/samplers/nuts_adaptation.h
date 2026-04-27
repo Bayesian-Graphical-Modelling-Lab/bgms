@@ -12,7 +12,7 @@
  *
  * Tracks a running estimate of the optimal log step size by integrating
  * acceptance-probability error against a target rate. Used by
- * HMCAdaptationController during warmup stages.
+ * NUTSAdaptationController during warmup stages.
  */
 class DualAveraging {
 public:
@@ -72,7 +72,7 @@ public:
  *
  * Accumulates Welford running variance of parameter samples, blended
  * with a weak prior to prevent degenerate estimates. Used by
- * HMCAdaptationController within Stage-2 windows.
+ * NUTSAdaptationController within Stage-2 windows.
  */
 class DiagMassMatrixAccumulator {
 public:
@@ -114,15 +114,15 @@ public:
 };
 
 /**
- * HMCAdaptationController - Warmup adaptation for HMC and NUTS
+ * NUTSAdaptationController - Warmup adaptation for NUTS
  *
  * Coordinates step-size dual averaging (Stages 1, 2, 3a, 3c) and
  * mass-matrix estimation in doubling windows (Stage 2). Step size
  * is frozen at the Stage 3b boundary.
  */
-class HMCAdaptationController {
+class NUTSAdaptationController {
 public:
-  HMCAdaptationController(int dim,
+  NUTSAdaptationController(int dim,
                           double initial_step_size,
                           double target_accept,
                           WarmupSchedule& schedule_ref,

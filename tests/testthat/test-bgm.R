@@ -9,10 +9,10 @@
 #   - Reproducibility: identical seeds produce identical MCMC chains
 #   - Sanity: posterior means correlate with classical sufficient statistics
 #
-# INTEGRATION NOTE: Many sampler configurations (HMC, adaptive-metropolis,
+# INTEGRATION NOTE: Many sampler configurations (adaptive-metropolis,
 # Blume-Capel, missing data imputation, standardization) are tested via the
 # parameterized fixture approach in test-methods.R. See:
-#   - helper-fixtures.R: Cached fit functions (get_bgms_fit_hmc, etc.)
+#   - helper-fixtures.R: Cached fit functions
 #   - test-methods.R: get_bgms_fixtures() loops over all configurations
 #
 # This file focuses on tests that require special setup or unique assertions.
@@ -128,64 +128,6 @@ test_that("bgm GGM posterior precision diagonals are positive", {
 
   expect_true(all(fit$posterior_summary_quadratic$mean > 0))
 })
-
-# ==============================================================================
-# HMC Deprecation Test
-# ==============================================================================
-# Pure HMC is deprecated. Verify that both bgm() and bgmCompare() emit a
-# deprecation warning when update_method = "hamiltonian-mc".
-
-test_that("bgm emits deprecation warning for hamiltonian-mc", {
-  data("Wenchuan", package = "bgms")
-  expect_warning(
-    bgm(
-      Wenchuan[1:20, 1:3],
-      update_method = "hamiltonian-mc",
-      iter = 5, warmup = 10, chains = 1,
-      seed = 99, display_progress = "none"
-    ),
-    "deprecated"
-  )
-})
-
-test_that("bgmCompare emits deprecation warning for hamiltonian-mc", {
-  data("ADHD", package = "bgms")
-  expect_warning(
-    bgmCompare(
-      x = ADHD[, 2:4],
-      group_indicator = ADHD[, "group"],
-      update_method = "hamiltonian-mc",
-      iter = 5, warmup = 10, chains = 1,
-      seed = 99, display_progress = "none"
-    ),
-    "deprecated"
-  )
-})
-
-# ==============================================================================
-# HMC Reproducibility Test
-# ==============================================================================
-# HMC sampler basic functionality is covered by get_bgms_fit_hmc fixture in
-# test-methods.R. This test specifically verifies reproducibility with seeds.
-
-test_that("bgm with HMC is reproducible", {
-  # Use cached fixture as fit1, run one fresh fit as fit2 with same params
-  fit1 = get_bgms_fit_hmc()
-
-  data("Wenchuan", package = "bgms")
-  fit2 = suppressWarnings(
-    bgm(
-      Wenchuan[1:50, 1:4],
-      update_method = "hamiltonian-mc",
-      iter = 25, warmup = 50, chains = 1,
-      seed = 55555, # Same seed as fixture
-      display_progress = "none"
-    )
-  )
-
-  testthat::expect_equal(fit1$raw_samples, fit2$raw_samples)
-})
-
 
 # ==============================================================================
 # Parameter Ordering Tests (p >= 4 required to detect row/column-major bugs)
@@ -871,14 +813,14 @@ test_that("bgm mixed MRF residual variances are positive", {
   expect_true(all(fit$posterior_mean_residual_variance > 0))
 })
 
-test_that("bgm mixed MRF marginal pseudolikelihood runs", {
+test_that("bgm mixed MRF (no edge selection) runs", {
   fit = get_bgms_fit_mixed_mrf_marginal()
   expect_s3_class(fit, "bgms")
   expect_equal(nrow(fit$posterior_mean_pairwise), 5)
   expect_true(all(is.finite(fit$posterior_mean_pairwise)))
 })
 
-test_that("bgm mixed MRF marginal PL with edge selection runs", {
+test_that("bgm mixed MRF with edge selection runs", {
   fit = get_bgms_fit_mixed_mrf_marginal_es()
   expect_s3_class(fit, "bgms")
   expect_equal(nrow(fit$posterior_mean_pairwise), 5)

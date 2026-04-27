@@ -8,7 +8,7 @@
 # ---- Helpers ----------------------------------------------------------------
 
 mixed_fd_gradient = function(params, x, y, num_cats, is_ord, base_cat,
-                             edge_ind, pl_mode, scale, eps = 1e-5) {
+                             edge_ind, scale, eps = 1e-5) {
   n_total = length(params)
   fd = numeric(n_total)
   for(k in seq_len(n_total)) {
@@ -18,11 +18,11 @@ mixed_fd_gradient = function(params, x, y, num_cats, is_ord, base_cat,
     p_minus[k] = p_minus[k] - eps
     fp = mixed_test_logp_and_gradient(
       p_plus, x, y, num_cats, as.integer(is_ord),
-      base_cat, edge_ind, pl_mode, scale
+      base_cat, edge_ind, scale
     )$value
     fm = mixed_test_logp_and_gradient(
       p_minus, x, y, num_cats, as.integer(is_ord),
-      base_cat, edge_ind, pl_mode, scale
+      base_cat, edge_ind, scale
     )$value
     fd[k] = (fp - fm) / (2 * eps)
   }
@@ -30,14 +30,14 @@ mixed_fd_gradient = function(params, x, y, num_cats, is_ord, base_cat,
 }
 
 mixed_check_gradient = function(params, x, y, num_cats, is_ord, base_cat,
-                                edge_ind, pl_mode, scale, eps = 1e-5) {
+                                edge_ind, scale, eps = 1e-5) {
   res = mixed_test_logp_and_gradient(
     params, x, y, num_cats, as.integer(is_ord),
-    base_cat, edge_ind, pl_mode, scale
+    base_cat, edge_ind, scale
   )
   fd = mixed_fd_gradient(
     params, x, y, num_cats, is_ord, base_cat,
-    edge_ind, pl_mode, scale, eps
+    edge_ind, scale, eps
   )
   ag = res$gradient
   denom = pmax(abs(ag), abs(fd), 1)
@@ -68,7 +68,7 @@ test_that("gradient matches FD for ordinal-only (p=3, q=2, conditional)", {
   params = rnorm(n_main + n_pw + q + p * q + n_chol, sd = 0.3)
   err = mixed_check_gradient(
     params, x, y, num_cats, is_ord, base_cat,
-    edge_ind, "conditional", 2.5
+    edge_ind, 2.5
   )
   expect_lt(err, 1e-5)
 })
@@ -93,7 +93,7 @@ test_that("gradient matches FD for ordinal-only (p=3, q=2, marginal)", {
   params = rnorm(n_main + n_pw + q + p * q + n_chol, sd = 0.3)
   err = mixed_check_gradient(
     params, x, y, num_cats, is_ord, base_cat,
-    edge_ind, "marginal", 2.5
+    edge_ind, 2.5
   )
   expect_lt(err, 1e-5)
 })
@@ -121,7 +121,7 @@ test_that("gradient matches FD for mixed ord+BC (p=3, q=2, conditional)", {
   params = rnorm(n_main + n_pw + q + p * q + n_chol, sd = 0.3)
   err = mixed_check_gradient(
     params, x, y, num_cats, is_ord, base_cat,
-    edge_ind, "conditional", 2.5
+    edge_ind, 2.5
   )
   expect_lt(err, 1e-5)
 })
@@ -146,7 +146,7 @@ test_that("gradient matches FD for mixed ord+BC (p=3, q=2, marginal)", {
   params = rnorm(n_main + n_pw + q + p * q + n_chol, sd = 0.3)
   err = mixed_check_gradient(
     params, x, y, num_cats, is_ord, base_cat,
-    edge_ind, "marginal", 2.5
+    edge_ind, 2.5
   )
   expect_lt(err, 1e-5)
 })
@@ -174,7 +174,7 @@ test_that("gradient matches FD for ordinal (p=2, q=3, conditional)", {
   params = rnorm(n_main + n_pw + q + p * q + n_chol, sd = 0.3)
   err = mixed_check_gradient(
     params, x, y, num_cats, is_ord, base_cat,
-    edge_ind, "conditional", 2.5
+    edge_ind, 2.5
   )
   expect_lt(err, 1e-5)
 })
@@ -199,7 +199,7 @@ test_that("gradient matches FD for ordinal (p=4, q=4, conditional)", {
   params = rnorm(n_main + n_pw + q + p * q + n_chol, sd = 0.2)
   err = mixed_check_gradient(
     params, x, y, num_cats, is_ord, base_cat,
-    edge_ind, "conditional", 2.5
+    edge_ind, 2.5
   )
   expect_lt(err, 1e-5)
 })
@@ -230,7 +230,7 @@ test_that("gradient matches FD with sparse edges (p=3, q=2, conditional)", {
   params = rnorm(n_main + n_pw + q + n_cross + n_chol, sd = 0.3)
   err = mixed_check_gradient(
     params, x, y, num_cats, is_ord, base_cat,
-    edge_ind, "conditional", 2.5
+    edge_ind, 2.5
   )
   expect_lt(err, 1e-5)
 })
@@ -258,7 +258,7 @@ test_that("gradient matches FD with sparse edges (p=3, q=2, marginal)", {
   params = rnorm(n_main + n_pw + q + n_cross + n_chol, sd = 0.3)
   err = mixed_check_gradient(
     params, x, y, num_cats, is_ord, base_cat,
-    edge_ind, "marginal", 2.5
+    edge_ind, 2.5
   )
   expect_lt(err, 1e-5)
 })

@@ -166,7 +166,6 @@ run_sampler_omrf <- function(spec) {
     lambda = p$lambda,
     target_acceptance = s$target_accept,
     max_tree_depth = s$nuts_max_depth,
-    num_leapfrogs = s$hmc_num_leapfrogs,
     pairwise_scaling_factors_nullable = p$pairwise_scaling_factors
   )
 
@@ -207,8 +206,7 @@ run_sampler_mixed_mrf <- function(spec) {
     means_beta              = p$means_beta,
     scale_prior_type        = p$scale_prior_type,
     scale_shape             = p$scale_shape,
-    scale_rate              = p$scale_rate,
-    pseudolikelihood        = p$pseudolikelihood
+    scale_rate              = p$scale_rate
   )
 
   out_raw <- sample_mixed_mrf(
@@ -236,7 +234,6 @@ run_sampler_mixed_mrf <- function(spec) {
     sampler_type = s$update_method,
     target_acceptance = s$target_accept,
     max_tree_depth = s$nuts_max_depth,
-    num_leapfrogs = s$hmc_num_leapfrogs,
     na_impute = m$na_impute,
     missing_index_discrete_nullable = m$missing_index_discrete,
     missing_index_continuous_nullable = m$missing_index_continuous
@@ -294,7 +291,6 @@ run_sampler_compare <- function(spec) {
     nThreads = s$cores,
     seed = s$seed,
     update_method = s$update_method,
-    hmc_num_leapfrogs = s$hmc_num_leapfrogs,
     progress_type = s$progress_type,
     interaction_prior_type_str = p$interaction_prior_type,
     threshold_prior_type_str = p$threshold_prior_type,

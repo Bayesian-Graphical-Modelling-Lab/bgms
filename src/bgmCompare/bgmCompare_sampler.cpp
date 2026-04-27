@@ -4,7 +4,7 @@
 #include "bgmCompare/bgmCompare_sampler.h"
 #include "bgmCompare/bgmCompare_output.h"
 #include "mcmc/samplers/metropolis_adaptation.h"
-#include "mcmc/samplers/hmc_adaptation.h"
+#include "mcmc/samplers/nuts_adaptation.h"
 #include "mcmc/algorithms/hmc.h"
 #include "mcmc/algorithms/leapfrog.h"
 #include "mcmc/algorithms/nuts.h"
@@ -484,7 +484,7 @@ void update_pairwise_effects_metropolis_bgmcompare (
 
 
 
-// Heuristically determine an initial HMC/NUTS step size for bgmCompare.
+// Heuristically determine an initial NUTS step size for bgmCompare.
 //
 // This function vectorizes the current model parameters, then repeatedly
 // simulates short HMC trajectories to calibrate a stable starting step size
@@ -523,11 +523,11 @@ void update_pairwise_effects_metropolis_bgmcompare (
 //  - rng: Random number generator.
 //
 // Returns:
-//  - A double value for the initial HMC/NUTS step size.
+//  - A double value for the initial NUTS step size.
 //
 // Notes:
 //  - This routine is only used during warmup to initialize
-//    `HMCAdaptationController`.
+//    `NUTSAdaptationController`.
 //  - Correct indexing of parameters relies on `build_index_maps` to ensure
 //    consistency between vectorization and gradient computation.
 double find_initial_stepsize_bgmcompare(
@@ -623,184 +623,6 @@ double find_initial_stepsize_bgmcompare(
 
 
 
-// Perform one Hamiltonian Monte Carlo (HMC) update step for the bgmCompare model.
-//
-// The function:
-//  1. Vectorizes the current parameter state (main + pairwise effects).
-//  2. Defines closures for log-posterior evaluation and gradient calculation.
-//  3. Applies HMC with fixed leapfrog steps to propose a new state.
-//  4. Unpacks the accepted state back into main and pairwise matrices.
-//  5. Updates the adaptation controller with acceptance information.
-//
-// Inputs:
-//  - main_effects, pairwise_effects: Current parameter matrices, updated in place.
-//  - main_effect_indices, pairwise_effect_indices: Index maps for parameters.
-//  - inclusion_indicator: Indicates active main and pairwise differences.
-//  - projection: Group projection matrix for contrasts.
-//  - num_categories: Number of categories per variable [V].
-//  - observations: Data matrix [N × V].
-//  - num_groups: Number of groups.
-//  - group_indices: Row ranges for each group in `observations`.
-//  - counts_per_category, blume_capel_stats: Per-group sufficient statistics.
-//  - pairwise_stats: Per-group pairwise sufficient statistics.
-//  - is_ordinal_variable: Marks ordinal vs. Blume–Capel variables.
-//  - baseline_category: Reference categories for Blume–Capel variables.
-//  - pairwise_scale: Scale of overall pairwise prior.
-//  - difference_scale: Scale of group-difference prior.
-//  - main_alpha, main_beta: Hyperparameters for main-effect priors.
-//  - num_leapfrogs: Number of leapfrog steps in the HMC trajectory.
-//  - iteration: Current sampler iteration (for adaptation scheduling).
-//  - hmc_adapt: Adaptation controller for step size and mass matrix.
-//  - learn_mass_matrix: Whether to adapt the mass matrix.
-//  - selection: If true, restrict mass matrix to active parameters only.
-//  - rng: Random number generator.
-//
-// Side effects:
-//  - Updates `main_effects` and `pairwise_effects` with the new state.
-//  - Updates `hmc_adapt` with acceptance probability and diagnostics.
-//
-// Returns:
-//  - None directly; state is updated in place.
-//
-// Notes:
-//  - This variant is specific to bgmCompare, where parameters are stored in
-//    row-wise structures with possible group-difference columns.
-//  - Consistency between vectorization, unvectorization, and gradient
-//    indexing is enforced via `build_index_maps`.
-void update_hmc_bgmcompare(
-    arma::mat& main_effects,
-    arma::mat& pairwise_effects,
-    const arma::imat& main_effect_indices,
-    const arma::imat& pairwise_effect_indices,
-    const arma::imat& inclusion_indicator,
-    const arma::mat& projection,
-    const arma::ivec& num_categories,
-    const arma::imat& observations,
-    const int num_groups,
-    const arma::imat& group_indices,
-    const std::vector<arma::imat>& counts_per_category,
-    const std::vector<arma::imat>& blume_capel_stats,
-    const std::vector<arma::mat>& pairwise_stats,
-    const arma::uvec& is_ordinal_variable,
-    const arma::ivec& baseline_category,
-    const arma::mat& pairwise_scaling_factors,
-    const int num_leapfrogs,
-    const int iteration,
-    HMCAdaptationController& hmc_adapt,
-    const bool learn_mass_matrix,
-    const bool selection,
-    SafeRNG& rng,
-    const BaseParameterPrior& interaction_prior,
-    const BaseParameterPrior& difference_prior,
-    const BaseParameterPrior& threshold_prior
-) {
-  arma::vec current_state = vectorize_model_parameters_bgmcompare(
-    main_effects, pairwise_effects, inclusion_indicator,
-    main_effect_indices, pairwise_effect_indices, num_categories,
-    is_ordinal_variable
-  );
-
-  arma::mat current_main = main_effects;
-  arma::mat current_pair = pairwise_effects;
-
-  // Pre-convert observations to double once (avoids repeated conversion in gradient evaluations)
-  const arma::mat obs_double = arma::conv_to<arma::mat>::from(observations);
-
-  auto index_maps = build_index_maps(
-    main_effects, pairwise_effects,
-    inclusion_indicator,
-    main_effect_indices,
-    pairwise_effect_indices, num_categories, is_ordinal_variable
-  );
-  auto& main_index = index_maps.first;
-  auto& pair_index = index_maps.second;
-
-  arma::vec grad_obs_act = gradient_observed_active(
-    main_effect_indices, pairwise_effect_indices, projection,
-    observations, group_indices, num_categories, inclusion_indicator,
-    counts_per_category, blume_capel_stats, pairwise_stats,
-    num_groups, is_ordinal_variable, baseline_category,
-    main_index, pair_index
-  );
-
-  auto grad = [&](const arma::vec& theta_vec) {
-    unvectorize_model_parameters_bgmcompare(
-      theta_vec, current_main, current_pair, inclusion_indicator,
-      main_effect_indices, pairwise_effect_indices, num_groups, num_categories,
-      is_ordinal_variable
-    );
-
-    return gradient(
-      current_main, current_pair, main_effect_indices, pairwise_effect_indices,
-      projection, obs_double, group_indices, num_categories,
-      counts_per_category, blume_capel_stats,
-      pairwise_stats, num_groups, inclusion_indicator,
-      is_ordinal_variable, baseline_category,
-      pairwise_scaling_factors, main_index, pair_index,
-      grad_obs_act,
-      interaction_prior, difference_prior, threshold_prior
-    );
-  };
-
-  auto joint = [&](const arma::vec& theta_vec) {
-    unvectorize_model_parameters_bgmcompare(
-      theta_vec, current_main, current_pair, inclusion_indicator,
-      main_effect_indices, pairwise_effect_indices, num_groups, num_categories,
-      is_ordinal_variable
-    );
-
-    return logp_and_gradient(
-      current_main, current_pair, main_effect_indices, pairwise_effect_indices,
-      projection, obs_double, group_indices, num_categories,
-      counts_per_category, blume_capel_stats,
-      pairwise_stats, num_groups, inclusion_indicator,
-      is_ordinal_variable, baseline_category,
-      pairwise_scaling_factors,
-      main_index, pair_index, grad_obs_act,
-      interaction_prior, difference_prior, threshold_prior
-    );
-  };
-
-  //adapt
-  arma::vec active_inv_mass = inv_mass_active(
-    hmc_adapt.inv_mass_diag(), inclusion_indicator, num_groups, num_categories,
-    is_ordinal_variable, main_index, pair_index, main_effect_indices,
-    pairwise_effect_indices, selection
-  );
-
-  StepResult result = hmc_step(
-    current_state, hmc_adapt.current_step_size(), grad, joint, num_leapfrogs,
-    active_inv_mass, rng
-  );
-
-  current_state = result.state;
-  unvectorize_model_parameters_bgmcompare(
-    current_state, main_effects, pairwise_effects, inclusion_indicator,
-    main_effect_indices, pairwise_effect_indices, num_groups, num_categories,
-    is_ordinal_variable
-  );
-
-  hmc_adapt.update(current_state, result.accept_prob, iteration);
-
-  // If mass matrix was just updated, re-run the heuristic to find a good
-  // step size for the new mass matrix. Use current step size as starting point.
-  if (hmc_adapt.mass_matrix_just_updated()) {
-    arma::vec new_inv_mass = inv_mass_active(
-      hmc_adapt.inv_mass_diag(), inclusion_indicator, num_groups, num_categories,
-      is_ordinal_variable, main_index, pair_index, main_effect_indices,
-      pairwise_effect_indices, selection
-    );
-    double current_eps = hmc_adapt.current_step_size();
-    double new_eps = heuristic_initial_step_size(
-      current_state, grad, joint, new_inv_mass, rng,
-      hmc_adapt.target_acceptance(),
-      current_eps   // init_step: use current step size as starting point
-    );
-    hmc_adapt.reinit_stepsize(new_eps);
-  }
-}
-
-
 // Perform one No-U-Turn Sampler (NUTS) update step for the bgmCompare model.
 //
 // The function:
@@ -828,7 +650,7 @@ void update_hmc_bgmcompare(
 //  - main_alpha, main_beta: Hyperparameters for main-effect priors.
 //  - nuts_max_depth: Maximum tree depth for NUTS doubling procedure.
 //  - iteration: Current sampler iteration (for adaptation scheduling).
-//  - hmc_adapt: Adaptation controller for step size and mass matrix.
+//  - nuts_adapt: Adaptation controller for step size and mass matrix.
 //  - learn_mass_matrix: Whether to adapt the mass matrix (unused inside NUTS but relevant to controller).
 //  - selection: If true, restrict mass matrix to active parameters only.
 //  - rng: Random number generator.
@@ -863,7 +685,7 @@ StepResult update_nuts_bgmcompare(
     const arma::mat& pairwise_scaling_factors,
     const int nuts_max_depth,
     const int iteration,
-    HMCAdaptationController& hmc_adapt,
+    NUTSAdaptationController& nuts_adapt,
     const bool learn_mass_matrix,
     const bool selection,
     SafeRNG& rng,
@@ -940,13 +762,13 @@ StepResult update_nuts_bgmcompare(
 
   //adapt
   arma::vec active_inv_mass = inv_mass_active(
-    hmc_adapt.inv_mass_diag(), inclusion_indicator, num_groups, num_categories,
+    nuts_adapt.inv_mass_diag(), inclusion_indicator, num_groups, num_categories,
     is_ordinal_variable, main_index, pair_index, main_effect_indices,
     pairwise_effect_indices, selection
   );
 
   StepResult result = nuts_step(
-    current_state, hmc_adapt.current_step_size(), joint,
+    current_state, nuts_adapt.current_step_size(), joint,
     active_inv_mass, rng, nuts_max_depth
   );
 
@@ -957,23 +779,23 @@ StepResult update_nuts_bgmcompare(
     is_ordinal_variable
   );
 
-  hmc_adapt.update(current_state, result.accept_prob, iteration);
+  nuts_adapt.update(current_state, result.accept_prob, iteration);
 
   // If mass matrix was just updated, re-run the heuristic to find a good
   // step size for the new mass matrix. Use current step size as starting point.
-  if (hmc_adapt.mass_matrix_just_updated()) {
+  if (nuts_adapt.mass_matrix_just_updated()) {
     arma::vec new_inv_mass = inv_mass_active(
-      hmc_adapt.inv_mass_diag(), inclusion_indicator, num_groups, num_categories,
+      nuts_adapt.inv_mass_diag(), inclusion_indicator, num_groups, num_categories,
       is_ordinal_variable, main_index, pair_index, main_effect_indices,
       pairwise_effect_indices, selection
     );
-    double current_eps = hmc_adapt.current_step_size();
+    double current_eps = nuts_adapt.current_step_size();
     double new_eps = heuristic_initial_step_size(
       current_state, grad, joint, new_inv_mass, rng,
-      hmc_adapt.target_acceptance(),
+      nuts_adapt.target_acceptance(),
       current_eps   // init_step: use current step size as starting point
     );
-    hmc_adapt.reinit_stepsize(new_eps);
+    nuts_adapt.reinit_stepsize(new_eps);
   }
 
   return result;
@@ -1461,7 +1283,6 @@ void update_indicator_differences_metropolis_bgmcompare (
 //  Step 2: Update model parameters according to the selected update method:
 //    - "adaptive-metropolis": Update main and pairwise effects individually
 //      with random-walk Metropolis and adaptive proposal SDs.
-//    - "hamiltonian-mc": Update the full parameter vector using HMC.
 //    - "nuts": Update the full parameter vector using the No-U-Turn Sampler.
 //      If past burn-in, store NUTS diagnostics (tree depth, divergences, energy).
 //
@@ -1482,9 +1303,9 @@ void update_indicator_differences_metropolis_bgmcompare (
 //  - pairwise_effect_indices, main_effect_indices: Index maps for parameters.
 //  - pairwise_stats: Per-group pairwise sufficient statistics.
 //  - nuts_max_depth: Maximum tree depth for NUTS.
-//  - hmc_adapt: Adaptation controller for HMC/NUTS.
+//  - nuts_adapt: Adaptation controller for NUTS.
 //  - metropolis_adapt_main, metropolis_adapt_pair: Adaptation controllers for RWM updates.
-//  - learn_mass_matrix: Whether to adapt the mass matrix in HMC/NUTS.
+//  - learn_mass_matrix: Whether to adapt the mass matrix in NUTS.
 //  - schedule: Warmup schedule, controls adaptation and selection phases.
 //  - treedepth_samples, divergent_samples, energy_samples: Buffers for NUTS diagnostics.
 //  - projection: Group projection matrix.
@@ -1492,8 +1313,7 @@ void update_indicator_differences_metropolis_bgmcompare (
 //  - group_indices: Row ranges per group in `observations`.
 //  - rng: Random number generator.
 //  - inclusion_probability: Prior probabilities for including differences.
-//  - hmc_nuts_leapfrogs: Number of leapfrog steps for HMC updates.
-//  - update_method: Update strategy ("adaptive-metropolis", "hamiltonian-mc", "nuts").
+//  - update_method: Update strategy ("adaptive-metropolis", "nuts").
 //  - proposal_sd_main, proposal_sd_pair: Proposal SD matrices for Metropolis updates.
 //  - index: Index table for pairwise differences.
 //
@@ -1504,7 +1324,7 @@ void update_indicator_differences_metropolis_bgmcompare (
 // Notes:
 //  - This function encapsulates all update logic for bgmCompare.
 //  - Choice of `update_method` governs whether updates are local (RWM) or
-//    global (HMC/NUTS).
+//    global (NUTS).
 void gibbs_update_step_bgmcompare (
     const arma::imat& observations,
     const arma::ivec& num_categories,
@@ -1520,7 +1340,7 @@ void gibbs_update_step_bgmcompare (
     const arma::imat& pairwise_effect_indices,
     const std::vector<arma::mat>& pairwise_stats,
     const int nuts_max_depth,
-    HMCAdaptationController& hmc_adapt,
+    NUTSAdaptationController& nuts_adapt,
     MetropolisAdaptationController& metropolis_adapt_main,
     MetropolisAdaptationController& metropolis_adapt_pair,
     const bool learn_mass_matrix,
@@ -1535,7 +1355,6 @@ void gibbs_update_step_bgmcompare (
     const arma::imat group_indices,
     SafeRNG& rng,
     arma::mat& inclusion_probability,
-    int hmc_nuts_leapfrogs,
     const UpdateMethod update_method,
     arma::mat& proposal_sd_main,
     arma::mat& proposal_sd_pair,
@@ -1588,17 +1407,6 @@ void gibbs_update_step_bgmcompare (
         proposal_sd_pair,
         interaction_prior, difference_prior
     );
-  } else if (update_method == hamiltonian_mc) {
-    update_hmc_bgmcompare(
-      main_effects, pairwise_effects, main_effect_indices,
-      pairwise_effect_indices, inclusion_indicator, projection, num_categories,
-      observations, num_groups, group_indices, counts_per_category,
-      blume_capel_stats, pairwise_stats, is_ordinal_variable,
-      baseline_category, pairwise_scaling_factors,
-      hmc_nuts_leapfrogs, iteration, hmc_adapt, learn_mass_matrix,
-      schedule.selection_enabled(iteration), rng,
-      interaction_prior, difference_prior, threshold_prior
-    );
   } else if (update_method == nuts) {
     StepResult result = update_nuts_bgmcompare(
       main_effects, pairwise_effects, main_effect_indices,
@@ -1606,7 +1414,7 @@ void gibbs_update_step_bgmcompare (
       observations, num_groups, group_indices, counts_per_category,
       blume_capel_stats, pairwise_stats, is_ordinal_variable,
       baseline_category, pairwise_scaling_factors,
-      nuts_max_depth, iteration, hmc_adapt, learn_mass_matrix,
+      nuts_max_depth, iteration, nuts_adapt, learn_mass_matrix,
       schedule.selection_enabled(iteration), rng,
       interaction_prior, difference_prior, threshold_prior
     );
@@ -1670,17 +1478,16 @@ void gibbs_update_step_bgmcompare (
 //  - baseline_category: Reference categories for Blume–Capel variables.
 //  - difference_selection: If true, include MH updates for group-difference indicators.
 //  - main_effect_indices, pairwise_effect_indices: Index maps for parameter rows.
-//  - target_accept: Target acceptance probability (HMC/NUTS).
+//  - target_accept: Target acceptance probability (NUTS).
 //  - nuts_max_depth: Maximum tree depth for NUTS.
-//  - learn_mass_matrix: Whether to adapt the mass matrix (HMC/NUTS).
+//  - learn_mass_matrix: Whether to adapt the mass matrix (NUTS).
 //  - projection: Group projection matrix for contrasts.
 //  - group_membership: Mapping of persons to groups.
 //  - group_indices: Row ranges per group in `observations`.
 //  - interaction_index_matrix: Index map for pairwise interactions.
 //  - inclusion_probability: Matrix of prior inclusion probabilities, updated in place.
 //  - rng: Random number generator.
-//  - update_method: Update strategy ("adaptive-metropolis", "hamiltonian-mc", "nuts").
-//  - hmc_num_leapfrogs: Number of leapfrog steps for HMC.
+//  - update_method: Update strategy ("adaptive-metropolis", "nuts").
 //
 // Returns:
 //  - A `SamplerOutput` struct containing:
@@ -1732,7 +1539,6 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
     arma::mat inclusion_probability,
     SafeRNG& rng,
     const UpdateMethod update_method,
-    const int hmc_num_leapfrogs,
     ProgressManager& pm,
     const BaseParameterPrior& interaction_prior,
     const BaseParameterPrior& difference_prior,
@@ -1774,9 +1580,9 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
   arma::mat proposal_sd_main(num_main, num_groups, arma::fill::ones);
   arma::mat proposal_sd_pair(num_pair, num_groups, arma::fill::ones);
 
-  // --- Optional HMC/NUTS warmup stage
+  // --- Optional NUTS warmup stage
   double initial_step_size = 1.0;
-  if (update_method == hamiltonian_mc || update_method == nuts) {
+  if (update_method == nuts) {
     initial_step_size = find_initial_stepsize_bgmcompare(
       main_effects, pairwise_effects, main_effect_indices,
       pairwise_effect_indices, inclusion_indicator, projection, num_categories,
@@ -1791,7 +1597,7 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
   // --- Warmup scheduling + adaptation controller
   WarmupSchedule warmup_schedule(warmup, difference_selection, (update_method != adaptive_metropolis));
 
-  HMCAdaptationController hmc_adapt(
+  NUTSAdaptationController nuts_adapt(
       (num_main + num_pair) * num_groups, initial_step_size, target_accept,
       warmup_schedule, learn_mass_matrix
   );
@@ -1839,10 +1645,10 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
         blume_capel_stats, inclusion_indicator,
         pairwise_effects, main_effects, is_ordinal_variable, baseline_category,
         iteration, pairwise_effect_indices, pairwise_stats, nuts_max_depth,
-        hmc_adapt, metropolis_adapt_main, metropolis_adapt_pair, learn_mass_matrix,
+        nuts_adapt, metropolis_adapt_main, metropolis_adapt_pair, learn_mass_matrix,
         warmup_schedule, treedepth_samples, divergent_samples, energy_samples,
         accept_prob_samples, main_effect_indices, projection, num_groups, group_indices,
-        rng, inclusion_probability, hmc_num_leapfrogs,
+        rng, inclusion_probability,
         update_method, proposal_sd_main, proposal_sd_pair, index,
         main_difference_selection,
         interaction_prior, difference_prior, threshold_prior

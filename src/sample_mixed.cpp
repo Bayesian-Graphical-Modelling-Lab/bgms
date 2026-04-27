@@ -24,8 +24,7 @@
 //                                  num_categories (integer vector, length p),
 //                                  is_ordinal_variable (integer vector, length p),
 //                                  baseline_category (integer vector, length p),
-//                                  main_alpha, main_beta, pairwise_scale (doubles),
-//                                  pseudolikelihood (string: "conditional" or "marginal")
+//                                  main_alpha, main_beta, pairwise_scale (doubles)
 // @param prior_inclusion_prob    Prior inclusion probabilities ((p+q) x (p+q) matrix)
 // @param initial_edge_indicators Initial edge indicators ((p+q) x (p+q) integer matrix)
 // @param no_iter                 Number of post-warmup iterations
@@ -46,7 +45,6 @@
 // @param sampler_type            Sampler type string ("mh", "nuts", etc.)
 // @param target_acceptance       Target acceptance rate for gradient-based samplers
 // @param max_tree_depth          Maximum tree depth for NUTS
-// @param num_leapfrogs           Number of leapfrog steps for HMC
 // @param na_impute               Whether to impute missing data
 // @param missing_index_discrete  Matrix of missing discrete indices (n_miss x 2, 0-based)
 // @param missing_index_continuous Matrix of missing continuous indices (n_miss x 2, 0-based)
@@ -75,7 +73,6 @@ Rcpp::List sample_mixed_mrf(
     const std::string& sampler_type = "mh",
     const double target_acceptance = 0.80,
     const int max_tree_depth = 10,
-    const int num_leapfrogs = 100,
     const bool na_impute = false,
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_discrete_nullable = R_NilValue,
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_continuous_nullable = R_NilValue
@@ -86,7 +83,6 @@ Rcpp::List sample_mixed_mrf(
     arma::ivec num_categories = Rcpp::as<arma::ivec>(inputFromR["num_categories"]);
     arma::uvec is_ordinal = Rcpp::as<arma::uvec>(inputFromR["is_ordinal_variable"]);
     arma::ivec baseline_cat = Rcpp::as<arma::ivec>(inputFromR["baseline_category"]);
-    std::string pseudolikelihood = Rcpp::as<std::string>(inputFromR["pseudolikelihood"]);
 
     // Create parameter priors from R input
     double pairwise_scale = Rcpp::as<double>(inputFromR["pairwise_scale"]);
@@ -134,7 +130,7 @@ Rcpp::List sample_mixed_mrf(
         discrete_obs, continuous_obs,
         num_categories, is_ordinal, baseline_cat,
         prior_inclusion_prob, initial_edge_indicators,
-        edge_selection, pseudolikelihood,
+        edge_selection,
         std::move(interaction_prior), std::move(threshold_prior),
         std::move(means_prior), std::move(diagonal_prior),
         seed
@@ -173,7 +169,6 @@ Rcpp::List sample_mixed_mrf(
     config.na_impute = na_impute;
     config.target_acceptance = target_acceptance;
     config.max_tree_depth = max_tree_depth;
-    config.num_leapfrogs = num_leapfrogs;
 
     // Set up progress manager
     ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type, true, progress_callback);

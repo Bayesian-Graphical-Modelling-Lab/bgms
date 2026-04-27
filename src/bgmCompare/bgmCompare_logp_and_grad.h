@@ -5,7 +5,7 @@
  * @brief Log-pseudoposterior and gradient functions for bgmCompare.
  *
  * Free functions implementing the log-pseudoposterior, its gradient, and
- * component-wise evaluations used by Metropolis and NUTS/HMC samplers in
+ * component-wise evaluations used by Metropolis and NUTS samplers in
  * the multi-group comparison model.
  *
  * Parameter columns are indexed by h: h = 0 is the overall (shared/baseline)
@@ -143,7 +143,7 @@ arma::vec gradient(
  * Compute the log-pseudoposterior and its gradient in a single pass.
  *
  * Shares intermediate computations (group-specific effects, residual
- * matrices, probability vectors) to avoid redundant work during NUTS/HMC.
+ * matrices, probability vectors) to avoid redundant work during NUTS.
  *
  * @return Pair of (log-pseudoposterior value, gradient vector)
  * @see gradient() for parameter descriptions

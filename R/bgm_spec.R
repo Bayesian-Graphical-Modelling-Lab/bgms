@@ -106,7 +106,7 @@ new_bgm_spec <- function(model_type, data, variables, missing, prior,
     stopifnot(is.matrix(prior$pairwise_scaling_factors))
   }
   if (model_type == "mixed_mrf") {
-    stopifnot(is.character(prior$pseudolikelihood), length(prior$pseudolikelihood) == 1L)
+    stopifnot(is.logical(prior$standardize), length(prior$standardize) == 1L)
   }
   if (model_type %in% c("ggm", "omrf", "mixed_mrf")) {
     stopifnot(is.logical(prior$edge_selection), length(prior$edge_selection) == 1L)
@@ -141,7 +141,6 @@ new_bgm_spec <- function(model_type, data, variables, missing, prior,
   stopifnot(is.integer(sampler$warmup), length(sampler$warmup) == 1L)
   stopifnot(is.integer(sampler$chains), length(sampler$chains) == 1L)
   stopifnot(is.integer(sampler$cores), length(sampler$cores) == 1L)
-  stopifnot(is.integer(sampler$hmc_num_leapfrogs), length(sampler$hmc_num_leapfrogs) == 1L)
   stopifnot(is.integer(sampler$nuts_max_depth), length(sampler$nuts_max_depth) == 1L)
   stopifnot(is.logical(sampler$learn_mass_matrix), length(sampler$learn_mass_matrix) == 1L)
   stopifnot(is.integer(sampler$seed), length(sampler$seed) == 1L)
@@ -287,13 +286,11 @@ bgm_spec <- function(x,
                      # Sampler
                      update_method = c(
                        "nuts",
-                       "adaptive-metropolis",
-                       "hamiltonian-mc"
+                       "adaptive-metropolis"
                      ),
                      target_accept = NULL,
                      iter = 10000L,
                      warmup = 1000L,
-                     hmc_num_leapfrogs = 100L,
                      nuts_max_depth = 10L,
                      learn_mass_matrix = TRUE,
                      chains = 4L,
@@ -301,7 +298,6 @@ bgm_spec <- function(x,
                      seed = NULL,
                      display_progress = c("per-chain", "total", "none"),
                      verbose = TRUE,
-                     pseudolikelihood = c("conditional", "marginal"),
                      progress_callback = NULL) {
   model_type <- match.arg(model_type)
   na_action <- tryCatch(match.arg(na_action), error = function(e) {
@@ -348,7 +344,6 @@ bgm_spec <- function(x,
     target_accept = target_accept,
     iter = iter,
     warmup = warmup,
-    hmc_num_leapfrogs = hmc_num_leapfrogs,
     nuts_max_depth = nuts_max_depth,
     learn_mass_matrix = learn_mass_matrix,
     chains = chains,
@@ -417,7 +412,6 @@ bgm_spec <- function(x,
       edge_prior_flat = ep_flat
     )
   } else if (model_type == "mixed_mrf") {
-    pseudolikelihood <- match.arg(pseudolikelihood)
     spec <- build_spec_mixed_mrf(
       x = x, data_columnnames = data_columnnames,
       num_variables = num_variables,
@@ -439,7 +433,6 @@ bgm_spec <- function(x,
       scale_shape = scale_shape,
       scale_rate = scale_rate,
       standardize = standardize,
-      pseudolikelihood = pseudolikelihood,
       edge_prior_flat = ep_flat
     )
   } else if (model_type == "omrf") {
@@ -680,7 +673,7 @@ build_spec_mixed_mrf <- function(x, data_columnnames, num_variables,
                                  means_prior_type, means_scale,
                                  means_alpha, means_beta,
                                  scale_prior_type, scale_shape, scale_rate,
-                                 standardize, pseudolikelihood,
+                                 standardize,
                                  edge_prior_flat) {
   # Identify discrete vs continuous columns
   cont_idx <- which(variable_type == "continuous")
@@ -816,7 +809,6 @@ build_spec_mixed_mrf <- function(x, data_columnnames, num_variables,
       scale_shape = scale_shape,
       scale_rate = scale_rate,
       standardize = standardize,
-      pseudolikelihood = pseudolikelihood,
       edge_selection = ep$edge_selection,
       edge_prior = ep$edge_prior,
       inclusion_probability = ep$inclusion_probability,
@@ -1134,7 +1126,6 @@ sampler_sublist <- function(s) {
     warmup            = as.integer(s$warmup),
     chains            = as.integer(s$chains),
     cores             = as.integer(s$cores),
-    hmc_num_leapfrogs = as.integer(s$hmc_num_leapfrogs),
     nuts_max_depth    = as.integer(s$nuts_max_depth),
     learn_mass_matrix = s$learn_mass_matrix,
     seed              = as.integer(s$seed),
@@ -1227,7 +1218,6 @@ build_arguments_omrf <- function(spec) {
     version                      = packageVersion("bgms"),
     update_method                = spec$sampler$update_method,
     target_accept                = spec$sampler$target_accept,
-    hmc_num_leapfrogs            = spec$sampler$hmc_num_leapfrogs,
     nuts_max_depth               = spec$sampler$nuts_max_depth,
     learn_mass_matrix            = spec$sampler$learn_mass_matrix,
     num_chains                   = spec$sampler$chains,
@@ -1252,7 +1242,6 @@ build_arguments_mixed_mrf <- function(spec) {
     warmup                       = spec$sampler$warmup,
     pairwise_scale               = spec$prior$pairwise_scale,
     standardize                  = spec$prior$standardize,
-    pseudolikelihood             = spec$prior$pseudolikelihood,
     main_alpha                   = spec$prior$main_alpha,
     main_beta                    = spec$prior$main_beta,
     edge_selection               = spec$prior$edge_selection,
@@ -1303,7 +1292,6 @@ build_arguments_compare <- function(spec) {
     version                      = packageVersion("bgms"),
     update_method                = spec$sampler$update_method,
     target_accept                = spec$sampler$target_accept,
-    hmc_num_leapfrogs            = spec$sampler$hmc_num_leapfrogs,
     nuts_max_depth               = spec$sampler$nuts_max_depth,
     learn_mass_matrix            = spec$sampler$learn_mass_matrix,
     num_chains                   = spec$sampler$chains,

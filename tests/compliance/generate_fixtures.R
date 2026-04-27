@@ -58,7 +58,7 @@ if(installed_version != "0.1.6.3") {
 # Covers:
 #   Datasets:       Wenchuan (ordinal 5-pt), ADHD (binary), Boredom (ordinal 7-pt)
 #   Variable types: ordinal (default), blume-capel
-#   Samplers:       NUTS, adaptive-metropolis, hamiltonian-mc
+#   Samplers:       NUTS, adaptive-metropolis
 #   Edge priors:    Bernoulli, Beta-Bernoulli, Stochastic-Block
 #   Edge selection: TRUE, FALSE
 #   Missing data:   listwise, impute
@@ -94,16 +94,6 @@ bgm_configs = list(
       x = "wenchuan_small", iter = 200, warmup = 200, chains = 2,
       edge_selection = TRUE, edge_prior = "Bernoulli",
       update_method = "adaptive-metropolis", seed = 103, display_progress = "none"
-    )
-  ),
-  list(
-    id = "bgm_wenchuan_hmc_bernoulli",
-    desc = "bgm: Wenchuan 6v, HMC, Bernoulli, edge_sel",
-    args = list(
-      x = "wenchuan_small", iter = 200, warmup = 200, chains = 2,
-      edge_selection = TRUE, edge_prior = "Bernoulli",
-      update_method = "hamiltonian-mc", hmc_num_leapfrogs = 20,
-      seed = 104, display_progress = "none"
     )
   ),
   list(
@@ -156,17 +146,6 @@ bgm_configs = list(
       variable_type = "blume-capel", baseline_category = 2,
       edge_selection = TRUE, edge_prior = "Bernoulli",
       update_method = "adaptive-metropolis", seed = 402, display_progress = "none"
-    )
-  ),
-  list(
-    id = "bgm_wenchuan_hmc_blumecapel",
-    desc = "bgm: Wenchuan 6v, HMC, Blume-Capel, baseline=2",
-    args = list(
-      x = "wenchuan_small", iter = 200, warmup = 200, chains = 2,
-      variable_type = "blume-capel", baseline_category = 2,
-      edge_selection = TRUE, edge_prior = "Bernoulli",
-      update_method = "hamiltonian-mc", hmc_num_leapfrogs = 20,
-      seed = 403, display_progress = "none"
     )
   ),
   list(
@@ -250,16 +229,6 @@ bgm_configs = list(
     )
   ),
   list(
-    id = "bgm_boredom_hmc_bernoulli",
-    desc = "bgm: Boredom 6v, HMC, Bernoulli, edge_sel",
-    args = list(
-      x = "boredom_small", iter = 200, warmup = 200, chains = 2,
-      edge_selection = TRUE, edge_prior = "Bernoulli",
-      update_method = "hamiltonian-mc", hmc_num_leapfrogs = 20,
-      seed = 303, display_progress = "none"
-    )
-  ),
-  list(
     id = "bgm_boredom_nuts_no_edgesel",
     desc = "bgm: Boredom 6v, NUTS, no edge selection",
     args = list(
@@ -323,17 +292,6 @@ compare_configs = list(
       iter = 200, warmup = 200, chains = 2,
       difference_selection = TRUE,
       update_method = "adaptive-metropolis", seed = 602, display_progress = "none"
-    )
-  ),
-  list(
-    id = "cmp_wenchuan_hmc_bernoulli",
-    desc = "bgmCompare: Wenchuan, HMC, Bernoulli, diff_sel",
-    args = list(
-      x = "wenchuan_g1", y = "wenchuan_g2",
-      iter = 200, warmup = 200, chains = 2,
-      difference_selection = TRUE,
-      update_method = "hamiltonian-mc", hmc_num_leapfrogs = 20,
-      seed = 603, display_progress = "none"
     )
   ),
   list(

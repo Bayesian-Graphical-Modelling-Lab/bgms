@@ -685,9 +685,8 @@ void GGMModel::update_edge_parameter(size_t i, size_t j, int iteration) {
     ln_alpha += interaction_prior_->logp(-0.5 * precision_proposal_(i, j));
     ln_alpha -= interaction_prior_->logp(-0.5 * precision_matrix_(i, j));
 
-    // Gamma(1,1) prior on changed diagonal K_jj
-    ln_alpha += diagonal_prior_->logp(precision_proposal_(j, j));
-    ln_alpha -= diagonal_prior_->logp(precision_matrix_(j, j));
+    // Gamma(1,1) prior on K_jj cancels: constrained diagonal is a
+    // deterministic function of phi_{q-1,q} with phi_{q,q} fixed.
 
     if (MY_LOG(runif(rng_)) < ln_alpha) {
         double omega_ij_old = precision_matrix_(i, j);
@@ -842,9 +841,7 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         // Interaction prior on K_yy_{ij} = -0.5 * Omega_{ij}
         ln_alpha -= interaction_prior_->logp(-0.5 * precision_matrix_(i, j));
 
-        // Gamma(1,1) prior on changed diagonal K_jj
-        ln_alpha += diagonal_prior_->logp(precision_proposal_(j, j));
-        ln_alpha -= diagonal_prior_->logp(precision_matrix_(j, j));
+        // Gamma(1,1) prior on K_jj cancels: constrained parameterization.
 
         if (MY_LOG(runif(rng_)) < ln_alpha) {
 
@@ -897,9 +894,7 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         // Prior change: add slab (interaction prior on K_yy_{ij} = -0.5 * Omega_{ij})
         ln_alpha += interaction_prior_->logp(-0.5 * omega_prop_ij);
 
-        // Gamma(1,1) prior on changed diagonal K_jj
-        ln_alpha += diagonal_prior_->logp(precision_proposal_(j, j));
-        ln_alpha -= diagonal_prior_->logp(precision_matrix_(j, j));
+        // Gamma(1,1) prior on K_jj cancels: constrained parameterization.
 
         // Proposal term: proposed edge value given it was generated from truncated normal
         ln_alpha -= R::dnorm(omega_prop_ij / constants_[3], 0.0, proposal_sd, true) - MY_LOG(constants_[3]);

@@ -14,7 +14,7 @@
 //   Blume-Capel: main_effects_discrete_(s, 0) = linear α, main_effects_discrete_(s, 1) = quadratic β
 //                (c indexes 0 or 1 for BC)
 //
-// The accept/reject uses log_conditional_omrf(s) + beta-type prior.
+// The accept/reject uses log_marginal_omrf(s) + beta-type prior.
 // =============================================================================
 
 void MixedMRFModel::update_main_effect(int s, int c, int iteration) {
@@ -25,12 +25,12 @@ void MixedMRFModel::update_main_effect(int s, int c, int iteration) {
     double proposed = rnorm(rng_, current_val, proposal_sd);
 
     // Current log-posterior
-    double ll_curr = (use_marginal_pl_ ? log_marginal_omrf(s) : log_conditional_omrf(s))
+    double ll_curr = log_marginal_omrf(s)
                    + threshold_prior_->logp(current_val);
 
     // Proposed log-posterior
     current = proposed;
-    double ll_prop = (use_marginal_pl_ ? log_marginal_omrf(s) : log_conditional_omrf(s))
+    double ll_prop = log_marginal_omrf(s)
                    + threshold_prior_->logp(proposed);
 
     double ln_alpha = ll_prop - ll_curr;
@@ -59,12 +59,10 @@ void MixedMRFModel::update_continuous_mean(int j, int iteration) {
     double current_val = main_effects_continuous_(j);
     double proposed = rnorm(rng_, current_val, proposal_sd_main_continuous_(j));
 
-    // Current log-posterior (Normal(0,1) prior: -x^2/2 up to constant)
+    // Current log-posterior
     double ll_curr = log_conditional_ggm() + means_prior_->logp(current_val);
-    if(use_marginal_pl_) {
-        for(size_t s = 0; s < p_; ++s)
-            ll_curr += log_marginal_omrf(s);
-    }
+    for(size_t s = 0; s < p_; ++s)
+        ll_curr += log_marginal_omrf(s);
 
     // Set proposed value and refresh conditional_mean_
     arma::mat cond_mean_saved = conditional_mean_;
@@ -72,10 +70,8 @@ void MixedMRFModel::update_continuous_mean(int j, int iteration) {
     recompute_conditional_mean();
 
     double ll_prop = log_conditional_ggm() + means_prior_->logp(proposed);
-    if(use_marginal_pl_) {
-        for(size_t s = 0; s < p_; ++s)
-            ll_prop += log_marginal_omrf(s);
-    }
+    for(size_t s = 0; s < p_; ++s)
+        ll_prop += log_marginal_omrf(s);
 
     double ln_alpha = ll_prop - ll_curr;
 
@@ -97,7 +93,7 @@ void MixedMRFModel::update_continuous_mean(int j, int iteration) {
 // =============================================================================
 // MH update for one discrete-discrete interaction pairwise_effects_discrete_(i, j).
 // Symmetric: sets both (i,j) and (j,i).
-// Acceptance: log_conditional_omrf(i) + log_conditional_omrf(j) + Cauchy prior.
+// Acceptance: log_marginal_omrf(i) + log_marginal_omrf(j) + Cauchy prior.
 // =============================================================================
 
 void MixedMRFModel::update_pairwise_discrete(int i, int j, int iteration) {
@@ -105,34 +101,22 @@ void MixedMRFModel::update_pairwise_discrete(int i, int j, int iteration) {
     double proposed = rnorm(rng_, current_val, proposal_sd_pairwise_discrete_(i, j));
 
     // Current log-posterior
-    double ll_curr, ll_prop;
-    if(use_marginal_pl_) {
-        ll_curr = log_marginal_omrf(i) + log_marginal_omrf(j)
-                + interaction_prior_->logp(current_val);
+    double ll_curr = log_marginal_omrf(i) + log_marginal_omrf(j)
+                   + interaction_prior_->logp(current_val);
 
-        pairwise_effects_discrete_(i, j) = proposed;
-        pairwise_effects_discrete_(j, i) = proposed;
-        recompute_marginal_interactions();
+    pairwise_effects_discrete_(i, j) = proposed;
+    pairwise_effects_discrete_(j, i) = proposed;
+    recompute_marginal_interactions();
 
-        ll_prop = log_marginal_omrf(i) + log_marginal_omrf(j)
-                + interaction_prior_->logp(proposed);
-    } else {
-        ll_curr = log_conditional_omrf(i) + log_conditional_omrf(j)
-                + interaction_prior_->logp(current_val);
-
-        pairwise_effects_discrete_(i, j) = proposed;
-        pairwise_effects_discrete_(j, i) = proposed;
-
-        ll_prop = log_conditional_omrf(i) + log_conditional_omrf(j)
-                + interaction_prior_->logp(proposed);
-    }
+    double ll_prop = log_marginal_omrf(i) + log_marginal_omrf(j)
+                   + interaction_prior_->logp(proposed);
 
     double ln_alpha = ll_prop - ll_curr;
 
     if(MY_LOG(runif(rng_)) >= ln_alpha) {
         pairwise_effects_discrete_(i, j) = current_val;  // reject
         pairwise_effects_discrete_(j, i) = current_val;
-        if(use_marginal_pl_) recompute_marginal_interactions();
+        recompute_marginal_interactions();
     }
 
     if(iteration >= 1 && iteration < total_warmup_) {
@@ -416,23 +400,21 @@ void MixedMRFModel::update_pairwise_effects_continuous_offdiag(int i, int j, int
 
     double ln_alpha = log_ggm_ratio_edge(i, j);
 
-    // Marginal mode: add OMRF ratio with proposed continuous interactions
-    if(use_marginal_pl_) {
-        for(size_t s = 0; s < p_; ++s)
-            ln_alpha -= log_marginal_omrf(s);
+    // OMRF ratio with proposed continuous interactions
+    for(size_t s = 0; s < p_; ++s)
+        ln_alpha -= log_marginal_omrf(s);
 
-        arma::mat marginal_saved = marginal_interactions_;
-        arma::mat pairwise_effects_continuous_saved = pairwise_effects_continuous_;
-        // Temporarily set continuous interactions to proposed value
-        pairwise_effects_continuous_(i, j) = -0.5 * theta_prop_ij;
-        pairwise_effects_continuous_(j, i) = -0.5 * theta_prop_ij;
-        pairwise_effects_continuous_(j, j) = -0.5 * theta_prop_jj;
-        recompute_marginal_interactions();
-        for(size_t s = 0; s < p_; ++s)
-            ln_alpha += log_marginal_omrf(s);
-        pairwise_effects_continuous_ = pairwise_effects_continuous_saved;
-        marginal_interactions_ = std::move(marginal_saved);
-    }
+    arma::mat marginal_saved = marginal_interactions_;
+    arma::mat pairwise_effects_continuous_saved = pairwise_effects_continuous_;
+    // Temporarily set continuous interactions to proposed value
+    pairwise_effects_continuous_(i, j) = -0.5 * theta_prop_ij;
+    pairwise_effects_continuous_(j, i) = -0.5 * theta_prop_ij;
+    pairwise_effects_continuous_(j, j) = -0.5 * theta_prop_jj;
+    recompute_marginal_interactions();
+    for(size_t s = 0; s < p_; ++s)
+        ln_alpha += log_marginal_omrf(s);
+    pairwise_effects_continuous_ = pairwise_effects_continuous_saved;
+    marginal_interactions_ = std::move(marginal_saved);
 
     // Prior ratio:
     //   Cauchy(0, scale) on off-diagonal = -1/2 * precision_ij
@@ -459,7 +441,7 @@ void MixedMRFModel::update_pairwise_effects_continuous_offdiag(int i, int j, int
 
         cholesky_update_after_precision_edge(old_theta_ij, old_theta_jj, i, j);
         recompute_conditional_mean();
-        if(use_marginal_pl_) recompute_marginal_interactions();
+        recompute_marginal_interactions();
     }
 
     if(iteration >= 1 && iteration < total_warmup_) {
@@ -498,20 +480,18 @@ void MixedMRFModel::update_pairwise_effects_continuous_diag(int i, int iteration
 
     double ln_alpha = log_ggm_ratio_diag(i);
 
-    // Marginal mode: add OMRF ratio with proposed continuous interactions
-    if(use_marginal_pl_) {
-        for(size_t s = 0; s < p_; ++s)
-            ln_alpha -= log_marginal_omrf(s);
+    // OMRF ratio with proposed continuous interactions
+    for(size_t s = 0; s < p_; ++s)
+        ln_alpha -= log_marginal_omrf(s);
 
-        arma::mat marginal_saved = marginal_interactions_;
-        double cont_saved = pairwise_effects_continuous_(i, i);
-        pairwise_effects_continuous_(i, i) = -0.5 * theta_ii_prop;
-        recompute_marginal_interactions();
-        for(size_t s = 0; s < p_; ++s)
-            ln_alpha += log_marginal_omrf(s);
-        pairwise_effects_continuous_(i, i) = cont_saved;
-        marginal_interactions_ = std::move(marginal_saved);
-    }
+    arma::mat marginal_saved = marginal_interactions_;
+    double cont_saved = pairwise_effects_continuous_(i, i);
+    pairwise_effects_continuous_(i, i) = -0.5 * theta_ii_prop;
+    recompute_marginal_interactions();
+    for(size_t s = 0; s < p_; ++s)
+        ln_alpha += log_marginal_omrf(s);
+    pairwise_effects_continuous_(i, i) = cont_saved;
+    marginal_interactions_ = std::move(marginal_saved);
 
     // Prior ratio: Gamma(1,1) on K_ii (precision diagonal)
     ln_alpha += diagonal_prior_->logp(theta_ii_prop);
@@ -529,7 +509,7 @@ void MixedMRFModel::update_pairwise_effects_continuous_diag(int i, int iteration
 
         cholesky_update_after_precision_diag(old_theta_ii, i);
         recompute_conditional_mean();
-        if(use_marginal_pl_) recompute_marginal_interactions();
+        recompute_marginal_interactions();
     }
 
     if(iteration >= 1 && iteration < total_warmup_) {
@@ -544,8 +524,8 @@ void MixedMRFModel::update_pairwise_effects_continuous_diag(int i, int iteration
 // update_pairwise_cross
 // =============================================================================
 // MH update for one cross-type interaction pairwise_effects_cross_(i, j).
-// Acceptance: log_conditional_omrf(i) + log_conditional_ggm() + Cauchy prior.
-// Must save/restore conditional_mean_ around the proposal.
+// Acceptance: sum_s log_marginal_omrf(s) + log_conditional_ggm() + Cauchy prior.
+// Must save/restore conditional_mean_ and marginal_interactions_ around the proposal.
 // =============================================================================
 
 void MixedMRFModel::update_pairwise_cross(int i, int j, int iteration) {
@@ -555,36 +535,27 @@ void MixedMRFModel::update_pairwise_cross(int i, int j, int iteration) {
     // Current log-posterior
     double ll_curr = log_conditional_ggm()
                    + interaction_prior_->logp(current_val);
-    if(use_marginal_pl_) {
-        for(size_t s = 0; s < p_; ++s)
-            ll_curr += log_marginal_omrf(s);
-    } else {
-        ll_curr += log_conditional_omrf(i);
-    }
+    for(size_t s = 0; s < p_; ++s)
+        ll_curr += log_marginal_omrf(s);
 
     // Set proposed value and refresh caches
     arma::mat cond_mean_saved = conditional_mean_;
-    arma::mat marginal_saved;
-    if(use_marginal_pl_) marginal_saved = marginal_interactions_;
+    arma::mat marginal_saved = marginal_interactions_;
     pairwise_effects_cross_(i, j) = proposed;
     recompute_conditional_mean();
-    if(use_marginal_pl_) recompute_marginal_interactions();
+    recompute_marginal_interactions();
 
     double ll_prop = log_conditional_ggm()
                    + interaction_prior_->logp(proposed);
-    if(use_marginal_pl_) {
-        for(size_t s = 0; s < p_; ++s)
-            ll_prop += log_marginal_omrf(s);
-    } else {
-        ll_prop += log_conditional_omrf(i);
-    }
+    for(size_t s = 0; s < p_; ++s)
+        ll_prop += log_marginal_omrf(s);
 
     double ln_alpha = ll_prop - ll_curr;
 
     if(MY_LOG(runif(rng_)) >= ln_alpha) {
         pairwise_effects_cross_(i, j) = current_val;  // reject
         conditional_mean_ = std::move(cond_mean_saved);
-        if(use_marginal_pl_) marginal_interactions_ = std::move(marginal_saved);
+        marginal_interactions_ = std::move(marginal_saved);
     }
 
     if(iteration >= 1 && iteration < total_warmup_) {
@@ -618,32 +589,18 @@ void MixedMRFModel::update_edge_indicator_discrete(int i, int j) {
     }
 
     // --- Likelihood ratio ---
-    double ll_curr, ll_prop;
-    if(use_marginal_pl_) {
-        ll_curr = log_marginal_omrf(i) + log_marginal_omrf(j);
+    double ll_curr = log_marginal_omrf(i) + log_marginal_omrf(j);
 
-        pairwise_effects_discrete_(i, j) = k_prop;
-        pairwise_effects_discrete_(j, i) = k_prop;
-        recompute_marginal_interactions();
+    pairwise_effects_discrete_(i, j) = k_prop;
+    pairwise_effects_discrete_(j, i) = k_prop;
+    recompute_marginal_interactions();
 
-        ll_prop = log_marginal_omrf(i) + log_marginal_omrf(j);
+    double ll_prop = log_marginal_omrf(i) + log_marginal_omrf(j);
 
-        // Restore
-        pairwise_effects_discrete_(i, j) = k_curr;
-        pairwise_effects_discrete_(j, i) = k_curr;
-        recompute_marginal_interactions();
-    } else {
-        ll_curr = log_conditional_omrf(i) + log_conditional_omrf(j);
-
-        pairwise_effects_discrete_(i, j) = k_prop;
-        pairwise_effects_discrete_(j, i) = k_prop;
-
-        ll_prop = log_conditional_omrf(i) + log_conditional_omrf(j);
-
-        // Restore
-        pairwise_effects_discrete_(i, j) = k_curr;
-        pairwise_effects_discrete_(j, i) = k_curr;
-    }
+    // Restore
+    pairwise_effects_discrete_(i, j) = k_curr;
+    pairwise_effects_discrete_(j, i) = k_curr;
+    recompute_marginal_interactions();
 
     double ln_alpha = ll_prop - ll_curr;
 
@@ -668,7 +625,7 @@ void MixedMRFModel::update_edge_indicator_discrete(int i, int j) {
         pairwise_effects_discrete_(j, i) = k_prop;
         set_gxx(i, j, g_prop);
         constraint_dirty_ = true;
-        if(use_marginal_pl_) recompute_marginal_interactions();
+        recompute_marginal_interactions();
     }
 }
 
@@ -711,22 +668,20 @@ void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
     // --- Likelihood ratio ---
     double ln_alpha = log_ggm_ratio_edge(i, j);
 
-    if(use_marginal_pl_) {
-        for(size_t s = 0; s < p_; ++s)
-            ln_alpha -= log_marginal_omrf(s);
+    for(size_t s = 0; s < p_; ++s)
+        ln_alpha -= log_marginal_omrf(s);
 
-        arma::mat marginal_saved = marginal_interactions_;
-        arma::mat pairwise_effects_continuous_saved = pairwise_effects_continuous_;
-        // Temporarily set continuous interactions to proposed value
-        pairwise_effects_continuous_(i, j) = -0.5 * theta_prop_ij;
-        pairwise_effects_continuous_(j, i) = -0.5 * theta_prop_ij;
-        pairwise_effects_continuous_(j, j) = -0.5 * theta_prop_jj;
-        recompute_marginal_interactions();
-        for(size_t s = 0; s < p_; ++s)
-            ln_alpha += log_marginal_omrf(s);
-        pairwise_effects_continuous_ = pairwise_effects_continuous_saved;
-        marginal_interactions_ = std::move(marginal_saved);
-    }
+    arma::mat marginal_saved = marginal_interactions_;
+    arma::mat pairwise_effects_continuous_saved = pairwise_effects_continuous_;
+    // Temporarily set continuous interactions to proposed value
+    pairwise_effects_continuous_(i, j) = -0.5 * theta_prop_ij;
+    pairwise_effects_continuous_(j, i) = -0.5 * theta_prop_ij;
+    pairwise_effects_continuous_(j, j) = -0.5 * theta_prop_jj;
+    recompute_marginal_interactions();
+    for(size_t s = 0; s < p_; ++s)
+        ln_alpha += log_marginal_omrf(s);
+    pairwise_effects_continuous_ = pairwise_effects_continuous_saved;
+    marginal_interactions_ = std::move(marginal_saved);
 
     // --- Spike-and-slab terms ---
     // off-diagonal = -1/2 * precision_ij
@@ -776,7 +731,7 @@ void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
         constraint_dirty_ = true;
         cholesky_update_after_precision_edge(old_theta_ij, old_theta_jj, i, j);
         recompute_conditional_mean();
-        if(use_marginal_pl_) recompute_marginal_interactions();
+        recompute_marginal_interactions();
     }
 }
 
@@ -804,39 +759,24 @@ void MixedMRFModel::update_edge_indicator_cross(int i, int j) {
     }
 
     // --- Likelihood ratio ---
-    double ll_curr, ll_prop;
-    if(use_marginal_pl_) {
-        ll_curr = log_conditional_ggm();
-        for(size_t s = 0; s < p_; ++s)
-            ll_curr += log_marginal_omrf(s);
+    double ll_curr = log_conditional_ggm();
+    for(size_t s = 0; s < p_; ++s)
+        ll_curr += log_marginal_omrf(s);
 
-        arma::mat cond_mean_saved = conditional_mean_;
-        arma::mat marginal_saved = marginal_interactions_;
-        pairwise_effects_cross_(i, j) = k_prop;
-        recompute_conditional_mean();
-        recompute_marginal_interactions();
+    arma::mat cond_mean_saved = conditional_mean_;
+    arma::mat marginal_saved = marginal_interactions_;
+    pairwise_effects_cross_(i, j) = k_prop;
+    recompute_conditional_mean();
+    recompute_marginal_interactions();
 
-        ll_prop = log_conditional_ggm();
-        for(size_t s = 0; s < p_; ++s)
-            ll_prop += log_marginal_omrf(s);
+    double ll_prop = log_conditional_ggm();
+    for(size_t s = 0; s < p_; ++s)
+        ll_prop += log_marginal_omrf(s);
 
-        // Restore
-        pairwise_effects_cross_(i, j) = k_curr;
-        conditional_mean_ = std::move(cond_mean_saved);
-        marginal_interactions_ = std::move(marginal_saved);
-    } else {
-        ll_curr = log_conditional_omrf(i) + log_conditional_ggm();
-
-        arma::mat cond_mean_saved = conditional_mean_;
-        pairwise_effects_cross_(i, j) = k_prop;
-        recompute_conditional_mean();
-
-        ll_prop = log_conditional_omrf(i) + log_conditional_ggm();
-
-        // Restore
-        pairwise_effects_cross_(i, j) = k_curr;
-        conditional_mean_ = std::move(cond_mean_saved);
-    }
+    // Restore
+    pairwise_effects_cross_(i, j) = k_curr;
+    conditional_mean_ = std::move(cond_mean_saved);
+    marginal_interactions_ = std::move(marginal_saved);
 
     double ln_alpha = ll_prop - ll_curr;
 
@@ -859,6 +799,6 @@ void MixedMRFModel::update_edge_indicator_cross(int i, int j) {
         set_gxy(i, j, g_prop);
         constraint_dirty_ = true;
         recompute_conditional_mean();
-        if(use_marginal_pl_) recompute_marginal_interactions();
+        recompute_marginal_interactions();
     }
 }

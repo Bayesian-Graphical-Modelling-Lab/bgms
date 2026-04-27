@@ -2,8 +2,8 @@
 
 ## Breaking changes
 
-* `update_method = "hamiltonian-mc"` is deprecated. Pure HMC with a fixed trajectory length will be removed in a future release. Use `update_method = "nuts"` instead. NUTS dynamically adapts trajectory length and is more reliable, especially with edge selection on GGM models.
-* The `hmc_num_leapfrogs` argument is deprecated along with pure HMC.
+* `update_method = "hamiltonian-mc"` has been removed. Use `update_method = "nuts"` instead. NUTS dynamically adapts trajectory length and is more reliable, especially with edge selection on GGM models.
+* The `hmc_num_leapfrogs` argument has been removed along with pure HMC.
 
 * Pairwise interaction parameters for ordinal MRFs are now stored on association scale (half the sigma scale used in 0.1.6.3). Code that interprets raw pairwise posterior samples or sets `pairwise_scale` explicitly will need adjustment.
 * Default `pairwise_scale` changed from 2.5 to 1 to match the association-scale reparameterization.
@@ -25,19 +25,17 @@
 * Fitted objects from `bgm()` and `bgmCompare()` are now S7 class objects (new dependency: `S7`). All existing `$`, `[[`, and `names()` access patterns continue to work. When an incompatible `easybgm` version is loaded, bgms returns plain S3 lists for backwards compatibility; this shim will be removed in a future release.
 * Refactored the C++ backend: unified model hierarchy (`BaseModel` → `GGMModel` / `OMRFModel` / `MixedMRFModel`), shared NUTS/HMC infrastructure, and fused log-posterior and gradient computation.
 * NUTS now uses Stan's multinomial candidate weighting (log-sum-exp of `H0 - h` per leaf, biased progressive sampling at the top level) in place of the Hoffman-Gelman slice variable. The two schemes target the same posterior; the multinomial variant produces lower-variance candidate selection and has been Stan's default since 2017. User-facing output is unchanged apart from the new `accept_prob` diagnostic.
-* NUTS Stage-2 warmup windowing is smoother: when the window after the next would overshoot the Stage-3a boundary, the current next window is stretched to absorb the remaining Stage-2 budget instead of emitting a small trailing window. Each window boundary triggers a mass-matrix update and step-size reinitialization, so eliminating the disruptive trailing window improves dual-averaging convergence and ESS.
+* NUTS Stage-2 warmup windowing now matches Stan's `windowed_adaptation::compute_next_window`: when the window after the next would overshoot the Stage-3a boundary, the current next window is stretched to absorb the remaining Stage-2 budget instead of emitting a small trailing window. This eliminates a disruptive mass-matrix update + step-size reinit at the end of warmup and improves dual-averaging convergence.
 * Dropped `coda` from Imports; ESS and R-hat are now computed in C++ with on-demand (lazy) evaluation, replacing the eager R-based computation from 0.1.6.3.
 * `$` and `[[` accessors on fitted objects trigger lazy computation of MCMC diagnostics on first access.
 
 ## Bug fixes
 
-* fixed compilation failure on Alpine/musl: `mrf_simulation.cpp` relied on a transitive include for `<tbb/global_control.h>` that is not available on all platforms.
-* fixed stale gradient cache after missing data imputation caused NUTS to use outdated cached values for leapfrog integration.
-* fixed stale observation transpose after missing data imputation caused the pairwise gradient to use stale data.
-* fixed acceptance rate for nuts: parameter now correctly passed to lower level functions
-* fixed NUTS acceptance probability accumulation: the top-level trajectory loop overwrote the Metropolis contribution with the last subtree's value instead of summing across the full trajectory, biasing the signal used by dual-averaging step-size adaptation.
-* fixed NUTS top-level U-turn bookkeeping: the outer trajectory loop was not maintaining the two outer-end boundary momenta (`p_bck_bck` and `p_fwd_fwd`), and the sharp-momentum mapping returned from `build_tree` was inverted for backward subtrees. This caused trajectories to terminate one tree-depth level too early, shrinking average displacement per iteration and inflating autocorrelation. Samples are now unbiased; the correct criterion produces longer trajectories so per-iteration walltime increases (roughly 2x on dense ordinal problems like `Wenchuan`). Users who want to trade a small amount of quality for speed can lower `target_accept` from 0.80 to 0.70 and recover ~15% of the walltime with no observable quality degradation.
-* fixed mixed-MRF marginal pseudo-likelihood (`pseudolikelihood = "marginal"`): the off-diagonal cross-induced contribution to the effective interaction matrix `M = A_xx + 2 A_xy Sigma_yy A_xy'` was under-counted by a factor of 2 in the rest-score computation, biasing the posterior mean of discrete-variable thresholds when continuous variables were present. Forward log-posterior and analytic gradient now match a direct Gaussian-integral reference and central finite differences to machine precision. The fix affects both the NUTS and adaptive-Metropolis paths.
+* Fixed compilation failure on Alpine/musl: `mrf_simulation.cpp` relied on a transitive include for `<tbb/global_control.h>` that is not available on all platforms.
+* Fixed stale gradient cache after missing data imputation caused NUTS to use outdated cached values for leapfrog integration.
+* Fixed stale observation transpose after missing data imputation caused the pairwise gradient to use stale data.
+* Fixed NUTS acceptance probability: target_accept now correctly passed to lower-level NUTS functions.
+* Fixed NUTS acceptance probability accumulation: the top-level trajectory loop overwrote the Metropolis contribution with the last subtree's value instead of summing across the full trajectory, biasing the signal used by dual-averaging step-size adaptation.
 
 # bgms 0.1.6.3
 
@@ -58,7 +56,7 @@
 * fixed matrix indexing for `posterior_mean_indicator`: now correctly maps C++ row-major order to R matrices (#77)
 * fixed mass matrix adaptation: now correctly uses variance instead of precision
 * fixed step size heuristic: re-runs after mass matrix updates, resamples momentum each iteration
-* fixed E-BFMI diagnostic: now uses accepted trajectory momentum
+* fixed E-BFMI diagnostic: now uses actual accepted trajectory momentum
 * fixed Blume-Capel interaction: uses centered scores `(c - ref)` in pseudolikelihood denominator
 
 ## Other changes

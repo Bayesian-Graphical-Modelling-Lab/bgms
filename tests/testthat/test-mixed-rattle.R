@@ -22,7 +22,7 @@ mixed_full_dim = function(num_cats, is_ord, p, q) {
 
 # Finite-difference gradient for logp_and_gradient_full
 mixed_fd_gradient_full = function(params, x, y, num_cats, is_ord, base_cat,
-                                  edge_ind, pl_mode, scale, eps = 1e-5) {
+                                  edge_ind, scale, eps = 1e-5) {
   n_total = length(params)
   fd = numeric(n_total)
   for(k in seq_len(n_total)) {
@@ -32,11 +32,11 @@ mixed_fd_gradient_full = function(params, x, y, num_cats, is_ord, base_cat,
     p_minus[k] = p_minus[k] - eps
     fp = mixed_test_logp_and_gradient_full(
       p_plus, x, y, num_cats, as.integer(is_ord),
-      base_cat, edge_ind, pl_mode, scale
+      base_cat, edge_ind, scale
     )$value
     fm = mixed_test_logp_and_gradient_full(
       p_minus, x, y, num_cats, as.integer(is_ord),
-      base_cat, edge_ind, pl_mode, scale
+      base_cat, edge_ind, scale
     )$value
     fd[k] = (fp - fm) / (2 * eps)
   }
@@ -44,14 +44,14 @@ mixed_fd_gradient_full = function(params, x, y, num_cats, is_ord, base_cat,
 }
 
 mixed_check_gradient_full = function(params, x, y, num_cats, is_ord, base_cat,
-                                     edge_ind, pl_mode, scale, eps = 1e-5) {
+                                     edge_ind, scale, eps = 1e-5) {
   res = mixed_test_logp_and_gradient_full(
     params, x, y, num_cats, as.integer(is_ord),
-    base_cat, edge_ind, pl_mode, scale
+    base_cat, edge_ind, scale
   )
   fd = mixed_fd_gradient_full(
     params, x, y, num_cats, is_ord, base_cat,
-    edge_ind, pl_mode, scale, eps
+    edge_ind, scale, eps
   )
   ag = res$gradient
   denom = pmax(abs(ag), abs(fd), 1)
@@ -115,7 +115,7 @@ test_that("full gradient matches FD, dense edges (p=3, q=2, conditional)", {
   params = rnorm(dim, sd = 0.3)
   err = mixed_check_gradient_full(
     params, x, y, num_cats, is_ord, base_cat,
-    edge_ind, "conditional", 2.5
+    edge_ind, 2.5
   )
   expect_lt(err, 1e-5)
 })
@@ -138,7 +138,7 @@ test_that("full gradient matches FD, dense edges (p=3, q=2, marginal)", {
   params = rnorm(dim, sd = 0.3)
   err = mixed_check_gradient_full(
     params, x, y, num_cats, is_ord, base_cat,
-    edge_ind, "marginal", 2.5
+    edge_ind, 2.5
   )
   expect_lt(err, 1e-5)
 })
@@ -164,7 +164,7 @@ test_that("full gradient matches FD, sparse edges (p=3, q=2, conditional)", {
   params = rnorm(dim, sd = 0.3)
   err = mixed_check_gradient_full(
     params, x, y, num_cats, is_ord, base_cat,
-    edge_ind, "conditional", 2.5
+    edge_ind, 2.5
   )
   expect_lt(err, 1e-5)
 })
@@ -189,7 +189,7 @@ test_that("full gradient matches FD, sparse with Gyy edges (p=3, q=3, conditiona
   params = rnorm(dim, sd = 0.2)
   err = mixed_check_gradient_full(
     params, x, y, num_cats, is_ord, base_cat,
-    edge_ind, "conditional", 2.5
+    edge_ind, 2.5
   )
   expect_lt(err, 1e-5)
 })
@@ -215,7 +215,7 @@ test_that("full gradient matches FD, mixed ord+BC (p=3, q=2, conditional)", {
   params = rnorm(dim, sd = 0.3)
   err = mixed_check_gradient_full(
     params, x, y, num_cats, is_ord, base_cat,
-    edge_ind, "conditional", 2.5
+    edge_ind, 2.5
   )
   expect_lt(err, 1e-5)
 })
@@ -242,11 +242,11 @@ test_that("full gradient agrees with active gradient when all edges present", {
 
   res_full = mixed_test_logp_and_gradient_full(
     params, x, y, num_cats, as.integer(is_ord),
-    base_cat, edge_ind, "conditional", 2.5
+    base_cat, edge_ind, 2.5
   )
   res_active = mixed_test_logp_and_gradient(
     params, x, y, num_cats, as.integer(is_ord),
-    base_cat, edge_ind, "conditional", 2.5
+    base_cat, edge_ind, 2.5
   )
   # With all edges active, full and active dimensions are the same
   expect_equal(res_full$value, res_active$value, tolerance = 1e-10)
@@ -284,7 +284,7 @@ test_that("SHAKE projection zeros excluded Kxx and Kxy entries", {
 
   res = mixed_test_project_position(
     params, inv_mass, x, y, num_cats, as.integer(is_ord),
-    base_cat, edge_ind, "conditional", 2.5
+    base_cat, edge_ind, 2.5
   )
   proj = res$projected
 
@@ -318,12 +318,12 @@ test_that("SHAKE projection is idempotent", {
   # First projection
   res1 = mixed_test_project_position(
     params, inv_mass, x, y, num_cats, as.integer(is_ord),
-    base_cat, edge_ind, "conditional", 2.5
+    base_cat, edge_ind, 2.5
   )
   # Second projection of the result
   res2 = mixed_test_project_position(
     res1$projected, inv_mass, x, y, num_cats, as.integer(is_ord),
-    base_cat, edge_ind, "conditional", 2.5
+    base_cat, edge_ind, 2.5
   )
   expect_equal(res1$projected, res2$projected, tolerance = 1e-12)
 })
@@ -349,7 +349,7 @@ test_that("SHAKE projection is identity when all edges present", {
 
   res = mixed_test_project_position(
     params, inv_mass, x, y, num_cats, as.integer(is_ord),
-    base_cat, edge_ind, "conditional", 2.5
+    base_cat, edge_ind, 2.5
   )
   expect_equal(as.vector(res$projected), params, tolerance = 1e-12)
 })
@@ -380,7 +380,7 @@ test_that("RATTLE projection zeros excluded Kxx and Kxy momentum entries", {
   inv_mass = rep(1.0, dim)
   pos_proj = mixed_test_project_position(
     pos, inv_mass, x, y, num_cats, as.integer(is_ord),
-    base_cat, edge_ind, "conditional", 2.5
+    base_cat, edge_ind, 2.5
   )$projected
 
   # Random momentum
@@ -391,7 +391,7 @@ test_that("RATTLE projection zeros excluded Kxx and Kxy momentum entries", {
 
   res = mixed_test_project_momentum(
     mom, pos_proj, inv_mass, x, y, num_cats, as.integer(is_ord),
-    base_cat, edge_ind, "conditional", 2.5
+    base_cat, edge_ind, 2.5
   )
   proj_mom = res$projected
 
@@ -423,7 +423,7 @@ test_that("RATTLE momentum projection is idempotent", {
   pos = rnorm(dim, sd = 0.3)
   pos_proj = mixed_test_project_position(
     pos, inv_mass, x, y, num_cats, as.integer(is_ord),
-    base_cat, edge_ind, "conditional", 2.5
+    base_cat, edge_ind, 2.5
   )$projected
 
   set.seed(20)
@@ -431,11 +431,11 @@ test_that("RATTLE momentum projection is idempotent", {
 
   res1 = mixed_test_project_momentum(
     mom, pos_proj, inv_mass, x, y, num_cats, as.integer(is_ord),
-    base_cat, edge_ind, "conditional", 2.5
+    base_cat, edge_ind, 2.5
   )
   res2 = mixed_test_project_momentum(
     res1$projected, pos_proj, inv_mass, x, y, num_cats, as.integer(is_ord),
-    base_cat, edge_ind, "conditional", 2.5
+    base_cat, edge_ind, 2.5
   )
   expect_equal(res1$projected, res2$projected, tolerance = 1e-10)
 })
@@ -464,7 +464,7 @@ test_that("RATTLE projection is identity when all edges present", {
 
   res = mixed_test_project_momentum(
     mom, pos, inv_mass, x, y, num_cats, as.integer(is_ord),
-    base_cat, edge_ind, "conditional", 2.5
+    base_cat, edge_ind, 2.5
   )
   expect_equal(as.vector(res$projected), mom, tolerance = 1e-12)
 })

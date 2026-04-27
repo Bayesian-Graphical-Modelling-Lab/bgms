@@ -121,21 +121,6 @@
 #'   score endpoints \eqn{(-b, m-b)}.
 #'   Default: \code{FALSE}.
 #'
-#' @param pseudolikelihood Character. Specifies the pseudo-likelihood
-#'   approximation used for mixed MRF models (ignored for pure ordinal or
-#'   pure continuous data). Options:
-#'   \describe{
-#'     \item{\code{"conditional"}}{Conditions on the observed continuous
-#'       variables when computing the discrete full conditionals. Faster
-#'       because the discrete pseudo-likelihood does not depend on the
-#'       continuous precision matrix.}
-#'     \item{\code{"marginal"}}{Integrates out the continuous variables,
-#'       giving discrete full conditionals that account for induced
-#'       interactions through the continuous block. More expensive per
-#'       iteration.}
-#'   }
-#'   Default: \code{"conditional"}.
-#'
 #' @param main_alpha,main_beta `r lifecycle::badge("deprecated")` Double.
 #'   Shape parameters of the beta-prime prior for threshold parameters.
 #'   Use \code{threshold_prior} instead. Defaults: \code{main_alpha = 0.5}
@@ -205,9 +190,6 @@
 #'   \describe{
 #'     \item{"adaptive-metropolis"}{Componentwise adaptive Metropolis--Hastings
 #'       with Robbins--Monro proposal adaptation.}
-#'     \item{"hamiltonian-mc"}{\strong{Deprecated.} Hamiltonian Monte Carlo
-#'       with fixed path length. Use \code{"nuts"} instead. This option will
-#'       be removed in a future release.}
 #'     \item{"nuts"}{The No-U-Turn Sampler with RATTLE constrained integration
 #'       for Gaussian models with edge selection.}
 #'   }
@@ -216,10 +198,6 @@
 #' @param target_accept Numeric between 0 and 1. Target acceptance rate for
 #'   the sampler. Defaults are set automatically if not supplied:
 #'   \code{0.44} for adaptive Metropolis and \code{0.80} for NUTS.
-#'
-#' @param hmc_num_leapfrogs `r lifecycle::badge("deprecated")` Integer.
-#'   Number of leapfrog steps for Hamiltonian Monte Carlo. Only relevant when
-#'   \code{update_method = "hamiltonian-mc"}, which is deprecated.
 #'
 #' @param nuts_max_depth Integer. Maximum tree depth in NUTS. Must be positive.
 #'   Default: \code{10}.
@@ -351,9 +329,8 @@ bgm <- function(
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),
   na_action = c("listwise", "impute"),
-  update_method = c("nuts", "adaptive-metropolis", "hamiltonian-mc"),
+  update_method = c("nuts", "adaptive-metropolis"),
   target_accept,
-  hmc_num_leapfrogs = 100,
   nuts_max_depth = 10,
   learn_mass_matrix = TRUE,
   chains = 4,
@@ -361,7 +338,6 @@ bgm <- function(
   display_progress = c("per-chain", "total", "none"),
   seed = NULL,
   standardize = FALSE,
-  pseudolikelihood = c("conditional", "marginal"),
   verbose = getOption("bgms.verbose", TRUE),
   progress_callback = NULL,
   # Deprecated prior arguments (v0.1.6.0 and earlier)
@@ -524,7 +500,6 @@ bgm <- function(
     target_accept = if (hasArg(target_accept)) target_accept else NULL,
     iter = iter,
     warmup = warmup,
-    hmc_num_leapfrogs = hmc_num_leapfrogs,
     nuts_max_depth = nuts_max_depth,
     learn_mass_matrix = learn_mass_matrix,
     chains = chains,
@@ -532,7 +507,6 @@ bgm <- function(
     seed = seed,
     display_progress = display_progress,
     verbose = verbose,
-    pseudolikelihood = pseudolikelihood,
     progress_callback = progress_callback
   )
 
