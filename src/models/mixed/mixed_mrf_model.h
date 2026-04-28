@@ -400,6 +400,44 @@ private:
     mutable LogZAndProbs logz_out_;
     mutable LogZScratch  logz_scratch_;
 
+    // Per-chain scratch for the outer matrix temporaries used by
+    // logp_and_gradient[_full]. These buffers are resized via set_size() on
+    // each call (no-op once stable), and arma assignments fill them in place,
+    // eliminating per-call heap traffic on the hot path.
+    struct GradScratch {
+        // Outer (per-call) temporaries
+        arma::mat temp_main_discrete;       // p x max_cats
+        arma::mat temp_pairwise_discrete;   // p x p
+        arma::vec temp_main_continuous;     // q
+        arma::mat temp_pairwise_cross;      // p x q
+        arma::mat temp_cholesky;            // q x q
+        arma::mat temp_precision;           // q x q
+        arma::mat temp_inv_chol;            // q x q
+        arma::mat temp_covariance;          // q x q
+        arma::mat temp_cond_mean;           // n x q
+        arma::mat D;                        // n x q
+        arma::mat temp_marginal;            // p x p
+        arma::mat cross_times_cov;          // p x q
+        arma::mat Theta_bar;                // p x p
+        // Per-variable inner temporaries (reused across the variable loop).
+        // Sized to N (residual length) or C_s+1 (#categories) per call.
+        arma::vec rest;
+        arma::vec main_param;
+        arma::vec bound;
+        arma::vec bc_bound;
+        arma::vec weights;
+        arma::vec weights_sq;
+        arma::vec E;
+        arma::vec E_sq;
+        arma::vec pw_grad;
+        arma::vec diff_pw;
+        arma::rowvec cross_self;
+        arma::rowvec V_s;
+        arma::vec score;
+        arma::vec sq_score;
+    };
+    mutable GradScratch grad_scratch_;
+
     // =========================================================================
     // RATTLE constraint structure
     // =========================================================================
