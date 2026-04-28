@@ -233,8 +233,12 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     auto& temp_inv_chol   = grad_scratch_.temp_inv_chol;
     auto& temp_covariance = grad_scratch_.temp_covariance;
     temp_precision = temp_cholesky.t() * temp_cholesky;
+    if (grad_scratch_.eye_q.n_rows != q_) {
+        grad_scratch_.eye_q.set_size(q_, q_);
+        grad_scratch_.eye_q.eye();
+    }
     bool solve_ok = arma::solve(temp_inv_chol, arma::trimatu(temp_cholesky),
-                                arma::eye(q_, q_), arma::solve_opts::fast);
+                                grad_scratch_.eye_q, arma::solve_opts::fast);
     if(!solve_ok) {
         return {-std::numeric_limits<double>::infinity(),
                 arma::vec(parameters.n_elem, arma::fill::zeros)};
@@ -332,8 +336,10 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
                 grad(main_effects_discrete_offset + c) -= arma::accu(logz_out_.probs.col(c + 1));
             }
 
-            // Expected value E_s[c+1|rest] per observation
-            weights = arma::regspace<arma::vec>(1, C_s);
+            // Expected value E_s[c+1|rest] per observation. weights = (1,2,...,C_s).
+            // arma::regspace allocates a temporary; fill scratch manually.
+            weights.set_size(C_s);
+            for (int c = 0; c < C_s; ++c) weights[c] = static_cast<double>(c + 1);
             E = logz_out_.probs.cols(1, C_s) * weights;
 
             // Pairwise discrete gradient: sum_i x_{i,t} * (x_{i,s}+1 - E_s)
@@ -425,7 +431,10 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
 
             logp -= arma::accu(logz_out_.log_Z);
 
-            score = arma::regspace<arma::vec>(0, C_s) - static_cast<double>(ref);
+            // score = (0-ref, 1-ref, ..., C_s-ref). arma::regspace allocates;
+            // fill scratch manually instead.
+            score.set_size(C_s + 1);
+            for (int c = 0; c <= C_s; ++c) score[c] = static_cast<double>(c - ref);
             sq_score = arma::square(score);
 
             // Main-effect gradient
@@ -778,8 +787,12 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
     }
 
     temp_precision = temp_cholesky.t() * temp_cholesky;
+    if (grad_scratch_.eye_q.n_rows != q_) {
+        grad_scratch_.eye_q.set_size(q_, q_);
+        grad_scratch_.eye_q.eye();
+    }
     bool solve_ok = arma::solve(temp_inv_chol, arma::trimatu(temp_cholesky),
-                                arma::eye(q_, q_), arma::solve_opts::fast);
+                                grad_scratch_.eye_q, arma::solve_opts::fast);
     if(!solve_ok) {
         return {-std::numeric_limits<double>::infinity(),
                 arma::vec(full_dim, arma::fill::zeros)};

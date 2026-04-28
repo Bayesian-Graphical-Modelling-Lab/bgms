@@ -419,6 +419,7 @@ private:
         arma::mat temp_marginal;            // p x p
         arma::mat cross_times_cov;          // p x q
         arma::mat Theta_bar;                // p x p
+        arma::mat eye_q;                    // q x q identity (constant; cached)
         // Per-variable inner temporaries (reused across the variable loop).
         // Sized to N (residual length) or C_s+1 (#categories) per call.
         arma::vec rest;
