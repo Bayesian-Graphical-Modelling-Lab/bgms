@@ -599,7 +599,9 @@ double OMRFModel::log_pseudoposterior_with_state(
         }
     }
 
-    // Log-normalizer using joint logZ+probs helpers
+    // Log-normalizer using joint logZ+probs helpers — fill-in-place into
+    // the model's persistent scratch (shared with logp_and_gradient since the
+    // two are not called concurrently within a single chain).
     for (size_t v = 0; v < p_; ++v) {
         int num_cats = num_categories_(v);
         arma::vec residual_score = residual_mat.col(v);
@@ -607,15 +609,17 @@ double OMRFModel::log_pseudoposterior_with_state(
 
         if (is_ordinal_variable_(v)) {
             arma::vec main_param = main_eff.row(v).cols(0, num_cats - 1).t();
-            LogZAndProbs result = compute_logZ_and_probs_ordinal(
-                main_param, residual_score, bound, num_cats);
-            log_post -= arma::accu(result.log_Z);
+            compute_logZ_and_probs_ordinal_into(
+                main_param, residual_score, bound, num_cats,
+                logz_out_, logz_scratch_);
+            log_post -= arma::accu(logz_out_.log_Z);
         } else {
             int ref = baseline_category_(v);
             double lin = main_eff(v, 0), quad = main_eff(v, 1);
-            LogZAndProbs result = compute_logZ_and_probs_blume_capel(
-                residual_score, lin, quad, ref, num_cats, bound);
-            log_post -= arma::accu(result.log_Z);
+            compute_logZ_and_probs_blume_capel_into(
+                residual_score, lin, quad, ref, num_cats, bound,
+                logz_out_, logz_scratch_);
+            log_post -= arma::accu(logz_out_.log_Z);
         }
     }
 
@@ -1033,22 +1037,24 @@ std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& param
         if (is_ordinal_variable_(variable)) {
             arma::vec main_param = temp_main.row(variable).cols(0, num_cats - 1).t();
 
-            // Joint computation: get both log_Z and probs in one pass
-            LogZAndProbs result = compute_logZ_and_probs_ordinal(
-                main_param, residual_score, bound, num_cats
+            // Fill-in-place: persistent per-chain scratch reused across variables
+            // and iterations, eliminating per-call heap allocations.
+            compute_logZ_and_probs_ordinal_into(
+                main_param, residual_score, bound, num_cats,
+                logz_out_, logz_scratch_
             );
 
             // Use log_Z for log-pseudoposterior
-            log_pp -= arma::accu(result.log_Z);
+            log_pp -= arma::accu(logz_out_.log_Z);
 
             // Use probs for gradient
             for (int cat = 0; cat < num_cats; cat++) {
-                gradient(offset + cat) -= arma::accu(result.probs.col(cat + 1));
+                gradient(offset + cat) -= arma::accu(logz_out_.probs.col(cat + 1));
             }
 
             // Pairwise gradient contributions (vectorized using BLAS)
             arma::vec weights = arma::regspace<arma::vec>(1, num_cats);
-            arma::vec E = result.probs.cols(1, num_cats) * weights;
+            arma::vec E = logz_out_.probs.cols(1, num_cats) * weights;
             arma::vec pw_grad = observations_double_t_ * E;
             for (int j = 0; j < num_variables; j++) {
                 if (edge_indicators_(variable, j) == 0 || variable == j) continue;
@@ -1061,23 +1067,24 @@ std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& param
             const double lin_eff = temp_main(variable, 0);
             const double quad_eff = temp_main(variable, 1);
 
-            // Joint computation: get both log_Z and probs in one pass
-            LogZAndProbs result = compute_logZ_and_probs_blume_capel(
-                residual_score, lin_eff, quad_eff, ref, num_cats, bound
+            // Fill-in-place Blume-Capel
+            compute_logZ_and_probs_blume_capel_into(
+                residual_score, lin_eff, quad_eff, ref, num_cats, bound,
+                logz_out_, logz_scratch_
             );
 
             // Use log_Z for log-pseudoposterior
-            log_pp -= arma::accu(result.log_Z);
+            log_pp -= arma::accu(logz_out_.log_Z);
 
             // Use probs for gradient
             arma::vec score = arma::regspace<arma::vec>(0, num_cats) - static_cast<double>(ref);
             arma::vec sq_score = arma::square(score);
 
-            gradient(offset)     -= arma::accu(result.probs * score);
-            gradient(offset + 1) -= arma::accu(result.probs * sq_score);
+            gradient(offset)     -= arma::accu(logz_out_.probs * score);
+            gradient(offset + 1) -= arma::accu(logz_out_.probs * sq_score);
 
             // Pairwise gradient contributions (vectorized using BLAS)
-            arma::vec E = result.probs * score;
+            arma::vec E = logz_out_.probs * score;
             arma::vec pw_grad = observations_double_t_ * E;
             for (int j = 0; j < num_variables; j++) {
                 if (edge_indicators_(variable, j) == 0 || variable == j) continue;

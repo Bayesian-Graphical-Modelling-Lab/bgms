@@ -286,21 +286,22 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
             arma::vec bound = main_param(C_s - 1) + static_cast<double>(C_s) * rest;
             bound = arma::max(bound, arma::zeros<arma::vec>(bound.n_elem));
 
-            LogZAndProbs result = compute_logZ_and_probs_ordinal(
-                main_param, rest, bound, C_s
+            // Fill-in-place using persistent per-chain scratch.
+            compute_logZ_and_probs_ordinal_into(
+                main_param, rest, bound, C_s, logz_out_, logz_scratch_
             );
 
             // log pseudo-posterior contribution
-            logp -= arma::accu(result.log_Z);
+            logp -= arma::accu(logz_out_.log_Z);
 
             // Main-effect gradient: ∂/∂main_effects_discrete_{s,c} = count_c - sum_i prob(c)
             for(int c = 0; c < C_s; ++c) {
-                grad(main_effects_discrete_offset + c) -= arma::accu(result.probs.col(c + 1));
+                grad(main_effects_discrete_offset + c) -= arma::accu(logz_out_.probs.col(c + 1));
             }
 
             // Expected value E_s[c+1|rest] per observation
             arma::vec weights = arma::regspace<arma::vec>(1, C_s);
-            arma::vec E = result.probs.cols(1, C_s) * weights;
+            arma::vec E = logz_out_.probs.cols(1, C_s) * weights;
 
             // Pairwise discrete gradient: sum_i x_{i,t} * (x_{i,s}+1 - E_s)
             // (uses pre-transposed discrete observations for BLAS efficiency)
@@ -323,7 +324,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
             // Cross-contribution (a=t): from rest_s → pairwise_effects_cross_t for each t≠s
 
             arma::vec weights_sq = arma::square(weights);
-            arma::vec E_sq = result.probs.cols(1, C_s) * weights_sq;
+            arma::vec E_sq = logz_out_.probs.cols(1, C_s) * weights_sq;
 
             arma::vec diff_pw = discrete_observations_dbl_t_ *
                 (discrete_observations_dbl_.col(s) - E);
@@ -385,21 +386,22 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
             effective_quad += temp_marginal(s, s);
 
             arma::vec bc_bound;
-            LogZAndProbs result = compute_logZ_and_probs_blume_capel(
-                rest, lin_eff, effective_quad, ref, C_s, bc_bound
+            compute_logZ_and_probs_blume_capel_into(
+                rest, lin_eff, effective_quad, ref, C_s, bc_bound,
+                logz_out_, logz_scratch_
             );
 
-            logp -= arma::accu(result.log_Z);
+            logp -= arma::accu(logz_out_.log_Z);
 
             arma::vec score = arma::regspace<arma::vec>(0, C_s) - static_cast<double>(ref);
             arma::vec sq_score = arma::square(score);
 
             // Main-effect gradient
-            grad(main_effects_discrete_offset)     -= arma::accu(result.probs * score);
-            grad(main_effects_discrete_offset + 1) -= arma::accu(result.probs * sq_score);
+            grad(main_effects_discrete_offset)     -= arma::accu(logz_out_.probs * score);
+            grad(main_effects_discrete_offset + 1) -= arma::accu(logz_out_.probs * sq_score);
 
             // Expected score per person
-            arma::vec E = result.probs * score;
+            arma::vec E = logz_out_.probs * score;
 
             // Pairwise discrete gradient
             // Factor 2: chain rule d/dK = 2 × d/dσ
@@ -411,7 +413,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
             }
 
             // Pairwise_cross gradient from marginal OMRF (same structure as ordinal)
-            arma::vec E_sq = result.probs * sq_score;
+            arma::vec E_sq = logz_out_.probs * sq_score;
 
             arma::vec diff_pw = discrete_observations_dbl_t_ *
                 (discrete_observations_dbl_.col(s) - E);
@@ -900,19 +902,19 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
             arma::vec bound = main_param(C_s - 1) + static_cast<double>(C_s) * rest;
             bound = arma::max(bound, arma::zeros<arma::vec>(bound.n_elem));
 
-            LogZAndProbs result = compute_logZ_and_probs_ordinal(
-                main_param, rest, bound, C_s
+            compute_logZ_and_probs_ordinal_into(
+                main_param, rest, bound, C_s, logz_out_, logz_scratch_
             );
 
-            logp -= arma::accu(result.log_Z);
+            logp -= arma::accu(logz_out_.log_Z);
 
             // Main-effect gradient
             for(int c = 0; c < C_s; ++c) {
-                grad(main_effects_discrete_offset + c) -= arma::accu(result.probs.col(c + 1));
+                grad(main_effects_discrete_offset + c) -= arma::accu(logz_out_.probs.col(c + 1));
             }
 
             arma::vec weights = arma::regspace<arma::vec>(1, C_s);
-            arma::vec E = result.probs.cols(1, C_s) * weights;
+            arma::vec E = logz_out_.probs.cols(1, C_s) * weights;
 
             // Pairwise discrete gradient (ALL edges, no gating)
             arma::vec pw_grad = discrete_observations_dbl_t_ * E;
@@ -923,7 +925,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
             }
 
             arma::vec weights_sq = arma::square(weights);
-            arma::vec E_sq = result.probs.cols(1, C_s) * weights_sq;
+            arma::vec E_sq = logz_out_.probs.cols(1, C_s) * weights_sq;
 
             arma::vec diff_pw = discrete_observations_dbl_t_ *
                 (discrete_observations_dbl_.col(s) - E);
@@ -971,19 +973,20 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
             effective_quad += temp_marginal(s, s);
 
             arma::vec bc_bound;
-            LogZAndProbs result = compute_logZ_and_probs_blume_capel(
-                rest, lin_eff, effective_quad, ref, C_s, bc_bound
+            compute_logZ_and_probs_blume_capel_into(
+                rest, lin_eff, effective_quad, ref, C_s, bc_bound,
+                logz_out_, logz_scratch_
             );
 
-            logp -= arma::accu(result.log_Z);
+            logp -= arma::accu(logz_out_.log_Z);
 
             arma::vec score = arma::regspace<arma::vec>(0, C_s) - static_cast<double>(ref);
             arma::vec sq_score = arma::square(score);
 
-            grad(main_effects_discrete_offset)     -= arma::accu(result.probs * score);
-            grad(main_effects_discrete_offset + 1) -= arma::accu(result.probs * sq_score);
+            grad(main_effects_discrete_offset)     -= arma::accu(logz_out_.probs * score);
+            grad(main_effects_discrete_offset + 1) -= arma::accu(logz_out_.probs * sq_score);
 
-            arma::vec E = result.probs * score;
+            arma::vec E = logz_out_.probs * score;
 
             arma::vec pw_grad = discrete_observations_dbl_t_ * E;
             for(size_t t = 0; t < p_; ++t) {
@@ -992,7 +995,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
                 grad(loc) -= 2.0 * pw_grad(t);
             }
 
-            arma::vec E_sq = result.probs * sq_score;
+            arma::vec E_sq = logz_out_.probs * sq_score;
 
             arma::vec diff_pw = discrete_observations_dbl_t_ *
                 (discrete_observations_dbl_.col(s) - E);

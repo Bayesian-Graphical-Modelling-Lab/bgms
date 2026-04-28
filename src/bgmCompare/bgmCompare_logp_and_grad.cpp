@@ -598,15 +598,22 @@ std::pair<double, arma::vec> logp_and_gradient(
       const arma::vec rest_score = residual_matrix.col(v);
       arma::vec bound = K * rest_score;
 
-      // Joint computation: get log_Z AND probs in one pass
-      LogZAndProbs result;
+      // Persistent per-thread scratch — survives across NUTS leapfrog calls.
+      // Each TBB chain worker has its own thread, so each chain has its own
+      // scratch (no contention; isolated state).
+      thread_local LogZAndProbs result;
+      thread_local LogZScratch  scratch;
       if (is_ordinal_variable(v)) {
         arma::vec main_param = main_group.row(v).cols(0, K - 1).t();
-        result = compute_logZ_and_probs_ordinal(main_param, rest_score, bound, K);
+        compute_logZ_and_probs_ordinal_into(
+          main_param, rest_score, bound, K, result, scratch
+        );
       } else {
         const double lin_effect = main_group(v, 0);
         const double quad_effect = main_group(v, 1);
-        result = compute_logZ_and_probs_blume_capel(rest_score, lin_effect, quad_effect, ref, K, bound);
+        compute_logZ_and_probs_blume_capel_into(
+          rest_score, lin_effect, quad_effect, ref, K, bound, result, scratch
+        );
       }
 
       // log_pp contribution: subtract log normalizers
