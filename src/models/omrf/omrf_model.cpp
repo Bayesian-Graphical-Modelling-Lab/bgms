@@ -983,7 +983,19 @@ arma::vec OMRFModel::gradient(const arma::vec& parameters) {
 }
 
 
+// Backward-compatible wrapper: returns by-value pair via the in-place variant.
 std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& parameters) {
+    double logp;
+    arma::vec grad;
+    logp_and_gradient_into(parameters, logp, grad);
+    return {logp, std::move(grad)};
+}
+
+void OMRFModel::logp_and_gradient_into(
+    const arma::vec& parameters,
+    double& logp_out,
+    arma::vec& grad_out)
+{
     ensure_gradient_cache();
 
     arma::mat temp_main(main_effects_.n_rows, main_effects_.n_cols, arma::fill::none);
@@ -994,7 +1006,10 @@ std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& param
     const int num_variables = static_cast<int>(p_);
 
     double log_pp = 0.0;
-    arma::vec gradient = grad_obs_cache_;
+    // arma assignment writes into grad_out's existing storage when sized —
+    // no alloc on warm calls (Memoizer reuses cached_grad_val across leaps).
+    arma::vec& gradient = grad_out;
+    gradient = grad_obs_cache_;
 
     // ---- Main effects: priors + sufficient statistics ----
     for (int variable = 0; variable < num_variables; variable++) {
@@ -1120,7 +1135,7 @@ std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& param
         }
     }
 
-    return {log_pp, gradient};
+    logp_out = log_pp;
 }
 
 

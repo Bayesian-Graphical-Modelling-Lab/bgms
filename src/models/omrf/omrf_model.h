@@ -82,6 +82,16 @@ public:
     std::pair<double, arma::vec> logp_and_gradient(const arma::vec& parameters) override;
 
     /**
+     * In-place variant of logp_and_gradient.  Fills the caller-provided
+     * gradient buffer to avoid allocating a fresh arma::vec per NUTS leaf
+     * step.  See BaseModel::logp_and_gradient_into.
+     */
+    void logp_and_gradient_into(
+        const arma::vec& parameters,
+        double& logp_out,
+        arma::vec& grad_out) override;
+
+    /**
      * Perform one adaptive Metropolis step (updates all parameters)
      * @param iteration  Current iteration (for Robbins-Monro adaptation)
      */
