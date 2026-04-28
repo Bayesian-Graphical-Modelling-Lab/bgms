@@ -330,74 +330,76 @@ arma::mat compute_probs_blume_capel(
 
 
 // =============================================================================
-// compute_logZ_and_probs_ordinal
+// compute_logZ_and_probs_ordinal_into  (fill-in-place; no per-call allocs)
 // =============================================================================
-LogZAndProbs compute_logZ_and_probs_ordinal(
+// Mirrors the FP sequence of the original return-by-value implementation
+// exactly so output is bit-identical. All temporaries are routed through
+// the caller-owned `scratch` and `out` buffers; once these have grown to
+// the maximum sizes seen, no further heap allocations occur.
+void compute_logZ_and_probs_ordinal_into(
     const arma::vec& main_param,
     const arma::vec& residual_score,
     const arma::vec& bound,
-    int num_cats
+    int num_cats,
+    LogZAndProbs& out,
+    LogZScratch& scratch
 ) {
   constexpr double EXP_BOUND = 709.0;
   const arma::uword N = bound.n_elem;
 
-  LogZAndProbs result;
-  result.probs.set_size(N, num_cats + 1);
-  result.log_Z.set_size(N);
+  out.probs.set_size(N, num_cats + 1);
+  out.log_Z.set_size(N);
 
   if (num_cats == 1) {
-    arma::vec b = arma::clamp(bound, 0.0, arma::datum::inf);
-    arma::vec ex = main_param(0) + residual_score - b;
-    arma::vec t = ARMA_MY_EXP(ex);
-    arma::vec eB = ARMA_MY_EXP(-b);
-    arma::vec den = eB + t;
-    result.probs.col(1) = t / den;
-    result.probs.col(0) = 1.0 - result.probs.col(1);
-    result.log_Z = b + ARMA_MY_LOG(den);
-    return result;
+    scratch.b_clamp = arma::clamp(bound, 0.0, arma::datum::inf);
+    scratch.ex      = main_param(0) + residual_score - scratch.b_clamp;
+    scratch.term    = ARMA_MY_EXP(scratch.ex);     // "t" in the original
+    scratch.eB      = ARMA_MY_EXP(-scratch.b_clamp);
+    scratch.den     = scratch.eB + scratch.term;
+    out.probs.col(1) = scratch.term / scratch.den;
+    out.probs.col(0) = 1.0 - out.probs.col(1);
+    out.log_Z        = scratch.b_clamp + ARMA_MY_LOG(scratch.den);
+    return;
   }
 
-  const arma::vec eM = ARMA_MY_EXP(main_param);
+  scratch.eM = ARMA_MY_EXP(main_param);
 
-  // The fast block computes eM[c] * pow % eB where the intermediate
-  // eM[c] * pow = exp(main_param(c) + (c+1)*rest) can overflow even when
-  // the final product exp(main_param(c) + (c+1)*rest - bound) is finite.
-  // Reduce the fast-block threshold by max(|main_param|) to prevent this.
   const double max_abs_main = arma::max(arma::abs(main_param));
-  const double FAST_LIM = std::max(0.0, EXP_BOUND - max_abs_main);
+  const double FAST_LIM     = std::max(0.0, EXP_BOUND - max_abs_main);
 
   auto do_fast_block = [&](arma::uword i0, arma::uword i1) {
-    auto P = result.probs.rows(i0, i1).cols(1, num_cats);
-    arma::vec r = residual_score.rows(i0, i1);
-    arma::vec b = bound.rows(i0, i1);
-    arma::vec eR = ARMA_MY_EXP(r);
-    arma::vec eB = ARMA_MY_EXP(-b);
-    arma::vec pow = eR;
-    arma::vec den = eB;
-    for (int c = 0; c < num_cats; c++) {
-      arma::vec term = eM[c] * pow % eB;
-      P.col(c) = term;
-      den += term;
-      pow %= eR;
+    auto P  = out.probs.rows(i0, i1).cols(1, num_cats);
+    auto r  = residual_score.rows(i0, i1);
+    auto bb = bound.rows(i0, i1);
+
+    scratch.eR      = ARMA_MY_EXP(r);
+    scratch.eB      = ARMA_MY_EXP(-bb);
+    scratch.pow_buf = scratch.eR;
+    scratch.den     = scratch.eB;
+    for (int c = 0; c < num_cats; ++c) {
+      scratch.term  = scratch.eM[c] * scratch.pow_buf % scratch.eB;
+      P.col(c)      = scratch.term;
+      scratch.den  += scratch.term;
+      scratch.pow_buf %= scratch.eR;
     }
-    P.each_col() /= den;
-    result.log_Z.rows(i0, i1) = b + ARMA_MY_LOG(den);
+    P.each_col() /= scratch.den;
+    out.log_Z.rows(i0, i1) = bb + ARMA_MY_LOG(scratch.den);
   };
 
   auto do_safe_block = [&](arma::uword i0, arma::uword i1) {
-    auto P = result.probs.rows(i0, i1).cols(1, num_cats);
-    arma::vec r = residual_score.rows(i0, i1);
-    arma::vec b = arma::clamp(bound.rows(i0, i1), 0.0, arma::datum::inf);
-    arma::vec eB = ARMA_MY_EXP(-b);
-    arma::vec den = eB;
-    for (int c = 0; c < num_cats; c++) {
-      arma::vec ex = main_param(c) + (c + 1) * r - b;
-      arma::vec t = ARMA_MY_EXP(ex);
-      P.col(c) = t;
-      den += t;
+    auto P  = out.probs.rows(i0, i1).cols(1, num_cats);
+    auto r  = residual_score.rows(i0, i1);
+    scratch.b_clamp = arma::clamp(bound.rows(i0, i1), 0.0, arma::datum::inf);
+    scratch.eB      = ARMA_MY_EXP(-scratch.b_clamp);
+    scratch.den     = scratch.eB;
+    for (int c = 0; c < num_cats; ++c) {
+      scratch.ex   = main_param(c) + (c + 1) * r - scratch.b_clamp;
+      scratch.term = ARMA_MY_EXP(scratch.ex);
+      P.col(c)     = scratch.term;
+      scratch.den += scratch.term;
     }
-    P.each_col() /= den;
-    result.log_Z.rows(i0, i1) = b + ARMA_MY_LOG(den);
+    P.each_col() /= scratch.den;
+    out.log_Z.rows(i0, i1) = scratch.b_clamp + ARMA_MY_LOG(scratch.den);
   };
 
   const double* bp = bound.memptr();
@@ -408,20 +410,146 @@ LogZAndProbs compute_logZ_and_probs_ordinal(
     while (j < N) {
       const bool fast_j = !(bp[j] < -FAST_LIM || bp[j] > FAST_LIM);
       if (fast_j != fast) break;
-      j++;
+      ++j;
     }
     if (fast) do_fast_block(i, j - 1);
-    else do_safe_block(i, j - 1);
+    else      do_safe_block(i, j - 1);
     i = j;
   }
 
-  result.probs.col(0) = 1.0 - arma::sum(result.probs.cols(1, num_cats), 1);
-  return result;
+  out.probs.col(0) = 1.0 - arma::sum(out.probs.cols(1, num_cats), 1);
 }
 
 
 // =============================================================================
-// compute_logZ_and_probs_blume_capel
+// compute_logZ_and_probs_ordinal  (back-compat wrapper)
+// =============================================================================
+LogZAndProbs compute_logZ_and_probs_ordinal(
+    const arma::vec& main_param,
+    const arma::vec& residual_score,
+    const arma::vec& bound,
+    int num_cats
+) {
+  LogZAndProbs out;
+  LogZScratch scratch;
+  compute_logZ_and_probs_ordinal_into(
+    main_param, residual_score, bound, num_cats, out, scratch
+  );
+  return out;
+}
+
+
+// =============================================================================
+// compute_logZ_and_probs_blume_capel_into  (fill-in-place; no per-call allocs)
+// =============================================================================
+// Mirrors the FP sequence of the original return-by-value implementation
+// exactly so output is bit-identical. All temporaries are routed through
+// the caller-owned `scratch` and `out` buffers; once these have grown to
+// the maximum sizes seen, no further heap allocations occur.
+void compute_logZ_and_probs_blume_capel_into(
+    const arma::vec& residual,
+    const double lin_eff,
+    const double quad_eff,
+    const int ref,
+    const int num_cats,
+    arma::vec& b,
+    LogZAndProbs& out,
+    LogZScratch& scratch
+) {
+  constexpr double EXP_BOUND = 709.0;
+  const arma::uword N = residual.n_elem;
+
+  out.probs.set_size(N, num_cats + 1);
+  out.log_Z.set_size(N);
+
+  // ---- 1. Per-category fixed quantities (length num_cats+1) ----
+  // Use arma vector expressions to match the original FP sequence
+  // (compilers emit differently fused FMA for arma vs scalar loops).
+  scratch.cat_vec.set_size(num_cats + 1);
+  for (int c = 0; c <= num_cats; ++c)
+    scratch.cat_vec[c] = static_cast<double>(c);
+  scratch.centered  = scratch.cat_vec - double(ref);
+  scratch.theta     = lin_eff * scratch.centered + quad_eff * arma::square(scratch.centered);
+  scratch.exp_theta = ARMA_MY_EXP(scratch.theta);
+
+  // ---- 2. b = max_c (theta[c] + centered[c] * residual) ----
+  b.set_size(N);
+  b = scratch.theta[0] + double(scratch.centered[0]) * residual;
+  for (int c = 1; c <= num_cats; ++c) {
+    b = arma::max(b, scratch.theta[c] + double(scratch.centered[c]) * residual);
+  }
+
+  // ---- 3. pow-chain bounds ----
+  scratch.pow_bound_low  = double(-ref) * residual - b;
+  scratch.pow_bound_high = double(num_cats - ref) * residual - b;
+  scratch.pow_bound      = arma::max(arma::abs(scratch.pow_bound_low),
+                                     arma::abs(scratch.pow_bound_high));
+
+  // ---- 4. block scan with FAST/SAFE selection ----
+  const double max_abs_theta = arma::max(arma::abs(scratch.theta));
+  const double THETA_LIM = std::max(0.0, EXP_BOUND - max_abs_theta);
+
+  auto do_fast_block = [&](arma::uword i0, arma::uword i1) {
+    auto P  = out.probs.rows(i0, i1);
+    auto r  = residual.rows(i0, i1);
+    auto bb = b.rows(i0, i1);
+
+    // eR, pow_buf, den into pre-allocated scratch.
+    scratch.eR      = ARMA_MY_EXP(r);
+    scratch.pow_buf = ARMA_MY_EXP(double(-ref) * r - bb);
+    scratch.den     = scratch.exp_theta[0] * scratch.pow_buf;
+    P.col(0)        = scratch.den;     // first column = first contribution to denom
+
+    for (int c = 1; c <= num_cats; ++c) {
+      scratch.pow_buf %= scratch.eR;
+      scratch.term     = scratch.exp_theta[c] * scratch.pow_buf;
+      P.col(c)         = scratch.term;
+      scratch.den     += scratch.term;
+    }
+
+    P.each_col() /= scratch.den;
+    out.log_Z.rows(i0, i1) = bb + ARMA_MY_LOG(scratch.den);
+  };
+
+  auto do_safe_block = [&](arma::uword i0, arma::uword i1) {
+    auto P  = out.probs.rows(i0, i1);
+    auto r  = residual.rows(i0, i1);
+    auto bb = b.rows(i0, i1);
+    const arma::uword B = bb.n_elem;
+
+    scratch.den.set_size(B);
+    scratch.den.zeros();
+
+    for (int c = 0; c <= num_cats; ++c) {
+      scratch.ex   = scratch.theta[c] + double(scratch.centered[c]) * r - bb;
+      scratch.term = ARMA_MY_EXP(scratch.ex);
+      P.col(c)     = scratch.term;
+      scratch.den += scratch.term;
+    }
+    P.each_col() /= scratch.den;
+    out.log_Z.rows(i0, i1) = bb + ARMA_MY_LOG(scratch.den);
+  };
+
+  const double* bp = b.memptr();
+  const double* pp = scratch.pow_bound.memptr();
+  arma::uword i = 0;
+  while (i < N) {
+    const bool fast_i = (std::abs(bp[i]) <= EXP_BOUND) && (std::abs(pp[i]) <= THETA_LIM);
+    arma::uword j = i + 1;
+    while (j < N) {
+      const bool fast_j = (std::abs(bp[j]) <= EXP_BOUND) && (std::abs(pp[j]) <= THETA_LIM);
+      if (fast_j != fast_i) break;
+      ++j;
+    }
+    if (fast_i) do_fast_block(i, j - 1);
+    else        do_safe_block(i, j - 1);
+    i = j;
+  }
+}
+
+
+// =============================================================================
+// compute_logZ_and_probs_blume_capel  (back-compat wrapper)
 // =============================================================================
 LogZAndProbs compute_logZ_and_probs_blume_capel(
     const arma::vec& residual,
@@ -431,90 +559,10 @@ LogZAndProbs compute_logZ_and_probs_blume_capel(
     const int num_cats,
     arma::vec& b
 ) {
-  constexpr double EXP_BOUND = 709.0;
-  const arma::uword N = residual.n_elem;
-
-  LogZAndProbs result;
-  result.probs.set_size(N, num_cats + 1);
-  result.log_Z.set_size(N);
-
-  arma::vec cat = arma::regspace<arma::vec>(0, num_cats);
-  arma::vec centered = cat - double(ref);
-  arma::vec theta = lin_eff * centered + quad_eff * arma::square(centered);
-  arma::vec exp_theta = ARMA_MY_EXP(theta);
-
-  b.set_size(N);
-  b = theta[0] + double(centered[0]) * residual;
-  for (int c = 1; c <= num_cats; ++c) {
-    b = arma::max(b, theta[c] + double(centered[c]) * residual);
-  }
-
-  arma::vec pow_bound_low = double(-ref) * residual - b;
-  arma::vec pow_bound_high = double(num_cats - ref) * residual - b;
-  arma::vec pow_bound = arma::max(arma::abs(pow_bound_low), arma::abs(pow_bound_high));
-
-  auto do_fast_block = [&](arma::uword i0, arma::uword i1) {
-    auto P = result.probs.rows(i0, i1);
-    arma::vec r = residual.rows(i0, i1);
-    arma::vec bb = b.rows(i0, i1);
-    const arma::uword B = bb.n_elem;
-
-    arma::vec eR = ARMA_MY_EXP(r);
-    arma::vec pow = ARMA_MY_EXP(double(-ref) * r - bb);
-    arma::vec denom(B, arma::fill::zeros);
-
-    arma::vec col0 = exp_theta[0] * pow;
-    P.col(0) = col0;
-    denom += col0;
-
-    for (int c = 1; c <= num_cats; ++c) {
-      pow %= eR;
-      arma::vec col = exp_theta[c] * pow;
-      P.col(c) = col;
-      denom += col;
-    }
-
-    P.each_col() /= denom;
-    result.log_Z.rows(i0, i1) = bb + ARMA_MY_LOG(denom);
-  };
-
-  auto do_safe_block = [&](arma::uword i0, arma::uword i1) {
-    auto P = result.probs.rows(i0, i1);
-    arma::vec r = residual.rows(i0, i1);
-    arma::vec bb = b.rows(i0, i1);
-    const arma::uword B = bb.n_elem;
-    arma::vec denom(B, arma::fill::zeros);
-
-    for (int c = 0; c <= num_cats; ++c) {
-      arma::vec ex = theta[c] + double(centered[c]) * r - bb;
-      arma::vec col = ARMA_MY_EXP(ex);
-      P.col(c) = col;
-      denom += col;
-    }
-    P.each_col() /= denom;
-    result.log_Z.rows(i0, i1) = bb + ARMA_MY_LOG(denom);
-  };
-
-  // Same intermediate overflow guard as the ordinal function:
-  // exp_theta[c] * pow can overflow before the implicit cancellation with b.
-  const double max_abs_theta = arma::max(arma::abs(theta));
-  const double THETA_LIM = std::max(0.0, EXP_BOUND - max_abs_theta);
-
-  const double* bp = b.memptr();
-  const double* pp = pow_bound.memptr();
-  arma::uword i = 0;
-  while (i < N) {
-    const bool fast_i = (std::abs(bp[i]) <= EXP_BOUND) && (std::abs(pp[i]) <= THETA_LIM);
-    arma::uword j = i + 1;
-    while (j < N) {
-      const bool fast_j = (std::abs(bp[j]) <= EXP_BOUND) && (std::abs(pp[j]) <= THETA_LIM);
-      if (fast_j != fast_i) break;
-      j++;
-    }
-    if (fast_i) do_fast_block(i, j - 1);
-    else do_safe_block(i, j - 1);
-    i = j;
-  }
-
-  return result;
+  LogZAndProbs out;
+  LogZScratch scratch;
+  compute_logZ_and_probs_blume_capel_into(
+    residual, lin_eff, quad_eff, ref, num_cats, b, out, scratch
+  );
+  return out;
 }

@@ -9,6 +9,7 @@
 #include "math/cholupdate.h"
 #include "rng/rng_utils.h"
 #include "priors/parameter_prior.h"
+#include "utils/variable_helpers.h"
 
 /**
  * MixedMRFModel - Mixed Markov Random Field Model
@@ -393,6 +394,11 @@ private:
     int main_effects_continuous_grad_offset_ = 0;           ///< Offset of main_effects_continuous block in gradient vector
     int chol_grad_offset_ = 0;          ///< Offset of Cholesky block in gradient vector
     bool gradient_cache_valid_ = false; ///< Whether gradient cache is current
+
+    // Per-chain scratch for compute_logZ_and_probs_*_into. Reused across
+    // every call to logp_and_gradient and across every variable inside it.
+    mutable LogZAndProbs logz_out_;
+    mutable LogZScratch  logz_scratch_;
 
     // =========================================================================
     // RATTLE constraint structure

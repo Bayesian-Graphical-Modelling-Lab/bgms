@@ -20,6 +20,26 @@ struct LogZAndProbs {
 
 
 /**
+ * Reusable scratch buffers for compute_logZ_and_probs_*_into.
+ *
+ * Owned by the caller (typically as a member of a model class, one per
+ * MCMC chain). All buffers are resized via set_size() on each call,
+ * which is a no-op once they've grown to the maximum needed size, so
+ * after a few iterations no further heap allocations occur.
+ */
+struct LogZScratch {
+  // Working buffers used by both ordinal and Blume-Capel paths.
+  arma::vec eR, eB, pow_buf, den, term;
+  arma::vec eM;          // ordinal: exp(main_param)
+  arma::vec b_clamp;     // ordinal safe block: clamped bound
+  arma::vec ex;          // ordinal/BC safe block: per-category exponent
+  // Blume-Capel only
+  arma::vec cat_vec, centered, theta, exp_theta;
+  arma::vec pow_bound_low, pow_bound_high, pow_bound;
+};
+
+
+/**
  * Compute a numerically stable sum of the form:
  *
  *   denom = exp(-bound) + sum_{cat=0}^{K-1} exp(main_effect_param(cat)
@@ -132,6 +152,21 @@ LogZAndProbs compute_logZ_and_probs_ordinal(
 );
 
 /**
+ * Fill-in-place variant of compute_logZ_and_probs_ordinal.
+ *
+ * Writes into caller-provided `out` and reuses caller-provided `scratch`,
+ * eliminating per-call heap allocations after the first warm-up call.
+ */
+void compute_logZ_and_probs_ordinal_into(
+    const arma::vec& main_param,
+    const arma::vec& residual_score,
+    const arma::vec& bound,
+    int num_cats,
+    LogZAndProbs& out,
+    LogZScratch& scratch
+);
+
+/**
  * Joint computation of log-normalizer and probabilities for Blume-Capel variables.
  *
  * Avoids redundant computation by computing both in a single pass.
@@ -143,6 +178,22 @@ LogZAndProbs compute_logZ_and_probs_blume_capel(
     const int ref,
     const int num_cats,
     arma::vec& b
+);
+
+/**
+ * Fill-in-place variant of compute_logZ_and_probs_blume_capel.
+ *
+ * Writes into caller-provided `out` and reuses caller-provided `scratch`.
+ */
+void compute_logZ_and_probs_blume_capel_into(
+    const arma::vec& residual,
+    const double lin_eff,
+    const double quad_eff,
+    const int ref,
+    const int num_cats,
+    arma::vec& b,
+    LogZAndProbs& out,
+    LogZScratch& scratch
 );
 
 #endif // BGMS_VARIABLE_HELPERS_H

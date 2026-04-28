@@ -7,6 +7,7 @@
 #include "rng/rng_utils.h"
 #include "mcmc/execution/step_result.h"
 #include "utils/common_helpers.h"
+#include "utils/variable_helpers.h"
 #include "priors/parameter_prior.h"
 
 /**
@@ -318,6 +319,13 @@ private:
     arma::vec grad_obs_cache_;          ///< Cached observed-data gradient
     arma::imat index_matrix_cache_;     ///< Cached parameter index map
     bool gradient_cache_valid_;         ///< Whether the gradient cache is current
+
+    // Per-chain scratch for compute_logZ_and_probs_*_into. Reused across
+    // every call to logp_and_gradient and across every variable inside it.
+    // After the first few calls the buffers stabilise at max size and no
+    // further heap allocations happen on the hot path.
+    mutable LogZAndProbs logz_out_;
+    mutable LogZScratch  logz_scratch_;
 
     // Interaction indexing (for edge updates)
     arma::imat interaction_index_;      ///< Maps edge pair to index
