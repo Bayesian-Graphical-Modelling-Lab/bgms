@@ -165,15 +165,20 @@ private:
         arma::vec theta = model.get_vectorized_parameters();
         SafeRNG& rng = model.get_rng();
 
-        auto joint_fn = [&model](const arma::vec& params)
-            -> std::pair<double, arma::vec> {
-            return model.logp_and_gradient(params);
+        // In-place joint: fills grad_out directly into Memoizer's cached_grad_val
+        // (no per-leapfrog gradient allocation).  Default BaseModel impl falls
+        // back to the by-value logp_and_gradient + move; models that override
+        // logp_and_gradient_into get the alloc-free fast path.
+        auto joint_fn_inplace = [&model](const arma::vec& params, arma::vec& grad_out) -> double {
+            double logp;
+            model.logp_and_gradient_into(params, logp, grad_out);
+            return logp;
         };
 
         arma::vec active_inv_mass = model.get_active_inv_mass();
 
         StepResult result = nuts_step(
-            theta, step_size_, joint_fn,
+            theta, step_size_, joint_fn_inplace,
             active_inv_mass, rng, max_tree_depth_
         );
 

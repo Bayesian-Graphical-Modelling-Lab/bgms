@@ -188,8 +188,20 @@ arma::vec MixedMRFModel::gradient(const arma::vec& parameters) {
 // Θ = A_xx + 2 A_xy Σ_yy A_xy' (continuous block integrated out).
 // =============================================================================
 
+// Backward-compatible wrapper: returns by-value pair via the in-place variant.
 std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     const arma::vec& parameters)
+{
+    double logp;
+    arma::vec grad;
+    logp_and_gradient_into(parameters, logp, grad);
+    return {logp, std::move(grad)};
+}
+
+void MixedMRFModel::logp_and_gradient_into(
+    const arma::vec& parameters,
+    double& logp_out,
+    arma::vec& grad_out)
 {
     ensure_gradient_cache();
 
@@ -225,8 +237,10 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     // Guard against degenerate Cholesky (extreme theta pushed by leapfrog)
     double min_diag = temp_cholesky.diag().min();
     if(!std::isfinite(min_diag) || min_diag < 1e-15) {
-        return {-std::numeric_limits<double>::infinity(),
-                arma::vec(parameters.n_elem, arma::fill::zeros)};
+        logp_out = -std::numeric_limits<double>::infinity();
+        grad_out.set_size(parameters.n_elem);
+        grad_out.zeros();
+        return;
     }
 
     auto& temp_precision  = grad_scratch_.temp_precision;
@@ -240,8 +254,10 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     bool solve_ok = arma::solve(temp_inv_chol, arma::trimatu(temp_cholesky),
                                 grad_scratch_.eye_q, arma::solve_opts::fast);
     if(!solve_ok) {
-        return {-std::numeric_limits<double>::infinity(),
-                arma::vec(parameters.n_elem, arma::fill::zeros)};
+        logp_out = -std::numeric_limits<double>::infinity();
+        grad_out.set_size(parameters.n_elem);
+        grad_out.zeros();
+        return;
     }
     temp_covariance = temp_inv_chol * temp_inv_chol.t();
     double temp_log_det = 2.0 * arma::sum(arma::log(temp_cholesky.diag()));
@@ -262,10 +278,10 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     auto& temp_marginal = grad_scratch_.temp_marginal;
     temp_marginal = temp_pairwise_discrete + 2.0 * temp_pairwise_cross * temp_covariance * temp_pairwise_cross.t();
 
-    // Start gradient from observed-statistics cache. Kept as a local because
-    // it gets moved into the returned pair; routing through scratch would
-    // leave the scratch in a moved-from state and cost an alloc next call.
-    arma::vec grad = grad_obs_cache_;
+    // Start gradient from observed-statistics cache. arma assignment writes
+    // into grad_out's existing storage when sized — no alloc on warm calls.
+    arma::vec& grad = grad_out;
+    grad = grad_obs_cache_;
 
     double logp = 0.0;
 
@@ -691,7 +707,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     // Add constant Jacobian term to logp
     logp += static_cast<double>(q_) * std::log(2.0);
 
-    return {logp, grad};
+    logp_out = logp;
 }
 
 

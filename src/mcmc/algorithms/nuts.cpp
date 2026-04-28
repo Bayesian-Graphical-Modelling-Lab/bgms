@@ -313,10 +313,13 @@ BuildTreeResult build_tree(
 }
 
 
-StepResult nuts_step(
+// Shared NUTS-step body: takes a fully-constructed Memoizer.  The two
+// public nuts_step overloads (legacy by-value joint, and in-place joint)
+// each construct the Memoizer differently and then call into this.
+static StepResult nuts_step_with_memo(
     const arma::vec& init_theta,
     double step_size,
-    const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
+    Memoizer& memo,
     const arma::vec& inv_mass_diag,
     SafeRNG& rng,
     int max_depth,
@@ -325,8 +328,6 @@ StepResult nuts_step(
     bool reverse_check,
     double reverse_check_tol
 ) {
-  // Create Memoizer with joint function
-  Memoizer memo(joint);
   bool any_divergence = false;
   bool any_non_reversible = false;
 
@@ -465,4 +466,42 @@ StepResult nuts_step(
   diag->accept_prob = accept_prob;
 
   return {theta, accept_prob, diag};
+}
+
+
+StepResult nuts_step(
+    const arma::vec& init_theta,
+    double step_size,
+    const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
+    const arma::vec& inv_mass_diag,
+    SafeRNG& rng,
+    int max_depth,
+    const ProjectPositionFn* project_position,
+    const ProjectMomentumFn* project_momentum,
+    bool reverse_check,
+    double reverse_check_tol
+) {
+  Memoizer memo(joint);
+  return nuts_step_with_memo(
+    init_theta, step_size, memo, inv_mass_diag, rng, max_depth,
+    project_position, project_momentum, reverse_check, reverse_check_tol);
+}
+
+
+StepResult nuts_step(
+    const arma::vec& init_theta,
+    double step_size,
+    const Memoizer::JointFnInPlace& joint_inplace,
+    const arma::vec& inv_mass_diag,
+    SafeRNG& rng,
+    int max_depth,
+    const ProjectPositionFn* project_position,
+    const ProjectMomentumFn* project_momentum,
+    bool reverse_check,
+    double reverse_check_tol
+) {
+  Memoizer memo(joint_inplace);
+  return nuts_step_with_memo(
+    init_theta, step_size, memo, inv_mass_diag, rng, max_depth,
+    project_position, project_momentum, reverse_check, reverse_check_tol);
 }

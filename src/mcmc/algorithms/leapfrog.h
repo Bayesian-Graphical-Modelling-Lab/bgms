@@ -25,9 +25,14 @@
  */
 class Memoizer {
 public:
-  using JointFn = std::function<std::pair<double, arma::vec>(const arma::vec&)>;
+  using JointFn        = std::function<std::pair<double, arma::vec>(const arma::vec&)>;
+  // In-place variant: writes the gradient into a caller-provided buffer
+  // (avoids allocating + moving a fresh arma::vec on every leapfrog step).
+  using JointFnInPlace = std::function<double(const arma::vec& /*theta*/,
+                                              arma::vec& /*grad_out*/)>;
 
-  JointFn joint_fn;
+  JointFn        joint_fn;
+  JointFnInPlace joint_fn_inplace;  ///< Preferred when set; falls back to joint_fn otherwise.
 
   // Single-entry cache
   arma::vec cached_theta;
@@ -52,6 +57,11 @@ public:
    * Construct from a joint function that computes both at once.
    */
   explicit Memoizer(JointFn jf) : joint_fn(std::move(jf)) {}
+
+  /**
+   * Construct from an in-place joint function (preferred for hot NUTS paths).
+   */
+  explicit Memoizer(JointFnInPlace jf) : joint_fn_inplace(std::move(jf)) {}
 
   double cached_log_post(const arma::vec& theta) {
     ensure_cached(theta);
@@ -79,10 +89,16 @@ private:
                     theta.n_elem * sizeof(double)) == 0) {
       return;
     }
-    auto [lp, gr] = joint_fn(theta);
+    if (joint_fn_inplace) {
+      // In-place path: model writes gradient directly into cached_grad_val,
+      // reusing the buffer's storage from previous calls (zero alloc once warm).
+      cached_logp_val = joint_fn_inplace(theta, cached_grad_val);
+    } else {
+      auto [lp, gr] = joint_fn(theta);
+      cached_logp_val = lp;
+      cached_grad_val = std::move(gr);
+    }
     cached_theta = theta;
-    cached_logp_val = lp;
-    cached_grad_val = std::move(gr);
     has_cache = true;
   }
 };

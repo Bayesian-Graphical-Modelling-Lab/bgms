@@ -117,6 +117,17 @@ public:
         const arma::vec& parameters) override;
 
     /**
+     * In-place variant of logp_and_gradient.  Fills the caller-provided
+     * `grad_out` buffer (resized to active dim) and writes the log
+     * pseudo-posterior into `logp_out`.  Used by Memoizer's in-place path
+     * to avoid allocating a fresh gradient vector on every leapfrog step.
+     */
+    void logp_and_gradient_into(
+        const arma::vec& parameters,
+        double& logp_out,
+        arma::vec& grad_out) override;
+
+    /**
      * Perform one full Metropolis sweep over all parameter groups.
      * @param iteration  Current iteration (for Robbins-Monro adaptation)
      */

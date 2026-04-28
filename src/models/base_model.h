@@ -82,6 +82,21 @@ public:
     }
 
     /**
+     * In-place variant of logp_and_gradient.  Default implementation
+     * forwards to the by-value logp_and_gradient and copies/moves the
+     * result into the caller's buffer.  Models can override to fill
+     * grad_out directly without allocating a fresh gradient vector.
+     */
+    virtual void logp_and_gradient_into(
+        const arma::vec& parameters,
+        double& logp_out,
+        arma::vec& grad_out) {
+        auto p = logp_and_gradient(parameters);
+        logp_out = p.first;
+        grad_out = std::move(p.second);
+    }
+
+    /**
      * Perform one full Metropolis sweep over all parameters.
      *
      * The model handles its own parameter grouping (e.g. off-diagonal,

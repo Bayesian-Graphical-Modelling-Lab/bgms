@@ -70,3 +70,22 @@ StepResult nuts_step(
     bool reverse_check = true,
     double reverse_check_tol = 0.5
 );
+
+/**
+ * In-place overload of nuts_step.  Takes a JointFnInPlace that fills a
+ * caller-provided gradient buffer, avoiding fresh allocations on every
+ * leapfrog step.  Used for hot NUTS paths on models that implement an
+ * `_into` style gradient evaluator.
+ */
+StepResult nuts_step(
+    const arma::vec& init_theta,
+    double step_size,
+    const Memoizer::JointFnInPlace& joint_inplace,
+    const arma::vec& inv_mass_diag,
+    SafeRNG& rng,
+    int max_depth = 10,
+    const ProjectPositionFn* project_position = nullptr,
+    const ProjectMomentumFn* project_momentum = nullptr,
+    bool reverse_check = true,
+    double reverse_check_tol = 0.5
+);
