@@ -337,6 +337,29 @@ private:
     mutable LogZAndProbs logz_out_;
     mutable LogZScratch  logz_scratch_;
 
+    // Per-call inner scratch.  Each leapfrog calls logp_and_gradient_into,
+    // which loops over all variables.  Without scratch, every iteration of
+    // that loop allocated a fresh `residual_score`, `main_param`, `bound`,
+    // `weights`, `E`, `pw_grad` (and BC's `score`/`sq_score`).  With p=17
+    // for Wenchuan and ~hundreds of leaps × thousands of iterations × #chains,
+    // those small allocations dominated allocator-contention growth at higher
+    // chain counts.  Routing them through a per-model member kills the
+    // contention without changing the math.
+    struct OmrfGradScratch {
+        arma::mat temp_main;
+        arma::mat temp_pairwise;
+        arma::mat temp_residual;
+        arma::vec residual_score;
+        arma::vec main_param;
+        arma::vec bound;
+        arma::vec weights;
+        arma::vec E;
+        arma::vec pw_grad;
+        arma::vec score;
+        arma::vec sq_score;
+    };
+    mutable OmrfGradScratch grad_scratch_;
+
     // Interaction indexing (for edge updates)
     arma::imat interaction_index_;      ///< Maps edge pair to index
     arma::uvec shuffled_edge_order_;    ///< Pre-shuffled order (set in prepare_iteration)

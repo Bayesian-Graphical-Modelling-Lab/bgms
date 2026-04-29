@@ -998,9 +998,14 @@ void OMRFModel::logp_and_gradient_into(
 {
     ensure_gradient_cache();
 
-    arma::mat temp_main(main_effects_.n_rows, main_effects_.n_cols, arma::fill::none);
-    arma::mat temp_pairwise(p_, p_, arma::fill::zeros);
-    arma::mat temp_residual;
+    // Route per-call temps through grad_scratch_ (per-chain).  Sized once,
+    // reused thereafter; assignments fill the existing storage.
+    auto& temp_main      = grad_scratch_.temp_main;
+    auto& temp_pairwise  = grad_scratch_.temp_pairwise;
+    auto& temp_residual  = grad_scratch_.temp_residual;
+    temp_main.set_size(main_effects_.n_rows, main_effects_.n_cols);
+    temp_pairwise.set_size(p_, p_);
+    temp_pairwise.zeros();
     unvectorize_to_temps(parameters, temp_main, temp_pairwise, temp_residual);
 
     const int num_variables = static_cast<int>(p_);
@@ -1043,14 +1048,24 @@ void OMRFModel::logp_and_gradient_into(
     }
 
     // ---- Per-variable: joint computation of log-normalizer and gradient ----
+    // Per-variable inner temporaries — routed through grad_scratch_.
+    auto& residual_score = grad_scratch_.residual_score;
+    auto& main_param     = grad_scratch_.main_param;
+    auto& bound          = grad_scratch_.bound;
+    auto& weights        = grad_scratch_.weights;
+    auto& E              = grad_scratch_.E;
+    auto& pw_grad        = grad_scratch_.pw_grad;
+    auto& score          = grad_scratch_.score;
+    auto& sq_score       = grad_scratch_.sq_score;
+
     int offset = 0;
     for (int variable = 0; variable < num_variables; variable++) {
         const int num_cats = num_categories_(variable);
-        arma::vec residual_score = temp_residual.col(variable);
-        arma::vec bound = num_cats * residual_score;
+        residual_score = temp_residual.col(variable);
+        bound = num_cats * residual_score;
 
         if (is_ordinal_variable_(variable)) {
-            arma::vec main_param = temp_main.row(variable).cols(0, num_cats - 1).t();
+            main_param = temp_main.row(variable).cols(0, num_cats - 1).t();
 
             // Fill-in-place: persistent per-chain scratch reused across variables
             // and iterations, eliminating per-call heap allocations.
@@ -1067,10 +1082,12 @@ void OMRFModel::logp_and_gradient_into(
                 gradient(offset + cat) -= arma::accu(logz_out_.probs.col(cat + 1));
             }
 
-            // Pairwise gradient contributions (vectorized using BLAS)
-            arma::vec weights = arma::regspace<arma::vec>(1, num_cats);
-            arma::vec E = logz_out_.probs.cols(1, num_cats) * weights;
-            arma::vec pw_grad = observations_double_t_ * E;
+            // Pairwise gradient contributions (vectorized using BLAS).
+            // weights = (1, 2, ..., num_cats); fill scratch directly.
+            weights.set_size(num_cats);
+            for (int c = 0; c < num_cats; ++c) weights[c] = static_cast<double>(c + 1);
+            E = logz_out_.probs.cols(1, num_cats) * weights;
+            pw_grad = observations_double_t_ * E;
             for (int j = 0; j < num_variables; j++) {
                 if (edge_indicators_(variable, j) == 0 || variable == j) continue;
                 int location = (variable < j) ? index_matrix_cache_(variable, j) : index_matrix_cache_(j, variable);
@@ -1091,16 +1108,17 @@ void OMRFModel::logp_and_gradient_into(
             // Use log_Z for log-pseudoposterior
             log_pp -= arma::accu(logz_out_.log_Z);
 
-            // Use probs for gradient
-            arma::vec score = arma::regspace<arma::vec>(0, num_cats) - static_cast<double>(ref);
-            arma::vec sq_score = arma::square(score);
+            // Use probs for gradient. score = (0-ref,...,num_cats-ref); fill scratch.
+            score.set_size(num_cats + 1);
+            for (int c = 0; c <= num_cats; ++c) score[c] = static_cast<double>(c - ref);
+            sq_score = arma::square(score);
 
             gradient(offset)     -= arma::accu(logz_out_.probs * score);
             gradient(offset + 1) -= arma::accu(logz_out_.probs * sq_score);
 
             // Pairwise gradient contributions (vectorized using BLAS)
-            arma::vec E = logz_out_.probs * score;
-            arma::vec pw_grad = observations_double_t_ * E;
+            E = logz_out_.probs * score;
+            pw_grad = observations_double_t_ * E;
             for (int j = 0; j < num_variables; j++) {
                 if (edge_indicators_(variable, j) == 0 || variable == j) continue;
                 int location = (variable < j) ? index_matrix_cache_(variable, j) : index_matrix_cache_(j, variable);
