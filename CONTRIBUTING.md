@@ -38,6 +38,7 @@ cd bgms
 Build and check the package:
 
 ``` r
+
 devtools::document()
 devtools::check()
 ```
@@ -51,6 +52,7 @@ pre-commit checks enforce them automatically.
 Before committing, run the following in order:
 
 ``` r
+
 # 1. Enforce code style
 source("inst/styler/bgms_style.R")
 styler::style_pkg(style = bgms_style)
@@ -82,6 +84,7 @@ same commit.
 Run the test suite with:
 
 ``` r
+
 devtools::test()
 ```
 

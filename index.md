@@ -32,12 +32,14 @@ can test for **group differences** in individual parameters.
 Install from CRAN:
 
 ``` r
+
 install.packages("bgms")
 ```
 
 Or install the development version from GitHub:
 
 ``` r
+
 # install.packages("remotes")
 remotes::install_github("Bayesian-Graphical-Modelling-Lab/bgms")
 ```
@@ -47,6 +49,7 @@ remotes::install_github("Bayesian-Graphical-Modelling-Lab/bgms")
 If you use bgms in your research, please cite the software package:
 
 ``` r
+
 citation("bgms")
 toBibtex(citation("bgms"))
 ```

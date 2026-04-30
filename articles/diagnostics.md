@@ -14,6 +14,7 @@ and Bayes factors.
 We use a subset of the Wenchuan dataset:
 
 ``` r
+
 library(bgms)
 data = Wenchuan[, 1:5]
 fit = bgm(data, seed = 1234)
@@ -25,29 +26,30 @@ The quality of the Markov chain can be assessed with common MCMC
 diagnostics:
 
 ``` r
+
 summary(fit)$pairwise
-#>                          mean         mcse         sd     n_eff
-#> intrusion-dreams  0.314853571 0.0008571398 0.03212522 1404.7177
-#> intrusion-flash   0.169868976 0.0008690739 0.03088947 1263.3031
-#> intrusion-upset   0.090325114 0.0046957753 0.04181102  106.7015
-#> intrusion-physior 0.100015144 0.0025356529 0.03438050  275.3289
-#> dreams-flash      0.249759272 0.0006693970 0.02942805 1932.6595
-#> dreams-upset      0.115708387 0.0013616449 0.02841564  527.4259
-#> dreams-physior    0.003026380 0.0005850279 0.01150415  401.3984
-#> flash-upset       0.006345009 0.0010537886 0.01713351  250.9132
-#> flash-physior     0.152441240 0.0007648416 0.02688599 1235.6883
-#> upset-physior     0.354429352 0.0008660529 0.03089149 1272.2981
+#>                          mean         mcse          sd     n_eff
+#> intrusion-dreams  0.315073338 0.0007021890 0.031597763 2024.9052
+#> intrusion-flash   0.168341600 0.0007134522 0.030973093 1884.6878
+#> intrusion-upset   0.097807766 0.0025927525 0.035583797  249.4741
+#> intrusion-physior 0.095269549 0.0035382828 0.038442828  251.6125
+#> dreams-flash      0.248862725 0.0007313147 0.029855210 1666.6011
+#> dreams-upset      0.113270460 0.0006943014 0.026555486 1462.8924
+#> dreams-physior    0.002065929 0.0003823586 0.008723002  666.8232
+#> flash-upset       0.006060051 0.0010190478 0.016802191  250.5115
+#> flash-physior     0.154306636 0.0007548889 0.026856317 1265.6886
+#> upset-physior     0.355636928 0.0007899810 0.029262067 1372.0713
 #>                   n_eff_mixt      Rhat
-#> intrusion-dreams          NA 1.0002962
-#> intrusion-flash           NA 1.0041414
-#> intrusion-upset     79.28061 1.0216937
-#> intrusion-physior  183.84202 1.0041987
-#> dreams-flash              NA 1.0002071
-#> dreams-upset       435.49908 1.0030082
-#> dreams-physior     386.68397 0.9996727
-#> flash-upset        264.35404 1.0084541
-#> flash-physior             NA 1.0016111
-#> upset-physior             NA 1.0026716
+#> intrusion-dreams          NA 1.0077927
+#> intrusion-flash           NA 1.0006146
+#> intrusion-upset     188.3573 1.0009777
+#> intrusion-physior   118.0444 1.0500111
+#> dreams-flash              NA 0.9999733
+#> dreams-upset              NA 1.0014495
+#> dreams-physior      520.4634 1.0109284
+#> flash-upset         271.8584 1.0792918
+#> flash-physior             NA 1.0004244
+#> upset-physior             NA 0.9995018
 ```
 
 - R-hat values close to 1 (typically below 1.01) suggest convergence
@@ -85,6 +87,7 @@ Users can inspect traceplots by extracting raw samples directly. Here is
 an example for the pairwise effect parameter.
 
 ``` r
+
 param_index = 1
 chains = fit$raw_samples$pairwise
 nchains = length(chains)
@@ -111,13 +114,14 @@ The spike-and-slab prior yields posterior inclusion probabilities for
 edges:
 
 ``` r
+
 coef(fit)$indicator
 #>           intrusion dreams  flash  upset physior
-#> intrusion    0.0000  1.000 1.0000 0.8845   0.962
-#> dreams       1.0000  0.000 1.0000 0.9970   0.067
-#> flash        1.0000  1.000 0.0000 0.1245   1.000
-#> upset        0.8845  0.997 0.1245 0.0000   1.000
-#> physior      0.9620  0.067 1.0000 1.0000   0.000
+#> intrusion     0.000 1.0000 1.0000 0.9530  0.9220
+#> dreams        1.000 0.0000 1.0000 1.0000  0.0545
+#> flash         1.000 1.0000 0.0000 0.1195  1.0000
+#> upset         0.953 1.0000 0.1195 0.0000  1.0000
+#> physior       0.922 0.0545 1.0000 1.0000  0.0000
 ```
 
 - Values near 1.0: strong evidence the edge is present.
@@ -133,11 +137,12 @@ transform inclusion probabilities into Bayes factors for edge presence
 vs absence:
 
 ``` r
+
 # Example for one edge
 p = coef(fit)$indicator[1, 5]
 BF_10 = p / (1 - p)
 BF_10
-#> [1] 25.31579
+#> [1] 11.82051
 ```
 
 Here the Bayes factor in favor of inclusion (H1) is small, meaning that
@@ -146,8 +151,9 @@ transitive, we can use it to express the evidence in favor of exclusion
 (H0) as
 
 ``` r
+
 1 / BF_10
-#> [1] 0.03950104
+#> [1] 0.0845987
 ```
 
 This Bayes factor shows that there is strong evidence for the absence of
@@ -160,6 +166,7 @@ diagnostics are available to assess the quality of the Hamiltonian Monte
 Carlo sampling. These can be accessed via `fit$nuts_diag`:
 
 ``` r
+
 fit$nuts_diag$summary
 #> $total_divergences
 #> [1] 0
@@ -171,10 +178,10 @@ fit$nuts_diag$summary
 #> [1] 0
 #> 
 #> $min_ebfmi
-#> [1] 0.9691312
+#> [1] 0.9681427
 #> 
 #> $mean_accept_prob
-#> [1] 0.8968686
+#> [1] 0.9024846
 #> 
 #> $warmup_incomplete
 #> [1] FALSE
@@ -247,26 +254,27 @@ The `warmup_check` component provides simple diagnostics that compare
 the first and second halves of the post-warmup samples:
 
 ``` r
+
 fit$nuts_diag$warmup_check
 #> $warmup_incomplete
 #> [1] FALSE FALSE
 #> 
 #> $energy_slope
 #>      time_idx      time_idx 
-#> -8.838707e-04 -3.236793e-05 
+#> -0.0000385324 -0.0005017369 
 #> 
 #> $slope_significant
 #> time_idx time_idx 
 #>    FALSE    FALSE 
 #> 
 #> $ebfmi_first_half
-#> [1] 0.9775132 1.0376684
+#> [1] 0.9220304 1.0638666
 #> 
 #> $ebfmi_second_half
-#> [1] 1.016334 0.912383
+#> [1] 1.027856 1.008601
 #> 
 #> $var_ratio
-#> [1] 1.0162882 0.8401748
+#> [1] 1.109731 0.968445
 ```
 
 The returned list contains the following fields (one value per chain):
@@ -305,5 +313,5 @@ model or data.
 
 Vehtari, A., Gelman, A., Simpson, D., Carpenter, B., & Bürkner, P.-C.
 (2021). Rank-normalization, folding, and localization: An improved
-$\widehat{R}$ for assessing convergence of MCMC. *Bayesian Analysis*,
+$`\hat{R}`$ for assessing convergence of MCMC. *Bayesian Analysis*,
 *16*(2), 667–718. <https://doi.org/10.1214/20-BA1221>

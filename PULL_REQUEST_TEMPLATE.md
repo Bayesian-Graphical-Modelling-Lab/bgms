@@ -13,6 +13,7 @@ gap or need for the change.
 If helpful, add a minimal code example that demonstrates the problem.
 
 ``` r
+
 # Problem demonstration
 ```
 
@@ -28,6 +29,7 @@ If helpful, add a minimal code example that demonstrates the new
 behaviour.
 
 ``` r
+
 # New behaviour
 ```
 
@@ -62,15 +64,14 @@ Added or updated tests in `tests/testthat/` when needed
 Ran the project styler
 
 ``` r
+
 source("inst/styler/bgms_style.R")
 styler::style_pkg(style = bgms_style)
 ```
 
 Ran `lintr::lint_package()`
 
-Ran
-[`roxygen2::roxygenise()`](https://roxygen2.r-lib.org/reference/roxygenize.html)
-if roxygen comments changed
+Ran `roxygen2::roxygenise()` if roxygen comments changed
 
 Ran `rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran"))` for
 non-trivial changes

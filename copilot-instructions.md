@@ -35,6 +35,7 @@ Rules for AI agents (Copilot, Claude, etc.) working on this codebase.
 - Format:
 
   ``` r
+
   # ------------------------------------------------------------------
   # function_name
   # ------------------------------------------------------------------
@@ -85,6 +86,7 @@ issues they report:
 1.  **Style** — enforce the project code style:
 
     ``` r
+
     source("inst/styler/bgms_style.R")
     styler::style_pkg(style = bgms_style)
     ```
@@ -95,6 +97,7 @@ issues they report:
 2.  **Lint** — catch issues the CI lint workflow will flag:
 
     ``` r
+
     lintr::lint_package()
     ```
 
@@ -104,6 +107,7 @@ issues they report:
 3.  **Roxygen** — regenerate Rd files if any roxygen comment changed:
 
     ``` r
+
     roxygen2::roxygenise()
     ```
 
@@ -112,6 +116,7 @@ issues they report:
 4.  **R CMD check** — if the change is non-trivial, run:
 
     ``` r
+
     rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran"))
     ```
 
