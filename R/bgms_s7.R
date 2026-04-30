@@ -144,6 +144,13 @@ bgmCompare_class = new_class("bgmCompare",
     posterior_mean_main_differences = new_property(class_any, default = NULL),
     posterior_mean_pairwise_differences = new_property(class_any, default = NULL),
 
+    # --- SBM difference-prior outputs (Stochastic-Block only) ---
+    posterior_mean_coclustering_matrix = new_property(class_any, default = NULL),
+    posterior_mean_allocations = new_property(class_any, default = NULL),
+    posterior_mode_allocations = new_property(class_any, default = NULL),
+    posterior_num_blocks = new_property(class_any, default = NULL),
+    posterior_summary_pairwise_allocations = new_property(class_any, default = NULL),
+
     # --- Lazy MCMC diagnostics (computed on first access via getter) ---
     posterior_summary_main_baseline = new_property(
       class = class_any,
@@ -210,6 +217,11 @@ s3_list_to_bgmCompare = function(results) {
     posterior_mean_pairwise_baseline = .subset2(results, "posterior_mean_pairwise_baseline"),
     posterior_mean_main_differences = .subset2(results, "posterior_mean_main_differences"),
     posterior_mean_pairwise_differences = .subset2(results, "posterior_mean_pairwise_differences"),
+    posterior_mean_coclustering_matrix = .subset2(results, "posterior_mean_coclustering_matrix"),
+    posterior_mean_allocations = .subset2(results, "posterior_mean_allocations"),
+    posterior_mode_allocations = .subset2(results, "posterior_mode_allocations"),
+    posterior_num_blocks = .subset2(results, "posterior_num_blocks"),
+    posterior_summary_pairwise_allocations = .subset2(results, "posterior_summary_pairwise_allocations"),
     nuts_diag = .subset2(results, "nuts_diag"),
     .bgm_spec = .subset2(results, ".bgm_spec"),
     .field_names = names(results)

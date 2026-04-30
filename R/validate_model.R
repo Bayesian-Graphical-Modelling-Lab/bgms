@@ -540,32 +540,54 @@ validate_bernoulli_inclusion = function(probability,
 # ------------------------------------------------------------------------------
 #
 # Validates and normalizes the difference selection prior setup for
-# bgmCompare(). Handles Bernoulli and Beta-Bernoulli priors.
+# bgmCompare(). Handles Bernoulli, Beta-Bernoulli, and Stochastic-Block priors.
+#
+# Under Stochastic-Block, the prior governs the off-diagonal (pairwise)
+# difference indicators only. The diagonal main-effect difference indicators
+# (used when main_difference_selection = TRUE) are sampled separately via a
+# Beta-Bernoulli conjugate update with the same (alpha, beta) hyperparameters.
 #
 # @param difference_selection  Logical: whether to perform Bayesian
 #   difference selection.
-# @param difference_prior  Character: one of "Bernoulli", "Beta-Bernoulli".
+# @param difference_prior  Character: one of "Bernoulli", "Beta-Bernoulli",
+#   "Stochastic-Block".
 # @param difference_probability  Scalar or matrix of inclusion probabilities
 #   for differences.
 # @param num_variables  Integer: number of variables (ncol of data).
-# @param beta_bernoulli_alpha  Numeric: alpha shape parameter for Beta prior.
-# @param beta_bernoulli_beta  Numeric: beta shape parameter for Beta prior.
+# @param beta_bernoulli_alpha  Numeric: alpha for within-cluster Beta prior.
+# @param beta_bernoulli_beta  Numeric: beta for within-cluster Beta prior.
+# @param beta_bernoulli_alpha_between  Numeric: alpha for between-cluster
+#   Beta prior (Stochastic-Block only).
+# @param beta_bernoulli_beta_between  Numeric: beta for between-cluster
+#   Beta prior (Stochastic-Block only).
+# @param dirichlet_alpha  Numeric: Dirichlet concentration on cluster sizes
+#   (Stochastic-Block only).
+# @param lambda  Numeric: Poisson rate on number of clusters
+#   (Stochastic-Block only).
 #
 # Returns:
 #   list(difference_selection, difference_prior,
-#        inclusion_probability_difference)
+#        inclusion_probability_difference,
+#        beta_bernoulli_alpha, beta_bernoulli_beta,
+#        beta_bernoulli_alpha_between, beta_bernoulli_beta_between,
+#        dirichlet_alpha, lambda)
 #   where inclusion_probability_difference is a
 #   num_variables x num_variables matrix.
 # ------------------------------------------------------------------------------
 validate_difference_prior = function(difference_selection,
                                      difference_prior = c(
                                        "Bernoulli",
-                                       "Beta-Bernoulli"
+                                       "Beta-Bernoulli",
+                                       "Stochastic-Block"
                                      ),
                                      difference_probability = 0.5,
                                      num_variables,
                                      beta_bernoulli_alpha = 1,
-                                     beta_bernoulli_beta = 1) {
+                                     beta_bernoulli_beta = 1,
+                                     beta_bernoulli_alpha_between = 1,
+                                     beta_bernoulli_beta_between = 1,
+                                     dirichlet_alpha = 1,
+                                     lambda = 1) {
   difference_selection = as.logical(difference_selection)
   if(is.na(difference_selection)) {
     stop("The parameter difference_selection needs to be TRUE or FALSE.")
@@ -575,7 +597,13 @@ validate_difference_prior = function(difference_selection,
     return(list(
       difference_selection = FALSE,
       difference_prior = "Not applicable",
-      inclusion_probability_difference = matrix(0.5, 1, 1)
+      inclusion_probability_difference = matrix(0.5, 1, 1),
+      beta_bernoulli_alpha = beta_bernoulli_alpha,
+      beta_bernoulli_beta = beta_bernoulli_beta,
+      beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+      beta_bernoulli_beta_between = beta_bernoulli_beta_between,
+      dirichlet_alpha = dirichlet_alpha,
+      lambda = lambda
     ))
   }
 
@@ -589,11 +617,10 @@ validate_difference_prior = function(difference_selection,
       include_diagonal = TRUE,
       context          = " for differences"
     )
-  } else {
-    # Beta-Bernoulli
+  } else if(difference_prior == "Beta-Bernoulli") {
     theta = matrix(0.5, nrow = num_variables, ncol = num_variables)
-    if(is.na(beta_bernoulli_alpha) || is.na(beta_bernoulli_beta) ||
-      is.null(beta_bernoulli_alpha) || is.null(beta_bernoulli_beta)) {
+    if(is.null(beta_bernoulli_alpha) || is.null(beta_bernoulli_beta) ||
+      is.na(beta_bernoulli_alpha) || is.na(beta_bernoulli_beta)) {
       stop("The scale parameters of the beta distribution for the differences need to be specified.")
     }
     if(beta_bernoulli_alpha <= 0 || beta_bernoulli_beta <= 0) {
@@ -602,11 +629,46 @@ validate_difference_prior = function(difference_selection,
     if(!is.finite(beta_bernoulli_alpha) || !is.finite(beta_bernoulli_beta)) {
       stop("The scale parameters of the beta distribution for the differences need to be finite.")
     }
+  } else {
+    # Stochastic-Block
+    theta = matrix(0.5, nrow = num_variables, ncol = num_variables)
+
+    if(is.null(beta_bernoulli_alpha) || is.null(beta_bernoulli_beta) ||
+      is.null(beta_bernoulli_alpha_between) || is.null(beta_bernoulli_beta_between)) {
+      stop(
+        "The Stochastic-Block prior for differences requires all four beta parameters: ",
+        "beta_bernoulli_alpha, beta_bernoulli_beta, ",
+        "beta_bernoulli_alpha_between, and beta_bernoulli_beta_between."
+      )
+    }
+    if(is.na(beta_bernoulli_alpha) || is.na(beta_bernoulli_beta) ||
+      is.na(beta_bernoulli_alpha_between) || is.na(beta_bernoulli_beta_between) ||
+      is.na(dirichlet_alpha) || is.na(lambda)) {
+      stop(
+        "Hyperparameters of the Stochastic-Block prior for differences cannot be NA."
+      )
+    }
+    if(beta_bernoulli_alpha <= 0 || beta_bernoulli_beta <= 0 ||
+      beta_bernoulli_alpha_between <= 0 || beta_bernoulli_beta_between <= 0 ||
+      dirichlet_alpha <= 0 || lambda <= 0) {
+      stop("Hyperparameters of the Stochastic-Block prior for differences need to be positive.")
+    }
+    if(!is.finite(beta_bernoulli_alpha) || !is.finite(beta_bernoulli_beta) ||
+      !is.finite(beta_bernoulli_alpha_between) || !is.finite(beta_bernoulli_beta_between) ||
+      !is.finite(dirichlet_alpha) || !is.finite(lambda)) {
+      stop("Hyperparameters of the Stochastic-Block prior for differences need to be finite.")
+    }
   }
 
   list(
     difference_selection = TRUE,
     difference_prior = difference_prior,
-    inclusion_probability_difference = theta
+    inclusion_probability_difference = theta,
+    beta_bernoulli_alpha = beta_bernoulli_alpha,
+    beta_bernoulli_beta = beta_bernoulli_beta,
+    beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+    beta_bernoulli_beta_between = beta_bernoulli_beta_between,
+    dirichlet_alpha = dirichlet_alpha,
+    lambda = lambda
   )
 }

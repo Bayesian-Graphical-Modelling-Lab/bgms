@@ -218,6 +218,8 @@ test_that("Compare build_arguments: all expected field names present", {
     "difference_selection", "main_difference_selection",
     "difference_prior",
     "difference_selection_alpha", "difference_selection_beta",
+    "difference_selection_alpha_between", "difference_selection_beta_between",
+    "difference_dirichlet_alpha", "difference_lambda",
     "inclusion_probability",
     "version", "update_method", "target_accept",
     "nuts_max_depth", "learn_mass_matrix",

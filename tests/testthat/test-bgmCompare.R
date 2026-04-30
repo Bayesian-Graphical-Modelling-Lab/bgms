@@ -258,3 +258,60 @@ test_that("bgmCompare output has correct parameter ordering", {
     info = "bgmCompare extract_pairwise_interactions() names do not match matrix positions"
   )
 })
+
+
+# ------------------------------------------------------------------------------
+# Stochastic-Block difference prior
+# ------------------------------------------------------------------------------
+
+test_that("bgmCompare accepts sbm_prior() and surfaces allocations", {
+  data("Wenchuan", package = "bgms")
+  x = na.omit(Wenchuan[, 1:4])
+  group_ind = rep(1:2, length.out = nrow(x))
+
+  fit = bgmCompare(
+    x = x, group_indicator = group_ind,
+    difference_prior = sbm_prior(),
+    difference_selection = TRUE,
+    iter = 100, warmup = 100, chains = 2,
+    seed = 1, display_progress = "none"
+  )
+
+  expect_s3_class(fit, "bgmCompare")
+
+  # Posterior allocation summaries are populated for SBM.
+  expect_false(is.null(fit$posterior_mean_allocations))
+  expect_length(fit$posterior_mean_allocations, ncol(x))
+  expect_length(fit$posterior_mode_allocations, ncol(x))
+
+  # Coclustering matrix is square with the right dim and 1's on the diagonal.
+  cm = fit$posterior_mean_coclustering_matrix
+  expect_equal(dim(cm), c(ncol(x), ncol(x)))
+  expect_equal(unname(diag(cm)), rep(1, ncol(x)))
+  expect_true(all(cm >= 0 & cm <= 1))
+
+  # Per-iteration allocations land in raw_samples with shape iter x p.
+  expect_equal(
+    dim(fit$raw_samples$allocations[[1]]),
+    c(nrow(fit$raw_samples$indicator[[1]]), ncol(x))
+  )
+})
+
+test_that("bgmCompare without sbm_prior() does not produce allocation fields", {
+  data("Wenchuan", package = "bgms")
+  x = na.omit(Wenchuan[, 1:4])
+  group_ind = rep(1:2, length.out = nrow(x))
+
+  fit = bgmCompare(
+    x = x, group_indicator = group_ind,
+    difference_prior = beta_bernoulli_prior(alpha = 1, beta = 1),
+    difference_selection = TRUE,
+    iter = 100, warmup = 100, chains = 1,
+    seed = 1, display_progress = "none"
+  )
+
+  expect_null(fit$posterior_mean_allocations)
+  expect_null(fit$posterior_mode_allocations)
+  expect_null(fit$posterior_mean_coclustering_matrix)
+  expect_null(fit$raw_samples$allocations)
+})

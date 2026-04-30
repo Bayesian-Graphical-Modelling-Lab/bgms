@@ -18,6 +18,8 @@ struct bgmCompareOutput {
   arma::mat pairwise_samples;
   /// Inclusion indicator samples [iter x (#edges + #variables)] (if used).
   arma::imat indicator_samples;
+  /// SBM cluster allocation samples [iter x num_variables] (Stochastic-Block only).
+  arma::imat allocation_samples;
 
   /// Tree depth diagnostics [iter] (NUTS only).
   arma::ivec treedepth_samples;
@@ -32,6 +34,8 @@ struct bgmCompareOutput {
   int chain_id;
   /// True if indicator samples are stored.
   bool has_indicator;
+  /// True if SBM allocation samples are stored.
+  bool has_allocations;
   /// True if the chain was interrupted by the user.
   bool userInterrupt;
 };

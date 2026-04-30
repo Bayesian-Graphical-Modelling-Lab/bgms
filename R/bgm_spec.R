@@ -277,12 +277,18 @@ bgm_spec = function(x,
                     # Priors (compare-specific)
                     difference_selection = TRUE,
                     main_difference_selection = FALSE,
-                    difference_prior = c("Bernoulli", "Beta-Bernoulli"),
+                    difference_prior = c(
+                      "Bernoulli", "Beta-Bernoulli", "Stochastic-Block"
+                    ),
                     difference_scale = 2.5,
                     difference_probability = 0.5,
-                    # Compare difference prior uses beta_bernoulli params
+                    # Compare difference prior hyperparameters
                     beta_bernoulli_alpha = 1,
                     beta_bernoulli_beta = 1,
+                    difference_beta_bernoulli_alpha_between = 1,
+                    difference_beta_bernoulli_beta_between = 1,
+                    difference_dirichlet_alpha = 1,
+                    difference_lambda = 1,
                     # Sampler
                     update_method = c(
                       "nuts",
@@ -475,8 +481,12 @@ bgm_spec = function(x,
       difference_prior = difference_prior,
       difference_scale = difference_scale,
       difference_probability = difference_probability,
-      beta_bernoulli_alpha = ep_flat$beta_bernoulli_alpha,
-      beta_bernoulli_beta = ep_flat$beta_bernoulli_beta
+      beta_bernoulli_alpha = beta_bernoulli_alpha,
+      beta_bernoulli_beta = beta_bernoulli_beta,
+      beta_bernoulli_alpha_between = difference_beta_bernoulli_alpha_between,
+      beta_bernoulli_beta_between = difference_beta_bernoulli_beta_between,
+      dirichlet_alpha = difference_dirichlet_alpha,
+      lambda = difference_lambda
     )
   }
 
@@ -840,7 +850,11 @@ build_spec_compare = function(x, y, group_indicator,
                               difference_selection, main_difference_selection,
                               difference_prior,
                               difference_scale, difference_probability,
-                              beta_bernoulli_alpha, beta_bernoulli_beta) {
+                              beta_bernoulli_alpha, beta_bernoulli_beta,
+                              beta_bernoulli_alpha_between = 1,
+                              beta_bernoulli_beta_between = 1,
+                              dirichlet_alpha = 1,
+                              lambda = 1) {
   # --- Combine x/y and create group vector ------------------------------------
   if(!is.null(y)) {
     y = data_check(y, "y")
@@ -903,7 +917,11 @@ build_spec_compare = function(x, y, group_indicator,
     difference_probability = difference_probability,
     num_variables = num_variables,
     beta_bernoulli_alpha = beta_bernoulli_alpha,
-    beta_bernoulli_beta = beta_bernoulli_beta
+    beta_bernoulli_beta = beta_bernoulli_beta,
+    beta_bernoulli_alpha_between = beta_bernoulli_alpha_between,
+    beta_bernoulli_beta_between = beta_bernoulli_beta_between,
+    dirichlet_alpha = dirichlet_alpha,
+    lambda = lambda
   )
 
   # --- Missing data (compare path) --------------------------------------------
@@ -1099,8 +1117,12 @@ build_spec_compare = function(x, y, group_indicator,
       difference_prior = dp$difference_prior,
       difference_scale = difference_scale,
       inclusion_probability_difference = dp$inclusion_probability_difference,
-      beta_bernoulli_alpha = beta_bernoulli_alpha,
-      beta_bernoulli_beta = beta_bernoulli_beta
+      beta_bernoulli_alpha = dp$beta_bernoulli_alpha,
+      beta_bernoulli_beta = dp$beta_bernoulli_beta,
+      beta_bernoulli_alpha_between = dp$beta_bernoulli_alpha_between,
+      beta_bernoulli_beta_between = dp$beta_bernoulli_beta_between,
+      dirichlet_alpha = dp$dirichlet_alpha,
+      lambda = dp$lambda
     ),
     sampler = sampler_sublist(sampler),
     precomputed = list(
@@ -1276,33 +1298,37 @@ build_arguments_mixed_mrf = function(spec) {
 
 build_arguments_compare = function(spec) {
   list(
-    num_variables                = spec$data$num_variables,
-    num_cases                    = spec$data$num_cases,
-    iter                         = spec$sampler$iter,
-    warmup                       = spec$sampler$warmup,
-    pairwise_scale               = spec$prior$pairwise_scale,
-    difference_scale             = spec$prior$difference_scale,
-    standardize                  = spec$prior$standardize,
-    difference_selection         = spec$prior$difference_selection,
-    main_difference_selection    = spec$prior$main_difference_selection,
-    difference_prior             = spec$prior$difference_prior,
-    difference_selection_alpha   = spec$prior$beta_bernoulli_alpha,
-    difference_selection_beta    = spec$prior$beta_bernoulli_beta,
-    inclusion_probability        = spec$prior$inclusion_probability_difference,
-    version                      = packageVersion("bgms"),
-    update_method                = spec$sampler$update_method,
-    target_accept                = spec$sampler$target_accept,
-    nuts_max_depth               = spec$sampler$nuts_max_depth,
-    learn_mass_matrix            = spec$sampler$learn_mass_matrix,
-    num_chains                   = spec$sampler$chains,
-    num_groups                   = spec$data$num_groups,
-    data_columnnames             = spec$data$data_columnnames,
-    projection                   = spec$data$projection,
-    num_categories               = spec$data$num_categories,
-    is_ordinal_variable          = spec$variables$is_ordinal,
-    group                        = sort(spec$data$group),
-    pairwise_scaling_factors     = spec$prior$pairwise_scaling_factors,
-    model_type                   = "compare"
+    num_variables                      = spec$data$num_variables,
+    num_cases                          = spec$data$num_cases,
+    iter                               = spec$sampler$iter,
+    warmup                             = spec$sampler$warmup,
+    pairwise_scale                     = spec$prior$pairwise_scale,
+    difference_scale                   = spec$prior$difference_scale,
+    standardize                        = spec$prior$standardize,
+    difference_selection               = spec$prior$difference_selection,
+    main_difference_selection          = spec$prior$main_difference_selection,
+    difference_prior                   = spec$prior$difference_prior,
+    difference_selection_alpha         = spec$prior$beta_bernoulli_alpha,
+    difference_selection_beta          = spec$prior$beta_bernoulli_beta,
+    difference_selection_alpha_between = spec$prior$beta_bernoulli_alpha_between,
+    difference_selection_beta_between  = spec$prior$beta_bernoulli_beta_between,
+    difference_dirichlet_alpha         = spec$prior$dirichlet_alpha,
+    difference_lambda                  = spec$prior$lambda,
+    inclusion_probability              = spec$prior$inclusion_probability_difference,
+    version                            = packageVersion("bgms"),
+    update_method                      = spec$sampler$update_method,
+    target_accept                      = spec$sampler$target_accept,
+    nuts_max_depth                     = spec$sampler$nuts_max_depth,
+    learn_mass_matrix                  = spec$sampler$learn_mass_matrix,
+    num_chains                         = spec$sampler$chains,
+    num_groups                         = spec$data$num_groups,
+    data_columnnames                   = spec$data$data_columnnames,
+    projection                         = spec$data$projection,
+    num_categories                     = spec$data$num_categories,
+    is_ordinal_variable                = spec$variables$is_ordinal,
+    group                              = sort(spec$data$group),
+    pairwise_scaling_factors           = spec$prior$pairwise_scaling_factors,
+    model_type                         = "compare"
   )
 }
 

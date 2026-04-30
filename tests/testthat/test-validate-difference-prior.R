@@ -209,9 +209,42 @@ test_that("Beta-Bernoulli: infinite alpha errors", {
 test_that("Invalid difference_prior string errors", {
   expect_error(
     validate_difference_prior(
-      difference_selection = TRUE, difference_prior = "Stochastic-Block",
+      difference_selection = TRUE, difference_prior = "Not-A-Real-Prior",
       num_variables = 3
     ),
     "arg"
+  )
+})
+
+test_that("Stochastic-Block: returns SBM hyperparameters", {
+  out = validate_difference_prior(
+    difference_selection = TRUE, difference_prior = "Stochastic-Block",
+    num_variables = 4,
+    beta_bernoulli_alpha = 1, beta_bernoulli_beta = 1,
+    beta_bernoulli_alpha_between = 2, beta_bernoulli_beta_between = 3,
+    dirichlet_alpha = 0.5, lambda = 1
+  )
+  expect_equal(out$difference_prior, "Stochastic-Block")
+  expect_equal(out$beta_bernoulli_alpha_between, 2)
+  expect_equal(out$beta_bernoulli_beta_between, 3)
+  expect_equal(out$dirichlet_alpha, 0.5)
+  expect_equal(out$lambda, 1)
+  expect_equal(dim(out$inclusion_probability_difference), c(4, 4))
+})
+
+test_that("Stochastic-Block: rejects non-positive hyperparameters", {
+  expect_error(
+    validate_difference_prior(
+      difference_selection = TRUE, difference_prior = "Stochastic-Block",
+      num_variables = 3, dirichlet_alpha = 0
+    ),
+    "positive"
+  )
+  expect_error(
+    validate_difference_prior(
+      difference_selection = TRUE, difference_prior = "Stochastic-Block",
+      num_variables = 3, lambda = -1
+    ),
+    "positive"
   )
 })

@@ -356,7 +356,7 @@ bgmCompare = function(
       "bgmCompare(difference_prior = 'bernoulli_prior()')"
     )
     difference_prior_str = match.arg(difference_prior,
-      choices = c("Bernoulli", "Beta-Bernoulli")
+      choices = c("Bernoulli", "Beta-Bernoulli", "Stochastic-Block")
     )
     dp_prob = if(hasArg(difference_probability)) difference_probability else 0.5
     bba = if(hasArg(beta_bernoulli_alpha)) beta_bernoulli_alpha else 1
@@ -364,7 +364,8 @@ bgmCompare = function(
 
     difference_prior = switch(difference_prior_str,
       "Bernoulli" = bernoulli_prior(inclusion_probability = dp_prob),
-      "Beta-Bernoulli" = beta_bernoulli_prior(alpha = bba, beta = bbb)
+      "Beta-Bernoulli" = beta_bernoulli_prior(alpha = bba, beta = bbb),
+      "Stochastic-Block" = sbm_prior(alpha = bba, beta = bbb)
     )
   } else {
     if(hasArg(difference_probability)) {
@@ -408,6 +409,10 @@ bgmCompare = function(
     difference_probability = dp$inclusion_probability,
     beta_bernoulli_alpha = dp$beta_bernoulli_alpha,
     beta_bernoulli_beta = dp$beta_bernoulli_beta,
+    difference_beta_bernoulli_alpha_between = dp$beta_bernoulli_alpha_between,
+    difference_beta_bernoulli_beta_between = dp$beta_bernoulli_beta_between,
+    difference_dirichlet_alpha = dp$dirichlet_alpha,
+    difference_lambda = dp$lambda,
     update_method = update_method,
     target_accept = if(hasArg(target_accept)) target_accept else NULL,
     iter = iter,

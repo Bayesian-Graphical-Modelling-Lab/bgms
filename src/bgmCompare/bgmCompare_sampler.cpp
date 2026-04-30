@@ -1542,7 +1542,8 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
     ProgressManager& pm,
     const BaseParameterPrior& interaction_prior,
     const BaseParameterPrior& difference_prior,
-    const BaseParameterPrior& threshold_prior
+    const BaseParameterPrior& threshold_prior,
+    BaseEdgePrior& difference_edge_prior
 ) {
   // --- Setup: dimensions and storage structures
   const int num_variables = observations.n_cols;
@@ -1563,6 +1564,15 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
 
   if (difference_selection) {
     indicator_samples.set_size(iter, num_pair + num_variables);
+  }
+
+  // SBM cluster allocation samples (only populated when difference prior is SBM).
+  // Layout matches the bgm() side: (num_variables x iter), one column per draw.
+  const bool is_sbm = difference_selection &&
+                      (difference_prior_type == "Stochastic-Block");
+  arma::imat allocation_samples;
+  if (is_sbm) {
+    allocation_samples.set_size(num_variables, iter);
   }
 
   // For logging nuts performance
@@ -1656,16 +1666,15 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
 
     // --- Update difference probabilities under the prior (if difference selection is active)
     if (warmup_schedule.selection_enabled(iteration)) {
-      int sumG = 0;
-
       if (difference_prior_type == "Beta-Bernoulli") {
-        // Count pairwise inclusion indicators
+        // Pool pairwise + (optional) main-effect indicators into a single
+        // shared inclusion probability (legacy compare semantics).
+        int sumG = 0;
         for (int i = 0; i < num_variables - 1; ++i) {
           for (int j = i + 1; j < num_variables; ++j) {
             sumG += inclusion_indicator(i, j);
           }
         }
-        // Only count main effect indicators if main_difference_selection is enabled
         int num_main_selectable = 0;
         if (main_difference_selection) {
           for(int i = 0; i < num_variables; i++) {
@@ -1677,6 +1686,27 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
                             difference_selection_alpha + sumG,
                             difference_selection_beta + num_pair + num_main_selectable - sumG);
         std::fill(inclusion_probability.begin(), inclusion_probability.end(), prob);
+      } else if (difference_prior_type == "Stochastic-Block") {
+        // Off-diagonal (pairwise differences): MFM-SBM block-allocation +
+        // block-probability update. Mirrors the bgm() SBM path.
+        difference_edge_prior.update(
+          inclusion_indicator, inclusion_probability,
+          num_variables, num_pair, rng
+        );
+        // Diagonal (main-effect differences): independent Beta-Bernoulli
+        // conjugate update using the SBM's within-cluster (alpha, beta).
+        if (main_difference_selection) {
+          int sumD = 0;
+          for (int i = 0; i < num_variables; ++i) {
+            sumD += inclusion_indicator(i, i);
+          }
+          double prob_main = rbeta(rng,
+                                   difference_selection_alpha + sumD,
+                                   difference_selection_beta + num_variables - sumD);
+          for (int i = 0; i < num_variables; ++i) {
+            inclusion_probability(i, i) = prob_main;
+          }
+        }
       }
     }
 
@@ -1710,6 +1740,11 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
           }
         }
       }
+
+      if (is_sbm && difference_edge_prior.has_allocations()) {
+        allocation_samples.col(sample_index) =
+          difference_edge_prior.get_allocations();
+      }
     }
   }
 
@@ -1726,6 +1761,12 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
     out.indicator_samples = indicator_samples;
   } else {
     out.indicator_samples = arma::imat();
+  }
+  out.has_allocations = is_sbm;
+  if (is_sbm) {
+    out.allocation_samples = allocation_samples;
+  } else {
+    out.allocation_samples = arma::imat();
   }
   out.userInterrupt = userInterrupt;
 

@@ -11,6 +11,7 @@
 #include "mcmc/samplers/metropolis_adaptation.h"
 #include "utils/common_helpers.h"
 #include "priors/parameter_prior.h"
+#include "priors/edge_prior.h"
 
 using namespace RcppParallel;
 
@@ -125,6 +126,8 @@ struct GibbsCompareChainRunner : public Worker {
   const BaseParameterPrior& interaction_prior;
   const BaseParameterPrior& difference_prior;
   const BaseParameterPrior& threshold_prior;
+  // SBM-aware difference indicator prior (cloned per chain inside operator()).
+  const BaseEdgePrior& difference_edge_prior_template;
   // output
   std::vector<bgmCompareChainResult>& results;
 
@@ -163,6 +166,7 @@ struct GibbsCompareChainRunner : public Worker {
     const BaseParameterPrior& interaction_prior,
     const BaseParameterPrior& difference_prior,
     const BaseParameterPrior& threshold_prior,
+    const BaseEdgePrior& difference_edge_prior_template,
     std::vector<bgmCompareChainResult>& results
   ) :
     observations_master(observations_master),
@@ -199,6 +203,7 @@ struct GibbsCompareChainRunner : public Worker {
     interaction_prior(interaction_prior),
     difference_prior(difference_prior),
     threshold_prior(threshold_prior),
+    difference_edge_prior_template(difference_edge_prior_template),
     results(results)
   {}
 
@@ -218,6 +223,11 @@ struct GibbsCompareChainRunner : public Worker {
         std::vector<arma::mat>  pairwise_stats = pairwise_stats_master;
         arma::mat inclusion_probability = inclusion_probability_master;
         arma::imat observations = observations_master;
+
+        // Clone the difference-indicator edge prior so each chain has its own
+        // mutable SBM state (cluster allocations, block-prob matrix).
+        std::unique_ptr<BaseEdgePrior> chain_edge_prior =
+          difference_edge_prior_template.clone();
 
         // run sampler (pure C++)
         bgmCompareOutput result = run_gibbs_sampler_bgmCompare(
@@ -255,7 +265,8 @@ struct GibbsCompareChainRunner : public Worker {
           pm,
           interaction_prior,
           difference_prior,
-          threshold_prior
+          threshold_prior,
+          *chain_edge_prior
         );
 
         out.result = result;
@@ -352,6 +363,10 @@ Rcpp::List run_bgmCompare_parallel(
     double difference_scale,
     double difference_selection_alpha,
     double difference_selection_beta,
+    double difference_selection_alpha_between,
+    double difference_selection_beta_between,
+    double difference_dirichlet_alpha,
+    double difference_lambda,
     const std::string& difference_prior,
     int iter,
     int warmup,
@@ -394,6 +409,23 @@ Rcpp::List run_bgmCompare_parallel(
   auto difference_prior_obj = create_parameter_prior(interaction_prior_type_str, difference_scale);
   auto threshold_prior = create_parameter_prior(threshold_prior_type_str, threshold_scale, main_alpha, main_beta);
 
+  // Build the difference-indicator edge prior. Only Stochastic-Block needs
+  // the between-cluster, dirichlet, and lambda hyperparameters; the other
+  // families ignore them. When difference_selection is FALSE, use a no-op
+  // Bernoulli placeholder so the runner still has a valid object to clone.
+  std::unique_ptr<BaseEdgePrior> difference_edge_prior;
+  if (difference_selection) {
+    EdgePrior dpe = edge_prior_from_string(difference_prior);
+    difference_edge_prior = create_edge_prior(
+      dpe,
+      difference_selection_alpha, difference_selection_beta,
+      difference_selection_alpha_between, difference_selection_beta_between,
+      difference_dirichlet_alpha, difference_lambda
+    );
+  } else {
+    difference_edge_prior = std::make_unique<BernoulliEdgePrior>();
+  }
+
   // only used to determine the total no. warmup iterations, a bit hacky
   WarmupSchedule warmup_schedule_temp(warmup, difference_selection, (update_method_enum != adaptive_metropolis));
   int total_warmup = warmup_schedule_temp.total_warmup;
@@ -410,6 +442,7 @@ Rcpp::List run_bgmCompare_parallel(
       projection, group_membership, group_indices, interaction_index_matrix,
       inclusion_probability, chain_rngs, update_method_enum,
       pm, *interaction_prior, *difference_prior_obj, *threshold_prior,
+      *difference_edge_prior,
       results
   );
 
@@ -440,6 +473,9 @@ Rcpp::List run_bgmCompare_parallel(
       );
       if (r.has_indicator) {
         chain_out["indicator_samples"] = r.indicator_samples;
+      }
+      if (r.has_allocations) {
+        chain_out["allocation_samples"] = r.allocation_samples;
       }
       chain_out["userInterrupt"] = r.userInterrupt;
       output[i] = chain_out;

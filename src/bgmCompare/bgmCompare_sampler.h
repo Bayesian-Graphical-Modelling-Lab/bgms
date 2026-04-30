@@ -9,6 +9,7 @@
 #include "utils/common_helpers.h"
 #include "bgmCompare/bgmCompare_output.h"
 #include "priors/parameter_prior.h"
+#include "priors/edge_prior.h"
 #include <string>
 
 struct SafeRNG;
@@ -58,6 +59,10 @@ class ProgressManager;
  * @param rng                        Random number generator
  * @param update_method              Sampler type (adaptive_metropolis, nuts)
  * @param pm                         Progress manager for user feedback
+ * @param difference_edge_prior      Indicator prior for difference selection;
+ *                                   for Stochastic-Block, governs off-diagonal
+ *                                   (pairwise) inclusions and exposes block
+ *                                   allocations via has_allocations()
  * @return bgmCompareOutput containing posterior samples and diagnostics
  */
 
@@ -96,5 +101,6 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
     ProgressManager& pm,
     const BaseParameterPrior& interaction_prior,
     const BaseParameterPrior& difference_prior,
-    const BaseParameterPrior& threshold_prior
+    const BaseParameterPrior& threshold_prior,
+    BaseEdgePrior& difference_edge_prior
 );

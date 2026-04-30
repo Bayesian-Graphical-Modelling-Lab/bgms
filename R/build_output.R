@@ -831,6 +831,15 @@ build_output_compare = function(spec, raw) {
   num_categories = d$num_categories
   is_ordinal_variable = v$is_ordinal
   difference_selection = p$difference_selection
+  difference_prior = p$difference_prior
+
+  # Normalize SBM allocation samples (variables x iter -> iter x variables).
+  raw = lapply(raw, function(chain) {
+    if(!is.null(chain$allocation_samples)) {
+      chain$allocations = t(chain$allocation_samples)
+    }
+    chain
+  })
 
   # --- Parameter names --------------------------------------------------------
   names_all = generate_param_names_bgmCompare(
@@ -965,12 +974,42 @@ build_output_compare = function(spec, raw) {
     results$posterior_mean_pairwise_differences = pair_diff_list
   }
 
+  # --- SBM allocation summaries (Stochastic-Block difference prior) -----------
+  has_sbm = difference_selection &&
+    identical(difference_prior, "Stochastic-Block") &&
+    "allocations" %in% names(raw[[1]])
+
+  if(has_sbm) {
+    sbm_convergence = summarize_alloc_pairs(
+      allocations = lapply(raw, `[[`, "allocations"),
+      node_names  = data_columnnames
+    )
+    results$posterior_summary_pairwise_allocations = sbm_convergence$sbm_summary
+    results$posterior_mean_coclustering_matrix = sbm_convergence$co_occur_matrix
+
+    sbm_summary = posterior_summary_SBM(
+      allocations = lapply(raw, `[[`, "allocations"),
+      arguments = list(
+        dirichlet_alpha = p$dirichlet_alpha,
+        lambda          = p$lambda
+      )
+    )
+    results$posterior_mean_allocations = sbm_summary$allocations_mean
+    results$posterior_mode_allocations = sbm_summary$allocations_mode
+    results$posterior_num_blocks = sbm_summary$blocks
+  }
+
   # --- raw_samples ------------------------------------------------------------
   results$raw_samples = list(
     main = lapply(raw, function(chain) chain$main_samples),
     pairwise = lapply(raw, function(chain) chain$pairwise_samples),
     indicator = if(difference_selection) {
       lapply(raw, function(chain) chain$indicator_samples)
+    } else {
+      NULL
+    },
+    allocations = if(has_sbm) {
+      lapply(raw, `[[`, "allocations")
     } else {
       NULL
     },
