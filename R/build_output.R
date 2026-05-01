@@ -525,7 +525,7 @@ build_output_bgm = function(spec, raw) {
       nuts_max_depth = s$nuts_max_depth
     )
   } else if(s$update_method == "adaptive-metropolis") {
-    results$am_diag = summarize_am_diagnostics(raw, target_accept = s$target_accept)
+    results$am_diag = summarize_am_diagnostics(raw, names_main = names_main, names_pairwise = edge_names, target_accept = s$target_accept)
   }
 
   results$.bgm_spec = spec
@@ -810,7 +810,7 @@ build_output_mixed_mrf = function(spec, raw) {
       nuts_max_depth = s$nuts_max_depth
     )
   } else if(s$update_method == "adaptive-metropolis") {
-    results$am_diag = summarize_am_diagnostics(raw, target_accept = s$target_accept)
+    results$am_diag = summarize_am_diagnostics(raw, names_main = names_main, names_pairwise = edge_names, target_accept = s$target_accept)
   }
 
   results$.bgm_spec = spec
@@ -1046,7 +1046,12 @@ build_output_compare = function(spec, raw) {
       nuts_max_depth = s$nuts_max_depth
     )
   } else if(s$update_method == "adaptive-metropolis") {
-    results$am_diag = summarize_am_diagnostics(raw, target_accept = s$target_accept)
+    results$am_diag = summarize_am_diagnostics(
+      raw,
+      names_main     = c(names_all$main_baseline, names_all$main_diff),
+      names_pairwise = c(names_all$pairwise_baseline, names_all$pairwise_diff),
+      target_accept  = s$target_accept
+    )
   }
 
   results$.bgm_spec = spec
