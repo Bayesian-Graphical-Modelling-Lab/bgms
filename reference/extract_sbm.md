@@ -1,8 +1,9 @@
 # Extract Stochastic Block Model Summaries
 
-Retrieves posterior summaries from a model fitted with
-[`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)
-using the Stochastic Block prior on edge inclusion.
+Retrieves posterior summaries from a model fitted with the Stochastic
+Block prior. Works on both `bgms` fits (where SBM governs edge
+inclusion) and `bgmCompare` fits (where SBM governs the off-diagonal
+pairwise difference inclusions).
 
 ## Usage
 
@@ -15,18 +16,23 @@ extract_sbm(bgms_object)
 - bgms_object:
 
   A fitted model object of class `bgms` (from
-  [`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)).
+  [`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md))
+  or `bgmCompare` (from
+  [`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md)).
 
 ## Value
 
 A list with elements `posterior_num_blocks`,
 `posterior_mean_allocations`, `posterior_mode_allocations`, and
-`posterior_mean_coclustering_matrix`. Requires `edge_selection = TRUE`
-and `edge_prior = "Stochastic-Block"`.
+`posterior_mean_coclustering_matrix`. For `bgms`, requires
+`edge_selection = TRUE` and `edge_prior = sbm_prior(...)`. For
+`bgmCompare`, requires `difference_selection = TRUE` and
+`difference_prior = sbm_prior(...)`.
 
 ## See also
 
 [`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md),
+[`bgmCompare()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.md),
 [`extract_indicators()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_indicators.md),
 [`extract_posterior_inclusion_probabilities()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_posterior_inclusion_probabilities.md)
 
