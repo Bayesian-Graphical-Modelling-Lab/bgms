@@ -95,6 +95,16 @@ public:
     }
 
     /**
+     * Set the Robbins-Monro target acceptance rate used by the
+     * adaptive-Metropolis sampler. Honoured by both
+     * init_metropolis_adaptation() (forwarded to the controllers) and
+     * tune_proposal_sd() (the post-step Robbins-Monro update).
+     */
+    void set_metropolis_target_accept(double target) override {
+        target_accept_ = target;
+    }
+
+    /**
      * Initialize Metropolis adaptation controllers for proposal-SD tuning
      * Must be called before warmup begins (e.g., by MetropolisSampler on first step)
      */
@@ -271,6 +281,11 @@ private:
     // Most recent mean Metropolis acceptance probability over all updated
     // pairwise + main-effect components. Reset every do_one_metropolis_step().
     double last_mh_mean_accept_ = std::numeric_limits<double>::quiet_NaN();
+
+    // Robbins-Monro target acceptance rate for adaptive-Metropolis
+    // proposal-SD tuning. Set via set_metropolis_target_accept(), defaults
+    // to 0.44 (the componentwise random-walk Metropolis optimum).
+    double target_accept_ = 0.44;
 
     // Data
     size_t n_;                          ///< Number of observations

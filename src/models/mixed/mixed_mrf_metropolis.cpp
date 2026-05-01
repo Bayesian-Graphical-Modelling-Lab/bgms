@@ -42,7 +42,7 @@ void MixedMRFModel::update_main_effect(int s, int c, int iteration) {
     if(iteration >= 1 && iteration < total_warmup_) {
         double rm_weight = std::pow(iteration, -0.75);
         proposal_sd_main_discrete_(s, c) = update_proposal_sd_with_robbins_monro(
-            proposal_sd_main_discrete_(s, c), ln_alpha, rm_weight, 0.44);
+            proposal_sd_main_discrete_(s, c), ln_alpha, rm_weight, target_accept_);
     }
 }
 
@@ -83,7 +83,7 @@ void MixedMRFModel::update_continuous_mean(int j, int iteration) {
     if(iteration >= 1 && iteration < total_warmup_) {
         double rm_weight = std::pow(iteration, -0.75);
         proposal_sd_main_continuous_(j) = update_proposal_sd_with_robbins_monro(
-            proposal_sd_main_continuous_(j), ln_alpha, rm_weight, 0.44);
+            proposal_sd_main_continuous_(j), ln_alpha, rm_weight, target_accept_);
     }
 }
 
@@ -122,7 +122,7 @@ void MixedMRFModel::update_pairwise_discrete(int i, int j, int iteration) {
     if(iteration >= 1 && iteration < total_warmup_) {
         double rm_weight = std::pow(iteration, -0.75);
         proposal_sd_pairwise_discrete_(i, j) = update_proposal_sd_with_robbins_monro(
-            proposal_sd_pairwise_discrete_(i, j), ln_alpha, rm_weight, 0.44);
+            proposal_sd_pairwise_discrete_(i, j), ln_alpha, rm_weight, target_accept_);
     }
 }
 
@@ -447,7 +447,7 @@ void MixedMRFModel::update_pairwise_effects_continuous_offdiag(int i, int j, int
     if(iteration >= 1 && iteration < total_warmup_) {
         double rm_weight = std::pow(iteration, -0.75);
         proposal_sd_pairwise_continuous_(i, j) = update_proposal_sd_with_robbins_monro(
-            proposal_sd_pairwise_continuous_(i, j), ln_alpha, rm_weight, 0.44);
+            proposal_sd_pairwise_continuous_(i, j), ln_alpha, rm_weight, target_accept_);
     }
 }
 
@@ -515,7 +515,7 @@ void MixedMRFModel::update_pairwise_effects_continuous_diag(int i, int iteration
     if(iteration >= 1 && iteration < total_warmup_) {
         double rm_weight = std::pow(iteration, -0.75);
         proposal_sd_pairwise_continuous_(i, i) = update_proposal_sd_with_robbins_monro(
-            proposal_sd_pairwise_continuous_(i, i), ln_alpha, rm_weight, 0.44);
+            proposal_sd_pairwise_continuous_(i, i), ln_alpha, rm_weight, target_accept_);
     }
 }
 
@@ -561,7 +561,7 @@ void MixedMRFModel::update_pairwise_cross(int i, int j, int iteration) {
     if(iteration >= 1 && iteration < total_warmup_) {
         double rm_weight = std::pow(iteration, -0.75);
         proposal_sd_pairwise_cross_(i, j) = update_proposal_sd_with_robbins_monro(
-            proposal_sd_pairwise_cross_(i, j), ln_alpha, rm_weight, 0.44);
+            proposal_sd_pairwise_cross_(i, j), ln_alpha, rm_weight, target_accept_);
     }
 }
 

@@ -703,7 +703,7 @@ void GGMModel::update_edge_parameter(size_t i, size_t j, int iteration) {
     if (iteration >= 1 && iteration < total_warmup_) {
         double rm_weight = std::pow(iteration, -0.75);
         proposal_sds_(e) = update_proposal_sd_with_robbins_monro(
-            proposal_sds_(e), ln_alpha, rm_weight, 0.44);
+            proposal_sds_(e), ln_alpha, rm_weight, target_accept_);
     }
 }
 
@@ -775,7 +775,7 @@ void GGMModel::update_diagonal_parameter(size_t i, int iteration) {
     if (iteration >= 1 && iteration < total_warmup_) {
         double rm_weight = std::pow(iteration, -0.75);
         proposal_sds_(e) = update_proposal_sd_with_robbins_monro(
-            proposal_sds_(e), ln_alpha, rm_weight, 0.44);
+            proposal_sds_(e), ln_alpha, rm_weight, target_accept_);
     }
 }
 
@@ -970,7 +970,7 @@ void GGMModel::update_edge_indicators() {
 void GGMModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {
     if (!schedule.adapt_proposal_sd(iteration)) return;
 
-    const double target_accept = 0.44;
+    const double target_accept = target_accept_;
     const double rm_decay = 0.75;
     double t = iteration - schedule.stage3b_start + 1;
     double rm_weight = std::pow(t, -rm_decay);

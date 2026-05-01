@@ -136,6 +136,10 @@ Rcpp::List sample_mixed_mrf(
         seed
     );
 
+    // Forward target_accept to the model so adaptive-Metropolis updates
+    // target the user's value rather than the hard-coded 0.44 default.
+    model.set_metropolis_target_accept(target_acceptance);
+
     // Set up missing data imputation
     if(na_impute) {
         arma::imat missing_disc, missing_cont;

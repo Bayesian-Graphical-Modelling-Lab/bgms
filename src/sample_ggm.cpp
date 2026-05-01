@@ -68,6 +68,10 @@ Rcpp::List sample_ggm(
         edge_selection, std::move(interaction_prior),
         std::move(diagonal_prior), na_impute);
 
+    // Forward target_accept to the model so adaptive-Metropolis updates
+    // target the user's value rather than the hard-coded 0.44 default.
+    model.set_metropolis_target_accept(target_acceptance);
+
     // Set up missing data imputation (same pattern as OMRF)
     if (na_impute && missing_index_nullable.isNotNull()) {
         arma::imat missing_index = Rcpp::as<arma::imat>(

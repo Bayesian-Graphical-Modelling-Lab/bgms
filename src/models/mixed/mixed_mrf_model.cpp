@@ -188,7 +188,8 @@ MixedMRFModel::MixedMRFModel(const MixedMRFModel& other)
       rng_(other.rng_),
       edge_order_xx_(other.edge_order_xx_),
       edge_order_yy_(other.edge_order_yy_),
-      edge_order_xy_(other.edge_order_xy_)
+      edge_order_xy_(other.edge_order_xy_),
+      target_accept_(other.target_accept_)
 {
 }
 

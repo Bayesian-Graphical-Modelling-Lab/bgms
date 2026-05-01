@@ -107,6 +107,16 @@ public:
     }
 
     /**
+     * Set the target Metropolis acceptance rate for Robbins-Monro proposal
+     * adaptation. Called by the sampler entry points (sample_omrf,
+     * sample_mixed_mrf, sample_ggm) before the MCMC loop, with the value
+     * the user passed to bgm()'s `target_accept` argument.
+     *
+     * Default: no-op for models that do not perform Metropolis adaptation.
+     */
+    virtual void set_metropolis_target_accept(double /*target*/) {}
+
+    /**
      * Initialize Metropolis adaptation controllers.
      *
      * Called once before the MCMC loop begins. Subclasses store the

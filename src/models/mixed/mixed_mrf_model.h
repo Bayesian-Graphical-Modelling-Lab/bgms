@@ -128,6 +128,17 @@ public:
     void init_metropolis_adaptation(const WarmupSchedule& schedule) override;
 
     /**
+     * Set the Robbins-Monro target acceptance rate used by the
+     * adaptive-Metropolis updates of this mixed model. Honoured by the
+     * proposal-SD tuning of every Metropolis component (discrete main,
+     * continuous main, pairwise discrete, pairwise continuous, pairwise
+     * cross).
+     */
+    void set_metropolis_target_accept(double target) override {
+        target_accept_ = target;
+    }
+
+    /**
      * Tune proposal SDs via Robbins-Monro (Stage 3b).
      * Called every iteration; checks schedule internally.
      */
@@ -277,6 +288,11 @@ public:
                           const arma::imat& missing_continuous);
 
 private:
+
+    // Robbins-Monro target acceptance rate for adaptive-Metropolis
+    // proposal-SD tuning. Set via set_metropolis_target_accept(); defaults
+    // to 0.44 (componentwise random-walk Metropolis optimum).
+    double target_accept_ = 0.44;
 
     // =========================================================================
     // Counts and dimensions

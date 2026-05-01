@@ -95,6 +95,12 @@ Rcpp::List sample_omrf(
         std::move(interaction_prior), std::move(threshold_prior),
         edge_selection);
 
+    // Forward the user's target_accept to the model. This drives the
+    // Robbins-Monro proposal-SD adaptation under update_method =
+    // "adaptive-metropolis"; ignored under "nuts" (whose own dual
+    // averaging consumes target_acceptance via the SamplerConfig).
+    model.set_metropolis_target_accept(target_acceptance);
+
     // Set pairwise scaling factors (if provided)
     if (pairwise_scaling_factors_nullable.isNotNull()) {
         arma::mat sf = Rcpp::as<arma::mat>(

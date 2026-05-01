@@ -151,7 +151,8 @@ public:
           constraint_dirty_(other.constraint_dirty_),
           theta_valid_(other.theta_valid_),
           theta_(other.theta_),
-          pcg_lambda_cache_(other.pcg_lambda_cache_)
+          pcg_lambda_cache_(other.pcg_lambda_cache_),
+          target_accept_(other.target_accept_)
     {}
 
     /** @return true (GGM supports NUTS via free-element Cholesky gradient). */
@@ -192,6 +193,15 @@ public:
 
     /** Store warmup length for Robbins-Monro proposal-SD adaptation. */
     void init_metropolis_adaptation(const WarmupSchedule& schedule) override;
+
+    /**
+     * Set the Robbins-Monro target acceptance rate used by the
+     * adaptive-Metropolis updates of this GGM. Honoured by all
+     * Metropolis sweeps (off-diagonal and diagonal).
+     */
+    void set_metropolis_target_accept(double target) override {
+        target_accept_ = target;
+    }
 
     /** Shuffle edge visit order (random scan). */
     void prepare_iteration() override;
@@ -440,6 +450,11 @@ public:
     }
 
 private:
+
+    // Robbins-Monro target acceptance rate for adaptive-Metropolis
+    // proposal-SD tuning. Set via set_metropolis_target_accept(); defaults
+    // to 0.44 (componentwise random-walk Metropolis optimum).
+    double target_accept_ = 0.44;
 
     /** Extract upper triangle of the precision matrix into a vector. */
     arma::vec extract_upper_triangle() const {

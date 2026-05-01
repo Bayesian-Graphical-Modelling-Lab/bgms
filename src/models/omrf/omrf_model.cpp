@@ -125,7 +125,9 @@ OMRFModel::OMRFModel(const OMRFModel& other)
       index_matrix_cache_(other.index_matrix_cache_),
       gradient_cache_valid_(other.gradient_cache_valid_),
       interaction_index_(other.interaction_index_),
-      shuffled_edge_order_(other.shuffled_edge_order_)
+      shuffled_edge_order_(other.shuffled_edge_order_),
+      last_mh_mean_accept_(other.last_mh_mean_accept_),
+      target_accept_(other.target_accept_)
 {
 }
 
@@ -243,16 +245,16 @@ std::unique_ptr<BaseModel> OMRFModel::clone() const {
 
 void OMRFModel::init_metropolis_adaptation(const WarmupSchedule& schedule) {
     metropolis_main_adapter_ = std::make_unique<MetropolisAdaptationController>(
-        proposal_sd_main_, schedule);
+        proposal_sd_main_, schedule, target_accept_);
     metropolis_pairwise_adapter_ = std::make_unique<MetropolisAdaptationController>(
-        proposal_sd_pairwise_, schedule);
+        proposal_sd_pairwise_, schedule, target_accept_);
 }
 
 
 void OMRFModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {
     if (!schedule.adapt_proposal_sd(iteration)) return;
 
-    const double target_accept = 0.44;
+    const double target_accept = target_accept_;
     const double rm_decay = 0.75;
     double t = iteration - schedule.stage3b_start + 1;
     double rm_weight = std::pow(t, -rm_decay);
