@@ -245,3 +245,48 @@ summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) 
     )
   ))
 }
+
+
+# ------------------------------------------------------------------------------
+# summarize_am_diagnostics
+# ------------------------------------------------------------------------------
+# Combine and summarize adaptive-Metropolis diagnostics across chains.
+#
+# Mirrors summarize_nuts_diagnostics but only reports the per-iteration
+# mean acceptance probability, since adaptive-Metropolis has no
+# tree-depth, divergence, or energy concepts.
+#
+# @param out  List of chain outputs. Each element is a named list that
+#   must contain "am_accept_prob__". Chains without this field are
+#   silently dropped.
+# @param target_accept  Numeric scalar. The target acceptance rate the
+#   sampler was tuned toward (default: 0.44 for adaptive Metropolis).
+#   Stored alongside the diagnostic for convenience.
+#
+# Returns: An invisible named list with:
+#   - accept_prob: Numeric matrix (chains x iterations) of per-iteration
+#       mean Metropolis acceptance across all updated components.
+#   - target_accept: Numeric scalar; the target acceptance rate.
+#   - summary: List with mean_accept_prob (across all chains and iters).
+# ------------------------------------------------------------------------------
+summarize_am_diagnostics = function(out, target_accept = 0.44) {
+  am_chains = Filter(function(chain) {
+    "am_accept_prob__" %in% names(chain)
+  }, out)
+
+  if(length(am_chains) == 0) {
+    return(NULL)
+  }
+
+  accept_prob_mat = do.call(rbind, lapply(am_chains, function(chain) {
+    as.numeric(chain[["am_accept_prob__"]])
+  }))
+
+  invisible(list(
+    accept_prob = accept_prob_mat,
+    target_accept = target_accept,
+    summary = list(
+      mean_accept_prob = mean(accept_prob_mat, na.rm = TRUE)
+    )
+  ))
+}

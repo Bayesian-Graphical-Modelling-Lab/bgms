@@ -308,6 +308,7 @@ build_output_bgm = function(spec, raw) {
       if(!is.null(chain$non_reversible)) res[["non_reversible__"]] = chain$non_reversible
       if(!is.null(chain$energy)) res[["energy__"]] = chain$energy
       if(!is.null(chain$accept_prob)) res[["accept_prob__"]] = chain$accept_prob
+      if(!is.null(chain$am_accept_prob)) res[["am_accept_prob__"]] = chain$am_accept_prob
       res
     })
   } else {
@@ -335,6 +336,7 @@ build_output_bgm = function(spec, raw) {
       if(!is.null(chain$non_reversible)) res[["non_reversible__"]] = chain$non_reversible
       if(!is.null(chain$energy)) res[["energy__"]] = chain$energy
       if(!is.null(chain$accept_prob)) res[["accept_prob__"]] = chain$accept_prob
+      if(!is.null(chain$am_accept_prob)) res[["am_accept_prob__"]] = chain$am_accept_prob
       res
     })
   }
@@ -522,6 +524,8 @@ build_output_bgm = function(spec, raw) {
       raw,
       nuts_max_depth = s$nuts_max_depth
     )
+  } else if(s$update_method == "adaptive-metropolis") {
+    results$am_diag = summarize_am_diagnostics(raw, target_accept = s$target_accept)
   }
 
   results$.bgm_spec = spec
@@ -600,6 +604,7 @@ build_output_mixed_mrf = function(spec, raw) {
     if(!is.null(chain$non_reversible)) res[["non_reversible__"]] = chain$non_reversible
     if(!is.null(chain$energy)) res[["energy__"]] = chain$energy
     if(!is.null(chain$accept_prob)) res[["accept_prob__"]] = chain$accept_prob
+    if(!is.null(chain$am_accept_prob)) res[["am_accept_prob__"]] = chain$am_accept_prob
     res
   })
 
@@ -804,6 +809,8 @@ build_output_mixed_mrf = function(spec, raw) {
       raw,
       nuts_max_depth = s$nuts_max_depth
     )
+  } else if(s$update_method == "adaptive-metropolis") {
+    results$am_diag = summarize_am_diagnostics(raw, target_accept = s$target_accept)
   }
 
   results$.bgm_spec = spec
@@ -1038,6 +1045,8 @@ build_output_compare = function(spec, raw) {
       raw,
       nuts_max_depth = s$nuts_max_depth
     )
+  } else if(s$update_method == "adaptive-metropolis") {
+    results$am_diag = summarize_am_diagnostics(raw, target_accept = s$target_accept)
   }
 
   results$.bgm_spec = spec

@@ -85,6 +85,10 @@ void run_mcmc_chain(
                 }
             }
 
+            if (chain_result.has_am_diagnostics) {
+                chain_result.store_am_diagnostics(sample_index, result.accept_prob);
+            }
+
             chain_result.store_sample(sample_index, model.get_storage_vectorized_parameters());
 
             if (chain_result.has_indicators) {
@@ -135,6 +139,8 @@ std::vector<ChainResult> run_mcmc_sampler(
     ProgressManager& pm
 ) {
     const bool has_nuts_diag = (config.sampler_type == "nuts");
+    const bool has_am_diag = (config.sampler_type == "adaptive-metropolis" ||
+                              config.sampler_type == "mh");
     const bool has_sbm_alloc = edge_prior.has_allocations() ||
         (config.edge_selection && dynamic_cast<StochasticBlockEdgePrior*>(&edge_prior) != nullptr);
 
@@ -153,6 +159,10 @@ std::vector<ChainResult> run_mcmc_sampler(
 
         if (has_nuts_diag) {
             results[c].reserve_nuts_diagnostics(config.no_iter);
+        }
+
+        if (has_am_diag) {
+            results[c].reserve_am_diagnostics(config.no_iter);
         }
     }
 
@@ -216,6 +226,10 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
                 chain_list["non_reversible"] = chain.non_reversible_samples;
                 chain_list["energy"] = chain.energy_samples;
                 chain_list["accept_prob"] = chain.accept_prob_samples;
+            }
+
+            if (chain.has_am_diagnostics) {
+                chain_list["am_accept_prob"] = chain.am_accept_prob_samples;
             }
         }
 

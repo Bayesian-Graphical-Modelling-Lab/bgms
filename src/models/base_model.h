@@ -3,6 +3,7 @@
 #include <RcppArmadillo.h>
 #include <stdexcept>
 #include <memory>
+#include <limits>
 
 // Forward declarations
 struct StepResult;
@@ -90,6 +91,20 @@ public:
      * @param iteration  Current iteration index (for Robbins-Monro adaptation)
      */
     virtual void do_one_metropolis_step(int iteration = -1) = 0;
+
+    /**
+     * Mean Metropolis acceptance probability across all components updated
+     * in the most recent do_one_metropolis_step() call.
+     *
+     * Used to populate the per-iteration `am_diag$accept_prob` diagnostic
+     * for the adaptive-Metropolis sampler. Defaults to NaN for models that
+     * do not implement Metropolis updates or have not yet taken a step.
+     *
+     * @return Mean acceptance probability over the last sweep, or NaN.
+     */
+    virtual double last_metropolis_mean_accept_prob() const {
+        return std::numeric_limits<double>::quiet_NaN();
+    }
 
     /**
      * Initialize Metropolis adaptation controllers.

@@ -87,6 +87,14 @@ public:
     void do_one_metropolis_step(int iteration = -1) override;
 
     /**
+     * @return Mean Metropolis acceptance probability over the most recent
+     *         do_one_metropolis_step() sweep. NaN before the first step.
+     */
+    double last_metropolis_mean_accept_prob() const override {
+        return last_mh_mean_accept_;
+    }
+
+    /**
      * Initialize Metropolis adaptation controllers for proposal-SD tuning
      * Must be called before warmup begins (e.g., by MetropolisSampler on first step)
      */
@@ -259,6 +267,10 @@ private:
     // =========================================================================
     // Data members
     // =========================================================================
+
+    // Most recent mean Metropolis acceptance probability over all updated
+    // pairwise + main-effect components. Reset every do_one_metropolis_step().
+    double last_mh_mean_accept_ = std::numeric_limits<double>::quiet_NaN();
 
     // Data
     size_t n_;                          ///< Number of observations

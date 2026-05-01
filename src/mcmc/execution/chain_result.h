@@ -50,6 +50,12 @@ public:
     /// Whether NUTS diagnostics are stored.
     bool        has_nuts_diagnostics = false;
 
+    /// Adaptive-Metropolis mean per-iteration acceptance probability across
+    /// all updated components (n_iter).
+    arma::vec   am_accept_prob_samples;
+    /// Whether AM diagnostics are stored.
+    bool        has_am_diagnostics = false;
+
     /**
      * Reserve storage for samples
      * @param param_dim  Number of parameters per sample
@@ -90,6 +96,15 @@ public:
         energy_samples.set_size(n_iter);
         accept_prob_samples.set_size(n_iter);
         has_nuts_diagnostics = true;
+    }
+
+    /**
+     * Reserve storage for adaptive-Metropolis diagnostics
+     * @param n_iter  Number of sampling iterations
+     */
+    void reserve_am_diagnostics(const size_t n_iter) {
+        am_accept_prob_samples.set_size(n_iter);
+        has_am_diagnostics = true;
     }
 
     /**
@@ -134,5 +149,14 @@ public:
         non_reversible_samples(iter) = non_reversible ? 1 : 0;
         energy_samples(iter) = energy;
         accept_prob_samples(iter) = accept_prob;
+    }
+
+    /**
+     * Store adaptive-Metropolis diagnostics for one iteration
+     * @param iter         Iteration index (0-based)
+     * @param accept_prob  Mean acceptance probability across the sweep
+     */
+    void store_am_diagnostics(const size_t iter, double accept_prob) {
+        am_accept_prob_samples(iter) = accept_prob;
     }
 };

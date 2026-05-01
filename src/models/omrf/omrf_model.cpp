@@ -1214,6 +1214,11 @@ void OMRFModel::update_edge_indicator(int var1, int var2) {
 // =============================================================================
 
 void OMRFModel::do_one_metropolis_step(int iteration) {
+    // Track running mean acceptance probability across all components
+    // updated this iteration; exposed via last_metropolis_mean_accept_prob().
+    double sum_accept = 0.0;
+    int    n_accept   = 0;
+
     // --- Pairwise effects sweep ---
     arma::mat accept_prob_pairwise = arma::zeros<arma::mat>(p_, p_);
     arma::umat index_mask_pairwise = arma::zeros<arma::umat>(p_, p_);
@@ -1224,6 +1229,8 @@ void OMRFModel::do_one_metropolis_step(int iteration) {
             if (edge_indicators_(v1, v2) == 1) {
                 accept_prob_pairwise(v1, v2) = ap;
                 index_mask_pairwise(v1, v2) = 1;
+                sum_accept += ap;
+                ++n_accept;
             }
         }
     }
@@ -1242,11 +1249,17 @@ void OMRFModel::do_one_metropolis_step(int iteration) {
         if (is_ordinal_variable_(v)) {
             int num_cats = num_categories_(v);
             for (int c = 0; c < num_cats; ++c) {
-                accept_prob_main(v, c) = update_main_effect_parameter(v, c, -1);
+                double ap = update_main_effect_parameter(v, c, -1);
+                accept_prob_main(v, c) = ap;
+                sum_accept += ap;
+                ++n_accept;
             }
         } else {
             for (int p = 0; p < 2; ++p) {
-                accept_prob_main(v, p) = update_main_effect_parameter(v, -1, p);
+                double ap = update_main_effect_parameter(v, -1, p);
+                accept_prob_main(v, p) = ap;
+                sum_accept += ap;
+                ++n_accept;
             }
         }
     }
@@ -1254,6 +1267,10 @@ void OMRFModel::do_one_metropolis_step(int iteration) {
     if (metropolis_main_adapter_) {
         metropolis_main_adapter_->update(index_mask_main, accept_prob_main, iteration);
     }
+
+    last_mh_mean_accept_ = (n_accept > 0)
+        ? sum_accept / static_cast<double>(n_accept)
+        : std::numeric_limits<double>::quiet_NaN();
 
     invalidate_gradient_cache();
 }

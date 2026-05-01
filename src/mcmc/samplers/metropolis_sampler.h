@@ -39,7 +39,11 @@ public:
     }
 
     /**
-     * Perform one Metropolis step with adaptation
+     * Perform one Metropolis step with adaptation.
+     *
+     * Returns the mean acceptance probability over all components updated
+     * in the sweep (read from the model). This drives the per-iteration
+     * AM diagnostics surfaced as fit$am_diag$accept_prob.
      */
     StepResult step(BaseModel& model, int iteration) override {
         if (!initialized_) {
@@ -49,7 +53,7 @@ public:
         model.do_one_metropolis_step(iteration);
 
         StepResult result;
-        result.accept_prob = 1.0;
+        result.accept_prob = model.last_metropolis_mean_accept_prob();
         return result;
     }
 
