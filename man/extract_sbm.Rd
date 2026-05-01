@@ -7,20 +7,25 @@
 extract_sbm(bgms_object)
 }
 \arguments{
-\item{bgms_object}{A fitted model object of class \code{bgms} (from \code{\link[=bgm]{bgm()}}).}
+\item{bgms_object}{A fitted model object of class \code{bgms} (from \code{\link[=bgm]{bgm()}})
+or \code{bgmCompare} (from \code{\link[=bgmCompare]{bgmCompare()}}).}
 }
 \value{
 A list with elements \code{posterior_num_blocks},
 \code{posterior_mean_allocations}, \code{posterior_mode_allocations}, and
-\code{posterior_mean_coclustering_matrix}. Requires \code{edge_selection = TRUE}
-and \code{edge_prior = "Stochastic-Block"}.
+\code{posterior_mean_coclustering_matrix}. For \code{bgms}, requires
+\code{edge_selection = TRUE} and \code{edge_prior = sbm_prior(...)}. For
+\code{bgmCompare}, requires \code{difference_selection = TRUE} and
+\code{difference_prior = sbm_prior(...)}.
 }
 \description{
-Retrieves posterior summaries from a model fitted with \code{\link[=bgm]{bgm()}} using
-the Stochastic Block prior on edge inclusion.
+Retrieves posterior summaries from a model fitted with the Stochastic
+Block prior. Works on both \code{bgms} fits (where SBM governs edge inclusion)
+and \code{bgmCompare} fits (where SBM governs the off-diagonal pairwise
+difference inclusions).
 }
 \seealso{
-\code{\link[=bgm]{bgm()}}, \code{\link[=extract_indicators]{extract_indicators()}},
+\code{\link[=bgm]{bgm()}}, \code{\link[=bgmCompare]{bgmCompare()}}, \code{\link[=extract_indicators]{extract_indicators()}},
 \code{\link[=extract_posterior_inclusion_probabilities]{extract_posterior_inclusion_probabilities()}}
 
 Other extractors: 

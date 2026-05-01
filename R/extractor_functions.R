@@ -212,17 +212,22 @@ extract_posterior_inclusion_probabilities.bgms = function(bgms_object) {
 #' Extract Stochastic Block Model Summaries
 #'
 #' @description
-#' Retrieves posterior summaries from a model fitted with [bgm()] using
-#' the Stochastic Block prior on edge inclusion.
+#' Retrieves posterior summaries from a model fitted with the Stochastic
+#' Block prior. Works on both `bgms` fits (where SBM governs edge inclusion)
+#' and `bgmCompare` fits (where SBM governs the off-diagonal pairwise
+#' difference inclusions).
 #'
-#' @param bgms_object A fitted model object of class `bgms` (from [bgm()]).
+#' @param bgms_object A fitted model object of class `bgms` (from [bgm()])
+#'   or `bgmCompare` (from [bgmCompare()]).
 #'
 #' @return A list with elements `posterior_num_blocks`,
 #'   `posterior_mean_allocations`, `posterior_mode_allocations`, and
-#'   `posterior_mean_coclustering_matrix`. Requires `edge_selection = TRUE`
-#'   and `edge_prior = "Stochastic-Block"`.
+#'   `posterior_mean_coclustering_matrix`. For `bgms`, requires
+#'   `edge_selection = TRUE` and `edge_prior = sbm_prior(...)`. For
+#'   `bgmCompare`, requires `difference_selection = TRUE` and
+#'   `difference_prior = sbm_prior(...)`.
 #'
-#' @seealso [bgm()], [extract_indicators()],
+#' @seealso [bgm()], [bgmCompare()], [extract_indicators()],
 #'   [extract_posterior_inclusion_probabilities()]
 #' @family extractors
 #' @export
@@ -243,6 +248,30 @@ extract_sbm.bgms = function(bgms_object) {
     stop(paste0(
       "edge_prior must be 'Stochastic-Block' (got '",
       as.character(arguments$edge_prior), "')."
+    ))
+  }
+
+  return(list(
+    posterior_num_blocks               = bgms_object$posterior_num_blocks,
+    posterior_mean_allocations         = bgms_object$posterior_mean_allocations,
+    posterior_mode_allocations         = bgms_object$posterior_mode_allocations,
+    posterior_mean_coclustering_matrix = bgms_object$posterior_mean_coclustering_matrix
+  ))
+}
+
+#' @inheritParams extract_sbm
+#' @exportS3Method
+#' @noRd
+extract_sbm.bgmCompare = function(bgms_object) {
+  arguments = extract_arguments(bgms_object)
+
+  if(!isTRUE(arguments$difference_selection)) {
+    stop("To extract SBM summaries, run bgmCompare() with difference_selection = TRUE.")
+  }
+  if(!identical(arguments$difference_prior, "Stochastic-Block")) {
+    stop(paste0(
+      "difference_prior must be 'Stochastic-Block' (got '",
+      as.character(arguments$difference_prior), "')."
     ))
   }
 

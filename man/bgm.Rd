@@ -72,8 +72,8 @@ vector of length \code{p}. Required if at least one variable is of type
 Default: \code{2e3}.}
 
 \item{warmup}{Integer. Number of warmup iterations before collecting
-samples. A minimum of 1000 iterations is enforced, with a warning if a
-smaller value is requested. Default: \code{2e3}.}
+samples. Short warmups trigger progressive warnings (NUTS only); see
+\code{validate_sampler()} for the thresholds. Default: \code{2e3}.}
 
 \item{interaction_prior}{A prior specification object for pairwise
 interaction parameters, created by one of the prior constructor functions:
