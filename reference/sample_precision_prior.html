@@ -52,7 +52,7 @@ for continuous data. The likelihood is omitted (\(n = 0\),
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">sample_precision_prior</span><span class="op">(</span></span>
 <span>  <span class="va">p</span>,</span>
 <span>  <span class="va">n_samples</span>,</span>
-<span>  n_warmup <span class="op">=</span> <span class="fl">1000L</span>,</span>
+<span>  n_warmup <span class="op">=</span> <span class="fl">2000</span>,</span>
 <span>  interaction_prior <span class="op">=</span> <span class="fu"><a href="cauchy_prior.html">cauchy_prior</a></span><span class="op">(</span>scale <span class="op">=</span> <span class="fl">2.5</span><span class="op">)</span>,</span>
 <span>  precision_scale_prior <span class="op">=</span> <span class="fu"><a href="gamma_prior.html">gamma_prior</a></span><span class="op">(</span>shape <span class="op">=</span> <span class="fl">1</span>, rate <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>,</span>
 <span>  step_size <span class="op">=</span> <span class="fl">0.1</span>,</span>
@@ -76,7 +76,7 @@ for continuous data. The likelihood is omitted (\(n = 0\),
 
 
 <dt id="arg-n-warmup">n_warmup<a class="anchor" aria-label="anchor" href="#arg-n-warmup"></a></dt>
-<dd><p>Integer. NUTS warmup iterations. Default <code>1000</code>.</p></dd>
+<dd><p>Integer. NUTS warmup iterations. Default <code>2000</code>.</p></dd>
 
 
 <dt id="arg-interaction-prior">interaction_prior<a class="anchor" aria-label="anchor" href="#arg-interaction-prior"></a></dt>
