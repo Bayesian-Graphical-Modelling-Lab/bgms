@@ -121,6 +121,7 @@ public:
     /** Copy constructor for cloning (required for parallel chains). */
     GGMModel(const GGMModel& other)
         : BaseModel(other),
+          target_accept_(other.target_accept_),
           n_(other.n_),
           p_(other.p_),
           dim_(other.dim_),
@@ -151,8 +152,7 @@ public:
           constraint_dirty_(other.constraint_dirty_),
           theta_valid_(other.theta_valid_),
           theta_(other.theta_),
-          pcg_lambda_cache_(other.pcg_lambda_cache_),
-          target_accept_(other.target_accept_)
+          pcg_lambda_cache_(other.pcg_lambda_cache_)
     {}
 
     /** @return true (GGM supports NUTS via free-element Cholesky gradient). */

@@ -91,6 +91,8 @@ OMRFModel::OMRFModel(
 
 OMRFModel::OMRFModel(const OMRFModel& other)
     : BaseModel(other),
+      last_mh_mean_accept_(other.last_mh_mean_accept_),
+      target_accept_(other.target_accept_),
       n_(other.n_),
       p_(other.p_),
       observations_(other.observations_),
@@ -125,9 +127,7 @@ OMRFModel::OMRFModel(const OMRFModel& other)
       index_matrix_cache_(other.index_matrix_cache_),
       gradient_cache_valid_(other.gradient_cache_valid_),
       interaction_index_(other.interaction_index_),
-      shuffled_edge_order_(other.shuffled_edge_order_),
-      last_mh_mean_accept_(other.last_mh_mean_accept_),
-      target_accept_(other.target_accept_)
+      shuffled_edge_order_(other.shuffled_edge_order_)
 {
 }
 
