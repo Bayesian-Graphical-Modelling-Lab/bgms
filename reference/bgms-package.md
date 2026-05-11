@@ -98,6 +98,9 @@ Useful links:
 
 Authors:
 
+- Maarten Marsman <m.marsman@uva.nl>
+  ([ORCID](https://orcid.org/0000-0001-5309-7502))
+
 - Don van den Bergh ([ORCID](https://orcid.org/0000-0002-9838-7308))
 
 Other contributors:
