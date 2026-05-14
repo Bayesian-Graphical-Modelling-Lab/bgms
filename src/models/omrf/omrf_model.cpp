@@ -252,12 +252,10 @@ void OMRFModel::init_metropolis_adaptation(const WarmupSchedule& schedule) {
 
 
 void OMRFModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {
-    if (!schedule.adapt_proposal_sd(iteration)) return;
-
+    auto rm_weight_opt = schedule.rm_weight_for_proposal_sd(iteration);
+    if (!rm_weight_opt) return;
+    const double rm_weight = *rm_weight_opt;
     const double target_accept = target_accept_;
-    const double rm_decay = 0.75;
-    double t = iteration - schedule.stage3b_start + 1;
-    double rm_weight = std::pow(t, -rm_decay);
 
     const int num_variables = static_cast<int>(p_);
 

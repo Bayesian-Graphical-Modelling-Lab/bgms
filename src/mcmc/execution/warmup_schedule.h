@@ -2,6 +2,8 @@
 
 #include <vector>
 #include <algorithm>
+#include <cmath>
+#include <optional>
 
 
 /**
@@ -165,6 +167,24 @@ struct WarmupSchedule {
   /// Whether to adapt proposal_sd (Stage-3b only, if not skipped)
   bool adapt_proposal_sd(int i) const {
     return learn_proposal_sd && !stage3b_skipped && in_stage3b(i);
+  }
+
+  /// Robbins-Monro decay rate for proposal-SD adaptation. Single source of
+  /// truth; every model's tune_proposal_sd consults this.
+  static constexpr double proposal_sd_rm_decay = 0.75;
+
+  /// Robbins-Monro weight for proposal-SD adaptation at the given iteration.
+  ///
+  /// Returns the RM weight (1-indexed since stage 3b began, decay
+  /// `proposal_sd_rm_decay`) iff `adapt_proposal_sd(iter)` is true. Returns
+  /// nullopt otherwise. Use this in every `tune_proposal_sd` rather than
+  /// computing the weight inline — keeps the policy (which iterations adapt,
+  /// what the weight schedule looks like) in one place and makes stage-3b
+  /// adaptation sampler-agnostic by construction.
+  std::optional<double> rm_weight_for_proposal_sd(int iter) const {
+    if (!adapt_proposal_sd(iter)) return std::nullopt;
+    const double t = static_cast<double>(iter - stage3b_start + 1);
+    return std::pow(t, -proposal_sd_rm_decay);
   }
 
   /// Current Stage-2 window index (-1 outside Stage-2)

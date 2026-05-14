@@ -95,11 +95,16 @@ Rcpp::List sample_omrf(
         std::move(interaction_prior), std::move(threshold_prior),
         edge_selection);
 
-    // Forward the user's target_accept to the model. This drives the
-    // Robbins-Monro proposal-SD adaptation under update_method =
-    // "adaptive-metropolis"; ignored under "nuts" (whose own dual
-    // averaging consumes target_acceptance via the SamplerConfig).
-    model.set_metropolis_target_accept(target_acceptance);
+    // Forward target_accept to the model's MH proposal-SD tuner.
+    //   - Under "adaptive-metropolis": user's target_accept goes through
+    //     directly (default 0.44 = componentwise RW MH optimum).
+    //   - Under "nuts": user's target_accept (default 0.80) is the
+    //     HMC step-size dual-averaging target and should NOT govern the
+    //     between-model MH proposal SDs, which are still 1-D componentwise
+    //     RW MH. Hardcode 0.44 there to keep stage-3b RM on the right
+    //     fixed point.
+    const double mh_target = (sampler_type == "nuts") ? 0.44 : target_acceptance;
+    model.set_metropolis_target_accept(mh_target);
 
     // Set pairwise scaling factors (if provided)
     if (pairwise_scaling_factors_nullable.isNotNull()) {

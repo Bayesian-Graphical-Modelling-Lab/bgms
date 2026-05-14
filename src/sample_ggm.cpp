@@ -68,9 +68,16 @@ Rcpp::List sample_ggm(
         edge_selection, std::move(interaction_prior),
         std::move(diagonal_prior), na_impute);
 
-    // Forward target_accept to the model so adaptive-Metropolis updates
-    // target the user's value rather than the hard-coded 0.44 default.
-    model.set_metropolis_target_accept(target_acceptance);
+    // Forward target_accept to the model's MH proposal-SD tuner.
+    //   - Under "adaptive-metropolis": user's target_accept goes through
+    //     directly (default 0.44 = componentwise RW MH optimum).
+    //   - Under "nuts": user's target_accept (default 0.80) is the
+    //     HMC step-size dual-averaging target and should NOT govern the
+    //     between-model MH proposal SDs, which are still 1-D componentwise
+    //     RW MH. Hardcode 0.44 there to keep stage-3b RM on the right
+    //     fixed point.
+    const double mh_target = (sampler_type == "nuts") ? 0.44 : target_acceptance;
+    model.set_metropolis_target_accept(mh_target);
 
     // Set up missing data imputation (same pattern as OMRF)
     if (na_impute && missing_index_nullable.isNotNull()) {

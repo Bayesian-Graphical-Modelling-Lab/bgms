@@ -673,10 +673,10 @@ double GGMModel::log_density_impl_diag(size_t j) const {
 
 }
 
-void GGMModel::update_edge_parameter(size_t i, size_t j, int iteration) {
+double GGMModel::update_edge_parameter(size_t i, size_t j) {
 
     if (edge_indicators_(i, j) == 0) {
-        return; // Edge is not included; skip update
+        return 0.0; // Edge is not included; skip update (AR irrelevant, masked out)
     }
 
     get_constants(i, j);
@@ -721,12 +721,7 @@ void GGMModel::update_edge_parameter(size_t i, size_t j, int iteration) {
         cholesky_update_after_edge(omega_ij_old, omega_jj_old, i, j);
     }
 
-    // Robbins-Monro proposal-SD adaptation (warmup only)
-    if (iteration >= 1 && iteration < total_warmup_) {
-        double rm_weight = std::pow(iteration, -0.75);
-        proposal_sds_(e) = update_proposal_sd_with_robbins_monro(
-            proposal_sds_(e), ln_alpha, rm_weight, target_accept_);
-    }
+    return std::min(1.0, std::exp(ln_alpha));
 }
 
 void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_old, size_t i, size_t j)
@@ -768,7 +763,7 @@ void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_o
 
 }
 
-void GGMModel::update_diagonal_parameter(size_t i, int iteration) {
+double GGMModel::update_diagonal_parameter(size_t i) {
     double logdet_omega = cholesky_helpers::get_log_det(cholesky_of_precision_);
     double logdet_omega_sub_ii = logdet_omega + MY_LOG(covariance_matrix_(i, i));
 
@@ -793,12 +788,7 @@ void GGMModel::update_diagonal_parameter(size_t i, int iteration) {
         cholesky_update_after_diag(omega_ii, i);
     }
 
-    // Robbins-Monro proposal-SD adaptation (warmup only)
-    if (iteration >= 1 && iteration < total_warmup_) {
-        double rm_weight = std::pow(iteration, -0.75);
-        proposal_sds_(e) = update_proposal_sd_with_robbins_monro(
-            proposal_sds_(e), ln_alpha, rm_weight, target_accept_);
-    }
+    return std::min(1.0, std::exp(ln_alpha));
 }
 
 void GGMModel::cholesky_update_after_diag(double omega_ii_old, size_t i)
@@ -955,22 +945,41 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 }
 
 void GGMModel::do_one_metropolis_step(int iteration) {
+    // Collect per-slot accept probabilities for the Robbins-Monro adapter.
+    // proposal_sds_ is stored as a flat dim_-length vec indexed by the
+    // upper-triangle scheme `e = j * (j + 1) / 2 + i`; we mirror that here
+    // as a dim_ x 1 matrix.
+    arma::mat accept_prob(dim_, 1, arma::fill::zeros);
+    arma::umat index_mask(dim_, 1, arma::fill::zeros);
 
     // Update off-diagonals (upper triangle)
     for (size_t i = 0; i < p_ - 1; ++i) {
         for (size_t j = i + 1; j < p_; ++j) {
-            update_edge_parameter(i, j, iteration);
+            double ap = update_edge_parameter(i, j);
+            if (edge_indicators_(i, j) == 1) {
+                size_t e = j * (j + 1) / 2 + i;
+                accept_prob(e, 0) = ap;
+                index_mask(e, 0) = 1;
+            }
         }
     }
 
     // Update diagonals
     for (size_t i = 0; i < p_; ++i) {
-        update_diagonal_parameter(i, iteration);
+        double ap = update_diagonal_parameter(i);
+        size_t e = i * (i + 3) / 2;
+        accept_prob(e, 0) = ap;
+        index_mask(e, 0) = 1;
+    }
+
+    if (metropolis_adapter_) {
+        metropolis_adapter_->update(index_mask, accept_prob, iteration);
     }
 }
 
 void GGMModel::init_metropolis_adaptation(const WarmupSchedule& schedule) {
-    total_warmup_ = schedule.total_warmup;
+    metropolis_adapter_ = std::make_unique<MetropolisAdaptationController>(
+        proposal_sds_, schedule, target_accept_);
 }
 
 void GGMModel::prepare_iteration() {
@@ -1000,12 +1009,10 @@ void GGMModel::update_edge_indicators() {
 }
 
 void GGMModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {
-    if (!schedule.adapt_proposal_sd(iteration)) return;
-
+    auto rm_weight_opt = schedule.rm_weight_for_proposal_sd(iteration);
+    if (!rm_weight_opt) return;
+    const double rm_weight = *rm_weight_opt;
     const double target_accept = target_accept_;
-    const double rm_decay = 0.75;
-    double t = iteration - schedule.stage3b_start + 1;
-    double rm_weight = std::pow(t, -rm_decay);
 
     // Off-diagonal sweeps
     for (size_t i = 0; i < p_ - 1; ++i) {

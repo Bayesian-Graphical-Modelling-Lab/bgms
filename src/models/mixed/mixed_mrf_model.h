@@ -2,6 +2,7 @@
 
 #include <array>
 #include <memory>
+#include <optional>
 #include "models/base_model.h"
 #include "models/ggm/graph_constraint_structure.h"
 #include "models/ggm/ggm_gradient.h"
@@ -9,6 +10,7 @@
 #include "math/cholupdate.h"
 #include "rng/rng_utils.h"
 #include "priors/parameter_prior.h"
+#include "mcmc/samplers/metropolis_adaptation.h"
 
 /**
  * MixedMRFModel - Mixed Markov Random Field Model
@@ -122,12 +124,6 @@ public:
     void do_one_metropolis_step(int iteration = -1) override;
 
     /**
-     * Initialize Metropolis adaptation controllers for proposal-SD tuning.
-     * Called before warmup begins.
-     */
-    void init_metropolis_adaptation(const WarmupSchedule& schedule) override;
-
-    /**
      * Set the Robbins-Monro target acceptance rate used by the
      * adaptive-Metropolis updates of this mixed model. Honoured by the
      * proposal-SD tuning of every Metropolis component (discrete main,
@@ -139,8 +135,20 @@ public:
     }
 
     /**
+     * Construct Robbins-Monro adaptation controllers for the per-iteration
+     * MH proposal SDs. Called once by MetropolisSampler before warmup; under
+     * NUTS this is never called and the controllers stay null. One adapter
+     * per proposal-SD storage (5 in total).
+     */
+    void init_metropolis_adaptation(const WarmupSchedule& schedule) override;
+
+    /**
      * Tune proposal SDs via Robbins-Monro (Stage 3b).
-     * Called every iteration; checks schedule internally.
+     *
+     * Re-runs every MH sweep with the schedule-supplied RM weight applied to
+     * each proposal-SD slot. Outside stage 3b the schedule returns nullopt
+     * and this is a no-op. Mirrors `OMRFModel::tune_proposal_sd` /
+     * `GGMModel::tune_proposal_sd`; sampler-agnostic by construction.
      */
     void tune_proposal_sd(int iteration, const WarmupSchedule& schedule) override;
 
@@ -294,6 +302,16 @@ private:
     // to 0.44 (componentwise random-walk Metropolis optimum).
     double target_accept_ = 0.44;
 
+    /// Per-iteration adaptation controllers (MH mode only — under NUTS these
+    /// stay null and the stage-3b path in tune_proposal_sd is used instead).
+    /// One adapter per proposal-SD storage; off-diag and diag of the continuous
+    /// pairwise share `proposal_sd_pairwise_continuous_` and thus one adapter.
+    std::unique_ptr<MetropolisAdaptationController> mh_adapter_main_discrete_;
+    std::unique_ptr<MetropolisAdaptationController> mh_adapter_main_continuous_;
+    std::unique_ptr<MetropolisAdaptationController> mh_adapter_pairwise_discrete_;
+    std::unique_ptr<MetropolisAdaptationController> mh_adapter_pairwise_continuous_;
+    std::unique_ptr<MetropolisAdaptationController> mh_adapter_pairwise_cross_;
+
     // =========================================================================
     // Counts and dimensions
     // =========================================================================
@@ -371,11 +389,10 @@ private:
     // =========================================================================
 
     arma::mat proposal_sd_main_discrete_;             ///< p x max_cats
-    arma::vec proposal_sd_main_continuous_;             ///< q-vector
+    arma::mat proposal_sd_main_continuous_;             ///< q x 1 (mat-shaped for MetropolisAdaptationController)
     arma::mat proposal_sd_pairwise_discrete_;             ///< p x p
     arma::mat proposal_sd_pairwise_continuous_;             ///< q x q
     arma::mat proposal_sd_pairwise_cross_;             ///< p x q
-    int total_warmup_ = 0;              ///< Stored by init_metropolis_adaptation
 
     // =========================================================================
     // Cached quantities
@@ -518,23 +535,49 @@ private:
 
     // --- Parameter update sweeps ---
 
+    /**
+     * Run every within-model MH proposal once (main effects, continuous
+     * means, pairwise discrete/continuous/cross). Edge-indicator updates
+     * are handled separately by ChainRunner.
+     *
+     * If `rm_weight` is set, each proposal also Robbins-Monro-updates its
+     * proposal-SD slot using `ln_alpha` and `*rm_weight`. If nullopt, only
+     * the accept/reject step runs.
+     *
+     * Shared between `do_one_metropolis_step` (called by MetropolisSampler
+     * every iteration, with nullopt) and `tune_proposal_sd` (called every
+     * iteration but a no-op outside stage 3b; during 3b passes the
+     * schedule-supplied weight).
+     */
+    void sweep_within_model_mh(std::optional<double> rm_weight);
+
+    // All within-model MH update sweeps below take an optional `rm_weight`
+    // and return the Metropolis acceptance probability for the proposal.
+    // - From `do_one_metropolis_step`: called with std::nullopt; the returned
+    //   AR is collected per slot and fed to the MetropolisAdaptationController
+    //   batch update after the sweep.
+    // - From `tune_proposal_sd` during stage 3b: called with the schedule's
+    //   `rm_weight_for_proposal_sd(iter)`; Robbins-Monro updates the matching
+    //   proposal-SD slot inline using `ln_alpha` and `*rm_weight`. Returned
+    //   AR is discarded.
+
     /** Update one main-effect: main_effects_discrete_(s, c). Ordinal threshold or BC α/β. */
-    void update_main_effect(int s, int c, int iteration);
+    double update_main_effect(int s, int c, std::optional<double> rm_weight);
 
     /** Update one continuous mean: main_effects_continuous_(j). */
-    void update_continuous_mean(int j, int iteration);
+    double update_continuous_mean(int j, std::optional<double> rm_weight);
 
     /** Update one discrete interaction: pairwise_effects_discrete_(i, j). Symmetric. */
-    void update_pairwise_discrete(int i, int j, int iteration);
+    double update_pairwise_discrete(int i, int j, std::optional<double> rm_weight);
 
     /** Update one off-diagonal precision element. Cholesky-based. */
-    void update_pairwise_effects_continuous_offdiag(int i, int j, int iteration);
+    double update_pairwise_effects_continuous_offdiag(int i, int j, std::optional<double> rm_weight);
 
     /** Update one diagonal precision element. Log-scale Cholesky. */
-    void update_pairwise_effects_continuous_diag(int i, int iteration);
+    double update_pairwise_effects_continuous_diag(int i, std::optional<double> rm_weight);
 
     /** Update one cross interaction: pairwise_effects_cross_(i, j). */
-    void update_pairwise_cross(int i, int j, int iteration);
+    double update_pairwise_cross(int i, int j, std::optional<double> rm_weight);
 
     // --- Edge-indicator update sweeps ---
 

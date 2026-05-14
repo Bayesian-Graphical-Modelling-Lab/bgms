@@ -17,7 +17,7 @@
 // The accept/reject uses log_marginal_omrf(s) + beta-type prior.
 // =============================================================================
 
-void MixedMRFModel::update_main_effect(int s, int c, int iteration) {
+double MixedMRFModel::update_main_effect(int s, int c, std::optional<double> rm_weight) {
     double& current = main_effects_discrete_(s, c);
     double proposal_sd = proposal_sd_main_discrete_(s, c);
 
@@ -39,11 +39,11 @@ void MixedMRFModel::update_main_effect(int s, int c, int iteration) {
         current = current_val;  // reject
     }
 
-    if(iteration >= 1 && iteration < total_warmup_) {
-        double rm_weight = std::pow(iteration, -0.75);
+    if (rm_weight) {
         proposal_sd_main_discrete_(s, c) = update_proposal_sd_with_robbins_monro(
-            proposal_sd_main_discrete_(s, c), ln_alpha, rm_weight, target_accept_);
+            proposal_sd_main_discrete_(s, c), ln_alpha, *rm_weight, target_accept_);
     }
+    return std::min(1.0, std::exp(ln_alpha));
 }
 
 
@@ -55,7 +55,7 @@ void MixedMRFModel::update_main_effect(int s, int c, int iteration) {
 // Must save/restore conditional_mean_ around the proposal.
 // =============================================================================
 
-void MixedMRFModel::update_continuous_mean(int j, int iteration) {
+double MixedMRFModel::update_continuous_mean(int j, std::optional<double> rm_weight) {
     double current_val = main_effects_continuous_(j);
     double proposed = rnorm(rng_, current_val, proposal_sd_main_continuous_(j));
 
@@ -80,11 +80,11 @@ void MixedMRFModel::update_continuous_mean(int j, int iteration) {
         conditional_mean_ = std::move(cond_mean_saved);
     }
 
-    if(iteration >= 1 && iteration < total_warmup_) {
-        double rm_weight = std::pow(iteration, -0.75);
+    if (rm_weight) {
         proposal_sd_main_continuous_(j) = update_proposal_sd_with_robbins_monro(
-            proposal_sd_main_continuous_(j), ln_alpha, rm_weight, target_accept_);
+            proposal_sd_main_continuous_(j), ln_alpha, *rm_weight, target_accept_);
     }
+    return std::min(1.0, std::exp(ln_alpha));
 }
 
 
@@ -96,7 +96,7 @@ void MixedMRFModel::update_continuous_mean(int j, int iteration) {
 // Acceptance: log_marginal_omrf(i) + log_marginal_omrf(j) + Cauchy prior.
 // =============================================================================
 
-void MixedMRFModel::update_pairwise_discrete(int i, int j, int iteration) {
+double MixedMRFModel::update_pairwise_discrete(int i, int j, std::optional<double> rm_weight) {
     double current_val = pairwise_effects_discrete_(i, j);
     double proposed = rnorm(rng_, current_val, proposal_sd_pairwise_discrete_(i, j));
 
@@ -119,11 +119,11 @@ void MixedMRFModel::update_pairwise_discrete(int i, int j, int iteration) {
         recompute_marginal_interactions();
     }
 
-    if(iteration >= 1 && iteration < total_warmup_) {
-        double rm_weight = std::pow(iteration, -0.75);
+    if (rm_weight) {
         proposal_sd_pairwise_discrete_(i, j) = update_proposal_sd_with_robbins_monro(
-            proposal_sd_pairwise_discrete_(i, j), ln_alpha, rm_weight, target_accept_);
+            proposal_sd_pairwise_discrete_(i, j), ln_alpha, *rm_weight, target_accept_);
     }
+    return std::min(1.0, std::exp(ln_alpha));
 }
 
 
@@ -378,7 +378,7 @@ void MixedMRFModel::cholesky_update_after_precision_diag(double old_ii, int i) {
 // Storage: pairwise_effects_continuous_ = -1/2 * precision.
 // =============================================================================
 
-void MixedMRFModel::update_pairwise_effects_continuous_offdiag(int i, int j, int iteration) {
+double MixedMRFModel::update_pairwise_effects_continuous_offdiag(int i, int j, std::optional<double> rm_weight) {
     get_precision_constants(i, j);
 
     double phi_curr = cont_constants_[0];  // Phi_q1q
@@ -444,11 +444,11 @@ void MixedMRFModel::update_pairwise_effects_continuous_offdiag(int i, int j, int
         recompute_marginal_interactions();
     }
 
-    if(iteration >= 1 && iteration < total_warmup_) {
-        double rm_weight = std::pow(iteration, -0.75);
+    if (rm_weight) {
         proposal_sd_pairwise_continuous_(i, j) = update_proposal_sd_with_robbins_monro(
-            proposal_sd_pairwise_continuous_(i, j), ln_alpha, rm_weight, target_accept_);
+            proposal_sd_pairwise_continuous_(i, j), ln_alpha, *rm_weight, target_accept_);
     }
+    return std::min(1.0, std::exp(ln_alpha));
 }
 
 
@@ -461,7 +461,7 @@ void MixedMRFModel::update_pairwise_effects_continuous_offdiag(int i, int j, int
 // Prior: Gamma(1, 1) on negative diagonal + Jacobian for log-scale proposal.
 // =============================================================================
 
-void MixedMRFModel::update_pairwise_effects_continuous_diag(int i, int iteration) {
+double MixedMRFModel::update_pairwise_effects_continuous_diag(int i, std::optional<double> rm_weight) {
     double logdet = cholesky_helpers::get_log_det(cholesky_of_precision_);
     double logdet_sub_ii = logdet + MY_LOG(covariance_continuous_(i, i));
 
@@ -512,11 +512,11 @@ void MixedMRFModel::update_pairwise_effects_continuous_diag(int i, int iteration
         recompute_marginal_interactions();
     }
 
-    if(iteration >= 1 && iteration < total_warmup_) {
-        double rm_weight = std::pow(iteration, -0.75);
+    if (rm_weight) {
         proposal_sd_pairwise_continuous_(i, i) = update_proposal_sd_with_robbins_monro(
-            proposal_sd_pairwise_continuous_(i, i), ln_alpha, rm_weight, target_accept_);
+            proposal_sd_pairwise_continuous_(i, i), ln_alpha, *rm_weight, target_accept_);
     }
+    return std::min(1.0, std::exp(ln_alpha));
 }
 
 
@@ -528,7 +528,7 @@ void MixedMRFModel::update_pairwise_effects_continuous_diag(int i, int iteration
 // Must save/restore conditional_mean_ and marginal_interactions_ around the proposal.
 // =============================================================================
 
-void MixedMRFModel::update_pairwise_cross(int i, int j, int iteration) {
+double MixedMRFModel::update_pairwise_cross(int i, int j, std::optional<double> rm_weight) {
     double current_val = pairwise_effects_cross_(i, j);
     double proposed = rnorm(rng_, current_val, proposal_sd_pairwise_cross_(i, j));
 
@@ -558,11 +558,11 @@ void MixedMRFModel::update_pairwise_cross(int i, int j, int iteration) {
         marginal_interactions_ = std::move(marginal_saved);
     }
 
-    if(iteration >= 1 && iteration < total_warmup_) {
-        double rm_weight = std::pow(iteration, -0.75);
+    if (rm_weight) {
         proposal_sd_pairwise_cross_(i, j) = update_proposal_sd_with_robbins_monro(
-            proposal_sd_pairwise_cross_(i, j), ln_alpha, rm_weight, target_accept_);
+            proposal_sd_pairwise_cross_(i, j), ln_alpha, *rm_weight, target_accept_);
     }
+    return std::min(1.0, std::exp(ln_alpha));
 }
 
 

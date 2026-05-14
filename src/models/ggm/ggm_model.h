@@ -8,6 +8,7 @@
 #include "models/ggm/graph_constraint_structure.h"
 #include "models/ggm/ggm_gradient.h"
 #include "priors/parameter_prior.h"
+#include "mcmc/samplers/metropolis_adaptation.h"
 
 
 /**
@@ -60,7 +61,7 @@ public:
         edge_indicators_(initial_edge_indicators),
         vectorized_parameters_(dim_),
         vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
-        proposal_sds_(arma::vec(dim_, arma::fill::ones) * 0.25),
+        proposal_sds_(arma::mat(dim_, 1, arma::fill::ones) * 0.25),
         num_pairwise_(p_ * (p_ - 1) / 2),
         observations_(na_impute ? observations : arma::mat()),
         precision_proposal_(arma::mat(p_, p_, arma::fill::none))
@@ -108,7 +109,7 @@ public:
         edge_indicators_(initial_edge_indicators),
         vectorized_parameters_(dim_),
         vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
-        proposal_sds_(arma::vec(dim_, arma::fill::ones) * 0.25),
+        proposal_sds_(arma::mat(dim_, 1, arma::fill::ones) * 0.25),
         num_pairwise_(p_ * (p_ - 1) / 2),
         precision_proposal_(arma::mat(p_, p_, arma::fill::none))
     {
@@ -139,7 +140,6 @@ public:
           vectorized_parameters_(other.vectorized_parameters_),
           vectorized_indicator_parameters_(other.vectorized_indicator_parameters_),
           proposal_sds_(other.proposal_sds_),
-          total_warmup_(other.total_warmup_),
           shuffled_edge_order_(other.shuffled_edge_order_),
           num_pairwise_(other.num_pairwise_),
           rng_(other.rng_),
@@ -191,9 +191,6 @@ public:
         edge_selection_active_ = active;
     }
 
-    /** Store warmup length for Robbins-Monro proposal-SD adaptation. */
-    void init_metropolis_adaptation(const WarmupSchedule& schedule) override;
-
     /**
      * Set the Robbins-Monro target acceptance rate used by the
      * adaptive-Metropolis updates of this GGM. Honoured by all
@@ -202,6 +199,13 @@ public:
     void set_metropolis_target_accept(double target) override {
         target_accept_ = target;
     }
+
+    /**
+     * Construct Robbins-Monro adaptation controller for the per-iteration
+     * MH proposal SDs. Called once by MetropolisSampler before warmup;
+     * under NUTS this is never called and the controller stays null.
+     */
+    void init_metropolis_adaptation(const WarmupSchedule& schedule) override;
 
     /** Shuffle edge visit order (random scan). */
     void prepare_iteration() override;
@@ -456,6 +460,10 @@ private:
     // to 0.44 (componentwise random-walk Metropolis optimum).
     double target_accept_ = 0.44;
 
+    /// Per-iteration adaptation controller (MH mode only — under NUTS this
+    /// stays null and the stage-3b path in tune_proposal_sd is used instead).
+    std::unique_ptr<MetropolisAdaptationController> metropolis_adapter_;
+
     /** Extract upper triangle of the precision matrix into a vector. */
     arma::vec extract_upper_triangle() const {
         arma::vec result(dim_);
@@ -500,10 +508,10 @@ private:
     /// Pre-allocated storage returned by get_vectorized_indicator_parameters().
     arma::ivec vectorized_indicator_parameters_;
 
-    /// Proposal standard deviations for Metropolis updates (one per element).
-    arma::vec proposal_sds_;
-    /// Total number of warmup iterations (for Robbins-Monro adaptation).
-    int total_warmup_ = 0;
+    /// Proposal standard deviations for Metropolis updates (one per element,
+    /// stored as a (dim_, 1) matrix so it can be wrapped by
+    /// MetropolisAdaptationController).
+    arma::mat proposal_sds_;
 
     /// Shuffled edge visit order for random-scan edge selection.
     arma::uvec shuffled_edge_order_;
@@ -562,21 +570,22 @@ private:
      * on an unconstrained reparameterization. Accepts or rejects with a
      * Metropolis ratio using the Gaussian likelihood and Cauchy prior.
      *
-     * @param i          Row index (i < j)
-     * @param j          Column index
-     * @param iteration  Current iteration (for Robbins-Monro adaptation)
+     * @param i  Row index (i < j)
+     * @param j  Column index
+     * @return   Metropolis acceptance probability min(1, exp(ln_alpha)),
+     *           or 0.0 if the edge is inactive (caller masks it out).
      */
-    void update_edge_parameter(size_t i, size_t j, int iteration);
+    double update_edge_parameter(size_t i, size_t j);
 
     /**
      * Propose a new diagonal precision entry on the log scale.
      * Accepts or rejects with a Metropolis ratio using the Gaussian
      * likelihood, a Gamma(1,1) prior, and a Jacobian correction.
      *
-     * @param i          Diagonal index
-     * @param iteration  Current iteration (for Robbins-Monro adaptation)
+     * @param i  Diagonal index
+     * @return   Metropolis acceptance probability min(1, exp(ln_alpha)).
      */
-    void update_diagonal_parameter(size_t i, int iteration);
+    double update_diagonal_parameter(size_t i);
 
     /**
      * Metropolis-Hastings add-delete move for an edge indicator.

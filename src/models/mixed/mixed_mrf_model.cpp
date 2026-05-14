@@ -74,7 +74,7 @@ MixedMRFModel::MixedMRFModel(
 
     // Initialize proposal SDs
     proposal_sd_main_discrete_ = arma::ones<arma::mat>(p_, max_cats_);
-    proposal_sd_main_continuous_ = arma::ones<arma::vec>(q_);
+    proposal_sd_main_continuous_ = arma::ones<arma::mat>(q_, 1);
     proposal_sd_pairwise_discrete_ = arma::ones<arma::mat>(p_, p_);
     proposal_sd_pairwise_continuous_ = arma::ones<arma::mat>(q_, q_);
     proposal_sd_pairwise_cross_ = arma::ones<arma::mat>(p_, q_);
@@ -162,7 +162,6 @@ MixedMRFModel::MixedMRFModel(const MixedMRFModel& other)
       proposal_sd_pairwise_discrete_(other.proposal_sd_pairwise_discrete_),
       proposal_sd_pairwise_continuous_(other.proposal_sd_pairwise_continuous_),
       proposal_sd_pairwise_cross_(other.proposal_sd_pairwise_cross_),
-      total_warmup_(other.total_warmup_),
       cholesky_of_precision_(other.cholesky_of_precision_),
       inv_cholesky_of_precision_(other.inv_cholesky_of_precision_),
       covariance_continuous_(other.covariance_continuous_),
@@ -1185,42 +1184,134 @@ void MixedMRFModel::impute_missing() {
 // =============================================================================
 
 void MixedMRFModel::do_one_metropolis_step(int iteration) {
+    // Per-slot accept-probability and visit-mask matrices for the five
+    // proposal-SD storages. Only entries we actually visit get mask=1; the
+    // adapter only RM-updates those slots.
+    arma::mat  ar_main_disc  = arma::zeros<arma::mat >(p_, max_cats_);
+    arma::umat mask_main_disc= arma::zeros<arma::umat>(p_, max_cats_);
+    arma::mat  ar_main_cont  = arma::zeros<arma::mat >(q_, 1);
+    arma::umat mask_main_cont= arma::zeros<arma::umat>(q_, 1);
+    arma::mat  ar_pair_disc  = arma::zeros<arma::mat >(p_, p_);
+    arma::umat mask_pair_disc= arma::zeros<arma::umat>(p_, p_);
+    arma::mat  ar_pair_cont  = arma::zeros<arma::mat >(q_, q_);
+    arma::umat mask_pair_cont= arma::zeros<arma::umat>(q_, q_);
+    arma::mat  ar_pair_cross = arma::zeros<arma::mat >(p_, q_);
+    arma::umat mask_pair_cross= arma::zeros<arma::umat>(p_, q_);
+
+    // Step 1: main effects (ordinal thresholds or BC α/β)
+    for(size_t s = 0; s < p_; ++s) {
+        if(is_ordinal_variable_(s)) {
+            for(int c = 0; c < num_categories_(s); ++c) {
+                ar_main_disc(s, c) = update_main_effect(s, c, std::nullopt);
+                mask_main_disc(s, c) = 1;
+            }
+        } else {
+            ar_main_disc(s, 0) = update_main_effect(s, 0, std::nullopt);
+            ar_main_disc(s, 1) = update_main_effect(s, 1, std::nullopt);
+            mask_main_disc(s, 0) = 1;
+            mask_main_disc(s, 1) = 1;
+        }
+    }
+
+    // Step 2: continuous means
+    for(size_t j = 0; j < q_; ++j) {
+        ar_main_cont(j, 0) = update_continuous_mean(j, std::nullopt);
+        mask_main_cont(j, 0) = 1;
+    }
+
+    // Step 3: pairwise_effects_discrete_ (upper triangle, edge-gated)
+    for(size_t i = 0; i < p_ - 1; ++i)
+        for(size_t j = i + 1; j < p_; ++j)
+            if(!edge_selection_active_ || gxx(i, j) == 1) {
+                ar_pair_disc(i, j) = update_pairwise_discrete(i, j, std::nullopt);
+                mask_pair_disc(i, j) = 1;
+            }
+
+    // Step 4: pairwise_effects_continuous_ (off-diag + diagonal, edge-gated)
+    if(q_ >= 2) {
+        for(size_t i = 0; i < q_ - 1; ++i)
+            for(size_t j = i + 1; j < q_; ++j)
+                if(!edge_selection_active_ || gyy(i, j) == 1) {
+                    ar_pair_cont(i, j) = update_pairwise_effects_continuous_offdiag(i, j, std::nullopt);
+                    mask_pair_cont(i, j) = 1;
+                }
+    }
+    for(size_t i = 0; i < q_; ++i) {
+        ar_pair_cont(i, i) = update_pairwise_effects_continuous_diag(i, std::nullopt);
+        mask_pair_cont(i, i) = 1;
+    }
+
+    // Step 5: pairwise_effects_cross_ (edge-gated)
+    for(size_t i = 0; i < p_; ++i)
+        for(size_t j = 0; j < q_; ++j)
+            if(!edge_selection_active_ || gxy(i, j) == 1) {
+                ar_pair_cross(i, j) = update_pairwise_cross(i, j, std::nullopt);
+                mask_pair_cross(i, j) = 1;
+            }
+
+    // Robbins-Monro batch update on each storage's adapter (MH mode only).
+    if (mh_adapter_main_discrete_)
+        mh_adapter_main_discrete_->update(mask_main_disc, ar_main_disc, iteration);
+    if (mh_adapter_main_continuous_)
+        mh_adapter_main_continuous_->update(mask_main_cont, ar_main_cont, iteration);
+    if (mh_adapter_pairwise_discrete_)
+        mh_adapter_pairwise_discrete_->update(mask_pair_disc, ar_pair_disc, iteration);
+    if (mh_adapter_pairwise_continuous_)
+        mh_adapter_pairwise_continuous_->update(mask_pair_cont, ar_pair_cont, iteration);
+    if (mh_adapter_pairwise_cross_)
+        mh_adapter_pairwise_cross_->update(mask_pair_cross, ar_pair_cross, iteration);
+}
+
+void MixedMRFModel::init_metropolis_adaptation(const WarmupSchedule& schedule) {
+    mh_adapter_main_discrete_ = std::make_unique<MetropolisAdaptationController>(
+        proposal_sd_main_discrete_, schedule, target_accept_);
+    mh_adapter_main_continuous_ = std::make_unique<MetropolisAdaptationController>(
+        proposal_sd_main_continuous_, schedule, target_accept_);
+    mh_adapter_pairwise_discrete_ = std::make_unique<MetropolisAdaptationController>(
+        proposal_sd_pairwise_discrete_, schedule, target_accept_);
+    mh_adapter_pairwise_continuous_ = std::make_unique<MetropolisAdaptationController>(
+        proposal_sd_pairwise_continuous_, schedule, target_accept_);
+    mh_adapter_pairwise_cross_ = std::make_unique<MetropolisAdaptationController>(
+        proposal_sd_pairwise_cross_, schedule, target_accept_);
+}
+
+void MixedMRFModel::sweep_within_model_mh(std::optional<double> rm_weight) {
     // Step 1: Update all main effects (ordinal thresholds or BC α/β)
     for(size_t s = 0; s < p_; ++s) {
         if(is_ordinal_variable_(s)) {
             for(int c = 0; c < num_categories_(s); ++c)
-                update_main_effect(s, c, iteration);
+                update_main_effect(s, c, rm_weight);
         } else {
-            update_main_effect(s, 0, iteration);  // linear α
-            update_main_effect(s, 1, iteration);  // quadratic β
+            update_main_effect(s, 0, rm_weight);  // linear α
+            update_main_effect(s, 1, rm_weight);  // quadratic β
         }
     }
 
     // Step 2: Update all continuous means
     for(size_t j = 0; j < q_; ++j)
-        update_continuous_mean(j, iteration);
+        update_continuous_mean(j, rm_weight);
 
     // Step 3: Update pairwise_effects_discrete_ (upper triangle, edge-gated)
     for(size_t i = 0; i < p_ - 1; ++i)
         for(size_t j = i + 1; j < p_; ++j)
             if(!edge_selection_active_ || gxx(i, j) == 1)
-                update_pairwise_discrete(i, j, iteration);
+                update_pairwise_discrete(i, j, rm_weight);
 
     // Step 4: Update pairwise_effects_continuous_ (off-diag + diagonal, edge-gated)
     if(q_ >= 2) {
         for(size_t i = 0; i < q_ - 1; ++i)
             for(size_t j = i + 1; j < q_; ++j)
                 if(!edge_selection_active_ || gyy(i, j) == 1)
-                    update_pairwise_effects_continuous_offdiag(i, j, iteration);
+                    update_pairwise_effects_continuous_offdiag(i, j, rm_weight);
     }
     for(size_t i = 0; i < q_; ++i)
-        update_pairwise_effects_continuous_diag(i, iteration);
+        update_pairwise_effects_continuous_diag(i, rm_weight);
 
     // Step 5: Update pairwise_effects_cross_ (edge-gated)
     for(size_t i = 0; i < p_; ++i)
         for(size_t j = 0; j < q_; ++j)
             if(!edge_selection_active_ || gxy(i, j) == 1)
-                update_pairwise_cross(i, j, iteration);
+                update_pairwise_cross(i, j, rm_weight);
 
     // Edge-indicator updates are handled by ChainRunner, not here.
     // (Matches the OMRF pattern; avoids double-counting indicator proposals.)
@@ -1281,11 +1372,10 @@ void MixedMRFModel::prepare_iteration() {
     edge_order_xy_ = arma_randperm(rng_, num_cross_);
 }
 
-void MixedMRFModel::init_metropolis_adaptation(const WarmupSchedule& schedule) {
-    total_warmup_ = schedule.total_warmup;
-}
-
-void MixedMRFModel::tune_proposal_sd(int /*iteration*/, const WarmupSchedule& /*schedule*/) {
-    // Robbins-Monro adaptation is embedded in each MH update function,
-    // gated by iteration < total_warmup_. No separate tuning pass needed.
+void MixedMRFModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {
+    auto rm_weight_opt = schedule.rm_weight_for_proposal_sd(iteration);
+    if (!rm_weight_opt) return;
+    // Stage-3b sweep: re-run every within-model MH proposal with RM
+    // applied to its proposal-SD slot via *rm_weight_opt. Sampler-agnostic.
+    sweep_within_model_mh(rm_weight_opt);
 }
