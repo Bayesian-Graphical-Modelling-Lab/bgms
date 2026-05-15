@@ -75,7 +75,8 @@ Rcpp::List sample_mixed_mrf(
     const int max_tree_depth = 10,
     const bool na_impute = false,
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_discrete_nullable = R_NilValue,
-    const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_continuous_nullable = R_NilValue
+    const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_continuous_nullable = R_NilValue,
+    const double delta = 0.0
 ) {
     // Extract model inputs from R list
     arma::imat discrete_obs = Rcpp::as<arma::imat>(inputFromR["discrete_observations"]);
@@ -146,6 +147,12 @@ Rcpp::List sample_mixed_mrf(
     //     fixed point.
     const double mh_target = (sampler_type == "nuts") ? 0.44 : target_acceptance;
     model.set_metropolis_target_accept(mh_target);
+
+    // Determinant-tilt prior on |Kyy|: shifts both NUTS and MH targets by
+    // delta * log|Kyy|. delta = 0 is the default (untilted). Consumed by
+    // both gradient paths and the continuous-block MH ratios in
+    // MixedMRFModel.
+    model.set_determinant_tilt_yy(delta);
 
     // Set up missing data imputation
     if(na_impute) {

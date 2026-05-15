@@ -37,7 +37,8 @@ Rcpp::List sample_ggm(
     const double target_acceptance = 0.8,
     const int max_tree_depth = 10,
     const bool na_impute = false,
-    const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable = R_NilValue
+    const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable = R_NilValue,
+    const double delta = 0.0
 ) {
 
     // Create parameter priors from R input
@@ -78,6 +79,11 @@ Rcpp::List sample_ggm(
     //     fixed point.
     const double mh_target = (sampler_type == "nuts") ? 0.44 : target_acceptance;
     model.set_metropolis_target_accept(mh_target);
+
+    // Determinant-tilt prior on |K|: shifts both NUTS and MH targets by
+    // delta * log|K|. delta = 0 is the default (untilted). Consumed by
+    // both gradient paths and all four MH ratios in GGMModel.
+    model.set_determinant_tilt(delta);
 
     // Set up missing data imputation (same pattern as OMRF)
     if (na_impute && missing_index_nullable.isNotNull()) {
