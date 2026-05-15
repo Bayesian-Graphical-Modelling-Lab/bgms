@@ -607,18 +607,25 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
                * Theta_bar * temp_pairwise_cross * temp_covariance;
 
     // --- Phase 3: Priors on precision entries ---
-    // Diagonal prior on Ω_{jj}
+    // Prior on the partial-association diagonal: -K_yy_{jj} = Theta_{jj}/2.
+    //   logp uses 0.5 * Theta_jj.
+    //   d/dTheta_jj log p(Theta_jj/2) = 0.5 * grad(Theta_jj/2).
     for(size_t j = 0; j < q_; ++j) {
-        logp += diagonal_prior_->logp(temp_precision(j, j));
-        Omega_bar(j, j) += diagonal_prior_->grad(temp_precision(j, j));
+        double half_kjj = 0.5 * temp_precision(j, j);
+        logp += diagonal_prior_->logp(half_kjj);
+        Omega_bar(j, j) += 0.5 * diagonal_prior_->grad(half_kjj);
     }
-    // Interaction prior on off-diagonal Kyy_{ij} = -Ω_{ij}/2 (upper triangle only)
+    // Interaction prior on off-diagonal Kyy_{ij} = -Ω_{ij}/2 (upper triangle only).
+    // Gated on edge_indicators_: inactive edges have K_yy_{ij} = 0 (point mass)
+    // and contribute no slab density, matching the GGM convention at
+    // ggm_gradient.cpp where the slab is summed over included_indices only.
     // Only add to Omega_bar(i,j), not (j,i): the symmetrization
     // Ω̄ + Ω̄ᵀ in Phase 4 handles the lower triangle automatically.
     // The prior is on Kyy_{ij}, so we evaluate at -Ω_{ij}/2 and apply
     // chain rule: ∂logπ/∂Ω_{ij} = ∂logπ/∂Kyy_{ij} · (-1/2).
     for(size_t i = 0; i < q_ - 1; ++i) {
         for(size_t j = i + 1; j < q_; ++j) {
+            if(edge_indicators_(p_ + i, p_ + j) == 0) continue;
             double kyy_val = -0.5 * temp_precision(i, j);
             logp += interaction_prior_->logp(kyy_val);
             Omega_bar(i, j) += -0.5 * interaction_prior_->grad(kyy_val);
@@ -1036,9 +1043,11 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
         }
     }
 
-    // Kxx priors
+    // Kxx priors. Gated on edge_indicators_: inactive edges have K_xx_{ij} = 0
+    // (point mass) and contribute no slab density. Matches the GGM convention.
     for(size_t i = 0; i < p_ - 1; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
+            if(edge_indicators_(i, j) == 0) continue;
             double val = temp_pairwise_discrete(i, j);
             logp += interaction_prior_->logp(val);
             grad(kxx_idx(i, j)) += interaction_prior_->grad(val);
@@ -1052,9 +1061,11 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
         grad(mean_offset + j) += means_prior_->grad(val);
     }
 
-    // Kxy priors
+    // Kxy priors. Gated on edge_indicators_: inactive edges have K_xy_{ij} = 0
+    // (point mass) and contribute no slab density.
     for(size_t i = 0; i < p_; ++i) {
         for(size_t j = 0; j < q_; ++j) {
+            if(edge_indicators_(i, p_ + j) == 0) continue;
             double val = temp_pairwise_cross(i, j);
             logp += interaction_prior_->logp(val);
             grad(kxy_idx(i, j)) += interaction_prior_->grad(val);
@@ -1074,15 +1085,21 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
     Omega_bar -= 2.0 * temp_covariance * temp_pairwise_cross.t()
                * Theta_bar * temp_pairwise_cross * temp_covariance;
 
-    // Diagonal prior on Ω_{jj}
+    // Prior on the partial-association diagonal: -K_yy_{jj} = Theta_{jj}/2.
+    //   d/dTheta_jj log p(Theta_jj/2) = 0.5 * grad(Theta_jj/2).
     for(size_t j = 0; j < q_; ++j) {
-        logp += diagonal_prior_->logp(temp_precision(j, j));
-        Omega_bar(j, j) += diagonal_prior_->grad(temp_precision(j, j));
+        double half_kjj = 0.5 * temp_precision(j, j);
+        logp += diagonal_prior_->logp(half_kjj);
+        Omega_bar(j, j) += 0.5 * diagonal_prior_->grad(half_kjj);
     }
-    // Interaction prior on off-diagonal Kyy_{ij} = -Ω_{ij}/2
+    // Interaction prior on off-diagonal Kyy_{ij} = -Ω_{ij}/2.
+    // Gated on edge_indicators_: inactive edges have K_yy_{ij} = 0 (point mass)
+    // and contribute no slab density, matching the GGM convention at
+    // ggm_gradient.cpp where the slab is summed over included_indices only.
     // Chain rule: ∂logπ/∂Ω_{ij} = ∂logπ/∂Kyy_{ij} · (-1/2)
     for(size_t i = 0; i < q_ - 1; ++i) {
         for(size_t j = i + 1; j < q_; ++j) {
+            if(edge_indicators_(p_ + i, p_ + j) == 0) continue;
             double kyy_val = -0.5 * temp_precision(i, j);
             logp += interaction_prior_->logp(kyy_val);
             Omega_bar(i, j) += -0.5 * interaction_prior_->grad(kyy_val);

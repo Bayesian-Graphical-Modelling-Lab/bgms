@@ -187,7 +187,7 @@ double MixedMRFModel::precision_constrained_diagonal(double x) const {
 // an O(nq) rank-2 shortcut.
 // =============================================================================
 
-double MixedMRFModel::log_ggm_ratio_edge(int i, int j) const {
+double MixedMRFModel::log_ggm_ratio_edge(int i, int j, arma::mat& cov_prop_out) const {
     size_t ui = static_cast<size_t>(i);
     size_t uj = static_cast<size_t>(j);
 
@@ -250,6 +250,7 @@ double MixedMRFModel::log_ggm_ratio_edge(int i, int j) const {
     double quad_prop = arma::accu((D_prop * precision_proposal_) % D_prop);
 
     double n = static_cast<double>(n_);
+    cov_prop_out = std::move(cov_prop);
     return n / 2.0 * logdet_ratio - (quad_prop - quad_curr) / 2.0;
 }
 
@@ -261,7 +262,7 @@ double MixedMRFModel::log_ggm_ratio_edge(int i, int j) const {
 // Same structure as log_ggm_ratio_edge but simpler (Ui = 0).
 // =============================================================================
 
-double MixedMRFModel::log_ggm_ratio_diag(int i) const {
+double MixedMRFModel::log_ggm_ratio_diag(int i, arma::mat& cov_prop_out) const {
     size_t ui = static_cast<size_t>(i);
 
     // Current precision diagonal
@@ -296,6 +297,7 @@ double MixedMRFModel::log_ggm_ratio_diag(int i) const {
     double quad_prop = arma::accu((D_prop * precision_proposal_) % D_prop);
 
     double n = static_cast<double>(n_);
+    cov_prop_out = std::move(cov_prop);
     return n / 2.0 * logdet_ratio - (quad_prop - quad_curr) / 2.0;
 }
 
@@ -398,22 +400,29 @@ void MixedMRFModel::update_pairwise_effects_continuous_offdiag(int i, int j, int
     precision_proposal_(j, i) = theta_prop_ij;
     precision_proposal_(j, j) = theta_prop_jj;
 
-    double ln_alpha = log_ggm_ratio_edge(i, j);
+    arma::mat cov_prop;
+    double ln_alpha = log_ggm_ratio_edge(i, j, cov_prop);
 
-    // OMRF ratio with proposed continuous interactions
+    // OMRF ratio with proposed continuous interactions. The marginal
+    // interactions M = A_xx + 2 A_xy Σ A_xy^T depend on Σ; when Kyy changes,
+    // Σ changes too, so we must use Σ' (cov_prop) for the proposed-state
+    // recomputation, not the cached covariance_continuous_.
     for(size_t s = 0; s < p_; ++s)
         ln_alpha -= log_marginal_omrf(s);
 
     arma::mat marginal_saved = marginal_interactions_;
+    arma::mat covariance_saved = covariance_continuous_;
     arma::mat pairwise_effects_continuous_saved = pairwise_effects_continuous_;
-    // Temporarily set continuous interactions to proposed value
+    // Temporarily set continuous interactions and covariance to proposed values.
     pairwise_effects_continuous_(i, j) = -0.5 * theta_prop_ij;
     pairwise_effects_continuous_(j, i) = -0.5 * theta_prop_ij;
     pairwise_effects_continuous_(j, j) = -0.5 * theta_prop_jj;
+    covariance_continuous_ = cov_prop;
     recompute_marginal_interactions();
     for(size_t s = 0; s < p_; ++s)
         ln_alpha += log_marginal_omrf(s);
     pairwise_effects_continuous_ = pairwise_effects_continuous_saved;
+    covariance_continuous_ = std::move(covariance_saved);
     marginal_interactions_ = std::move(marginal_saved);
 
     // Prior ratio:
@@ -426,8 +435,8 @@ void MixedMRFModel::update_pairwise_effects_continuous_offdiag(int i, int j, int
     ln_alpha -= interaction_prior_->logp(cont_curr_ij);
 
     // Gamma(1,1) prior on changed diagonal K_jj
-    ln_alpha += diagonal_prior_->logp(theta_prop_jj);
-    ln_alpha -= diagonal_prior_->logp(-2.0 * pairwise_effects_continuous_(j, j));
+    ln_alpha += diagonal_prior_->logp(0.5 * theta_prop_jj);
+    ln_alpha -= diagonal_prior_->logp(0.5 * (-2.0 * pairwise_effects_continuous_(j, j)));
 
     if(MY_LOG(runif(rng_)) < ln_alpha) {
         // Pass old precision values to Cholesky update
@@ -478,24 +487,29 @@ void MixedMRFModel::update_pairwise_effects_continuous_diag(int i, int iteration
     precision_proposal_ = -2.0 * pairwise_effects_continuous_;
     precision_proposal_(i, i) = theta_ii_prop;
 
-    double ln_alpha = log_ggm_ratio_diag(i);
+    arma::mat cov_prop;
+    double ln_alpha = log_ggm_ratio_diag(i, cov_prop);
 
-    // OMRF ratio with proposed continuous interactions
+    // OMRF ratio with proposed continuous interactions. Use Σ' (cov_prop) for
+    // the proposed-state marginal_interactions, not the cached Σ.
     for(size_t s = 0; s < p_; ++s)
         ln_alpha -= log_marginal_omrf(s);
 
     arma::mat marginal_saved = marginal_interactions_;
+    arma::mat covariance_saved = covariance_continuous_;
     double cont_saved = pairwise_effects_continuous_(i, i);
     pairwise_effects_continuous_(i, i) = -0.5 * theta_ii_prop;
+    covariance_continuous_ = cov_prop;
     recompute_marginal_interactions();
     for(size_t s = 0; s < p_; ++s)
         ln_alpha += log_marginal_omrf(s);
     pairwise_effects_continuous_(i, i) = cont_saved;
+    covariance_continuous_ = std::move(covariance_saved);
     marginal_interactions_ = std::move(marginal_saved);
 
     // Prior ratio: Gamma(1,1) on K_ii (precision diagonal)
-    ln_alpha += diagonal_prior_->logp(theta_ii_prop);
-    ln_alpha -= diagonal_prior_->logp(theta_ii_curr);
+    ln_alpha += diagonal_prior_->logp(0.5 * theta_ii_prop);
+    ln_alpha -= diagonal_prior_->logp(0.5 * theta_ii_curr);
 
     // Jacobian: dK_ii/dtheta = 2*exp(2*theta)
     ln_alpha += 2.0 * (theta_prop - theta_curr);
@@ -666,21 +680,27 @@ void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
     precision_proposal_(j, j) = theta_prop_jj;
 
     // --- Likelihood ratio ---
-    double ln_alpha = log_ggm_ratio_edge(i, j);
+    arma::mat cov_prop;
+    double ln_alpha = log_ggm_ratio_edge(i, j, cov_prop);
 
+    // OMRF ratio with proposed continuous interactions. Use Σ' (cov_prop) for
+    // the proposed-state marginal_interactions, not the cached Σ.
     for(size_t s = 0; s < p_; ++s)
         ln_alpha -= log_marginal_omrf(s);
 
     arma::mat marginal_saved = marginal_interactions_;
+    arma::mat covariance_saved = covariance_continuous_;
     arma::mat pairwise_effects_continuous_saved = pairwise_effects_continuous_;
-    // Temporarily set continuous interactions to proposed value
+    // Temporarily set continuous interactions and covariance to proposed values.
     pairwise_effects_continuous_(i, j) = -0.5 * theta_prop_ij;
     pairwise_effects_continuous_(j, i) = -0.5 * theta_prop_ij;
     pairwise_effects_continuous_(j, j) = -0.5 * theta_prop_jj;
+    covariance_continuous_ = cov_prop;
     recompute_marginal_interactions();
     for(size_t s = 0; s < p_; ++s)
         ln_alpha += log_marginal_omrf(s);
     pairwise_effects_continuous_ = pairwise_effects_continuous_saved;
+    covariance_continuous_ = std::move(covariance_saved);
     marginal_interactions_ = std::move(marginal_saved);
 
     // --- Spike-and-slab terms ---
@@ -689,8 +709,8 @@ void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
     double cont_curr_ij = pairwise_effects_continuous_(i, j);
 
     // Gamma(1,1) prior on changed diagonal K_jj (always present, not part of spike-and-slab)
-    ln_alpha += diagonal_prior_->logp(theta_prop_jj);
-    ln_alpha -= diagonal_prior_->logp(-2.0 * pairwise_effects_continuous_(j, j));
+    ln_alpha += diagonal_prior_->logp(0.5 * theta_prop_jj);
+    ln_alpha -= diagonal_prior_->logp(0.5 * (-2.0 * pairwise_effects_continuous_(j, j)));
 
     // The proposal density is on the precision reparameterized scale:
     // theta_prop_ij = C[3] * epsilon, so epsilon = theta_prop_ij / C[3]
