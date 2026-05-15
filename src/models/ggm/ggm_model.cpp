@@ -144,7 +144,12 @@ std::pair<double, arma::vec> GGMModel::logp_and_gradient_full(
     const arma::vec& x)
 {
     ensure_constraint_structure();
-    return gradient_engine_.logp_and_gradient_full(x);
+    // Pass the current NUTS-adapted inverse mass diagonal so the gradient
+    // engine can use the correct mass-weighted Pfaffian
+    //   +0.5 log det(A_q M_q^{-1} A_q^T)
+    // for the RATTLE manifold-marginal correction. Empty inv_mass_ falls
+    // back to identity in the engine.
+    return gradient_engine_.logp_and_gradient_full(x, inv_mass_);
 }
 
 arma::vec GGMModel::get_active_inv_mass() const {
@@ -158,54 +163,23 @@ arma::vec GGMModel::get_active_inv_mass() const {
         return arma::ones<arma::vec>(cs.active_dim);
     }
 
-    // inv_mass_ has full dimension (from stage 2, all edges on).
-    // Rotate into the current constrained basis using N_q.
+    // The theta-space (unconstrained) NUTS path is the only caller of this
+    // function. get_full_vectorized_parameters() scatters each active theta
+    // entry into a definite slot in the full-dim vector (included off-diag
+    // slot for f_q[k]; full_psi_offset for psi_q; excluded slots stay 0).
+    // Welford in NUTSAdaptationController therefore tracks the variance of
+    // the theta entry at that slot directly, so the active inverse mass is
+    // simply the included-slot subset — no N_q rotation needed.
     if (inv_mass_.n_elem == cs.full_dim) {
         arma::vec active(cs.active_dim);
-        arma::mat Aq_buf;
-
         for (size_t q = 0; q < p_; ++q) {
             const auto& col = cs.columns[q];
             size_t active_offset = cs.theta_offsets[q];
             size_t full_offset = cs.full_theta_offsets[q];
-
-            if (q == 0 || col.d_q == 0) {
-                // psi_q only — pass through directly
-                active(cs.psi_offset(q)) = inv_mass_(cs.full_psi_offset(q));
-                continue;
+            for (size_t k = 0; k < col.d_q; ++k) {
+                active(active_offset + k) =
+                    inv_mass_(full_offset + col.included_indices[k]);
             }
-
-            // Gather per-Cholesky-entry variances for column q
-            arma::vec var_xq(q);
-            for (size_t j = 0; j < q; ++j) {
-                var_xq(j) = inv_mass_(full_offset + j);
-            }
-
-            if (col.m_q == 0) {
-                // No constraints: N_q = I, so f_q = x_q and
-                // mass entries pass through directly.
-                for (size_t k = 0; k < col.d_q; ++k) {
-                    active(active_offset + k) = var_xq(col.included_indices[k]);
-                }
-            } else {
-                // Build N_q and rotate: M^{-1}_{f_k} = sum_j N_{jk}^2 var(x_j)
-                arma::mat Q_tmp, R_tmp;
-                arma::vec R_diag;
-                std::vector<GivensRotation> rots_tmp;
-                GGMGradientEngine::build_Aq(cholesky_of_precision_, col, q, Aq_buf);
-                GGMGradientEngine::givens_qr(Aq_buf.t(), Q_tmp, R_tmp, R_diag, rots_tmp);
-                arma::mat Nq = Q_tmp.cols(col.m_q, q - 1);
-
-                for (size_t k = 0; k < col.d_q; ++k) {
-                    double mass_k = 0.0;
-                    for (size_t j = 0; j < q; ++j) {
-                        mass_k += Nq(j, k) * Nq(j, k) * var_xq(j);
-                    }
-                    active(active_offset + k) = mass_k;
-                }
-            }
-
-            // psi_q: pass through unchanged
             active(cs.psi_offset(q)) = inv_mass_(cs.full_psi_offset(q));
         }
         return active;
@@ -702,13 +676,11 @@ void GGMModel::update_edge_parameter(size_t i, size_t j, int iteration) {
     ln_alpha += interaction_prior_->logp(-0.5 * precision_proposal_(i, j));
     ln_alpha -= interaction_prior_->logp(-0.5 * precision_matrix_(i, j));
 
-    // Diagonal prior on K_jj. K_jj is a deterministic function of K_ij via
-    // constrained_diagonal, so its change must enter the MH ratio. This was
-    // previously claimed to "cancel under Gamma(1,1)", but that cancellation
-    // is incorrect for any non-Gamma(1,1) precision_scale_prior and shows up
-    // as edge-selection SBC failure.
-    ln_alpha += diagonal_prior_->logp(precision_proposal_(j, j));
-    ln_alpha -= diagonal_prior_->logp(precision_matrix_(j, j));
+    // Gamma(shape, rate) prior on changed diagonal K_jj. The Roverato move
+    // slaves K_jj = c_3 + phi_{q-1,q}^2, so K_jj moves with the off-diagonal
+    // and its prior must be re-evaluated.
+    ln_alpha += diagonal_prior_->logp(0.5 * precision_proposal_(j, j));
+    ln_alpha -= diagonal_prior_->logp(0.5 * precision_matrix_(j, j));
 
     if (MY_LOG(runif(rng_)) < ln_alpha) {
         double omega_ij_old = precision_matrix_(i, j);
@@ -783,8 +755,8 @@ void GGMModel::update_diagonal_parameter(size_t i, int iteration) {
 
     double ln_alpha = log_density_impl_diag(i);
 
-    ln_alpha += diagonal_prior_->logp(precision_proposal_(i, i));
-    ln_alpha -= diagonal_prior_->logp(precision_matrix_(i, i));
+    ln_alpha += diagonal_prior_->logp(0.5 * precision_proposal_(i, i));
+    ln_alpha -= diagonal_prior_->logp(0.5 * precision_matrix_(i, i));
     ln_alpha += 2.0 * (theta_prop - theta_curr); // Jacobian: dK_ii/dtheta = 2*exp(2*theta)
 
     if (MY_LOG(runif(rng_)) < ln_alpha) {
@@ -863,12 +835,11 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         // Interaction prior on K_yy_{ij} = -0.5 * Omega_{ij}
         ln_alpha -= interaction_prior_->logp(-0.5 * precision_matrix_(i, j));
 
-        // Diagonal prior on K_jj: changes from precision_matrix_(j, j)
-        // (edge ON) to precision_proposal_(j, j) = constrained_diagonal(0)
-        // (edge OFF). The earlier "cancels under Gamma(1,1)" claim is wrong
-        // for general precision_scale_prior.
-        ln_alpha += diagonal_prior_->logp(precision_proposal_(j, j));
-        ln_alpha -= diagonal_prior_->logp(precision_matrix_(j, j));
+        // Gamma(shape, rate) prior on changed diagonal K_jj. The Roverato move
+        // slaves K_jj = c_3 + phi_{q-1,q}^2, so K_jj moves with the off-diagonal
+        // and its prior must be re-evaluated.
+        ln_alpha += diagonal_prior_->logp(0.5 * precision_proposal_(j, j));
+        ln_alpha -= diagonal_prior_->logp(0.5 * precision_matrix_(j, j));
 
         if (MY_LOG(runif(rng_)) < ln_alpha) {
 
@@ -921,12 +892,11 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         // Prior change: add slab (interaction prior on K_yy_{ij} = -0.5 * Omega_{ij})
         ln_alpha += interaction_prior_->logp(-0.5 * omega_prop_ij);
 
-        // Diagonal prior on K_jj: changes from constants_[5] (edge OFF) to
-        // omega_prop_jj (edge ON via constrained parameterization). The
-        // earlier "cancels under Gamma(1,1)" claim is wrong for general
-        // precision_scale_prior.
-        ln_alpha += diagonal_prior_->logp(omega_prop_jj);
-        ln_alpha -= diagonal_prior_->logp(precision_matrix_(j, j));
+        // Gamma(shape, rate) prior on changed diagonal K_jj. The Roverato move
+        // slaves K_jj = c_3 + phi_{q-1,q}^2, so K_jj moves with the off-diagonal
+        // and its prior must be re-evaluated.
+        ln_alpha += diagonal_prior_->logp(0.5 * precision_proposal_(j, j));
+        ln_alpha -= diagonal_prior_->logp(0.5 * precision_matrix_(j, j));
 
         // Proposal term: proposed edge value given it was generated from truncated normal
         ln_alpha -= R::dnorm(omega_prop_ij / constants_[3], 0.0, proposal_sd, true) - MY_LOG(constants_[3]);
@@ -1031,9 +1001,11 @@ void GGMModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {
             ln_alpha += interaction_prior_->logp(-0.5 * precision_proposal_(i, j));
             ln_alpha -= interaction_prior_->logp(-0.5 * precision_matrix_(i, j));
 
-            // Diagonal prior on changed K_jj (constrained-diagonal coupling)
-            ln_alpha += diagonal_prior_->logp(precision_proposal_(j, j));
-            ln_alpha -= diagonal_prior_->logp(precision_matrix_(j, j));
+            // Gamma(shape, rate) prior on changed diagonal K_jj. The Roverato move
+            // slaves K_jj = c_3 + phi_{q-1,q}^2, so K_jj moves with the off-diagonal
+            // and its prior must be re-evaluated.
+            ln_alpha += diagonal_prior_->logp(0.5 * precision_proposal_(j, j));
+            ln_alpha -= diagonal_prior_->logp(0.5 * precision_matrix_(j, j));
 
             if (MY_LOG(runif(rng_)) < ln_alpha) {
                 double omega_ij_old = precision_matrix_(i, j);
@@ -1066,8 +1038,8 @@ void GGMModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {
             + MY_EXP(theta_prop) * MY_EXP(theta_prop);
 
         double ln_alpha = log_density_impl_diag(i);
-        ln_alpha += diagonal_prior_->logp(precision_proposal_(i, i));
-        ln_alpha -= diagonal_prior_->logp(precision_matrix_(i, i));
+        ln_alpha += diagonal_prior_->logp(0.5 * precision_proposal_(i, i));
+        ln_alpha -= diagonal_prior_->logp(0.5 * precision_matrix_(i, i));
         ln_alpha += 2.0 * (theta_prop - theta_curr); // Jacobian: dK_ii/dtheta = 2*exp(2*theta)
 
         if (MY_LOG(runif(rng_)) < ln_alpha) {

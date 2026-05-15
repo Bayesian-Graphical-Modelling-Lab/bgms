@@ -33,26 +33,31 @@ skip_unless_slow_sbc = function() {
 
 # ---- Prior sampler -----------------------------------------------------------
 
-# Draw a symmetric PD precision matrix from the GGM prior (no edge
-# selection):
-#   K_ij ~ Cauchy(0, scale)  (off-diagonal, i < j, symmetrised)
-#   K_ii ~ Gamma(1, 1)
-# Rejection-samples until the result is positive definite.
+# Draw a symmetric PD precision matrix K from the GGM prior (no edge
+# selection). The prior is specified on the partial-association scale
+# Omega = -K/2 to match the bgms sampler convention:
+#   Omega_ij    ~ Cauchy(0, scale)         (off-diagonal, i < j, symmetrised)
+#   -Omega_ii   ~ Gamma(1, 1)              (diagonal, positive)
+# Implies on K:
+#   K_ij = -2 * Omega_ij ~ Cauchy(0, 2*scale)
+#   K_ii =  2 * (-Omega_ii) ~ 2 * Gamma(1, 1) = Gamma(1, 1/2)
+# Rejection-samples until K is positive definite.
 draw_prior_K = function(p, scale = 2.5, max_tries = 10000) {
   for(attempt in seq_len(max_tries)) {
     K = matrix(0, p, p)
 
-    # Off-diagonal (upper triangle)
+    # Off-diagonal (upper triangle): Omega ~ Cauchy(0, scale), K = -2 * Omega
     for(i in seq_len(p - 1)) {
       for(j in (i + 1):p) {
-        K[i, j] = rcauchy(1, 0, scale)
+        omega_ij = rcauchy(1, 0, scale)
+        K[i, j] = -2 * omega_ij
         K[j, i] = K[i, j]
       }
     }
 
-    # Diagonal
+    # Diagonal: -Omega_ii ~ Gamma(1, 1), K_ii = 2 * (-Omega_ii)
     for(i in seq_len(p)) {
-      K[i, i] = rgamma(1, shape = 1, rate = 1)
+      K[i, i] = 2 * rgamma(1, shape = 1, rate = 1)
     }
 
     # Check positive definiteness
@@ -253,10 +258,14 @@ test_that("SBC: GGM MH produces uniform ranks (p=3, no edge selection)", {
 
 # ---- Prior sampler with edge selection ---------------------------------------
 
-# Draw a precision matrix from the spike-and-slab GGM prior:
+# Draw a precision matrix K from the spike-and-slab GGM prior, where the
+# prior is specified on the partial-association scale Omega = -K/2:
 #   gamma_ij ~ Bernoulli(0.5)
-#   K_ij | gamma_ij=1 ~ Cauchy(0, scale); K_ij | gamma_ij=0 = 0
-#   K_ii ~ Gamma(1, 1)
+#   Omega_ij | gamma_ij=1 ~ Cauchy(0, scale); Omega_ij | gamma_ij=0 = 0
+#   -Omega_ii ~ Gamma(1, 1)
+# Implies on K:
+#   K_ij | gamma_ij=1 ~ Cauchy(0, 2*scale); K_ij | gamma_ij=0 = 0
+#   K_ii ~ 2 * Gamma(1, 1)
 # Rejection-samples until K is positive definite.
 draw_prior_K_es = function(p, scale = 2.5, inclusion_prob = 0.5,
                            max_tries = 50000) {
@@ -269,14 +278,15 @@ draw_prior_K_es = function(p, scale = 2.5, inclusion_prob = 0.5,
         if(runif(1) < inclusion_prob) {
           gamma[i, j] = 1L
           gamma[j, i] = 1L
-          K[i, j] = rcauchy(1, 0, scale)
+          omega_ij = rcauchy(1, 0, scale)
+          K[i, j] = -2 * omega_ij
           K[j, i] = K[i, j]
         }
       }
     }
 
     for(i in seq_len(p)) {
-      K[i, i] = rgamma(1, shape = 1, rate = 1)
+      K[i, i] = 2 * rgamma(1, shape = 1, rate = 1)
     }
 
     ev = eigen(K, symmetric = TRUE, only.values = TRUE)$values

@@ -72,11 +72,11 @@ test_that("excluded edges are exactly zero in K_offdiag", {
 
 # ---- Scale prior plumbing ----------------------------------------------------
 
-test_that("gamma_prior(shape, rate) shifts diagonal mean toward shape/rate", {
-  # Gamma(shape=4, rate=2) has mean 2.0; Gamma(1, 1) has mean 1.0.
-  # With p = 3 the prior on K_ii is exactly the supplied scale prior, so
-  # the empirical mean of the diagonal across draws should track shape/rate
-  # within Monte Carlo error.
+test_that("gamma_prior(shape, rate) shifts diagonal mean toward 2*shape/rate", {
+  # The diagonal prior is on the partial-association diagonal
+  # -K_yy_{ii} = K_{ii}/2, so gamma_prior(shape, rate) implies
+  #   K_ii ~ 2 * Gamma(shape, rate),  mean = 2 * shape/rate.
+  # Gamma(4, 2) -> mean(K_ii) = 4.0; Gamma(1, 1) -> mean(K_ii) = 2.0.
   draws_default = short_run(
     p = 3L, n_samples = 400L, n_warmup = 200L
   )
@@ -86,7 +86,7 @@ test_that("gamma_prior(shape, rate) shifts diagonal mean toward shape/rate", {
   )
 
   expect_lt(mean(draws_default$K_diag), mean(draws_heavy$K_diag))
-  expect_equal(mean(draws_heavy$K_diag), 2.0, tolerance = 0.4)
+  expect_equal(mean(draws_heavy$K_diag), 4.0, tolerance = 0.6)
 })
 
 

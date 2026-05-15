@@ -363,8 +363,17 @@ public:
     // RATTLE constrained integration
     // -----------------------------------------------------------------
 
-    /** @return true when constraints exist (edge selection or sparse graph). */
-    bool has_constraints() const override { return edge_selection_ || has_sparse_graph_; }
+    /**
+     * @return true only when edge selection is enabled.
+     *
+     * Fixed-sparse graphs (`edge_selection=false` with some edges excluded)
+     * are sampled via the theta-space (free-element Cholesky) NUTS path,
+     * not RATTLE. The constraint manifold is constant in that case and is
+     * parameterised directly by the null-space coordinates f_q, so RATTLE
+     * is unnecessary. RATTLE is still required when edge selection is on
+     * because the manifold changes whenever an edge indicator flips.
+     */
+    bool has_constraints() const override { return edge_selection_; }
 
     /**
      * Pack the Cholesky factor into a full-dimension position vector.

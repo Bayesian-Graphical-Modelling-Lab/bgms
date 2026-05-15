@@ -111,18 +111,22 @@ public:
      *
      * Operates on the full position vector x in R^{p(p+1)/2} —
      * the raw Cholesky entries (off-diagonal) and log-diagonal (psi).
-     * No null-space transformation or QR decomposition is needed:
-     * the gradient w.r.t. each x_{iq} is simply Phi_bar_{iq}.
      *
-     * The Jacobian includes only the Cholesky-to-K and log-diagonal
-     * terms. The QR Jacobian terms from the null-space basis are not
-     * needed because RATTLE preserves the correct measure on the
-     * constraint manifold.
+     * Includes the RATTLE constraint Pfaffian +0.5 log|det(J M^{-1} J^T)|
+     * so that the manifold marginal targets log p(K) + log|det dK/dx_manifold|.
+     * The Pfaffian factors across columns as a sum of per-column terms
+     * 0.5 log det(A_q diag(inv_mass_q) A_q^T), where A_q is the column-q
+     * excluded-edge constraint matrix.
      *
-     * @param x  Full position vector of dimension p(p+1)/2
+     * @param x              Full position vector of dimension p(p+1)/2
+     * @param inv_mass_diag  Diagonal of the inverse mass matrix used by the
+     *                       integrator; pass an empty vector to use identity
+     *                       (only correct when the integrator runs with M = I).
      * @return (log-posterior value, gradient vector of same dimension)
      */
-    std::pair<double, arma::vec> logp_and_gradient_full(const arma::vec& x) const;
+    std::pair<double, arma::vec> logp_and_gradient_full(
+        const arma::vec& x,
+        const arma::vec& inv_mass_diag = arma::vec()) const;
 
     /**
      * Givens QR of an n x m matrix M (n >= m).

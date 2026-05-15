@@ -90,7 +90,8 @@ Rcpp::List ggm_test_logp_and_gradient_full_prior(
     double interaction_beta = 0.5,
     const std::string& diagonal_prior_type = "gamma",
     double diagonal_shape = 1.0,
-    double diagonal_rate = 1.0
+    double diagonal_rate = 1.0,
+    Rcpp::Nullable<Rcpp::NumericVector> inv_mass_diag = R_NilValue
 ) {
     GraphConstraintStructure cs;
     cs.build(edge_indicators);
@@ -103,7 +104,14 @@ Rcpp::List ggm_test_logp_and_gradient_full_prior(
     GGMGradientEngine engine;
     engine.rebuild(cs, static_cast<size_t>(n), suf_stat, *ip, *dp);
 
-    auto result = engine.logp_and_gradient_full(x);
+    // Empty inv_mass_diag => identity mass. Otherwise plug through to the
+    // mass-weighted Pfaffian inside the engine.
+    arma::vec inv_mass;
+    if (inv_mass_diag.isNotNull()) {
+        inv_mass = Rcpp::as<arma::vec>(inv_mass_diag);
+    }
+
+    auto result = engine.logp_and_gradient_full(x, inv_mass);
 
     return Rcpp::List::create(
         Rcpp::Named("value") = result.first,

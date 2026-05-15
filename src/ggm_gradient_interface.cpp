@@ -350,13 +350,15 @@ Rcpp::List ggm_test_leapfrog_constrained_checked(
 // the likelihood vanishes and the sampler targets the prior:
 //   -K_ij/2 | graph ~ Cauchy(0, scale) or Normal(0, scale)       (included edges)
 //   K_ij = 0                                                      (excluded edges)
-//   K_ii ~ Gamma(gamma_shape, gamma_rate)                         (diagonal)
+//   K_ii/2 ~ Gamma(gamma_shape, gamma_rate)                       (diagonal)
 //
-// Note on convention: `interaction_prior` is applied on the association scale
-// K_yy_{ij} = -K_{ij}/2 (consistent with the mixed-MRF continuous block),
-// NOT on the precision entry K_{ij} directly. A `Normal(0, scale)` prior
-// therefore constrains K_yy off-diagonals with standard deviation `scale`,
-// equivalent to Normal(0, 2*scale) on K_{ij}.
+// Note on convention: both `interaction_prior` and `diagonal_prior` are
+// applied on the partial-association scale K_yy = -K/2 (consistent with the
+// mixed-MRF continuous block), NOT on the precision entries directly.
+// A `Normal(0, scale)` prior therefore constrains K_yy off-diagonals with
+// standard deviation `scale`, equivalent to Normal(0, 2*scale) on K_{ij}.
+// A `Gamma(shape, rate)` diagonal prior is applied to -K_yy_{ii} = K_{ii}/2,
+// so the implied prior on K_{ii} is Gamma(shape, rate/2).
 //
 // edge_indicators: p x p integer matrix with 1 = edge included, 0 = excluded.
 //   Defaults to all-ones (full graph). For edge selection SBC, pass the

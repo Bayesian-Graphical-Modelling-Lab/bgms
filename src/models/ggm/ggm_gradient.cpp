@@ -277,10 +277,12 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
         }
     }
 
-    // Prior on diagonal K entries
+    // Prior on the partial-association diagonal: -K_yy_{ii} = K_{ii}/2.
+    // Evaluated at 0.5 * K_{ii} so `diagonal_prior_` refers to the same
+    // quantity (the partial association) as `interaction_prior_`.
     double log_diag_prior = 0.0;
     for (size_t i = 0; i < p_; ++i) {
-        log_diag_prior += diagonal_prior_->logp(K(i, i));
+        log_diag_prior += diagonal_prior_->logp(0.5 * K(i, i));
     }
 
     double lp = log_lik + log_slab + log_diag_prior + fm.log_det_jacobian;
@@ -293,11 +295,13 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
 
     // Phase 1: Phi_bar from data + priors (direct Phi-space, no K^{-1})
     // Data:  d/dPhi [-0.5 tr(Phi^T Phi S)] = -Phi S = -P
-    // Diagonal prior: d/dPhi [log p(K_ii)] = grad(K_ii) * 2 Phi(:,i)
+    // Diagonal prior: d/dPhi [log p(K_ii/2)]
+    //   = (1/2) * grad(K_ii/2) * dK_ii/dPhi
+    //   = (1/2) * grad(K_ii/2) * 2 Phi(:,i) = grad(K_ii/2) * Phi(:,i).
     arma::mat Phi_bar = -P;
     for (size_t i = 0; i < p_; ++i) {
-        double dg = diagonal_prior_->grad(K(i, i));
-        Phi_bar.col(i).head(i + 1) += 2.0 * dg * Phi.col(i).head(i + 1);
+        double dg = diagonal_prior_->grad(0.5 * K(i, i));
+        Phi_bar.col(i).head(i + 1) += dg * Phi.col(i).head(i + 1);
     }
 
     // Interaction prior adjoint on included edges.
@@ -455,8 +459,11 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
 // from the previous K-space adjoint approach.
 
 std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient_full(
-    const arma::vec& x) const
+    const arma::vec& x,
+    const arma::vec& inv_mass_diag) const
 {
+    const bool use_identity_mass = inv_mass_diag.is_empty();
+
     // --- Forward pass: unpack x -> Phi ---
     arma::mat Phi(p_, p_, arma::fill::zeros);
     arma::vec psi(p_);
@@ -506,38 +513,85 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient_full(
         }
     }
 
-    // Prior on diagonal K entries
+    // Prior on the partial-association diagonal: -K_yy_{ii} = K_{ii}/2.
     double log_diag_prior = 0.0;
     for (size_t i = 0; i < p_; ++i) {
         double kii = arma::dot(
             Phi.col(i).head(i + 1),
             Phi.col(i).head(i + 1));
-        log_diag_prior += diagonal_prior_->logp(kii);
+        log_diag_prior += diagonal_prior_->logp(0.5 * kii);
     }
 
-    // Roverato graph-constrained Cholesky Jacobian:
-    //   log|det J(x_full -> K_active)| = p*log(2)
-    //                                  + sum_k (deg_higher(k) + 2) * psi_k
-    // where deg_higher(k) = number of active edges (k, q) with q > k.
-    // For the full graph deg_higher(k) = p - 1 - k, so this reduces to the
-    // earlier "p*log(2) + 2*sum(psi) + sum_{i<p-1}(p-1-i)*psi_i" form.
-    // RATTLE/SHAKE handles the surface measure of the constraint manifold;
-    // the prior's Jacobian must use the graph-aware degree-higher count
-    // so that the implied conditional density on the manifold matches the
-    // intended K | G prior.
+    // Full Cholesky Jacobian:
+    //   log|det d(K)/d(Phi)| = p*log(2) + sum_k (p+1-k) * psi_k
+    // (i.e. 2*sum(psi) + sum_{k<p-1} (p-1-k)*psi_k).  The graph-specific
+    // volume reduction is handled separately by the -0.5 log det G_q
+    // correction below; combining the two reproduces the theta-space
+    // Roverato Jacobian exactly. This is the SAME formula the theta-space
+    // path uses, so the two log-targets agree at corresponding (theta, x).
     double ldj = static_cast<double>(p_) * std::log(2.0);
-    arma::uvec deg_higher_vec(p_, arma::fill::zeros);
     for (size_t k = 0; k < p_; ++k) {
-        for (size_t q = k + 1; q < p_; ++q) {
-            const auto& inc = structure_->columns[q].included_indices;
-            if (std::find(inc.begin(), inc.end(), k) != inc.end()) {
-                ++deg_higher_vec(k);
+        ldj += 2.0 * psi(k);
+    }
+    for (size_t k = 0; k + 1 < p_; ++k) {
+        ldj += static_cast<double>(p_ - 1 - k) * psi(k);
+    }
+
+    // Graph-aware constraint Jacobian correction: -0.5 * sum_q log det G_q
+    // with G_q = A_q diag(inv_mass_q) A_q^T. For identity mass this matches
+    // the theta-space Roverato/QR Jacobian term -sum log R_diag; with the
+    // NUTS-adapted diagonal mass we use the mass-weighted determinant so the
+    // RATTLE manifold marginal targets the intended K | G prior.
+    // The factor is *subtracted* (mirroring the theta-space path); the
+    // per-column G_q form is exact here because the position-projection is
+    // applied column-by-column (Roverato ordering: each column-q constraint
+    // is linear in column q's off-diagonals given earlier columns).
+    arma::mat Aq_buf;
+    std::vector<arma::mat> G_chol(p_);   // lower Cholesky of G_q per column
+    std::vector<arma::mat> Aq_cache(p_); // cached A_q per column
+    std::vector<arma::vec> inv_mass_q_cache(p_);
+    double pfaffian = 0.0;
+    for (size_t q = 1; q < p_; ++q) {
+        const auto& col = structure_->columns[q];
+        if (col.m_q == 0) continue;
+
+        build_Aq(Phi, col, q, Aq_buf);
+        Aq_cache[q] = Aq_buf;
+
+        size_t off_q = structure_->full_theta_offsets[q];
+        arma::vec inv_mass_q(q);
+        if (use_identity_mass) {
+            inv_mass_q.ones();
+        } else {
+            for (size_t l = 0; l < q; ++l) {
+                inv_mass_q(l) = inv_mass_diag(off_q + l);
             }
         }
-        ldj += static_cast<double>(deg_higher_vec(k) + 2) * psi(k);
+        inv_mass_q_cache[q] = inv_mass_q;
+
+        // G_q = A_q diag(inv_mass_q) A_q^T  (m_q x m_q, symmetric PD)
+        arma::mat Aq_scaled = Aq_buf;
+        Aq_scaled.each_row() %= inv_mass_q.t();
+        arma::mat G_q = Aq_scaled * Aq_buf.t();
+
+        arma::mat L_q;
+        bool chol_ok = arma::chol(L_q, G_q, "lower");
+        if (!chol_ok) {
+            // Tiny ridge for numerical safety; harmless during normal NUTS use.
+            double ridge = 1e-12 * (arma::trace(G_q) /
+                                    static_cast<double>(col.m_q) + 1.0);
+            chol_ok = arma::chol(L_q, G_q + ridge * arma::eye(col.m_q, col.m_q),
+                                 "lower");
+            if (!chol_ok) {
+                return {-std::numeric_limits<double>::infinity(),
+                        arma::vec(x.n_elem, arma::fill::zeros)};
+            }
+        }
+        G_chol[q] = L_q;
+        pfaffian += arma::accu(arma::log(arma::diagvec(L_q)));
     }
 
-    double lp = log_lik + log_slab + log_diag_prior + ldj;
+    double lp = log_lik + log_slab + log_diag_prior + ldj - pfaffian;
 
     if (!std::isfinite(lp)) {
         return {lp, arma::vec(x.n_elem, arma::fill::zeros)};
@@ -550,13 +604,14 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient_full(
     P *= -1.0;
     // P now holds -Phi*S = data part of Phi_bar
 
-    // Diagonal prior adjoint: d/dK_ii[log p(K_ii)] → grad(K_ii) * 2 Phi(:,i)
+    // Diagonal prior adjoint: d/dPhi [log p(K_ii/2)]
+    //   = (1/2) * grad(K_ii/2) * 2 Phi(:,i) = grad(K_ii/2) * Phi(:,i).
     for (size_t i = 0; i < p_; ++i) {
         double kii = arma::dot(
             Phi.col(i).head(i + 1),
             Phi.col(i).head(i + 1));
-        double dg = diagonal_prior_->grad(kii);
-        P.col(i).head(i + 1) += 2.0 * dg * Phi.col(i).head(i + 1);
+        double dg = diagonal_prior_->grad(0.5 * kii);
+        P.col(i).head(i + 1) += dg * Phi.col(i).head(i + 1);
     }
 
     // Interaction prior adjoint on included edges (K_yy scale).
@@ -571,6 +626,37 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient_full(
         }
     }
 
+    // Pfaffian adjoint (subtracted in the forward pass, so subtract here too):
+    //   d/dA_q [-0.5 log det(A_q M_q A_q^T)] = -(A_q M_q A_q^T)^{-1} A_q M_q.
+    // Each A_q[r, l] = Phi[l, i_r] (l <= i_r), so the adjoint flows to
+    // column i_r of Phi_bar. Diagonal positions (l = i_r) are handled by
+    // the existing exp(psi) chain when extracting psi_bar from P(i,i).
+    for (size_t q = 1; q < p_; ++q) {
+        const auto& col = structure_->columns[q];
+        if (col.m_q == 0) continue;
+
+        const arma::mat& L_q = G_chol[q];
+        const arma::mat& Aq = Aq_cache[q];
+        const arma::vec& inv_mass_q = inv_mass_q_cache[q];
+
+        // Z = G_q^{-1} A_q via two triangular solves
+        arma::mat Z = arma::solve(arma::trimatl(L_q), Aq,
+                                  arma::solve_opts::fast);
+        Z = arma::solve(arma::trimatu(L_q.t()), Z,
+                        arma::solve_opts::fast);
+
+        // dAq = Z * diag(inv_mass_q)  (m_q x q)
+        arma::mat dAq = Z;
+        dAq.each_row() %= inv_mass_q.t();
+
+        for (size_t r = 0; r < col.m_q; ++r) {
+            size_t i_r = col.excluded_indices[r];
+            for (size_t l = 0; l <= i_r; ++l) {
+                P(l, i_r) -= dAq(r, l);
+            }
+        }
+    }
+
     // --- Extract gradient from Phi_bar (stored in P) ---
     arma::vec gradient(x.n_elem, arma::fill::none);
 
@@ -582,10 +668,14 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient_full(
             gradient(offset + i) = P(i, q);
         }
 
-        // Diagonal (psi_q): chain rule through exp + log-det + Jacobian
-        // (deg_higher(q) + 2) is the graph-aware Roverato Jacobian coefficient.
+        // Diagonal (psi_q): chain rule through exp + log-det + Jacobian.
+        // ldj contributes (p+1-q) on psi_q except at q = p-1 where it is 2;
+        // those two cases collapse to (p+1-q) since for q = p-1, p+1-q = 2.
         double psi_bar = P(q, q) * Phi(q, q);
-        psi_bar += n + static_cast<double>(deg_higher_vec(q) + 2);
+        psi_bar += n + 2.0;
+        if (q + 1 < p_) {
+            psi_bar += static_cast<double>(p_ - 1 - q);
+        }
         gradient(offset + q) = psi_bar;
     }
 
