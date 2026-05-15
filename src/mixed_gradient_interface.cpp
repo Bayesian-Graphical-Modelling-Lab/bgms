@@ -76,7 +76,8 @@ Rcpp::List mixed_test_logp_and_gradient_full(
     std::string diagonal_prior_type = "gamma",
     double diagonal_shape = 1.0,
     double diagonal_rate = 1.0,
-    Rcpp::Nullable<Rcpp::NumericVector> inv_mass_diag = R_NilValue)
+    Rcpp::Nullable<Rcpp::NumericVector> inv_mass_diag = R_NilValue,
+    double delta = 0.0)
 {
     size_t p = discrete_observations.n_cols;
     size_t q = continuous_observations.n_cols;
@@ -102,6 +103,7 @@ Rcpp::List mixed_test_logp_and_gradient_full(
     if(inv_mass_diag.isNotNull()) {
         model.set_inv_mass(Rcpp::as<arma::vec>(inv_mass_diag));
     }
+    model.set_determinant_tilt_yy(delta);
 
     auto result = model.logp_and_gradient_full(params);
 

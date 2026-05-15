@@ -135,6 +135,17 @@ public:
     }
 
     /**
+     * Set the determinant-tilt exponent delta for the Kyy block. Adds
+     * delta * log|Kyy| to the log-prior, pushing the continuous-block
+     * precision matrix away from the PD-cone boundary. delta = 0
+     * (default) recovers the untilted target. Currently consumed only
+     * by the NUTS gradient paths; the MH path is unchanged.
+     */
+    void set_determinant_tilt_yy(double delta) {
+        determinant_tilt_yy_ = delta;
+    }
+
+    /**
      * Construct Robbins-Monro adaptation controllers for the per-iteration
      * MH proposal SDs. Called once by MetropolisSampler before warmup; under
      * NUTS this is never called and the controllers stay null. One adapter
@@ -301,6 +312,11 @@ private:
     // proposal-SD tuning. Set via set_metropolis_target_accept(); defaults
     // to 0.44 (componentwise random-walk Metropolis optimum).
     double target_accept_ = 0.44;
+
+    // Determinant-tilt exponent on the Kyy block (see set_determinant_tilt_yy).
+    // Adds determinant_tilt_yy_ * log|Kyy| to the NUTS log-prior; MH ratios
+    // are not yet adjusted.
+    double determinant_tilt_yy_ = 0.0;
 
     /// Per-iteration adaptation controllers (MH mode only — under NUTS these
     /// stay null and the stage-3b path in tune_proposal_sd is used instead).

@@ -652,6 +652,11 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
         logp += static_cast<double>(q_ + 1 - j) * std::log(temp_cholesky(j, j));
     }
 
+    // Determinant tilt on the Kyy block: adds delta * log|Kyy| = 2*delta * sum(psi)
+    // to the log-prior. Pushes the continuous-block precision matrix away from
+    // the PD-cone boundary. delta = 0 recovers the untilted target.
+    logp += determinant_tilt_yy_ * temp_log_det;
+
     const auto& cs = chol_constraint_structure_;
     arma::mat Aq_buf;
     std::vector<arma::mat> G_chol(q_);
@@ -708,14 +713,16 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     }
 
     // Extract position gradient from R_bar with the unified weight (q+1-j)
-    // on the diagonal-psi entries.
+    // on the diagonal-psi entries. The determinant tilt adds +2*delta to the
+    // psi-bar entries (d/dpsi [delta * 2 * sum(psi)] = 2 * delta).
     size_t gidx = static_cast<size_t>(chol_grad_offset_);
     for(size_t j = 0; j < q_; ++j) {
         double w_j = static_cast<double>(q_ + 1 - j);
         for(size_t i = 0; i < j; ++i) {
             grad(gidx++) = R_bar(i, j);
         }
-        grad(gidx++) = R_bar(j, j) * temp_cholesky(j, j) + w_j;
+        grad(gidx++) = R_bar(j, j) * temp_cholesky(j, j) + w_j
+                       + 2.0 * determinant_tilt_yy_;
     }
 
     return {logp, grad};
@@ -1177,6 +1184,11 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
         logp += static_cast<double>(q_ + 1 - j) * std::log(temp_cholesky(j, j));
     }
 
+    // Determinant tilt on the Kyy block: adds delta * log|Kyy| = 2*delta * sum(psi)
+    // to the log-prior. Pushes the continuous-block precision matrix away from
+    // the PD-cone boundary. delta = 0 recovers the untilted target.
+    logp += determinant_tilt_yy_ * temp_log_det;
+
     const auto& cs = chol_constraint_structure_;
     const bool identity_mass = inv_mass_.is_empty();
     arma::mat Aq_buf;
@@ -1251,14 +1263,16 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
     }
 
     // Extract position gradient from R_bar with the unified weight (q+1-j)
-    // on the diagonal-psi entries.
+    // on the diagonal-psi entries. The determinant tilt adds +2*delta to the
+    // psi-bar entries (d/dpsi [delta * 2 * sum(psi)] = 2 * delta).
     size_t gidx = chol_offset;
     for(size_t j = 0; j < q_; ++j) {
         double w_j = static_cast<double>(q_ + 1 - j);
         for(size_t i = 0; i < j; ++i) {
             grad(gidx++) = R_bar(i, j);
         }
-        grad(gidx++) = R_bar(j, j) * temp_cholesky(j, j) + w_j;
+        grad(gidx++) = R_bar(j, j) * temp_cholesky(j, j) + w_j
+                       + 2.0 * determinant_tilt_yy_;
     }
 
     return {logp, grad};
