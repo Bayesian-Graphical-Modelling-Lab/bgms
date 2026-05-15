@@ -547,6 +547,19 @@ private:
     // proposed covariance Σ' (computed via Sherman-Morrison) to cov_prop_out.
     double log_ggm_ratio_diag(int i, arma::mat& cov_prop_out) const;
 
+    // log|Kyy_prop| - log|Kyy_curr| for a rank-2 off-diagonal proposal at
+    // (i, j), via the matrix-determinant lemma in O(q). Reads
+    // pairwise_effects_continuous_, precision_proposal_, and
+    // covariance_continuous_; assumes precision_proposal_ has the proposed
+    // Kyy at (i, j), (j, i), (j, j) already filled. Used to add the
+    // determinant-tilt term delta_yy * (log|Kyy_prop| - log|Kyy_curr|) to MH
+    // ratios.
+    double log_det_ratio_yy_edge(int i, int j) const;
+
+    // log|Kyy_prop| - log|Kyy_curr| for a rank-1 diagonal proposal at i.
+    // Computed via the matrix-determinant lemma in O(1).
+    double log_det_ratio_yy_diag(int i) const;
+
     // Rank-1 Cholesky update after accepting an off-diagonal precision change.
     void cholesky_update_after_precision_edge(double old_ij, double old_jj, int i, int j);
 
