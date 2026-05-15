@@ -192,6 +192,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     const arma::vec& parameters)
 {
     ensure_gradient_cache();
+    ensure_constraint_structure();
 
     // --- Unvectorize into temporaries (blocks 1–4) ---
     arma::mat temp_main_discrete = main_effects_discrete_;
@@ -637,32 +638,85 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     arma::mat Omega_bar_sym = Omega_bar + Omega_bar.t();
     arma::mat R_bar = temp_cholesky * Omega_bar_sym;
 
-    // Roverato graph-constrained Cholesky Jacobian for the Kyy block:
-    //   log|det J| = q log 2 + Σ_j (deg_higher_yy(j) + 2) ψ_j
-    // where deg_higher_yy(j) = number of active Kyy edges (j, qq) with qq > j.
-    // For the full Kyy graph deg_higher_yy(j) = q - 1 - j, so this reduces to
-    // (q - j + 1) — the original formula. For sparse Kyy graphs, the
-    // graph-aware count is required for the prior to integrate correctly
-    // (Marsman/Claude, 2026-05-01).
+    // Cholesky-to-K Jacobian (graph-agnostic) + per-column Pfaffian correction.
+    // Mirrors GGMGradientEngine::logp_and_gradient_full:
+    //   ldj      = q*log(2) + Σ_j (q+1-j) ψ_j
+    //   pfaffian = 0.5 * Σ_qq log det(A_qq A_qq^T)        (identity mass here)
+    //   logp    += ldj - pfaffian
+    // Theta-space integration uses identity mass on the manifold; for the
+    // full-space (RATTLE) path we plug through the integrator's inverse-mass
+    // diagonal. For the full Kyy graph, all A_qq are empty, so the Pfaffian
+    // collapses to 0 and the formula reduces to the original q-j+1 weight.
+    logp += static_cast<double>(q_) * std::log(2.0);
+    for(size_t j = 0; j < q_; ++j) {
+        logp += static_cast<double>(q_ + 1 - j) * std::log(temp_cholesky(j, j));
+    }
+
+    const auto& cs = chol_constraint_structure_;
+    arma::mat Aq_buf;
+    std::vector<arma::mat> G_chol(q_);
+    std::vector<arma::mat> Aq_cache(q_);
+    double pfaffian = 0.0;
+    for(size_t col = 1; col < q_; ++col) {
+        const auto& cc = cs.columns[col];
+        if(cc.m_q == 0) continue;
+
+        GGMGradientEngine::build_Aq(temp_cholesky, cc, col, Aq_buf);
+        Aq_cache[col] = Aq_buf;
+
+        // Identity mass (theta-space): G_q = A_q A_q^T.
+        arma::mat G_q = Aq_buf * Aq_buf.t();
+
+        arma::mat L_q;
+        bool chol_ok = arma::chol(L_q, G_q, "lower");
+        if(!chol_ok) {
+            double ridge = 1e-12 * (arma::trace(G_q) /
+                                    static_cast<double>(cc.m_q) + 1.0);
+            chol_ok = arma::chol(L_q, G_q + ridge * arma::eye(cc.m_q, cc.m_q),
+                                 "lower");
+            if(!chol_ok) {
+                return {-std::numeric_limits<double>::infinity(),
+                        arma::vec(grad.n_elem, arma::fill::zeros)};
+            }
+        }
+        G_chol[col] = L_q;
+        pfaffian += arma::accu(arma::log(arma::diagvec(L_q)));
+    }
+    logp -= pfaffian;
+
+    // Pfaffian adjoint: d/dA_q [-0.5 log det(A_q A_q^T)] = -G_q^{-1} A_q.
+    // Each A_q(r, l) = R(l, i_r) for l <= i_r, so the adjoint flows back to
+    // column i_r of R_bar at rows l = 0..i_r.
+    for(size_t col = 1; col < q_; ++col) {
+        const auto& cc = cs.columns[col];
+        if(cc.m_q == 0) continue;
+
+        const arma::mat& L_q = G_chol[col];
+        const arma::mat& Aq = Aq_cache[col];
+
+        arma::mat Z = arma::solve(arma::trimatl(L_q), Aq,
+                                  arma::solve_opts::fast);
+        Z = arma::solve(arma::trimatu(L_q.t()), Z,
+                        arma::solve_opts::fast);
+
+        for(size_t r = 0; r < cc.m_q; ++r) {
+            size_t i_r = cc.excluded_indices[r];
+            for(size_t l = 0; l <= i_r; ++l) {
+                R_bar(l, i_r) -= Z(r, l);
+            }
+        }
+    }
+
+    // Extract position gradient from R_bar with the unified weight (q+1-j)
+    // on the diagonal-psi entries.
     size_t gidx = static_cast<size_t>(chol_grad_offset_);
     for(size_t j = 0; j < q_; ++j) {
-        double psi_j = std::log(temp_cholesky(j, j));
-        size_t deg_higher_yy = 0;
-        for(size_t qq = j + 1; qq < q_; ++qq) {
-            if(edge_indicators_(p_ + j, p_ + qq) == 1) ++deg_higher_yy;
-        }
-        double jac_weight = static_cast<double>(deg_higher_yy + 2);
-        logp += jac_weight * psi_j;
-
-        // Off-diagonal Cholesky entries: ∂ℓ/∂R_{ij} = R̄_{ij}
+        double w_j = static_cast<double>(q_ + 1 - j);
         for(size_t i = 0; i < j; ++i) {
             grad(gidx++) = R_bar(i, j);
         }
-        // Diagonal (log-scale): ∂ℓ/∂ψ_j = R̄_{jj} R_{jj} + (deg_higher_yy + 2)
-        grad(gidx++) = R_bar(j, j) * temp_cholesky(j, j) + jac_weight;
+        grad(gidx++) = R_bar(j, j) * temp_cholesky(j, j) + w_j;
     }
-    // Add constant Jacobian term to logp
-    logp += static_cast<double>(q_) * std::log(2.0);
 
     return {logp, grad};
 }
@@ -680,6 +734,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
 std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
     const arma::vec& x)
 {
+    ensure_constraint_structure();
     const size_t full_dim = full_parameter_dimension();
 
     // --- Unpack all 5 blocks from full-space vector ---
@@ -1110,24 +1165,101 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
     arma::mat Omega_bar_sym = Omega_bar + Omega_bar.t();
     arma::mat R_bar = temp_cholesky * Omega_bar_sym;
 
-    // Roverato graph-constrained Cholesky Jacobian for the Kyy block.
-    // jac_weight = deg_higher_yy(j) + 2; reduces to q - j + 1 for full graph.
+    // Cholesky-to-K Jacobian (graph-agnostic) + mass-weighted per-column
+    // Pfaffian correction for the RATTLE manifold marginal:
+    //   ldj      = q*log(2) + Σ_j (q+1-j) ψ_j
+    //   pfaffian = 0.5 * Σ_qq log det(A_qq diag(M_qq^{-1}) A_qq^T)
+    //   logp    += ldj - pfaffian
+    // Mass diagonal is plumbed from this->inv_mass_ (empty ⇒ identity).
+    // For the full Kyy graph, all A_qq are empty and Pfaffian = 0.
+    logp += static_cast<double>(q_) * std::log(2.0);
+    for(size_t j = 0; j < q_; ++j) {
+        logp += static_cast<double>(q_ + 1 - j) * std::log(temp_cholesky(j, j));
+    }
+
+    const auto& cs = chol_constraint_structure_;
+    const bool identity_mass = inv_mass_.is_empty();
+    arma::mat Aq_buf;
+    std::vector<arma::mat> G_chol(q_);
+    std::vector<arma::mat> Aq_cache(q_);
+    std::vector<arma::vec> inv_mass_q_cache(q_);
+    double pfaffian = 0.0;
+    for(size_t col = 1; col < q_; ++col) {
+        const auto& cc = cs.columns[col];
+        if(cc.m_q == 0) continue;
+
+        GGMGradientEngine::build_Aq(temp_cholesky, cc, col, Aq_buf);
+        Aq_cache[col] = Aq_buf;
+
+        arma::vec inv_mass_q(col);
+        if(identity_mass) {
+            inv_mass_q.ones();
+        } else {
+            size_t off_q = chol_block_offset_ + cs.full_theta_offsets[col];
+            for(size_t l = 0; l < col; ++l) {
+                inv_mass_q(l) = inv_mass_(off_q + l);
+            }
+        }
+        inv_mass_q_cache[col] = inv_mass_q;
+
+        // G_q = A_q diag(inv_mass_q) A_q^T
+        arma::mat Aq_scaled = Aq_buf;
+        Aq_scaled.each_row() %= inv_mass_q.t();
+        arma::mat G_q = Aq_scaled * Aq_buf.t();
+
+        arma::mat L_q;
+        bool chol_ok = arma::chol(L_q, G_q, "lower");
+        if(!chol_ok) {
+            double ridge = 1e-12 * (arma::trace(G_q) /
+                                    static_cast<double>(cc.m_q) + 1.0);
+            chol_ok = arma::chol(L_q, G_q + ridge * arma::eye(cc.m_q, cc.m_q),
+                                 "lower");
+            if(!chol_ok) {
+                return {-std::numeric_limits<double>::infinity(),
+                        arma::vec(full_dim, arma::fill::zeros)};
+            }
+        }
+        G_chol[col] = L_q;
+        pfaffian += arma::accu(arma::log(arma::diagvec(L_q)));
+    }
+    logp -= pfaffian;
+
+    // Pfaffian adjoint: d/dA_q [-0.5 log det(A_q M_q^{-1} A_q^T)] flows back
+    // to R_bar at the excluded-edge columns. dA_q = G_q^{-1} A_q · diag(M_q^{-1}).
+    for(size_t col = 1; col < q_; ++col) {
+        const auto& cc = cs.columns[col];
+        if(cc.m_q == 0) continue;
+
+        const arma::mat& L_q = G_chol[col];
+        const arma::mat& Aq = Aq_cache[col];
+        const arma::vec& inv_mass_q = inv_mass_q_cache[col];
+
+        arma::mat Z = arma::solve(arma::trimatl(L_q), Aq,
+                                  arma::solve_opts::fast);
+        Z = arma::solve(arma::trimatu(L_q.t()), Z,
+                        arma::solve_opts::fast);
+
+        arma::mat dAq = Z;
+        dAq.each_row() %= inv_mass_q.t();
+
+        for(size_t r = 0; r < cc.m_q; ++r) {
+            size_t i_r = cc.excluded_indices[r];
+            for(size_t l = 0; l <= i_r; ++l) {
+                R_bar(l, i_r) -= dAq(r, l);
+            }
+        }
+    }
+
+    // Extract position gradient from R_bar with the unified weight (q+1-j)
+    // on the diagonal-psi entries.
     size_t gidx = chol_offset;
     for(size_t j = 0; j < q_; ++j) {
-        double psi_j = std::log(temp_cholesky(j, j));
-        size_t deg_higher_yy = 0;
-        for(size_t qq = j + 1; qq < q_; ++qq) {
-            if(edge_indicators_(p_ + j, p_ + qq) == 1) ++deg_higher_yy;
-        }
-        double jac_weight = static_cast<double>(deg_higher_yy + 2);
-        logp += jac_weight * psi_j;
-
+        double w_j = static_cast<double>(q_ + 1 - j);
         for(size_t i = 0; i < j; ++i) {
             grad(gidx++) = R_bar(i, j);
         }
-        grad(gidx++) = R_bar(j, j) * temp_cholesky(j, j) + jac_weight;
+        grad(gidx++) = R_bar(j, j) * temp_cholesky(j, j) + w_j;
     }
-    logp += static_cast<double>(q_) * std::log(2.0);
 
     return {logp, grad};
 }
