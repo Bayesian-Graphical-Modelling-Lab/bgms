@@ -12,7 +12,7 @@
 void GGMModel::ensure_constraint_structure() {
     if (!constraint_dirty_) return;
     constraint_structure_.build(edge_indicators_);
-    gradient_engine_.rebuild(constraint_structure_, n_, suf_stat_, *interaction_prior_, *diagonal_prior_);
+    gradient_engine_.rebuild(constraint_structure_, n_, suf_stat_, *interaction_prior_, *diagonal_prior_, determinant_tilt_);
     constraint_dirty_ = false;
     theta_valid_ = false;
 }

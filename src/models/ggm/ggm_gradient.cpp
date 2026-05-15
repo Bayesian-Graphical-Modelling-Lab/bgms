@@ -13,7 +13,8 @@ void GGMGradientEngine::rebuild(
     size_t n,
     const arma::mat& suf_stat,
     const BaseParameterPrior& interaction_prior,
-    const BaseParameterPrior& diagonal_prior)
+    const BaseParameterPrior& diagonal_prior,
+    double determinant_tilt)
 {
     structure_ = &structure;
     n_ = n;
@@ -21,6 +22,7 @@ void GGMGradientEngine::rebuild(
     suf_stat_ = &suf_stat;
     interaction_prior_ = &interaction_prior;
     diagonal_prior_ = &diagonal_prior;
+    delta_ = determinant_tilt;
 }
 
 // =====================================================================
@@ -285,7 +287,11 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
         log_diag_prior += diagonal_prior_->logp(0.5 * K(i, i));
     }
 
-    double lp = log_lik + log_slab + log_diag_prior + fm.log_det_jacobian;
+    // Determinant tilt: adds delta_ * log|K| = 2*delta_ * sum(psi) to the
+    // log-prior. Pushes the chain away from the PD-cone boundary.
+    double log_tilt = delta_ * log_det_K;
+
+    double lp = log_lik + log_slab + log_diag_prior + fm.log_det_jacobian + log_tilt;
 
     if (!std::isfinite(lp)) {
         return {lp, arma::vec(theta.n_elem, arma::fill::zeros)};
@@ -335,6 +341,8 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
         if (q + 1 < p_) {
             psi_bar += static_cast<double>(p_ - 1 - q);
         }
+        // Determinant tilt: d/dpsi_q [delta_ * 2 * sum(psi)] = 2 * delta_
+        psi_bar += 2.0 * delta_;
         gradient(offset + d_q) = psi_bar;
 
         if (q == 0) continue;
@@ -591,7 +599,11 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient_full(
         pfaffian += arma::accu(arma::log(arma::diagvec(L_q)));
     }
 
-    double lp = log_lik + log_slab + log_diag_prior + ldj - pfaffian;
+    // Determinant tilt: adds delta_ * log|K| = 2*delta_ * sum(psi) to the
+    // log-prior. Pushes the chain away from the PD-cone boundary.
+    double log_tilt = delta_ * log_det_K;
+
+    double lp = log_lik + log_slab + log_diag_prior + ldj - pfaffian + log_tilt;
 
     if (!std::isfinite(lp)) {
         return {lp, arma::vec(x.n_elem, arma::fill::zeros)};
@@ -676,6 +688,8 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient_full(
         if (q + 1 < p_) {
             psi_bar += static_cast<double>(p_ - 1 - q);
         }
+        // Determinant tilt: d/dpsi_q [delta_ * 2 * sum(psi)] = 2 * delta_
+        psi_bar += 2.0 * delta_;
         gradient(offset + q) = psi_bar;
     }
 

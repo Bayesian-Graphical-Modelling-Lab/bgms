@@ -152,7 +152,8 @@ public:
           constraint_dirty_(other.constraint_dirty_),
           theta_valid_(other.theta_valid_),
           theta_(other.theta_),
-          pcg_lambda_cache_(other.pcg_lambda_cache_)
+          pcg_lambda_cache_(other.pcg_lambda_cache_),
+          determinant_tilt_(other.determinant_tilt_)
     {}
 
     /** @return true (GGM supports NUTS via free-element Cholesky gradient). */
@@ -206,6 +207,18 @@ public:
      * under NUTS this is never called and the controller stays null.
      */
     void init_metropolis_adaptation(const WarmupSchedule& schedule) override;
+
+    /**
+     * Set the determinant-tilt exponent delta. Adds delta * log|K| to the
+     * log-prior, pushing the chain away from the PD-cone boundary. delta = 0
+     * (default) recovers the untilted target. Currently consumed only by
+     * the NUTS gradient engine; the MH path is unchanged. Triggers an engine
+     * rebuild on the next gradient call.
+     */
+    void set_determinant_tilt(double delta) {
+        determinant_tilt_ = delta;
+        constraint_dirty_ = true;
+    }
 
     /** Shuffle edge visit order (random scan). */
     void prepare_iteration() override;
@@ -472,6 +485,10 @@ private:
     /// Per-iteration adaptation controller (MH mode only — under NUTS this
     /// stays null and the stage-3b path in tune_proposal_sd is used instead).
     std::unique_ptr<MetropolisAdaptationController> metropolis_adapter_;
+
+    // Determinant-tilt exponent (see set_determinant_tilt). Forwarded to
+    // GGMGradientEngine on every rebuild.
+    double determinant_tilt_ = 0.0;
 
     /** Extract upper triangle of the precision matrix into a vector. */
     arma::vec extract_upper_triangle() const {

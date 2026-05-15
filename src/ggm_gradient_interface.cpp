@@ -385,7 +385,8 @@ Rcpp::List sample_precision_prior(
     int max_depth = 10,
     int seed = 1,
     bool verbose = true,
-    Rcpp::Nullable<Rcpp::IntegerMatrix> edge_indicators_nullable = R_NilValue)
+    Rcpp::Nullable<Rcpp::IntegerMatrix> edge_indicators_nullable = R_NilValue,
+    double delta = 0.0)
 {
     // Build edge indicators (default: full graph, no constraints)
     arma::imat edge_indicators;
@@ -407,6 +408,7 @@ Rcpp::List sample_precision_prior(
     arma::mat inc_prob(p, p, arma::fill::value(0.5));
     GGMModel model(0, suf_stat, inc_prob, edge_indicators,
                    false, std::move(ip), std::move(dp));
+    model.set_determinant_tilt(delta);
 
     // Configure NUTS with the standard windowed warmup (dual averaging +
     // diagonal Welford mass-matrix adaptation). This is the same path used
