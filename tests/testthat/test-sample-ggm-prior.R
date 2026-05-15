@@ -1,9 +1,9 @@
-# Tests for sample_precision_prior(): structure, prior plumbing, edge constraints,
+# Tests for sample_ggm_prior(): structure, prior plumbing, edge constraints,
 # and input validation. Sampling correctness (uniform SBC ranks) is covered
 # in test-sbc-ggm.R.
 
 short_run = function(p, n_samples = 50L, n_warmup = 50L, seed = 1L, ...) {
-  sample_precision_prior(
+  sample_ggm_prior(
     p = p, n_samples = n_samples, n_warmup = n_warmup,
     seed = seed, verbose = FALSE, ...
   )
@@ -12,7 +12,7 @@ short_run = function(p, n_samples = 50L, n_warmup = 50L, seed = 1L, ...) {
 
 # ---- Return value structure --------------------------------------------------
 
-test_that("sample_precision_prior returns the documented list shape", {
+test_that("sample_ggm_prior returns the documented list shape", {
   p = 4L
   n_samples = 60L
   draws = short_run(p = p, n_samples = n_samples)
@@ -139,7 +139,7 @@ test_that("invalid scalar arguments error early with informative messages", {
     "'max_depth' must be >= 1"
   )
   expect_error(
-    sample_precision_prior(p = 3L, n_samples = 10L, n_warmup = 10L, verbose = NA),
+    sample_ggm_prior(p = 3L, n_samples = 10L, n_warmup = 10L, verbose = NA),
     "'verbose' must be TRUE or FALSE"
   )
 })
@@ -208,3 +208,4 @@ test_that("malformed edge_indicators are rejected", {
     "0 or 1"
   )
 })
+
