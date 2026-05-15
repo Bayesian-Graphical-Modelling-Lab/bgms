@@ -610,41 +610,49 @@ double GGMModel::log_density_impl(const arma::mat& omega, const arma::mat& phi) 
     return log_likelihood;
 }
 
-double GGMModel::log_density_impl_edge(size_t i, size_t j) const {
-
-    // Log-likelihood ratio (not the full log-likelihood)
-
+double GGMModel::log_det_ratio_edge(size_t i, size_t j) const {
+    // Rank-2 matrix-determinant lemma: log|K_prop| - log|K_curr| where K_prop
+    // differs from K_curr at entries (i,j), (j,i), and (j,j). cc11, cc12, cc22
+    // are the entries of the 2x2 update Gram matrix I + V^T Sigma U used by
+    // the lemma; |det(...)| is its determinant.
     double Ui2 = precision_matrix_(i, j) - precision_proposal_(i, j);
     double Uj2 = (precision_matrix_(j, j) - precision_proposal_(j, j)) / 2;
 
-    double cc11 = 0 + covariance_matrix_(j, j);
-    double cc12 = 1 - (covariance_matrix_(i, j) * Ui2 + covariance_matrix_(j, j) * Uj2);
-    double cc22 = 0 + Ui2 * Ui2 * covariance_matrix_(i, i) + 2 * Ui2 * Uj2 * covariance_matrix_(i, j) + Uj2 * Uj2 * covariance_matrix_(j, j);
+    double cc11 = covariance_matrix_(j, j);
+    double cc12 = 1 - (covariance_matrix_(i, j) * Ui2
+                       + covariance_matrix_(j, j) * Uj2);
+    double cc22 = Ui2 * Ui2 * covariance_matrix_(i, i)
+                + 2 * Ui2 * Uj2 * covariance_matrix_(i, j)
+                + Uj2 * Uj2 * covariance_matrix_(j, j);
 
-    double logdet = MY_LOG(std::abs(cc11 * cc22 - cc12 * cc12));
-    // logdet - (logdet(aOmega_prop) - logdet(aOmega))
+    return MY_LOG(std::abs(cc11 * cc22 - cc12 * cc12));
+}
 
+double GGMModel::log_det_ratio_diag(size_t j) const {
+    // Rank-1 specialisation of log_det_ratio_edge (Ui2 = 0).
+    double Uj2 = (precision_matrix_(j, j) - precision_proposal_(j, j)) / 2;
+
+    double cc11 = covariance_matrix_(j, j);
+    double cc12 = 1 - covariance_matrix_(j, j) * Uj2;
+    double cc22 = Uj2 * Uj2 * covariance_matrix_(j, j);
+
+    return MY_LOG(std::abs(cc11 * cc22 - cc12 * cc12));
+}
+
+double GGMModel::log_density_impl_edge(size_t i, size_t j) const {
+    // Log-likelihood ratio (not the full log-likelihood).
+    double Ui2 = precision_matrix_(i, j) - precision_proposal_(i, j);
+    double Uj2 = (precision_matrix_(j, j) - precision_proposal_(j, j)) / 2;
+    double logdet = log_det_ratio_edge(i, j);
     double trace_prod = -2 * (suf_stat_(j, j) * Uj2 + suf_stat_(i, j) * Ui2);
-
-    double log_likelihood_ratio = (n_ * logdet - trace_prod) / 2;
-    return log_likelihood_ratio;
-
+    return (n_ * logdet - trace_prod) / 2;
 }
 
 double GGMModel::log_density_impl_diag(size_t j) const {
-    // same as above but for i == j, so Ui2 = 0
     double Uj2 = (precision_matrix_(j, j) - precision_proposal_(j, j)) / 2;
-
-    double cc11 = 0 + covariance_matrix_(j, j);
-    double cc12 = 1 - covariance_matrix_(j, j) * Uj2;
-    double cc22 = 0 + Uj2 * Uj2 * covariance_matrix_(j, j);
-
-    double logdet = MY_LOG(std::abs(cc11 * cc22 - cc12 * cc12));
+    double logdet = log_det_ratio_diag(j);
     double trace_prod = -2 * suf_stat_(j, j) * Uj2;
-
-    double log_likelihood_ratio = (n_ * logdet - trace_prod) / 2;
-    return log_likelihood_ratio;
-
+    return (n_ * logdet - trace_prod) / 2;
 }
 
 double GGMModel::update_edge_parameter(size_t i, size_t j) {
@@ -671,6 +679,14 @@ double GGMModel::update_edge_parameter(size_t i, size_t j) {
     precision_proposal_(j, j) = omega_prop_qq;
 
     double ln_alpha = log_density_impl_edge(i, j);
+
+    // Determinant-tilt prior: |K|^delta contributes
+    //   delta * (log|K_prop| - log|K_curr|)
+    // to the MH ratio. log_det_ratio_edge uses the rank-2 matrix-determinant
+    // lemma in O(p) via the cached covariance, so this is essentially free.
+    if (determinant_tilt_ != 0.0) {
+        ln_alpha += determinant_tilt_ * log_det_ratio_edge(i, j);
+    }
 
     // Interaction prior on K_yy_{ij} = -0.5 * Omega_{ij}
     ln_alpha += interaction_prior_->logp(-0.5 * precision_proposal_(i, j));
@@ -750,6 +766,12 @@ double GGMModel::update_diagonal_parameter(size_t i) {
 
     double ln_alpha = log_density_impl_diag(i);
 
+    // Determinant-tilt prior: |K|^delta contributes delta * log_det_ratio
+    // to the MH ratio. Rank-1 update => O(1) via the cached covariance.
+    if (determinant_tilt_ != 0.0) {
+        ln_alpha += determinant_tilt_ * log_det_ratio_diag(i);
+    }
+
     ln_alpha += diagonal_prior_->logp(0.5 * precision_proposal_(i, i));
     ln_alpha -= diagonal_prior_->logp(0.5 * precision_matrix_(i, i));
     ln_alpha += 2.0 * (theta_prop - theta_curr); // Jacobian: dK_ii/dtheta = 2*exp(2*theta)
@@ -818,6 +840,11 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         //     }
         // }
 
+        // Determinant-tilt prior: |K|^delta contributes delta * log_det_ratio
+        // to the MH ratio. The rank-2 update at (i,j),(j,j) makes this O(p).
+        if (determinant_tilt_ != 0.0) {
+            ln_alpha += determinant_tilt_ * log_det_ratio_edge(i, j);
+        }
 
         ln_alpha += MY_LOG(1.0 - inclusion_probability_(i, j)) - MY_LOG(inclusion_probability_(i, j));
 
@@ -877,6 +904,13 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         //         Rcpp::Rcout << "ln_alpha: " << ln_alpha << ", ln_alpha_ref: " << ln_alpha_ref << std::endl;
         //     }
         // }
+
+        // Determinant-tilt prior: |K|^delta contributes delta * log_det_ratio
+        // to the MH ratio.
+        if (determinant_tilt_ != 0.0) {
+            ln_alpha += determinant_tilt_ * log_det_ratio_edge(i, j);
+        }
+
         ln_alpha += MY_LOG(inclusion_probability_(i, j)) - MY_LOG(1.0 - inclusion_probability_(i, j));
 
         // Slab in K_yy coords; proposal in K_ij coords. Jacobian |dK_yy/dK_ij| = 1/2.
@@ -1004,6 +1038,9 @@ void GGMModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {
             precision_proposal_(j, j) = omega_prop_qq;
 
             double ln_alpha = log_density_impl_edge(i, j);
+            if (determinant_tilt_ != 0.0) {
+                ln_alpha += determinant_tilt_ * log_det_ratio_edge(i, j);
+            }
             // Interaction prior on K_yy_{ij} = -0.5 * Omega_{ij}
             ln_alpha += interaction_prior_->logp(-0.5 * precision_proposal_(i, j));
             ln_alpha -= interaction_prior_->logp(-0.5 * precision_matrix_(i, j));
@@ -1045,6 +1082,9 @@ void GGMModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {
             + MY_EXP(theta_prop) * MY_EXP(theta_prop);
 
         double ln_alpha = log_density_impl_diag(i);
+        if (determinant_tilt_ != 0.0) {
+            ln_alpha += determinant_tilt_ * log_det_ratio_diag(i);
+        }
         ln_alpha += diagonal_prior_->logp(0.5 * precision_proposal_(i, i));
         ln_alpha -= diagonal_prior_->logp(0.5 * precision_matrix_(i, i));
         ln_alpha += 2.0 * (theta_prop - theta_curr); // Jacobian: dK_ii/dtheta = 2*exp(2*theta)

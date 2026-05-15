@@ -674,6 +674,23 @@ private:
      */
     double log_density_impl_diag(size_t j) const;
 
+    /**
+     * log|K_prop| - log|K_curr| for a rank-2 off-diagonal proposal at (i, j),
+     * computed via the matrix-determinant lemma in O(p). Reads
+     * precision_matrix_, precision_proposal_, and covariance_matrix_; assumes
+     * precision_proposal_ has already been set up at (i, j), (j, i), (j, j).
+     * Used to add the determinant-tilt term delta * (log|K_prop| - log|K_curr|)
+     * to MH ratios.
+     */
+    double log_det_ratio_edge(size_t i, size_t j) const;
+
+    /**
+     * log|K_prop| - log|K_curr| for a rank-1 diagonal proposal at j.
+     * Computed via the matrix-determinant lemma in O(1). Reads the same
+     * cached state as log_det_ratio_edge.
+     */
+    double log_det_ratio_diag(size_t j) const;
+
 
 
     /**
