@@ -137,8 +137,8 @@ ggm_test_logp_and_gradient_prior <- function(theta, suf_stat, n, edge_indicators
     .Call(`_bgms_ggm_test_logp_and_gradient_prior`, theta, suf_stat, n, edge_indicators, interaction_prior_type, interaction_scale, interaction_alpha, interaction_beta, diagonal_prior_type, diagonal_shape, diagonal_rate)
 }
 
-ggm_test_logp_and_gradient_full_prior <- function(x, suf_stat, n, edge_indicators, interaction_prior_type = "cauchy", interaction_scale = 1.0, interaction_alpha = 0.5, interaction_beta = 0.5, diagonal_prior_type = "gamma", diagonal_shape = 1.0, diagonal_rate = 1.0) {
-    .Call(`_bgms_ggm_test_logp_and_gradient_full_prior`, x, suf_stat, n, edge_indicators, interaction_prior_type, interaction_scale, interaction_alpha, interaction_beta, diagonal_prior_type, diagonal_shape, diagonal_rate)
+ggm_test_logp_and_gradient_full_prior <- function(x, suf_stat, n, edge_indicators, interaction_prior_type = "cauchy", interaction_scale = 1.0, interaction_alpha = 0.5, interaction_beta = 0.5, diagonal_prior_type = "gamma", diagonal_shape = 1.0, diagonal_rate = 1.0, inv_mass_diag = NULL) {
+    .Call(`_bgms_ggm_test_logp_and_gradient_full_prior`, x, suf_stat, n, edge_indicators, interaction_prior_type, interaction_scale, interaction_alpha, interaction_beta, diagonal_prior_type, diagonal_shape, diagonal_rate, inv_mass_diag)
 }
 
 sample_ggm <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback = NULL, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, target_acceptance = 0.8, max_tree_depth = 10L, na_impute = FALSE, missing_index_nullable = NULL) {

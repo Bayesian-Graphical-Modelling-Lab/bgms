@@ -647,8 +647,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // ggm_test_logp_and_gradient_full_prior
-Rcpp::List ggm_test_logp_and_gradient_full_prior(const arma::vec& x, const arma::mat& suf_stat, int n, const arma::imat& edge_indicators, const std::string& interaction_prior_type, double interaction_scale, double interaction_alpha, double interaction_beta, const std::string& diagonal_prior_type, double diagonal_shape, double diagonal_rate);
-RcppExport SEXP _bgms_ggm_test_logp_and_gradient_full_prior(SEXP xSEXP, SEXP suf_statSEXP, SEXP nSEXP, SEXP edge_indicatorsSEXP, SEXP interaction_prior_typeSEXP, SEXP interaction_scaleSEXP, SEXP interaction_alphaSEXP, SEXP interaction_betaSEXP, SEXP diagonal_prior_typeSEXP, SEXP diagonal_shapeSEXP, SEXP diagonal_rateSEXP) {
+Rcpp::List ggm_test_logp_and_gradient_full_prior(const arma::vec& x, const arma::mat& suf_stat, int n, const arma::imat& edge_indicators, const std::string& interaction_prior_type, double interaction_scale, double interaction_alpha, double interaction_beta, const std::string& diagonal_prior_type, double diagonal_shape, double diagonal_rate, Rcpp::Nullable<Rcpp::NumericVector> inv_mass_diag);
+RcppExport SEXP _bgms_ggm_test_logp_and_gradient_full_prior(SEXP xSEXP, SEXP suf_statSEXP, SEXP nSEXP, SEXP edge_indicatorsSEXP, SEXP interaction_prior_typeSEXP, SEXP interaction_scaleSEXP, SEXP interaction_alphaSEXP, SEXP interaction_betaSEXP, SEXP diagonal_prior_typeSEXP, SEXP diagonal_shapeSEXP, SEXP diagonal_rateSEXP, SEXP inv_mass_diagSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -663,7 +663,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const std::string& >::type diagonal_prior_type(diagonal_prior_typeSEXP);
     Rcpp::traits::input_parameter< double >::type diagonal_shape(diagonal_shapeSEXP);
     Rcpp::traits::input_parameter< double >::type diagonal_rate(diagonal_rateSEXP);
-    rcpp_result_gen = Rcpp::wrap(ggm_test_logp_and_gradient_full_prior(x, suf_stat, n, edge_indicators, interaction_prior_type, interaction_scale, interaction_alpha, interaction_beta, diagonal_prior_type, diagonal_shape, diagonal_rate));
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type inv_mass_diag(inv_mass_diagSEXP);
+    rcpp_result_gen = Rcpp::wrap(ggm_test_logp_and_gradient_full_prior(x, suf_stat, n, edge_indicators, interaction_prior_type, interaction_scale, interaction_alpha, interaction_beta, diagonal_prior_type, diagonal_shape, diagonal_rate, inv_mass_diag));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -818,7 +819,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_test_parameter_prior", (DL_FUNC) &_bgms_test_parameter_prior, 6},
     {"_bgms_test_scale_prior", (DL_FUNC) &_bgms_test_scale_prior, 4},
     {"_bgms_ggm_test_logp_and_gradient_prior", (DL_FUNC) &_bgms_ggm_test_logp_and_gradient_prior, 11},
-    {"_bgms_ggm_test_logp_and_gradient_full_prior", (DL_FUNC) &_bgms_ggm_test_logp_and_gradient_full_prior, 11},
+    {"_bgms_ggm_test_logp_and_gradient_full_prior", (DL_FUNC) &_bgms_ggm_test_logp_and_gradient_full_prior, 12},
     {"_bgms_sample_ggm", (DL_FUNC) &_bgms_sample_ggm, 23},
     {"_bgms_sample_mixed_mrf", (DL_FUNC) &_bgms_sample_mixed_mrf, 24},
     {"_bgms_sample_omrf", (DL_FUNC) &_bgms_sample_omrf, 24},
