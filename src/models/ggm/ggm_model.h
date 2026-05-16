@@ -152,8 +152,8 @@ public:
           constraint_dirty_(other.constraint_dirty_),
           theta_valid_(other.theta_valid_),
           theta_(other.theta_),
-          pcg_lambda_cache_(other.pcg_lambda_cache_),
-          determinant_tilt_(other.determinant_tilt_)
+          determinant_tilt_(other.determinant_tilt_),
+          pcg_lambda_cache_(other.pcg_lambda_cache_)
     {}
 
     /** @return true (GGM supports NUTS via free-element Cholesky gradient). */
