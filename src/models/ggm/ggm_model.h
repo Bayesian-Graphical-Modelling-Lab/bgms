@@ -123,6 +123,7 @@ public:
     GGMModel(const GGMModel& other)
         : BaseModel(other),
           target_accept_(other.target_accept_),
+          determinant_tilt_(other.determinant_tilt_),
           n_(other.n_),
           p_(other.p_),
           dim_(other.dim_),
@@ -152,7 +153,6 @@ public:
           constraint_dirty_(other.constraint_dirty_),
           theta_valid_(other.theta_valid_),
           theta_(other.theta_),
-          determinant_tilt_(other.determinant_tilt_),
           pcg_lambda_cache_(other.pcg_lambda_cache_)
     {}
 
