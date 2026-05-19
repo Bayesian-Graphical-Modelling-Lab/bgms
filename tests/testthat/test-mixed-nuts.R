@@ -584,3 +584,42 @@ test_that("M.2J: NUTS diagnostics are clean for mixed MRF", {
   expect_equal(fit$nuts_diag$summary$max_tree_depth_hits, 0)
   expect_gt(fit$nuts_diag$summary$min_ebfmi, 0.3)
 })
+
+
+# ---- Condition T: determinant tilt, conditional PL, no ES, grouped ----------
+
+test_that("M.2T: NUTS vs MH agree under tilt (conditional PL, no ES, delta=1)", {
+  skip_unless_slow_mixed()
+
+  dat = generate_mixed_test_data(seed = 2036)
+  vtype = c(rep("ordinal", 3), rep("continuous", 2))
+
+  fit_nuts = bgm(
+    dat,
+    variable_type = vtype,
+    iter = n_iter, warmup = n_warmup, chains = n_chains,
+    edge_selection = FALSE, update_method = "nuts",
+    pairwise_scale = pw_scale, main_alpha = main_a, main_beta = main_b,
+    delta = 1,
+    display_progress = "none", seed = 104
+  )
+
+  fit_mh = bgm(
+    dat,
+    variable_type = vtype,
+    iter = n_iter, warmup = n_warmup, chains = n_chains,
+    edge_selection = FALSE, update_method = "adaptive-metropolis",
+    pairwise_scale = pw_scale, main_alpha = main_a, main_beta = main_b,
+    delta = 1,
+    display_progress = "none", seed = 204
+  )
+
+  compare_pairwise_samples(fit_nuts, fit_mh, "M.2T")
+  compare_main_samples(fit_nuts, fit_mh, "M.2T")
+
+  diff = abs(fit_nuts$posterior_mean_pairwise - fit_mh$posterior_mean_pairwise)
+  expect_lt(max(diff), 0.1,
+    label = "M.2T max abs diff in associations < 0.1 (delta=1)")
+
+  expect_equal(fit_nuts$nuts_diag$summary$total_divergences, 0)
+})
