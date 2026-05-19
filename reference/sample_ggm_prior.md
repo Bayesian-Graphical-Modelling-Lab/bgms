@@ -20,7 +20,7 @@ sample_ggm_prior(
   seed = 1L,
   verbose = TRUE,
   edge_indicators = NULL,
-  delta = 0
+  delta = NULL
 )
 ```
 
@@ -84,10 +84,15 @@ sample_ggm_prior(
 
 - delta:
 
-  Non-negative numeric. Determinant-tilt exponent: multiplies the prior
-  by \\\|K\|^{\delta}\\, pushing the chain away from the
-  positive-definite cone boundary. `delta = 0` (default) recovers the
-  untilted prior.
+  Non-negative numeric, or `NULL` for the dimension- adaptive default.
+  Determinant-tilt exponent: multiplies the prior by \\\|K\|^{\delta}\\,
+  softly repelling the chain from the positive-definite cone boundary.
+  `delta = NULL` (default) auto-resolves to \\0.5 \log(p)\\, the simple
+  form of the dimension-adaptive rule \\\delta(p) = c \log p\\ with \\c
+  \in (0.3, 0.6)\\ discussed in the companion paper on
+  determinant-tilted spike-and-slab priors (Marsman et al., in
+  preparation). Pass `delta = 0` for the untilted prior (the
+  companion-paper baseline) or a non-negative numeric to override.
 
 ## Value
 
@@ -158,20 +163,20 @@ dim(draws$K_offdiag) # 200 x 6
 #> [1] 200   6
 colnames(draws$K_offdiag) = draws$offdiag_names
 head(draws$K_offdiag)
-#>           K_1_2        K_1_3     K_1_4       K_2_3      K_2_4
-#> [1,]  5.0610611  0.008940521  3.321618 -6.62467649  0.4571407
-#> [2,]  1.7664714  0.690624986  4.522583 -0.03245810 -0.8471553
-#> [3,] -1.7589055 -0.171594899 -2.997448 -0.20447511  3.6198555
-#> [4,]  0.2839390  0.892527750  5.298511 -0.03497855 -0.8921625
-#> [5,]  0.9719396  0.116299417 -1.233758  1.49677586  1.6575632
-#> [6,] -1.9725988 -0.042434279  2.600275 -0.77422461 -1.8287448
+#>            K_1_2      K_1_3      K_1_4       K_2_3      K_2_4
+#> [1,] -0.99665479 -0.5067048  1.4327354  1.27206122  0.2890139
+#> [2,]  1.75872847  0.5042364  0.6405899 -1.74735880  1.3637273
+#> [3,] -1.85006737 -0.9258400 -0.1878773  2.41282600 -0.7835808
+#> [4,] -0.06287992 -4.2151040 -1.3857240 -2.46759734  7.0181652
+#> [5,]  0.70793130  4.8484312  0.8789915  1.89853902 -2.7138898
+#> [6,] -2.37009472 -4.2148468  0.8678973 -0.02827887  1.8515615
 #>            K_3_4
-#> [1,] -2.86041681
-#> [2,] -2.96334173
-#> [3,]  1.86349007
-#> [4,] -0.01269069
-#> [5,] -1.84625649
-#> [6,]  0.67962532
+#> [1,]  0.25977772
+#> [2,] -0.08441584
+#> [3,] -1.37181313
+#> [4,] -3.31800185
+#> [5,] -0.97592686
+#> [6,] -2.79041300
 
 # Sparser graph: drop the (1, 4) edge.
 E = matrix(1L, 4, 4)
