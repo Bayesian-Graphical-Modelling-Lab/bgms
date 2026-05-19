@@ -111,6 +111,30 @@
 #'   apply the tilt. Not allowed for pure ordinal models (no precision
 #'   matrix to tilt).
 #'
+#' @param graph_prior_spec Character; one of \code{"joint"} (default)
+#'   or \code{"hierarchical"}. Controls the marginal prior on the graph
+#'   indicators \eqn{\Gamma}. Under \code{"joint"} the implicit
+#'   \eqn{\Gamma}-marginal is \eqn{\pi(\Gamma) \cdot Z(\Gamma)}, where
+#'   \eqn{Z(\Gamma)} is the normalising constant of the precision-matrix
+#'   prior conditional on the graph. Under \code{"hierarchical"} the
+#'   chain compensates with an unbiased estimator of
+#'   \eqn{Z(\Gamma_\text{curr}) / Z(\Gamma_\text{star})}, recovering
+#'   \eqn{\pi(\Gamma)} as the \eqn{\Gamma}-marginal. Only supported when
+#'   the interaction prior is \code{normal_prior(...)} and the precision-
+#'   scale prior is \code{gamma_prior(...)} (the prior families for which
+#'   the closed-form Laplace-NLO normaliser approximation is implemented).
+#'   Default: \code{"joint"}.
+#'
+#' @param z_ratio_tuning Named list with components \code{M_inner}
+#'   (positive integer, default 100), \code{kappa} (positive numeric,
+#'   default 1.0), and \code{rho} (numeric in (0, 1), default 0.5).
+#'   Tuning knobs for the V/Russian-Roulette estimator used when
+#'   \code{graph_prior_spec = "hierarchical"}; ignored otherwise.
+#'   \code{M_inner} is the number of inner Bartlett-Cholesky importance
+#'   samples per Russian-Roulette pool, \code{kappa} sets the analytic
+#'   centring \eqn{c = \kappa \exp(\log Z_\text{NLO}(\Gamma))}, and
+#'   \code{rho} is the geometric-truncation continuation probability.
+#'
 #' @param pairwise_scale `r lifecycle::badge("deprecated")` Double.
 #'   Scale of the Cauchy prior for pairwise
 #'   interaction parameters. Use \code{interaction_prior} instead.
@@ -343,6 +367,8 @@ bgm = function(
   means_prior = normal_prior(scale = 1),
   precision_scale_prior = gamma_prior(shape = 1, rate = 1),
   delta = NULL,
+  graph_prior_spec = c("joint", "hierarchical"),
+  z_ratio_tuning = list(M_inner = 100L, kappa = 1.0, rho = 0.5),
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),
   na_action = c("listwise", "impute"),
@@ -511,6 +537,8 @@ bgm = function(
     scale_shape = sp$scale_shape,
     scale_rate = sp$scale_rate,
     delta = delta,
+    graph_prior_spec = graph_prior_spec,
+    z_ratio_tuning = z_ratio_tuning,
     standardize = standardize,
     edge_selection = edge_selection,
     edge_prior = edge_prior,

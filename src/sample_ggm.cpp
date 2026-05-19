@@ -38,7 +38,11 @@ Rcpp::List sample_ggm(
     const int max_tree_depth = 10,
     const bool na_impute = false,
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable = R_NilValue,
-    const double delta = 0.0
+    const double delta = 0.0,
+    const std::string& graph_prior_spec = "joint",
+    const int    z_ratio_M_inner = 100,
+    const double z_ratio_kappa   = 1.0,
+    const double z_ratio_rho     = 0.5
 ) {
 
     // Create parameter priors from R input
@@ -84,6 +88,17 @@ Rcpp::List sample_ggm(
     // delta * log|K|. delta = 0 is the default (untilted). Consumed by
     // both gradient paths and all four MH ratios in GGMModel.
     model.set_determinant_tilt(delta);
+
+    // Graph-prior spec (joint vs hierarchical). Hierarchical mode adds the
+    // V(Γ_curr)/V(Γ_star) factor to the between-edge MH ratio, converting
+    // the implicit joint-marginal target π(Γ)·Z(Γ) into the user-specified
+    // π(Γ). Requires Normal slab + Gamma diagonal (validated at lazy init).
+    if (graph_prior_spec == "hierarchical") {
+        model.set_z_ratio_tuning(z_ratio_M_inner, z_ratio_kappa, z_ratio_rho);
+        model.set_graph_prior_spec(GraphPriorSpec::Hierarchical);
+    } else if (graph_prior_spec != "joint") {
+        Rcpp::stop("graph_prior_spec must be 'joint' or 'hierarchical'.");
+    }
 
     // Set up missing data imputation (same pattern as OMRF)
     if (na_impute && missing_index_nullable.isNotNull()) {

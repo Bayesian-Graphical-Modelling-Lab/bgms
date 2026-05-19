@@ -139,11 +139,23 @@ public:
         initialize_precision_from_mle();
     }
 
-    /** Copy constructor for cloning (required for parallel chains). */
+    /** Copy constructor for cloning (required for parallel chains).
+     *
+     * Note on hierarchical-spec state: only the *configuration* (graph_prior_spec_,
+     * v_M_inner_, v_kappa_, v_rho_) is copied. The lazy state (pools, chain aux,
+     * log_Z_NLO_curr_) is reset so each cloned chain rebuilds it on first
+     * ensure_hierarchical_state_() call - this is intentional because pools are
+     * RNG-derived and would otherwise share random draws across chains.
+     */
     GGMModel(const GGMModel& other)
         : BaseModel(other),
           target_accept_(other.target_accept_),
           determinant_tilt_(other.determinant_tilt_),
+          graph_prior_spec_(other.graph_prior_spec_),
+          hierarchical_state_built_(false),
+          v_M_inner_(other.v_M_inner_),
+          v_kappa_(other.v_kappa_),
+          v_rho_(other.v_rho_),
           n_(other.n_),
           p_(other.p_),
           dim_(other.dim_),

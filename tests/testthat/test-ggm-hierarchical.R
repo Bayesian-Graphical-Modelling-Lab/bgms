@@ -68,6 +68,89 @@ test_that("hierarchical-spec chain is reproducible under fixed seed", {
 })
 
 
+test_that("bgm() R API accepts graph_prior_spec = 'hierarchical' end-to-end", {
+  set.seed(99)
+  p <- 5L; n <- 100L
+  Y <- scale(matrix(rnorm(n * p), n, p), scale = FALSE)
+  colnames(Y) <- paste0("V", seq_len(p))
+
+  fit <- bgm(
+    Y, variable_type = "continuous",
+    interaction_prior     = normal_prior(scale = 1),
+    precision_scale_prior = gamma_prior(shape = 1, rate = 1),
+    delta = 0.5,
+    graph_prior_spec = "hierarchical",
+    z_ratio_tuning   = list(M_inner = 50L, kappa = 1.0, rho = 0.5),
+    iter = 200L, warmup = 50L,
+    update_method = "adaptive-metropolis",
+    chains = 1L, cores = 1L, seed = 1L,
+    display_progress = "none", verbose = FALSE
+  )
+  ind <- S7::prop(fit, "posterior_mean_indicator")
+  expect_true(is.matrix(ind))
+  expect_equal(dim(ind), c(p, p))
+  expect_true(all(ind >= 0 & ind <= 1))
+  expect_true(all(is.finite(ind)))
+})
+
+
+test_that("bgm() with hierarchical errors helpfully for Cauchy slab", {
+  set.seed(11)
+  Y <- scale(matrix(rnorm(50 * 4L), 50, 4L), scale = FALSE)
+  expect_error(
+    bgm(Y, variable_type = "continuous",
+        interaction_prior     = cauchy_prior(scale = 1),
+        graph_prior_spec      = "hierarchical",
+        iter = 50L, warmup = 25L,
+        update_method = "adaptive-metropolis",
+        chains = 1L, cores = 1L, seed = 1L,
+        display_progress = "none", verbose = FALSE),
+    regexp = "Normal slab"
+  )
+})
+
+
+test_that("bgm() rejects hierarchical for non-continuous models", {
+  set.seed(13)
+  # Pure ordinal data should land in 'omrf' which has no precision matrix.
+  X <- matrix(sample(0:3, 200 * 4L, replace = TRUE), 200, 4L)
+  expect_error(
+    bgm(X, variable_type = "ordinal",
+        graph_prior_spec = "hierarchical",
+        iter = 50L, warmup = 25L,
+        update_method = "adaptive-metropolis",
+        chains = 1L, cores = 1L, seed = 1L,
+        display_progress = "none", verbose = FALSE),
+    regexp = "continuous"
+  )
+})
+
+
+test_that("z_ratio_tuning validation rejects out-of-range values", {
+  set.seed(11)
+  Y <- scale(matrix(rnorm(50 * 4L), 50, 4L), scale = FALSE)
+  for (bad in list(
+    list(M_inner = 0L, kappa = 1, rho = 0.5),
+    list(M_inner = 100, kappa = -1, rho = 0.5),
+    list(M_inner = 100, kappa = 1, rho = 0),
+    list(M_inner = 100, kappa = 1, rho = 1)
+  )) {
+    expect_error(
+      bgm(Y, variable_type = "continuous",
+          interaction_prior     = normal_prior(scale = 1),
+          precision_scale_prior = gamma_prior(shape = 1, rate = 1),
+          graph_prior_spec = "hierarchical",
+          z_ratio_tuning   = bad,
+          iter = 50L, warmup = 25L,
+          update_method = "adaptive-metropolis",
+          chains = 1L, cores = 1L, seed = 1L,
+          display_progress = "none", verbose = FALSE),
+      regexp = "z_ratio_tuning"
+    )
+  }
+})
+
+
 test_that("hierarchical-spec scales with delta sensibly", {
   # As δ increases, the |K|^δ tilt should push K further into the
   # interior of M+(Γ), making large connected graphs feasible. We don't
