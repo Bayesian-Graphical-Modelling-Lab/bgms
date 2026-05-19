@@ -6,6 +6,7 @@
 #include "models/ggm/log_z_nlo.h"
 #include "models/ggm/degord_sampler.h"
 #include "models/ggm/z_ratio_estimator.h"
+#include "models/ggm/ggm_model.h"
 #include "rng/rng_utils.h"
 
 
@@ -176,5 +177,65 @@ Rcpp::List degord_draw_U_rr_cpp(int M_inner, int q, double rho, int seed) {
     return Rcpp::List::create(
         Rcpp::Named("K_depth") = K_depth,
         Rcpp::Named("pools_t") = pools_R
+    );
+}
+
+
+// ---- Phase 4a: hierarchical-spec smoke test ----------------------------
+
+// Constructs a small GGMModel with Normal slab + Gamma diagonal, switches to
+// hierarchical-spec, runs n_sweeps of MH, and returns the final edge
+// indicators and a few summary statistics. Crashes here are a regression
+// in the Phase 4a wiring.
+
+// [[Rcpp::export]]
+Rcpp::List ggm_hierarchical_smoke_cpp(
+    const arma::mat& observations,
+    double inclusion_prob,
+    double interaction_scale,    // sigma for Normal slab
+    double diagonal_shape,       // alpha for Gamma diag
+    double diagonal_rate,        // beta for Gamma diag
+    double delta,                // determinant tilt
+    int    M_inner,
+    double kappa,
+    double rho,
+    int    n_sweeps,
+    int    seed
+) {
+    int p = observations.n_cols;
+    arma::mat inclusion_probability(p, p, arma::fill::value(inclusion_prob));
+    arma::imat initial_edges(p, p, arma::fill::zeros);
+    // Start at empty graph: edge_indicators are 0 off-diagonal, 1 on the
+    // diagonal (by GGMModel convention).
+    for (int i = 0; i < p; ++i) initial_edges(i, i) = 1;
+
+    auto slab = std::make_unique<NormalPrior>(interaction_scale);
+    auto diag = std::make_unique<GammaScalePrior>(diagonal_shape, diagonal_rate);
+
+    GGMModel model(observations,
+                   inclusion_probability,
+                   initial_edges,
+                   /*edge_selection=*/true,
+                   std::move(slab),
+                   std::move(diag),
+                   /*na_impute=*/false);
+    model.set_seed(seed);
+    model.set_determinant_tilt(delta);
+    model.set_z_ratio_tuning(M_inner, kappa, rho);
+    model.set_graph_prior_spec(GraphPriorSpec::Hierarchical);
+
+    arma::ivec n_edges(n_sweeps, arma::fill::zeros);
+    for (int s = 0; s < n_sweeps; ++s) {
+        model.prepare_iteration();
+        model.update_edge_indicators();
+        const arma::imat& E = model.get_edge_indicators();
+        n_edges[s] = arma::accu(E) / 2;  // off-diagonal edges (E is symmetric)
+        // Discount the diagonal-1 convention if it applies. Standard ggm
+        // counts edges as accu(upper-tri) which is accu(E)/2 here.
+    }
+
+    return Rcpp::List::create(
+        Rcpp::Named("final_edges")  = model.get_edge_indicators(),
+        Rcpp::Named("n_edges_path") = n_edges
     );
 }

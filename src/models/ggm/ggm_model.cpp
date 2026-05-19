@@ -4,6 +4,9 @@
 #include "math/cholupdate.h"
 #include "mcmc/execution/step_result.h"
 #include "mcmc/execution/warmup_schedule.h"
+#include "models/ggm/log_z_nlo.h"
+#include "models/ggm/z_ratio_estimator.h"
+#include <stdexcept>
 
 // =====================================================================
 // NUTS gradient support
@@ -842,6 +845,11 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 
         // Determinant-tilt prior: |K|^delta contributes delta * log_det_ratio
         // to the MH ratio. The rank-2 update at (i,j),(j,j) makes this O(p).
+        // NOTE: under the Roverato slaving (K_jj <- c_3 + phi^2 with phi chosen
+        // so K_ij <- 0), |K| is invariant to machine precision (proven via the
+        // 2x2 cofactor identity and verified numerically at q<=10). So this
+        // term is identically zero in practice; it's kept here defensively for
+        // any future non-Roverato proposal variant.
         if (determinant_tilt_ != 0.0) {
             ln_alpha += determinant_tilt_ * log_det_ratio_edge(i, j);
         }
@@ -857,6 +865,52 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         // and its prior must be re-evaluated.
         ln_alpha += diagonal_prior_->logp(0.5 * precision_proposal_(j, j));
         ln_alpha -= diagonal_prior_->logp(0.5 * precision_matrix_(j, j));
+
+        // Hierarchical-spec correction: multiply the joint MH ratio by
+        // V(Γ_curr) / V(Γ_star) ≈ Z(Γ_star) / Z(Γ_curr). Lyne (2015) RR debias
+        // with the DEGORD-permuted Bartlett-Cholesky inner sampler.
+        double log_Z_NLO_star = log_Z_NLO_curr_;  // tentative; set below if hierarchical
+        bool hier_active = (graph_prior_spec_ == GraphPriorSpec::Hierarchical);
+        if (hier_active) {
+            ensure_hierarchical_state_();
+            // Γ_star: this branch DELETES edge (i, j).
+            arma::imat G_star = edge_indicators_;
+            G_star(i, j) = 0;
+            G_star(j, i) = 0;
+            // log_Z_NLO_star via the cheap incremental at α=1, full otherwise.
+            if (prior_alpha_ == 1.0) {
+                double d = log_Z_NLO_gamma_delta_incr_alpha1(
+                    edge_indicators_, static_cast<int>(i), static_cast<int>(j),
+                    prior_beta_, prior_sigma_, determinant_tilt_, false);
+                log_Z_NLO_star = log_Z_NLO_curr_ + d;
+            } else {
+                log_Z_NLO_star = log_Z_NLO_gamma(
+                    G_star, prior_alpha_, prior_beta_, prior_sigma_,
+                    false, determinant_tilt_);
+            }
+            // V evaluated under the DEGORD permutation π that sends (i, j)
+            // to (q-2, q-1).
+            arma::ivec pi = degord::degord_permutation(
+                static_cast<int>(p_), static_cast<int>(i), static_cast<int>(j));
+            arma::imat G_pi_curr = degord::permute_graph(edge_indicators_, pi);
+            arma::imat G_pi_star = degord::permute_graph(G_star, pi);
+            double c_curr = v_kappa_ * std::exp(log_Z_NLO_curr_);
+            double c_star = v_kappa_ * std::exp(log_Z_NLO_star);
+            double V_curr = degord::V_at_Gamma_pi_degord(
+                v_K_depth_, v_pools_t_, G_pi_curr, chain_aux_degord_,
+                c_curr, v_rho_);
+            double V_star = degord::V_at_Gamma_pi_degord(
+                v_K_depth_, v_pools_t_, G_pi_star, chain_aux_degord_,
+                c_star, v_rho_);
+            // Auto-reject on non-finite or zero |V| (Lyne 2015 convention).
+            if (!std::isfinite(V_curr) || V_curr == 0.0 ||
+                !std::isfinite(V_star) || V_star == 0.0) {
+                ln_alpha = -std::numeric_limits<double>::infinity();
+            } else {
+                ln_alpha += std::log(std::abs(V_curr))
+                          - std::log(std::abs(V_star));
+            }
+        }
 
         if (MY_LOG(runif(rng_)) < ln_alpha) {
 
@@ -877,6 +931,7 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 
             constraint_dirty_ = true;
             theta_valid_ = false;
+            if (hier_active) log_Z_NLO_curr_ = log_Z_NLO_star;
         }
 
     } else {
@@ -906,7 +961,8 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         // }
 
         // Determinant-tilt prior: |K|^delta contributes delta * log_det_ratio
-        // to the MH ratio.
+        // to the MH ratio. See the DELETE branch for the Roverato-invariance
+        // note - kept here defensively.
         if (determinant_tilt_ != 0.0) {
             ln_alpha += determinant_tilt_ * log_det_ratio_edge(i, j);
         }
@@ -925,11 +981,54 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         // Proposal term: proposed edge value given it was generated from truncated normal
         ln_alpha -= R::dnorm(omega_prop_ij / constants_[3], 0.0, proposal_sd, true) - MY_LOG(constants_[3]);
 
+        // Hierarchical-spec correction (ADD branch): see DELETE branch for the
+        // rationale. Γ_star ADDS edge (i, j) here, so log_Z_NLO_star differs
+        // from log_Z_NLO_curr by the +add direction of the incremental.
+        double log_Z_NLO_star_add = log_Z_NLO_curr_;
+        bool hier_active_add = (graph_prior_spec_ == GraphPriorSpec::Hierarchical);
+        if (hier_active_add) {
+            ensure_hierarchical_state_();
+            arma::imat G_star = edge_indicators_;
+            G_star(i, j) = 1;
+            G_star(j, i) = 1;
+            if (prior_alpha_ == 1.0) {
+                double d = log_Z_NLO_gamma_delta_incr_alpha1(
+                    edge_indicators_, static_cast<int>(i), static_cast<int>(j),
+                    prior_beta_, prior_sigma_, determinant_tilt_, false);
+                log_Z_NLO_star_add = log_Z_NLO_curr_ + d;
+            } else {
+                log_Z_NLO_star_add = log_Z_NLO_gamma(
+                    G_star, prior_alpha_, prior_beta_, prior_sigma_,
+                    false, determinant_tilt_);
+            }
+            arma::ivec pi = degord::degord_permutation(
+                static_cast<int>(p_), static_cast<int>(i), static_cast<int>(j));
+            arma::imat G_pi_curr = degord::permute_graph(edge_indicators_, pi);
+            arma::imat G_pi_star = degord::permute_graph(G_star, pi);
+            double c_curr = v_kappa_ * std::exp(log_Z_NLO_curr_);
+            double c_star = v_kappa_ * std::exp(log_Z_NLO_star_add);
+            double V_curr = degord::V_at_Gamma_pi_degord(
+                v_K_depth_, v_pools_t_, G_pi_curr, chain_aux_degord_,
+                c_curr, v_rho_);
+            double V_star = degord::V_at_Gamma_pi_degord(
+                v_K_depth_, v_pools_t_, G_pi_star, chain_aux_degord_,
+                c_star, v_rho_);
+            if (!std::isfinite(V_curr) || V_curr == 0.0 ||
+                !std::isfinite(V_star) || V_star == 0.0) {
+                ln_alpha = -std::numeric_limits<double>::infinity();
+            } else {
+                ln_alpha += std::log(std::abs(V_curr))
+                          - std::log(std::abs(V_star));
+            }
+        }
+
         if (MY_LOG(runif(rng_)) < ln_alpha) {
             // Accept: turn ON the edge
             // Store old values for Cholesky update
             double omega_ij_old = precision_matrix_(i, j);
             double omega_jj_old = precision_matrix_(j, j);
+
+            if (hier_active_add) log_Z_NLO_curr_ = log_Z_NLO_star_add;
 
             // Update omega
             precision_matrix_(i, j) = omega_prop_ij;
@@ -990,7 +1089,84 @@ void GGMModel::prepare_iteration() {
     // Shuffle edge visit order for random-scan edge selection.
     // Called unconditionally to keep RNG state consistent.
     shuffled_edge_order_ = arma_randperm(rng_, num_pairwise_);
+    // Refresh the V/RR U-pool once per iteration (mirrors the z chain's
+    // refresh_U_every = 1 convention).
+    if (graph_prior_spec_ == GraphPriorSpec::Hierarchical) {
+        ensure_hierarchical_state_();
+        refresh_z_ratio_pool_();
+    }
 }
+
+
+// ----------------------------------------------------------------------
+// Hierarchical-spec (Phase 4) implementation
+// ----------------------------------------------------------------------
+
+void GGMModel::set_graph_prior_spec(GraphPriorSpec spec) {
+    if (spec == graph_prior_spec_) return;
+    graph_prior_spec_ = spec;
+    hierarchical_state_built_ = false;  // force rebuild on next use
+}
+
+
+void GGMModel::set_z_ratio_tuning(int M_inner, double kappa, double rho) {
+    if (M_inner < 1) throw std::runtime_error("M_inner must be >= 1");
+    if (!(rho > 0.0 && rho < 1.0))
+        throw std::runtime_error("rho must be in (0, 1)");
+    if (!(kappa > 0.0))
+        throw std::runtime_error("kappa must be > 0");
+    v_M_inner_ = M_inner;
+    v_kappa_   = kappa;
+    v_rho_     = rho;
+    hierarchical_state_built_ = false;
+}
+
+
+void GGMModel::ensure_hierarchical_state_() {
+    if (hierarchical_state_built_) return;
+    // Validate prior family. The closed-form log_Z_NLO_gamma machinery only
+    // covers slab = Normal(0, σ) and diag = Gamma(α, β) on K_ii/2.
+    const auto* slab = dynamic_cast<const NormalPrior*>(interaction_prior_.get());
+    if (slab == nullptr)
+        throw std::runtime_error(
+            "Hierarchical graph_prior_spec requires a Normal slab "
+            "(NormalPrior). Re-fit with interaction_prior_type = 'normal'.");
+    const auto* diag = dynamic_cast<const GammaScalePrior*>(diagonal_prior_.get());
+    if (diag == nullptr)
+        throw std::runtime_error(
+            "Hierarchical graph_prior_spec requires a Gamma diagonal prior "
+            "(GammaScalePrior).");
+
+    prior_sigma_ = slab->scale();
+    prior_alpha_ = diag->shape();
+    prior_beta_  = diag->rate();
+    double delta = determinant_tilt_;
+
+    chain_aux_degord_ = degord::make_chain_aux(
+        static_cast<int>(p_), prior_alpha_, prior_beta_, prior_sigma_, delta);
+
+    // Analytic centring at the current Γ (full-recompute; the incremental
+    // form is only used on accept). Use F = false to match the production
+    // convention (NLO without the F-piece — the F overcorrects at α > 1).
+    log_Z_NLO_curr_ = log_Z_NLO_gamma(
+        edge_indicators_, prior_alpha_, prior_beta_, prior_sigma_,
+        /*include_F=*/false, delta);
+
+    refresh_z_ratio_pool_();
+    hierarchical_state_built_ = true;
+}
+
+
+void GGMModel::refresh_z_ratio_pool_() {
+    degord::draw_U_degord_rr(
+        rng_, v_K_depth_, v_pools_t_, v_M_inner_, static_cast<int>(p_), v_rho_);
+}
+
+
+// NOTE: the on-accept update of log_Z_NLO_curr_ lives inline in
+// update_edge_indicator_parameter_pair (both branches set log_Z_NLO_curr_ to
+// the pre-computed log_Z_NLO_star{,_add} inside their MH accept blocks).
+// The incremental form is the alpha=1 fast path; alpha != 1 full-recomputes.
 
 void GGMModel::update_edge_indicators() {
     for (size_t idx = 0; idx < num_pairwise_; ++idx) {

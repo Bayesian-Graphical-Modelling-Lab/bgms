@@ -2,13 +2,33 @@
 
 #include <array>
 #include <memory>
+#include <vector>
 #include "models/base_model.h"
 #include "math/cholesky_helpers.h"
 #include "rng/rng_utils.h"
 #include "models/ggm/graph_constraint_structure.h"
 #include "models/ggm/ggm_gradient.h"
+#include "models/ggm/degord_sampler.h"
 #include "priors/parameter_prior.h"
 #include "mcmc/samplers/metropolis_adaptation.h"
+
+
+/**
+ * Graph-prior specification for the GGM with edge selection.
+ *
+ *   Joint         (default): π_joint(K, Γ) ∝ slab·diag·|K|^δ·1{K∈M+(Γ)}·π(Γ).
+ *                 Γ marginal is π(Γ)·Z(Γ).
+ *   Hierarchical: π_hier(K, Γ)  ∝ slab·diag·|K|^δ·1{K∈M+(Γ)}/Z(Γ)·π(Γ).
+ *                 Γ marginal is π(Γ) directly. Requires the Z(Γ) ratio to be
+ *                 estimated unbiasedly per between-edge proposal; implemented
+ *                 via the DEGORD-permuted V/RR estimator (Phase 2 + 3).
+ *
+ * Hierarchical mode requires the slab to be NormalPrior and the diagonal to
+ * be GammaScalePrior (the closed-form log_Z_NLO_gamma machinery only
+ * supports this prior family). Construction will throw if hierarchical is
+ * requested under any other family.
+ */
+enum class GraphPriorSpec { Joint, Hierarchical };
 
 
 /**
@@ -219,6 +239,20 @@ public:
         determinant_tilt_ = delta;
         constraint_dirty_ = true;
     }
+
+    /**
+     * Switch the chain to hierarchical-spec inference (default is Joint).
+     * Validates the slab/diag prior family is (NormalPrior, GammaScalePrior)
+     * — throws std::runtime_error if not. Lazy: state is built on first
+     * use (next prepare_iteration or between-edge proposal).
+     */
+    void set_graph_prior_spec(GraphPriorSpec spec);
+
+    /**
+     * Configure the V/RR estimator tuning. Defaults: M_inner=100, kappa=1.0,
+     * rho=0.5. Only consumed when graph_prior_spec_ == Hierarchical.
+     */
+    void set_z_ratio_tuning(int M_inner, double kappa, double rho);
 
     /** Shuffle edge visit order (random scan). */
     void prepare_iteration() override;
@@ -489,6 +523,36 @@ private:
     // Determinant-tilt exponent (see set_determinant_tilt). Forwarded to
     // GGMGradientEngine on every rebuild.
     double determinant_tilt_ = 0.0;
+
+    // ---- Hierarchical-spec inference (Phase 4) ----
+    // Default is Joint (the existing chain semantics). Hierarchical mode
+    // multiplies the between-edge MH ratio by V(Γ_curr)/V(Γ_star), an
+    // unbiased estimator of Z(Γ_star)/Z(Γ_curr), to convert the joint-
+    // marginal Γ target π(Γ)·Z(Γ) into the user-specified π(Γ).
+    GraphPriorSpec graph_prior_spec_ = GraphPriorSpec::Joint;
+    bool   hierarchical_state_built_ = false;
+    int    v_M_inner_ = 100;
+    double v_kappa_   = 1.0;
+    double v_rho_     = 0.5;
+    // Per-Γ_curr state (only relevant when graph_prior_spec_ == Hierarchical):
+    //   chain_aux_degord_       : (alpha, beta, sigma, delta) constants for DEGORD.
+    //   log_Z_NLO_curr_         : analytic centring at Γ_curr (incremented on accept).
+    //   v_pools_t_, v_K_depth_  : current U = (K_depth, K pools), refreshed per iteration.
+    degord::ChainAux       chain_aux_degord_;
+    double                 log_Z_NLO_curr_ = 0.0;
+    int                    v_K_depth_     = 0;
+    std::vector<arma::mat> v_pools_t_;
+    // Extracted prior-family params (cached at ensure_hierarchical_state_).
+    double prior_sigma_ = 1.0;  // NormalPrior scale
+    double prior_alpha_ = 1.0;  // GammaScalePrior shape
+    double prior_beta_  = 1.0;  // GammaScalePrior rate
+
+    /// Lazy initialiser for the V/RR machinery. Validates prior family,
+    /// builds chain_aux_degord_, computes log_Z_NLO_curr_ via full-recompute,
+    /// draws the first U-pool. Idempotent (no-op when state is fresh).
+    void ensure_hierarchical_state_();
+    /// Draw a fresh (K_depth, pools_t) U for the V estimator.
+    void refresh_z_ratio_pool_();
 
     /** Extract upper triangle of the precision matrix into a vector. */
     arma::vec extract_upper_triangle() const {

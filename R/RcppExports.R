@@ -101,6 +101,10 @@ degord_draw_U_rr_cpp <- function(M_inner, q, rho, seed) {
     .Call(`_bgms_degord_draw_U_rr_cpp`, M_inner, q, rho, seed)
 }
 
+ggm_hierarchical_smoke_cpp <- function(observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, M_inner, kappa, rho, n_sweeps, seed) {
+    .Call(`_bgms_ggm_hierarchical_smoke_cpp`, observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, M_inner, kappa, rho, n_sweeps, seed)
+}
+
 .compute_ess_cpp <- function(array3d) {
     .Call(`_bgms_compute_ess_cpp`, array3d)
 }
