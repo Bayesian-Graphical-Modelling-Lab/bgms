@@ -404,6 +404,40 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// degord_V_at_Gamma_pi_cpp
+double degord_V_at_Gamma_pi_cpp(int K_depth, const Rcpp::List& pools_t, const arma::imat& G_pi, double alpha, double beta, double sigma, double delta, double c_val, double rho, int slab_tilt_mode);
+RcppExport SEXP _bgms_degord_V_at_Gamma_pi_cpp(SEXP K_depthSEXP, SEXP pools_tSEXP, SEXP G_piSEXP, SEXP alphaSEXP, SEXP betaSEXP, SEXP sigmaSEXP, SEXP deltaSEXP, SEXP c_valSEXP, SEXP rhoSEXP, SEXP slab_tilt_modeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type K_depth(K_depthSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type pools_t(pools_tSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type G_pi(G_piSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma(sigmaSEXP);
+    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
+    Rcpp::traits::input_parameter< double >::type c_val(c_valSEXP);
+    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
+    Rcpp::traits::input_parameter< int >::type slab_tilt_mode(slab_tilt_modeSEXP);
+    rcpp_result_gen = Rcpp::wrap(degord_V_at_Gamma_pi_cpp(K_depth, pools_t, G_pi, alpha, beta, sigma, delta, c_val, rho, slab_tilt_mode));
+    return rcpp_result_gen;
+END_RCPP
+}
+// degord_draw_U_rr_cpp
+Rcpp::List degord_draw_U_rr_cpp(int M_inner, int q, double rho, int seed);
+RcppExport SEXP _bgms_degord_draw_U_rr_cpp(SEXP M_innerSEXP, SEXP qSEXP, SEXP rhoSEXP, SEXP seedSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type M_inner(M_innerSEXP);
+    Rcpp::traits::input_parameter< int >::type q(qSEXP);
+    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
+    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
+    rcpp_result_gen = Rcpp::wrap(degord_draw_U_rr_cpp(M_inner, q, rho, seed));
+    return rcpp_result_gen;
+END_RCPP
+}
 // compute_ess_cpp
 Rcpp::NumericVector compute_ess_cpp(Rcpp::NumericVector array3d);
 RcppExport SEXP _bgms_compute_ess_cpp(SEXP array3dSEXP) {
@@ -975,6 +1009,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_degord_log_Zhat_pi_from_pool_cpp", (DL_FUNC) &_bgms_degord_log_Zhat_pi_from_pool_cpp, 7},
     {"_bgms_degord_delta_log_Zhat_pi_toggle_cpp", (DL_FUNC) &_bgms_degord_delta_log_Zhat_pi_toggle_cpp, 10},
     {"_bgms_degord_draw_bartlett_pool_cpp", (DL_FUNC) &_bgms_degord_draw_bartlett_pool_cpp, 3},
+    {"_bgms_degord_V_at_Gamma_pi_cpp", (DL_FUNC) &_bgms_degord_V_at_Gamma_pi_cpp, 10},
+    {"_bgms_degord_draw_U_rr_cpp", (DL_FUNC) &_bgms_degord_draw_U_rr_cpp, 4},
     {"_bgms_compute_ess_cpp", (DL_FUNC) &_bgms_compute_ess_cpp, 1},
     {"_bgms_compute_rhat_cpp", (DL_FUNC) &_bgms_compute_rhat_cpp, 1},
     {"_bgms_compute_indicator_ess_cpp", (DL_FUNC) &_bgms_compute_indicator_ess_cpp, 1},

@@ -93,6 +93,14 @@ degord_draw_bartlett_pool_cpp <- function(q, M_inner, seed) {
     .Call(`_bgms_degord_draw_bartlett_pool_cpp`, q, M_inner, seed)
 }
 
+degord_V_at_Gamma_pi_cpp <- function(K_depth, pools_t, G_pi, alpha, beta, sigma, delta, c_val, rho, slab_tilt_mode = 0L) {
+    .Call(`_bgms_degord_V_at_Gamma_pi_cpp`, K_depth, pools_t, G_pi, alpha, beta, sigma, delta, c_val, rho, slab_tilt_mode)
+}
+
+degord_draw_U_rr_cpp <- function(M_inner, q, rho, seed) {
+    .Call(`_bgms_degord_draw_U_rr_cpp`, M_inner, q, rho, seed)
+}
+
 .compute_ess_cpp <- function(array3d) {
     .Call(`_bgms_compute_ess_cpp`, array3d)
 }

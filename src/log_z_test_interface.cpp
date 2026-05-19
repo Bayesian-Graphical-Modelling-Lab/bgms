@@ -5,6 +5,7 @@
 #include <RcppArmadillo.h>
 #include "models/ggm/log_z_nlo.h"
 #include "models/ggm/degord_sampler.h"
+#include "models/ggm/z_ratio_estimator.h"
 #include "rng/rng_utils.h"
 
 
@@ -138,4 +139,42 @@ double degord_delta_log_Zhat_pi_toggle_cpp(
 arma::mat degord_draw_bartlett_pool_cpp(int q, int M_inner, int seed) {
     SafeRNG rng(seed);
     return degord::draw_bartlett_pool(rng, q, M_inner);
+}
+
+
+// ---- Phase 3: V(Γ, U) Russian-Roulette estimator test interface --------
+
+// [[Rcpp::export]]
+double degord_V_at_Gamma_pi_cpp(
+    int K_depth,
+    const Rcpp::List& pools_t,
+    const arma::imat& G_pi,
+    double alpha, double beta, double sigma, double delta,
+    double c_val, double rho,
+    int slab_tilt_mode = 0
+) {
+    int q = G_pi.n_rows;
+    auto chain_aux = degord::make_chain_aux(q, alpha, beta, sigma, delta);
+    chain_aux.slab_tilt_mode = slab_tilt_mode;
+    std::vector<arma::mat> pools_t_cpp;
+    pools_t_cpp.reserve(static_cast<size_t>(K_depth));
+    for (int n = 0; n < K_depth; ++n)
+        pools_t_cpp.push_back(Rcpp::as<arma::mat>(pools_t[n]));
+    return degord::V_at_Gamma_pi_degord(
+        K_depth, pools_t_cpp, G_pi, chain_aux, c_val, rho);
+}
+
+
+// [[Rcpp::export]]
+Rcpp::List degord_draw_U_rr_cpp(int M_inner, int q, double rho, int seed) {
+    SafeRNG rng(seed);
+    int K_depth = 0;
+    std::vector<arma::mat> pools_t;
+    degord::draw_U_degord_rr(rng, K_depth, pools_t, M_inner, q, rho);
+    Rcpp::List pools_R(K_depth);
+    for (int n = 0; n < K_depth; ++n) pools_R[n] = pools_t[n];
+    return Rcpp::List::create(
+        Rcpp::Named("K_depth") = K_depth,
+        Rcpp::Named("pools_t") = pools_R
+    );
 }
