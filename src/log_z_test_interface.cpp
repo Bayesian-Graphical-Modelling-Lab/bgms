@@ -37,3 +37,14 @@ double log_Z_NLO_gamma_delta_incr_alpha1_cpp(
     return log_Z_NLO_gamma_delta_incr_alpha1(
         G_before, i, j, beta, sigma, delta, include_F);
 }
+
+
+// [[Rcpp::export]]
+double log_Z_NLO_gamma_delta_incr_alphaN_cpp(
+    const arma::imat& G_before, int i, int j,
+    double alpha, double beta, double sigma, double delta,
+    bool include_F = false
+) {
+    return log_Z_NLO_gamma_delta_incr_alphaN(
+        G_before, i, j, alpha, beta, sigma, delta, include_F);
+}

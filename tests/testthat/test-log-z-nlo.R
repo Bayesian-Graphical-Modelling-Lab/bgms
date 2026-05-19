@@ -145,6 +145,75 @@ test_that("alpha = 1 incremental matches full-recompute log-Z difference", {
 })
 
 
+# ---- alpha > 1 incremental agrees with full-recompute difference -----------
+
+test_that("general-alpha incremental matches full-recompute log-Z difference", {
+  # Phase 1b: the alpha > 1 cascade adds H_e dependence on the larger endpoint
+  # via the -4 beta (alpha - 1) / M_v[v] piece, so a toggle (i, j) cascades to
+  # every edge incident to i (forward AND backward). V_a = {i, j} ∪ N(i)
+  # captures the full affected set.
+  for (q in c(3L, 5L, 7L)) {
+    G <- draw_random_graph(q, seed = 200 + q)
+    for (alpha in c(1.5, 2.0, 3.0)) {
+      for (delta in c(0.0, 0.5, 1.0)) {
+        for (include_F in c(FALSE, TRUE)) {
+          for (i_zero in 0:(q - 2)) {
+            for (j_zero in (i_zero + 1):(q - 1)) {
+              G_after <- G
+              G_after[i_zero + 1, j_zero + 1] <- 1L - G[i_zero + 1, j_zero + 1]
+              G_after[j_zero + 1, i_zero + 1] <- G_after[i_zero + 1, j_zero + 1]
+              full_diff <- log_Z_NLO_gamma_cpp(
+                G_after, alpha, 1.0, 1.0, include_F, delta
+              ) - log_Z_NLO_gamma_cpp(
+                G, alpha, 1.0, 1.0, include_F, delta
+              )
+              inc <- log_Z_NLO_gamma_delta_incr_alphaN_cpp(
+                G, i_zero, j_zero, alpha, 1.0, 1.0, delta, include_F
+              )
+              expect_equal(
+                inc, full_diff,
+                tolerance = 1e-10,
+                info = sprintf("q=%d (i,j)=(%d,%d) alpha=%g delta=%g F=%s",
+                               q, i_zero, j_zero, alpha, delta, include_F)
+              )
+            }
+          }
+        }
+      }
+    }
+  }
+})
+
+
+# ---- alpha = 1 reduction: general-alpha == alpha-1 specialisation ----------
+
+test_that("general-alpha incremental reduces to alpha=1 form at alpha = 1", {
+  for (q in c(3L, 5L, 7L)) {
+    G <- draw_random_graph(q, seed = 311 + q)
+    for (delta in c(0.0, 0.5, 1.0)) {
+      for (include_F in c(FALSE, TRUE)) {
+        for (i_zero in 0:(q - 2)) {
+          for (j_zero in (i_zero + 1):(q - 1)) {
+            via_alpha1 <- log_Z_NLO_gamma_delta_incr_alpha1_cpp(
+              G, i_zero, j_zero, 1.0, 1.0, delta, include_F
+            )
+            via_alphaN <- log_Z_NLO_gamma_delta_incr_alphaN_cpp(
+              G, i_zero, j_zero, 1.0, 1.0, 1.0, delta, include_F
+            )
+            expect_equal(
+              via_alphaN, via_alpha1,
+              tolerance = 1e-10,
+              info = sprintf("q=%d (i,j)=(%d,%d) delta=%g F=%s",
+                             q, i_zero, j_zero, delta, include_F)
+            )
+          }
+        }
+      }
+    }
+  }
+})
+
+
 # ---- delta finite-difference vs analytic delta-derivative (alpha = 1) -------
 
 test_that("d(log Z) / d(delta) matches finite differences at alpha = 1", {

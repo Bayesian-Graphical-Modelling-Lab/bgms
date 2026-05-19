@@ -65,6 +65,10 @@ log_Z_NLO_gamma_delta_incr_alpha1_cpp <- function(G_before, i, j, beta, sigma, d
     .Call(`_bgms_log_Z_NLO_gamma_delta_incr_alpha1_cpp`, G_before, i, j, beta, sigma, delta, include_F)
 }
 
+log_Z_NLO_gamma_delta_incr_alphaN_cpp <- function(G_before, i, j, alpha, beta, sigma, delta, include_F = FALSE) {
+    .Call(`_bgms_log_Z_NLO_gamma_delta_incr_alphaN_cpp`, G_before, i, j, alpha, beta, sigma, delta, include_F)
+}
+
 .compute_ess_cpp <- function(array3d) {
     .Call(`_bgms_compute_ess_cpp`, array3d)
 }

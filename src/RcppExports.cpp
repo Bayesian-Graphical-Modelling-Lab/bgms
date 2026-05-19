@@ -293,6 +293,24 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// log_Z_NLO_gamma_delta_incr_alphaN_cpp
+double log_Z_NLO_gamma_delta_incr_alphaN_cpp(const arma::imat& G_before, int i, int j, double alpha, double beta, double sigma, double delta, bool include_F);
+RcppExport SEXP _bgms_log_Z_NLO_gamma_delta_incr_alphaN_cpp(SEXP G_beforeSEXP, SEXP iSEXP, SEXP jSEXP, SEXP alphaSEXP, SEXP betaSEXP, SEXP sigmaSEXP, SEXP deltaSEXP, SEXP include_FSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::imat& >::type G_before(G_beforeSEXP);
+    Rcpp::traits::input_parameter< int >::type i(iSEXP);
+    Rcpp::traits::input_parameter< int >::type j(jSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma(sigmaSEXP);
+    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
+    Rcpp::traits::input_parameter< bool >::type include_F(include_FSEXP);
+    rcpp_result_gen = Rcpp::wrap(log_Z_NLO_gamma_delta_incr_alphaN_cpp(G_before, i, j, alpha, beta, sigma, delta, include_F));
+    return rcpp_result_gen;
+END_RCPP
+}
 // compute_ess_cpp
 Rcpp::NumericVector compute_ess_cpp(Rcpp::NumericVector array3d);
 RcppExport SEXP _bgms_compute_ess_cpp(SEXP array3dSEXP) {
@@ -857,6 +875,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_log_Z_NLO_gamma_cpp", (DL_FUNC) &_bgms_log_Z_NLO_gamma_cpp, 6},
     {"_bgms_log_Z_NLO_gamma_degord_cpp", (DL_FUNC) &_bgms_log_Z_NLO_gamma_degord_cpp, 8},
     {"_bgms_log_Z_NLO_gamma_delta_incr_alpha1_cpp", (DL_FUNC) &_bgms_log_Z_NLO_gamma_delta_incr_alpha1_cpp, 7},
+    {"_bgms_log_Z_NLO_gamma_delta_incr_alphaN_cpp", (DL_FUNC) &_bgms_log_Z_NLO_gamma_delta_incr_alphaN_cpp, 8},
     {"_bgms_compute_ess_cpp", (DL_FUNC) &_bgms_compute_ess_cpp, 1},
     {"_bgms_compute_rhat_cpp", (DL_FUNC) &_bgms_compute_rhat_cpp, 1},
     {"_bgms_compute_indicator_ess_cpp", (DL_FUNC) &_bgms_compute_indicator_ess_cpp, 1},

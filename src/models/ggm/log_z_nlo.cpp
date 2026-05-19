@@ -354,3 +354,219 @@ double log_Z_NLO_gamma_delta_incr_alpha1(
       G_after, i_min, beta, sigma, delta, include_F);
   return after_i - before_i;
 }
+
+// ----------------------------------------------------------------------
+// Partial log Z_NLO on an affected-vertex set V_a.
+//
+// Returns the sum of all log_Z_NLO_gamma term instances whose index set
+// intersects V_a. Other instances are invariant under any toggle that only
+// changes edges incident to vertices in V_a, so they cancel out in the
+// difference partial(G_after) - partial(G_before).
+//
+// Loops mirror log_Z_NLO_gamma exactly; the only change is an
+// (any-index-in-V_a) filter applied to each instance. M_v and H_e are
+// computed for the full graph (terms reference these globally; the filter
+// only decides whether to add the term to the partial sum).
+//
+// Cost: O(q^2) (same outer-loop bounds as log_Z_NLO_gamma; not yet
+// optimised to loop only over V_a's neighbourhood). Correctness-first;
+// loop-bound optimisation is a future refinement that can be tested
+// against this implementation.
+// ----------------------------------------------------------------------
+static double partial_log_Z_NLO_gamma_on_V(
+    const arma::imat& G,
+    const std::vector<bool>& in_V,
+    double alpha, double beta, double sigma,
+    bool include_F, double delta
+) {
+  int q = G.n_rows;
+  double sigma2 = sigma * sigma;
+
+  // Forward degrees and edge count on the full graph (M_v depends on these).
+  std::vector<int> nu(q, 0);
+  int E_count_total = 0;
+  int E_count_in_V = 0;
+  int q_in_V = 0;
+  for (int l = 0; l < q; ++l) {
+    if (in_V[l]) ++q_in_V;
+    for (int m = l + 1; m < q; ++m)
+      if (G(l, m) == 1) {
+        ++nu[l];
+        ++E_count_total;
+        if (in_V[l] || in_V[m]) ++E_count_in_V;
+      }
+  }
+
+  // log_C0 partial: per-edge constants summed over edges in V_a, plus
+  // per-vertex lgamma / -lgamma(alpha) - delta log(beta) for vertices in V_a.
+  double log_C0 = 0.5 * static_cast<double>(E_count_in_V) * std::log(M_PI)
+                  - 0.5 * static_cast<double>(E_count_in_V) * std::log(2.0 * M_PI * sigma2)
+                  - static_cast<double>(E_count_in_V) * std::log(beta)
+                  - static_cast<double>(q_in_V) * std::lgamma(alpha)
+                  - static_cast<double>(q_in_V) * delta * std::log(beta);
+  for (int l = 0; l < q; ++l)
+    if (in_V[l])
+      log_C0 += std::lgamma((static_cast<double>(nu[l]) + 2.0 * (alpha + delta)) / 2.0);
+
+  if (E_count_total == 0) return log_C0;
+
+  // Full M_v[l] (used by all terms; the filter decides inclusion).
+  std::vector<double> M_v(q);
+  for (int l = 0; l < q; ++l)
+    M_v[l] = static_cast<double>(nu[l]) + 2.0 * (alpha + delta) - 1.0;
+
+  // Full H_e lookup.
+  arma::mat H_e_lookup(q, q, arma::fill::zeros);
+  for (int k = 0; k < q; ++k)
+    for (int v = k + 1; v < q; ++v)
+      if (G(k, v) == 1) {
+        double h = 2.0 * beta
+                   + M_v[k] / (2.0 * sigma2 * beta)
+                   - 4.0 * beta * (alpha - 1.0) / M_v[v];
+        H_e_lookup(k, v) = h;
+        H_e_lookup(v, k) = h;
+      }
+
+  // LO slab partial: edges with at least one endpoint in V_a.
+  double log_LO = 0.0;
+  for (int k = 0; k < q; ++k)
+    for (int v = k + 1; v < q; ++v)
+      if (G(k, v) == 1 && (in_V[k] || in_V[v])) {
+        double h = H_e_lookup(k, v);
+        if (h <= 0.0) return -std::numeric_limits<double>::infinity();
+        log_LO += 0.5 * std::log(2.0 * beta / h);
+      }
+
+  // Full T (forward, smaller endpoint) and S (backward, larger endpoint) sums.
+  std::vector<double> T1(q, 0.0), T2(q, 0.0), S1(q, 0.0), S2(q, 0.0);
+  for (int v = 0; v < q; ++v) {
+    for (int w = v + 1; w < q; ++w)
+      if (G(v, w) == 1) {
+        double inv = 1.0 / H_e_lookup(v, w);
+        T1[v] += inv; T2[v] += inv * inv;
+      }
+    for (int k = 0; k < v; ++k)
+      if (G(k, v) == 1) {
+        double inv = 1.0 / H_e_lookup(k, v);
+        S1[v] += inv; S2[v] += inv * inv;
+      }
+  }
+
+  double delta_NLO = 0.0;
+
+  // B_e: edges with at least one endpoint in V_a.
+  for (int a = 0; a < q; ++a)
+    for (int b = a + 1; b < q; ++b)
+      if (G(a, b) == 1 && (in_V[a] || in_V[b]))
+        delta_NLO -= (static_cast<double>(nu[a]) + alpha)
+                     / (4.0 * beta * sigma2 * M_v[a] * H_e_lookup(a, b));
+
+  // C_{(a, b), k}: triples (k, a, b) with k < a < b, edges (k,a),(k,b),(a,b)
+  // all present, and at least one of {k, a, b} in V_a.
+  for (int a = 0; a < q; ++a) {
+    for (int b = a + 1; b < q; ++b) {
+      if (G(a, b) != 1) continue;
+      double H_ab = H_e_lookup(a, b);
+      for (int k = 0; k < a; ++k)
+        if (G(k, a) == 1 && G(k, b) == 1 && (in_V[k] || in_V[a] || in_V[b])) {
+          double H_ka = H_e_lookup(k, a), H_kb = H_e_lookup(k, b);
+          delta_NLO += -1.0 / (2.0 * sigma2 * H_ka * H_kb)
+                       + M_v[a] / (4.0 * beta * sigma2 * sigma2 * H_ab * H_ka * H_kb);
+        }
+    }
+  }
+
+  // D_v: v in V_a with T1[v] > 0.
+  for (int v = 0; v < q; ++v)
+    if (in_V[v] && T1[v] > 0.0)
+      delta_NLO += M_v[v] / (16.0 * beta * beta * sigma2 * sigma2)
+                   * (2.0 * T2[v] + T1[v] * T1[v]);
+
+  // E_{l, m} (+ F): non-edges (l, m) with at least one common predecessor,
+  // gated by (in_V[l] OR in_V[m]). Instances where i is a common predecessor
+  // but not an index require both l, m in N(i), so both in V_a anyway.
+  for (int l = 1; l < q - 1; ++l) {
+    for (int m = l + 1; m < q; ++m) {
+      if (G(l, m) != 0) continue;
+      if (!(in_V[l] || in_V[m])) continue;
+      double s1 = 0.0, s2 = 0.0;
+      bool has_common = false;
+      for (int k = 0; k < l; ++k)
+        if (G(k, l) == 1 && G(k, m) == 1) {
+          double H_kl = H_e_lookup(k, l), H_km = H_e_lookup(k, m);
+          double inv_prod = 1.0 / (H_kl * H_km);
+          s1 += inv_prod; s2 += inv_prod * inv_prod;
+          has_common = true;
+        }
+      if (!has_common) continue;
+      double Ml = M_v[l], b2 = beta * beta, b4 = b2 * b2;
+      delta_NLO -= 2.0 * b2 / Ml * s1;
+      if (include_F) {
+        delta_NLO -= 2.0 * b2 / (Ml * Ml) * s1;
+        delta_NLO += 12.0 * b4 / (Ml * Ml) * s2;
+        delta_NLO += 4.0 * b4 / (Ml * Ml) * s1 * s1;
+      }
+    }
+  }
+
+  // N_v (alpha != 1): vertex term. v in V_a captures both the v=i case (M_v
+  // directly changes) and the v = forward-neighbour-of-i case (S1[v] sums
+  // H_e(i, v) which changes via the M_v[i] cascade).
+  if (alpha != 1.0) {
+    double am1 = alpha - 1.0;
+    for (int v = 0; v < q; ++v) {
+      if (!in_V[v]) continue;
+      double Mv = M_v[v];
+      double bracket_4 = 2.0 * S2[v] + S1[v] * S1[v];
+      double Mv2 = Mv * Mv, Mv3 = Mv2 * Mv;
+      double Na = -am1 * ( 3.0 / (8.0 * Mv2)
+                          - 3.0 * beta * S1[v] / Mv2
+                          + 2.0 * beta * beta * bracket_4 / Mv2 );
+      double Nb = am1 * am1 * ( 5.0 / (12.0 * Mv3)
+                                - 2.0 * beta * S1[v] / Mv3
+                                + 4.0 * beta * beta * bracket_4 / Mv3 );
+      double Nc = am1 * (static_cast<double>(nu[v]) + 1.0)
+                  * ( 5.0 / (12.0 * Mv3) - beta * S1[v] / Mv3 );
+      delta_NLO += Na + Nb + Nc;
+    }
+    // M_e: edges with at least one endpoint in V_a. (S1[a] dependence on i
+    // requires a to be a forward neighbour of i, hence a in V_a.)
+    for (int a = 0; a < q; ++a)
+      for (int b = a + 1; b < q; ++b)
+        if (G(a, b) == 1 && (in_V[a] || in_V[b]))
+          delta_NLO += am1 / (sigma2 * M_v[a] * H_e_lookup(a, b))
+                       * (-1.0 / (4.0 * beta) + S1[a]);
+  }
+
+  return log_C0 + log_LO + delta_NLO;
+}
+
+// Public general-alpha incremental log Z_NLO ratio under single-edge toggle.
+double log_Z_NLO_gamma_delta_incr_alphaN(
+    const arma::imat& G_before, int i, int j,
+    double alpha, double beta, double sigma, double delta,
+    bool include_F
+) {
+  int q = G_before.n_rows;
+
+  // Affected vertex set V_a = {i, j} U N_G_before(i). N_after(i) differs
+  // from N_before(i) by at most {j}, and j is in V_a regardless.
+  std::vector<bool> in_V(q, false);
+  in_V[i] = true;
+  in_V[j] = true;
+  for (int v = 0; v < q; ++v)
+    if (v != i && G_before(i, v) == 1)
+      in_V[v] = true;
+
+  // Evaluate partial sum on G_before first so any accidental aliasing
+  // between G_before and G_after (Armadillo copy-on-write) cannot corrupt
+  // the before evaluation.
+  double before = partial_log_Z_NLO_gamma_on_V(
+      G_before, in_V, alpha, beta, sigma, include_F, delta);
+  arma::imat G_after(G_before);
+  G_after(i, j) = 1 - G_before(i, j);
+  G_after(j, i) = G_after(i, j);
+  double after = partial_log_Z_NLO_gamma_on_V(
+      G_after, in_V, alpha, beta, sigma, include_F, delta);
+  return after - before;
+}
