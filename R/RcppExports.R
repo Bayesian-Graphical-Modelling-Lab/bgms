@@ -53,6 +53,18 @@ sample_ggm_prior_cpp <- function(p, n_samples, n_warmup = 1000L, pairwise_scale 
     .Call(`_bgms_sample_ggm_prior`, p, n_samples, n_warmup, pairwise_scale, interaction_prior_type, scale_prior_type, gamma_shape, gamma_rate, step_size, max_depth, seed, verbose, edge_indicators_nullable, delta)
 }
 
+log_Z_NLO_gamma_cpp <- function(G, alpha, beta, sigma, include_F = FALSE, delta = 0.0) {
+    .Call(`_bgms_log_Z_NLO_gamma_cpp`, G, alpha, beta, sigma, include_F, delta)
+}
+
+log_Z_NLO_gamma_degord_cpp <- function(G, i, j, alpha, beta, sigma, include_F = FALSE, delta = 0.0) {
+    .Call(`_bgms_log_Z_NLO_gamma_degord_cpp`, G, i, j, alpha, beta, sigma, include_F, delta)
+}
+
+log_Z_NLO_gamma_delta_incr_alpha1_cpp <- function(G_before, i, j, beta, sigma, delta, include_F = FALSE) {
+    .Call(`_bgms_log_Z_NLO_gamma_delta_incr_alpha1_cpp`, G_before, i, j, beta, sigma, delta, include_F)
+}
+
 .compute_ess_cpp <- function(array3d) {
     .Call(`_bgms_compute_ess_cpp`, array3d)
 }
