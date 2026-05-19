@@ -311,6 +311,99 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// degord_chain_aux_cpp
+Rcpp::List degord_chain_aux_cpp(int q, double alpha, double beta, double sigma, double delta);
+RcppExport SEXP _bgms_degord_chain_aux_cpp(SEXP qSEXP, SEXP alphaSEXP, SEXP betaSEXP, SEXP sigmaSEXP, SEXP deltaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type q(qSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma(sigmaSEXP);
+    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
+    rcpp_result_gen = Rcpp::wrap(degord_chain_aux_cpp(q, alpha, beta, sigma, delta));
+    return rcpp_result_gen;
+END_RCPP
+}
+// degord_pi_aux_cpp
+Rcpp::List degord_pi_aux_cpp(const arma::imat& G_pi, double alpha, double beta, double sigma, double delta);
+RcppExport SEXP _bgms_degord_pi_aux_cpp(SEXP G_piSEXP, SEXP alphaSEXP, SEXP betaSEXP, SEXP sigmaSEXP, SEXP deltaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::imat& >::type G_pi(G_piSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma(sigmaSEXP);
+    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
+    rcpp_result_gen = Rcpp::wrap(degord_pi_aux_cpp(G_pi, alpha, beta, sigma, delta));
+    return rcpp_result_gen;
+END_RCPP
+}
+// degord_permute_graph_cpp
+arma::imat degord_permute_graph_cpp(const arma::imat& G, int i, int j);
+RcppExport SEXP _bgms_degord_permute_graph_cpp(SEXP GSEXP, SEXP iSEXP, SEXP jSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::imat& >::type G(GSEXP);
+    Rcpp::traits::input_parameter< int >::type i(iSEXP);
+    Rcpp::traits::input_parameter< int >::type j(jSEXP);
+    rcpp_result_gen = Rcpp::wrap(degord_permute_graph_cpp(G, i, j));
+    return rcpp_result_gen;
+END_RCPP
+}
+// degord_log_Zhat_pi_from_pool_cpp
+double degord_log_Zhat_pi_from_pool_cpp(const arma::mat& noise_pool_t, const arma::imat& G_pi, double alpha, double beta, double sigma, double delta, int slab_tilt_mode);
+RcppExport SEXP _bgms_degord_log_Zhat_pi_from_pool_cpp(SEXP noise_pool_tSEXP, SEXP G_piSEXP, SEXP alphaSEXP, SEXP betaSEXP, SEXP sigmaSEXP, SEXP deltaSEXP, SEXP slab_tilt_modeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type noise_pool_t(noise_pool_tSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type G_pi(G_piSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma(sigmaSEXP);
+    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
+    Rcpp::traits::input_parameter< int >::type slab_tilt_mode(slab_tilt_modeSEXP);
+    rcpp_result_gen = Rcpp::wrap(degord_log_Zhat_pi_from_pool_cpp(noise_pool_t, G_pi, alpha, beta, sigma, delta, slab_tilt_mode));
+    return rcpp_result_gen;
+END_RCPP
+}
+// degord_delta_log_Zhat_pi_toggle_cpp
+double degord_delta_log_Zhat_pi_toggle_cpp(const arma::mat& noise_pool, const arma::mat& noise_pool_t, const arma::imat& G_curr, int i, int j, double alpha, double beta, double sigma, double delta, int slab_tilt_mode);
+RcppExport SEXP _bgms_degord_delta_log_Zhat_pi_toggle_cpp(SEXP noise_poolSEXP, SEXP noise_pool_tSEXP, SEXP G_currSEXP, SEXP iSEXP, SEXP jSEXP, SEXP alphaSEXP, SEXP betaSEXP, SEXP sigmaSEXP, SEXP deltaSEXP, SEXP slab_tilt_modeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type noise_pool(noise_poolSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type noise_pool_t(noise_pool_tSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type G_curr(G_currSEXP);
+    Rcpp::traits::input_parameter< int >::type i(iSEXP);
+    Rcpp::traits::input_parameter< int >::type j(jSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma(sigmaSEXP);
+    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
+    Rcpp::traits::input_parameter< int >::type slab_tilt_mode(slab_tilt_modeSEXP);
+    rcpp_result_gen = Rcpp::wrap(degord_delta_log_Zhat_pi_toggle_cpp(noise_pool, noise_pool_t, G_curr, i, j, alpha, beta, sigma, delta, slab_tilt_mode));
+    return rcpp_result_gen;
+END_RCPP
+}
+// degord_draw_bartlett_pool_cpp
+arma::mat degord_draw_bartlett_pool_cpp(int q, int M_inner, int seed);
+RcppExport SEXP _bgms_degord_draw_bartlett_pool_cpp(SEXP qSEXP, SEXP M_innerSEXP, SEXP seedSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type q(qSEXP);
+    Rcpp::traits::input_parameter< int >::type M_inner(M_innerSEXP);
+    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
+    rcpp_result_gen = Rcpp::wrap(degord_draw_bartlett_pool_cpp(q, M_inner, seed));
+    return rcpp_result_gen;
+END_RCPP
+}
 // compute_ess_cpp
 Rcpp::NumericVector compute_ess_cpp(Rcpp::NumericVector array3d);
 RcppExport SEXP _bgms_compute_ess_cpp(SEXP array3dSEXP) {
@@ -876,6 +969,12 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_log_Z_NLO_gamma_degord_cpp", (DL_FUNC) &_bgms_log_Z_NLO_gamma_degord_cpp, 8},
     {"_bgms_log_Z_NLO_gamma_delta_incr_alpha1_cpp", (DL_FUNC) &_bgms_log_Z_NLO_gamma_delta_incr_alpha1_cpp, 7},
     {"_bgms_log_Z_NLO_gamma_delta_incr_alphaN_cpp", (DL_FUNC) &_bgms_log_Z_NLO_gamma_delta_incr_alphaN_cpp, 8},
+    {"_bgms_degord_chain_aux_cpp", (DL_FUNC) &_bgms_degord_chain_aux_cpp, 5},
+    {"_bgms_degord_pi_aux_cpp", (DL_FUNC) &_bgms_degord_pi_aux_cpp, 5},
+    {"_bgms_degord_permute_graph_cpp", (DL_FUNC) &_bgms_degord_permute_graph_cpp, 3},
+    {"_bgms_degord_log_Zhat_pi_from_pool_cpp", (DL_FUNC) &_bgms_degord_log_Zhat_pi_from_pool_cpp, 7},
+    {"_bgms_degord_delta_log_Zhat_pi_toggle_cpp", (DL_FUNC) &_bgms_degord_delta_log_Zhat_pi_toggle_cpp, 10},
+    {"_bgms_degord_draw_bartlett_pool_cpp", (DL_FUNC) &_bgms_degord_draw_bartlett_pool_cpp, 3},
     {"_bgms_compute_ess_cpp", (DL_FUNC) &_bgms_compute_ess_cpp, 1},
     {"_bgms_compute_rhat_cpp", (DL_FUNC) &_bgms_compute_rhat_cpp, 1},
     {"_bgms_compute_indicator_ess_cpp", (DL_FUNC) &_bgms_compute_indicator_ess_cpp, 1},

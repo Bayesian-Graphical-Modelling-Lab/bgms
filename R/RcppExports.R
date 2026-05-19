@@ -69,6 +69,30 @@ log_Z_NLO_gamma_delta_incr_alphaN_cpp <- function(G_before, i, j, alpha, beta, s
     .Call(`_bgms_log_Z_NLO_gamma_delta_incr_alphaN_cpp`, G_before, i, j, alpha, beta, sigma, delta, include_F)
 }
 
+degord_chain_aux_cpp <- function(q, alpha, beta, sigma, delta) {
+    .Call(`_bgms_degord_chain_aux_cpp`, q, alpha, beta, sigma, delta)
+}
+
+degord_pi_aux_cpp <- function(G_pi, alpha, beta, sigma, delta) {
+    .Call(`_bgms_degord_pi_aux_cpp`, G_pi, alpha, beta, sigma, delta)
+}
+
+degord_permute_graph_cpp <- function(G, i, j) {
+    .Call(`_bgms_degord_permute_graph_cpp`, G, i, j)
+}
+
+degord_log_Zhat_pi_from_pool_cpp <- function(noise_pool_t, G_pi, alpha, beta, sigma, delta, slab_tilt_mode = 0L) {
+    .Call(`_bgms_degord_log_Zhat_pi_from_pool_cpp`, noise_pool_t, G_pi, alpha, beta, sigma, delta, slab_tilt_mode)
+}
+
+degord_delta_log_Zhat_pi_toggle_cpp <- function(noise_pool, noise_pool_t, G_curr, i, j, alpha, beta, sigma, delta, slab_tilt_mode = 0L) {
+    .Call(`_bgms_degord_delta_log_Zhat_pi_toggle_cpp`, noise_pool, noise_pool_t, G_curr, i, j, alpha, beta, sigma, delta, slab_tilt_mode)
+}
+
+degord_draw_bartlett_pool_cpp <- function(q, M_inner, seed) {
+    .Call(`_bgms_degord_draw_bartlett_pool_cpp`, q, M_inner, seed)
+}
+
 .compute_ess_cpp <- function(array3d) {
     .Call(`_bgms_compute_ess_cpp`, array3d)
 }

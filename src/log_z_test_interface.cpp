@@ -4,6 +4,8 @@
 
 #include <RcppArmadillo.h>
 #include "models/ggm/log_z_nlo.h"
+#include "models/ggm/degord_sampler.h"
+#include "rng/rng_utils.h"
 
 
 // [[Rcpp::export]]
@@ -47,4 +49,93 @@ double log_Z_NLO_gamma_delta_incr_alphaN_cpp(
 ) {
     return log_Z_NLO_gamma_delta_incr_alphaN(
         G_before, i, j, alpha, beta, sigma, delta, include_F);
+}
+
+
+// ---- DEGORD sampler test interface ------------------------------------
+
+// [[Rcpp::export]]
+Rcpp::List degord_chain_aux_cpp(
+    int q, double alpha, double beta, double sigma, double delta
+) {
+    auto c = degord::make_chain_aux(q, alpha, beta, sigma, delta);
+    return Rcpp::List::create(
+        Rcpp::Named("q")                        = c.q,
+        Rcpp::Named("alpha")                    = c.alpha,
+        Rcpp::Named("beta")                     = c.beta,
+        Rcpp::Named("sigma")                    = c.sigma,
+        Rcpp::Named("delta")                    = c.delta,
+        Rcpp::Named("sigma_diag")               = c.sigma_diag,
+        Rcpp::Named("nu_chi_df")                = Rcpp::wrap(c.nu_chi_df),
+        Rcpp::Named("nu_mu_l")                  = Rcpp::wrap(c.nu_mu_l),
+        Rcpp::Named("nu_H_e_saddle")            = Rcpp::wrap(c.nu_H_e_saddle),
+        Rcpp::Named("nu_lgamma_half_k")         = Rcpp::wrap(c.nu_lgamma_half_k),
+        Rcpp::Named("nu_diag_const")            = Rcpp::wrap(c.nu_diag_const),
+        Rcpp::Named("nu_slab_const_saddle")     = Rcpp::wrap(c.nu_slab_const_saddle),
+        Rcpp::Named("nu_per_vertex")            = Rcpp::wrap(c.nu_per_vertex)
+    );
+}
+
+
+// [[Rcpp::export]]
+Rcpp::List degord_pi_aux_cpp(
+    const arma::imat& G_pi,
+    double alpha, double beta, double sigma, double delta
+) {
+    int q = G_pi.n_rows;
+    auto c = degord::make_chain_aux(q, alpha, beta, sigma, delta);
+    auto a = degord::make_pi_aux(G_pi, c);
+    return Rcpp::List::create(
+        Rcpp::Named("q")       = a.q,
+        Rcpp::Named("nu_pi")   = Rcpp::wrap(a.nu_pi),
+        Rcpp::Named("E_count") = a.E_count,
+        Rcpp::Named("log_C0")  = a.log_C0
+    );
+}
+
+
+// [[Rcpp::export]]
+arma::imat degord_permute_graph_cpp(const arma::imat& G, int i, int j) {
+    int q = G.n_rows;
+    auto pi = degord::degord_permutation(q, i, j);
+    return degord::permute_graph(G, pi);
+}
+
+
+// [[Rcpp::export]]
+double degord_log_Zhat_pi_from_pool_cpp(
+    const arma::mat& noise_pool_t,
+    const arma::imat& G_pi,
+    double alpha, double beta, double sigma, double delta,
+    int slab_tilt_mode = 0
+) {
+    int q = G_pi.n_rows;
+    auto c = degord::make_chain_aux(q, alpha, beta, sigma, delta);
+    c.slab_tilt_mode = slab_tilt_mode;
+    auto a = degord::make_pi_aux(G_pi, c);
+    return degord::log_Zhat_pi_from_pool(noise_pool_t, a, c);
+}
+
+
+// [[Rcpp::export]]
+double degord_delta_log_Zhat_pi_toggle_cpp(
+    const arma::mat& noise_pool,
+    const arma::mat& noise_pool_t,
+    const arma::imat& G_curr,
+    int i, int j,
+    double alpha, double beta, double sigma, double delta,
+    int slab_tilt_mode = 0
+) {
+    int q = G_curr.n_rows;
+    auto c = degord::make_chain_aux(q, alpha, beta, sigma, delta);
+    c.slab_tilt_mode = slab_tilt_mode;
+    return degord::delta_log_Zhat_pi_toggle(
+        noise_pool, noise_pool_t, G_curr, i, j, c);
+}
+
+
+// [[Rcpp::export]]
+arma::mat degord_draw_bartlett_pool_cpp(int q, int M_inner, int seed) {
+    SafeRNG rng(seed);
+    return degord::draw_bartlett_pool(rng, q, M_inner);
 }
