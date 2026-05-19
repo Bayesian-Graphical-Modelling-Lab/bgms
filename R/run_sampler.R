@@ -104,7 +104,8 @@ run_sampler_ggm = function(spec) {
     target_acceptance = s$target_accept,
     max_tree_depth = s$nuts_max_depth,
     na_impute = m$na_impute,
-    missing_index_nullable = m$missing_index
+    missing_index_nullable = m$missing_index,
+    delta = p$delta
   )
 
   out_raw
@@ -236,7 +237,8 @@ run_sampler_mixed_mrf = function(spec) {
     max_tree_depth = s$nuts_max_depth,
     na_impute = m$na_impute,
     missing_index_discrete_nullable = m$missing_index_discrete,
-    missing_index_continuous_nullable = m$missing_index_continuous
+    missing_index_continuous_nullable = m$missing_index_continuous,
+    delta = p$delta
   )
 
   out_raw

@@ -187,6 +187,41 @@ double MixedMRFModel::precision_constrained_diagonal(double x) const {
 // an O(nq) rank-2 shortcut.
 // =============================================================================
 
+double MixedMRFModel::log_det_ratio_yy_edge(int i, int j) const {
+    // Rank-2 matrix-determinant lemma applied to the Kyy block. Mirrors
+    // GGMModel::log_det_ratio_edge but uses pairwise_effects_continuous_
+    // (Kyy = -2 * pairwise_effects_continuous_) and covariance_continuous_.
+    size_t ui = static_cast<size_t>(i);
+    size_t uj = static_cast<size_t>(j);
+    double precision_ij_curr = -2.0 * pairwise_effects_continuous_(ui, uj);
+    double precision_jj_curr = -2.0 * pairwise_effects_continuous_(uj, uj);
+    double Ui = precision_ij_curr - precision_proposal_(ui, uj);
+    double Uj = (precision_jj_curr - precision_proposal_(uj, uj)) / 2.0;
+
+    double cc11 = covariance_continuous_(uj, uj);
+    double cc12 = 1.0 - (covariance_continuous_(ui, uj) * Ui +
+                         covariance_continuous_(uj, uj) * Uj);
+    double cc22 = Ui * Ui * covariance_continuous_(ui, ui) +
+                  2.0 * Ui * Uj * covariance_continuous_(ui, uj) +
+                  Uj * Uj * covariance_continuous_(uj, uj);
+
+    return MY_LOG(std::abs(cc11 * cc22 - cc12 * cc12));
+}
+
+double MixedMRFModel::log_det_ratio_yy_diag(int i) const {
+    // Rank-1 specialisation of log_det_ratio_yy_edge (Ui = 0).
+    size_t ui = static_cast<size_t>(i);
+    double precision_ii_curr = -2.0 * pairwise_effects_continuous_(ui, ui);
+    double Uj = (precision_ii_curr - precision_proposal_(ui, ui)) / 2.0;
+
+    double cc11 = covariance_continuous_(ui, ui);
+    double cc12 = 1.0 - covariance_continuous_(ui, ui) * Uj;
+    double cc22 = Uj * Uj * covariance_continuous_(ui, ui);
+
+    return MY_LOG(std::abs(cc11 * cc22 - cc12 * cc12));
+}
+
+
 double MixedMRFModel::log_ggm_ratio_edge(int i, int j, arma::mat& cov_prop_out) const {
     size_t ui = static_cast<size_t>(i);
     size_t uj = static_cast<size_t>(j);
@@ -403,6 +438,13 @@ double MixedMRFModel::update_pairwise_effects_continuous_offdiag(int i, int j, s
     arma::mat cov_prop;
     double ln_alpha = log_ggm_ratio_edge(i, j, cov_prop);
 
+    // Determinant-tilt prior on the Kyy block: |Kyy|^delta contributes
+    //   delta * (log|Kyy_prop| - log|Kyy_curr|)
+    // to the MH ratio. Rank-2 lemma, O(q) via the cached covariance.
+    if (determinant_tilt_yy_ != 0.0) {
+        ln_alpha += determinant_tilt_yy_ * log_det_ratio_yy_edge(i, j);
+    }
+
     // OMRF ratio with proposed continuous interactions. The marginal
     // interactions M = A_xx + 2 A_xy Σ A_xy^T depend on Σ; when Kyy changes,
     // Σ changes too, so we must use Σ' (cov_prop) for the proposed-state
@@ -489,6 +531,11 @@ double MixedMRFModel::update_pairwise_effects_continuous_diag(int i, std::option
 
     arma::mat cov_prop;
     double ln_alpha = log_ggm_ratio_diag(i, cov_prop);
+
+    // Determinant-tilt prior: rank-1 lemma, O(1) via the cached covariance.
+    if (determinant_tilt_yy_ != 0.0) {
+        ln_alpha += determinant_tilt_yy_ * log_det_ratio_yy_diag(i);
+    }
 
     // OMRF ratio with proposed continuous interactions. Use Σ' (cov_prop) for
     // the proposed-state marginal_interactions, not the cached Σ.
@@ -682,6 +729,11 @@ void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
     // --- Likelihood ratio ---
     arma::mat cov_prop;
     double ln_alpha = log_ggm_ratio_edge(i, j, cov_prop);
+
+    // Determinant-tilt prior: see update_pairwise_effects_continuous_offdiag.
+    if (determinant_tilt_yy_ != 0.0) {
+        ln_alpha += determinant_tilt_yy_ * log_det_ratio_yy_edge(i, j);
+    }
 
     // OMRF ratio with proposed continuous interactions. Use Σ' (cov_prop) for
     // the proposed-state marginal_interactions, not the cached Σ.

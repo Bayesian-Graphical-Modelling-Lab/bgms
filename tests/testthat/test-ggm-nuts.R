@@ -374,3 +374,65 @@ test_that("NUTS diagnostics are clean for well-specified model", {
   expect_equal(fit$nuts_diag$summary$max_tree_depth_hits, 0)
   expect_gt(fit$nuts_diag$summary$min_ebfmi, 0.3)
 })
+
+
+# ---- 3.5  Tilt: NUTS vs MH posterior moments at delta = 1 -------------------
+
+test_that("NUTS and MH posteriors agree under tilt (p=4, delta=1)", {
+  skip_unless_slow()
+
+  dat = generate_ggm_data(p = 4, n = 200, seed = 36)
+  n_iter = 5000
+  n_warmup = 2000
+
+  fit_mh = bgm(
+    x = dat$x, variable_type = "continuous",
+    update_method = "adaptive-metropolis",
+    edge_selection = FALSE,
+    delta = 1,
+    iter = n_iter, warmup = n_warmup, chains = 2,
+    seed = 102, display_progress = "none"
+  )
+
+  fit_nuts = bgm(
+    x = dat$x, variable_type = "continuous",
+    update_method = "nuts",
+    edge_selection = FALSE,
+    delta = 1,
+    iter = n_iter, warmup = n_warmup, chains = 2,
+    seed = 202, display_progress = "none"
+  )
+
+  mh_pairwise = do.call(rbind, fit_mh$raw_samples$pairwise)
+  nuts_pairwise = do.call(rbind, fit_nuts$raw_samples$pairwise)
+  mh_main = do.call(rbind, fit_mh$raw_samples$main)
+  nuts_main = do.call(rbind, fit_nuts$raw_samples$main)
+
+  for(j in seq_len(ncol(mh_pairwise))) {
+    mh_mean = mean(mh_pairwise[, j])
+    nuts_mean = mean(nuts_pairwise[, j])
+    pooled_sd = sqrt((var(mh_pairwise[, j]) + var(nuts_pairwise[, j])) / 2)
+    expect_lt(
+      abs(mh_mean - nuts_mean) / pooled_sd, 2,
+      label = paste0("pairwise[", j, "] mean within 2 SDs (delta=1)")
+    )
+  }
+
+  for(j in seq_len(ncol(mh_main))) {
+    mh_mean = mean(mh_main[, j])
+    nuts_mean = mean(nuts_main[, j])
+    pooled_sd = sqrt((var(mh_main[, j]) + var(nuts_main[, j])) / 2)
+    expect_lt(
+      abs(mh_mean - nuts_mean) / pooled_sd, 2,
+      label = paste0("main[", j, "] mean within 2 SDs (delta=1)")
+    )
+  }
+
+  for(j in seq_len(ncol(mh_pairwise))) {
+    ratio = var(nuts_pairwise[, j]) / var(mh_pairwise[, j])
+    expect_gt(ratio, 0.7,
+      label = paste0("pairwise[", j, "] var ratio > 0.7 (delta=1)"))
+    expect_lt(ratio, 1.4,
+      label = paste0("pairwise[", j, "] var ratio < 1.4 (delta=1)"))
+  }
+})

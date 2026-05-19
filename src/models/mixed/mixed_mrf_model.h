@@ -135,6 +135,17 @@ public:
     }
 
     /**
+     * Set the determinant-tilt exponent delta for the Kyy block. Adds
+     * delta * log|Kyy| to the log-prior, pushing the continuous-block
+     * precision matrix away from the PD-cone boundary. delta = 0
+     * (default) recovers the untilted target. Currently consumed only
+     * by the NUTS gradient paths; the MH path is unchanged.
+     */
+    void set_determinant_tilt_yy(double delta) {
+        determinant_tilt_yy_ = delta;
+    }
+
+    /**
      * Construct Robbins-Monro adaptation controllers for the per-iteration
      * MH proposal SDs. Called once by MetropolisSampler before warmup; under
      * NUTS this is never called and the controllers stay null. One adapter
@@ -301,6 +312,11 @@ private:
     // proposal-SD tuning. Set via set_metropolis_target_accept(); defaults
     // to 0.44 (componentwise random-walk Metropolis optimum).
     double target_accept_ = 0.44;
+
+    // Determinant-tilt exponent on the Kyy block (see set_determinant_tilt_yy).
+    // Adds determinant_tilt_yy_ * log|Kyy| to the NUTS log-prior; MH ratios
+    // are not yet adjusted.
+    double determinant_tilt_yy_ = 0.0;
 
     /// Per-iteration adaptation controllers (MH mode only — under NUTS these
     /// stay null and the stage-3b path in tune_proposal_sd is used instead).
@@ -530,6 +546,19 @@ private:
     // Assumes precision_proposal_ is already filled by the caller. Writes the
     // proposed covariance Σ' (computed via Sherman-Morrison) to cov_prop_out.
     double log_ggm_ratio_diag(int i, arma::mat& cov_prop_out) const;
+
+    // log|Kyy_prop| - log|Kyy_curr| for a rank-2 off-diagonal proposal at
+    // (i, j), via the matrix-determinant lemma in O(q). Reads
+    // pairwise_effects_continuous_, precision_proposal_, and
+    // covariance_continuous_; assumes precision_proposal_ has the proposed
+    // Kyy at (i, j), (j, i), (j, j) already filled. Used to add the
+    // determinant-tilt term delta_yy * (log|Kyy_prop| - log|Kyy_curr|) to MH
+    // ratios.
+    double log_det_ratio_yy_edge(int i, int j) const;
+
+    // log|Kyy_prop| - log|Kyy_curr| for a rank-1 diagonal proposal at i.
+    // Computed via the matrix-determinant lemma in O(1).
+    double log_det_ratio_yy_diag(int i) const;
 
     // Rank-1 Cholesky update after accepting an off-diagonal precision change.
     void cholesky_update_after_precision_edge(double old_ij, double old_jj, int i, int j);

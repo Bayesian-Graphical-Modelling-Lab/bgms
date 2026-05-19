@@ -123,6 +123,7 @@ public:
     GGMModel(const GGMModel& other)
         : BaseModel(other),
           target_accept_(other.target_accept_),
+          determinant_tilt_(other.determinant_tilt_),
           n_(other.n_),
           p_(other.p_),
           dim_(other.dim_),
@@ -206,6 +207,18 @@ public:
      * under NUTS this is never called and the controller stays null.
      */
     void init_metropolis_adaptation(const WarmupSchedule& schedule) override;
+
+    /**
+     * Set the determinant-tilt exponent delta. Adds delta * log|K| to the
+     * log-prior, pushing the chain away from the PD-cone boundary. delta = 0
+     * (default) recovers the untilted target. Currently consumed only by
+     * the NUTS gradient engine; the MH path is unchanged. Triggers an engine
+     * rebuild on the next gradient call.
+     */
+    void set_determinant_tilt(double delta) {
+        determinant_tilt_ = delta;
+        constraint_dirty_ = true;
+    }
 
     /** Shuffle edge visit order (random scan). */
     void prepare_iteration() override;
@@ -473,6 +486,10 @@ private:
     /// stays null and the stage-3b path in tune_proposal_sd is used instead).
     std::unique_ptr<MetropolisAdaptationController> metropolis_adapter_;
 
+    // Determinant-tilt exponent (see set_determinant_tilt). Forwarded to
+    // GGMGradientEngine on every rebuild.
+    double determinant_tilt_ = 0.0;
+
     /** Extract upper triangle of the precision matrix into a vector. */
     arma::vec extract_upper_triangle() const {
         arma::vec result(dim_);
@@ -656,6 +673,23 @@ private:
      * @param j  Index of the changed diagonal element
      */
     double log_density_impl_diag(size_t j) const;
+
+    /**
+     * log|K_prop| - log|K_curr| for a rank-2 off-diagonal proposal at (i, j),
+     * computed via the matrix-determinant lemma in O(p). Reads
+     * precision_matrix_, precision_proposal_, and covariance_matrix_; assumes
+     * precision_proposal_ has already been set up at (i, j), (j, i), (j, j).
+     * Used to add the determinant-tilt term delta * (log|K_prop| - log|K_curr|)
+     * to MH ratios.
+     */
+    double log_det_ratio_edge(size_t i, size_t j) const;
+
+    /**
+     * log|K_prop| - log|K_curr| for a rank-1 diagonal proposal at j.
+     * Computed via the matrix-determinant lemma in O(1). Reads the same
+     * cached state as log_det_ratio_edge.
+     */
+    double log_det_ratio_diag(size_t j) const;
 
 
 

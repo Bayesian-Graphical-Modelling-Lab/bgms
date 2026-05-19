@@ -265,6 +265,7 @@ bgm_spec = function(x,
                     scale_prior_type = "gamma",
                     scale_shape = 1,
                     scale_rate = 1,
+                    delta = 0,
                     standardize = FALSE,
                     edge_selection = TRUE,
                     edge_prior = bernoulli_prior(0.5),
@@ -344,6 +345,19 @@ bgm_spec = function(x,
     model_type = "mixed_mrf"
   }
 
+  # Validate determinant-tilt exponent and reject for pure-ordinal models
+  if(!is.numeric(delta) || length(delta) != 1L || is.na(delta) ||
+     !is.finite(delta) || delta < 0) {
+    stop("'delta' must be a single finite non-negative numeric.")
+  }
+  if(delta > 0 && model_type %in% c("omrf", "compare")) {
+    stop(
+      "'delta' (determinant tilt) requires continuous variables; the ",
+      "current model_type is '", model_type, "', which has no precision ",
+      "matrix to tilt. Pass delta = 0 (default) or use continuous data."
+    )
+  }
+
   # --- Sampler (needs is_continuous and edge_selection early) ------------------
   sampler = validate_sampler(
     update_method = update_method,
@@ -415,6 +429,7 @@ bgm_spec = function(x,
       scale_prior_type = scale_prior_type,
       scale_shape = scale_shape,
       scale_rate = scale_rate,
+      delta = delta,
       edge_prior_flat = ep_flat
     )
   } else if(model_type == "mixed_mrf") {
@@ -438,6 +453,7 @@ bgm_spec = function(x,
       scale_prior_type = scale_prior_type,
       scale_shape = scale_shape,
       scale_rate = scale_rate,
+      delta = delta,
       standardize = standardize,
       edge_prior_flat = ep_flat
     )
@@ -505,6 +521,7 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
                           interaction_prior_type, pairwise_scale,
                           interaction_alpha, interaction_beta,
                           scale_prior_type, scale_shape, scale_rate,
+                          delta = 0,
                           edge_prior_flat) {
   # Missing data
   md = validate_missing_data(
@@ -545,6 +562,7 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
       scale_prior_type = scale_prior_type,
       scale_shape = scale_shape,
       scale_rate = scale_rate,
+      delta = delta,
       edge_selection = ep$edge_selection,
       edge_prior = ep$edge_prior,
       inclusion_probability = ep$inclusion_probability,
@@ -683,6 +701,7 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
                                 means_prior_type, means_scale,
                                 means_alpha, means_beta,
                                 scale_prior_type, scale_shape, scale_rate,
+                                delta = 0,
                                 standardize,
                                 edge_prior_flat) {
   # Identify discrete vs continuous columns
@@ -818,6 +837,7 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
       scale_prior_type = scale_prior_type,
       scale_shape = scale_shape,
       scale_rate = scale_rate,
+      delta = delta,
       standardize = standardize,
       edge_selection = ep$edge_selection,
       edge_prior = ep$edge_prior,

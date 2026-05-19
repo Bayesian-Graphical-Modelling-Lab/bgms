@@ -14,6 +14,7 @@ bgm(
   threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
   means_prior = normal_prior(scale = 1),
   precision_scale_prior = gamma_prior(shape = 1, rate = 1),
+  delta = 0,
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),
   na_action = c("listwise", "impute"),
@@ -114,6 +115,14 @@ elements of the precision matrix, created by one of:
 Only used for models with continuous variables (GGM and mixed MRF).
 Ignored for pure ordinal models.
 Default: \code{gamma_prior(shape = 1, rate = 1)}.}
+
+\item{delta}{Non-negative numeric. Determinant-tilt exponent on the
+continuous-block precision matrix \eqn{K} (GGM) or \eqn{K_{yy}}
+(mixed MRF): multiplies the prior by \eqn{|K|^{\delta}}, pushing the
+chain away from the positive-definite cone boundary. Both NUTS and
+adaptive-Metropolis update paths apply the tilt. \code{delta = 0}
+(default) recovers the untilted prior. Not allowed for pure ordinal
+models (no precision matrix to tilt).}
 
 \item{edge_selection}{Logical. Whether to perform Bayesian edge selection.
 If \code{FALSE}, the model estimates all edges. Default: \code{TRUE}.}

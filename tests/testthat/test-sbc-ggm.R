@@ -386,3 +386,117 @@ test_that("SBC: GGM MH produces uniform diagonal ranks (p=3, edge selection)", {
     info = sprintf("SBC global chi-squared p=%.4f (edge selection, diag)", chisq_p)
   )
 })
+
+
+# ---- Tilted prior sampler (delta > 0) ----------------------------------------
+
+# Draw K from the determinant-tilted GGM prior:
+#   p(K) propto |K|^delta * slab(K_ij) * diag(K_ii) * 1{K in M+}
+# using the rejection scheme from the spikeslab manuscript sec:tilt-empirics.
+# Proposal shifts the diagonal Gamma shape up by delta on the K_ii scale;
+# acceptance probability r = (|K| / prod(K_ii))^delta lies in [0, 1] on PD
+# support by Hadamard's inequality. Off-diagonals are unchanged from the
+# untilted Cauchy-slab proposal.
+draw_prior_K_tilted = function(p, scale = 2.5, delta = 1,
+                                max_tries = 100000) {
+  for(attempt in seq_len(max_tries)) {
+    K = matrix(0, p, p)
+
+    # Off-diagonal: Cauchy slab, K_ij = -2 * Omega_ij as in untilted sampler.
+    for(i in seq_len(p - 1)) {
+      for(j in (i + 1):p) {
+        omega_ij = rcauchy(1, 0, scale)
+        K[i, j] = -2 * omega_ij
+        K[j, i] = K[i, j]
+      }
+    }
+
+    # Diagonal: shifted-shape Gamma proposal. Untilted draws K_ii ~
+    # 2 * Gamma(1, 1) = Gamma(1, 1/2) on K_ii; tilted proposal draws K_ii ~
+    # 2 * Gamma(1 + delta, 1) = Gamma(1 + delta, 1/2). The factor K_ii^delta
+    # from the bound is absorbed into the proposal density.
+    for(i in seq_len(p)) {
+      K[i, i] = 2 * rgamma(1, shape = 1 + delta, rate = 1)
+    }
+
+    ev = eigen(K, symmetric = TRUE, only.values = TRUE)$values
+    if(!all(ev > 1e-8)) next
+
+    # Tilt acceptance: log r = delta * (sum log eigenvalues - sum log diag).
+    log_r = delta * (sum(log(ev)) - sum(log(diag(K))))
+    if(log(runif(1)) < log_r) {
+      return(K)
+    }
+  }
+  stop("draw_prior_K_tilted: failed in ", max_tries, " attempts")
+}
+
+
+# ---- SBC test: NUTS under determinant tilt ----------------------------------
+
+test_that("SBC: GGM NUTS produces uniform ranks under tilt (p=3, delta=1)", {
+  skip_unless_slow_sbc()
+
+  p = 3
+  n = 100
+  R = 200
+  L = 999
+  scale = 2.5
+  delta = 1
+
+  set.seed(2029)
+
+  prior_draws = vector("list", R)
+  for(r in seq_len(R)) {
+    prior_draws[[r]] = draw_prior_K_tilted(p, scale, delta)
+  }
+
+  n_off = p * (p - 1) / 2
+  n_params = n_off + p
+  ranks = matrix(NA_real_, nrow = R, ncol = n_params)
+
+  for(r in seq_len(R)) {
+    K_true = prior_draws[[r]]
+    Sigma = solve(K_true)
+    X = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
+    dat = as.data.frame(X)
+    colnames(dat) = paste0("V", seq_len(p))
+
+    fit = bgm(dat,
+      variable_type = "continuous",
+      iter = L, warmup = 1000, chains = 1,
+      edge_selection = FALSE, update_method = "nuts",
+      pairwise_scale = scale, delta = delta,
+      display_progress = "none", seed = 2029L + r
+    )
+
+    ranks[r, ] = compute_sbc_ranks(K_true, p, fit)
+    if(r == 1) colnames(ranks) = names(ranks[1, ])
+  }
+
+  n_fail_ks = 0
+  for(j in seq_len(ncol(ranks))) {
+    u = ranks[, j] / (L + 1)
+    p_val = suppressWarnings(ks.test(u, "punif")$p.value)
+    if(p_val <= 0.01) n_fail_ks = n_fail_ks + 1
+  }
+
+  max_fail = max(1, ceiling(n_params * 0.01 * 2))
+  expect_true(n_fail_ks <= max_fail,
+    info = sprintf(
+      "SBC KS (delta=1): %d/%d parameters failed (limit %d)",
+      n_fail_ks, n_params, max_fail
+    )
+  )
+
+  all_ranks = as.vector(ranks)
+  bins = cut(all_ranks / (L + 1),
+    breaks = seq(0, 1, length.out = 21),
+    include.lowest = TRUE
+  )
+  counts = tabulate(bins, nbins = 20)
+  chisq_p = chisq.test(counts)$p.value
+  expect_true(chisq_p > 0.001,
+    info = sprintf("SBC global chi-squared (delta=1) p=%.4f", chisq_p)
+  )
+})

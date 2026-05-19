@@ -1,30 +1,36 @@
-#' Sample Precision Matrices from the GGM Prior
+#' Sample from the GGM (Partial-Association) Prior
 #'
-#' Draws precision matrices \eqn{K} from the prior of a Gaussian graphical
-#' model using the same constrained NUTS sampler that drives \code{\link{bgm}}
-#' for continuous data. The likelihood is omitted (\eqn{n = 0},
-#' \eqn{S = 0}), so the chain targets the prior alone.
+#' Draws from the prior of a Gaussian graphical model using the same
+#' constrained NUTS sampler that drives \code{\link{bgm}} for continuous
+#' data. The likelihood is omitted (\eqn{n = 0}, \eqn{S = 0}), so the chain
+#' targets the prior alone.
 #'
-#' Off-diagonals are placed on the association scale
-#' \eqn{K_{yy,ij} = -K_{ij}/2} and assigned the supplied
-#' \code{interaction_prior}. A \code{normal_prior(scale = s)} therefore
-#' constrains \eqn{K_{yy}} with standard deviation \eqn{s}, equivalent to a
-#' \eqn{\textrm{Normal}(0, 2s)} prior on \eqn{K_{ij}} itself. The
-#' diagonals \eqn{K_{ii}} are drawn from the supplied
-#' \code{precision_scale_prior}. When \code{edge_indicators} is supplied,
-#' off-diagonals at excluded positions are constrained to zero throughout
-#' the chain.
+#' The priors are specified on the partial-association scale
+#' \eqn{K_{yy} = -K/2}: \code{interaction_prior} acts on
+#' \eqn{K_{yy,ij} = -K_{ij}/2}, and \code{precision_scale_prior} acts on
+#' \eqn{-K_{yy,ii} = K_{ii}/2}. The same convention is used by
+#' \code{\link{bgm}} and by the continuous block of the mixed-MRF model, so
+#' a prior argument passed here means the same distribution it would mean
+#' there. Output samples are reported as entries of \eqn{K}; convert with
+#' \eqn{K_{yy} = -K/2} if you want them on the partial-association scale.
+#'
+#' When \code{edge_indicators} is supplied, off-diagonals at excluded
+#' positions are constrained to zero throughout the chain.
 #'
 #' @param p Integer. Dimension of the precision matrix (\eqn{p \ge 2}).
 #' @param n_samples Integer. Number of post-warmup draws to keep.
 #' @param n_warmup Integer. NUTS warmup iterations. Default \code{2000}.
 #' @param interaction_prior A \code{bgms_parameter_prior} for the
-#'   off-diagonal entries. Use \code{\link{cauchy_prior}()} or
-#'   \code{\link{normal_prior}()}; \code{\link{beta_prime_prior}()} is not
-#'   supported here. Default: \code{cauchy_prior(scale = 2.5)}.
-#' @param precision_scale_prior A \code{bgms_scale_prior} for the diagonal
-#'   entries of \eqn{K}. Use \code{\link{gamma_prior}()} or
-#'   \code{\link{exponential_prior}()}. Default: \code{gamma_prior(1, 1)}.
+#'   partial-association off-diagonals \eqn{K_{yy,ij} = -K_{ij}/2}. Use
+#'   \code{\link{cauchy_prior}()} or \code{\link{normal_prior}()};
+#'   \code{\link{beta_prime_prior}()} is not supported here. Default:
+#'   \code{cauchy_prior(scale = 2.5)} (i.e. \eqn{K_{ij}} has an implied
+#'   \eqn{\textrm{Cauchy}(0, 5)} prior).
+#' @param precision_scale_prior A \code{bgms_scale_prior} for
+#'   \eqn{K_{ii}/2}. Use \code{\link{gamma_prior}()} or
+#'   \code{\link{exponential_prior}()}. Default: \code{gamma_prior(1, 1)},
+#'   which implies \eqn{K_{ii}/2 \sim \textrm{Exp}(1)} and therefore
+#'   \eqn{K_{ii} \sim \textrm{Exp}(1/2)} (mean \eqn{2}).
 #' @param step_size Positive numeric. Initial NUTS step size used to seed
 #'   dual-averaging adaptation. Default \code{0.1}.
 #' @param max_depth Integer. Maximum NUTS tree depth. Default \code{10}.
@@ -33,6 +39,10 @@
 #' @param edge_indicators Optional integer \eqn{p \times p} matrix with
 #'   \code{1} = edge included, \code{0} = excluded. Must be symmetric with
 #'   \code{1}s on the diagonal. Default: full graph (all edges included).
+#' @param delta Non-negative numeric. Determinant-tilt exponent: multiplies
+#'   the prior by \eqn{|K|^{\delta}}, pushing the chain away from the
+#'   positive-definite cone boundary. \code{delta = 0} (default) recovers
+#'   the untilted prior.
 #'
 #' @return A list with components
 #'   \describe{
@@ -61,7 +71,7 @@
 #' @examples
 #' \donttest{
 #' # Default Cauchy(0, 2.5) off-diagonal, Gamma(1, 1) diagonal, p = 4.
-#' draws = sample_precision_prior(
+#' draws = sample_ggm_prior(
 #'   p = 4, n_samples = 200, n_warmup = 200,
 #'   verbose = FALSE
 #' )
@@ -72,7 +82,7 @@
 #' # Sparser graph: drop the (1, 4) edge.
 #' E = matrix(1L, 4, 4)
 #' E[1, 4] = E[4, 1] = 0L
-#' draws = sample_precision_prior(
+#' draws = sample_ggm_prior(
 #'   p = 4, n_samples = 200, n_warmup = 200,
 #'   edge_indicators = E, verbose = FALSE
 #' )
@@ -80,7 +90,7 @@
 #' all(draws$K_offdiag[, "K_1_4"] == 0) # TRUE
 #' }
 #' @export
-sample_precision_prior = function(
+sample_ggm_prior = function(
   p,
   n_samples,
   n_warmup = 2e3,
@@ -90,7 +100,8 @@ sample_precision_prior = function(
   max_depth = 10L,
   seed = 1L,
   verbose = TRUE,
-  edge_indicators = NULL
+  edge_indicators = NULL,
+  delta = 0
 ) {
   validate_positive_integer(p, "p", min_value = 2L)
   validate_positive_integer(n_samples, "n_samples", min_value = 1L)
@@ -98,6 +109,10 @@ sample_precision_prior = function(
   validate_positive_integer(max_depth, "max_depth", min_value = 1L)
   validate_finite_scalar(step_size, "step_size", positive = TRUE)
   validate_positive_integer(seed, "seed", min_value = 0L)
+  if(!is.numeric(delta) || length(delta) != 1L || is.na(delta) ||
+     !is.finite(delta) || delta < 0) {
+    stop("'delta' must be a single finite non-negative numeric.")
+  }
   if(!is.logical(verbose) || length(verbose) != 1L || is.na(verbose)) {
     stop("'verbose' must be TRUE or FALSE.")
   }
@@ -106,14 +121,14 @@ sample_precision_prior = function(
   if(identical(ip$interaction_prior_type, "beta-prime")) {
     stop(
       "beta_prime_prior() is not supported for 'interaction_prior' in ",
-      "sample_precision_prior(). Use cauchy_prior() or normal_prior()."
+      "sample_ggm_prior(). Use cauchy_prior() or normal_prior()."
     )
   }
   sp = unpack_scale_prior(precision_scale_prior)
 
   edge_indicators = validate_ggm_prior_edge_indicators(edge_indicators, p)
 
-  sample_precision_prior_cpp(
+  sample_ggm_prior_cpp(
     p                        = as.integer(p),
     n_samples                = as.integer(n_samples),
     n_warmup                 = as.integer(n_warmup),
@@ -126,7 +141,8 @@ sample_precision_prior = function(
     max_depth                = as.integer(max_depth),
     seed                     = as.integer(seed),
     verbose                  = verbose,
-    edge_indicators_nullable = edge_indicators
+    edge_indicators_nullable = edge_indicators,
+    delta                    = as.numeric(delta)
   )
 }
 

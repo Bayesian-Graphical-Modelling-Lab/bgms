@@ -79,7 +79,8 @@ public:
                  size_t n,
                  const arma::mat& suf_stat,
                  const BaseParameterPrior& interaction_prior,
-                 const BaseParameterPrior& diagonal_prior);
+                 const BaseParameterPrior& diagonal_prior,
+                 double determinant_tilt = 0.0);
 
     /**
      * Forward map: theta -> (Phi, K, log|det J|).
@@ -159,4 +160,7 @@ private:
     const arma::mat* suf_stat_ = nullptr;
     const BaseParameterPrior* interaction_prior_ = nullptr;
     const BaseParameterPrior* diagonal_prior_ = nullptr;
+    // Determinant-tilt exponent: adds delta_ * log|K| to the (unnormalised)
+    // log-prior. delta_ = 0 recovers the untilted target.
+    double delta_ = 0.0;
 };
