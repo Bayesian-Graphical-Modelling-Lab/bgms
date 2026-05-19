@@ -7,8 +7,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>Diagnostics and Spike-and-Slab Summaries • bgms</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_Pro-0.4.10/font.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_Pro-0.4.10/font.css" rel="stylesheet">
 <link href="../deps/Source_Code_Pro-0.4.10/font.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
@@ -89,27 +89,27 @@ diagnostics:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">$</span><span class="va">pairwise</span></span>
 <span><span class="co">#&gt;                          mean         mcse         sd     n_eff</span></span>
-<span><span class="co">#&gt; intrusion-dreams  0.315856256 0.0005762657 0.03389708 3460.0238</span></span>
-<span><span class="co">#&gt; intrusion-flash   0.169889151 0.0004978899 0.03088601 3848.1928</span></span>
-<span><span class="co">#&gt; intrusion-upset   0.101432767 0.0019484484 0.03512680  559.9704</span></span>
-<span><span class="co">#&gt; intrusion-physior 0.091231397 0.0031522449 0.03930637  173.1469</span></span>
-<span><span class="co">#&gt; dreams-flash      0.248946836 0.0004603631 0.03035906 4348.8611</span></span>
-<span><span class="co">#&gt; dreams-upset      0.112403788 0.0010174118 0.02834278 1776.5148</span></span>
-<span><span class="co">#&gt; dreams-physior    0.004325468 0.0005545219 0.01411699  584.1098</span></span>
-<span><span class="co">#&gt; flash-upset       0.003855482 0.0005855081 0.01390794  775.3349</span></span>
-<span><span class="co">#&gt; flash-physior     0.154300291 0.0005722426 0.02644881 2136.2484</span></span>
-<span><span class="co">#&gt; upset-physior     0.354919341 0.0005321619 0.03025428 3232.1093</span></span>
-<span><span class="co">#&gt;                   n_eff_mixt      Rhat</span></span>
-<span><span class="co">#&gt; intrusion-dreams          NA 0.9999987</span></span>
-<span><span class="co">#&gt; intrusion-flash           NA 1.0006781</span></span>
-<span><span class="co">#&gt; intrusion-upset     325.0120 1.0270698</span></span>
-<span><span class="co">#&gt; intrusion-physior   155.4841 1.0011885</span></span>
-<span><span class="co">#&gt; dreams-flash              NA 1.0013488</span></span>
-<span><span class="co">#&gt; dreams-upset        776.0529 1.0055265</span></span>
-<span><span class="co">#&gt; dreams-physior      648.1071 0.9998514</span></span>
-<span><span class="co">#&gt; flash-upset         564.2349 1.1168679</span></span>
-<span><span class="co">#&gt; flash-physior             NA 1.0036517</span></span>
-<span><span class="co">#&gt; upset-physior             NA 1.0015983</span></span></code></pre></div>
+<span><span class="co">#&gt; intrusion-dreams  0.315580608 0.0005531384 0.03218141 3384.8733</span></span>
+<span><span class="co">#&gt; intrusion-flash   0.169339357 0.0004836899 0.03122443 4167.3016</span></span>
+<span><span class="co">#&gt; intrusion-upset   0.093581361 0.0025901795 0.04031899  186.3587</span></span>
+<span><span class="co">#&gt; intrusion-physior 0.096196683 0.0026149213 0.03784071  282.2078</span></span>
+<span><span class="co">#&gt; dreams-flash      0.249172935 0.0004287617 0.03023156 4971.5198</span></span>
+<span><span class="co">#&gt; dreams-upset      0.113988604 0.0012380241 0.02946465  882.1136</span></span>
+<span><span class="co">#&gt; dreams-physior    0.005056459 0.0006568523 0.01531189  431.2710</span></span>
+<span><span class="co">#&gt; flash-upset       0.005299238 0.0007203864 0.01614518  307.0656</span></span>
+<span><span class="co">#&gt; flash-physior     0.152998822 0.0005226529 0.02741260 2750.8931</span></span>
+<span><span class="co">#&gt; upset-physior     0.355013101 0.0005384332 0.02990770 3085.3352</span></span>
+<span><span class="co">#&gt;                   n_eff_mixt     Rhat</span></span>
+<span><span class="co">#&gt; intrusion-dreams          NA 0.999778</span></span>
+<span><span class="co">#&gt; intrusion-flash           NA 1.001387</span></span>
+<span><span class="co">#&gt; intrusion-upset     242.3035 1.012645</span></span>
+<span><span class="co">#&gt; intrusion-physior   209.4118 1.027416</span></span>
+<span><span class="co">#&gt; dreams-flash              NA 1.000443</span></span>
+<span><span class="co">#&gt; dreams-upset        566.4276 1.003687</span></span>
+<span><span class="co">#&gt; dreams-physior      543.4030 1.002002</span></span>
+<span><span class="co">#&gt; flash-upset         502.2901 1.013116</span></span>
+<span><span class="co">#&gt; flash-physior             NA 1.001107</span></span>
+<span><span class="co">#&gt; upset-physior             NA 1.000705</span></span></code></pre></div>
 <ul>
 <li>R-hat values close to 1 (typically below 1.01) suggest convergence
 <span class="citation">(<a href="#ref-VehtariEtAl_2021">Vehtari et al.,
@@ -178,12 +178,12 @@ is an example for the pairwise effect parameter.</p>
 edges:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">$</span><span class="va">indicator</span></span>
-<span><span class="co">#&gt;           intrusion dreams flash  upset physior</span></span>
-<span><span class="co">#&gt; intrusion    0.0000  1.000 1.000 0.9595  0.9025</span></span>
-<span><span class="co">#&gt; dreams       1.0000  0.000 1.000 0.9930  0.0890</span></span>
-<span><span class="co">#&gt; flash        1.0000  1.000 0.000 0.0730  1.0000</span></span>
-<span><span class="co">#&gt; upset        0.9595  0.993 0.073 0.0000  1.0000</span></span>
-<span><span class="co">#&gt; physior      0.9025  0.089 1.000 1.0000  0.0000</span></span></code></pre></div>
+<span><span class="co">#&gt;           intrusion  dreams flash  upset physior</span></span>
+<span><span class="co">#&gt; intrusion    0.0000 1.00000   1.0 0.9095 0.92750</span></span>
+<span><span class="co">#&gt; dreams       1.0000 0.00000   1.0 0.9920 0.10175</span></span>
+<span><span class="co">#&gt; flash        1.0000 1.00000   0.0 0.1000 1.00000</span></span>
+<span><span class="co">#&gt; upset        0.9095 0.99200   0.1 0.0000 1.00000</span></span>
+<span><span class="co">#&gt; physior      0.9275 0.10175   1.0 1.0000 0.00000</span></span></code></pre></div>
 <ul>
 <li>Values near 1.0: strong evidence the edge is present.</li>
 <li>Values near 0.0: strong evidence the edge is absent.</li>
@@ -204,14 +204,14 @@ absence:</p>
 <span><span class="va">p</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">$</span><span class="va">indicator</span><span class="op">[</span><span class="fl">1</span>, <span class="fl">5</span><span class="op">]</span></span>
 <span><span class="va">BF_10</span> <span class="op">=</span> <span class="va">p</span> <span class="op">/</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">p</span><span class="op">)</span></span>
 <span><span class="va">BF_10</span></span>
-<span><span class="co">#&gt; [1] 9.25641</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 12.7931</span></span></code></pre></div>
 <p>Here the Bayes factor in favor of inclusion (H1) is small, meaning
 that there is little evidence for inclusion. Since the Bayes factor is
 transitive, we can use it to express the evidence in favor of exclusion
 (H0) as</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fl">1</span> <span class="op">/</span> <span class="va">BF_10</span></span>
-<span><span class="co">#&gt; [1] 0.1080332</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 0.07816712</span></span></code></pre></div>
 <p>This Bayes factor shows that there is strong evidence for the absence
 of a network relation between the variables <code>intrusion</code> and
 <code>physior</code>.</p>
@@ -235,13 +235,13 @@ Hamiltonian Monte Carlo sampling. These can be accessed via
 <span><span class="co">#&gt; [1] 0</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $min_ebfmi</span></span>
-<span><span class="co">#&gt; [1] 0.8759209</span></span>
+<span><span class="co">#&gt; [1] 0.9350466</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $mean_accept_prob</span></span>
-<span><span class="co">#&gt; [1] 0.8602313</span></span>
+<span><span class="co">#&gt; [1] 0.8756136</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $warmup_incomplete</span></span>
-<span><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] FALSE</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="e-bfmi">E-BFMI<a class="anchor" aria-label="anchor" href="#e-bfmi"></a>
 </h3>
@@ -313,24 +313,24 @@ that compare the first and second halves of the post-warmup samples:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">nuts_diag</span><span class="op">$</span><span class="va">warmup_check</span></span>
 <span><span class="co">#&gt; $warmup_incomplete</span></span>
-<span><span class="co">#&gt; [1]  TRUE FALSE</span></span>
+<span><span class="co">#&gt; [1] FALSE FALSE</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $energy_slope</span></span>
 <span><span class="co">#&gt;      time_idx      time_idx </span></span>
-<span><span class="co">#&gt;  0.0009445570 -0.0002224997 </span></span>
+<span><span class="co">#&gt; -2.571204e-04  3.904554e-05 </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $slope_significant</span></span>
 <span><span class="co">#&gt; time_idx time_idx </span></span>
-<span><span class="co">#&gt;     TRUE    FALSE </span></span>
+<span><span class="co">#&gt;    FALSE    FALSE </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $ebfmi_first_half</span></span>
-<span><span class="co">#&gt; [1] 0.9159904 0.8523573</span></span>
+<span><span class="co">#&gt; [1] 0.9853514 1.0347658</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $ebfmi_second_half</span></span>
-<span><span class="co">#&gt; [1] 0.8815340 0.8985999</span></span>
+<span><span class="co">#&gt; [1] 0.8841184 0.9166021</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $var_ratio</span></span>
-<span><span class="co">#&gt; [1] 1.0135932 0.9651891</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 1.044630 0.936021</span></span></code></pre></div>
 <p>The returned list contains the following fields (one value per
 chain):</p>
 <ul>
