@@ -57,8 +57,8 @@ distribution (e.g. the prior on the precision matrix).
   : Predict Conditional Probabilities from a Fitted bgms Model
 - [`predict(`*`<bgmCompare>`*`)`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/predict.bgmCompare.md)
   : Predict Conditional Probabilities from a Fitted bgmCompare Model
-- [`sample_precision_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/sample_precision_prior.md)
-  : Sample Precision Matrices from the GGM Prior
+- [`sample_ggm_prior()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/sample_ggm_prior.md)
+  : Sample from the GGM (Partial-Association) Prior
 
 ## Prior constructors
 
