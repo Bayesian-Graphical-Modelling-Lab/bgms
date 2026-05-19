@@ -1,10 +1,26 @@
 # Sample from the GGM (Partial-Association) Prior
 
-Draws from the prior of a Gaussian graphical model using the same
-constrained NUTS sampler that drives
-[`bgm`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)
-for continuous data. The likelihood is omitted (\\n = 0\\, \\S = 0\\),
-so the chain targets the prior alone.
+Draws from the prior of a Gaussian graphical model. The likelihood is
+omitted (\\n = 0\\, \\S = 0\\), so the chain targets the prior alone.
+Two specifications are supported via the `spec` argument:
+
+- `"conditional"` (default): fix a graph \\\Gamma\\ and sample \\K \mid
+  \Gamma\\ via the same constrained NUTS sampler that drives
+  [`bgm`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)
+  for continuous data. The chain targets \\p(K \mid \Gamma) \propto
+  \mathrm{slab}(K) \cdot \mathrm{diag}(K) \cdot \|K\|^{\delta} \cdot
+  \mathbf{1}\\K \in \mathcal{M}^{+}(\Gamma)\\ / Z(\Gamma)\\.
+
+- `"joint"`: sample \\(K, \Gamma)\\ jointly from the un-normalised joint
+  prior \\p(K, \Gamma) \propto \mathrm{slab}(K) \cdot \mathrm{diag}(K)
+  \cdot \|K\|^{\delta} \cdot \mathbf{1}\\K \in \mathcal{M}^{+}(\Gamma)\\
+  \cdot \pi(\Gamma)\\. Uses the adaptive-Metropolis MH chain from
+  [`bgm`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)
+  with edge selection on and the likelihood off, so the marginal on
+  \\\Gamma\\ is \\\pi(\Gamma) \cdot Z(\Gamma)\\ (joint specification,
+  not hierarchical). Useful for simulation-based calibration of
+  [`bgm`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)'s
+  default sampler.
 
 ## Usage
 
@@ -20,7 +36,9 @@ sample_ggm_prior(
   seed = 1L,
   verbose = TRUE,
   edge_indicators = NULL,
-  delta = NULL
+  delta = NULL,
+  spec = c("conditional", "joint"),
+  edge_inclusion_prob = 0.5
 )
 ```
 
@@ -62,11 +80,13 @@ sample_ggm_prior(
 - step_size:
 
   Positive numeric. Initial NUTS step size used to seed dual-averaging
-  adaptation. Default `0.1`.
+  adaptation. Default `0.1`. Used only for `spec = "conditional"` (NUTS
+  path); ignored for the `"joint"` MH path.
 
 - max_depth:
 
-  Integer. Maximum NUTS tree depth. Default `10`.
+  Integer. Maximum NUTS tree depth. Default `10`. Used only for
+  `spec = "conditional"`.
 
 - seed:
 
@@ -80,7 +100,8 @@ sample_ggm_prior(
 
   Optional integer \\p \times p\\ matrix with `1` = edge included, `0` =
   excluded. Must be symmetric with `1`s on the diagonal. Default: full
-  graph (all edges included).
+  graph (all edges included). Used only for `spec = "conditional"` (the
+  chain samples \\K \mid \Gamma\\); ignored for `spec = "joint"`.
 
 - delta:
 
@@ -94,6 +115,17 @@ sample_ggm_prior(
   preparation). Pass `delta = 0` for the untilted prior (the
   companion-paper baseline) or a non-negative numeric to override.
 
+- spec:
+
+  One of `"conditional"` (default, sample \\K \mid \Gamma\\ at fixed
+  \\\Gamma\\) or `"joint"` (sample \\(K, \Gamma)\\ jointly from the
+  un-normalised joint prior).
+
+- edge_inclusion_prob:
+
+  Probability in \\(0, 1)\\ for the Bernoulli edge prior used when
+  `spec = "joint"`. Default `0.5`. Ignored when `spec = "conditional"`.
+
 ## Value
 
 A list with components
@@ -103,7 +135,9 @@ A list with components
   Numeric matrix of size `n_samples` x `p * (p - 1) / 2` containing the
   upper-triangle off-diagonal entries of \\K\\ for each draw, in
   column-major order \\(K\_{12}, K\_{13}, K\_{23}, K\_{14}, \ldots)\\.
-  Excluded edges are returned as `0`.
+  Under `spec = "conditional"`, excluded edges are returned as `0`;
+  under `spec = "joint"`, off-diagonals at excluded edges are sampled at
+  `0` per the inclusion indicator.
 
 - `K_diag`:
 
@@ -119,13 +153,12 @@ A list with components
 
   Character vector of length `p` naming the columns of `K_diag`.
 
-- `step_size`:
-
-  The (initial) NUTS step size used.
-
 - `edge_indicators`:
 
-  The integer edge-indicator matrix used (full graph if not supplied).
+  Under `spec = "conditional"`, the `p x p` integer matrix of fixed
+  inclusion indicators used (full graph if not supplied). Under
+  `spec = "joint"`, an `n_samples x p(p-1)/2` integer matrix of sampled
+  \\\Gamma\_{ij}\\ indicators (column order matches `K_offdiag`).
 
 ## Details
 
@@ -139,8 +172,10 @@ passed here means the same distribution it would mean there. Output
 samples are reported as entries of \\K\\; convert with \\K\_{yy} =
 -K/2\\ if you want them on the partial-association scale.
 
-When `edge_indicators` is supplied, off-diagonals at excluded positions
-are constrained to zero throughout the chain.
+When `spec = "conditional"` and `edge_indicators` is supplied,
+off-diagonals at excluded positions are constrained to zero throughout
+the chain. `edge_indicators` is ignored when `spec = "joint"` (the chain
+samples \\\Gamma\\).
 
 ## See also
 
