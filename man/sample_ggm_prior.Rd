@@ -15,7 +15,7 @@ sample_ggm_prior(
   seed = 1L,
   verbose = TRUE,
   edge_indicators = NULL,
-  delta = 0
+  delta = NULL
 )
 }
 \arguments{
@@ -51,10 +51,16 @@ dual-averaging adaptation. Default \code{0.1}.}
 \code{1} = edge included, \code{0} = excluded. Must be symmetric with
 \code{1}s on the diagonal. Default: full graph (all edges included).}
 
-\item{delta}{Non-negative numeric. Determinant-tilt exponent: multiplies
-the prior by \eqn{|K|^{\delta}}, pushing the chain away from the
-positive-definite cone boundary. \code{delta = 0} (default) recovers
-the untilted prior.}
+\item{delta}{Non-negative numeric, or \code{NULL} for the dimension-
+adaptive default. Determinant-tilt exponent: multiplies the prior
+by \eqn{|K|^{\delta}}, softly repelling the chain from the
+positive-definite cone boundary. \code{delta = NULL} (default)
+auto-resolves to \eqn{0.5 \log(p)}, the simple form of the
+dimension-adaptive rule \eqn{\delta(p) = c \log p} with
+\eqn{c \in (0.3, 0.6)} discussed in the companion paper on
+determinant-tilted spike-and-slab priors (Marsman et al., in
+preparation). Pass \code{delta = 0} for the untilted prior (the
+companion-paper baseline) or a non-negative numeric to override.}
 }
 \value{
 A list with components

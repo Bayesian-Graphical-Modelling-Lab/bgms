@@ -144,7 +144,7 @@ test_that("SBC: GGM NUTS produces uniform ranks (p=3, no edge selection)", {
       variable_type = "continuous",
       iter = L, warmup = 1000, chains = 1,
       edge_selection = FALSE, update_method = "nuts",
-      pairwise_scale = scale,
+      pairwise_scale = scale, delta = 0,
       display_progress = "none", seed = 2026L + r
     )
 
@@ -218,7 +218,7 @@ test_that("SBC: GGM MH produces uniform ranks (p=3, no edge selection)", {
       variable_type = "continuous",
       iter = L_raw, warmup = 5000, chains = 1,
       edge_selection = FALSE, update_method = "adaptive-metropolis",
-      pairwise_scale = scale,
+      pairwise_scale = scale, delta = 0,
       display_progress = "none", seed = 2027L + r
     )
 
@@ -350,7 +350,7 @@ test_that("SBC: GGM MH produces uniform diagonal ranks (p=3, edge selection)", {
       variable_type = "continuous",
       iter = L_raw, warmup = 5000, chains = 1,
       edge_selection = TRUE, update_method = "adaptive-metropolis",
-      pairwise_scale = scale,
+      pairwise_scale = scale, delta = 0,
       display_progress = "none", seed = 2028L + r
     )
 

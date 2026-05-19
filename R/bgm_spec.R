@@ -265,7 +265,7 @@ bgm_spec = function(x,
                     scale_prior_type = "gamma",
                     scale_shape = 1,
                     scale_rate = 1,
-                    delta = 0,
+                    delta = NULL,
                     standardize = FALSE,
                     edge_selection = TRUE,
                     edge_prior = bernoulli_prior(0.5),
@@ -345,16 +345,30 @@ bgm_spec = function(x,
     model_type = "mixed_mrf"
   }
 
+  # Auto-resolve delta = NULL to the dimension-adaptive default 0.5 * log(p),
+  # where p is the dimension of the continuous precision matrix. For models
+  # without a continuous block (omrf, compare) the tilt has no target, so
+  # NULL resolves to 0.
+  if(is.null(delta)) {
+    delta = if(model_type == "ggm") {
+      0.5 * log(max(num_variables, 1))
+    } else if(model_type == "mixed_mrf") {
+      0.5 * log(max(sum(!is_ordinal), 1))
+    } else {
+      0
+    }
+  }
+
   # Validate determinant-tilt exponent and reject for pure-ordinal models
   if(!is.numeric(delta) || length(delta) != 1L || is.na(delta) ||
      !is.finite(delta) || delta < 0) {
-    stop("'delta' must be a single finite non-negative numeric.")
+    stop("'delta' must be a single finite non-negative numeric, or NULL.")
   }
   if(delta > 0 && model_type %in% c("omrf", "compare")) {
     stop(
       "'delta' (determinant tilt) requires continuous variables; the ",
       "current model_type is '", model_type, "', which has no precision ",
-      "matrix to tilt. Pass delta = 0 (default) or use continuous data."
+      "matrix to tilt. Pass delta = 0 or use continuous data."
     )
   }
 

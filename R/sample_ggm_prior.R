@@ -39,10 +39,16 @@
 #' @param edge_indicators Optional integer \eqn{p \times p} matrix with
 #'   \code{1} = edge included, \code{0} = excluded. Must be symmetric with
 #'   \code{1}s on the diagonal. Default: full graph (all edges included).
-#' @param delta Non-negative numeric. Determinant-tilt exponent: multiplies
-#'   the prior by \eqn{|K|^{\delta}}, pushing the chain away from the
-#'   positive-definite cone boundary. \code{delta = 0} (default) recovers
-#'   the untilted prior.
+#' @param delta Non-negative numeric, or \code{NULL} for the dimension-
+#'   adaptive default. Determinant-tilt exponent: multiplies the prior
+#'   by \eqn{|K|^{\delta}}, softly repelling the chain from the
+#'   positive-definite cone boundary. \code{delta = NULL} (default)
+#'   auto-resolves to \eqn{0.5 \log(p)}, the simple form of the
+#'   dimension-adaptive rule \eqn{\delta(p) = c \log p} with
+#'   \eqn{c \in (0.3, 0.6)} discussed in the companion paper on
+#'   determinant-tilted spike-and-slab priors (Marsman et al., in
+#'   preparation). Pass \code{delta = 0} for the untilted prior (the
+#'   companion-paper baseline) or a non-negative numeric to override.
 #'
 #' @return A list with components
 #'   \describe{
@@ -101,7 +107,7 @@ sample_ggm_prior = function(
   seed = 1L,
   verbose = TRUE,
   edge_indicators = NULL,
-  delta = 0
+  delta = NULL
 ) {
   validate_positive_integer(p, "p", min_value = 2L)
   validate_positive_integer(n_samples, "n_samples", min_value = 1L)
@@ -109,9 +115,12 @@ sample_ggm_prior = function(
   validate_positive_integer(max_depth, "max_depth", min_value = 1L)
   validate_finite_scalar(step_size, "step_size", positive = TRUE)
   validate_positive_integer(seed, "seed", min_value = 0L)
+  if(is.null(delta)) {
+    delta = 0.5 * log(p)
+  }
   if(!is.numeric(delta) || length(delta) != 1L || is.na(delta) ||
      !is.finite(delta) || delta < 0) {
-    stop("'delta' must be a single finite non-negative numeric.")
+    stop("'delta' must be a single finite non-negative numeric, or NULL.")
   }
   if(!is.logical(verbose) || length(verbose) != 1L || is.na(verbose)) {
     stop("'verbose' must be TRUE or FALSE.")

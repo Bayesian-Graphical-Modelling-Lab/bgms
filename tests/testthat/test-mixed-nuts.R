@@ -576,6 +576,7 @@ test_that("M.2J: NUTS diagnostics are clean for mixed MRF", {
     iter = 2000, warmup = 1000, chains = 2,
     edge_selection = FALSE, update_method = "nuts",
     pairwise_scale = pw_scale, main_alpha = main_a, main_beta = main_b,
+    delta = 0,
     display_progress = "none", seed = 303
   )
 
