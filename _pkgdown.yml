@@ -32,7 +32,7 @@ reference:
       - simulate.bgmCompare
       - predict.bgms
       - predict.bgmCompare
-      - sample_precision_prior
+      - sample_ggm_prior
 
   - title: Prior constructors
     desc: Specify priors for model parameters, precision scale, and edge inclusion.
