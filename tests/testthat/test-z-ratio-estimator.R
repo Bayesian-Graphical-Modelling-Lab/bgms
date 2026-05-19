@@ -20,7 +20,10 @@ draw_random_graph <- function(q, seed, p_edge = 0.5) {
   G <- matrix(0L, q, q)
   if (q < 2) return(G)
   for (i in 1:(q - 1)) for (j in (i + 1):q)
-    if (runif(1) < p_edge) { G[i, j] <- 1L; G[j, i] <- 1L }
+    if (runif(1) < p_edge) {
+      G[i, j] <- 1L
+      G[j, i] <- 1L
+    }
   G
 }
 
@@ -34,7 +37,10 @@ test_that("mean V across independent pools converges to 1/Z within MC noise", {
   # tolerance.
   q <- 5L
   G_pi <- draw_random_graph(q, seed = 1L)
-  alpha <- 1.0; beta <- 1.0; sigma <- 1.0; delta <- 0.5
+  alpha <- 1.0
+  beta  <- 1.0
+  sigma <- 1.0
+  delta <- 0.5
 
   # Truth proxy: M = 5000, n_truth = 20 → ~22000 effective samples; the SE on
   # log_Zhat is dominated by Z_truth's MC noise which is ~ sd/sqrt(n_truth).
@@ -142,7 +148,10 @@ test_that("V tracks the alternating-series sign", {
   # products grow and the alternating series can produce negative V.
   q <- 5L
   G_pi <- draw_random_graph(q, seed = 23L)
-  alpha <- 1.0; beta <- 1.0; sigma <- 1.0; delta <- 0.5
+  alpha <- 1.0
+  beta  <- 1.0
+  sigma <- 1.0
+  delta <- 0.5
   rho   <- 0.6
   M_inner <- 50L
   # Tiny c (far below 1/Z) inflates each (Zhat - c)/c factor; K_depth >= 1

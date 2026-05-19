@@ -49,7 +49,10 @@ test_that("DEGORD permutation sends (i, j) to (q-2, q-1)", {
   for (q in c(3L, 5L, 7L)) {
     G <- matrix(0L, q, q)
     for (i in 1:(q - 1)) for (j in (i + 1):q)
-      if (runif(1) < 0.5) { G[i, j] <- 1L; G[j, i] <- 1L }
+      if (runif(1) < 0.5) {
+        G[i, j] <- 1L
+        G[j, i] <- 1L
+      }
     for (i0 in 0:(q - 2)) {
       for (j0 in (i0 + 1):(q - 1)) {
         G_pi <- degord_permute_graph_cpp(G, i0, j0)
@@ -139,7 +142,10 @@ test_that("delta_log_Zhat_pi_toggle equals direct full-recompute at machine prec
     set.seed(seed)
     G <- matrix(0L, q, q)
     for (i in 1:(q - 1)) for (j in (i + 1):q)
-      if (runif(1) < 0.5) { G[i, j] <- 1L; G[j, i] <- 1L }
+      if (runif(1) < 0.5) {
+        G[i, j] <- 1L
+        G[j, i] <- 1L
+      }
     G
   }
 
@@ -225,7 +231,10 @@ test_that("delta_log_Zhat_pi_toggle matches the z reference bit-exact", {
   for (q in c(3L, 5L, 7L)) {
     G <- matrix(0L, q, q)
     for (i in 1:(q - 1)) for (j in (i + 1):q)
-      if (runif(1) < 0.5) { G[i, j] <- 1L; G[j, i] <- 1L }
+      if (runif(1) < 0.5) {
+        G[i, j] <- 1L
+        G[j, i] <- 1L
+      }
     dim_pool <- q + q * (q - 1) / 2
     M <- 50L
     pool   <- matrix(rnorm(M * dim_pool), M, dim_pool)
@@ -263,8 +272,14 @@ test_that("variance of log Zhat scales as 1/M_inner (Phase 2 acceptance)", {
   set.seed(42)
   G_pi <- matrix(0L, q, q)
   for (i in 1:(q - 1)) for (j in (i + 1):q)
-    if (runif(1) < 0.5) { G_pi[i, j] <- 1L; G_pi[j, i] <- 1L }
-  alpha <- 2.0; beta <- 1.0; sigma <- 1.0; delta <- 0.5
+    if (runif(1) < 0.5) {
+      G_pi[i, j] <- 1L
+      G_pi[j, i] <- 1L
+    }
+  alpha <- 2.0
+  beta  <- 1.0
+  sigma <- 1.0
+  delta <- 0.5
 
   M_grid <- c(30L, 1000L)
   n_reps <- 200L

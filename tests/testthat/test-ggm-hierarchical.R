@@ -48,7 +48,8 @@ test_that("hierarchical-spec chain runs without crash and stays in valid state",
 
 test_that("hierarchical-spec chain is reproducible under fixed seed", {
   set.seed(13)
-  p <- 4L; n <- 50L
+  p <- 4L
+  n <- 50L
   Y <- scale(matrix(rnorm(n * p), n, p), scale = FALSE)
   args <- list(
     observations = Y, inclusion_prob = 0.5,
@@ -70,7 +71,8 @@ test_that("hierarchical-spec chain is reproducible under fixed seed", {
 
 test_that("bgm() R API accepts graph_prior_spec = 'hierarchical' end-to-end", {
   set.seed(99)
-  p <- 5L; n <- 100L
+  p <- 5L
+  n <- 100L
   Y <- scale(matrix(rnorm(n * p), n, p), scale = FALSE)
   colnames(Y) <- paste0("V", seq_len(p))
 
@@ -157,7 +159,8 @@ test_that("hierarchical-spec scales with delta sensibly", {
   # validate the SBC target here — only that the chain doesn't degenerate
   # to all-zero or all-one as δ varies. (Full SBC validation is Phase 5.)
   set.seed(91)
-  p <- 4L; n <- 80L
+  p <- 4L
+  n <- 80L
   Y <- scale(matrix(rnorm(n * p), n, p), scale = FALSE)
   for (delta in c(0.0, 0.5, 1.0)) {
     out <- ggm_hierarchical_smoke_cpp(
