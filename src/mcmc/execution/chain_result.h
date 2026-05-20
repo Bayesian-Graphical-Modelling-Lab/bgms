@@ -56,6 +56,19 @@ public:
     /// Whether AM diagnostics are stored.
     bool        has_am_diagnostics = false;
 
+    /// Hierarchical-spec V-ratio diagnostics. sign(V_curr) ∈ {-1, +1} and
+    /// log|V_curr| recorded per iteration, snapshotted at end-of-iteration
+    /// from the model state. Used by Lyne (2015) sign-corrected ergodic
+    /// averaging (bgms_posterior_mean() helper, F3). In operational cells
+    /// (low δ, well-tuned κ) sign ≡ +1 and the correction collapses to
+    /// the plain mean; the diagnostic exists primarily for transparency
+    /// and outlier detection.
+    arma::ivec  v_sign_samples;
+    arma::vec   v_log_abs_samples;
+    /// Whether V-ratio diagnostics are stored (true only for hierarchical-
+    /// spec GGM chains).
+    bool        has_v_ratio_diagnostics = false;
+
     /**
      * Reserve storage for samples
      * @param param_dim  Number of parameters per sample
@@ -105,6 +118,16 @@ public:
     void reserve_am_diagnostics(const size_t n_iter) {
         am_accept_prob_samples.set_size(n_iter);
         has_am_diagnostics = true;
+    }
+
+    /**
+     * Reserve storage for hierarchical-spec V-ratio diagnostics.
+     * @param n_iter  Number of sampling iterations
+     */
+    void reserve_v_ratio_diagnostics(const size_t n_iter) {
+        v_sign_samples.set_size(n_iter);
+        v_log_abs_samples.set_size(n_iter);
+        has_v_ratio_diagnostics = true;
     }
 
     /**
@@ -158,5 +181,16 @@ public:
      */
     void store_am_diagnostics(const size_t iter, double accept_prob) {
         am_accept_prob_samples(iter) = accept_prob;
+    }
+
+    /**
+     * Store V-ratio diagnostics for one iteration (hierarchical-spec only).
+     * @param iter      Iteration index (0-based)
+     * @param sign      sign(V_curr) at end of iteration, ∈ {-1, +1}
+     * @param log_abs   log|V_curr| at end of iteration
+     */
+    void store_v_ratio_diagnostics(const size_t iter, int sign, double log_abs) {
+        v_sign_samples(iter) = sign;
+        v_log_abs_samples(iter) = log_abs;
     }
 };

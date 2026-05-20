@@ -107,6 +107,29 @@ public:
     }
 
     /**
+     * @return True if this model maintains V-ratio diagnostics
+     * (sign(V_curr), log|V_curr|) suitable for Lyne-style sign-corrected
+     * ergodic averaging. Default: false. Overridden by GGMModel under
+     * hierarchical graph_prior_spec.
+     */
+    virtual bool has_v_ratio_diagnostics() const { return false; }
+
+    /**
+     * @return Current sign(V_curr) ∈ {-1, +1} for the running V state.
+     * Only meaningful when has_v_ratio_diagnostics() returns true.
+     */
+    virtual int current_sign_V() const { return 1; }
+
+    /**
+     * @return Current log|V_curr| for the running V state, or NaN if
+     * V has not been computed yet. Only meaningful when
+     * has_v_ratio_diagnostics() returns true.
+     */
+    virtual double current_log_abs_V() const {
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+
+    /**
      * Set the target Metropolis acceptance rate for Robbins-Monro proposal
      * adaptation. Called by the sampler entry points (sample_omrf,
      * sample_mixed_mrf, sample_ggm) before the MCMC loop, with the value

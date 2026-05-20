@@ -197,6 +197,14 @@ public:
     /** @return true when missing-data imputation is active. */
     bool has_missing_data()    const override { return has_missing_; }
 
+    /** @return true under hierarchical graph_prior_spec — the only path
+     *  where V(Γ, U) is computed and sign / log|V| are meaningful. */
+    bool has_v_ratio_diagnostics() const override {
+        return graph_prior_spec_ == GraphPriorSpec::Hierarchical;
+    }
+    int    current_sign_V()    const override { return current_sign_V_; }
+    double current_log_abs_V() const override { return current_log_abs_V_; }
+
     /** Impute missing entries from full-conditional normal distributions. */
     void impute_missing() override;
 
@@ -558,6 +566,16 @@ private:
     double prior_sigma_ = 1.0;  // NormalPrior scale
     double prior_alpha_ = 1.0;  // GammaScalePrior shape
     double prior_beta_  = 1.0;  // GammaScalePrior rate
+
+    // Running V-ratio state for Lyne-style sign-corrected ergodic averaging
+    // (F2). Updated inside update_edge_indicator_parameter_pair on accept;
+    // chain runner snapshots into ChainResult at end of each sampling
+    // iteration. v_diag_initialized_ stays false until the first V_log_pair
+    // call produces a finite value, so chain-runner reads NaN for any
+    // iteration that hits no toggle proposals (degenerate).
+    int    current_sign_V_     = 1;
+    double current_log_abs_V_  = std::numeric_limits<double>::quiet_NaN();
+    bool   v_diag_initialized_ = false;
 
     /// Lazy initialiser for the V/RR machinery. Validates prior family,
     /// builds chain_aux_degord_, computes log_Z_NLO_curr_ via full-recompute,

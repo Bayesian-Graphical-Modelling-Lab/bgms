@@ -900,6 +900,11 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         // V(Γ_curr) / V(Γ_star) ≈ Z(Γ_star) / Z(Γ_curr). Lyne (2015) RR debias
         // with the DEGORD-permuted Bartlett-Cholesky inner sampler.
         double log_Z_NLO_star = log_Z_NLO_curr_;  // tentative; set below if hierarchical
+        // F2: V(Γ_star) carried to the accept block so we can advance the
+        // running V-diagnostic only on accept (set inside the hier_active
+        // branch below).
+        int    V_star_sign_for_diag   = 1;
+        double V_star_log_abs_for_diag = std::numeric_limits<double>::quiet_NaN();
         bool hier_active = (graph_prior_spec_ == GraphPriorSpec::Hierarchical);
         if (hier_active) {
             ensure_hierarchical_state_();
@@ -940,10 +945,22 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
                 v_K_depth_, v_pools_t_,
                 G_pi_curr, G_pi_star, chain_aux_degord_,
                 log_c_curr, log_c_star, v_rho_);
+            // F2: initialise running V-diagnostic from V_pair.curr the first
+            // time we see a finite value (so the side-car has a meaningful
+            // entry from iteration 1 even before any accept). On accept the
+            // value is overwritten below from V_pair.star.
+            if (!v_diag_initialized_ &&
+                std::isfinite(V_pair.curr.first) && V_pair.curr.second != 0) {
+                current_sign_V_     = V_pair.curr.second;
+                current_log_abs_V_  = V_pair.curr.first;
+                v_diag_initialized_ = true;
+            }
+            V_star_sign_for_diag    = V_pair.star.second;
+            V_star_log_abs_for_diag = V_pair.star.first;
             // Auto-reject on non-finite log|V| (sentinel for V = 0 or
             // non-finite Zhat) or on sign flip across Γ_curr / Γ_star. The
-            // sign-flip reject is the Phase-1 stand-in until F2 wires a
-            // proper Lyne-style sign accumulator.
+            // sign-flip reject remains until a proper Lyne sign accumulator
+            // composes downstream (F3).
             if (!std::isfinite(V_pair.curr.first) || V_pair.curr.second == 0 ||
                 !std::isfinite(V_pair.star.first) || V_pair.star.second == 0 ||
                 V_pair.curr.second != V_pair.star.second) {
@@ -972,7 +989,13 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 
             constraint_dirty_ = true;
             theta_valid_ = false;
-            if (hier_active) log_Z_NLO_curr_ = log_Z_NLO_star;
+            if (hier_active) {
+                log_Z_NLO_curr_ = log_Z_NLO_star;
+                // Γ_star is now Γ_curr; advance the running V state.
+                current_sign_V_    = V_star_sign_for_diag;
+                current_log_abs_V_ = V_star_log_abs_for_diag;
+                v_diag_initialized_ = true;
+            }
         }
 
     } else {
@@ -1026,6 +1049,9 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         // rationale. Γ_star ADDS edge (i, j) here, so log_Z_NLO_star differs
         // from log_Z_NLO_curr by the +add direction of the incremental.
         double log_Z_NLO_star_add = log_Z_NLO_curr_;
+        // F2: V(Γ_star) carried to the accept block (mirrors DELETE branch).
+        int    V_star_sign_for_diag_add   = 1;
+        double V_star_log_abs_for_diag_add = std::numeric_limits<double>::quiet_NaN();
         bool hier_active_add = (graph_prior_spec_ == GraphPriorSpec::Hierarchical);
         if (hier_active_add) {
             ensure_hierarchical_state_();
@@ -1056,6 +1082,15 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
                 v_K_depth_, v_pools_t_,
                 G_pi_curr, G_pi_star, chain_aux_degord_,
                 log_c_curr, log_c_star, v_rho_);
+            // F2: same diagnostic seeding as in the DELETE branch.
+            if (!v_diag_initialized_ &&
+                std::isfinite(V_pair.curr.first) && V_pair.curr.second != 0) {
+                current_sign_V_     = V_pair.curr.second;
+                current_log_abs_V_  = V_pair.curr.first;
+                v_diag_initialized_ = true;
+            }
+            V_star_sign_for_diag_add    = V_pair.star.second;
+            V_star_log_abs_for_diag_add = V_pair.star.first;
             if (!std::isfinite(V_pair.curr.first) || V_pair.curr.second == 0 ||
                 !std::isfinite(V_pair.star.first) || V_pair.star.second == 0 ||
                 V_pair.curr.second != V_pair.star.second) {
@@ -1071,7 +1106,12 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
             double omega_ij_old = precision_matrix_(i, j);
             double omega_jj_old = precision_matrix_(j, j);
 
-            if (hier_active_add) log_Z_NLO_curr_ = log_Z_NLO_star_add;
+            if (hier_active_add) {
+                log_Z_NLO_curr_ = log_Z_NLO_star_add;
+                current_sign_V_    = V_star_sign_for_diag_add;
+                current_log_abs_V_ = V_star_log_abs_for_diag_add;
+                v_diag_initialized_ = true;
+            }
 
             // Update omega
             precision_matrix_(i, j) = omega_prop_ij;

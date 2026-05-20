@@ -309,6 +309,8 @@ build_output_bgm = function(spec, raw) {
       if(!is.null(chain$energy)) res[["energy__"]] = chain$energy
       if(!is.null(chain$accept_prob)) res[["accept_prob__"]] = chain$accept_prob
       if(!is.null(chain$am_accept_prob)) res[["am_accept_prob__"]] = chain$am_accept_prob
+      if(!is.null(chain$v_sign)) res[["v_sign__"]] = chain$v_sign
+      if(!is.null(chain$v_log_abs)) res[["v_log_abs__"]] = chain$v_log_abs
       res
     })
   } else {
@@ -526,6 +528,20 @@ build_output_bgm = function(spec, raw) {
     )
   } else if(s$update_method == "adaptive-metropolis") {
     results$am_diag = summarize_am_diagnostics(raw, names_main = names_main, names_pairwise = edge_names, target_accept = s$target_accept)
+  }
+
+  # --- V-ratio diagnostics (hierarchical-spec GGM only) -----------------------
+  # Per-iteration sign(V_curr) and log|V_curr| for Lyne (2015) sign-corrected
+  # ergodic averaging. In the operational regime sign === +1 and the correction
+  # collapses to the plain posterior mean; the diagnostic is exposed for
+  # transparency and as the data source for bgms_posterior_mean() (F3).
+  # `raw` at this point has been transformed by build_raw_samples_list's
+  # lapply (line ~292): per-chain keys use the trailing-`__` convention.
+  if(!is.null(raw[[1L]][["v_sign__"]])) {
+    results$v_ratio_diagnostics = list(
+      sign    = lapply(raw, function(ch) ch[["v_sign__"]]),
+      log_abs = lapply(raw, function(ch) ch[["v_log_abs__"]])
+    )
   }
 
   results$.bgm_spec = spec

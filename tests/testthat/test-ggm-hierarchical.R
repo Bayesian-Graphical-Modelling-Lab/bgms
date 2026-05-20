@@ -136,6 +136,57 @@ test_that("bgm() accepts update_method = 'nuts' + 'hierarchical' (2x2 API)", {
 })
 
 
+test_that("bgm() exposes v_ratio_diagnostics under hierarchical (F2)", {
+  # F2 smoke. Hierarchical fit must surface per-iteration sign(V_curr) and
+  # log|V_curr| as a top-level v_ratio_diagnostics field. Joint-spec fits
+  # must NOT have that field. Operational cell (q=5, δ=0.5, κ=1, ρ=0.5)
+  # is well inside the sign-positive regime, so we additionally assert
+  # that the vast majority of recorded signs are +1.
+  set.seed(101)
+  p <- 5L
+  n <- 100L
+  Y <- scale(matrix(rnorm(n * p), n, p), scale = FALSE)
+  fit_hier <- bgm(
+    Y, variable_type = "continuous",
+    interaction_prior     = normal_prior(scale = 1),
+    precision_scale_prior = gamma_prior(shape = 1, rate = 1),
+    delta = 0.5,
+    graph_prior_spec = "hierarchical",
+    z_ratio_tuning   = list(M_inner = 50L, kappa = 1.0, rho = 0.5),
+    iter = 200L, warmup = 50L,
+    update_method = "adaptive-metropolis",
+    chains = 1L, cores = 1L, seed = 1L,
+    display_progress = "none", verbose = FALSE
+  )
+  expect_true(!is.null(fit_hier$v_ratio_diagnostics))
+  expect_named(fit_hier$v_ratio_diagnostics, c("sign", "log_abs"))
+  expect_length(fit_hier$v_ratio_diagnostics$sign, 1L)
+  expect_length(fit_hier$v_ratio_diagnostics$log_abs, 1L)
+  s <- fit_hier$v_ratio_diagnostics$sign[[1L]]
+  la <- fit_hier$v_ratio_diagnostics$log_abs[[1L]]
+  expect_length(s, 200L)
+  expect_length(la, 200L)
+  expect_true(all(s %in% c(-1L, 1L)))
+  expect_true(all(is.finite(la)))
+  # Operational cell: sign should be +1 nearly always.
+  expect_gt(mean(s == 1L), 0.95)
+
+  # Joint-spec fit should not surface the diagnostic.
+  fit_joint <- bgm(
+    Y, variable_type = "continuous",
+    interaction_prior     = normal_prior(scale = 1),
+    precision_scale_prior = gamma_prior(shape = 1, rate = 1),
+    delta = 0.5,
+    graph_prior_spec = "joint",
+    iter = 100L, warmup = 50L,
+    update_method = "adaptive-metropolis",
+    chains = 1L, cores = 1L, seed = 1L,
+    display_progress = "none", verbose = FALSE
+  )
+  expect_null(fit_joint$v_ratio_diagnostics)
+})
+
+
 test_that("bgm() with hierarchical errors helpfully for Cauchy slab", {
   set.seed(11)
   Y <- scale(matrix(rnorm(50 * 4L), 50, 4L), scale = FALSE)
