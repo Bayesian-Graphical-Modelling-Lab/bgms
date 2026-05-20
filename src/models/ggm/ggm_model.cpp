@@ -896,9 +896,13 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         ln_alpha += diagonal_prior_->logp(0.5 * precision_proposal_(j, j));
         ln_alpha -= diagonal_prior_->logp(0.5 * precision_matrix_(j, j));
 
-        // Hierarchical-spec correction: multiply the joint MH ratio by
-        // V(Γ_curr) / V(Γ_star) ≈ Z(Γ_star) / Z(Γ_curr). Lyne (2015) RR debias
-        // with the DEGORD-permuted Bartlett-Cholesky inner sampler.
+        // Hierarchical-spec correction. The joint-spec MH ratio implicitly
+        // targets π(Γ)·Z(Γ) marginally; to convert to the hierarchical
+        // target with marginal π(Γ), multiply by Z(Γ_curr)/Z(Γ_star). With
+        // V(Γ) ≈ 1/Z(Γ), this is V(Γ_star) / V(Γ_curr). In log form:
+        //   ln_alpha += log|V(Γ_star)| - log|V(Γ_curr)|.
+        // Lyne (2015) RR debias with the DEGORD-permuted Bartlett-Cholesky
+        // inner sampler.
         double log_Z_NLO_star = log_Z_NLO_curr_;  // tentative; set below if hierarchical
         // F2: V(Γ_star) carried to the accept block so we can advance the
         // running V-diagnostic only on accept (set inside the hier_active
@@ -966,7 +970,7 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
                 V_pair.curr.second != V_pair.star.second) {
                 ln_alpha = -std::numeric_limits<double>::infinity();
             } else {
-                ln_alpha += V_pair.curr.first - V_pair.star.first;
+                ln_alpha += V_pair.star.first - V_pair.curr.first;
             }
         }
 
@@ -1096,7 +1100,7 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
                 V_pair.curr.second != V_pair.star.second) {
                 ln_alpha = -std::numeric_limits<double>::infinity();
             } else {
-                ln_alpha += V_pair.curr.first - V_pair.star.first;
+                ln_alpha += V_pair.star.first - V_pair.curr.first;
             }
         }
 
