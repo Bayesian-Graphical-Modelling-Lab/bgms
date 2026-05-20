@@ -726,24 +726,44 @@ void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_o
     vf2_[i] = v2_[0];
     vf2_[j] = v2_[1];
 
-    // we now have
-    // aOmega_prop - (aOmega + vf1 %*% t(vf2) + vf2 %*% t(vf1))
-
+    // K_new = K_old + vf1 vf2^T + vf2 vf1^T = K_old + u1 u1^T - u2 u2^T,
+    // where u1 = (vf1 + vf2) / sqrt(2), u2 = (vf1 - vf2) / sqrt(2). The
+    // change-of-basis diagonalises the symmetric rank-2 update so the chol
+    // factor advances via one rank-1 update + one rank-1 downdate.
     u1_ = (vf1_ + vf2_) / sqrt(2);
     u2_ = (vf1_ - vf2_) / sqrt(2);
 
-    // update phi (2x O(p^2))
+    // L update (2 x O(p^2)). Still required so cholesky_of_precision_ tracks
+    // K (used by get_log_det in the next iteration).
     cholesky_update(cholesky_of_precision_, u1_);
     cholesky_downdate(cholesky_of_precision_, u2_);
 
-    // update inverse — fall back to full recomputation if rank-1
-    // updates have caused numerical drift
-    bool ok = arma::solve(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_),
-                          arma::eye(p_, p_), arma::solve_opts::fast);
-    if (!ok) {
+    // Sherman-Morrison-Woodbury rank-2 update of covariance_matrix_ = inv(K).
+    // Replaces the prior arma::solve(trimatu(L), I) (O(p^3)) + inv_L * inv_L.t()
+    // (O(p^3)) refresh with 4 x O(p^2) work:
+    //   K_new = K_old + M D M^T, M = [u1, u2], D = diag(+1, -1)
+    //   inv(K_new) = inv(K_old) - A C^{-1} A^T,
+    //     A = inv(K_old) M = [a1, a2],
+    //     C = D^{-1} + M^T inv(K_old) M = diag(+1, -1) + symmetric 2x2.
+    // Capacitance singularity (|det C| ~ 0) falls back to refresh_cholesky.
+    // inv_cholesky_of_precision_ is no longer maintained per accept — only
+    // refresh_cholesky() updates it (it's a scratch artefact of the prior
+    // path, not read between accepts).
+    arma::vec a1 = covariance_matrix_ * u1_;
+    arma::vec a2 = covariance_matrix_ * u2_;
+    double c11 =  1.0 + arma::dot(u1_, a1);
+    double c12 =        arma::dot(u1_, a2);
+    double c22 = -1.0 + arma::dot(u2_, a2);
+    double det = c11 * c22 - c12 * c12;
+    if (!std::isfinite(det) || std::abs(det) < 1e-14) {
         refresh_cholesky();
     } else {
-        covariance_matrix_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
+        double inv_c00 =  c22 / det;
+        double inv_c11 =  c11 / det;
+        double inv_c01 = -c12 / det;
+        covariance_matrix_ -= inv_c00 * (a1 * a1.t());
+        covariance_matrix_ -= inv_c11 * (a2 * a2.t());
+        covariance_matrix_ -= inv_c01 * (a1 * a2.t() + a2 * a1.t());
     }
 
     // reset for next iteration
@@ -796,19 +816,29 @@ void GGMModel::cholesky_update_after_diag(double omega_ii_old, size_t i)
     bool s = delta > 0;
     vf1_(i) = std::sqrt(std::abs(delta));
 
+    // L rank-1 update so cholesky_of_precision_ tracks K (used by get_log_det).
     if (s)
         cholesky_downdate(cholesky_of_precision_, vf1_);
     else
         cholesky_update(cholesky_of_precision_, vf1_);
 
-    // update inverse — fall back to full recomputation if rank-1
-    // updates have caused numerical drift
-    bool ok = arma::solve(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_),
-                          arma::eye(p_, p_), arma::solve_opts::fast);
-    if (!ok) {
+    // SMW rank-1 update of covariance_matrix_ = inv(K). Replaces the prior
+    // O(p^3) solve+matmul refresh with one O(p^2) outer-product update.
+    //   K_new = K_old + alpha * e_i e_i^T, alpha = K_new(i,i) - K_old(i,i)
+    //   inv(K_new) = inv(K_old) - alpha * c_i c_i^T / (1 + alpha * c_i[i]),
+    //     c_i = inv(K_old).col(i).
+    // alpha = precision_proposal_(i,i) - omega_ii_old (note sign: delta is
+    // defined the other way around above so the chol update/downdate branch
+    // matches K_new > or < K_old). Refresh-fall-back guards near-singular
+    // denom.
+    double alpha = precision_proposal_(i, i) - omega_ii_old;
+    arma::vec ci = covariance_matrix_.col(i);
+    double denom = 1.0 + alpha * ci(i);
+    if (!std::isfinite(denom) || std::abs(denom) < 1e-14) {
         refresh_cholesky();
     } else {
-        covariance_matrix_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
+        double coeff = alpha / denom;
+        covariance_matrix_ -= coeff * (ci * ci.t());
     }
 
     // reset for next iteration
@@ -1091,6 +1121,10 @@ void GGMModel::do_one_metropolis_step(int iteration) {
     if (metropolis_adapter_) {
         metropolis_adapter_->update(index_mask, accept_prob, iteration);
     }
+
+    // Catch SMW-accumulated drift in covariance_matrix_ over a long chain.
+    // O(p^2); the refresh path is only taken when drift exceeds tolerance.
+    check_and_refresh_if_drift_();
 }
 
 void GGMModel::init_metropolis_adaptation(const WarmupSchedule& schedule) {
@@ -1199,6 +1233,8 @@ void GGMModel::update_edge_indicators() {
         }
         update_edge_indicator_parameter_pair(i, j);
     }
+    // SMW drift check; same rationale as the end-of-MH-step path.
+    check_and_refresh_if_drift_();
 }
 
 void GGMModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {
@@ -1292,6 +1328,18 @@ void GGMModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {
     constraint_dirty_ = true;
     theta_valid_ = false;
 }
+
+void GGMModel::check_and_refresh_if_drift_() {
+    // diag(cov * K) should be ones. Compute the max abs deviation in O(p^2)
+    // via the elementwise product (K is symmetric so cov(i,:) * K(:,i)
+    // equals arma::dot(cov.row(i), K.row(i))).
+    arma::vec d = arma::sum(covariance_matrix_ % precision_matrix_, 1) - 1.0;
+    double drift = arma::abs(d).max();
+    if (!std::isfinite(drift) || drift > kCovDriftTol_) {
+        refresh_cholesky();
+    }
+}
+
 
 void GGMModel::refresh_cholesky() {
     cholesky_of_precision_ = arma::chol(precision_matrix_, "upper");

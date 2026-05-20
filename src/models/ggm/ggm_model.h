@@ -804,6 +804,26 @@ private:
     void refresh_cholesky();
 
     /**
+     * End-of-sweep drift check on covariance_matrix_.
+     *
+     * The SMW rank-1/rank-2 updates that replace the per-accept
+     * O(p^3) refresh in cholesky_update_after_{edge,diag} are
+     * backward stable but still accumulate FP error in
+     * covariance_matrix_ over a long chain. This helper measures
+     * max_i |sum_k cov(i,k) * K(k,i) - 1| -- the worst-case
+     * diagonal entry of cov*K minus the identity -- and triggers
+     * refresh_cholesky() when it exceeds kCovDriftTol_.
+     * Computed in O(p^2) so the check fits comfortably inside the
+     * MH sweep budget.
+     */
+    void check_and_refresh_if_drift_();
+
+    /// Absolute tolerance on max|diag(cov*K) - 1| before refresh.
+    /// Set conservatively; on a clean refresh this quantity is
+    /// O(p * eps * cond(K)).
+    static constexpr double kCovDriftTol_ = 1e-8;
+
+    /**
      * Initialize precision matrix at the regularized MLE.
      *
      * Computes K = n * inv(S + delta * I) where delta provides
