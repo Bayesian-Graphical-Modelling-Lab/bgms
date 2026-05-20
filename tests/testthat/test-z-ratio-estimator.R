@@ -139,6 +139,230 @@ test_that("draw_U_degord_rr produces identical output under identical seed", {
 })
 
 
+# ---- Log-space V matches linear V at small p, survives underflow at large p --
+
+test_that("V_log_at_Gamma_pi matches V_at_Gamma_pi in the safe regime", {
+  # F5 bit-equality smoke. log-space and linear forms operate on the same
+  # pools_t / G_pi / chain_aux and should produce identical |V| (modulo
+  # FP reordering in the signed log-sum-exp).
+  alpha <- 1.0
+  beta  <- 1.0
+  sigma <- 1.0
+  delta <- 0.5
+  kappa <- 1.0
+  rho   <- 0.5
+  for (q in c(5L, 10L, 20L)) {
+    G_pi <- draw_random_graph(q, seed = 31L + q)
+    # Centre c near 1/Z by approximating log_Z with a single Bartlett pool
+    # at large M. Tolerance is set on differences, so the centring need not
+    # be perfect; we just need the linear form to stay finite.
+    pool_truth <- degord_draw_bartlett_pool_cpp(q, 2000L, seed = 41L + q)
+    log_Z <- degord_log_Zhat_pi_from_pool_cpp(
+      pool_truth, G_pi, alpha, beta, sigma, delta, 0L
+    )
+    c_val <- kappa * exp(log_Z)
+    log_c <- log(kappa) + log_Z
+    M_inner <- 100L
+    n_samples <- 50L
+    diffs <- numeric(n_samples)
+    n_finite <- 0L
+    for (m in seq_len(n_samples)) {
+      U <- degord_draw_U_rr_cpp(M_inner, q, rho, seed = 300000L + 1000L * q + m)
+      v_lin <- degord_V_at_Gamma_pi_cpp(
+        U$K_depth, U$pools_t, G_pi,
+        alpha, beta, sigma, delta, c_val, rho, 0L
+      )
+      v_log <- degord_V_log_at_Gamma_pi_cpp(
+        U$K_depth, U$pools_t, G_pi,
+        alpha, beta, sigma, delta, log_c, rho, 0L
+      )
+      if (!is.finite(v_lin) || v_lin == 0 ||
+          !is.finite(v_log$log_abs) || v_log$sign == 0) next
+      lhs <- log(abs(v_lin))
+      rhs <- v_log$log_abs
+      n_finite <- n_finite + 1L
+      diffs[n_finite] <- abs(lhs - rhs)
+      # Sign agreement is exact (no FP reordering can flip sign).
+      expect_equal(sign(v_lin), v_log$sign,
+                   info = sprintf("q=%d, m=%d, K=%d", q, m, U$K_depth))
+    }
+    diffs <- diffs[seq_len(n_finite)]
+    # At q = 5 the series barely truncates; tolerance ~ 1e-12. At q = 20 the
+    # alternating series can accumulate more cancellation; loosen to 1e-9.
+    tol <- if (q <= 5L) 1e-12 else if (q <= 10L) 1e-10 else 1e-9
+    expect_true(max(diffs) < tol,
+                info = sprintf("q=%d, max|log_abs gap|=%.3g (tol=%.3g, n_finite=%d)",
+                               q, max(diffs), tol, n_finite))
+  }
+})
+
+
+test_that("V_log_at_Gamma_pi stays finite where V_at_Gamma_pi underflows", {
+  # F5 motivating regime: when log_c is far below 0 in magnitude (c = exp(log_c)
+  # flushes to 0 in double precision), the linear form returns Inf / NaN. The
+  # log-space form must remain finite.
+  q <- 5L
+  G_pi <- draw_random_graph(q, seed = 7L)
+  alpha <- 1.0
+  beta  <- 1.0
+  sigma <- 1.0
+  delta <- 0.5
+  rho   <- 0.5
+  # log_c = -3500 mirrors what log_Z_NLO + log_kappa can reach at p = 100;
+  # exp(-3500) is 0 in double precision.
+  log_c <- -3500
+  c_val <- exp(log_c)
+  expect_equal(c_val, 0)
+  M_inner <- 50L
+  n_samples <- 20L
+  n_log_finite <- 0L
+  n_lin_finite <- 0L
+  for (m in seq_len(n_samples)) {
+    U <- degord_draw_U_rr_cpp(M_inner, q, rho, seed = 400000L + m)
+    v_lin <- degord_V_at_Gamma_pi_cpp(
+      U$K_depth, U$pools_t, G_pi,
+      alpha, beta, sigma, delta, c_val, rho, 0L
+    )
+    v_log <- degord_V_log_at_Gamma_pi_cpp(
+      U$K_depth, U$pools_t, G_pi,
+      alpha, beta, sigma, delta, log_c, rho, 0L
+    )
+    if (is.finite(v_lin) && v_lin != 0) n_lin_finite <- n_lin_finite + 1L
+    if (is.finite(v_log$log_abs) && v_log$sign != 0) n_log_finite <- n_log_finite + 1L
+  }
+  # The linear form should mostly explode here.
+  expect_lt(n_lin_finite, n_samples / 2L)
+  # The log-space form should mostly stay finite.
+  expect_gt(n_log_finite, n_samples / 2L)
+})
+
+
+# ---- F6: paired V_log with within-pool cache reuse ------------------------
+
+test_that("paired V_log matches two independent V_log calls bit-equal", {
+  # F6 bit-equality. The paired call shares the inner Phi-build across
+  # G_pi_curr / G_pi_star by caching (rw_head, S_trail) under a_curr.
+  # The single-graph call rebuilds Phi from scratch for each graph. Both
+  # paths should produce identical (log|V|, sign(V)) for both curr and
+  # star to FP-reordering tolerance.
+  alpha <- 1.0
+  beta  <- 1.0
+  sigma <- 1.0
+  delta <- 0.5
+  rho   <- 0.5
+  cases <- list(
+    list(q = 5L,  K = 0L, seed = 11L),
+    list(q = 5L,  K = 2L, seed = 12L),
+    list(q = 5L,  K = 5L, seed = 13L),
+    list(q = 10L, K = 0L, seed = 21L),
+    list(q = 10L, K = 2L, seed = 22L),
+    list(q = 10L, K = 5L, seed = 23L),
+    list(q = 20L, K = 0L, seed = 31L),
+    list(q = 20L, K = 2L, seed = 32L),
+    list(q = 20L, K = 5L, seed = 33L)
+  )
+  for (case in cases) {
+    q <- case$q
+    K <- case$K
+    seed <- case$seed
+    # G_pi_curr is a random symmetric 0/1 matrix; G_pi_star toggles only
+    # the trailing slot (q-2, q-1). This mirrors what the chain hot path
+    # passes after degord_permutation places the toggled edge at (q-2, q-1).
+    G_pi_curr <- draw_random_graph(q, seed = seed, p_edge = 0.5)
+    G_pi_star <- G_pi_curr
+    G_pi_star[q - 1L, q] <- 1L - G_pi_curr[q - 1L, q]
+    G_pi_star[q, q - 1L] <- G_pi_star[q - 1L, q]
+    # Build a K-deep pool list deterministically.
+    M_inner <- 50L
+    pools_t <- vector("list", K)
+    for (n in seq_len(K)) {
+      pools_t[[n]] <- degord_draw_bartlett_pool_cpp(
+        q, M_inner, seed = 700000L + 1000L * seed + n)
+    }
+    # log_c values: choose so c ~ exp(log_Z) is near 1/Z (any reasonable
+    # value lets V be finite).
+    if (K > 0L) {
+      log_Z_proxy <- degord_log_Zhat_pi_from_pool_cpp(
+        pools_t[[1L]], G_pi_curr, alpha, beta, sigma, delta, 0L
+      )
+    } else {
+      log_Z_proxy <- 0
+    }
+    log_c_curr <- log_Z_proxy
+    log_c_star <- log_Z_proxy + 0.1   # small offset; both must stay finite
+    # Independent path.
+    v_curr_ind <- degord_V_log_at_Gamma_pi_cpp(
+      K, pools_t, G_pi_curr,
+      alpha, beta, sigma, delta, log_c_curr, rho, 0L
+    )
+    v_star_ind <- degord_V_log_at_Gamma_pi_cpp(
+      K, pools_t, G_pi_star,
+      alpha, beta, sigma, delta, log_c_star, rho, 0L
+    )
+    # Paired path.
+    v_pair <- degord_V_log_pair_at_Gamma_curr_star_cpp(
+      K, pools_t, G_pi_curr, G_pi_star,
+      alpha, beta, sigma, delta, log_c_curr, log_c_star, rho, 0L
+    )
+    # Sign agreement is exact.
+    expect_equal(v_pair$curr$sign, v_curr_ind$sign,
+                 info = sprintf("q=%d, K=%d (curr)", q, K))
+    expect_equal(v_pair$star$sign, v_star_ind$sign,
+                 info = sprintf("q=%d, K=%d (star)", q, K))
+    # log_abs agreement modulo FP reordering inside the inner kernel.
+    # Both paths execute the same per-sample row_logw arithmetic; only the
+    # row q-2 evaluation differs (cache reuses S_trail). Tolerance must
+    # absorb the order-of-additions difference in the log-sum-exp wrap-up
+    # at large q.
+    tol <- if (q <= 10L) 1e-12 else 1e-9
+    if (is.finite(v_pair$curr$log_abs) && is.finite(v_curr_ind$log_abs)) {
+      expect_lt(abs(v_pair$curr$log_abs - v_curr_ind$log_abs), tol,
+                label = sprintf("q=%d, K=%d, curr log_abs gap=%.3g",
+                                q, K,
+                                abs(v_pair$curr$log_abs - v_curr_ind$log_abs)))
+    }
+    if (is.finite(v_pair$star$log_abs) && is.finite(v_star_ind$log_abs)) {
+      expect_lt(abs(v_pair$star$log_abs - v_star_ind$log_abs), tol,
+                label = sprintf("q=%d, K=%d, star log_abs gap=%.3g",
+                                q, K,
+                                abs(v_pair$star$log_abs - v_star_ind$log_abs)))
+    }
+  }
+})
+
+
+test_that("log_Zhat_star_from_cache matches fresh log_Zhat at G_pi_star", {
+  # Direct check on the cache adapter. log_Zhat_star_from_cache must
+  # produce the same value as a fresh log_Zhat_pi_from_pool on the star
+  # graph, to FP-reordering tolerance (the cache path reuses row_logw[r]
+  # for r != q-2 instead of recomputing).
+  alpha <- 1.0
+  beta  <- 1.0
+  sigma <- 1.0
+  delta <- 0.5
+  for (q in c(5L, 10L, 20L)) {
+    G_pi_curr <- draw_random_graph(q, seed = 41L + q, p_edge = 0.5)
+    G_pi_star <- G_pi_curr
+    G_pi_star[q - 1L, q] <- 1L - G_pi_curr[q - 1L, q]
+    G_pi_star[q, q - 1L] <- G_pi_star[q - 1L, q]
+    pool <- degord_draw_bartlett_pool_cpp(
+      q, M_inner = 200L, seed = 800000L + q)
+    log_Zhat_star_cache <- degord_log_Zhat_star_from_cache_cpp(
+      pool, G_pi_curr, G_pi_star,
+      alpha, beta, sigma, delta, 0L
+    )
+    log_Zhat_star_direct <- degord_log_Zhat_pi_from_pool_cpp(
+      pool, G_pi_star, alpha, beta, sigma, delta, 0L
+    )
+    tol <- if (q <= 10L) 1e-12 else 1e-9
+    expect_lt(abs(log_Zhat_star_cache - log_Zhat_star_direct), tol,
+              label = sprintf("q=%d, cache=%.6f, direct=%.6f, gap=%.3g",
+                              q, log_Zhat_star_cache, log_Zhat_star_direct,
+                              abs(log_Zhat_star_cache - log_Zhat_star_direct)))
+  }
+})
+
+
 # ---- Signed V can flip sign for K_depth >= 1 -------------------------------
 
 test_that("V tracks the alternating-series sign", {

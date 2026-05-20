@@ -367,6 +367,45 @@ double row_qm2_logw_from_S(
 }
 
 
+double log_Zhat_star_from_cache(
+    const arma::mat& noise_pool_t,
+    const PiAux& a_star,
+    const ChainAux& c,
+    const PoolCache& cache_curr
+) {
+  int q = a_star.q;
+  int M = static_cast<int>(noise_pool_t.n_cols);
+  double neg_inf = -std::numeric_limits<double>::infinity();
+  // Slab slot at (q-2, q-1) inside the per-sample noise vector. Mirrors
+  // the slab_idx calculation in delta_log_Zhat_pi_toggle.
+  int slab_idx = q + (q - 2) * (q + 1) / 2;
+  arma::vec log_w_star(M);
+  log_w_star.fill(neg_inf);
+  double m = neg_inf;
+  int n_finite = 0;
+  for (int s = 0; s < M; ++s) {
+    // Strided arma reads. For the V-pair hot path at moderate q the
+    // 2M strided reads are amortised against the M Phi rebuilds we are
+    // skipping (q-1 rows of dense work per sample).
+    double z_qm2   = noise_pool_t(q - 2, s);
+    double z_trail = noise_pool_t(slab_idx, s);
+    double rw_qm2_star = row_qm2_logw_from_S(
+        z_qm2, z_trail, cache_curr.S_trail[s], a_star, c);
+    double total = cache_curr.rw_head[s] + rw_qm2_star;
+    if (std::isfinite(total)) {
+      log_w_star[s] = total;
+      ++n_finite;
+      if (total > m) m = total;
+    }
+  }
+  if (n_finite == 0) return neg_inf;
+  double acc = 0.0;
+  for (int s = 0; s < M; ++s)
+    if (std::isfinite(log_w_star[s])) acc += std::exp(log_w_star[s] - m);
+  return a_star.log_C0 + m + std::log(acc) - std::log(static_cast<double>(M));
+}
+
+
 double delta_log_Zhat_pi_toggle(
     const arma::mat& noise_pool,
     const arma::mat& noise_pool_t,

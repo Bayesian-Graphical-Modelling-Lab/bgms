@@ -894,21 +894,32 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
                 static_cast<int>(p_), static_cast<int>(i), static_cast<int>(j));
             arma::imat G_pi_curr = degord::permute_graph(edge_indicators_, pi);
             arma::imat G_pi_star = degord::permute_graph(G_star, pi);
-            double c_curr = v_kappa_ * std::exp(log_Z_NLO_curr_);
-            double c_star = v_kappa_ * std::exp(log_Z_NLO_star);
-            double V_curr = degord::V_at_Gamma_pi_degord(
-                v_K_depth_, v_pools_t_, G_pi_curr, chain_aux_degord_,
-                c_curr, v_rho_);
-            double V_star = degord::V_at_Gamma_pi_degord(
-                v_K_depth_, v_pools_t_, G_pi_star, chain_aux_degord_,
-                c_star, v_rho_);
-            // Auto-reject on non-finite or zero |V| (Lyne 2015 convention).
-            if (!std::isfinite(V_curr) || V_curr == 0.0 ||
-                !std::isfinite(V_star) || V_star == 0.0) {
+            // Log-space V: avoids underflow in c = kappa * exp(log_Z_NLO) at
+            // large p (log_Z_NLO is ~ -3500 at p=100, δ=1 → c flushes to 0).
+            // log_kappa cancels in the MH ratio, but log_c per Γ is needed
+            // to evaluate log|expm1(log_Zhat_m - log_c)| pointwise.
+            //
+            // Paired call shares the inner Phi-build across Γ_curr / Γ_star
+            // by caching (rw_head, S_trail) under a_curr and re-evaluating
+            // only row q-2 under a_star — halves per-pool work vs two
+            // independent V_log_at_Gamma_pi_degord calls.
+            double log_kappa = std::log(v_kappa_);
+            double log_c_curr = log_kappa + log_Z_NLO_curr_;
+            double log_c_star = log_kappa + log_Z_NLO_star;
+            auto V_pair = degord::V_log_pair_at_Gamma_curr_star_degord(
+                v_K_depth_, v_pools_t_,
+                G_pi_curr, G_pi_star, chain_aux_degord_,
+                log_c_curr, log_c_star, v_rho_);
+            // Auto-reject on non-finite log|V| (sentinel for V = 0 or
+            // non-finite Zhat) or on sign flip across Γ_curr / Γ_star. The
+            // sign-flip reject is the Phase-1 stand-in until F2 wires a
+            // proper Lyne-style sign accumulator.
+            if (!std::isfinite(V_pair.curr.first) || V_pair.curr.second == 0 ||
+                !std::isfinite(V_pair.star.first) || V_pair.star.second == 0 ||
+                V_pair.curr.second != V_pair.star.second) {
                 ln_alpha = -std::numeric_limits<double>::infinity();
             } else {
-                ln_alpha += std::log(std::abs(V_curr))
-                          - std::log(std::abs(V_star));
+                ln_alpha += V_pair.curr.first - V_pair.star.first;
             }
         }
 
@@ -1005,20 +1016,22 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
                 static_cast<int>(p_), static_cast<int>(i), static_cast<int>(j));
             arma::imat G_pi_curr = degord::permute_graph(edge_indicators_, pi);
             arma::imat G_pi_star = degord::permute_graph(G_star, pi);
-            double c_curr = v_kappa_ * std::exp(log_Z_NLO_curr_);
-            double c_star = v_kappa_ * std::exp(log_Z_NLO_star_add);
-            double V_curr = degord::V_at_Gamma_pi_degord(
-                v_K_depth_, v_pools_t_, G_pi_curr, chain_aux_degord_,
-                c_curr, v_rho_);
-            double V_star = degord::V_at_Gamma_pi_degord(
-                v_K_depth_, v_pools_t_, G_pi_star, chain_aux_degord_,
-                c_star, v_rho_);
-            if (!std::isfinite(V_curr) || V_curr == 0.0 ||
-                !std::isfinite(V_star) || V_star == 0.0) {
+            // Log-space V with within-toggle cache reuse (see DELETE branch
+            // for the underflow rationale and the sign-flip auto-reject
+            // contract).
+            double log_kappa = std::log(v_kappa_);
+            double log_c_curr = log_kappa + log_Z_NLO_curr_;
+            double log_c_star = log_kappa + log_Z_NLO_star_add;
+            auto V_pair = degord::V_log_pair_at_Gamma_curr_star_degord(
+                v_K_depth_, v_pools_t_,
+                G_pi_curr, G_pi_star, chain_aux_degord_,
+                log_c_curr, log_c_star, v_rho_);
+            if (!std::isfinite(V_pair.curr.first) || V_pair.curr.second == 0 ||
+                !std::isfinite(V_pair.star.first) || V_pair.star.second == 0 ||
+                V_pair.curr.second != V_pair.star.second) {
                 ln_alpha = -std::numeric_limits<double>::infinity();
             } else {
-                ln_alpha += std::log(std::abs(V_curr))
-                          - std::log(std::abs(V_star));
+                ln_alpha += V_pair.curr.first - V_pair.star.first;
             }
         }
 

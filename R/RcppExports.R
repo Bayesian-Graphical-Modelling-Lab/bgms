@@ -97,6 +97,18 @@ degord_V_at_Gamma_pi_cpp <- function(K_depth, pools_t, G_pi, alpha, beta, sigma,
     .Call(`_bgms_degord_V_at_Gamma_pi_cpp`, K_depth, pools_t, G_pi, alpha, beta, sigma, delta, c_val, rho, slab_tilt_mode)
 }
 
+degord_V_log_at_Gamma_pi_cpp <- function(K_depth, pools_t, G_pi, alpha, beta, sigma, delta, log_c, rho, slab_tilt_mode = 0L) {
+    .Call(`_bgms_degord_V_log_at_Gamma_pi_cpp`, K_depth, pools_t, G_pi, alpha, beta, sigma, delta, log_c, rho, slab_tilt_mode)
+}
+
+degord_V_log_pair_at_Gamma_curr_star_cpp <- function(K_depth, pools_t, G_pi_curr, G_pi_star, alpha, beta, sigma, delta, log_c_curr, log_c_star, rho, slab_tilt_mode = 0L) {
+    .Call(`_bgms_degord_V_log_pair_at_Gamma_curr_star_cpp`, K_depth, pools_t, G_pi_curr, G_pi_star, alpha, beta, sigma, delta, log_c_curr, log_c_star, rho, slab_tilt_mode)
+}
+
+degord_log_Zhat_star_from_cache_cpp <- function(noise_pool_t, G_pi_curr, G_pi_star, alpha, beta, sigma, delta, slab_tilt_mode = 0L) {
+    .Call(`_bgms_degord_log_Zhat_star_from_cache_cpp`, noise_pool_t, G_pi_curr, G_pi_star, alpha, beta, sigma, delta, slab_tilt_mode)
+}
+
 degord_draw_U_rr_cpp <- function(M_inner, q, rho, seed) {
     .Call(`_bgms_degord_draw_U_rr_cpp`, M_inner, q, rho, seed)
 }

@@ -153,6 +153,42 @@ test_that("z_ratio_tuning validation rejects out-of-range values", {
 })
 
 
+test_that("hierarchical-spec stays finite at p = 20 where linear c underflows", {
+  # F5 regression. At p = 20 with δ = 1, log_Z_NLO is on the order of -500
+  # nats, so c = κ · exp(log_Z_NLO) flushes to 0 in double precision. The
+  # pre-F5 linear V_at_Gamma_pi_degord then evaluates to NaN / Inf, the MH
+  # ratio is auto-rejected, and the chain locks at its initial state. The
+  # log-space V must keep ln_alpha finite and let the chain move.
+  skip_if_not_installed("MASS")
+  set.seed(2026)
+  p <- 20L
+  n <- 200L
+  Y <- scale(matrix(rnorm(n * p), n, p), scale = FALSE)
+  fit <- bgm(
+    Y, variable_type = "continuous",
+    interaction_prior     = normal_prior(scale = 1),
+    precision_scale_prior = gamma_prior(shape = 1, rate = 1),
+    delta = 1.0,
+    graph_prior_spec = "hierarchical",
+    z_ratio_tuning   = list(M_inner = 50L, kappa = 1.0, rho = 0.5),
+    iter = 100L, warmup = 50L,
+    update_method = "adaptive-metropolis",
+    chains = 1L, cores = 1L, seed = 2026L,
+    display_progress = "none", verbose = FALSE
+  )
+  ind <- S7::prop(fit, "posterior_mean_indicator")
+  expect_true(is.matrix(ind))
+  expect_equal(dim(ind), c(p, p))
+  expect_true(all(is.finite(ind)))
+  expect_true(all(ind >= 0 & ind <= 1))
+  # The chain should NOT be stuck at its initial state (all-zero edges).
+  # If F5 regressed and every proposal auto-rejected, every off-diagonal
+  # ind entry would be exactly 0.
+  off <- ind[upper.tri(ind)]
+  expect_gt(sum(off > 0), 0L)
+})
+
+
 test_that("hierarchical-spec scales with delta sensibly", {
   # As δ increases, the |K|^δ tilt should push K further into the
   # interior of M+(Γ), making large connected graphs feasible. We don't

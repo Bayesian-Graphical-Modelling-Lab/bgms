@@ -183,6 +183,28 @@ double row_qm2_logw_from_S(
 
 
 // ----------------------------------------------------------------------
+// log Zhat(G_pi_star) under a single-edge toggle at the trailing slot
+// (q-2, q-1), reusing a PoolCache built from log_Zhat_pi_from_pool_cache
+// at G_pi_curr (i.e., a_curr). Mirrors delta_log_Zhat_pi_toggle's
+// per-sample loop but returns log_Zhat_star rather than the delta;
+// composes with V_log_pair_at_Gamma_curr_star_degord for within-toggle
+// cache reuse on the V estimator.
+//
+// noise_pool_t : dim x M (the layout already held by ZRatioState's pools_t).
+//                z_qm2 and z_trail are read via strided arma access.
+// a_star       : pi_aux for G_pi_star (must share q with a_curr's; toggle
+//                must sit at (q-2, q-1) in both).
+// cache_curr   : the PoolCache produced by log_Zhat_pi_from_pool_cache
+//                under a_curr on this same noise_pool_t.
+// ----------------------------------------------------------------------
+double log_Zhat_star_from_cache(
+    const arma::mat& noise_pool_t,
+    const PiAux& a_star,
+    const ChainAux& c,
+    const PoolCache& cache_curr);
+
+
+// ----------------------------------------------------------------------
 // Efficient delta: log Zhat(Gamma_star) - log Zhat(Gamma_curr) under a
 // single-edge toggle (i, j), with G_pi_star differing from G_pi_curr
 // only at the trailing slot (q-2, q-1).

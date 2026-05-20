@@ -166,6 +166,95 @@ double degord_V_at_Gamma_pi_cpp(
 }
 
 
+// Log-space V test interface. Returns (log_abs, sign) for log|V| and sign(V).
+// sign = 0 with log_abs = NaN signals an auto-reject sentinel (S = 0 or any
+// non-finite intermediate).
+//
+// [[Rcpp::export]]
+Rcpp::List degord_V_log_at_Gamma_pi_cpp(
+    int K_depth,
+    const Rcpp::List& pools_t,
+    const arma::imat& G_pi,
+    double alpha, double beta, double sigma, double delta,
+    double log_c, double rho,
+    int slab_tilt_mode = 0
+) {
+    int q = G_pi.n_rows;
+    auto chain_aux = degord::make_chain_aux(q, alpha, beta, sigma, delta);
+    chain_aux.slab_tilt_mode = slab_tilt_mode;
+    std::vector<arma::mat> pools_t_cpp;
+    pools_t_cpp.reserve(static_cast<size_t>(K_depth));
+    for (int n = 0; n < K_depth; ++n)
+        pools_t_cpp.push_back(Rcpp::as<arma::mat>(pools_t[n]));
+    auto res = degord::V_log_at_Gamma_pi_degord(
+        K_depth, pools_t_cpp, G_pi, chain_aux, log_c, rho);
+    return Rcpp::List::create(
+        Rcpp::Named("log_abs") = res.first,
+        Rcpp::Named("sign")    = res.second
+    );
+}
+
+
+// Paired log-space V at (Γ_curr, Γ_star) with within-pool cache reuse.
+// Returns a list with `curr` and `star` sub-lists, each carrying
+// (log_abs, sign).
+//
+// [[Rcpp::export]]
+Rcpp::List degord_V_log_pair_at_Gamma_curr_star_cpp(
+    int K_depth,
+    const Rcpp::List& pools_t,
+    const arma::imat& G_pi_curr,
+    const arma::imat& G_pi_star,
+    double alpha, double beta, double sigma, double delta,
+    double log_c_curr, double log_c_star, double rho,
+    int slab_tilt_mode = 0
+) {
+    int q = G_pi_curr.n_rows;
+    auto chain_aux = degord::make_chain_aux(q, alpha, beta, sigma, delta);
+    chain_aux.slab_tilt_mode = slab_tilt_mode;
+    std::vector<arma::mat> pools_t_cpp;
+    pools_t_cpp.reserve(static_cast<size_t>(K_depth));
+    for (int n = 0; n < K_depth; ++n)
+        pools_t_cpp.push_back(Rcpp::as<arma::mat>(pools_t[n]));
+    auto res = degord::V_log_pair_at_Gamma_curr_star_degord(
+        K_depth, pools_t_cpp, G_pi_curr, G_pi_star, chain_aux,
+        log_c_curr, log_c_star, rho);
+    return Rcpp::List::create(
+        Rcpp::Named("curr") = Rcpp::List::create(
+            Rcpp::Named("log_abs") = res.curr.first,
+            Rcpp::Named("sign")    = res.curr.second),
+        Rcpp::Named("star") = Rcpp::List::create(
+            Rcpp::Named("log_abs") = res.star.first,
+            Rcpp::Named("sign")    = res.star.second)
+    );
+}
+
+
+// log_Zhat under G_pi_star using cached state built under G_pi_curr.
+// Used by tests to validate that the cache adapter matches a fresh
+// log_Zhat_pi_from_pool at G_pi_star to FP-reordering tolerance.
+//
+// [[Rcpp::export]]
+double degord_log_Zhat_star_from_cache_cpp(
+    const arma::mat& noise_pool_t,
+    const arma::imat& G_pi_curr,
+    const arma::imat& G_pi_star,
+    double alpha, double beta, double sigma, double delta,
+    int slab_tilt_mode = 0
+) {
+    int q = G_pi_curr.n_rows;
+    auto chain_aux = degord::make_chain_aux(q, alpha, beta, sigma, delta);
+    chain_aux.slab_tilt_mode = slab_tilt_mode;
+    auto a_curr = degord::make_pi_aux(G_pi_curr, chain_aux);
+    auto a_star = degord::make_pi_aux(G_pi_star, chain_aux);
+    degord::PoolCache cache_curr;
+    (void) degord::log_Zhat_pi_from_pool_cache(
+        noise_pool_t, a_curr, chain_aux, cache_curr);
+    return degord::log_Zhat_star_from_cache(
+        noise_pool_t, a_star, chain_aux, cache_curr);
+}
+
+
 // [[Rcpp::export]]
 Rcpp::List degord_draw_U_rr_cpp(int M_inner, int q, double rho, int seed) {
     SafeRNG rng(seed);
