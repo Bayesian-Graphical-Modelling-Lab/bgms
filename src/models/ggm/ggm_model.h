@@ -152,8 +152,7 @@ public:
           gradient_engine_(other.gradient_engine_),
           constraint_dirty_(other.constraint_dirty_),
           theta_valid_(other.theta_valid_),
-          theta_(other.theta_),
-          pcg_lambda_cache_(other.pcg_lambda_cache_)
+          theta_(other.theta_)
     {}
 
     /** @return true (GGM supports NUTS via free-element Cholesky gradient). */
@@ -376,100 +375,12 @@ public:
      */
     arma::vec get_active_inv_mass() const override;
 
-    // -----------------------------------------------------------------
-    // RATTLE constrained integration
-    // -----------------------------------------------------------------
-
-    /**
-     * @return false — GGMModel does not use RATTLE constrained integration.
-     *
-     * Both fixed-sparse graphs and edge-selection runs use the theta-space
-     * (free-element Cholesky) NUTS path. Within a NUTS trajectory the graph
-     * Γ is held fixed; only the between-step MH proposes graph changes. So
-     * within-trajectory the constraint manifold is constant and is
-     * parameterised directly by the null-space coordinates f_q whose layout
-     * depends on the current Γ. RATTLE projection is unnecessary in either
-     * regime.
-     */
-    bool has_constraints() const override { return false; }
-
-    /**
-     * Pack the Cholesky factor into a full-dimension position vector.
-     *
-     * Layout: column-by-column, each column q contributes q off-diagonal
-     * entries x_{i,q} = Phi_{i,q} (i < q) followed by psi_q = log(Phi_{qq}).
-     * Total dimension = p(p+1)/2 regardless of edge state.
-     */
-    arma::vec get_full_position() const override;
-
-    /**
-     * Unpack a full-dimension position vector into the Cholesky factor
-     * and derived matrices (precision, inverse, covariance).
-     *
-     * @param x  Full position vector of dimension p(p+1)/2
-     */
-    void set_full_position(const arma::vec& x) override;
-
-    /**
-     * Project position onto the constraint manifold (in-place).
-     *
-     * Identity-mass overload (M = I). Delegates to the mass-weighted
-     * version with inv_mass_diag = ones.
-     *
-     * @param x  Full-dimension position vector (modified in-place)
-     */
-    void project_position(arma::vec& x) const override;
-
-    /**
-     * Project position onto the constraint manifold (in-place).
-     *
-     * Mass-weighted SHAKE projection: for each column q with excluded
-     * edges, projects the off-diagonal entries to satisfy K_{iq} = 0
-     * using the correction direction M^{-1} A_q^T (RATTLE-correct).
-     * Columns processed left-to-right (Roverato structure).
-     *
-     * @param x              Full-dimension position vector (modified)
-     * @param inv_mass_diag  Diagonal of the inverse mass matrix
-     */
-    void project_position(arma::vec& x,
-                          const arma::vec& inv_mass_diag) const override;
-
-    /**
-     * Project momentum onto the cotangent space (in-place).
-     *
-     * Identity-mass overload (M = I). Delegates to the mass-weighted
-     * version with inv_mass_diag = ones.
-     *
-     * @param r  Momentum vector (modified in-place)
-     * @param x  Current position (after projection)
-     */
-    void project_momentum(arma::vec& r, const arma::vec& x) const override;
-
-    /**
-     * Project momentum onto the cotangent space (in-place).
-     *
-     * Enforces the RATTLE velocity constraint J M^{-1} r = 0 using
-     * the sparse full-J representation:
-     *   r <- r - J^T (J M^{-1} J^T)^{-1} J M^{-1} r
-     *
-     * @param r              Momentum vector (modified in-place)
-     * @param x              Current position (after projection)
-     * @param inv_mass_diag  Diagonal of the inverse mass matrix
-     */
-    void project_momentum(arma::vec& r, const arma::vec& x,
-                          const arma::vec& inv_mass_diag) const override;
-
-    /**
-     * Full-space log-posterior and gradient for RATTLE integration.
-     *
-     * Simplified gradient in the full x-space: no null-space chain
-     * rule, no reverse-Givens adjoint, no QR Jacobian. Delegates
-     * to GGMGradientEngine::logp_and_gradient_full().
-     *
-     * @param x  Full position vector of dimension p(p+1)/2
-     * @return (log-posterior value, gradient vector)
-     */
-    std::pair<double, arma::vec> logp_and_gradient_full(const arma::vec& x) override;
+    // GGMModel uses the theta-space (free-element Cholesky) NUTS path
+    // exclusively. RATTLE projection (project_position/project_momentum,
+    // full-position get/set, full-space gradient) is not implemented;
+    // the BaseModel defaults are sufficient — they are never reached
+    // because has_constraints() defaults to false. See nuts_sampler.h
+    // for the do_unconstrained_step path actually taken.
 
     /** @return Deep copy of this model. */
     std::unique_ptr<BaseModel> clone() const override {
@@ -753,13 +664,8 @@ private:
     mutable bool theta_valid_ = false;
     /// Cached theta vector (active parameterization).
     mutable arma::vec theta_;
-    /// Cached PCG solution for warm-starting the next projection.
-    mutable arma::vec pcg_lambda_cache_;
 
 public:
-    /** Clear the PCG warm-start cache (called between NUTS trees). */
-    void reset_projection_cache() override { pcg_lambda_cache_.reset(); }
-
     /**
      * Rebuild the constraint structure and gradient engine from current
      * edge indicators. Called lazily before gradient evaluation.

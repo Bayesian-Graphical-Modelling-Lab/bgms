@@ -125,99 +125,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// ggm_test_project_position
-Rcpp::List ggm_test_project_position(const arma::vec& x, const arma::imat& edge_indicators, Rcpp::Nullable<Rcpp::NumericVector> inv_mass_in);
-RcppExport SEXP _bgms_ggm_test_project_position(SEXP xSEXP, SEXP edge_indicatorsSEXP, SEXP inv_mass_inSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::vec& >::type x(xSEXP);
-    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
-    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type inv_mass_in(inv_mass_inSEXP);
-    rcpp_result_gen = Rcpp::wrap(ggm_test_project_position(x, edge_indicators, inv_mass_in));
-    return rcpp_result_gen;
-END_RCPP
-}
-// ggm_test_get_full_position
-arma::vec ggm_test_get_full_position(const arma::mat& Phi, const arma::imat& edge_indicators);
-RcppExport SEXP _bgms_ggm_test_get_full_position(SEXP PhiSEXP, SEXP edge_indicatorsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type Phi(PhiSEXP);
-    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
-    rcpp_result_gen = Rcpp::wrap(ggm_test_get_full_position(Phi, edge_indicators));
-    return rcpp_result_gen;
-END_RCPP
-}
-// ggm_test_logp_and_gradient_full
-Rcpp::List ggm_test_logp_and_gradient_full(const arma::vec& x, const arma::mat& suf_stat, int n, const arma::imat& edge_indicators, double pairwise_scale);
-RcppExport SEXP _bgms_ggm_test_logp_and_gradient_full(SEXP xSEXP, SEXP suf_statSEXP, SEXP nSEXP, SEXP edge_indicatorsSEXP, SEXP pairwise_scaleSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::vec& >::type x(xSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type suf_stat(suf_statSEXP);
-    Rcpp::traits::input_parameter< int >::type n(nSEXP);
-    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
-    Rcpp::traits::input_parameter< double >::type pairwise_scale(pairwise_scaleSEXP);
-    rcpp_result_gen = Rcpp::wrap(ggm_test_logp_and_gradient_full(x, suf_stat, n, edge_indicators, pairwise_scale));
-    return rcpp_result_gen;
-END_RCPP
-}
-// ggm_test_project_momentum
-arma::vec ggm_test_project_momentum(const arma::vec& r, const arma::vec& x, const arma::imat& edge_indicators, Rcpp::Nullable<Rcpp::NumericVector> inv_mass_in);
-RcppExport SEXP _bgms_ggm_test_project_momentum(SEXP rSEXP, SEXP xSEXP, SEXP edge_indicatorsSEXP, SEXP inv_mass_inSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::vec& >::type r(rSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type x(xSEXP);
-    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
-    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type inv_mass_in(inv_mass_inSEXP);
-    rcpp_result_gen = Rcpp::wrap(ggm_test_project_momentum(r, x, edge_indicators, inv_mass_in));
-    return rcpp_result_gen;
-END_RCPP
-}
-// ggm_test_leapfrog_constrained
-Rcpp::List ggm_test_leapfrog_constrained(const arma::vec& x0, const arma::vec& r0, double step_size, int n_steps, const arma::mat& suf_stat, int n, const arma::imat& edge_indicators, double pairwise_scale, Rcpp::Nullable<Rcpp::NumericVector> inv_mass_in);
-RcppExport SEXP _bgms_ggm_test_leapfrog_constrained(SEXP x0SEXP, SEXP r0SEXP, SEXP step_sizeSEXP, SEXP n_stepsSEXP, SEXP suf_statSEXP, SEXP nSEXP, SEXP edge_indicatorsSEXP, SEXP pairwise_scaleSEXP, SEXP inv_mass_inSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::vec& >::type x0(x0SEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type r0(r0SEXP);
-    Rcpp::traits::input_parameter< double >::type step_size(step_sizeSEXP);
-    Rcpp::traits::input_parameter< int >::type n_steps(n_stepsSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type suf_stat(suf_statSEXP);
-    Rcpp::traits::input_parameter< int >::type n(nSEXP);
-    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
-    Rcpp::traits::input_parameter< double >::type pairwise_scale(pairwise_scaleSEXP);
-    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type inv_mass_in(inv_mass_inSEXP);
-    rcpp_result_gen = Rcpp::wrap(ggm_test_leapfrog_constrained(x0, r0, step_size, n_steps, suf_stat, n, edge_indicators, pairwise_scale, inv_mass_in));
-    return rcpp_result_gen;
-END_RCPP
-}
-// ggm_test_leapfrog_constrained_checked
-Rcpp::List ggm_test_leapfrog_constrained_checked(const arma::vec& x0, const arma::vec& r0, double step_size, int n_steps, const arma::mat& suf_stat, int n, const arma::imat& edge_indicators, double pairwise_scale, double reverse_check_tol, Rcpp::Nullable<Rcpp::NumericVector> inv_mass_in);
-RcppExport SEXP _bgms_ggm_test_leapfrog_constrained_checked(SEXP x0SEXP, SEXP r0SEXP, SEXP step_sizeSEXP, SEXP n_stepsSEXP, SEXP suf_statSEXP, SEXP nSEXP, SEXP edge_indicatorsSEXP, SEXP pairwise_scaleSEXP, SEXP reverse_check_tolSEXP, SEXP inv_mass_inSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::vec& >::type x0(x0SEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type r0(r0SEXP);
-    Rcpp::traits::input_parameter< double >::type step_size(step_sizeSEXP);
-    Rcpp::traits::input_parameter< int >::type n_steps(n_stepsSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type suf_stat(suf_statSEXP);
-    Rcpp::traits::input_parameter< int >::type n(nSEXP);
-    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
-    Rcpp::traits::input_parameter< double >::type pairwise_scale(pairwise_scaleSEXP);
-    Rcpp::traits::input_parameter< double >::type reverse_check_tol(reverse_check_tolSEXP);
-    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type inv_mass_in(inv_mass_inSEXP);
-    rcpp_result_gen = Rcpp::wrap(ggm_test_leapfrog_constrained_checked(x0, r0, step_size, n_steps, suf_stat, n, edge_indicators, pairwise_scale, reverse_check_tol, inv_mass_in));
-    return rcpp_result_gen;
-END_RCPP
-}
 // sample_ggm_prior
 Rcpp::List sample_ggm_prior(int p, int n_samples, int n_warmup, double pairwise_scale, const std::string& interaction_prior_type, const std::string& scale_prior_type, double gamma_shape, double gamma_rate, double step_size, int max_depth, int seed, bool verbose, Rcpp::Nullable<Rcpp::IntegerMatrix> edge_indicators_nullable, double delta);
 RcppExport SEXP _bgms_sample_ggm_prior(SEXP pSEXP, SEXP n_samplesSEXP, SEXP n_warmupSEXP, SEXP pairwise_scaleSEXP, SEXP interaction_prior_typeSEXP, SEXP scale_prior_typeSEXP, SEXP gamma_shapeSEXP, SEXP gamma_rateSEXP, SEXP step_sizeSEXP, SEXP max_depthSEXP, SEXP seedSEXP, SEXP verboseSEXP, SEXP edge_indicators_nullableSEXP, SEXP deltaSEXP) {
@@ -649,28 +556,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// ggm_test_logp_and_gradient_full_prior
-Rcpp::List ggm_test_logp_and_gradient_full_prior(const arma::vec& x, const arma::mat& suf_stat, int n, const arma::imat& edge_indicators, const std::string& interaction_prior_type, double interaction_scale, double interaction_alpha, double interaction_beta, const std::string& diagonal_prior_type, double diagonal_shape, double diagonal_rate, Rcpp::Nullable<Rcpp::NumericVector> inv_mass_diag);
-RcppExport SEXP _bgms_ggm_test_logp_and_gradient_full_prior(SEXP xSEXP, SEXP suf_statSEXP, SEXP nSEXP, SEXP edge_indicatorsSEXP, SEXP interaction_prior_typeSEXP, SEXP interaction_scaleSEXP, SEXP interaction_alphaSEXP, SEXP interaction_betaSEXP, SEXP diagonal_prior_typeSEXP, SEXP diagonal_shapeSEXP, SEXP diagonal_rateSEXP, SEXP inv_mass_diagSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::vec& >::type x(xSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type suf_stat(suf_statSEXP);
-    Rcpp::traits::input_parameter< int >::type n(nSEXP);
-    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
-    Rcpp::traits::input_parameter< const std::string& >::type interaction_prior_type(interaction_prior_typeSEXP);
-    Rcpp::traits::input_parameter< double >::type interaction_scale(interaction_scaleSEXP);
-    Rcpp::traits::input_parameter< double >::type interaction_alpha(interaction_alphaSEXP);
-    Rcpp::traits::input_parameter< double >::type interaction_beta(interaction_betaSEXP);
-    Rcpp::traits::input_parameter< const std::string& >::type diagonal_prior_type(diagonal_prior_typeSEXP);
-    Rcpp::traits::input_parameter< double >::type diagonal_shape(diagonal_shapeSEXP);
-    Rcpp::traits::input_parameter< double >::type diagonal_rate(diagonal_rateSEXP);
-    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type inv_mass_diag(inv_mass_diagSEXP);
-    rcpp_result_gen = Rcpp::wrap(ggm_test_logp_and_gradient_full_prior(x, suf_stat, n, edge_indicators, interaction_prior_type, interaction_scale, interaction_alpha, interaction_beta, diagonal_prior_type, diagonal_shape, diagonal_rate, inv_mass_diag));
-    return rcpp_result_gen;
-END_RCPP
-}
 // sample_ggm
 Rcpp::List sample_ggm(const Rcpp::List& inputFromR, const arma::mat& prior_inclusion_prob, const arma::imat& initial_edge_indicators, const int no_iter, const int no_warmup, const int no_chains, const bool edge_selection, const std::string& sampler_type, const int seed, const int no_threads, const int progress_type, SEXP progress_callback, const std::string& edge_prior, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double beta_bernoulli_alpha_between, const double beta_bernoulli_beta_between, const double dirichlet_alpha, const double lambda, const double target_acceptance, const int max_tree_depth, const bool na_impute, const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable, const double delta);
 RcppExport SEXP _bgms_sample_ggm(SEXP inputFromRSEXP, SEXP prior_inclusion_probSEXP, SEXP initial_edge_indicatorsSEXP, SEXP no_iterSEXP, SEXP no_warmupSEXP, SEXP no_chainsSEXP, SEXP edge_selectionSEXP, SEXP sampler_typeSEXP, SEXP seedSEXP, SEXP no_threadsSEXP, SEXP progress_typeSEXP, SEXP progress_callbackSEXP, SEXP edge_priorSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP beta_bernoulli_alpha_betweenSEXP, SEXP beta_bernoulli_beta_betweenSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP, SEXP target_acceptanceSEXP, SEXP max_tree_depthSEXP, SEXP na_imputeSEXP, SEXP missing_index_nullableSEXP, SEXP deltaSEXP) {
@@ -796,12 +681,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_rcpp_ieee754_log", (DL_FUNC) &_bgms_rcpp_ieee754_log, 1},
     {"_bgms_ggm_test_logp_and_gradient", (DL_FUNC) &_bgms_ggm_test_logp_and_gradient, 5},
     {"_bgms_ggm_test_forward_map", (DL_FUNC) &_bgms_ggm_test_forward_map, 2},
-    {"_bgms_ggm_test_project_position", (DL_FUNC) &_bgms_ggm_test_project_position, 3},
-    {"_bgms_ggm_test_get_full_position", (DL_FUNC) &_bgms_ggm_test_get_full_position, 2},
-    {"_bgms_ggm_test_logp_and_gradient_full", (DL_FUNC) &_bgms_ggm_test_logp_and_gradient_full, 5},
-    {"_bgms_ggm_test_project_momentum", (DL_FUNC) &_bgms_ggm_test_project_momentum, 4},
-    {"_bgms_ggm_test_leapfrog_constrained", (DL_FUNC) &_bgms_ggm_test_leapfrog_constrained, 9},
-    {"_bgms_ggm_test_leapfrog_constrained_checked", (DL_FUNC) &_bgms_ggm_test_leapfrog_constrained_checked, 10},
     {"_bgms_sample_ggm_prior", (DL_FUNC) &_bgms_sample_ggm_prior, 14},
     {"_bgms_compute_ess_cpp", (DL_FUNC) &_bgms_compute_ess_cpp, 1},
     {"_bgms_compute_rhat_cpp", (DL_FUNC) &_bgms_compute_rhat_cpp, 1},
@@ -824,7 +703,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_test_parameter_prior", (DL_FUNC) &_bgms_test_parameter_prior, 6},
     {"_bgms_test_scale_prior", (DL_FUNC) &_bgms_test_scale_prior, 4},
     {"_bgms_ggm_test_logp_and_gradient_prior", (DL_FUNC) &_bgms_ggm_test_logp_and_gradient_prior, 11},
-    {"_bgms_ggm_test_logp_and_gradient_full_prior", (DL_FUNC) &_bgms_ggm_test_logp_and_gradient_full_prior, 12},
     {"_bgms_sample_ggm", (DL_FUNC) &_bgms_sample_ggm, 24},
     {"_bgms_sample_mixed_mrf", (DL_FUNC) &_bgms_sample_mixed_mrf, 25},
     {"_bgms_sample_omrf", (DL_FUNC) &_bgms_sample_omrf, 24},
