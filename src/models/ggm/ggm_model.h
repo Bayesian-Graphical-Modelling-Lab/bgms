@@ -381,16 +381,17 @@ public:
     // -----------------------------------------------------------------
 
     /**
-     * @return true only when edge selection is enabled.
+     * @return false — GGMModel does not use RATTLE constrained integration.
      *
-     * Fixed-sparse graphs (`edge_selection=false` with some edges excluded)
-     * are sampled via the theta-space (free-element Cholesky) NUTS path,
-     * not RATTLE. The constraint manifold is constant in that case and is
-     * parameterised directly by the null-space coordinates f_q, so RATTLE
-     * is unnecessary. RATTLE is still required when edge selection is on
-     * because the manifold changes whenever an edge indicator flips.
+     * Both fixed-sparse graphs and edge-selection runs use the theta-space
+     * (free-element Cholesky) NUTS path. Within a NUTS trajectory the graph
+     * Γ is held fixed; only the between-step MH proposes graph changes. So
+     * within-trajectory the constraint manifold is constant and is
+     * parameterised directly by the null-space coordinates f_q whose layout
+     * depends on the current Γ. RATTLE projection is unnecessary in either
+     * regime.
      */
-    bool has_constraints() const override { return edge_selection_; }
+    bool has_constraints() const override { return false; }
 
     /**
      * Pack the Cholesky factor into a full-dimension position vector.
