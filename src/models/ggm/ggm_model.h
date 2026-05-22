@@ -133,6 +133,11 @@ public:
           gg_tcch_r_(other.gg_tcch_r_),
           gg_tcch_s_(other.gg_tcch_s_),
           gg_tcch_u_(other.gg_tcch_u_),
+          n_at_gg_setup_(other.n_at_gg_setup_),
+          gg_log_g_proposal_sd_(other.gg_log_g_proposal_sd_),
+          gg_log_g_n_accept_(other.gg_log_g_n_accept_),
+          gg_log_g_n_total_(other.gg_log_g_n_total_),
+          tcch_warned_(other.tcch_warned_),
           n_(other.n_),
           p_(other.p_),
           dim_(other.dim_),
@@ -506,6 +511,21 @@ private:
     double       gg_tcch_r_ = 0.0;
     double       gg_tcch_s_ = 0.0;
     double       gg_tcch_u_ = 1.0;
+    /// Original sample size captured at enable_gg_prior() time. Used by the
+    /// hyper-g/n hyperprior, which scales by n; under prior-only mode n_ is
+    /// zeroed but this remains the data-defined n for the prior on g.
+    int          n_at_gg_setup_ = 0;
+    /// MH-on-log(g) proposal SD (Gaussian random walk on log scale). Used by
+    /// the ZS / hyper-g / hyper-g/n / tCCH hyperprior branches that lack a
+    /// closed-form Gibbs update. Default 1.0 in log space gives reasonable
+    /// mixing for the prior families implemented here.
+    double       gg_log_g_proposal_sd_ = 1.0;
+    /// Accepted / total MH-on-log(g) proposals (diagnostic only).
+    long long    gg_log_g_n_accept_ = 0;
+    long long    gg_log_g_n_total_  = 0;
+    /// One-shot flag so the tCCH not-yet-implemented warning fires only
+    /// once per chain instead of once per sweep.
+    bool         tcch_warned_       = false;
 
     /// One-shot V_ij table construction from suf_stat_. Called by
     /// enable_gg_prior(); idempotent.
@@ -515,6 +535,15 @@ private:
     /// Θ ← (t_new/t_old) · Θ in the (η, t)-parameterisation. Called from
     /// prepare_iteration() / do_one_metropolis_step() (TBD).
     void gg_update_t_();
+    /// MH on log(g) under a scale-matched joint proposal (Θ, g) →
+    /// (α · Θ, g_new). Drives the ZS / hyper-g / hyper-g/n branches that
+    /// lack a closed-form Gibbs update. The scale-matching collapses the
+    /// slab contribution to the MH ratio, leaving only the hyperprior,
+    /// diagonal Gamma, det-tilt, likelihood, and Jacobian terms.
+    void gg_mh_update_log_g_();
+    /// Evaluates log π(g) for the current hyperprior family. Returns 0.0
+    /// for families without an MH update (Fixed, ConjugateGamma).
+    double gg_log_hyperprior_(double g) const;
     /// Rebind GraphicalG{Prior,Diag} pointers after the model is cloned.
     /// Called from the copy constructor; safe to call when the priors
     /// aren't GraphicalG (no-ops).

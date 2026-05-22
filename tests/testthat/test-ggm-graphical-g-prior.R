@@ -65,6 +65,83 @@ test_that("bgm() runs end-to-end with interaction_prior = graphical_g_prior()", 
 })
 
 
+test_that("Zellner-Siow / hyper-g / hyper-g/n drive a varying g-trace", {
+  # Each non-conjugate g-hyperprior should produce a g-trace with positive
+  # variance (the MH-on-log(g) update is actually moving), and the
+  # strong-signal edge should still be detected.
+  set.seed(42)
+  p = 4L; n = 200L
+  Sigma = diag(p)
+  Sigma[1, 2] = Sigma[2, 1] = 0.6
+  X = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
+
+  run_fit = function(prior_obj) {
+    fit = bgm(
+      x = X, variable_type = "continuous",
+      interaction_prior = prior_obj,
+      edge_selection = TRUE, delta = 0,
+      iter = 600L, warmup = 400L, chains = 1L, cores = 1L,
+      seed = 1L, display_progress = "none"
+    )
+    list(
+      g_trace = fit$gg_diagnostics$g[[1]],
+      indicator = summary(fit)$indicator
+    )
+  }
+
+  out_zs  = run_fit(graphical_g_prior(g_hyperprior = "zellner_siow",   b = 1))
+  out_hg  = run_fit(graphical_g_prior(g_hyperprior = "hyper_g",        a = 3))
+  out_hgn = run_fit(graphical_g_prior(g_hyperprior = "hyper_g_over_n", a = 3))
+
+  # MH-on-log(g) is moving (positive variance).
+  expect_gt(var(out_zs$g_trace),  0)
+  expect_gt(var(out_hg$g_trace),  0)
+  expect_gt(var(out_hgn$g_trace), 0)
+
+  # Strong-edge detection holds across all three hyperpriors.
+  expect_true(is.infinite(out_zs$indicator$inclusion_bf[1])  ||
+              out_zs$indicator$inclusion_bf[1]  > 5)
+  expect_true(is.infinite(out_hg$indicator$inclusion_bf[1])  ||
+              out_hg$indicator$inclusion_bf[1]  > 5)
+  expect_true(is.infinite(out_hgn$indicator$inclusion_bf[1]) ||
+              out_hgn$indicator$inclusion_bf[1] > 5)
+})
+
+
+test_that("hyper_g and hyper_g_over_n reject a <= 2 at the constructor", {
+  expect_error(
+    graphical_g_prior(g_hyperprior = "hyper_g", a = 2),
+    "'a' must be > 2"
+  )
+  expect_error(
+    graphical_g_prior(g_hyperprior = "hyper_g_over_n", a = 1.5),
+    "'a' must be > 2"
+  )
+  # conjugate_gamma path doesn't care about `a`.
+  expect_silent(graphical_g_prior(g_hyperprior = "conjugate_gamma", a = 1))
+})
+
+
+test_that("tCCH still falls through with a not-yet-implemented warning", {
+  # The TCCH branch is wired through the C++ enum but the actual hyperprior
+  # density (truncated compound confluent hypergeometric) is not yet
+  # implemented; the C++ update returns early after emitting a warning.
+  set.seed(1)
+  p = 4L; n = 80L
+  X = matrix(stats::rnorm(n * p), n, p)
+  expect_warning(
+    bgm(
+      x = X, variable_type = "continuous",
+      interaction_prior = graphical_g_prior(g_hyperprior = "tCCH"),
+      edge_selection = TRUE, delta = 0,
+      iter = 20L, warmup = 20L, chains = 1L, cores = 1L,
+      seed = 1L, display_progress = "none"
+    ),
+    "tCCH"
+  )
+})
+
+
 test_that("fixed g_hyperprior pins t = sqrt(g_fixed) across iterations", {
   set.seed(1)
   p = 4L; n = 60L

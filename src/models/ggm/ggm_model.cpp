@@ -658,6 +658,9 @@ void GGMModel::enable_gg_prior(
     gg_tcch_r_     = tcch_r;
     gg_tcch_s_     = tcch_s;
     gg_tcch_u_     = tcch_u;
+    // Snapshot n for hyper-g/n: under prior-only mode n_ is later zeroed
+    // but the hyperprior on g still references the data-defined sample size.
+    n_at_gg_setup_ = static_cast<int>(n_);
 
     compute_gg_V_ij_();
 
@@ -750,12 +753,117 @@ void GGMModel::gg_update_t_() {
         return;
     }
 
-    // ZellnerSiow / HyperG / HyperGOverN / TCCH branches: not yet
-    // implemented in this branch. Fall back to Fixed behavior with a
-    // diagnostic Rcpp::warning rather than a silent no-op so the user
-    // notices the configuration is unsupported.
-    Rcpp::warning("GGMModel: GG-prior hyperprior other than Fixed / "
-                  "ConjugateGamma is not yet implemented; g is held fixed.");
+    // ZellnerSiow / HyperG / HyperGOverN: MH-on-log(g) with scale-matched
+    // joint proposal (Θ, g_old) → (α·Θ, g_new), α = √(g_new/g_old). The
+    // scale-matching collapses the slab contribution to the MH ratio so
+    // only the hyperprior, diagonal Gamma, det-tilt, likelihood, and
+    // Jacobian terms remain.
+    if (gg_hyperprior_ == GGHyperprior::ZellnerSiow ||
+        gg_hyperprior_ == GGHyperprior::HyperG     ||
+        gg_hyperprior_ == GGHyperprior::HyperGOverN) {
+        gg_mh_update_log_g_();
+        return;
+    }
+
+    // TCCH: not yet implemented (needs the truncated compound confluent
+    // hypergeometric pdf evaluation). Fall through with a one-shot
+    // warning per chain so the user sees the configuration is unsupported
+    // without flooding the console.
+    if (!tcch_warned_) {
+        Rcpp::warning("GGMModel: tCCH g-hyperprior is not yet implemented; "
+                      "g is held fixed.");
+        tcch_warned_ = true;
+    }
+}
+
+
+double GGMModel::gg_log_hyperprior_(double g) const {
+    // Returns log π(g) up to an additive constant (constants drop in MH).
+    switch (gg_hyperprior_) {
+        case GGHyperprior::ZellnerSiow: {
+            // Standard Zellner-Siow: g ~ IG(½, b/2),
+            //   π(g) ∝ g^(-3/2) · exp(-b / (2g))
+            // The scale b is read from gg_tcch_b_ (default 1.0 for the
+            // canonical form). Note this is the "no-n" variant; we leave
+            // the dimension-corrected n·b form to the user via tcch_b.
+            const double b = gg_tcch_b_;
+            return -1.5 * std::log(g) - 0.5 * b / g;
+        }
+        case GGHyperprior::HyperG: {
+            // hyper-g (Liang et al. 2008):
+            //   π(g) = (a - 2) / 2 · (1 + g)^(-a/2),  a > 2
+            // Default a = 3 gives the recommended uniform-on-shrinkage prior.
+            const double a = gg_tcch_a_;
+            return -0.5 * a * std::log1p(g);
+        }
+        case GGHyperprior::HyperGOverN: {
+            // hyper-g/n: π(g) = (a-2)/(2n) · (1 + g/n)^(-a/2)
+            const double a = gg_tcch_a_;
+            const double n = std::max(1.0,
+                static_cast<double>(n_at_gg_setup_));
+            return -0.5 * a * std::log1p(g / n);
+        }
+        default:
+            return 0.0;
+    }
+}
+
+
+void GGMModel::gg_mh_update_log_g_() {
+    // Joint move (Θ, g_old) → (α·Θ, g_new) under symmetric Gaussian
+    // random walk on log(g). With α = t_new/t_old = √(g_new/g_old) the
+    // slab contribution to the MH ratio cancels (the rescaled ω = -K/2
+    // ratio against the rescaled scale leaves the quadratic identical).
+    // The surviving terms are:
+    //   • hyperprior:     log π(g_new) − log π(g_old)
+    //   • likelihood:     (n·p/2) log(α) − (α − 1)/2 · tr(Θ·S)
+    //   • det-tilt:       p·δ · log(α)
+    //   • Jacobian (Θ):   (p + q_active) · log(α)
+    //   • Jacobian (g):   2 · log(α)        (log-Normal symmetric proposal)
+    //   • diagonal Gamma: −p · log(α)
+    // Several terms collapse: −p − q_active (slab norm) + p + q_active
+    // (Jacobian) = 0. Net coefficient of log(α):
+    //   n·p/2 + p·δ + 2.
+
+    const double g_old     = t_ * t_;
+    if (!(g_old > 0.0) || !std::isfinite(g_old)) return;
+    const double log_g_old = std::log(g_old);
+    const double log_g_new =
+        log_g_old + gg_log_g_proposal_sd_ * rnorm(rng_);
+    const double g_new = std::exp(log_g_new);
+    if (!(g_new > 0.0) || !std::isfinite(g_new)) return;
+    const double t_new = std::sqrt(g_new);
+    const double alpha = t_new / t_;
+    const double log_alpha = std::log(alpha);
+
+    const double log_prior_diff =
+        gg_log_hyperprior_(g_new) - gg_log_hyperprior_(g_old);
+
+    const double tr_Theta_S = arma::dot(precision_matrix_, suf_stat_);
+    const double n_d = static_cast<double>(n_);
+    const double p_d = static_cast<double>(p_);
+    const double coef_log_alpha =
+        0.5 * n_d * p_d + p_d * determinant_tilt_ + 2.0;
+    const double log_ratio = log_prior_diff
+                           + coef_log_alpha * log_alpha
+                           - 0.5 * (alpha - 1.0) * tr_Theta_S;
+
+    ++gg_log_g_n_total_;
+    if (std::log(runif(rng_)) < log_ratio) {
+        precision_matrix_      *= alpha;
+        const double sqrt_alpha = std::sqrt(alpha);
+        cholesky_of_precision_ *= sqrt_alpha;
+        if (inv_cholesky_of_precision_.n_elem > 0) {
+            inv_cholesky_of_precision_ /= sqrt_alpha;
+        }
+        if (covariance_matrix_.n_elem > 0) {
+            covariance_matrix_ /= alpha;
+        }
+        t_ = t_new;
+        theta_valid_      = false;
+        constraint_dirty_ = true;
+        ++gg_log_g_n_accept_;
+    }
 }
 
 

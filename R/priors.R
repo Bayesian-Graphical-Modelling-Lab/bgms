@@ -152,9 +152,23 @@ normal_prior = function(scale = 1) {
 #'   \item \code{"fixed"} — \eqn{g} held at \code{g_fixed} (no update).
 #'   \item \code{"conjugate_gamma"} (default) — closed-form Gibbs draw of
 #'     \eqn{t \sim \mathrm{Gamma}(a_0, b_0)} prior. Convenience baseline.
-#'   \item \code{"zellner_siow"}, \code{"hyper_g"}, \code{"hyper_g_over_n"},
-#'     \code{"tCCH"} — placeholders; not yet implemented.
+#'   \item \code{"zellner_siow"} — Zellner-Siow:
+#'     \eqn{g \sim \mathrm{IG}(\tfrac{1}{2}, \tfrac{b}{2})}. The scale
+#'     \eqn{b} (default \code{1}, the canonical form) is read from the
+#'     \code{b} argument.
+#'   \item \code{"hyper_g"} — Liang et al. (2008):
+#'     \eqn{\pi(g) = \tfrac{a-2}{2}(1+g)^{-a/2}}, \eqn{a > 2}.
+#'     The shape \eqn{a} is read from \code{a} (default \code{3}, the
+#'     recommended "uniform on shrinkage" form).
+#'   \item \code{"hyper_g_over_n"} —
+#'     \eqn{\pi(g) = \tfrac{a-2}{2n}(1+g/n)^{-a/2}}, with \eqn{n} the
+#'     data sample size (captured at fit time). Shape \eqn{a} via \code{a}.
+#'   \item \code{"tCCH"} — placeholder; not yet implemented.
 #' }
+#'
+#' The non-conjugate branches (\code{zellner_siow}, \code{hyper_g},
+#' \code{hyper_g_over_n}) drive \eqn{g} via a scale-matched MH-on-log(g)
+#' update under a Gaussian random walk on the log scale.
 #'
 #' @param g_hyperprior Character. One of \code{"conjugate_gamma"} (default),
 #'   \code{"fixed"}, \code{"zellner_siow"}, \code{"hyper_g"},
@@ -163,6 +177,10 @@ normal_prior = function(scale = 1) {
 #'   \code{conjugate_gamma}. Default \code{1}.
 #' @param b0 Positive numeric. Rate of the Gamma prior on \eqn{t} under
 #'   \code{conjugate_gamma}. Default \code{1}.
+#' @param a Positive numeric, \eqn{> 2}. Shape parameter of the hyper-g
+#'   and hyper-g/n hyperpriors. Default \code{3}.
+#' @param b Positive numeric. Scale parameter of the Zellner-Siow
+#'   hyperprior. Default \code{1} (canonical form).
 #' @param g_fixed Positive numeric. Value of \eqn{g} when
 #'   \code{g_hyperprior = "fixed"}. Default \code{1}.
 #' @param g_init Positive numeric. Initial value of \eqn{g} for the
@@ -180,6 +198,9 @@ normal_prior = function(scale = 1) {
 #' graphical_g_prior()
 #' graphical_g_prior(g_hyperprior = "fixed", g_fixed = 1)
 #' graphical_g_prior(g_hyperprior = "conjugate_gamma", a0 = 1, b0 = 1)
+#' graphical_g_prior(g_hyperprior = "hyper_g", a = 3)
+#' graphical_g_prior(g_hyperprior = "hyper_g_over_n", a = 3)
+#' graphical_g_prior(g_hyperprior = "zellner_siow", b = 1)
 #'
 #' @export
 graphical_g_prior = function(
@@ -187,6 +208,8 @@ graphical_g_prior = function(
                    "zellner_siow", "hyper_g", "hyper_g_over_n", "tCCH"),
   a0      = 1,
   b0      = 1,
+  a       = 3,
+  b       = 1,
   g_fixed = 1,
   g_init  = 1
 ) {
@@ -199,8 +222,13 @@ graphical_g_prior = function(
   }
   validate_pos(a0, "a0")
   validate_pos(b0, "b0")
+  validate_pos(a,  "a")
+  validate_pos(b,  "b")
   validate_pos(g_fixed, "g_fixed")
   validate_pos(g_init,  "g_init")
+  if((g_hyperprior == "hyper_g" || g_hyperprior == "hyper_g_over_n") && a <= 2) {
+    stop("'a' must be > 2 for hyper_g and hyper_g_over_n.")
+  }
 
   structure(
     list(
@@ -209,6 +237,8 @@ graphical_g_prior = function(
         g_hyperprior = g_hyperprior,
         a0           = a0,
         b0           = b0,
+        a            = a,
+        b            = b,
         g_fixed      = g_fixed,
         g_init       = g_init
       )
@@ -633,14 +663,32 @@ unpack_interaction_prior = function(prior) {
   # hyperparameters directly under their own keys.
   if (inherits(prior, "bgms_graphical_g_prior")) {
     hp = prior$hyper.parameters
+    # The C++ enable_gg_prior() takes tcch_a/tcch_b slots that are
+    # repurposed per hyperprior family:
+    #   - conjugate_gamma: tcch_a = a0 (Gamma shape), tcch_b = b0 (rate)
+    #   - hyper_g, hyper_g_over_n: tcch_a = a (shape > 2)
+    #   - zellner_siow: tcch_b = b (IG scale)
+    # Pre-pack here so run_sampler_ggm forwards consistent values.
+    gg_a = switch(hp$g_hyperprior,
+                  conjugate_gamma = hp$a0,
+                  hyper_g         = hp$a,
+                  hyper_g_over_n  = hp$a,
+                  zellner_siow    = hp$a0,   # unused
+                  hp$a0)
+    gg_b = switch(hp$g_hyperprior,
+                  conjugate_gamma = hp$b0,
+                  zellner_siow    = hp$b,
+                  hyper_g         = hp$b0,   # unused
+                  hyper_g_over_n  = hp$b0,   # unused
+                  hp$b0)
     return(list(
       interaction_prior_type = "graphical_g",
       pairwise_scale         = NA_real_,
       interaction_alpha      = NA_real_,
       interaction_beta       = NA_real_,
       gg_hyperprior          = hp$g_hyperprior,
-      gg_a0                  = hp$a0,
-      gg_b0                  = hp$b0,
+      gg_a0                  = gg_a,
+      gg_b0                  = gg_b,
       gg_g_fixed             = hp$g_fixed,
       gg_g_init              = hp$g_init
     ))
