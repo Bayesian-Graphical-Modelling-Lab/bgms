@@ -6,6 +6,7 @@
 #include "mcmc/execution/warmup_schedule.h"
 #include "models/ggm/log_z_nlo.h"
 #include "models/ggm/manuscript_nlo.h"
+#include "models/ggm/sd_density_at_zero.h"
 #include "models/ggm/z_ratio_estimator.h"
 #include <stdexcept>
 
@@ -311,7 +312,14 @@ double GGMModel::update_edge_parameter(size_t i, size_t j) {
     precision_proposal_(j, i) = omega_prop_q1q;
     precision_proposal_(j, j) = omega_prop_qq;
 
-    double ln_alpha = log_density_impl_edge(i, j);
+    // prior_only_ skips the likelihood ratio (chain targets π(Γ, K) instead
+    // of π(Γ, K | Y)). PD-ness of the proposal still must be checked: the
+    // determinant tilt and Cholesky update both rely on it.
+    double ln_alpha = prior_only_ ? 0.0 : log_density_impl_edge(i, j);
+    if (prior_only_) {
+        arma::mat R_chk;
+        if (!arma::chol(R_chk, precision_proposal_)) return 0.0;
+    }
 
     // Determinant-tilt prior: |K|^delta contributes
     //   delta * (log|K_prop| - log|K_curr|)
@@ -417,7 +425,9 @@ double GGMModel::update_diagonal_parameter(size_t i) {
     precision_proposal_ = precision_matrix_;
     precision_proposal_(i, i) = precision_matrix_(i, i) - MY_EXP(theta_curr) * MY_EXP(theta_curr) + MY_EXP(theta_prop) * MY_EXP(theta_prop);
 
-    double ln_alpha = log_density_impl_diag(i);
+    // prior_only_: skip likelihood; still validate PD via the implicit
+    // positive-K_ii proposal (theta_prop on log-scale → K_ii > 0).
+    double ln_alpha = prior_only_ ? 0.0 : log_density_impl_diag(i);
 
     // Determinant-tilt prior: |K|^delta contributes delta * log_det_ratio
     // to the MH ratio. Rank-1 update => O(1) via the cached covariance.
@@ -787,6 +797,302 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
     }
 }
 
+// =====================================================================
+// Savage-Dickey between-Γ MH (handoff 2026-05-22 from Z).
+//
+// Reference: ~/SV/Z/R/src/branchB_chain_SD.cpp::between_step_SD (Z spec
+// 2026-05-22_message-to-bgms-companion-SD-pivot.md §5).
+//
+// The marginalised-γ MH ratio collapses K_ij and uses the 1D conditional
+// posterior density at zero (via Savage-Dickey) as the Bayes-factor input:
+//
+//   log_BF_1:0 = log π_enc(K_ij = 0 | Y, K_{-ij}) - log N(0; 0, σ²)
+//
+// where the numerator is the standalone primitive in ggm_sd. The cone-
+// conditioning factor cancels between numerator and denominator at fixed α,
+// so it is never computed.
+//
+//   ADD (γ_ij: 0 → 1): log α = log(p_inc/(1-p_inc)) - log_BF_1:0
+//   DEL (γ_ij: 1 → 0): log α = log((1-p_inc)/p_inc) + log_BF_1:0
+//
+// Under prior_only_, log_BF_1:0 = 0 (no data) and the MH ratio is the prior
+// odds alone — ergodic average of γ_ij should equal inclusion_probability_.
+//
+// On ADD accept K_ij is drawn from the 1D Laplace proposal N(x*, 1/κ) at
+// K_{-ij} (or from the slab N(0, σ²) under prior_only_); on DEL accept K_ij
+// is set to zero. K_jj is not touched in this step — the rank-2 (Σ, L)
+// update reduces to dK_jj = 0.
+// =====================================================================
+void GGMModel::update_edge_indicator_parameter_pair_sd(size_t i, size_t j) {
+    ensure_prior_params_extracted_();
+    const int curr_g = edge_indicators_(i, j);
+
+    // Call the SD primitive for the posterior Laplace (we always need x_-,
+    // x_+ for the truncated proposal, and in posterior mode we also need
+    // log_density for the BF). apply_pd_truncation=true so the returned
+    // log_density is the truncated-Laplace integral.
+    ggm_sd::SDResult sd = ggm_sd::density_at_zero_one(
+        precision_matrix_,
+        static_cast<int>(i), static_cast<int>(j),
+        suf_stat_, static_cast<int>(n_),
+        determinant_tilt_, prior_sigma_,
+        /*nlo=*/true,
+        /*apply_pd_truncation=*/true);
+    if (sd.status == 1) return;  // K_0 not PD — chain stays put.
+    if (!prior_only_ && (sd.status != 0 || !std::isfinite(sd.log_density))) {
+        return;  // Laplace invalid in posterior mode → treat as reject.
+    }
+
+    // Derive log_BF and proposal parameters.
+    // Prior-only: Z's shortcut log_BF = 0 — the marginal BF over K_{-ij} is
+    // exactly 1 in expectation (SD identity with no data). With α independent
+    // of K_{-ij}, the γ chain converges to Bernoulli(p_inc) regardless of how
+    // K_ij is drawn on accept. The TN proposal at slab parameters (0, σ) is
+    // pure PD bookkeeping.
+    // Posterior: log_BF = sd.log_density - log_slab_at_0; the TN proposal
+    // at the Laplace's (x*, 1/√κ) cancels the density's truncation factor
+    // in the MH ratio.
+    double log_BF_1_to_0;
+    double proposal_mean;
+    double proposal_sd;
+    if (prior_only_) {
+        log_BF_1_to_0 = 0.0;
+        proposal_mean = 0.0;
+        proposal_sd   = prior_sigma_;
+    } else {
+        const double log_slab_at_0 =
+            -0.5 * std::log(2.0 * arma::datum::pi) - std::log(prior_sigma_);
+        log_BF_1_to_0 = sd.log_density - log_slab_at_0;
+        proposal_mean = sd.x_mode;
+        proposal_sd   = 1.0 / std::sqrt(sd.curvature);
+    }
+
+    // ---- MH ratio (Z's form; truncation cancels into the density) -------
+    const double p_inc = inclusion_probability_(i, j);
+    double log_alpha;
+    if (curr_g == 0) {
+        log_alpha = MY_LOG(p_inc / (1.0 - p_inc)) - log_BF_1_to_0;
+    } else {
+        log_alpha = MY_LOG((1.0 - p_inc) / p_inc) + log_BF_1_to_0;
+    }
+    if (!std::isfinite(log_alpha)) return;
+    if (MY_LOG(runif(rng_)) >= log_alpha) return;
+
+    // ---- Accept --------------------------------------------------------
+    const double omega_ij_old = precision_matrix_(i, j);
+    const double omega_jj_old = precision_matrix_(j, j);
+
+    if (curr_g == 0) {
+        // ADD: sample K_ij from TN(proposal_mean, proposal_sd, x_-, x_+)
+        // via inverse-CDF. By construction the draw is in (x_-, x_+) and
+        // K stays PD, so the incremental cholupdate path is safe.
+        const double F_lo = R::pnorm5(sd.x_minus, proposal_mean, proposal_sd, 1, 0);
+        const double F_hi = R::pnorm5(sd.x_plus,  proposal_mean, proposal_sd, 1, 0);
+        const double u    = runif(rng_);
+        const double F_x  = F_lo + u * (F_hi - F_lo);
+        double new_kij    = R::qnorm5(F_x, proposal_mean, proposal_sd, 1, 0);
+        // Defensive clamp on the (rare) F_x → 1 case where qnorm returns inf.
+        if (!std::isfinite(new_kij)) {
+            new_kij = std::min(std::max(new_kij, sd.x_minus + 1e-12),
+                               sd.x_plus - 1e-12);
+        }
+        precision_proposal_ = precision_matrix_;
+        precision_proposal_(i, j) = new_kij;
+        precision_proposal_(j, i) = new_kij;
+        // K_jj unchanged.
+        precision_matrix_(i, j) = new_kij;
+        precision_matrix_(j, i) = new_kij;
+        edge_indicators_(i, j) = 1;
+        edge_indicators_(j, i) = 1;
+    } else {
+        // DEL: K_ij = 0 deterministically. K stays PD (zeroing an off-diag
+        // of a PD matrix preserves PD via the 2x2 cofactor identity).
+        precision_proposal_ = precision_matrix_;
+        precision_proposal_(i, j) = 0.0;
+        precision_proposal_(j, i) = 0.0;
+        precision_matrix_(i, j) = 0.0;
+        precision_matrix_(j, i) = 0.0;
+        edge_indicators_(i, j) = 0;
+        edge_indicators_(j, i) = 0;
+    }
+
+    // K stays PD by construction (TN proposal honours the PD cone), so the
+    // existing rank-2 cholupdate + SMW Σ-update path is safe.
+    cholesky_update_after_edge(omega_ij_old, omega_jj_old, i, j);
+
+    constraint_dirty_ = true;
+    theta_valid_ = false;
+}
+
+
+// =====================================================================
+// L-space Savage-Dickey between-Γ MH (α = 1 closed-form Gibbs variant).
+//
+// Derivation: notes/2026-05-22_message-to-Z-companion-L-space-SD-derivation.md
+//
+// Per edge (i, j):
+//   1. Σ_corner = Σ_{(i,j),(i,j)}; invert (2×2) to get Schur S.
+//   2. l_ii = √S_11, l_ji = S_12/l_ii, l_jj = √(S_22 - S_12²/S_11).
+//   3. a^T b = K_ij - l_ii · l_ji  ⟹  m_ij = -a^T b/l_ii = l_ji - K_ij/l_ii.
+//   4. s_jj = K_jj - l_ji² - l_jj² = b^T b.
+//   5. τ_post = l_ii²/σ² + 2β + S_jj   (S_jj entry of suf_stat_, not Schur S)
+//   6. μ_post = (l_ii² m_ij/σ² - S_ij l_ii) / τ_post
+//   7. log_BF_local = ½ log(τ_post/2π) - ½ τ_post (m_ij - μ_post)²
+//                     - log l_ii - log N(0; 0, σ²)
+//   8. MH:  log α(ADD) = log(p/(1-p)) - log_BF_local
+//           log α(DEL) = log((1-p)/p) + log_BF_local
+//   9. On accept (ADD): l_ji_new ~ N(μ_post, 1/τ_post)
+//      On accept (DEL): l_ji_new = m_ij
+//  10. Δl_ji = l_ji_new - l_ji
+//      ΔK_ij = l_ii · Δl_ji
+//      ΔK_jj = l_ji_new² - l_ji² = Δl_ji · (l_ji_new + l_ji)
+//
+// Update K (in place) and Σ via the existing rank-2 cholupdate+SMW path.
+//
+// Prior-only mode: zero out the S_ij and S_jj terms (set log_BF to come
+// from the prior-only Laplace, which at α=1 is also closed-form). The
+// marginal γ is Bernoulli(p_inc) under the encompassing prior with the
+// |K|^δ tilt accounted for in the Gaussian conditional on l_ji.
+// =====================================================================
+void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j) {
+    ensure_prior_params_extracted_();
+    if (prior_alpha_ != 1.0) {
+        Rcpp::stop("L-space SD prototype currently restricted to α = 1.");
+    }
+    const int curr_g = edge_indicators_(i, j);
+    const double p_inc = inclusion_probability_(i, j);
+    const double sigma = prior_sigma_;
+    const double beta  = prior_beta_;
+    const double sigma2     = sigma * sigma;
+    const double inv_sigma2 = 1.0 / sigma2;
+
+    // Extract the trailing 2×2 (l_ii, l_ji) of the DEGORD-permuted Cholesky
+    // factor via the Σ_BB block, read directly from the maintained
+    // covariance_matrix_ (no triangular solves — the accept block below
+    // refreshes Σ from K via arma::chol on every accept, so Σ is exactly in
+    // sync with K).
+    const double s_ii_cov = covariance_matrix_(i, i);
+    const double s_jj_cov = covariance_matrix_(j, j);
+    const double s_ij_cov = covariance_matrix_(i, j);
+    const double det_cov  = s_ii_cov * s_jj_cov - s_ij_cov * s_ij_cov;
+    if (!(det_cov > 0.0)) return;
+    const double S_11 =  s_jj_cov / det_cov;
+    const double S_12 = -s_ij_cov / det_cov;
+    if (!(S_11 > 0.0)) return;
+    const double l_ii = std::sqrt(S_11);
+    const double l_ji = S_12 / l_ii;
+
+    // ---- m_ij (Roverato slave in L-space) ----
+    const double K_ij = precision_matrix_(i, j);
+    const double m_ij = l_ji - K_ij / l_ii;
+
+    // ---- Data terms ----
+    // S_ij and S_jj here are entries of suf_stat_ (data); not the Schur matrix.
+    const double S_ij_data = prior_only_ ? 0.0 : suf_stat_(i, j);
+    const double S_jj_data = prior_only_ ? 0.0 : suf_stat_(j, j);
+    const double n_eff     = prior_only_ ? 0.0 : static_cast<double>(n_);
+    // Note: log_det_factor for the data piece in the conditional log-posterior
+    // is (n/2) on log|K|, which is l_ji-independent. So the n_eff enters only
+    // through S_ij_data * K_ij and S_jj_data * K_jj in tr(SK). In prior-only
+    // mode we drop these.
+    (void) n_eff;
+
+    // ---- Conditional posterior and prior on l_ji at α=1 (both Gaussian) ----
+    // log π(l_ji | rest, Y) ∝ -(τ_post/2) l_ji² + (l_ii² m_ij/σ² - S_ij·l_ii) l_ji
+    // log π(l_ji | rest)    ∝ -(τ_prior/2) l_ji² + (l_ii² m_ij/σ²) l_ji
+    // where τ_post  = l_ii²/σ² + 2β + S_jj_data
+    //       τ_prior = l_ii²/σ² + 2β
+    const double tau_post  = l_ii * l_ii * inv_sigma2 + 2.0 * beta + S_jj_data;
+    const double tau_prior = l_ii * l_ii * inv_sigma2 + 2.0 * beta;
+    if (!(tau_post > 0.0) || !(tau_prior > 0.0)) return;
+    const double mu_post  = (l_ii * l_ii * m_ij * inv_sigma2 - S_ij_data * l_ii)
+                            / tau_post;
+    const double mu_prior = (l_ii * l_ii * m_ij * inv_sigma2) / tau_prior;
+
+    // ---- SD log-BF: log[ posterior conditional / prior conditional ] at m_ij
+    // Both densities in L-coords, so the K↔L Jacobian factor (1/l_ii) cancels
+    // between numerator and denominator. No marginal-slab approximation; this
+    // is the exact per-step BF in L-coords. At prior-only mode (S_ij_data = 0,
+    // S_jj_data = 0), τ_post = τ_prior, μ_post = μ_prior, so log_BF = 0 exactly
+    // — chain reduces to pure prior odds and γ converges to Bernoulli(p_inc).
+    const double log_pi_post  = 0.5 * std::log(tau_post  / (2.0 * arma::datum::pi))
+                              - 0.5 * tau_post  * (m_ij - mu_post)  * (m_ij - mu_post);
+    const double log_pi_prior = 0.5 * std::log(tau_prior / (2.0 * arma::datum::pi))
+                              - 0.5 * tau_prior * (m_ij - mu_prior) * (m_ij - mu_prior);
+    const double log_BF_1_to_0 = log_pi_post - log_pi_prior;
+
+    // ---- MH ratio ----
+    double log_alpha;
+    if (curr_g == 0) {
+        log_alpha = MY_LOG(p_inc / (1.0 - p_inc)) - log_BF_1_to_0;
+    } else {
+        log_alpha = MY_LOG((1.0 - p_inc) / p_inc) + log_BF_1_to_0;
+    }
+    if (!std::isfinite(log_alpha)) return;
+    if (MY_LOG(runif(rng_)) >= log_alpha) return;
+
+    // ---- Accept ----
+    double l_ji_new;
+    if (curr_g == 0) {
+        // ADD: draw l_ji ~ N(μ_post, 1/τ_post). No truncation.
+        l_ji_new = rnorm(rng_, mu_post, 1.0 / std::sqrt(tau_post));
+    } else {
+        // DEL: deterministic slave.
+        l_ji_new = m_ij;
+    }
+
+    // Translate Δl_ji into ΔK_ij, ΔK_jj.
+    const double d_l_ji = l_ji_new - l_ji;
+    const double K_ij_new = K_ij + l_ii * d_l_ji;
+    const double K_jj_new = precision_matrix_(j, j) + (l_ji_new + l_ji) * d_l_ji;
+
+    // Accept: install the new K and rebuild L + Σ from scratch via
+    // arma::chol. O(p³) per accept, but the only path proven correct.
+    // Both architectural alternatives we tried — SMW-only on Σ, and the
+    // drift-bounded rank-2 chol-up on L — produce K that disagrees with
+    // L L^T after enough accepts, and the next periodic refresh throws on
+    // a numerically non-PD K. The disagreement is unavoidable as long as
+    // K is updated algebraically and L (or Σ) is updated by a non-exact
+    // rank-r transform.
+    const double omega_ij_old = precision_matrix_(i, j);
+    const double omega_jj_old = precision_matrix_(j, j);
+    precision_matrix_(i, j) = K_ij_new;
+    precision_matrix_(j, i) = K_ij_new;
+    precision_matrix_(j, j) = K_jj_new;
+
+    if (curr_g == 0) {
+        edge_indicators_(i, j) = 1;
+        edge_indicators_(j, i) = 1;
+    } else {
+        edge_indicators_(i, j) = 0;
+        edge_indicators_(j, i) = 0;
+    }
+
+    // PD canary via two-arg arma::chol (returns bool, no throw).
+    arma::mat U_check;
+    if (!arma::chol(U_check, precision_matrix_, "upper")) {
+        ++n_pd_reverts_;
+        precision_matrix_(i, j) = omega_ij_old;
+        precision_matrix_(j, i) = omega_ij_old;
+        precision_matrix_(j, j) = omega_jj_old;
+        if (curr_g == 0) {
+            edge_indicators_(i, j) = 0;
+            edge_indicators_(j, i) = 0;
+        } else {
+            edge_indicators_(i, j) = 1;
+            edge_indicators_(j, i) = 1;
+        }
+        return;
+    }
+    cholesky_of_precision_ = U_check;
+    arma::solve(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_),
+                arma::eye(p_, p_), arma::solve_opts::fast);
+    covariance_matrix_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
+    constraint_dirty_ = true;
+    theta_valid_ = false;
+}
+
+
 void GGMModel::do_one_metropolis_step(int iteration) {
     // Collect per-slot accept probabilities for the Robbins-Monro adapter.
     // proposal_sds_ is stored as a flat dim_-length vec indexed by the
@@ -888,24 +1194,31 @@ void GGMModel::set_z_ratio_tuning(int M_inner, double kappa, double rho) {
 }
 
 
-void GGMModel::ensure_hierarchical_state_() {
-    if (hierarchical_state_built_) return;
-    // Validate prior family. The closed-form log_Z_NLO_gamma machinery only
-    // covers slab = Normal(0, σ) and diag = Gamma(α, β) on K_ii/2.
+void GGMModel::ensure_prior_params_extracted_() {
+    if (prior_params_extracted_) return;
+    // Validate prior family. The closed-form log_Z_NLO_gamma and SD
+    // density-at-zero machinery only covers slab = Normal(0, σ) and
+    // diag = Gamma(α, β) on K_ii/2.
     const auto* slab = dynamic_cast<const NormalPrior*>(interaction_prior_.get());
     if (slab == nullptr)
         throw std::runtime_error(
-            "Hierarchical graph_prior_spec requires a Normal slab "
-            "(NormalPrior). Re-fit with interaction_prior_type = 'normal'.");
+            "This code path requires a Normal slab (NormalPrior). "
+            "Re-fit with interaction_prior_type = 'normal'.");
     const auto* diag = dynamic_cast<const GammaScalePrior*>(diagonal_prior_.get());
     if (diag == nullptr)
         throw std::runtime_error(
-            "Hierarchical graph_prior_spec requires a Gamma diagonal prior "
+            "This code path requires a Gamma diagonal prior "
             "(GammaScalePrior).");
-
     prior_sigma_ = slab->scale();
     prior_alpha_ = diag->shape();
     prior_beta_  = diag->rate();
+    prior_params_extracted_ = true;
+}
+
+
+void GGMModel::ensure_hierarchical_state_() {
+    if (hierarchical_state_built_) return;
+    ensure_prior_params_extracted_();
     double delta = determinant_tilt_;
 
     chain_aux_degord_ = degord::make_chain_aux(
@@ -1158,7 +1471,15 @@ void GGMModel::update_edge_indicators() {
             }
             acc += cols_in_row;
         }
-        update_edge_indicator_parameter_pair(i, j);
+        if (use_sd_between_step_) {
+            if (use_sd_lspace_) {
+                update_edge_indicator_parameter_pair_sd_lspace(i, j);
+            } else {
+                update_edge_indicator_parameter_pair_sd(i, j);
+            }
+        } else {
+            update_edge_indicator_parameter_pair(i, j);
+        }
     }
     // SMW drift check; same rationale as the end-of-MH-step path.
     check_and_refresh_if_drift_();

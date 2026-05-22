@@ -153,11 +153,16 @@ public:
           determinant_tilt_(other.determinant_tilt_),
           graph_prior_spec_(other.graph_prior_spec_),
           hierarchical_state_built_(false),
+          prior_params_extracted_(false),
           use_manuscript_nlo_(other.use_manuscript_nlo_),
           mh_U_(other.mh_U_),
           mh_U_local_K_(other.mh_U_local_K_),
           mh_U_local_K_global_freq_(other.mh_U_local_K_global_freq_),
           plug_in_nlo_(other.plug_in_nlo_),
+          use_sd_between_step_(other.use_sd_between_step_),
+          use_sd_lspace_(other.use_sd_lspace_),
+          prior_only_(other.prior_only_),
+          n_pd_reverts_(other.n_pd_reverts_),
           v_M_inner_(other.v_M_inner_),
           v_kappa_(other.v_kappa_),
           v_rho_(other.v_rho_),
@@ -292,6 +297,51 @@ public:
      */
     void set_use_manuscript_nlo(bool on) { use_manuscript_nlo_ = on; }
     bool use_manuscript_nlo() const { return use_manuscript_nlo_; }
+
+    /**
+     * Switch the between-Γ move to the Savage-Dickey variant (handoff from
+     * Z, 2026-05-22). Replaces the joint-spec / hierarchical-spec MH ratio
+     * with the marginalised-γ form using a 1D Laplace+NLO conditional
+     * density at K_ij = 0; on ADD accept, K_ij is drawn from the 1D
+     * Laplace proposal; on DEL accept, K_ij = 0 deterministically.
+     * Within-K Roverato and diagonal moves remain unchanged. Default
+     * `false` keeps the existing between-Γ path.
+     */
+    void set_use_sd_between_step(bool on) { use_sd_between_step_ = on; }
+    bool use_sd_between_step() const { return use_sd_between_step_; }
+
+    /**
+     * Switch the SD between-Γ move to the L-space (Cholesky) variant. The
+     * chain dynamics shift from "K_ij ↔ 0 with K_jj fixed" (Z's K-space SD)
+     * to "l_ji ↔ m_ij(K_{-ij}) with K_jj implicitly slaved through K = LL^T".
+     * PD becomes automatic — l_ji ∈ ℝ unconstrained — and the per-edge
+     * conditional is exactly Gaussian at α = 1 (closed-form Gibbs). The
+     * MH ratio includes a per-step Jacobian log l_ii. Only active when
+     * use_sd_between_step_ is also true. α = 1 only (α > 1 not implemented).
+     */
+    void set_use_sd_lspace(bool on) { use_sd_lspace_ = on; }
+    bool use_sd_lspace() const { return use_sd_lspace_; }
+
+    /**
+     * Diagnostic: number of times the L-space SD between-step's PD-revert
+     * defense fired during this chain. Should be zero when the Bunch
+     * permutation path is numerically stable; non-zero is a canary for either
+     * a bug in the extraction or genuine pathological K. Reset via
+     * reset_pd_revert_count().
+     */
+    long n_pd_reverts() const { return n_pd_reverts_; }
+    void reset_pd_revert_count() { n_pd_reverts_ = 0; }
+
+    /**
+     * Disable the likelihood contribution in all MH ratios. When true the
+     * chain targets the prior π(Γ, K) instead of the posterior π(Γ, K | Y).
+     * Used for stationarity / calibration tests: under prior-only mode the
+     * empirical edge-inclusion frequencies should converge to inclusion_
+     * probability_. Affects update_edge_parameter, update_diagonal_parameter,
+     * and update_edge_indicator_parameter_pair_sd. Default `false`.
+     */
+    void set_prior_only(bool on) { prior_only_ = on; }
+    bool prior_only() const { return prior_only_; }
 
     /**
      * Enable a Metropolis–Hastings step on the auxiliary U-pool at the start
@@ -558,6 +608,7 @@ private:
     // marginal Γ target π(Γ)·Z(Γ) into the user-specified π(Γ).
     GraphPriorSpec graph_prior_spec_ = GraphPriorSpec::Joint;
     bool   hierarchical_state_built_ = false;
+    bool   prior_params_extracted_   = false;
     // Toggle for the manuscript App C NLO closed form (see
     // set_use_manuscript_nlo). Default `false` preserves the pre-2026-05-21
     // bgms formula and the SBC-clean baselines built on it.
@@ -574,6 +625,19 @@ private:
     // is fully bypassed and the between-Γ MH uses the closed-form NLO ratio
     // directly. Default `false` keeps the exact PMMH path.
     bool   plug_in_nlo_ = false;
+    // Savage-Dickey between-step variant (handoff 2026-05-22). When true,
+    // update_edge_indicators() dispatches to the SD between-step instead of
+    // the existing joint/hierarchical-spec path. See set_use_sd_between_step.
+    bool   use_sd_between_step_ = false;
+    // L-space SD variant. Only consumed when use_sd_between_step_ is true.
+    // See set_use_sd_lspace.
+    bool   use_sd_lspace_ = false;
+    // Disables the likelihood contribution in all MH ratios when true; used
+    // to verify Γ-marginal stationarity against the prior. See set_prior_only.
+    bool   prior_only_ = false;
+    // Count of PD-revert events inside update_edge_indicator_parameter_pair_sd
+    // _lspace. Diagnostic only.
+    long   n_pd_reverts_ = 0;
     int    v_M_inner_ = 100;
     double v_kappa_   = 1.0;
     double v_rho_     = 0.5;
@@ -679,6 +743,11 @@ private:
     /// builds chain_aux_degord_, computes log_Z_NLO_curr_ via full-recompute,
     /// draws the first U-pool. Idempotent (no-op when state is fresh).
     void ensure_hierarchical_state_();
+    /// Lightweight prior-family validator and parameter extractor. Sets
+    /// prior_sigma_, prior_alpha_, prior_beta_ from the configured slab and
+    /// diagonal priors. Used by paths that need the closed-form constants
+    /// (e.g. the SD between-step) but not the V/RR state. Idempotent.
+    void ensure_prior_params_extracted_();
     /// Draw a fresh (K_depth, pools_t) U for the V estimator.
     void refresh_z_ratio_pool_();
     /// MH step on (U, K_depth) at sweep boundary. Dispatches between the
@@ -828,6 +897,36 @@ private:
      * @param j  Column index
      */
     void update_edge_indicator_parameter_pair(size_t i, size_t j);
+
+    /**
+     * Savage-Dickey variant of the between-Γ MH step (handoff 2026-05-22).
+     * Uses a marginalised-γ MH ratio with K_ij collapsed and the per-step
+     * SD posterior density at K_ij = 0 evaluated via 1D Laplace+NLO at the
+     * chain's current K_{-ij}. On ADD accept K_ij is drawn from the 1D
+     * Laplace proposal; on DEL accept K_ij is set to zero. K_jj is
+     * unchanged in this step.
+     *
+     * Activated by use_sd_between_step_ = true. Honours prior_only_:
+     * when true, the BF reduces to 1 and the MH ratio is the prior odds
+     * alone (used for Γ-marginal stationarity tests).
+     *
+     * @param i  Row index (i < j)
+     * @param j  Column index
+     */
+    void update_edge_indicator_parameter_pair_sd(size_t i, size_t j);
+
+    /**
+     * L-space variant of the SD between-Γ step. Closed-form Gibbs at α = 1:
+     * derives the trailing-2×2 Cholesky factor of the DEGORD-permuted K from
+     * the 2×2 corner of Σ, computes the slave value m_ij and conditional
+     * posterior moments (τ_post, μ_post) of l_ji in closed form, evaluates the
+     * SD log-BF as a Gaussian density at m_ij minus log l_ii minus
+     * log_slab_at_0, and on accept updates K_ij and K_jj jointly through
+     * Δl_ji. PD is automatic; no truncation; no status=1 mode.
+     *
+     * Restricted to α = 1. Asserts diagonal prior shape parameter = 1.
+     */
+    void update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j);
 
     /**
      * Precompute reparameterization constants for the (i, j) element.

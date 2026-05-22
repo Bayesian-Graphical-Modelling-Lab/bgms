@@ -53,6 +53,10 @@ log_Z_NLO_gamma_delta_incr_alphaN_cpp <- function(G_before, i, j, alpha, beta, s
     .Call(`_bgms_log_Z_NLO_gamma_delta_incr_alphaN_cpp`, G_before, i, j, alpha, beta, sigma, delta, include_F)
 }
 
+sd_log_density_at_zero_cpp <- function(K, i, j, S, n_obs, delta, sigma, nlo = TRUE, apply_pd_truncation = FALSE, newton_max_iter = 50L, newton_tol = 1e-10) {
+    .Call(`_bgms_sd_log_density_at_zero_cpp`, K, i, j, S, n_obs, delta, sigma, nlo, apply_pd_truncation, newton_max_iter, newton_tol)
+}
+
 degord_chain_aux_cpp <- function(q, alpha, beta, sigma, delta) {
     .Call(`_bgms_degord_chain_aux_cpp`, q, alpha, beta, sigma, delta)
 }
@@ -99,6 +103,18 @@ degord_draw_U_rr_cpp <- function(M_inner, q, rho, seed) {
 
 ggm_hierarchical_smoke_cpp <- function(observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, M_inner, kappa, rho, n_sweeps, seed, use_manuscript_nlo = FALSE) {
     .Call(`_bgms_ggm_hierarchical_smoke_cpp`, observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, M_inner, kappa, rho, n_sweeps, seed, use_manuscript_nlo)
+}
+
+ggm_plug_in_smoke_cpp <- function(observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, M_inner, kappa, rho, n_warmup, n_sweeps, seed, prior_only = FALSE, include_within_k = TRUE, use_manuscript_nlo = FALSE) {
+    .Call(`_bgms_ggm_plug_in_smoke_cpp`, observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, M_inner, kappa, rho, n_warmup, n_sweeps, seed, prior_only, include_within_k, use_manuscript_nlo)
+}
+
+chol_perm_trailing_2x2_cpp <- function(K, i_1based, j_1based) {
+    .Call(`_bgms_chol_perm_trailing_2x2_cpp`, K, i_1based, j_1based)
+}
+
+ggm_sd_smoke_cpp <- function(observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, n_warmup, n_sweeps, seed, prior_only = FALSE, include_within_k = TRUE, use_lspace = FALSE) {
+    .Call(`_bgms_ggm_sd_smoke_cpp`, observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, n_warmup, n_sweeps, seed, prior_only, include_within_k, use_lspace)
 }
 
 .compute_ess_cpp <- function(array3d) {

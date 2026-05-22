@@ -6,9 +6,11 @@
 #include "models/ggm/log_z_nlo.h"
 #include "models/ggm/manuscript_nlo.h"
 #include "models/ggm/degord_sampler.h"
+#include "models/ggm/sd_density_at_zero.h"
 #include "models/ggm/z_ratio_estimator.h"
 #include "models/ggm/ggm_model.h"
 #include "rng/rng_utils.h"
+#include "math/cholesky_helpers.h"
 
 
 // [[Rcpp::export]]
@@ -76,6 +78,36 @@ double log_Z_NLO_gamma_delta_incr_alphaN_cpp(
 ) {
     return log_Z_NLO_gamma_delta_incr_alphaN(
         G_before, i, j, alpha, beta, sigma, delta, include_F);
+}
+
+
+// ---- Savage-Dickey 1D conditional density at K_ij = 0 -----------------
+//
+// SD spec sourced from ~/SV/Z/notes/2026-05-22_message-to-bgms-companion-SD-pivot.md
+// and ~/SV/Z/R/src/sd_density_at_zero.cpp. (i, j) are 1-indexed at the R
+// boundary to match Z's exposed function signature for the bit-for-bit test.
+
+// [[Rcpp::export]]
+Rcpp::List sd_log_density_at_zero_cpp(
+    const arma::mat& K, int i, int j,
+    const arma::mat& S, int n_obs,
+    double delta, double sigma,
+    bool nlo = true,
+    bool apply_pd_truncation = false,
+    int newton_max_iter = 50,
+    double newton_tol = 1e-10
+) {
+    ggm_sd::SDResult r = ggm_sd::density_at_zero_one(
+        K, i - 1, j - 1, S, n_obs, delta, sigma,
+        nlo, apply_pd_truncation, newton_max_iter, newton_tol);
+    return Rcpp::List::create(
+        Rcpp::Named("log_density") = r.log_density,
+        Rcpp::Named("x_mode")      = r.x_mode,
+        Rcpp::Named("curvature")   = r.curvature,
+        Rcpp::Named("x_minus")     = r.x_minus,
+        Rcpp::Named("x_plus")      = r.x_plus,
+        Rcpp::Named("log_Z_trunc") = r.log_Z_trunc,
+        Rcpp::Named("status")      = r.status);
 }
 
 
@@ -353,5 +385,206 @@ Rcpp::List ggm_hierarchical_smoke_cpp(
     return Rcpp::List::create(
         Rcpp::Named("final_edges")  = model.get_edge_indicators(),
         Rcpp::Named("n_edges_path") = n_edges
+    );
+}
+
+
+// ---- Savage-Dickey between-Γ smoke test (handoff 2026-05-22) -----------
+//
+// Constructs a small GGMModel with Normal slab + Gamma diagonal, switches
+// to the SD between-step variant, runs n_sweeps of (within-K + between-Γ)
+// MH, and returns the per-edge inclusion-frequency matrix plus the
+// n_edges path. Prior-only mode disables the likelihood contribution in
+// every MH ratio; under prior_only the inclusion frequencies should
+// converge to inclusion_prob.
+//
+// observations: n × p data matrix (Y). When prior_only = true, the entries
+// are ignored except for n_ and p_; pass any conformable matrix.
+//
+// Plug-in DEGORD smoke test — apples-to-apples counterpart of ggm_sd_smoke_cpp.
+// Runs the hierarchical-prior chain with plug-in mNLO ratio (closed-form,
+// V/RR machinery bypassed), prior-only optional, PIP accumulator over the
+// post-warmup window. Used to compare β-Bernoulli edge marginals against the
+// SD chain under identical priors.
+//
+// [[Rcpp::export]]
+Rcpp::List ggm_plug_in_smoke_cpp(
+    const arma::mat& observations,
+    double inclusion_prob,
+    double interaction_scale,    // sigma for Normal slab
+    double diagonal_shape,       // alpha for Gamma diag
+    double diagonal_rate,        // beta for Gamma diag
+    double delta,                // determinant tilt
+    int    M_inner,              // V/RR tuning (unused under plug-in; kept for parity)
+    double kappa,
+    double rho,
+    int    n_warmup,
+    int    n_sweeps,
+    int    seed,
+    bool   prior_only       = false,
+    bool   include_within_k = true,
+    bool   use_manuscript_nlo = false
+) {
+    int p = observations.n_cols;
+    arma::mat inclusion_probability(p, p, arma::fill::value(inclusion_prob));
+    arma::imat initial_edges(p, p, arma::fill::zeros);
+    for (int i = 0; i < p; ++i) initial_edges(i, i) = 1;
+
+    auto slab = std::make_unique<NormalPrior>(interaction_scale);
+    auto diag = std::make_unique<GammaScalePrior>(diagonal_shape, diagonal_rate);
+
+    GGMModel model(observations,
+                   inclusion_probability,
+                   initial_edges,
+                   /*edge_selection=*/true,
+                   std::move(slab),
+                   std::move(diag),
+                   /*na_impute=*/false);
+    model.set_seed(seed);
+    model.set_determinant_tilt(delta);
+    model.set_z_ratio_tuning(M_inner, kappa, rho);
+    model.set_use_manuscript_nlo(use_manuscript_nlo);
+    model.set_graph_prior_spec(GraphPriorSpec::Hierarchical);
+    model.set_plug_in_nlo(true);
+    model.set_prior_only(prior_only);
+
+    arma::mat pip_counts(p, p, arma::fill::zeros);
+    arma::ivec n_edges_path(n_sweeps, arma::fill::zeros);
+
+    int n_total = n_warmup + n_sweeps;
+    for (int s = 0; s < n_total; ++s) {
+        model.prepare_iteration();
+        if (include_within_k) {
+            model.do_one_metropolis_step(s);
+        }
+        model.update_edge_indicators();
+        if (s >= n_warmup) {
+            const arma::imat& E = model.get_edge_indicators();
+            for (int ii = 0; ii < p; ++ii) {
+                for (int jj = 0; jj < p; ++jj) {
+                    if (E(ii, jj) == 1 && ii != jj) {
+                        pip_counts(ii, jj) += 1.0;
+                    }
+                }
+            }
+            n_edges_path[s - n_warmup] = arma::accu(E) / 2;
+        }
+    }
+
+    arma::mat pip = pip_counts / static_cast<double>(n_sweeps);
+    return Rcpp::List::create(
+        Rcpp::Named("pip")          = pip,
+        Rcpp::Named("final_edges")  = model.get_edge_indicators(),
+        Rcpp::Named("n_edges_path") = n_edges_path
+    );
+}
+
+
+// Test interface for cholesky_helpers::perm_to_trailing_2x2.
+// Accepts a precision matrix K and 1-based edge indices (i, j); internally
+// computes U = chol(K, "upper") and delegates. Returns the trailing 2×2 of
+// the permuted lower-triangular factor: (l_ii, l_ji, l_jj) and an ok flag.
+//
+// [[Rcpp::export]]
+Rcpp::List chol_perm_trailing_2x2_cpp(
+    const arma::mat& K, int i_1based, int j_1based
+) {
+    arma::mat U;
+    if (!arma::chol(U, K, "upper")) {
+        return Rcpp::List::create(
+            Rcpp::Named("l_ii") = NA_REAL,
+            Rcpp::Named("l_ji") = NA_REAL,
+            Rcpp::Named("l_jj") = NA_REAL,
+            Rcpp::Named("ok")   = false
+        );
+    }
+    const std::size_t i0 = static_cast<std::size_t>(i_1based - 1);
+    const std::size_t j0 = static_cast<std::size_t>(j_1based - 1);
+    auto r = cholesky_helpers::perm_to_trailing_2x2(U, i0, j0);
+    return Rcpp::List::create(
+        Rcpp::Named("l_ii") = r.l_ii,
+        Rcpp::Named("l_ji") = r.l_ji,
+        Rcpp::Named("l_jj") = r.l_jj,
+        Rcpp::Named("ok")   = r.ok
+    );
+}
+
+
+// [[Rcpp::export]]
+Rcpp::List ggm_sd_smoke_cpp(
+    const arma::mat& observations,
+    double inclusion_prob,
+    double interaction_scale,    // sigma for Normal slab
+    double diagonal_shape,       // alpha for Gamma diag
+    double diagonal_rate,        // beta for Gamma diag
+    double delta,                // determinant tilt
+    int    n_warmup,
+    int    n_sweeps,
+    int    seed,
+    bool   prior_only = false,
+    bool   include_within_k = true,
+    bool   use_lspace = false
+) {
+    int p = observations.n_cols;
+    arma::mat inclusion_probability(p, p, arma::fill::value(inclusion_prob));
+    arma::imat initial_edges(p, p, arma::fill::zeros);
+    for (int i = 0; i < p; ++i) initial_edges(i, i) = 1;
+
+    auto slab = std::make_unique<NormalPrior>(interaction_scale);
+    auto diag = std::make_unique<GammaScalePrior>(diagonal_shape, diagonal_rate);
+
+    GGMModel model(observations,
+                   inclusion_probability,
+                   initial_edges,
+                   /*edge_selection=*/true,
+                   std::move(slab),
+                   std::move(diag),
+                   /*na_impute=*/false);
+    model.set_seed(seed);
+    model.set_determinant_tilt(delta);
+    model.set_use_sd_between_step(true);
+    model.set_use_sd_lspace(use_lspace);
+    model.set_prior_only(prior_only);
+    model.reset_pd_revert_count();
+
+    // PIP accumulator: count visits with γ_ij = 1 across post-warmup sweeps.
+    arma::mat pip_counts(p, p, arma::fill::zeros);
+    arma::ivec n_edges_path(n_sweeps, arma::fill::zeros);
+
+    int n_total = n_warmup + n_sweeps;
+    for (int s = 0; s < n_total; ++s) {
+        model.prepare_iteration();
+        if (include_within_k) {
+            model.do_one_metropolis_step(s);
+        }
+        model.update_edge_indicators();
+        if (s >= n_warmup) {
+            const arma::imat& E = model.get_edge_indicators();
+            for (int ii = 0; ii < p; ++ii) {
+                for (int jj = 0; jj < p; ++jj) {
+                    if (E(ii, jj) == 1 && ii != jj) {
+                        pip_counts(ii, jj) += 1.0;
+                    }
+                }
+            }
+            n_edges_path[s - n_warmup] = arma::accu(E) / 2;
+        }
+    }
+
+    arma::mat pip = pip_counts / static_cast<double>(n_sweeps);
+
+    const long n_pd_reverts = model.n_pd_reverts();
+    if (n_pd_reverts > 0) {
+        Rcpp::warning(
+            "GGM SD L-space chain: PD-revert defense fired %ld time(s) during "
+            "this run. Canary for K landing numerically off the PD cone near "
+            "the boundary; the chain reverted the offending toggle.",
+            n_pd_reverts);
+    }
+    return Rcpp::List::create(
+        Rcpp::Named("pip")           = pip,
+        Rcpp::Named("final_edges")   = model.get_edge_indicators(),
+        Rcpp::Named("n_edges_path")  = n_edges_path,
+        Rcpp::Named("n_pd_reverts")  = n_pd_reverts
     );
 }
