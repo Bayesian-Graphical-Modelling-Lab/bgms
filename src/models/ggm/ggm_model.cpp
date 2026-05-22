@@ -299,9 +299,13 @@ double GGMModel::update_edge_parameter(size_t i, size_t j) {
         ln_alpha += determinant_tilt_ * log_det_ratio_edge(i, j);
     }
 
-    // Interaction prior on K_yy_{ij} = -0.5 * Omega_{ij}
-    ln_alpha += interaction_prior_->logp(-0.5 * precision_proposal_(i, j));
-    ln_alpha -= interaction_prior_->logp(-0.5 * precision_matrix_(i, j));
+    // Interaction prior on K_yy_{ij} = -0.5 * Omega_{ij}. Pass (i, j) so an
+    // edgewise prior (GraphicalGPrior) can resolve V_ij; single-scale priors
+    // ignore the coords via the BaseParameterPrior default override.
+    ln_alpha += interaction_prior_->logp(-0.5 * precision_proposal_(i, j),
+                                         static_cast<int>(i), static_cast<int>(j));
+    ln_alpha -= interaction_prior_->logp(-0.5 * precision_matrix_(i, j),
+                                         static_cast<int>(i), static_cast<int>(j));
 
     // Gamma(shape, rate) prior on changed diagonal K_jj. The Roverato move
     // slaves K_jj = c_3 + phi_{q-1,q}^2, so K_jj moves with the off-diagonal
@@ -461,7 +465,9 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 
         ln_alpha += R::dnorm(precision_matrix_(i, j) / constants_[3], 0.0, proposal_sd, true) - MY_LOG(constants_[3]);
         // Slab in K_yy coords; proposal in K_ij coords. Jacobian |dK_yy/dK_ij| = 1/2.
-        ln_alpha -= interaction_prior_->logp(-0.5 * precision_matrix_(i, j)) - MY_LOG(2.0);
+        ln_alpha -= interaction_prior_->logp(-0.5 * precision_matrix_(i, j),
+                                              static_cast<int>(i), static_cast<int>(j))
+                    - MY_LOG(2.0);
 
         // Gamma(shape, rate) prior on changed diagonal K_jj. The Roverato move
         // slaves K_jj = c_3 + phi_{q-1,q}^2, so K_jj moves with the off-diagonal
@@ -525,7 +531,9 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         ln_alpha += MY_LOG(inclusion_probability_(i, j)) - MY_LOG(1.0 - inclusion_probability_(i, j));
 
         // Slab in K_yy coords; proposal in K_ij coords. Jacobian |dK_yy/dK_ij| = 1/2.
-        ln_alpha += interaction_prior_->logp(-0.5 * omega_prop_ij) - MY_LOG(2.0);
+        ln_alpha += interaction_prior_->logp(-0.5 * omega_prop_ij,
+                                              static_cast<int>(i), static_cast<int>(j))
+                    - MY_LOG(2.0);
 
         // Gamma(shape, rate) prior on changed diagonal K_jj. The Roverato move
         // slaves K_jj = c_3 + phi_{q-1,q}^2, so K_jj moves with the off-diagonal
@@ -597,10 +605,147 @@ void GGMModel::init_metropolis_adaptation(const WarmupSchedule& schedule) {
         proposal_sds_, schedule, target_accept_);
 }
 
+
+// =====================================================================
+// Graphical G-prior
+// =====================================================================
+
+void GGMModel::compute_gg_V_ij_() {
+    // V_ij = 1 / (4 n · S̄_ii · S̄_jj)  with  S̄ = suf_stat / n
+    //      = n / (4 · suf_stat_(i,i) · suf_stat_(j,j))
+    //
+    // Uses n_ (= n_rows − 1, the GGM's centered-data degrees of freedom).
+    // Diagonal entries are left at zero — they are never indexed.
+    V_ij_.set_size(p_, p_);
+    V_ij_.zeros();
+    for (size_t i = 0; i < p_; ++i) {
+        for (size_t j = 0; j < p_; ++j) {
+            if (i == j) continue;
+            const double s_ii = suf_stat_(i, i);
+            const double s_jj = suf_stat_(j, j);
+            if (s_ii > 0.0 && s_jj > 0.0) {
+                V_ij_(i, j) = static_cast<double>(n_) /
+                              (4.0 * s_ii * s_jj);
+            } else {
+                // Degenerate variable (zero sufficient statistic on the
+                // diagonal) — set V_ij to NaN so any subsequent prior eval
+                // surfaces the bad-data condition explicitly.
+                V_ij_(i, j) = std::numeric_limits<double>::quiet_NaN();
+            }
+        }
+    }
+}
+
+
+void GGMModel::enable_gg_prior(
+    GGHyperprior hyperprior,
+    double g_init,
+    double tcch_a,
+    double tcch_b,
+    double tcch_r,
+    double tcch_s,
+    double tcch_u
+) {
+    if (g_init <= 0.0 || !std::isfinite(g_init)) {
+        throw std::invalid_argument(
+            "enable_gg_prior: g_init must be a positive finite number.");
+    }
+    use_gg_prior_  = true;
+    gg_hyperprior_ = hyperprior;
+    t_             = std::sqrt(g_init);
+    gg_tcch_a_     = tcch_a;
+    gg_tcch_b_     = tcch_b;
+    gg_tcch_r_     = tcch_r;
+    gg_tcch_s_     = tcch_s;
+    gg_tcch_u_     = tcch_u;
+
+    compute_gg_V_ij_();
+
+    // Replace user-supplied priors with GG-bound versions. The user-supplied
+    // priors are silently dropped; sample_ggm warns at the R level when a
+    // user tries to pair graphical_g_prior with a non-default precision
+    // scale prior.
+    interaction_prior_ = std::make_unique<GraphicalGPrior>(&V_ij_, &t_);
+    diagonal_prior_    = std::make_unique<GraphicalGDiag>(&t_);
+
+    // Future gradient calls must rebuild against the new priors.
+    constraint_dirty_  = true;
+}
+
+
+void GGMModel::gg_rebind_priors_() {
+    // Cloned priors may still hold pointers into the source model's V_ij_/t_.
+    // dynamic_cast is safe on any other prior — falls through silently.
+    if (auto* slab = dynamic_cast<GraphicalGPrior*>(interaction_prior_.get())) {
+        slab->bind_to(&V_ij_, &t_);
+    }
+    if (auto* diag = dynamic_cast<GraphicalGDiag*>(diagonal_prior_.get())) {
+        diag->bind_to(&t_);
+    }
+}
+
+
+void GGMModel::gg_update_t_() {
+    if (!use_gg_prior_) return;
+    if (gg_hyperprior_ == GGHyperprior::Fixed) return;
+
+    // ConjugateGamma branch (v1): full conditional on t under
+    //   t ~ Gamma(a₀, b₀) prior  ⇒
+    //   t | Θ, Γ, Y ~ Gamma(a₀ + n·p/2 + p·δ,  b₀ + ½ tr(η · S))
+    // with η = Θ / t. tr(η · S) = tr(Θ · S) / t at current state.
+    //
+    // After sampling t_new, rescale the chain state Θ ← (t_new/t_old) · Θ
+    // and propagate to the Cholesky factor and the covariance cache.
+    if (gg_hyperprior_ == GGHyperprior::ConjugateGamma) {
+        const double t_old   = t_;
+        const double tr_Theta_S = arma::dot(precision_matrix_, suf_stat_);
+        const double tr_eta_S   = tr_Theta_S / t_old;
+        const double shape = gg_tcch_a_
+                             + 0.5 * static_cast<double>(n_) * static_cast<double>(p_)
+                             + static_cast<double>(p_) * determinant_tilt_;
+        const double rate  = gg_tcch_b_ + 0.5 * tr_eta_S;
+        // Guard against pathological rate (numerical).
+        if (!(rate > 0.0) || !std::isfinite(rate)) return;
+        const double t_new = rgamma(rng_, shape, 1.0 / rate);
+        if (!(t_new > 0.0) || !std::isfinite(t_new)) return;
+        const double alpha = t_new / t_old;
+
+        // Rescale state: K_new = α · K_old.  Cholesky L_new = √α · L_old.
+        // Inverse Cholesky and covariance scale by 1/√α and 1/α respectively.
+        precision_matrix_         *= alpha;
+        const double sqrt_alpha    = std::sqrt(alpha);
+        cholesky_of_precision_    *= sqrt_alpha;
+        if (inv_cholesky_of_precision_.n_elem > 0) {
+            inv_cholesky_of_precision_ /= sqrt_alpha;
+        }
+        if (covariance_matrix_.n_elem > 0) {
+            covariance_matrix_     /= alpha;
+        }
+        t_ = t_new;
+        // Theta caches and gradient engine state depend on the slab scale,
+        // which has changed.
+        theta_valid_      = false;
+        constraint_dirty_ = true;
+        return;
+    }
+
+    // ZellnerSiow / HyperG / HyperGOverN / TCCH branches: not yet
+    // implemented in this branch. Fall back to Fixed behavior with a
+    // diagnostic Rcpp::warning rather than a silent no-op so the user
+    // notices the configuration is unsupported.
+    Rcpp::warning("GGMModel: GG-prior hyperprior other than Fixed / "
+                  "ConjugateGamma is not yet implemented; g is held fixed.");
+}
+
+
 void GGMModel::prepare_iteration() {
     // Shuffle edge visit order for random-scan edge selection.
     // Called unconditionally to keep RNG state consistent.
     shuffled_edge_order_ = arma_randperm(rng_, num_pairwise_);
+    // Graphical G-prior: end-of-sweep Gibbs/MH on t = √g. Called from
+    // prepare_iteration() so the update fires once per sweep regardless
+    // of sampler (MH or NUTS). Internal no-op when use_gg_prior_ is false.
+    gg_update_t_();
 }
 
 void GGMModel::update_edge_indicators() {
@@ -653,8 +798,10 @@ void GGMModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {
                 ln_alpha += determinant_tilt_ * log_det_ratio_edge(i, j);
             }
             // Interaction prior on K_yy_{ij} = -0.5 * Omega_{ij}
-            ln_alpha += interaction_prior_->logp(-0.5 * precision_proposal_(i, j));
-            ln_alpha -= interaction_prior_->logp(-0.5 * precision_matrix_(i, j));
+            ln_alpha += interaction_prior_->logp(-0.5 * precision_proposal_(i, j),
+                                                  static_cast<int>(i), static_cast<int>(j));
+            ln_alpha -= interaction_prior_->logp(-0.5 * precision_matrix_(i, j),
+                                                  static_cast<int>(i), static_cast<int>(j));
 
             // Gamma(shape, rate) prior on changed diagonal K_jj. The Roverato move
             // slaves K_jj = c_3 + phi_{q-1,q}^2, so K_jj moves with the off-diagonal

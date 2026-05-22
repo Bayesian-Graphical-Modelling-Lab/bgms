@@ -124,6 +124,15 @@ public:
         : BaseModel(other),
           target_accept_(other.target_accept_),
           determinant_tilt_(other.determinant_tilt_),
+          use_gg_prior_(other.use_gg_prior_),
+          V_ij_(other.V_ij_),
+          t_(other.t_),
+          gg_hyperprior_(other.gg_hyperprior_),
+          gg_tcch_a_(other.gg_tcch_a_),
+          gg_tcch_b_(other.gg_tcch_b_),
+          gg_tcch_r_(other.gg_tcch_r_),
+          gg_tcch_s_(other.gg_tcch_s_),
+          gg_tcch_u_(other.gg_tcch_u_),
           n_(other.n_),
           p_(other.p_),
           dim_(other.dim_),
@@ -153,7 +162,12 @@ public:
           constraint_dirty_(other.constraint_dirty_),
           theta_valid_(other.theta_valid_),
           theta_(other.theta_)
-    {}
+    {
+        // The cloned interaction_prior_ / diagonal_prior_ may be
+        // GraphicalG-typed and still carry pointers into the source
+        // model's V_ij_ / t_. Rebind them to this clone's state.
+        gg_rebind_priors_();
+    }
 
     /** @return true (GGM supports NUTS via free-element Cholesky gradient). */
     bool has_gradient()        const override { return true; }
@@ -218,6 +232,58 @@ public:
         determinant_tilt_ = delta;
         constraint_dirty_ = true;
     }
+
+    /**
+     * G-prior hyperprior on g = t² for the Graphical G-prior. Selects the
+     * update kernel used at end of sweep (see `gg_update_t_()`).
+     *
+     *   Fixed         : g held at the user-supplied value (no update).
+     *   ConjugateGamma: Gamma(a₀, b₀) prior on t = √g; closed-form Gibbs
+     *                   update at sweep end (see implementation plan §5a.3).
+     *   ZellnerSiow   : inverse-Gamma(½, ½) on g, induces a Cauchy marginal
+     *                   per edge after marginalising g. MH update.
+     *   HyperG        : Beta hyper-g family (a − 2)·(1 + g/n)^{−a/2}.
+     *   HyperGOverN   : hyper-g / n re-scaling.
+     *   TCCH          : umbrella family parameterised by (a, b, r, s, u).
+     *
+     * Default `Fixed` with `g = 1` reproduces a constant-scale Normal slab.
+     */
+    enum class GGHyperprior {
+        Fixed, ConjugateGamma, ZellnerSiow, HyperG, HyperGOverN, TCCH
+    };
+
+    /**
+     * Enable the Graphical G-prior. Replaces the slab interaction_prior and
+     * the diagonal_prior with GraphicalGPrior / GraphicalGDiag instances
+     * bound to the model's internal V_ij table and t state.
+     *
+     * - `V_ij` is built once at this call time from the model's sufficient
+     *   statistic: V_ij = n / (4 · suf_stat_ii · suf_stat_jj). This is the
+     *   data-adaptive Fisher-info-based per-edge scale of IDEA.md §5.1.
+     * - `t` is initialised to `sqrt(g_init)` and is updated each sweep
+     *   under the chosen hyperprior.
+     * - The user-supplied `interaction_prior` and `diagonal_prior` are
+     *   discarded — the GG-prior fixes both (paired by the scale-matching
+     *   identity that the joint Z(Γ, g; δ) = g^{q δ/2} · Z̃(Γ) collapses).
+     *
+     * Called from `sample_ggm` after the model has been constructed.
+     */
+    void enable_gg_prior(
+        GGHyperprior hyperprior,
+        double g_init       = 1.0,
+        double tcch_a       = 1.0,
+        double tcch_b       = 1.0,
+        double tcch_r       = 0.0,
+        double tcch_s       = 0.0,
+        double tcch_u       = 1.0);
+
+    bool gg_prior_enabled() const { return use_gg_prior_; }
+    double gg_current_t()  const { return t_; }
+    double gg_current_g()  const { return t_ * t_; }
+    const arma::mat& gg_V_ij() const { return V_ij_; }
+    /** Read-only view of the current precision matrix. Used by test
+     *  harnesses to snapshot the chain state directly. */
+    const arma::mat& get_precision_matrix() const { return precision_matrix_; }
 
     /** Shuffle edge visit order (random scan). */
     void prepare_iteration() override;
@@ -401,6 +467,39 @@ private:
     // Determinant-tilt exponent (see set_determinant_tilt). Forwarded to
     // GGMGradientEngine on every rebuild.
     double determinant_tilt_ = 0.0;
+
+    // ---- Graphical G-prior state (see enable_gg_prior) -----------------
+    // V_ij_(i, j) = n / (4 · suf_stat_(i,i) · suf_stat_(j,j))  for i ≠ j
+    //             (diagonal entries unused; left zero)
+    // t_         = √g, the shared scale hyperparameter
+    // The GraphicalGPrior / GraphicalGDiag instances stored in
+    // interaction_prior_ / diagonal_prior_ hold non-owning pointers into
+    // these two members; they MUST be rebound when the model is cloned.
+    bool         use_gg_prior_ = false;
+    arma::mat    V_ij_;
+    double       t_            = 1.0;
+    GGHyperprior gg_hyperprior_ = GGHyperprior::Fixed;
+    // tCCH-family hyperparameters (see IDEA.md §2 and Li & Clyde 2018 for
+    // the parameterisation). For non-tCCH hyperpriors only a subset is
+    // used; the defaults reproduce Zellner-Siow at a=b=½ etc.
+    double       gg_tcch_a_ = 1.0;
+    double       gg_tcch_b_ = 1.0;
+    double       gg_tcch_r_ = 0.0;
+    double       gg_tcch_s_ = 0.0;
+    double       gg_tcch_u_ = 1.0;
+
+    /// One-shot V_ij table construction from suf_stat_. Called by
+    /// enable_gg_prior(); idempotent.
+    void compute_gg_V_ij_();
+    /// End-of-sweep update of t under the current hyperprior. Includes
+    /// the Cholesky / covariance rescaling that follows from rescaling
+    /// Θ ← (t_new/t_old) · Θ in the (η, t)-parameterisation. Called from
+    /// prepare_iteration() / do_one_metropolis_step() (TBD).
+    void gg_update_t_();
+    /// Rebind GraphicalG{Prior,Diag} pointers after the model is cloned.
+    /// Called from the copy constructor; safe to call when the priors
+    /// aren't GraphicalG (no-ops).
+    void gg_rebind_priors_();
 
     /** Extract upper triangle of the precision matrix into a vector. */
     arma::vec extract_upper_triangle() const {

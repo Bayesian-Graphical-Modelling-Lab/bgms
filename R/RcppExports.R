@@ -105,12 +105,24 @@ test_parameter_prior <- function(type, x, scale = 1.0, alpha = 0.5, beta = 0.5, 
     .Call(`_bgms_test_parameter_prior`, type, x, scale, alpha, beta, scale_factor)
 }
 
+test_graphical_g_prior <- function(x, V_ij, t, i, j) {
+    .Call(`_bgms_test_graphical_g_prior`, x, V_ij, t, i, j)
+}
+
+test_graphical_g_diag <- function(x, t) {
+    .Call(`_bgms_test_graphical_g_diag`, x, t)
+}
+
 test_scale_prior <- function(type, x, shape = 1.0, rate = 1.0) {
     .Call(`_bgms_test_scale_prior`, type, x, shape, rate)
 }
 
 ggm_test_logp_and_gradient_prior <- function(theta, suf_stat, n, edge_indicators, interaction_prior_type = "cauchy", interaction_scale = 1.0, interaction_alpha = 0.5, interaction_beta = 0.5, diagonal_prior_type = "gamma", diagonal_shape = 1.0, diagonal_rate = 1.0) {
     .Call(`_bgms_ggm_test_logp_and_gradient_prior`, theta, suf_stat, n, edge_indicators, interaction_prior_type, interaction_scale, interaction_alpha, interaction_beta, diagonal_prior_type, diagonal_shape, diagonal_rate)
+}
+
+ggm_gg_prior_smoke_cpp <- function(observations, inclusion_prob, n_iter, n_warmup, seed, g_hyperprior, g_init = 1.0, tcch_a = 1.0, tcch_b = 1.0, delta = 0.0) {
+    .Call(`_bgms_ggm_gg_prior_smoke_cpp`, observations, inclusion_prob, n_iter, n_warmup, seed, g_hyperprior, g_init, tcch_a, tcch_b, delta)
 }
 
 sample_ggm <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback = NULL, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, target_acceptance = 0.8, max_tree_depth = 10L, na_impute = FALSE, missing_index_nullable = NULL, delta = 0.0) {

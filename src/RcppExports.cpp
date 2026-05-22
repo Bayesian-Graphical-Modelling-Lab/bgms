@@ -521,6 +521,33 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// test_graphical_g_prior
+Rcpp::List test_graphical_g_prior(double x, const arma::mat& V_ij, double t, int i, int j);
+RcppExport SEXP _bgms_test_graphical_g_prior(SEXP xSEXP, SEXP V_ijSEXP, SEXP tSEXP, SEXP iSEXP, SEXP jSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< double >::type x(xSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type V_ij(V_ijSEXP);
+    Rcpp::traits::input_parameter< double >::type t(tSEXP);
+    Rcpp::traits::input_parameter< int >::type i(iSEXP);
+    Rcpp::traits::input_parameter< int >::type j(jSEXP);
+    rcpp_result_gen = Rcpp::wrap(test_graphical_g_prior(x, V_ij, t, i, j));
+    return rcpp_result_gen;
+END_RCPP
+}
+// test_graphical_g_diag
+Rcpp::List test_graphical_g_diag(double x, double t);
+RcppExport SEXP _bgms_test_graphical_g_diag(SEXP xSEXP, SEXP tSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< double >::type x(xSEXP);
+    Rcpp::traits::input_parameter< double >::type t(tSEXP);
+    rcpp_result_gen = Rcpp::wrap(test_graphical_g_diag(x, t));
+    return rcpp_result_gen;
+END_RCPP
+}
 // test_scale_prior
 Rcpp::List test_scale_prior(const std::string& type, double x, double shape, double rate);
 RcppExport SEXP _bgms_test_scale_prior(SEXP typeSEXP, SEXP xSEXP, SEXP shapeSEXP, SEXP rateSEXP) {
@@ -553,6 +580,26 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type diagonal_shape(diagonal_shapeSEXP);
     Rcpp::traits::input_parameter< double >::type diagonal_rate(diagonal_rateSEXP);
     rcpp_result_gen = Rcpp::wrap(ggm_test_logp_and_gradient_prior(theta, suf_stat, n, edge_indicators, interaction_prior_type, interaction_scale, interaction_alpha, interaction_beta, diagonal_prior_type, diagonal_shape, diagonal_rate));
+    return rcpp_result_gen;
+END_RCPP
+}
+// ggm_gg_prior_smoke_cpp
+Rcpp::List ggm_gg_prior_smoke_cpp(const arma::mat& observations, double inclusion_prob, int n_iter, int n_warmup, int seed, int g_hyperprior, double g_init, double tcch_a, double tcch_b, double delta);
+RcppExport SEXP _bgms_ggm_gg_prior_smoke_cpp(SEXP observationsSEXP, SEXP inclusion_probSEXP, SEXP n_iterSEXP, SEXP n_warmupSEXP, SEXP seedSEXP, SEXP g_hyperpriorSEXP, SEXP g_initSEXP, SEXP tcch_aSEXP, SEXP tcch_bSEXP, SEXP deltaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type observations(observationsSEXP);
+    Rcpp::traits::input_parameter< double >::type inclusion_prob(inclusion_probSEXP);
+    Rcpp::traits::input_parameter< int >::type n_iter(n_iterSEXP);
+    Rcpp::traits::input_parameter< int >::type n_warmup(n_warmupSEXP);
+    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
+    Rcpp::traits::input_parameter< int >::type g_hyperprior(g_hyperpriorSEXP);
+    Rcpp::traits::input_parameter< double >::type g_init(g_initSEXP);
+    Rcpp::traits::input_parameter< double >::type tcch_a(tcch_aSEXP);
+    Rcpp::traits::input_parameter< double >::type tcch_b(tcch_bSEXP);
+    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
+    rcpp_result_gen = Rcpp::wrap(ggm_gg_prior_smoke_cpp(observations, inclusion_prob, n_iter, n_warmup, seed, g_hyperprior, g_init, tcch_a, tcch_b, delta));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -701,8 +748,11 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sample_mixed_mrf_gibbs", (DL_FUNC) &_bgms_sample_mixed_mrf_gibbs, 11},
     {"_bgms_run_mixed_simulation_parallel", (DL_FUNC) &_bgms_run_mixed_simulation_parallel, 16},
     {"_bgms_test_parameter_prior", (DL_FUNC) &_bgms_test_parameter_prior, 6},
+    {"_bgms_test_graphical_g_prior", (DL_FUNC) &_bgms_test_graphical_g_prior, 5},
+    {"_bgms_test_graphical_g_diag", (DL_FUNC) &_bgms_test_graphical_g_diag, 2},
     {"_bgms_test_scale_prior", (DL_FUNC) &_bgms_test_scale_prior, 4},
     {"_bgms_ggm_test_logp_and_gradient_prior", (DL_FUNC) &_bgms_ggm_test_logp_and_gradient_prior, 11},
+    {"_bgms_ggm_gg_prior_smoke_cpp", (DL_FUNC) &_bgms_ggm_gg_prior_smoke_cpp, 10},
     {"_bgms_sample_ggm", (DL_FUNC) &_bgms_sample_ggm, 24},
     {"_bgms_sample_mixed_mrf", (DL_FUNC) &_bgms_sample_mixed_mrf, 25},
     {"_bgms_sample_omrf", (DL_FUNC) &_bgms_sample_omrf, 24},

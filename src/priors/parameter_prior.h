@@ -4,6 +4,7 @@
 #include <string>
 #include <cmath>
 #include <Rmath.h>
+#include <RcppArmadillo.h>
 
 
 // =============================================================================
@@ -45,6 +46,27 @@ public:
      */
     virtual double grad(double x, double scale_factor) const {
         (void)scale_factor;
+        return grad(x);
+    }
+
+    /**
+     * Edge-aware log-density. Carries edge coordinates `(i, j)` for priors
+     * whose scale is per-edge (e.g., the Graphical G-prior, where the slab
+     * variance is `g · V_ij` with `V_ij` computed from null-MLE Fisher info).
+     * Default: ignores (i, j) and delegates to `logp(x)`.
+     *
+     * Call sites in `GGMModel` and `GGMGradientEngine` pass `(i, j)` when
+     * known so an edgewise prior can resolve its per-edge variance; priors
+     * with a single shared scale (Cauchy, Normal, …) are unaffected.
+     */
+    virtual double logp(double x, int i, int j) const {
+        (void)i; (void)j;
+        return logp(x);
+    }
+
+    /** Edge-aware gradient (mirror of edge-aware logp). */
+    virtual double grad(double x, int i, int j) const {
+        (void)i; (void)j;
         return grad(x);
     }
 
@@ -181,6 +203,111 @@ public:
 private:
     double shape_;
     double rate_;
+};
+
+
+// =============================================================================
+// GraphicalGPrior — edgewise Normal slab for the Graphical G-prior on GGM
+// edge parameters.
+//
+// Slab:  ω_ij | γ_ij = 1, g  ~  N(0,  g · V_ij)
+//
+// with V_ij = 1 / (4 n S̄_ii S̄_jj) (Fisher-info-based, computed at fit
+// time from the data sufficient statistic). The shared scale parameter
+// g = t² is a state variable of the chain; the diagonal Gamma rate is
+// tied to 1/t via the companion `GraphicalGDiag` so the scale-matching
+// identity Z(Γ, g; δ) = g^{q δ / 2} · Z̃(Γ) holds. See
+//   ~/SV/Graphical G-Prior/notes/gg-prior-bgms-implementation-plan.md
+// and IDEA.md §5.1 for the construction.
+//
+// State pointers (V_ij table, t value) are non-owning references back to
+// the GGMModel that owns this prior. After cloning the model (parallel
+// chains), `bind_to(...)` MUST be called on the clone's prior to rebind
+// pointers to the clone's V_ij_table / t_ state. Failing to rebind leaves
+// the prior reading the original model's state — a soft aliasing bug.
+// =============================================================================
+class GraphicalGPrior final : public BaseParameterPrior {
+public:
+    GraphicalGPrior(const arma::mat* V_ij, const double* t_ptr)
+        : V_ij_(V_ij), t_(t_ptr) {}
+
+    /** Rebind state pointers (used by GGMModel copy constructor). */
+    void bind_to(const arma::mat* V_ij, const double* t_ptr) {
+        V_ij_ = V_ij;
+        t_    = t_ptr;
+    }
+
+    /** logp at zero-information value (no edge index): degenerate fallback,
+     *  used when an edge-blind caller invokes the prior. Treats the slab as
+     *  if V_ij ≡ 1, surfacing a defensive default rather than silently using
+     *  an arbitrary edge's variance. */
+    double logp(double x) const override {
+        const double s = *t_;
+        return R::dnorm(x, 0.0, s, true);
+    }
+
+    double logp(double x, int i, int j) const override {
+        const double v = (*V_ij_)(i, j);
+        const double s = *t_ * std::sqrt(v);
+        return R::dnorm(x, 0.0, s, true);
+    }
+
+    double grad(double x) const override {
+        const double s2 = (*t_) * (*t_);
+        return -x / s2;
+    }
+
+    double grad(double x, int i, int j) const override {
+        const double v = (*V_ij_)(i, j);
+        const double s2 = (*t_) * (*t_) * v;
+        return -x / s2;
+    }
+
+    std::unique_ptr<BaseParameterPrior> clone() const override {
+        // Pointers carried verbatim; caller must rebind via `bind_to`
+        // after cloning the owning model.
+        return std::make_unique<GraphicalGPrior>(*this);
+    }
+
+private:
+    const arma::mat* V_ij_;
+    const double*    t_;
+};
+
+
+// =============================================================================
+// GraphicalGDiag — Gamma diagonal prior for the Graphical G-prior with rate
+// tied to 1 / √g = 1 / t. Shape is fixed at 1 (Exponential), matching the
+// scale-matching identity that makes the GGM joint Z(Γ, g) = g^{q δ / 2} ·
+// Z̃(Γ) factor cleanly.
+//
+// Density (rate parameterisation):  p(x; 1, 1/t) = (1/t) · exp(-x / t)
+//
+// As with GraphicalGPrior, `t_` is a non-owning reference into the owning
+// GGMModel and must be rebound on clone.
+// =============================================================================
+class GraphicalGDiag final : public BaseParameterPrior {
+public:
+    explicit GraphicalGDiag(const double* t_ptr) : t_(t_ptr) {}
+
+    void bind_to(const double* t_ptr) { t_ = t_ptr; }
+
+    double logp(double x) const override {
+        const double t = *t_;
+        return R::dgamma(x, 1.0, t, true);   // dgamma uses scale = 1/rate = t
+    }
+
+    double grad(double x) const override {
+        (void)x;
+        return -1.0 / (*t_);
+    }
+
+    std::unique_ptr<BaseParameterPrior> clone() const override {
+        return std::make_unique<GraphicalGDiag>(*this);
+    }
+
+private:
+    const double* t_;
 };
 
 

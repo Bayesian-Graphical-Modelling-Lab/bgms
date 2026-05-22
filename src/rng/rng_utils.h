@@ -118,6 +118,20 @@ inline double rexp(SafeRNG& rng, double lambda) {
   return boost::random::exponential_distribution<double>(lambda)(rng.eng);
 }
 
+/**
+ * Draw from Gamma(shape, scale) — boost convention with mean = shape·scale.
+ * For the rate parameterisation Gamma(shape, rate), pass `scale = 1/rate`.
+ * Uses boost's Marsaglia–Tsang implementation under the hood.
+ *
+ * @param rng    Random number generator
+ * @param shape  Gamma shape (> 0)
+ * @param scale  Gamma scale (> 0); for rate form pass 1/rate
+ * @return A Gamma random variate
+ */
+inline double rgamma(SafeRNG& rng, double shape, double scale = 1.0) {
+  return boost::random::gamma_distribution<double>(shape, scale)(rng.eng);
+}
+
 // ============================================================
 // Armadillo RNG helpers
 // ============================================================

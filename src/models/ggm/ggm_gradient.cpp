@@ -275,7 +275,11 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
     double log_slab = 0.0;
     for (size_t q = 1; q < p_; ++q) {
         for (size_t i : structure_->columns[q].included_indices) {
-            log_slab += interaction_prior_->logp(-0.5 * K(i, q));
+            // Pass (i, q) so edgewise priors (GraphicalGPrior) can resolve
+            // V_ij; single-scale priors ignore the coords.
+            log_slab += interaction_prior_->logp(-0.5 * K(i, q),
+                                                  static_cast<int>(i),
+                                                  static_cast<int>(q));
         }
     }
 
@@ -316,7 +320,9 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
     for (size_t q = 1; q < p_; ++q) {
         for (size_t i : structure_->columns[q].included_indices) {
             double kyy_ij = -0.5 * K(i, q);
-            double d = -0.5 * interaction_prior_->grad(kyy_ij);
+            double d = -0.5 * interaction_prior_->grad(kyy_ij,
+                                                       static_cast<int>(i),
+                                                       static_cast<int>(q));
             Phi_bar.col(q).head(i + 1) += d * Phi.col(i).head(i + 1);
             Phi_bar.col(i).head(i + 1) += d * Phi.col(q).head(i + 1);
         }
