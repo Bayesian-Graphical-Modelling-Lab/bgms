@@ -120,7 +120,10 @@ run_sampler_ggm = function(spec) {
     # Prior-only mode: mute the data likelihood (n=0, S=0) after V_ij has
     # been cached. Default FALSE; set TRUE via the helper that builds the
     # prior-only chain used by summary()/coef() to compute inclusion BFs.
-    prior_only    = isTRUE(p$prior_only)
+    prior_only    = isTRUE(p$prior_only),
+    # V_ij override: if set, enable_gg_prior() skips the data-based
+    # V_ij = n / (4·S̄_ii·S̄_jj) computation and uses this matrix directly.
+    V_ij_external_nullable = p$gg_V_ij_external
   )
 
   out_raw

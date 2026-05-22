@@ -644,7 +644,8 @@ void GGMModel::enable_gg_prior(
     double tcch_b,
     double tcch_r,
     double tcch_s,
-    double tcch_u
+    double tcch_u,
+    const arma::mat& V_ij_override
 ) {
     if (g_init <= 0.0 || !std::isfinite(g_init)) {
         throw std::invalid_argument(
@@ -662,7 +663,16 @@ void GGMModel::enable_gg_prior(
     // but the hyperprior on g still references the data-defined sample size.
     n_at_gg_setup_ = static_cast<int>(n_);
 
-    compute_gg_V_ij_();
+    if (V_ij_override.is_empty()) {
+        compute_gg_V_ij_();
+    } else {
+        if (V_ij_override.n_rows != static_cast<arma::uword>(p_) ||
+            V_ij_override.n_cols != static_cast<arma::uword>(p_)) {
+            throw std::invalid_argument(
+                "enable_gg_prior: V_ij_override must be a p x p matrix.");
+        }
+        V_ij_ = V_ij_override;
+    }
 
     // Replace user-supplied priors with GG-bound versions. The user-supplied
     // priors are silently dropped; sample_ggm warns at the R level when a

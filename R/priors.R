@@ -226,7 +226,8 @@ graphical_g_prior = function(
   b       = 1,
   tcch    = list(a = 1, b = 1, r = 0, s = 0, u = 1),
   g_fixed = 1,
-  g_init  = 1
+  g_init  = 1,
+  V_ij_external = NULL
 ) {
   g_hyperprior = match.arg(g_hyperprior)
 
@@ -243,6 +244,24 @@ graphical_g_prior = function(
   validate_pos(g_init,  "g_init")
   if((g_hyperprior == "hyper_g" || g_hyperprior == "hyper_g_over_n") && a <= 2) {
     stop("'a' must be > 2 for hyper_g and hyper_g_over_n.")
+  }
+
+  # V_ij_external: overrides the data-computed V_ij at fit time. Used by
+  # the conditional SBC for the joint-spec GG-prior (generator and fitter
+  # share V_ref). Validation: must be a square matrix with positive
+  # off-diagonal entries; p is checked against the data at bgm() time.
+  if(!is.null(V_ij_external)) {
+    if(!is.matrix(V_ij_external) || !is.numeric(V_ij_external) ||
+       nrow(V_ij_external) != ncol(V_ij_external)) {
+      stop("'V_ij_external' must be a square numeric matrix.")
+    }
+    if(any(!is.finite(V_ij_external))) {
+      stop("'V_ij_external' must contain only finite values.")
+    }
+    off = V_ij_external[upper.tri(V_ij_external)]
+    if(any(off <= 0)) {
+      stop("'V_ij_external' must have positive off-diagonal entries.")
+    }
   }
 
   # Validate the tCCH hyperparameter list. Only enforced when the user
@@ -278,7 +297,8 @@ graphical_g_prior = function(
         tcch         = list(a = tcch$a, b = tcch$b,
                             r = tcch$r, s = tcch$s, u = tcch$u),
         g_fixed      = g_fixed,
-        g_init       = g_init
+        g_init       = g_init,
+        V_ij_external = V_ij_external
       )
     ),
     class = c("bgms_graphical_g_prior",
@@ -737,7 +757,8 @@ unpack_interaction_prior = function(prior) {
       gg_tcch_s              = gg_s,
       gg_tcch_u              = gg_u,
       gg_g_fixed             = hp$g_fixed,
-      gg_g_init              = hp$g_init
+      gg_g_init              = hp$g_init,
+      gg_V_ij_external       = hp$V_ij_external
     ))
   }
   pp = unpack_parameter_prior(prior)

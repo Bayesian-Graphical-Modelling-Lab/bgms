@@ -264,6 +264,7 @@ bgm_spec = function(x,
                     gg_tcch_u     = NULL,
                     gg_g_fixed    = NULL,
                     gg_g_init     = NULL,
+                    gg_V_ij_external = NULL,
                     threshold_prior_type = "beta-prime",
                     main_alpha = 0.5,
                     main_beta = 0.5,
@@ -473,6 +474,7 @@ bgm_spec = function(x,
       gg_tcch_u     = gg_tcch_u,
       gg_g_fixed    = gg_g_fixed,
       gg_g_init     = gg_g_init,
+      gg_V_ij_external = gg_V_ij_external,
       scale_prior_type = scale_prior_type,
       scale_shape = scale_shape,
       scale_rate = scale_rate,
@@ -575,6 +577,7 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
                           gg_tcch_u     = NULL,
                           gg_g_fixed    = NULL,
                           gg_g_init     = NULL,
+                          gg_V_ij_external = NULL,
                           scale_prior_type, scale_shape, scale_rate,
                           delta = 0,
                           edge_prior_flat) {
@@ -587,6 +590,18 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
 
   # Center continuous data (GGM likelihood assumes zero mean)
   x = center_continuous_data(x)
+
+  # If a V_ij override was supplied through graphical_g_prior(), check
+  # its dimensions against the data here (the prior constructor only
+  # checked the matrix structure, not the data dimension).
+  if(!is.null(gg_V_ij_external)) {
+    p_data = as.integer(ncol(x))
+    if(nrow(gg_V_ij_external) != p_data ||
+       ncol(gg_V_ij_external) != p_data) {
+      stop(sprintf("V_ij_external is %d x %d but data has p = %d columns.",
+                   nrow(gg_V_ij_external), ncol(gg_V_ij_external), p_data))
+    }
+  }
 
   ep = edge_prior_flat
 
@@ -622,6 +637,7 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
       gg_tcch_u     = gg_tcch_u,
       gg_g_fixed    = gg_g_fixed,
       gg_g_init     = gg_g_init,
+      gg_V_ij_external = gg_V_ij_external,
       scale_prior_type = scale_prior_type,
       scale_shape = scale_shape,
       scale_rate = scale_rate,

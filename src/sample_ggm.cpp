@@ -47,7 +47,8 @@ Rcpp::List sample_ggm(
     const double       gg_tcch_u  = 1.0,
     const double       gg_g_fixed = 1.0,
     const double       gg_g_init  = 1.0,
-    const bool         prior_only = false
+    const bool         prior_only = false,
+    const Rcpp::Nullable<Rcpp::NumericMatrix> V_ij_external_nullable = R_NilValue
 ) {
 
     // Create parameter priors from R input.
@@ -130,8 +131,14 @@ Rcpp::List sample_ggm(
         } else {
             Rcpp::stop("Unknown gg_hyperprior: '%s'", gg_hyperprior.c_str());
         }
+        arma::mat V_ext;
+        if (V_ij_external_nullable.isNotNull()) {
+            V_ext = Rcpp::as<arma::mat>(
+                Rcpp::NumericMatrix(V_ij_external_nullable.get()));
+        }
         model.enable_gg_prior(hp, g_init_used, gg_a0, gg_b0,
-                              gg_tcch_r, gg_tcch_s, gg_tcch_u);
+                              gg_tcch_r, gg_tcch_s, gg_tcch_u,
+                              V_ext);
     }
 
     // Prior-only mode: mute the data likelihood AFTER enable_gg_prior has

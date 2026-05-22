@@ -279,7 +279,8 @@ public:
         double tcch_b       = 1.0,
         double tcch_r       = 0.0,
         double tcch_s       = 0.0,
-        double tcch_u       = 1.0);
+        double tcch_u       = 1.0,
+        const arma::mat& V_ij_override = arma::mat());
 
     bool gg_prior_enabled() const { return use_gg_prior_; }
     double gg_current_t()  const { return t_; }

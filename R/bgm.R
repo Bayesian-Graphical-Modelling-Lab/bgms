@@ -507,6 +507,7 @@ bgm = function(
     gg_tcch_u     = ip$gg_tcch_u,
     gg_g_fixed    = ip$gg_g_fixed,
     gg_g_init     = ip$gg_g_init,
+    gg_V_ij_external = ip$gg_V_ij_external,
     threshold_prior_type = tp$threshold_prior_type,
     main_alpha = tp$main_alpha,
     main_beta = tp$main_beta,
