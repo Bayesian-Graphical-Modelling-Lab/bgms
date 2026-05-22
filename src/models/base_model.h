@@ -130,6 +130,16 @@ public:
     }
 
     /**
+     * Per-chain diagnostic summary captured once at the end of the chain.
+     * Default is an empty list; models override to return counters / state
+     * that aren't naturally per-iteration. Used by run_mcmc_chain to plumb
+     * GGMModel's hierarchical auto-reject counters into ChainResult.
+     */
+    virtual Rcpp::List get_diagnostics_summary() const {
+        return Rcpp::List::create();
+    }
+
+    /**
      * Set the target Metropolis acceptance rate for Robbins-Monro proposal
      * adaptation. Called by the sampler entry points (sample_omrf,
      * sample_mixed_mrf, sample_ggm) before the MCMC loop, with the value

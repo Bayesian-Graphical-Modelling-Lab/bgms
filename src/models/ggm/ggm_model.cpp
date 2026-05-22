@@ -5,8 +5,27 @@
 #include "mcmc/execution/step_result.h"
 #include "mcmc/execution/warmup_schedule.h"
 #include "models/ggm/log_z_nlo.h"
+#include "models/ggm/manuscript_nlo.h"
 #include "models/ggm/z_ratio_estimator.h"
 #include <stdexcept>
+
+// ----------------------------------------------------------------------
+// log_Z_NLO closed-form selector. Returns the centring log Z_NLO at G:
+//   - manuscript App C NLO (eq:NLO-decomp) when use_manuscript_nlo_ && α=1
+//   - bgms's pre-2026-05-21 log_Z_NLO_gamma otherwise (also the fallback
+//     at α ≠ 1, where the manuscript form's Na/Nb/Nc terms are not ported).
+// File-local helper so it doesn't pollute the GGMModel public API.
+// ----------------------------------------------------------------------
+static inline double compute_log_Z_NLO_centre(
+    const arma::imat& G,
+    double alpha, double beta, double sigma, double delta,
+    bool use_manuscript
+) {
+    if (use_manuscript && alpha == 1.0) {
+        return ggm_nlo::log_Z_manuscript_NLO_alpha1(G, beta, sigma, delta);
+    }
+    return log_Z_NLO_gamma(G, alpha, beta, sigma, /*include_F=*/false, delta);
+}
 
 // =====================================================================
 // NUTS gradient support
@@ -911,21 +930,25 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         double V_star_log_abs_for_diag = std::numeric_limits<double>::quiet_NaN();
         bool hier_active = (graph_prior_spec_ == GraphPriorSpec::Hierarchical);
         if (hier_active) {
+            ++n_hier_del_attempts_;
             ensure_hierarchical_state_();
             // Γ_star: this branch DELETES edge (i, j).
             arma::imat G_star = edge_indicators_;
             G_star(i, j) = 0;
             G_star(j, i) = 0;
-            // log_Z_NLO_star via the cheap incremental at α=1, full otherwise.
-            if (prior_alpha_ == 1.0) {
+            // log_Z_NLO_star via the cheap O(deg²) incremental at α=1 under
+            // the default formula; full-recompute when use_manuscript_nlo_ is
+            // set (no manuscript-incremental ported yet). At α ≠ 1 the
+            // selector falls back to bgms's formula either way.
+            if (prior_alpha_ == 1.0 && !use_manuscript_nlo_) {
                 double d = log_Z_NLO_gamma_delta_incr_alpha1(
                     edge_indicators_, static_cast<int>(i), static_cast<int>(j),
                     prior_beta_, prior_sigma_, determinant_tilt_, false);
                 log_Z_NLO_star = log_Z_NLO_curr_ + d;
             } else {
-                log_Z_NLO_star = log_Z_NLO_gamma(
+                log_Z_NLO_star = compute_log_Z_NLO_centre(
                     G_star, prior_alpha_, prior_beta_, prior_sigma_,
-                    false, determinant_tilt_);
+                    determinant_tilt_, use_manuscript_nlo_);
             }
             // V evaluated under the DEGORD permutation π that sends (i, j)
             // to (q-2, q-1).
@@ -958,6 +981,8 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
                 current_sign_V_     = V_pair.curr.second;
                 current_log_abs_V_  = V_pair.curr.first;
                 v_diag_initialized_ = true;
+                last_v_pi_i_ = static_cast<int>(i);
+                last_v_pi_j_ = static_cast<int>(j);
             }
             V_star_sign_for_diag    = V_pair.star.second;
             V_star_log_abs_for_diag = V_pair.star.first;
@@ -968,6 +993,15 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
             if (!std::isfinite(V_pair.curr.first) || V_pair.curr.second == 0 ||
                 !std::isfinite(V_pair.star.first) || V_pair.star.second == 0 ||
                 V_pair.curr.second != V_pair.star.second) {
+                // Classify the auto-reject for diagnostics.
+                if (!std::isfinite(V_pair.curr.first) ||
+                    !std::isfinite(V_pair.star.first)) {
+                    ++n_hier_del_nonfinite_;
+                } else if (V_pair.curr.second == 0 || V_pair.star.second == 0) {
+                    ++n_hier_del_signzero_;
+                } else {
+                    ++n_hier_del_signflip_;
+                }
                 ln_alpha = -std::numeric_limits<double>::infinity();
             } else {
                 ln_alpha += V_pair.star.first - V_pair.curr.first;
@@ -999,6 +1033,8 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
                 current_sign_V_    = V_star_sign_for_diag;
                 current_log_abs_V_ = V_star_log_abs_for_diag;
                 v_diag_initialized_ = true;
+                last_v_pi_i_ = static_cast<int>(i);
+                last_v_pi_j_ = static_cast<int>(j);
             }
         }
 
@@ -1058,19 +1094,20 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         double V_star_log_abs_for_diag_add = std::numeric_limits<double>::quiet_NaN();
         bool hier_active_add = (graph_prior_spec_ == GraphPriorSpec::Hierarchical);
         if (hier_active_add) {
+            ++n_hier_add_attempts_;
             ensure_hierarchical_state_();
             arma::imat G_star = edge_indicators_;
             G_star(i, j) = 1;
             G_star(j, i) = 1;
-            if (prior_alpha_ == 1.0) {
+            if (prior_alpha_ == 1.0 && !use_manuscript_nlo_) {
                 double d = log_Z_NLO_gamma_delta_incr_alpha1(
                     edge_indicators_, static_cast<int>(i), static_cast<int>(j),
                     prior_beta_, prior_sigma_, determinant_tilt_, false);
                 log_Z_NLO_star_add = log_Z_NLO_curr_ + d;
             } else {
-                log_Z_NLO_star_add = log_Z_NLO_gamma(
+                log_Z_NLO_star_add = compute_log_Z_NLO_centre(
                     G_star, prior_alpha_, prior_beta_, prior_sigma_,
-                    false, determinant_tilt_);
+                    determinant_tilt_, use_manuscript_nlo_);
             }
             arma::ivec pi = degord::degord_permutation(
                 static_cast<int>(p_), static_cast<int>(i), static_cast<int>(j));
@@ -1092,12 +1129,22 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
                 current_sign_V_     = V_pair.curr.second;
                 current_log_abs_V_  = V_pair.curr.first;
                 v_diag_initialized_ = true;
+                last_v_pi_i_ = static_cast<int>(i);
+                last_v_pi_j_ = static_cast<int>(j);
             }
             V_star_sign_for_diag_add    = V_pair.star.second;
             V_star_log_abs_for_diag_add = V_pair.star.first;
             if (!std::isfinite(V_pair.curr.first) || V_pair.curr.second == 0 ||
                 !std::isfinite(V_pair.star.first) || V_pair.star.second == 0 ||
                 V_pair.curr.second != V_pair.star.second) {
+                if (!std::isfinite(V_pair.curr.first) ||
+                    !std::isfinite(V_pair.star.first)) {
+                    ++n_hier_add_nonfinite_;
+                } else if (V_pair.curr.second == 0 || V_pair.star.second == 0) {
+                    ++n_hier_add_signzero_;
+                } else {
+                    ++n_hier_add_signflip_;
+                }
                 ln_alpha = -std::numeric_limits<double>::infinity();
             } else {
                 ln_alpha += V_pair.star.first - V_pair.curr.first;
@@ -1115,6 +1162,8 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
                 current_sign_V_    = V_star_sign_for_diag_add;
                 current_log_abs_V_ = V_star_log_abs_for_diag_add;
                 v_diag_initialized_ = true;
+                last_v_pi_i_ = static_cast<int>(i);
+                last_v_pi_j_ = static_cast<int>(j);
             }
 
             // Update omega
@@ -1180,11 +1229,30 @@ void GGMModel::prepare_iteration() {
     // Shuffle edge visit order for random-scan edge selection.
     // Called unconditionally to keep RNG state consistent.
     shuffled_edge_order_ = arma_randperm(rng_, num_pairwise_);
-    // Refresh the V/RR U-pool once per iteration (mirrors the z chain's
-    // refresh_U_every = 1 convention).
+    // Refresh the V/RR U-pool at iteration start.
+    //   Legacy (mh_U_ = false): unconditional draw from μ(U). This breaks
+    //     PMMH invariance on (Γ, K, U, N) — the conditional under the
+    //     augmented target is V·μ, not μ alone — and yields a small Γ-
+    //     marginal bias (~−0.001 nats at p=20, p_inc=0.05).
+    //   Fixed (mh_U_ = true): V-ratio MH step on U, accepting on
+    //     log|V_new| − log|V_old|. Companion-AI delivery 2026-05-21.
+    //   On the very first prepare_iteration after lazy init, the state has
+    //     just been seeded with a fresh U via ensure_hierarchical_state_();
+    //     no comparison is possible, so we skip the MH step and treat the
+    //     init draw as the iteration-0 U.
     if (graph_prior_spec_ == GraphPriorSpec::Hierarchical) {
+        bool was_built = hierarchical_state_built_;
         ensure_hierarchical_state_();
-        refresh_z_ratio_pool_();
+        if (!was_built) {
+            // First iteration: state seeded by ensure_hierarchical_state_;
+            // nothing more to do.
+            return;
+        }
+        if (mh_U_) {
+            mh_on_U_step_();
+        } else {
+            refresh_z_ratio_pool_();
+        }
     }
 }
 
@@ -1239,9 +1307,12 @@ void GGMModel::ensure_hierarchical_state_() {
     // Analytic centring at the current Γ (full-recompute; the incremental
     // form is only used on accept). Use F = false to match the production
     // convention (NLO without the F-piece — the F overcorrects at α > 1).
-    log_Z_NLO_curr_ = log_Z_NLO_gamma(
+    // The selector picks the manuscript App C NLO at α = 1 when the
+    // use_manuscript_nlo_ flag is set; otherwise it uses bgms's pre-
+    // 2026-05-21 log_Z_NLO_gamma.
+    log_Z_NLO_curr_ = compute_log_Z_NLO_centre(
         edge_indicators_, prior_alpha_, prior_beta_, prior_sigma_,
-        /*include_F=*/false, delta);
+        delta, use_manuscript_nlo_);
 
     refresh_z_ratio_pool_();
     hierarchical_state_built_ = true;
@@ -1251,6 +1322,91 @@ void GGMModel::ensure_hierarchical_state_() {
 void GGMModel::refresh_z_ratio_pool_() {
     degord::draw_U_degord_rr(
         rng_, v_K_depth_, v_pools_t_, v_M_inner_, static_cast<int>(p_), v_rho_);
+}
+
+
+// MH step on (U, K_depth) at the augmented target. The proposal is a fresh
+// draw from μ(U)·P(N), so the proposal density on the forward and reverse
+// move cancels and the MH ratio reduces to V_new / V_old. Auto-rejects on
+// any non-finite log|V| or sign(V_new) ≠ sign(V_old) — same convention as
+// the between-Γ MH (deferred Lyne sign accumulator). Choice of permutation
+// π: arbitrary; any π yields an unbiased V estimator. We pick π = (0, 1)
+// for simplicity (gives the canonical degord reordering that maps the first
+// two vertices to themselves).
+void GGMModel::mh_on_U_step_() {
+    if (graph_prior_spec_ != GraphPriorSpec::Hierarchical) return;
+
+    ++n_mh_U_attempts_;
+
+    // V_old at (Γ_curr, U_old). Reuse the cached running V state when it's
+    // available: the between-Γ MH stores V evaluated at the last-toggled
+    // edge's DEGORD permutation π_{last_v_pi_i_, last_v_pi_j_}, and the V
+    // estimator is unbiased under any permutation. Reusing the cache skips
+    // a full V_log_at_Gamma_pi_degord call — which dominates per-iter cost
+    // when K_depth is large.
+    //
+    // If the cache hasn't been seeded yet (first iteration with no finite
+    // V_pair), fall back to recomputing V_old at the canonical π = (0, 1).
+    double log_c = std::log(v_kappa_) + log_Z_NLO_curr_;
+    int    pi_i, pi_j;
+    std::pair<double, int> V_old;
+    if (v_diag_initialized_) {
+        V_old = { current_log_abs_V_, current_sign_V_ };
+        pi_i = last_v_pi_i_;
+        pi_j = last_v_pi_j_;
+    } else {
+        pi_i = 0;
+        pi_j = 1;
+        arma::ivec pi_canon = degord::degord_permutation(
+            static_cast<int>(p_), pi_i, pi_j);
+        arma::imat G_pi_canon = degord::permute_graph(edge_indicators_, pi_canon);
+        V_old = degord::V_log_at_Gamma_pi_degord(
+            v_K_depth_, v_pools_t_, G_pi_canon, chain_aux_degord_,
+            log_c, v_rho_);
+    }
+
+    // Proposal: fresh U_new ~ μ, K_depth_new ~ P(N).
+    int K_depth_new;
+    std::vector<arma::mat> pools_new;
+    degord::draw_U_degord_rr(
+        rng_, K_depth_new, pools_new, v_M_inner_, static_cast<int>(p_), v_rho_);
+
+    // V_new at (Γ_curr, U_new) evaluated under the SAME π as the cached V_old.
+    arma::ivec pi_vec = degord::degord_permutation(
+        static_cast<int>(p_), pi_i, pi_j);
+    arma::imat G_pi_curr = degord::permute_graph(edge_indicators_, pi_vec);
+    auto V_new = degord::V_log_at_Gamma_pi_degord(
+        K_depth_new, pools_new, G_pi_curr, chain_aux_degord_,
+        log_c, v_rho_);
+
+    // Auto-reject paths.
+    if (!std::isfinite(V_old.first) || !std::isfinite(V_new.first)) {
+        ++n_mh_U_nonfinite_;
+        return;
+    }
+    if (V_old.second == 0 || V_new.second == 0) {
+        ++n_mh_U_signzero_;
+        return;
+    }
+    if (V_old.second != V_new.second) {
+        ++n_mh_U_signflip_;
+        return;
+    }
+
+    double log_alpha = V_new.first - V_old.first;
+    if (MY_LOG(runif(rng_)) < log_alpha) {
+        // Accept: install proposed pool and update running V state to V_new.
+        // last_v_pi_i_ / last_v_pi_j_ already point at this π, so they don't
+        // need updating.
+        v_pools_t_ = std::move(pools_new);
+        v_K_depth_ = K_depth_new;
+        current_log_abs_V_ = V_new.first;
+        current_sign_V_    = V_new.second;
+        v_diag_initialized_ = true;
+        ++n_mh_U_accepts_;
+    }
+    // Reject: current_log_abs_V_ / current_sign_V_ already correspond to
+    // (Γ_curr, U_old) under last_v_pi_i_,last_v_pi_j_; nothing to update.
 }
 
 

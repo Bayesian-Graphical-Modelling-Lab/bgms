@@ -153,6 +153,8 @@ public:
           determinant_tilt_(other.determinant_tilt_),
           graph_prior_spec_(other.graph_prior_spec_),
           hierarchical_state_built_(false),
+          use_manuscript_nlo_(other.use_manuscript_nlo_),
+          mh_U_(other.mh_U_),
           v_M_inner_(other.v_M_inner_),
           v_kappa_(other.v_kappa_),
           v_rho_(other.v_rho_),
@@ -273,6 +275,44 @@ public:
      * rho=0.5. Only consumed when graph_prior_spec_ == Hierarchical.
      */
     void set_z_ratio_tuning(int M_inner, double kappa, double rho);
+
+    /**
+     * Select the analytic NLO formula used as the RR centring in the
+     * between-Γ MH ratio. `false` (default) keeps the pre-2026-05-21 bgms
+     * formula (log_Z_NLO_gamma). `true` switches to the manuscript App C
+     * NLO (eq:NLO-decomp; ~/SV/Z/notes/2026-05-21_message-to-bgms-companion-NLO-fix.md).
+     * The manuscript form drops the `(ν_i + α) / M_v[i]` factor in B_e
+     * compared to bgms's existing formula; at α=1, δ=0 the two coincide
+     * bit-exactly, with divergence growing with δ. Only consumed under
+     * Hierarchical graph_prior_spec and α=1; at α ≠ 1 the flag is a no-op
+     * (manuscript Na/Nb/Nc terms are not ported yet).
+     */
+    void set_use_manuscript_nlo(bool on) { use_manuscript_nlo_ = on; }
+    bool use_manuscript_nlo() const { return use_manuscript_nlo_; }
+
+    /**
+     * Enable a Metropolis–Hastings step on the auxiliary U-pool at the start
+     * of each iteration in place of the legacy "draw U fresh from μ".
+     *
+     * Background: the chain is a block PMMH on (Γ, K, U, N) targeting
+     * π(Γ, K) · V(U, N) · μ(U) · P(N). Under that target, p(U | Γ, K) is
+     * proportional to V(U; Γ, K) · μ(U) — NOT μ(U) alone. Refreshing U
+     * by a fresh draw from μ skips the V-tilt and breaks invariance;
+     * empirically this yields a small but systematic Γ-marginal bias
+     * (~−0.001 nats at p=20, p_inc=0.05; 5/5 seeds same sign in our
+     * tests).
+     *
+     * With this flag, the U-refresh is replaced by a proper MH step:
+     * propose U_new ~ μ, N_new ~ P(N) and accept with log α =
+     * log|V(Γ, U_new)| − log|V(Γ, U_old)| (μ, P(N) cancel by proposal
+     * symmetry). Cross-implementation experiments confirm this collapses
+     * the bias to MC noise (companion-AI delivery 2026-05-21).
+     *
+     * Default `false` preserves the pre-2026-05-21 chain and SBC-clean
+     * baselines.
+     */
+    void set_mh_U(bool on) { mh_U_ = on; }
+    bool mh_U() const { return mh_U_; }
 
     /** Shuffle edge visit order (random scan). */
     void prepare_iteration() override;
@@ -551,6 +591,13 @@ private:
     // marginal Γ target π(Γ)·Z(Γ) into the user-specified π(Γ).
     GraphPriorSpec graph_prior_spec_ = GraphPriorSpec::Joint;
     bool   hierarchical_state_built_ = false;
+    // Toggle for the manuscript App C NLO closed form (see
+    // set_use_manuscript_nlo). Default `false` preserves the pre-2026-05-21
+    // bgms formula and the SBC-clean baselines built on it.
+    bool   use_manuscript_nlo_ = false;
+    // Toggle for the MH-on-U fix at sweep boundary (see set_mh_U). Default
+    // `false` preserves the legacy fresh-from-μ refresh.
+    bool   mh_U_ = false;
     int    v_M_inner_ = 100;
     double v_kappa_   = 1.0;
     double v_rho_     = 0.5;
@@ -576,6 +623,66 @@ private:
     int    current_sign_V_     = 1;
     double current_log_abs_V_  = std::numeric_limits<double>::quiet_NaN();
     bool   v_diag_initialized_ = false;
+    // Endpoints of the toggle whose DEGORD permutation π_{i,j} was last used
+    // to evaluate the cached V state (current_log_abs_V_, current_sign_V_).
+    // mh_on_U_step_ reuses this permutation so V_old can be read from the
+    // cache rather than recomputed. Initialised to (0, 1) — the canonical
+    // permutation — so mh_U is well-defined even if no toggle has fired yet.
+    int    last_v_pi_i_ = 0;
+    int    last_v_pi_j_ = 1;
+
+    // ---- Hierarchical-spec auto-reject counters ----
+    // Counters for the between-Γ MH step's auto-reject sentinel. Incremented
+    // inside update_edge_indicator_parameter_pair whenever the V/RR machinery
+    // forces ln_alpha = -inf. Each proposal is classified into one of three
+    // failure modes:
+    //   *_nonfinite : non-finite log|V| at Γ_curr or Γ_star (V = 0 or RR
+    //                 underflow / overflow).
+    //   *_signzero  : sign(V) == 0 sentinel at Γ_curr or Γ_star.
+    //   *_signflip  : both signs are finite and non-zero but differ — the
+    //                 deferred Lyne sign-corrected weighting would handle
+    //                 this; the current chain auto-rejects.
+    // Counters survive across iterations (cumulative); read once at end of
+    // chain via get_diagnostics_summary().
+    mutable long long n_hier_add_attempts_   = 0;
+    mutable long long n_hier_add_nonfinite_  = 0;
+    mutable long long n_hier_add_signzero_   = 0;
+    mutable long long n_hier_add_signflip_   = 0;
+    mutable long long n_hier_del_attempts_   = 0;
+    mutable long long n_hier_del_nonfinite_  = 0;
+    mutable long long n_hier_del_signzero_   = 0;
+    mutable long long n_hier_del_signflip_   = 0;
+
+    // MH-on-U counters (set_mh_U fix). Each iteration's start adds one to
+    // n_mh_U_attempts_ (after lazy init), plus exactly one of accepts or
+    // the failure-mode counters.
+    mutable long long n_mh_U_attempts_   = 0;
+    mutable long long n_mh_U_accepts_    = 0;
+    mutable long long n_mh_U_nonfinite_  = 0;
+    mutable long long n_mh_U_signzero_   = 0;
+    mutable long long n_mh_U_signflip_   = 0;
+
+  public:
+    /// @inheritdoc
+    Rcpp::List get_diagnostics_summary() const override {
+        return Rcpp::List::create(
+            Rcpp::Named("hier_add_attempts")  = static_cast<double>(n_hier_add_attempts_),
+            Rcpp::Named("hier_add_nonfinite") = static_cast<double>(n_hier_add_nonfinite_),
+            Rcpp::Named("hier_add_signzero")  = static_cast<double>(n_hier_add_signzero_),
+            Rcpp::Named("hier_add_signflip")  = static_cast<double>(n_hier_add_signflip_),
+            Rcpp::Named("hier_del_attempts")  = static_cast<double>(n_hier_del_attempts_),
+            Rcpp::Named("hier_del_nonfinite") = static_cast<double>(n_hier_del_nonfinite_),
+            Rcpp::Named("hier_del_signzero")  = static_cast<double>(n_hier_del_signzero_),
+            Rcpp::Named("hier_del_signflip")  = static_cast<double>(n_hier_del_signflip_),
+            Rcpp::Named("mh_U_attempts")      = static_cast<double>(n_mh_U_attempts_),
+            Rcpp::Named("mh_U_accepts")       = static_cast<double>(n_mh_U_accepts_),
+            Rcpp::Named("mh_U_nonfinite")     = static_cast<double>(n_mh_U_nonfinite_),
+            Rcpp::Named("mh_U_signzero")      = static_cast<double>(n_mh_U_signzero_),
+            Rcpp::Named("mh_U_signflip")      = static_cast<double>(n_mh_U_signflip_)
+        );
+    }
+
+  private:
 
     /// Lazy initialiser for the V/RR machinery. Validates prior family,
     /// builds chain_aux_degord_, computes log_Z_NLO_curr_ via full-recompute,
@@ -583,6 +690,10 @@ private:
     void ensure_hierarchical_state_();
     /// Draw a fresh (K_depth, pools_t) U for the V estimator.
     void refresh_z_ratio_pool_();
+    /// MH step on (U, K_depth) using a fresh draw from μ as proposal. Accepts
+    /// on log|V(Γ_curr; U_new)| − log|V(Γ_curr; U_old)|; μ and P(N) cancel by
+    /// proposal symmetry. Companion-AI delivery 2026-05-21 (see set_mh_U).
+    void mh_on_U_step_();
 
     /** Extract upper triangle of the precision matrix into a vector. */
     arma::vec extract_upper_triangle() const {

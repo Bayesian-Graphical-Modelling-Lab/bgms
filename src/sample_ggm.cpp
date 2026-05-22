@@ -42,7 +42,9 @@ Rcpp::List sample_ggm(
     const std::string& graph_prior_spec = "joint",
     const int    z_ratio_M_inner = 100,
     const double z_ratio_kappa   = 1.0,
-    const double z_ratio_rho     = 0.5
+    const double z_ratio_rho     = 0.5,
+    const bool   use_manuscript_nlo = false,
+    const bool   mh_U = false
 ) {
 
     // Create parameter priors from R input
@@ -95,6 +97,8 @@ Rcpp::List sample_ggm(
     // π(Γ). Requires Normal slab + Gamma diagonal (validated at lazy init).
     if (graph_prior_spec == "hierarchical") {
         model.set_z_ratio_tuning(z_ratio_M_inner, z_ratio_kappa, z_ratio_rho);
+        model.set_use_manuscript_nlo(use_manuscript_nlo);
+        model.set_mh_U(mh_U);
         model.set_graph_prior_spec(GraphPriorSpec::Hierarchical);
     } else if (graph_prior_spec != "joint") {
         Rcpp::stop("graph_prior_spec must be 'joint' or 'hierarchical'.");

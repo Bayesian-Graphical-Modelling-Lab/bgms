@@ -4,6 +4,7 @@
 
 #include <RcppArmadillo.h>
 #include "models/ggm/log_z_nlo.h"
+#include "models/ggm/manuscript_nlo.h"
 #include "models/ggm/degord_sampler.h"
 #include "models/ggm/z_ratio_estimator.h"
 #include "models/ggm/ggm_model.h"
@@ -18,6 +19,30 @@ double log_Z_NLO_gamma_cpp(
     double delta = 0.0
 ) {
     return log_Z_NLO_gamma(G, alpha, beta, sigma, include_F, delta);
+}
+
+
+// Manuscript App C NLO at alpha = 1 (companion-AI delivery 2026-05-21).
+// Tracks ~/SV/Z/R/src/manuscript_NLO.h::log_Z_manuscript_NLO_alpha1.
+//
+// [[Rcpp::export]]
+double log_Z_manuscript_NLO_alpha1_cpp(
+    const arma::imat& G,
+    double beta, double sigma, double delta
+) {
+    return ggm_nlo::log_Z_manuscript_NLO_alpha1(G, beta, sigma, delta);
+}
+
+
+// Manuscript NLO under DEGORD reordering (relabel toggle (i, j) -> (0, 1)).
+//
+// [[Rcpp::export]]
+double log_Z_manuscript_NLO_alpha1_degord_cpp(
+    const arma::imat& G, int i, int j,
+    double beta, double sigma, double delta
+) {
+    return ggm_nlo::log_Z_manuscript_NLO_alpha1_degord(
+        G, i, j, beta, sigma, delta);
 }
 
 
@@ -289,7 +314,8 @@ Rcpp::List ggm_hierarchical_smoke_cpp(
     double kappa,
     double rho,
     int    n_sweeps,
-    int    seed
+    int    seed,
+    bool   use_manuscript_nlo = false
 ) {
     int p = observations.n_cols;
     arma::mat inclusion_probability(p, p, arma::fill::value(inclusion_prob));
@@ -311,6 +337,7 @@ Rcpp::List ggm_hierarchical_smoke_cpp(
     model.set_seed(seed);
     model.set_determinant_tilt(delta);
     model.set_z_ratio_tuning(M_inner, kappa, rho);
+    model.set_use_manuscript_nlo(use_manuscript_nlo);
     model.set_graph_prior_spec(GraphPriorSpec::Hierarchical);
 
     arma::ivec n_edges(n_sweeps, arma::fill::zeros);

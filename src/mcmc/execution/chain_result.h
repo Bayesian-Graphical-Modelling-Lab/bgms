@@ -69,6 +69,12 @@ public:
     /// spec GGM chains).
     bool        has_v_ratio_diagnostics = false;
 
+    /// End-of-chain model diagnostics snapshot (model.get_diagnostics_summary()).
+    /// Default-constructed empty list; populated once at the end of
+    /// run_mcmc_chain. Used by GGMModel to surface hierarchical auto-reject
+    /// counters.
+    Rcpp::List  diagnostics_summary = Rcpp::List::create();
+
     /**
      * Reserve storage for samples
      * @param param_dim  Number of parameters per sample

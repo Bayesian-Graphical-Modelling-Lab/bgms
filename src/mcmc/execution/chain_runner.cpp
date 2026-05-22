@@ -114,6 +114,10 @@ void run_mcmc_chain(
         }
     }
 
+    // Capture end-of-chain diagnostic snapshot from the model. For GGMModel
+    // this surfaces the hierarchical auto-reject counters; for other models
+    // the override returns an empty list and we just store that.
+    chain_result.diagnostics_summary = model.get_diagnostics_summary();
 }
 
 
@@ -246,6 +250,10 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
             if (chain.has_v_ratio_diagnostics) {
                 chain_list["v_sign"]    = chain.v_sign_samples;
                 chain_list["v_log_abs"] = chain.v_log_abs_samples;
+            }
+
+            if (chain.diagnostics_summary.size() > 0) {
+                chain_list["diagnostics_summary"] = chain.diagnostics_summary;
             }
         }
 

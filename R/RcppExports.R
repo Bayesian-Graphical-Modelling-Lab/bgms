@@ -57,6 +57,14 @@ log_Z_NLO_gamma_cpp <- function(G, alpha, beta, sigma, include_F = FALSE, delta 
     .Call(`_bgms_log_Z_NLO_gamma_cpp`, G, alpha, beta, sigma, include_F, delta)
 }
 
+log_Z_manuscript_NLO_alpha1_cpp <- function(G, beta, sigma, delta) {
+    .Call(`_bgms_log_Z_manuscript_NLO_alpha1_cpp`, G, beta, sigma, delta)
+}
+
+log_Z_manuscript_NLO_alpha1_degord_cpp <- function(G, i, j, beta, sigma, delta) {
+    .Call(`_bgms_log_Z_manuscript_NLO_alpha1_degord_cpp`, G, i, j, beta, sigma, delta)
+}
+
 log_Z_NLO_gamma_degord_cpp <- function(G, i, j, alpha, beta, sigma, include_F = FALSE, delta = 0.0) {
     .Call(`_bgms_log_Z_NLO_gamma_degord_cpp`, G, i, j, alpha, beta, sigma, include_F, delta)
 }
@@ -113,8 +121,8 @@ degord_draw_U_rr_cpp <- function(M_inner, q, rho, seed) {
     .Call(`_bgms_degord_draw_U_rr_cpp`, M_inner, q, rho, seed)
 }
 
-ggm_hierarchical_smoke_cpp <- function(observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, M_inner, kappa, rho, n_sweeps, seed) {
-    .Call(`_bgms_ggm_hierarchical_smoke_cpp`, observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, M_inner, kappa, rho, n_sweeps, seed)
+ggm_hierarchical_smoke_cpp <- function(observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, M_inner, kappa, rho, n_sweeps, seed, use_manuscript_nlo = FALSE) {
+    .Call(`_bgms_ggm_hierarchical_smoke_cpp`, observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, M_inner, kappa, rho, n_sweeps, seed, use_manuscript_nlo)
 }
 
 .compute_ess_cpp <- function(array3d) {
@@ -205,8 +213,8 @@ ggm_test_logp_and_gradient_full_prior <- function(x, suf_stat, n, edge_indicator
     .Call(`_bgms_ggm_test_logp_and_gradient_full_prior`, x, suf_stat, n, edge_indicators, interaction_prior_type, interaction_scale, interaction_alpha, interaction_beta, diagonal_prior_type, diagonal_shape, diagonal_rate, inv_mass_diag)
 }
 
-sample_ggm <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback = NULL, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, target_acceptance = 0.8, max_tree_depth = 10L, na_impute = FALSE, missing_index_nullable = NULL, delta = 0.0, graph_prior_spec = "joint", z_ratio_M_inner = 100L, z_ratio_kappa = 1.0, z_ratio_rho = 0.5) {
-    .Call(`_bgms_sample_ggm`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, target_acceptance, max_tree_depth, na_impute, missing_index_nullable, delta, graph_prior_spec, z_ratio_M_inner, z_ratio_kappa, z_ratio_rho)
+sample_ggm <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback = NULL, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, target_acceptance = 0.8, max_tree_depth = 10L, na_impute = FALSE, missing_index_nullable = NULL, delta = 0.0, graph_prior_spec = "joint", z_ratio_M_inner = 100L, z_ratio_kappa = 1.0, z_ratio_rho = 0.5, use_manuscript_nlo = FALSE, mh_U = FALSE) {
+    .Call(`_bgms_sample_ggm`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, target_acceptance, max_tree_depth, na_impute, missing_index_nullable, delta, graph_prior_spec, z_ratio_M_inner, z_ratio_kappa, z_ratio_rho, use_manuscript_nlo, mh_U)
 }
 
 sample_mixed_mrf <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, progress_callback = NULL, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, sampler_type = "mh", target_acceptance = 0.80, max_tree_depth = 10L, na_impute = FALSE, missing_index_discrete_nullable = NULL, missing_index_continuous_nullable = NULL, delta = 0.0) {

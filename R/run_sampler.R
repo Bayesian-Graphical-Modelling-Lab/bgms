@@ -109,7 +109,9 @@ run_sampler_ggm = function(spec) {
     graph_prior_spec = p$graph_prior_spec %||% "joint",
     z_ratio_M_inner = p$z_ratio_tuning$M_inner %||% 100L,
     z_ratio_kappa   = p$z_ratio_tuning$kappa   %||% 1.0,
-    z_ratio_rho     = p$z_ratio_tuning$rho     %||% 0.5
+    z_ratio_rho     = p$z_ratio_tuning$rho     %||% 0.5,
+    use_manuscript_nlo = isTRUE(p$z_ratio_tuning$use_manuscript_nlo),
+    mh_U = isTRUE(p$z_ratio_tuning$mh_U)
   )
 
   out_raw

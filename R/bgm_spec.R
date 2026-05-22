@@ -410,6 +410,8 @@ bgm_spec = function(x,
   zrt_M_inner = z_ratio_tuning$M_inner %||% 100L
   zrt_kappa   = z_ratio_tuning$kappa   %||% 1.0
   zrt_rho     = z_ratio_tuning$rho     %||% 0.5
+  zrt_use_manuscript_nlo = isTRUE(z_ratio_tuning$use_manuscript_nlo)
+  zrt_mh_U = isTRUE(z_ratio_tuning$mh_U)
   if(!is.numeric(zrt_M_inner) || length(zrt_M_inner) != 1L ||
      !is.finite(zrt_M_inner) || zrt_M_inner < 1L)
     stop("'z_ratio_tuning$M_inner' must be a positive integer.")
@@ -421,7 +423,9 @@ bgm_spec = function(x,
     stop("'z_ratio_tuning$rho' must be in (0, 1).")
   z_ratio_tuning = list(M_inner = as.integer(zrt_M_inner),
                         kappa   = as.numeric(zrt_kappa),
-                        rho     = as.numeric(zrt_rho))
+                        rho     = as.numeric(zrt_rho),
+                        use_manuscript_nlo = zrt_use_manuscript_nlo,
+                        mh_U = zrt_mh_U)
 
   if(delta > 0 && model_type %in% c("omrf", "compare")) {
     stop(
