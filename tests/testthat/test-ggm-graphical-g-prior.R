@@ -84,8 +84,9 @@ test_that("Zellner-Siow / hyper-g / hyper-g/n drive a varying g-trace", {
       seed = 1L, display_progress = "none"
     )
     list(
-      g_trace = fit$gg_diagnostics$g[[1]],
-      bf      = inclusion_bayes_factor(fit)
+      g_trace   = fit$gg_diagnostics$g[[1]],
+      post_pip  = extract_posterior_inclusion_probabilities(fit),
+      prior_pip = extract_prior_inclusion_probabilities(fit)
     )
   }
 
@@ -98,10 +99,10 @@ test_that("Zellner-Siow / hyper-g / hyper-g/n drive a varying g-trace", {
   expect_gt(var(out_hg$g_trace),  0)
   expect_gt(var(out_hgn$g_trace), 0)
 
-  # Strong-edge detection holds across all three hyperpriors.
-  expect_true(is.infinite(out_zs$bf$bf[1])  || out_zs$bf$bf[1]  > 5)
-  expect_true(is.infinite(out_hg$bf$bf[1])  || out_hg$bf$bf[1]  > 5)
-  expect_true(is.infinite(out_hgn$bf$bf[1]) || out_hgn$bf$bf[1] > 5)
+  # Posterior strong-edge PIP is high under all three hyperpriors.
+  expect_gt(out_zs$post_pip[1, 2],  0.6)
+  expect_gt(out_hg$post_pip[1, 2],  0.6)
+  expect_gt(out_hgn$post_pip[1, 2], 0.6)
 })
 
 
@@ -136,8 +137,9 @@ test_that("tCCH runs end-to-end and drives a varying g-trace", {
     seed = 1L, display_progress = "none"
   )
   expect_gt(var(fit$gg_diagnostics$g[[1]]), 0)
-  bf_strong = inclusion_bayes_factor(fit)$bf[1L]
-  expect_true(is.infinite(bf_strong) || bf_strong > 5)
+  # Posterior PIP on the strong edge should be high.
+  post = extract_posterior_inclusion_probabilities(fit)
+  expect_gt(post[1, 2], 0.6)
 })
 
 
@@ -206,11 +208,11 @@ test_that("fixed g_hyperprior pins t = sqrt(g_fixed) across iterations", {
 })
 
 
-test_that("inclusion_bayes_factor() returns a tidy table for a GG-prior fit", {
+test_that("extract_prior_inclusion_probabilities() returns a symmetric p x p matrix for graphical_g_prior", {
   set.seed(42)
   p = 4L; n = 200L
   Sigma = diag(p)
-  Sigma[1, 2] = Sigma[2, 1] = 0.7        # strong edge between V1 and V2
+  Sigma[1, 2] = Sigma[2, 1] = 0.7
   X = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
   fit = bgm(
     x = X, variable_type = "continuous",
@@ -220,30 +222,21 @@ test_that("inclusion_bayes_factor() returns a tidy table for a GG-prior fit", {
     iter = 800L, warmup = 500L, chains = 1L, cores = 1L,
     seed = 1L, display_progress = "none"
   )
-  bf_tbl = inclusion_bayes_factor(fit)
-  expect_s3_class(bf_tbl, "data.frame")
-  expect_equal(nrow(bf_tbl), p * (p - 1L) / 2L)
-  expect_equal(colnames(bf_tbl),
-               c("edge", "posterior_inclusion", "prior_inclusion", "bf"))
-  expect_true(all(bf_tbl$prior_inclusion > 0 &
-                  bf_tbl$prior_inclusion < 1))
-
-  # The strong-signal edge (V1-V2) is the first row under upper-triangle
-  # row-major ordering.
-  strong_idx = 1L
-  expect_gt(bf_tbl$posterior_inclusion[strong_idx], 0.8)
-  null_bfs   = bf_tbl$bf[-strong_idx]
-  strong_bf  = bf_tbl$bf[strong_idx]
-  median_null_bf = median(null_bfs)
-  expect_true(is.finite(median_null_bf))
-  expect_true(is.infinite(strong_bf) || strong_bf > 5 * median_null_bf)
+  prior_pip = extract_prior_inclusion_probabilities(fit)
+  expect_true(is.matrix(prior_pip))
+  expect_equal(dim(prior_pip), c(p, p))
+  expect_equal(prior_pip, t(prior_pip))                       # symmetric
+  expect_true(all(is.na(diag(prior_pip))))                    # NA diagonal
+  off = prior_pip[upper.tri(prior_pip)]
+  expect_true(all(off > 0 & off < 1))
+  # GG-prior path varies per edge (simulated), not all identical.
+  expect_gt(diff(range(off)), 0)
 })
 
 
-test_that("inclusion_bayes_factor() works for non-GG continuous fits too", {
-  # The prior-only chain machinery is prior-agnostic — it mutes the data
-  # likelihood and samples the slab + diagonal + edge prior. Any
-  # continuous interaction prior (cauchy, normal, ...) works.
+test_that("extract_prior_inclusion_probabilities() is analytic for non-GG priors", {
+  # For any non-GG interaction prior the marginal is read off the edge
+  # prior. Bernoulli(0.5) -> all off-diagonals are exactly 0.5.
   set.seed(7)
   p = 4L; n = 150L
   X = matrix(stats::rnorm(n * p), n, p)
@@ -251,19 +244,17 @@ test_that("inclusion_bayes_factor() works for non-GG continuous fits too", {
     x = X, variable_type = "continuous",
     interaction_prior = cauchy_prior(scale = 2.5),
     edge_selection = TRUE,
-    iter = 400L, warmup = 200L, chains = 1L, cores = 1L,
+    iter = 200L, warmup = 200L, chains = 1L, cores = 1L,
     seed = 1L, display_progress = "none"
   )
-  bf_tbl = inclusion_bayes_factor(fit_cauchy)
-  expect_s3_class(bf_tbl, "data.frame")
-  expect_equal(nrow(bf_tbl), p * (p - 1L) / 2L)
-  expect_true(all(is.finite(bf_tbl$prior_inclusion)))
-  expect_true(all(bf_tbl$prior_inclusion > 0 &
-                  bf_tbl$prior_inclusion < 1))
+  prior_pip = extract_prior_inclusion_probabilities(fit_cauchy)
+  expect_equal(dim(prior_pip), c(p, p))
+  off = prior_pip[upper.tri(prior_pip)]
+  expect_true(all(off == 0.5))     # Bernoulli(0.5) is the default
 })
 
 
-test_that("inclusion_bayes_factor() caches and respects recompute", {
+test_that("extract_prior_inclusion_probabilities() caches the GG simulation", {
   set.seed(7)
   p = 4L; n = 150L
   X = matrix(stats::rnorm(n * p), n, p)
@@ -274,20 +265,17 @@ test_that("inclusion_bayes_factor() caches and respects recompute", {
     iter = 200L, warmup = 200L, chains = 1L, cores = 1L,
     seed = 1L, display_progress = "none"
   )
-  tbl_a = inclusion_bayes_factor(fit)
+  m_a = extract_prior_inclusion_probabilities(fit)
   cache = bgms:::get_fit_cache(fit)
-  expect_false(is.null(cache$inclusion_bf_prior_pips))
-  tbl_b = inclusion_bayes_factor(fit)               # cache hit
-  expect_identical(tbl_a$prior_inclusion, tbl_b$prior_inclusion)
-  # recompute = TRUE re-runs the prior-only chain (with the same seed,
-  # so identical values — the point is that it didn't error).
-  tbl_c = inclusion_bayes_factor(fit, recompute = TRUE)
-  expect_equal(tbl_a$prior_inclusion, tbl_c$prior_inclusion)
+  expect_false(is.null(cache$prior_inclusion_pips))
+  m_b = extract_prior_inclusion_probabilities(fit)            # cache hit
+  expect_identical(m_a, m_b)
+  m_c = extract_prior_inclusion_probabilities(fit, recompute = TRUE)
+  expect_equal(m_a, m_c)
 })
 
 
-test_that("inclusion_bayes_factor() errors clearly on misuse", {
-  # No edge selection -> error.
+test_that("extract_prior_inclusion_probabilities() errors on misuse", {
   set.seed(1)
   p = 4L; n = 60L
   X = matrix(stats::rnorm(n * p), n, p)
@@ -297,15 +285,13 @@ test_that("inclusion_bayes_factor() errors clearly on misuse", {
     iter = 100L, warmup = 100L, chains = 1L, cores = 1L,
     seed = 1L, display_progress = "none"
   )
-  expect_error(inclusion_bayes_factor(fit_noedge),
+  expect_error(extract_prior_inclusion_probabilities(fit_noedge),
                "edge_selection = TRUE")
 })
 
 
-test_that("summary() no longer auto-computes prior_inclusion / inclusion_bf", {
-  # The auto-trigger from summary() / coef() was removed. summary() now
-  # returns just the standard $indicator columns; users opt in via
-  # inclusion_bayes_factor(fit).
+test_that("summary() does not auto-compute any BF-related columns", {
+  # All BF / prior-PIP computation is now in the dedicated extractor.
   set.seed(42)
   p = 4L; n = 100L
   X = matrix(stats::rnorm(n * p), n, p)
@@ -343,7 +329,11 @@ test_that("BF calibration under a null DGP: median BF over null edges ~ 1", {
     iter = 4000L, warmup = 1000L, chains = 1L, cores = 1L,
     seed = 2026L, display_progress = "none"
   )
-  bfs = inclusion_bayes_factor(fit)$bf
+  post = extract_posterior_inclusion_probabilities(fit)
+  prior = extract_prior_inclusion_probabilities(fit)
+  post_off  = post[upper.tri(post)]
+  prior_off = prior[upper.tri(prior)]
+  bfs = (post_off / (1 - post_off)) / (prior_off / (1 - prior_off))
   # The median BF on null edges should be on the order of 1
   # (lenient bounds because 1 chain at q=5 still has nontrivial MC error).
   expect_true(median(bfs) < 5,
@@ -385,12 +375,9 @@ test_that("Cross-prior consistency: Fixed vs ConjugateGamma agree on strong sign
     seed = 7L, display_progress = "none"
   )
 
-  bf_fixed = inclusion_bayes_factor(fit_fixed)$bf
-  bf_cg    = inclusion_bayes_factor(fit_cg)$bf
-
-  # Strong edge index = 1 (V1-V2).
-  expect_true(is.infinite(bf_fixed[1L]) || bf_fixed[1L] > 10,
-    info = sprintf("Fixed BF[strong] = %.3g", bf_fixed[1L]))
-  expect_true(is.infinite(bf_cg[1L])    || bf_cg[1L]    > 10,
-    info = sprintf("ConjugateGamma BF[strong] = %.3g", bf_cg[1L]))
+  # Strong edge V1-V2: posterior PIP should be high under both priors.
+  post_fixed = extract_posterior_inclusion_probabilities(fit_fixed)
+  post_cg    = extract_posterior_inclusion_probabilities(fit_cg)
+  expect_gt(post_fixed[1, 2], 0.8)
+  expect_gt(post_cg[1, 2],    0.8)
 })
