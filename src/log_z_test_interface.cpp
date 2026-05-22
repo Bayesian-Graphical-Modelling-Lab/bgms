@@ -7,6 +7,8 @@
 #include "models/ggm/manuscript_nlo.h"
 #include "models/ggm/degord_sampler.h"
 #include "models/ggm/sd_density_at_zero.h"
+#include "models/ggm/sd_density_l_space.h"
+#include "models/ggm/sd_density_l_space_quad.h"
 #include "models/ggm/z_ratio_estimator.h"
 #include "models/ggm/ggm_model.h"
 #include "rng/rng_utils.h"
@@ -401,6 +403,44 @@ Rcpp::List ggm_hierarchical_smoke_cpp(
 // observations: n × p data matrix (Y). When prior_only = true, the entries
 // are ignored except for n_ and p_; pass any conformable matrix.
 //
+// Test interface for ggm_sd::density_at_l_ji_one (L-space SD primitive).
+// Returns the Laplace + optional NLO log-density of the conditional on
+// l_ji at x_eval, plus the mode and curvature for inspection.
+//
+// [[Rcpp::export]]
+Rcpp::List sd_log_density_at_l_ji_cpp(
+    double x_eval, double A, double B, double s_jj, double alpha,
+    bool nlo = true, int newton_max_iter = 50, double newton_tol = 1e-10
+) {
+    auto r = ggm_sd::density_at_l_ji_one(x_eval, A, B, s_jj, alpha,
+                                          nlo, newton_max_iter, newton_tol);
+    return Rcpp::List::create(
+        Rcpp::Named("log_density") = r.log_density,
+        Rcpp::Named("x_mode")      = r.x_mode,
+        Rcpp::Named("curvature")   = r.curvature,
+        Rcpp::Named("status")      = r.status
+    );
+}
+
+
+// Test interface for ggm_sd::density_at_l_ji_gh (Gauss-Hermite quadrature
+// variant of the L-space SD primitive). More reliable than Laplace+NLO
+// across all chain configurations; ~64 evaluations per call.
+//
+// [[Rcpp::export]]
+Rcpp::List sd_log_density_at_l_ji_gh_cpp(
+    double x_eval, double A, double B, double s_jj, double alpha,
+    int num_nodes = 64
+) {
+    auto r = ggm_sd::density_at_l_ji_gh(x_eval, A, B, s_jj, alpha, num_nodes);
+    return Rcpp::List::create(
+        Rcpp::Named("log_density") = r.log_density,
+        Rcpp::Named("log_Z")       = r.log_Z,
+        Rcpp::Named("status")      = r.status
+    );
+}
+
+
 // Plug-in DEGORD smoke test — apples-to-apples counterpart of ggm_sd_smoke_cpp.
 // Runs the hierarchical-prior chain with plug-in mNLO ratio (closed-form,
 // V/RR machinery bypassed), prior-only optional, PIP accumulator over the

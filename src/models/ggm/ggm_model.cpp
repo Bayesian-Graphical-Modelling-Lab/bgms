@@ -7,6 +7,8 @@
 #include "models/ggm/log_z_nlo.h"
 #include "models/ggm/manuscript_nlo.h"
 #include "models/ggm/sd_density_at_zero.h"
+#include "models/ggm/sd_density_l_space.h"
+#include "models/ggm/sd_density_l_space_quad.h"
 #include "models/ggm/z_ratio_estimator.h"
 #include <stdexcept>
 
@@ -956,9 +958,6 @@ void GGMModel::update_edge_indicator_parameter_pair_sd(size_t i, size_t j) {
 // =====================================================================
 void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j) {
     ensure_prior_params_extracted_();
-    if (prior_alpha_ != 1.0) {
-        Rcpp::stop("L-space SD prototype currently restricted to α = 1.");
-    }
     const int curr_g = edge_indicators_(i, j);
     const double p_inc = inclusion_probability_(i, j);
     const double sigma = prior_sigma_;
@@ -997,49 +996,108 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
     // mode we drop these.
     (void) n_eff;
 
-    // ---- Conditional posterior and prior on l_ji at α=1 (both Gaussian) ----
-    // log π(l_ji | rest, Y) ∝ -(τ_post/2) l_ji² + (l_ii² m_ij/σ² - S_ij·l_ii) l_ji
-    // log π(l_ji | rest)    ∝ -(τ_prior/2) l_ji² + (l_ii² m_ij/σ²) l_ji
-    // where τ_post  = l_ii²/σ² + 2β + S_jj_data
-    //       τ_prior = l_ii²/σ² + 2β
-    const double tau_post  = l_ii * l_ii * inv_sigma2 + 2.0 * beta + S_jj_data;
-    const double tau_prior = l_ii * l_ii * inv_sigma2 + 2.0 * beta;
-    if (!(tau_post > 0.0) || !(tau_prior > 0.0)) return;
-    const double mu_post  = (l_ii * l_ii * m_ij * inv_sigma2 - S_ij_data * l_ii)
-                            / tau_post;
-    const double mu_prior = (l_ii * l_ii * m_ij * inv_sigma2) / tau_prior;
+    // ---- Branch by α: α=1 has closed-form Gaussian conditional (exact
+    //      Gibbs proposal); α>1 uses Gauss-Hermite quadrature for the
+    //      SD log-BF and Laplace-Gaussian as proposal with an explicit MH
+    //      correction term log[π_target / q_proposal] evaluated at the
+    //      sample point (ADD) or current state (DEL).
+    double log_BF_1_to_0;
+    double proposal_mu, proposal_sd;
+    double A_post_save = 0.0, B_post_save = 0.0, s_jj_save = 0.0;  // for α>1 correction
+    if (prior_alpha_ == 1.0) {
+        const double tau_post  = l_ii * l_ii * inv_sigma2 + 2.0 * beta + S_jj_data;
+        const double tau_prior = l_ii * l_ii * inv_sigma2 + 2.0 * beta;
+        if (!(tau_post > 0.0) || !(tau_prior > 0.0)) return;
+        const double mu_post   = (l_ii * l_ii * m_ij * inv_sigma2
+                                  - S_ij_data * l_ii) / tau_post;
+        const double mu_prior  = (l_ii * l_ii * m_ij * inv_sigma2) / tau_prior;
+        const double log_pi_post  = 0.5 * std::log(tau_post  / (2.0 * arma::datum::pi))
+                                  - 0.5 * tau_post  * (m_ij - mu_post)  * (m_ij - mu_post);
+        const double log_pi_prior = 0.5 * std::log(tau_prior / (2.0 * arma::datum::pi))
+                                  - 0.5 * tau_prior * (m_ij - mu_prior) * (m_ij - mu_prior);
+        log_BF_1_to_0  = log_pi_post - log_pi_prior;
+        proposal_mu    = mu_post;
+        proposal_sd    = 1.0 / std::sqrt(tau_post);
+    } else {
+        // α > 1: GH quadrature for log_BF (reliable across cells), Laplace
+        // for the proposal mode/curvature (cheap; if Laplace fails, use the
+        // pure-Gaussian fallback B/(2A), 1/√(2A)).
+        const double A_post  = 0.5 * (l_ii * l_ii * inv_sigma2
+                                      + 2.0 * beta + S_jj_data);
+        const double B_post  = l_ii * l_ii * m_ij * inv_sigma2
+                               - S_ij_data * l_ii;
+        const double A_prior = 0.5 * (l_ii * l_ii * inv_sigma2 + 2.0 * beta);
+        const double B_prior = l_ii * l_ii * m_ij * inv_sigma2;
+        const double s_jj    = precision_matrix_(j, j) - l_ji * l_ji;
+        if (!(s_jj > 0.0) || !(A_post > 0.0) || !(A_prior > 0.0)) return;
+        const auto gh_post  = ggm_sd::density_at_l_ji_gh(
+            m_ij, A_post,  B_post,  s_jj, prior_alpha_);
+        const auto gh_prior = ggm_sd::density_at_l_ji_gh(
+            m_ij, A_prior, B_prior, s_jj, prior_alpha_);
+        if (gh_post.status != 0 || gh_prior.status != 0
+            || !std::isfinite(gh_post.log_density)
+            || !std::isfinite(gh_prior.log_density)) {
+            ++n_pd_reverts_;
+            return;
+        }
+        log_BF_1_to_0 = gh_post.log_density - gh_prior.log_density;
 
-    // ---- SD log-BF: log[ posterior conditional / prior conditional ] at m_ij
-    // Both densities in L-coords, so the K↔L Jacobian factor (1/l_ii) cancels
-    // between numerator and denominator. No marginal-slab approximation; this
-    // is the exact per-step BF in L-coords. At prior-only mode (S_ij_data = 0,
-    // S_jj_data = 0), τ_post = τ_prior, μ_post = μ_prior, so log_BF = 0 exactly
-    // — chain reduces to pure prior odds and γ converges to Bernoulli(p_inc).
-    const double log_pi_post  = 0.5 * std::log(tau_post  / (2.0 * arma::datum::pi))
-                              - 0.5 * tau_post  * (m_ij - mu_post)  * (m_ij - mu_post);
-    const double log_pi_prior = 0.5 * std::log(tau_prior / (2.0 * arma::datum::pi))
-                              - 0.5 * tau_prior * (m_ij - mu_prior) * (m_ij - mu_prior);
-    const double log_BF_1_to_0 = log_pi_post - log_pi_prior;
+        const auto lp_post = ggm_sd::density_at_l_ji_one(
+            0.0, A_post, B_post, s_jj, prior_alpha_, /*nlo=*/false);
+        if (lp_post.status == 0
+            && std::isfinite(lp_post.curvature) && lp_post.curvature > 0.0) {
+            proposal_mu = lp_post.x_mode;
+            proposal_sd = 1.0 / std::sqrt(lp_post.curvature);
+        } else {
+            proposal_mu = B_post / (2.0 * A_post);
+            proposal_sd = 1.0 / std::sqrt(2.0 * A_post);
+        }
+        A_post_save = A_post;
+        B_post_save = B_post;
+        s_jj_save   = s_jj;
+    }
 
-    // ---- MH ratio ----
+    // ---- MH ratio (proposal MH correction added below at α>1) ----
     double log_alpha;
     if (curr_g == 0) {
         log_alpha = MY_LOG(p_inc / (1.0 - p_inc)) - log_BF_1_to_0;
     } else {
         log_alpha = MY_LOG((1.0 - p_inc) / p_inc) + log_BF_1_to_0;
     }
-    if (!std::isfinite(log_alpha)) return;
-    if (MY_LOG(runif(rng_)) >= log_alpha) return;
 
-    // ---- Accept ----
+    // ---- Sample proposal ----
     double l_ji_new;
     if (curr_g == 0) {
-        // ADD: draw l_ji ~ N(μ_post, 1/τ_post). No truncation.
-        l_ji_new = rnorm(rng_, mu_post, 1.0 / std::sqrt(tau_post));
+        // ADD: draw from proposal Gaussian. At α=1 this is exact Gibbs; at
+        // α>1 it's the Laplace approximation with an explicit MH correction.
+        l_ji_new = rnorm(rng_, proposal_mu, proposal_sd);
     } else {
         // DEL: deterministic slave.
         l_ji_new = m_ij;
     }
+
+    // ---- MH proposal correction at α>1 ----
+    // ADD: log_α += log π_target(l_ji_new) − log q_proposal(l_ji_new)
+    // DEL: log_α −= log π_target(l_ji_curr) − log q_proposal(l_ji_curr)
+    // (At α=1 the proposal IS the conditional, correction ≡ 0.)
+    if (prior_alpha_ != 1.0) {
+        const double x_corr  = (curr_g == 0) ? l_ji_new : l_ji;
+        const auto gh_corr   = ggm_sd::density_at_l_ji_gh(
+            x_corr, A_post_save, B_post_save, s_jj_save, prior_alpha_);
+        if (gh_corr.status != 0 || !std::isfinite(gh_corr.log_density)) {
+            ++n_pd_reverts_;
+            return;
+        }
+        const double dx     = (x_corr - proposal_mu) / proposal_sd;
+        const double log_q  = -0.5 * std::log(2.0 * arma::datum::pi)
+                              - std::log(proposal_sd)
+                              - 0.5 * dx * dx;
+        const double correction = gh_corr.log_density - log_q;
+        log_alpha += (curr_g == 0 ? +correction : -correction);
+    }
+
+    if (!std::isfinite(log_alpha)) return;
+    if (MY_LOG(runif(rng_)) >= log_alpha) return;
 
     // Translate Δl_ji into ΔK_ij, ΔK_jj.
     const double d_l_ji = l_ji_new - l_ji;

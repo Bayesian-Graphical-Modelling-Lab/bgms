@@ -478,6 +478,40 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// sd_log_density_at_l_ji_cpp
+Rcpp::List sd_log_density_at_l_ji_cpp(double x_eval, double A, double B, double s_jj, double alpha, bool nlo, int newton_max_iter, double newton_tol);
+RcppExport SEXP _bgms_sd_log_density_at_l_ji_cpp(SEXP x_evalSEXP, SEXP ASEXP, SEXP BSEXP, SEXP s_jjSEXP, SEXP alphaSEXP, SEXP nloSEXP, SEXP newton_max_iterSEXP, SEXP newton_tolSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< double >::type x_eval(x_evalSEXP);
+    Rcpp::traits::input_parameter< double >::type A(ASEXP);
+    Rcpp::traits::input_parameter< double >::type B(BSEXP);
+    Rcpp::traits::input_parameter< double >::type s_jj(s_jjSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< bool >::type nlo(nloSEXP);
+    Rcpp::traits::input_parameter< int >::type newton_max_iter(newton_max_iterSEXP);
+    Rcpp::traits::input_parameter< double >::type newton_tol(newton_tolSEXP);
+    rcpp_result_gen = Rcpp::wrap(sd_log_density_at_l_ji_cpp(x_eval, A, B, s_jj, alpha, nlo, newton_max_iter, newton_tol));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sd_log_density_at_l_ji_gh_cpp
+Rcpp::List sd_log_density_at_l_ji_gh_cpp(double x_eval, double A, double B, double s_jj, double alpha, int num_nodes);
+RcppExport SEXP _bgms_sd_log_density_at_l_ji_gh_cpp(SEXP x_evalSEXP, SEXP ASEXP, SEXP BSEXP, SEXP s_jjSEXP, SEXP alphaSEXP, SEXP num_nodesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< double >::type x_eval(x_evalSEXP);
+    Rcpp::traits::input_parameter< double >::type A(ASEXP);
+    Rcpp::traits::input_parameter< double >::type B(BSEXP);
+    Rcpp::traits::input_parameter< double >::type s_jj(s_jjSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< int >::type num_nodes(num_nodesSEXP);
+    rcpp_result_gen = Rcpp::wrap(sd_log_density_at_l_ji_gh_cpp(x_eval, A, B, s_jj, alpha, num_nodes));
+    return rcpp_result_gen;
+END_RCPP
+}
 // ggm_plug_in_smoke_cpp
 Rcpp::List ggm_plug_in_smoke_cpp(const arma::mat& observations, double inclusion_prob, double interaction_scale, double diagonal_shape, double diagonal_rate, double delta, int M_inner, double kappa, double rho, int n_warmup, int n_sweeps, int seed, bool prior_only, bool include_within_k, bool use_manuscript_nlo);
 RcppExport SEXP _bgms_ggm_plug_in_smoke_cpp(SEXP observationsSEXP, SEXP inclusion_probSEXP, SEXP interaction_scaleSEXP, SEXP diagonal_shapeSEXP, SEXP diagonal_rateSEXP, SEXP deltaSEXP, SEXP M_innerSEXP, SEXP kappaSEXP, SEXP rhoSEXP, SEXP n_warmupSEXP, SEXP n_sweepsSEXP, SEXP seedSEXP, SEXP prior_onlySEXP, SEXP include_within_kSEXP, SEXP use_manuscript_nloSEXP) {
@@ -1099,6 +1133,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_degord_log_Zhat_star_from_cache_cpp", (DL_FUNC) &_bgms_degord_log_Zhat_star_from_cache_cpp, 8},
     {"_bgms_degord_draw_U_rr_cpp", (DL_FUNC) &_bgms_degord_draw_U_rr_cpp, 4},
     {"_bgms_ggm_hierarchical_smoke_cpp", (DL_FUNC) &_bgms_ggm_hierarchical_smoke_cpp, 12},
+    {"_bgms_sd_log_density_at_l_ji_cpp", (DL_FUNC) &_bgms_sd_log_density_at_l_ji_cpp, 8},
+    {"_bgms_sd_log_density_at_l_ji_gh_cpp", (DL_FUNC) &_bgms_sd_log_density_at_l_ji_gh_cpp, 6},
     {"_bgms_ggm_plug_in_smoke_cpp", (DL_FUNC) &_bgms_ggm_plug_in_smoke_cpp, 15},
     {"_bgms_chol_perm_trailing_2x2_cpp", (DL_FUNC) &_bgms_chol_perm_trailing_2x2_cpp, 3},
     {"_bgms_ggm_sd_smoke_cpp", (DL_FUNC) &_bgms_ggm_sd_smoke_cpp, 12},

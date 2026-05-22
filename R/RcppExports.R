@@ -105,6 +105,14 @@ ggm_hierarchical_smoke_cpp <- function(observations, inclusion_prob, interaction
     .Call(`_bgms_ggm_hierarchical_smoke_cpp`, observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, M_inner, kappa, rho, n_sweeps, seed, use_manuscript_nlo)
 }
 
+sd_log_density_at_l_ji_cpp <- function(x_eval, A, B, s_jj, alpha, nlo = TRUE, newton_max_iter = 50L, newton_tol = 1e-10) {
+    .Call(`_bgms_sd_log_density_at_l_ji_cpp`, x_eval, A, B, s_jj, alpha, nlo, newton_max_iter, newton_tol)
+}
+
+sd_log_density_at_l_ji_gh_cpp <- function(x_eval, A, B, s_jj, alpha, num_nodes = 64L) {
+    .Call(`_bgms_sd_log_density_at_l_ji_gh_cpp`, x_eval, A, B, s_jj, alpha, num_nodes)
+}
+
 ggm_plug_in_smoke_cpp <- function(observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, M_inner, kappa, rho, n_warmup, n_sweeps, seed, prior_only = FALSE, include_within_k = TRUE, use_manuscript_nlo = FALSE) {
     .Call(`_bgms_ggm_plug_in_smoke_cpp`, observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, M_inner, kappa, rho, n_warmup, n_sweeps, seed, prior_only, include_within_k, use_manuscript_nlo)
 }
