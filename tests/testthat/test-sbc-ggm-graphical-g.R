@@ -10,12 +10,18 @@
 # from some X_ref) and routes BOTH the generator and the fitter
 # through that same matrix via the V_ij_external knob added to
 # graphical_g_prior(). Generator and fitter now share the same prior,
-# so under a correct sampler the SBC ranks ARE uniform.
+# so under a correct sampler the SBC ranks ARE uniform and the
+# inclusion-PIP consistency E[P(γ_ij | y)] = P(γ_ij | prior) holds.
 #
-# Test functions: diagonal entries of K (continuous, no point mass)
-# and log|K|. Off-diagonal K_ij entries are skipped because the
-# spike-and-slab point mass at zero induces tied ranks that break
-# standard uniformity tests.
+# Two tests:
+#   1. Rank uniformity on diagonals of K (continuous, no point mass).
+#      Off-diagonals are skipped because spike-and-slab tied ranks
+#      break standard uniformity tests.
+#   2. Inclusion-PIP consistency: the across-replication mean
+#      posterior PIP equals the prior PIP (estimated from a much
+#      longer independent prior-only chain so the comparison reference
+#      is tight). Joint MC SE accounts for uncertainty in BOTH the
+#      across-rep mean and the prior-chain estimate.
 #
 # Gated behind BGMS_RUN_SLOW_TESTS.
 # --------------------------------------------------------------------------- #
@@ -45,131 +51,221 @@ reconstruct_K = function(upper_row, p) {
 }
 
 
-test_that("conditional SBC: GG-prior (ConjugateGamma) produces uniform diagonal ranks (p=3)", {
+# Build the upper-triangle (i < j) row-major off-diagonal index used to
+# pull edges out of bgm()'s indicator_samples matrix.
+offdiag_index = function(p) {
+  out = integer(p * (p - 1L) / 2L)
+  pos = 0L; oi = 0L
+  for(i in seq_len(p)) for(j in i:p) {
+    pos = pos + 1L
+    if(i != j) { oi = oi + 1L; out[oi] = pos }
+  }
+  out
+}
+
+
+# Compute V_ij = n / (4 * S_ii * S_jj) from a data matrix.
+compute_V_ij = function(X) {
+  n = nrow(X)
+  p = ncol(X)
+  S_diag = colSums(X^2)
+  V = matrix(0, p, p)
+  for(i in seq_len(p)) for(j in seq_len(p)) {
+    if(i != j) V[i, j] = n / (4 * S_diag[i] * S_diag[j])
+  }
+  V
+}
+
+
+test_that("conditional SBC: GG-prior diagonal ranks are uniform (p=3)", {
   skip_unless_slow()
 
-  # Generator AND fitter share the same V_ij = V_ref. K_true is drawn
-  # from the prior-only chain at V_ref; y_star ~ N(0, K_true^{-1}) is
-  # simulated; bgm() fits with V_ij_external = V_ref. Per the
-  # conditional-SBC argument, the diagonal-of-K ranks should be
-  # uniform on {0, 1, ..., L}.
+  # Diagonal SBC: with V_ij fixed at V_ref on both sides, ranks of
+  # K_true diagonal entries within posterior samples should be uniform.
 
   p = 3L
   n = 100L
-  R = 200L          # number of replications
-  L = 999L          # posterior draws kept per replication
+  R = 200L
+  L = 999L
   thin = 5L
-  n_warmup_prior = 2000L
 
   set.seed(2026)
-
-  # Reference X to fix V_ref. Identity covariance so V_ref entries are
-  # easy to interpret and the chain isn't pushed to the PD boundary.
   X_ref = MASS::mvrnorm(n, mu = rep(0, p), Sigma = diag(p))
-  V_ref = matrix(0, p, p)
-  for(i in seq_len(p)) {
-    for(j in seq_len(p)) {
-      if(i != j) {
-        # V_ij = n / (4 * S_ii * S_jj), with S = X_ref'X_ref
-        s_ii = sum(X_ref[, i]^2)
-        s_jj = sum(X_ref[, j]^2)
-        V_ref[i, j] = n / (4 * s_ii * s_jj)
-      }
-    }
-  }
+  V_ref = compute_V_ij(X_ref)
 
-  prior_obj = graphical_g_prior(
-    g_hyperprior  = "conjugate_gamma",
-    a0 = 1, b0 = 1, g_init = 1,
-    V_ij_external = V_ref
-  )
+  prior_obj = graphical_g_prior(g_hyperprior = "conjugate_gamma",
+                                 a0 = 1, b0 = 1, g_init = 1,
+                                 V_ij_external = V_ref)
 
-  # Generator: one long prior-only chain at V_ref produces R thinned
-  # (K_true) draws. We use a short bgm() call to build a validated
-  # spec, then re-run via run_sampler() with prior_only = TRUE and the
-  # SBC-sized iter / warmup.
-  setup_fit = bgm(
-    x = X_ref, variable_type = "continuous",
-    interaction_prior = prior_obj,
-    edge_selection = TRUE, delta = 0,
-    iter = 1L, warmup = 1L, chains = 1L, cores = 1L,
-    update_method = "adaptive-metropolis",
-    seed = 2026L, display_progress = "none"
-  )
+  setup_fit = bgm(x = X_ref, variable_type = "continuous",
+                  interaction_prior = prior_obj,
+                  edge_selection = TRUE, delta = NULL,
+                  iter = 1L, warmup = 1L, chains = 1L, cores = 1L,
+                  update_method = "adaptive-metropolis",
+                  seed = 2026L, display_progress = "none")
+
+  # Generator chain (thinned).
   spec = setup_fit$.bgm_spec
   spec$prior$prior_only = TRUE
   spec$sampler$iter = as.integer(R * thin)
-  spec$sampler$warmup = n_warmup_prior
+  spec$sampler$warmup = 2000L
   spec$sampler$chains = 1L
   spec$sampler$update_method = "adaptive-metropolis"
   spec$sampler$target_accept = 0.44
   spec$sampler$progress_type = 0L
   gen_raw = run_sampler(spec)
-  K_true_samples = gen_raw[[1L]]$samples            # (p(p+1)/2) x iter
+  K_true_samples = gen_raw[[1L]]$samples
 
   thin_idx = seq(thin, R * thin, by = thin)
   K_true_list = lapply(thin_idx, function(it) {
     reconstruct_K(K_true_samples[, it], p)
   })
 
-  # Fitter loop. Ranks of diag(K_true) entries within posterior samples.
   ranks = matrix(NA_integer_, nrow = R, ncol = p)
-
   for(r in seq_len(R)) {
     K_true = K_true_list[[r]]
-    # Bail on draws that aren't PD numerically (rare under proper prior).
     eig = tryCatch(eigen(K_true, symmetric = TRUE, only.values = TRUE)$values,
                    error = function(e) NULL)
-    if(is.null(eig) || min(eig) <= 1e-8) {
-      next
-    }
+    if(is.null(eig) || min(eig) <= 1e-8) next
     Sigma = solve(K_true)
     y_star = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
-
-    fit_r = bgm(
-      x = y_star, variable_type = "continuous",
-      interaction_prior = graphical_g_prior(
-        g_hyperprior  = "conjugate_gamma",
-        a0 = 1, b0 = 1, g_init = 1,
-        V_ij_external = V_ref                  # << conditional SBC
-      ),
-      edge_selection = TRUE, delta = 0,
-      iter = L, warmup = 1000L, chains = 1L, cores = 1L,
-      update_method = "adaptive-metropolis",
-      seed = 2026L + r, display_progress = "none"
-    )
-
+    fit_r = bgm(x = y_star, variable_type = "continuous",
+                interaction_prior = graphical_g_prior(g_hyperprior = "conjugate_gamma",
+                                                       a0 = 1, b0 = 1, g_init = 1,
+                                                       V_ij_external = V_ref),
+                edge_selection = TRUE, delta = NULL,
+                iter = L, warmup = 1000L, chains = 1L, cores = 1L,
+                update_method = "adaptive-metropolis",
+                seed = 2026L + r, display_progress = "none")
     main_samples = do.call(rbind, fit_r$raw_samples$main)
-    # main_samples is L x p (precision diagonals).
-    for(i in seq_len(p)) {
-      ranks[r, i] = sum(main_samples[, i] < K_true[i, i])
-    }
+    for(i in seq_len(p)) ranks[r, i] = sum(main_samples[, i] < K_true[i, i])
   }
 
   ranks = ranks[stats::complete.cases(ranks), , drop = FALSE]
   expect_true(nrow(ranks) > R * 0.9,
-    info = sprintf("Too many replications dropped (kept %d / %d).",
-                   nrow(ranks), R))
+              info = sprintf("Dropped too many reps: %d / %d kept.",
+                             nrow(ranks), R))
 
-  # Per-parameter KS test at alpha = 0.01, allowing one false positive
-  # across the p diagonal entries.
-  n_fail_ks = 0L
-  for(j in seq_len(p)) {
+  # Per-parameter KS test (alpha = 0.01) — allow up to 1 false positive.
+  n_fail = sum(vapply(seq_len(p), function(j) {
     u = ranks[, j] / (L + 1)
-    p_val = suppressWarnings(stats::ks.test(u, "punif")$p.value)
-    if(p_val <= 0.01) n_fail_ks = n_fail_ks + 1L
-  }
-  expect_true(n_fail_ks <= 1L,
-    info = sprintf("Conditional SBC KS: %d/%d parameters failed at alpha=0.01.",
-                   n_fail_ks, p))
+    suppressWarnings(stats::ks.test(u, "punif")$p.value) <= 0.01
+  }, logical(1L)))
+  expect_true(n_fail <= 1L,
+              info = sprintf("KS failures: %d / %d at alpha=0.01.", n_fail, p))
 
-  # Global chi-squared on the pooled ranks.
-  all_ranks = as.vector(ranks)
-  bins = cut(all_ranks / (L + 1),
-             breaks = seq(0, 1, length.out = 21),
-             include.lowest = TRUE)
-  counts = tabulate(bins, nbins = 20L)
+  # Pooled chi-squared on aggregated ranks.
+  all_u = as.vector(ranks) / (L + 1)
+  counts = tabulate(cut(all_u, seq(0, 1, length.out = 21),
+                        include.lowest = TRUE), nbins = 20L)
   chisq_p = suppressWarnings(stats::chisq.test(counts)$p.value)
   expect_true(chisq_p > 0.001,
-    info = sprintf("Conditional SBC global chi-squared p = %.4f", chisq_p))
+              info = sprintf("Pooled chi-squared p = %.4f", chisq_p))
+})
+
+
+test_that("conditional SBC: GG-prior inclusion PIPs are calibrated (p=10)", {
+  skip_unless_slow()
+
+  # Inclusion-PIP consistency: E[P(γ_ij | y)] across SBC replications
+  # equals the prior P(γ_ij | V_ref) when generator and fitter share
+  # V_ref. Earlier versions of this test used a 1000-iter prior chain
+  # as the reference and reported huge "biases" — those were prior-
+  # chain MC noise wearing posterior-chain clothes. We now use a 50k-
+  # iter prior chain and a joint MC SE that includes both sources.
+
+  p = 10L
+  n = 200L
+  R = 200L
+  L = 999L
+  thin = 5L
+  n_prior_iter = 50000L
+
+  set.seed(2026)
+  X_ref = MASS::mvrnorm(n, mu = rep(0, p), Sigma = diag(p))
+  V_ref = compute_V_ij(X_ref)
+
+  prior_obj = graphical_g_prior(g_hyperprior = "conjugate_gamma",
+                                 a0 = 1, b0 = 1, g_init = 1,
+                                 V_ij_external = V_ref)
+  setup_fit = bgm(x = X_ref, variable_type = "continuous",
+                  interaction_prior = prior_obj,
+                  edge_selection = TRUE, delta = NULL,
+                  iter = 1L, warmup = 1L, chains = 1L, cores = 1L,
+                  update_method = "adaptive-metropolis",
+                  seed = 2026L, display_progress = "none")
+
+  # Long independent prior-only chain to estimate the prior PIPs tightly.
+  spec_prior = setup_fit$.bgm_spec
+  spec_prior$prior$prior_only = TRUE
+  spec_prior$sampler$iter = n_prior_iter
+  spec_prior$sampler$warmup = 5000L
+  spec_prior$sampler$chains = 1L
+  spec_prior$sampler$update_method = "adaptive-metropolis"
+  spec_prior$sampler$target_accept = 0.44
+  spec_prior$sampler$progress_type = 0L
+  prior_raw = run_sampler(spec_prior)
+  ind_samples = prior_raw[[1L]]$indicator_samples
+  off_idx = offdiag_index(p)
+  prior_pip = rowMeans(ind_samples[off_idx, , drop = FALSE])
+
+  # Generator chain (separate seed) producing thinned K_true draws.
+  spec_gen = spec_prior
+  spec_gen$sampler$iter = as.integer(R * thin)
+  spec_gen$sampler$warmup = 3000L
+  spec_gen$sampler$seed = 99L
+  gen_raw = run_sampler(spec_gen)
+  thin_idx = seq(thin, R * thin, by = thin)
+  K_true_list = lapply(thin_idx, function(it) {
+    reconstruct_K(gen_raw[[1L]]$samples[, it], p)
+  })
+
+  # Fitter loop: record posterior PIPs per replication.
+  post_pips = matrix(NA_real_, R, p * (p - 1L) / 2L)
+  for(r in seq_len(R)) {
+    K_true = K_true_list[[r]]
+    eig = tryCatch(eigen(K_true, symmetric = TRUE, only.values = TRUE)$values,
+                   error = function(e) NULL)
+    if(is.null(eig) || min(eig) <= 1e-8) next
+    Sigma = solve(K_true)
+    y_star = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
+    fit_r = bgm(x = y_star, variable_type = "continuous",
+                interaction_prior = graphical_g_prior(g_hyperprior = "conjugate_gamma",
+                                                       a0 = 1, b0 = 1, g_init = 1,
+                                                       V_ij_external = V_ref),
+                edge_selection = TRUE, delta = NULL,
+                iter = L, warmup = 1500L, chains = 1L, cores = 1L,
+                update_method = "adaptive-metropolis",
+                seed = 2026L + r, display_progress = "none")
+    m = fit_r$posterior_mean_indicator
+    post_pips[r, ] = m[upper.tri(m)]
+  }
+
+  post_pips = post_pips[stats::complete.cases(post_pips), , drop = FALSE]
+  expect_true(nrow(post_pips) > R * 0.9,
+              info = sprintf("Dropped too many reps: %d / %d kept.",
+                             nrow(post_pips), R))
+
+  mean_post = colMeans(post_pips)
+  diff = mean_post - prior_pip
+  # Joint MC SE: across-rep variance of mean_post + binomial-ish variance
+  # of prior_pip from a chain of effective length ~ n_prior_iter / acf_lag.
+  # acf_lag is a conservative guess (50 for indicator chains).
+  n_eff_prior = n_prior_iter / 50
+  mc_se_post = apply(post_pips, 2, sd) / sqrt(nrow(post_pips))
+  mc_se_prior = sqrt(prior_pip * (1 - prior_pip) / n_eff_prior)
+  mc_se = sqrt(mc_se_post^2 + mc_se_prior^2)
+  zscore = diff / mc_se
+
+  n_edges = length(zscore)
+  # Under exact calibration: # |z| > 2 ~ 0.05 * n_edges, # |z| > 3 ~ 0.003 * n_edges.
+  # Allow generous tail counts (each test is alpha=0.05 family-wise).
+  expect_true(sum(abs(zscore) > 2) <= 0.20 * n_edges,
+              info = sprintf("Too many edges with |z| > 2: %d / %d",
+                             sum(abs(zscore) > 2), n_edges))
+  expect_true(sum(abs(zscore) > 3) <= 0.05 * n_edges,
+              info = sprintf("Too many edges with |z| > 3: %d / %d",
+                             sum(abs(zscore) > 3), n_edges))
+  # Median absolute z should be near 0.67 (the median of a standard half-normal).
+  expect_lt(median(abs(zscore)), 1.5)
 })
