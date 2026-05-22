@@ -42,6 +42,9 @@ Rcpp::List sample_ggm(
     const std::string& gg_hyperprior = "conjugate_gamma",
     const double       gg_a0      = 1.0,
     const double       gg_b0      = 1.0,
+    const double       gg_tcch_r  = 0.0,
+    const double       gg_tcch_s  = 0.0,
+    const double       gg_tcch_u  = 1.0,
     const double       gg_g_fixed = 1.0,
     const double       gg_g_init  = 1.0,
     const bool         prior_only = false
@@ -127,7 +130,8 @@ Rcpp::List sample_ggm(
         } else {
             Rcpp::stop("Unknown gg_hyperprior: '%s'", gg_hyperprior.c_str());
         }
-        model.enable_gg_prior(hp, g_init_used, gg_a0, gg_b0);
+        model.enable_gg_prior(hp, g_init_used, gg_a0, gg_b0,
+                              gg_tcch_r, gg_tcch_s, gg_tcch_u);
     }
 
     // Prior-only mode: mute the data likelihood AFTER enable_gg_prior has

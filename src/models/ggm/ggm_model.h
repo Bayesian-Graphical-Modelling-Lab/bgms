@@ -137,7 +137,6 @@ public:
           gg_log_g_proposal_sd_(other.gg_log_g_proposal_sd_),
           gg_log_g_n_accept_(other.gg_log_g_n_accept_),
           gg_log_g_n_total_(other.gg_log_g_n_total_),
-          tcch_warned_(other.tcch_warned_),
           n_(other.n_),
           p_(other.p_),
           dim_(other.dim_),
@@ -523,9 +522,6 @@ private:
     /// Accepted / total MH-on-log(g) proposals (diagnostic only).
     long long    gg_log_g_n_accept_ = 0;
     long long    gg_log_g_n_total_  = 0;
-    /// One-shot flag so the tCCH not-yet-implemented warning fires only
-    /// once per chain instead of once per sweep.
-    bool         tcch_warned_       = false;
 
     /// One-shot V_ij table construction from suf_stat_. Called by
     /// enable_gg_prior(); idempotent.

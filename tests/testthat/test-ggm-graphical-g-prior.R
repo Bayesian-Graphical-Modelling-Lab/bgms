@@ -122,22 +122,71 @@ test_that("hyper_g and hyper_g_over_n reject a <= 2 at the constructor", {
 })
 
 
-test_that("tCCH still falls through with a not-yet-implemented warning", {
-  # The TCCH branch is wired through the C++ enum but the actual hyperprior
-  # density (truncated compound confluent hypergeometric) is not yet
-  # implemented; the C++ update returns early after emitting a warning.
-  set.seed(1)
-  p = 4L; n = 80L
-  X = matrix(stats::rnorm(n * p), n, p)
-  expect_warning(
-    bgm(
+test_that("tCCH runs end-to-end and drives a varying g-trace", {
+  # The truncated compound confluent hypergeometric branch shares the
+  # MH-on-log(g) infrastructure with ZS / hyper-g / hyper-g/n; only the
+  # log-prior shape differs.
+  set.seed(42)
+  p = 4L; n = 200L
+  Sigma = diag(p)
+  Sigma[1, 2] = Sigma[2, 1] = 0.6
+  X = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
+  fit = bgm(
+    x = X, variable_type = "continuous",
+    interaction_prior = graphical_g_prior(g_hyperprior = "tCCH"),
+    edge_selection = TRUE, delta = 0,
+    iter = 600L, warmup = 400L, chains = 1L, cores = 1L,
+    seed = 1L, display_progress = "none"
+  )
+  expect_gt(var(fit$gg_diagnostics$g[[1]]), 0)
+  bf_strong = summary(fit)$indicator$inclusion_bf[1L]
+  expect_true(is.infinite(bf_strong) || bf_strong > 5)
+})
+
+
+test_that("tCCH with a = 0.5, b = 1 (rest default) matches hyper_g(3)", {
+  # tCCH(a, b, r=0, s=0, u=1) reduces to π(g) ∝ (1+g)^(-(a+b)).
+  # Setting a + b = 1.5 reproduces hyper_g(α=3) up to the unnormalised
+  # prior shape, so the two chains should agree on summary statistics
+  # under the same data + seed.
+  set.seed(42)
+  p = 4L; n = 200L
+  Sigma = diag(p)
+  Sigma[1, 2] = Sigma[2, 1] = 0.6
+  X = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
+  run = function(prior_obj) {
+    fit = bgm(
       x = X, variable_type = "continuous",
-      interaction_prior = graphical_g_prior(g_hyperprior = "tCCH"),
+      interaction_prior = prior_obj,
       edge_selection = TRUE, delta = 0,
-      iter = 20L, warmup = 20L, chains = 1L, cores = 1L,
+      iter = 600L, warmup = 400L, chains = 1L, cores = 1L,
       seed = 1L, display_progress = "none"
-    ),
-    "tCCH"
+    )
+    mean(fit$gg_diagnostics$g[[1]])
+  }
+  g_tcch = run(graphical_g_prior(g_hyperprior = "tCCH",
+                                  tcch = list(a = 0.5, b = 1,
+                                              r = 0, s = 0, u = 1)))
+  g_hg   = run(graphical_g_prior(g_hyperprior = "hyper_g", a = 3))
+  expect_equal(g_tcch, g_hg, tolerance = 0.05)
+})
+
+
+test_that("graphical_g_prior(g_hyperprior = 'tCCH') validates tcch list", {
+  # Rejects negative r and s and non-positive u; rejects incomplete list.
+  expect_error(
+    graphical_g_prior(g_hyperprior = "tCCH",
+                      tcch = list(a = 1, b = 1, r = -0.5, s = 0, u = 1)),
+    "tcch\\$r"
+  )
+  expect_error(
+    graphical_g_prior(g_hyperprior = "tCCH",
+                      tcch = list(a = 1, b = 1, r = 0, s = 0, u = -1)),
+    "tcch\\$u"
+  )
+  expect_error(
+    graphical_g_prior(g_hyperprior = "tCCH", tcch = list(a = 1)),
+    "components a, b, r, s, u"
   )
 })
 

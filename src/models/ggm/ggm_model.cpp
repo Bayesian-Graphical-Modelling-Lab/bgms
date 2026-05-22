@@ -753,26 +753,17 @@ void GGMModel::gg_update_t_() {
         return;
     }
 
-    // ZellnerSiow / HyperG / HyperGOverN: MH-on-log(g) with scale-matched
-    // joint proposal (Θ, g_old) → (α·Θ, g_new), α = √(g_new/g_old). The
-    // scale-matching collapses the slab contribution to the MH ratio so
-    // only the hyperprior, diagonal Gamma, det-tilt, likelihood, and
-    // Jacobian terms remain.
+    // ZellnerSiow / HyperG / HyperGOverN / TCCH: MH-on-log(g) with
+    // scale-matched joint proposal (Θ, g_old) → (α·Θ, g_new),
+    // α = √(g_new/g_old). The scale-matching collapses the slab
+    // contribution to the MH ratio so only the hyperprior, diagonal
+    // Gamma, det-tilt, likelihood, and Jacobian terms remain.
     if (gg_hyperprior_ == GGHyperprior::ZellnerSiow ||
         gg_hyperprior_ == GGHyperprior::HyperG     ||
-        gg_hyperprior_ == GGHyperprior::HyperGOverN) {
+        gg_hyperprior_ == GGHyperprior::HyperGOverN ||
+        gg_hyperprior_ == GGHyperprior::TCCH) {
         gg_mh_update_log_g_();
         return;
-    }
-
-    // TCCH: not yet implemented (needs the truncated compound confluent
-    // hypergeometric pdf evaluation). Fall through with a one-shot
-    // warning per chain so the user sees the configuration is unsupported
-    // without flooding the console.
-    if (!tcch_warned_) {
-        Rcpp::warning("GGMModel: tCCH g-hyperprior is not yet implemented; "
-                      "g is held fixed.");
-        tcch_warned_ = true;
     }
 }
 
@@ -802,6 +793,33 @@ double GGMModel::gg_log_hyperprior_(double g) const {
             const double n = std::max(1.0,
                 static_cast<double>(n_at_gg_setup_));
             return -0.5 * a * std::log1p(g / n);
+        }
+        case GGHyperprior::TCCH: {
+            // Forte / Maruyama-George / BAS parameterisation:
+            //   log π(g) = (b-1) log(g)
+            //            - r log(1 + g/u)
+            //            - (a+b) log(1+g)
+            //            - s · g
+            // a, b > 0, r, s >= 0, u > 0. Defaults (1, 1, 0, 0, 1) give
+            // a hyper-g variant π(g) ∝ (1+g)^(-2). Named priors map as:
+            //   hyper-g(α):    a = α - 2, b = 1, r = 0, s = 0, u = 1
+            //   beta-prime(α,β): a = β, b = α, r = 0, s = 0, u = 1
+            //   ZS-like:       a = ½, b = ½, r = 0, s > 0, u = 1 (gives
+            //                  exp(-s·g) decay; not the canonical
+            //                  exp(-ν/(2g)) ZS form).
+            const double a = gg_tcch_a_;
+            const double b = gg_tcch_b_;
+            const double r = gg_tcch_r_;
+            const double s = gg_tcch_s_;
+            const double u = gg_tcch_u_;
+            const double third = 1.0 + g / u;
+            if (!(third > 0.0)) {
+                return -std::numeric_limits<double>::infinity();
+            }
+            return (b - 1.0) * std::log(g)
+                 - r * std::log(third)
+                 - (a + b) * std::log1p(g)
+                 - s * g;
         }
         default:
             return 0.0;

@@ -163,7 +163,11 @@ normal_prior = function(scale = 1) {
 #'   \item \code{"hyper_g_over_n"} —
 #'     \eqn{\pi(g) = \tfrac{a-2}{2n}(1+g/n)^{-a/2}}, with \eqn{n} the
 #'     data sample size (captured at fit time). Shape \eqn{a} via \code{a}.
-#'   \item \code{"tCCH"} — placeholder; not yet implemented.
+#'   \item \code{"tCCH"} — truncated compound confluent hypergeometric:
+#'     \eqn{\pi(g) \propto g^{b-1} (1 + g/u)^{-r} (1+g)^{-(a+b)}
+#'     \exp(-s \cdot g)}, with \eqn{a, b > 0}, \eqn{r, s \ge 0},
+#'     \eqn{u > 0}. The five hyperparameters are passed via the
+#'     \code{tcch} argument (a named list).
 #' }
 #'
 #' The non-conjugate branches (\code{zellner_siow}, \code{hyper_g},
@@ -181,6 +185,14 @@ normal_prior = function(scale = 1) {
 #'   and hyper-g/n hyperpriors. Default \code{3}.
 #' @param b Positive numeric. Scale parameter of the Zellner-Siow
 #'   hyperprior. Default \code{1} (canonical form).
+#' @param tcch Named list with components \code{a, b, r, s, u} for the
+#'   tCCH hyperprior. Defaults to
+#'   \code{list(a = 1, b = 1, r = 0, s = 0, u = 1)}, which reduces to
+#'   \eqn{(1+g)^{-2}} (a hyper-g variant). The named priors are reachable
+#'   via specific settings (e.g. hyper-g(\eqn{\alpha}) is
+#'   \code{a = \eqn{\alpha} - 2, b = 1, r = 0, s = 0, u = 1}), but it is
+#'   often more convenient to use the dedicated \code{g_hyperprior}
+#'   values for those.
 #' @param g_fixed Positive numeric. Value of \eqn{g} when
 #'   \code{g_hyperprior = "fixed"}. Default \code{1}.
 #' @param g_init Positive numeric. Initial value of \eqn{g} for the
@@ -201,6 +213,8 @@ normal_prior = function(scale = 1) {
 #' graphical_g_prior(g_hyperprior = "hyper_g", a = 3)
 #' graphical_g_prior(g_hyperprior = "hyper_g_over_n", a = 3)
 #' graphical_g_prior(g_hyperprior = "zellner_siow", b = 1)
+#' graphical_g_prior(g_hyperprior = "tCCH",
+#'                   tcch = list(a = 1, b = 1, r = 0, s = 0, u = 1))
 #'
 #' @export
 graphical_g_prior = function(
@@ -210,6 +224,7 @@ graphical_g_prior = function(
   b0      = 1,
   a       = 3,
   b       = 1,
+  tcch    = list(a = 1, b = 1, r = 0, s = 0, u = 1),
   g_fixed = 1,
   g_init  = 1
 ) {
@@ -230,6 +245,27 @@ graphical_g_prior = function(
     stop("'a' must be > 2 for hyper_g and hyper_g_over_n.")
   }
 
+  # Validate the tCCH hyperparameter list. Only enforced when the user
+  # actually selects g_hyperprior = "tCCH"; otherwise we just stash the
+  # defaults so the C++ side has well-formed values to ignore.
+  if(!is.list(tcch) ||
+     !all(c("a", "b", "r", "s", "u") %in% names(tcch))) {
+    stop("'tcch' must be a named list with components a, b, r, s, u.")
+  }
+  if(g_hyperprior == "tCCH") {
+    validate_pos(tcch$a, "tcch$a")
+    validate_pos(tcch$b, "tcch$b")
+    validate_pos(tcch$u, "tcch$u")
+    validate_nonneg = function(x, nm) {
+      if(!is.numeric(x) || length(x) != 1L || is.na(x) ||
+         !is.finite(x) || x < 0) {
+        stop(sprintf("'%s' must be a single finite non-negative number.", nm))
+      }
+    }
+    validate_nonneg(tcch$r, "tcch$r")
+    validate_nonneg(tcch$s, "tcch$s")
+  }
+
   structure(
     list(
       family = "graphical_g",
@@ -239,6 +275,8 @@ graphical_g_prior = function(
         b0           = b0,
         a            = a,
         b            = b,
+        tcch         = list(a = tcch$a, b = tcch$b,
+                            r = tcch$r, s = tcch$s, u = tcch$u),
         g_fixed      = g_fixed,
         g_init       = g_init
       )
@@ -663,24 +701,30 @@ unpack_interaction_prior = function(prior) {
   # hyperparameters directly under their own keys.
   if (inherits(prior, "bgms_graphical_g_prior")) {
     hp = prior$hyper.parameters
-    # The C++ enable_gg_prior() takes tcch_a/tcch_b slots that are
-    # repurposed per hyperprior family:
+    # The C++ enable_gg_prior() takes tcch_a/tcch_b/tcch_r/tcch_s/tcch_u
+    # slots that are repurposed per hyperprior family:
     #   - conjugate_gamma: tcch_a = a0 (Gamma shape), tcch_b = b0 (rate)
     #   - hyper_g, hyper_g_over_n: tcch_a = a (shape > 2)
     #   - zellner_siow: tcch_b = b (IG scale)
+    #   - tCCH: all five (a, b, r, s, u) used directly
     # Pre-pack here so run_sampler_ggm forwards consistent values.
     gg_a = switch(hp$g_hyperprior,
                   conjugate_gamma = hp$a0,
                   hyper_g         = hp$a,
                   hyper_g_over_n  = hp$a,
                   zellner_siow    = hp$a0,   # unused
+                  tCCH            = hp$tcch$a,
                   hp$a0)
     gg_b = switch(hp$g_hyperprior,
                   conjugate_gamma = hp$b0,
                   zellner_siow    = hp$b,
                   hyper_g         = hp$b0,   # unused
                   hyper_g_over_n  = hp$b0,   # unused
+                  tCCH            = hp$tcch$b,
                   hp$b0)
+    gg_r = if(hp$g_hyperprior == "tCCH") hp$tcch$r else 0.0
+    gg_s = if(hp$g_hyperprior == "tCCH") hp$tcch$s else 0.0
+    gg_u = if(hp$g_hyperprior == "tCCH") hp$tcch$u else 1.0
     return(list(
       interaction_prior_type = "graphical_g",
       pairwise_scale         = NA_real_,
@@ -689,6 +733,9 @@ unpack_interaction_prior = function(prior) {
       gg_hyperprior          = hp$g_hyperprior,
       gg_a0                  = gg_a,
       gg_b0                  = gg_b,
+      gg_tcch_r              = gg_r,
+      gg_tcch_s              = gg_s,
+      gg_tcch_u              = gg_u,
       gg_g_fixed             = hp$g_fixed,
       gg_g_init              = hp$g_init
     ))

@@ -112,6 +112,9 @@ run_sampler_ggm = function(spec) {
     gg_hyperprior = p$gg_hyperprior %||% "conjugate_gamma",
     gg_a0         = p$gg_a0         %||% 1.0,
     gg_b0         = p$gg_b0         %||% 1.0,
+    gg_tcch_r     = p$gg_tcch_r     %||% 0.0,
+    gg_tcch_s     = p$gg_tcch_s     %||% 0.0,
+    gg_tcch_u     = p$gg_tcch_u     %||% 1.0,
     gg_g_fixed    = p$gg_g_fixed    %||% 1.0,
     gg_g_init     = p$gg_g_init     %||% 1.0,
     # Prior-only mode: mute the data likelihood (n=0, S=0) after V_ij has
