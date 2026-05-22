@@ -56,6 +56,14 @@ public:
     /// Whether AM diagnostics are stored.
     bool        has_am_diagnostics = false;
 
+    /// Graphical-G-prior shared scale t at end of iteration (n_iter).
+    /// t = sqrt(g); snapshotted from the model after the per-sweep Gibbs
+    /// update in prepare_iteration(). Only populated when the model uses
+    /// the GG-prior (interaction_prior_type == "graphical_g").
+    arma::vec   gg_t_samples;
+    /// Whether GG-prior diagnostics are stored.
+    bool        has_gg_diagnostics = false;
+
     /**
      * Reserve storage for samples
      * @param param_dim  Number of parameters per sample
@@ -105,6 +113,15 @@ public:
     void reserve_am_diagnostics(const size_t n_iter) {
         am_accept_prob_samples.set_size(n_iter);
         has_am_diagnostics = true;
+    }
+
+    /**
+     * Reserve storage for Graphical-G-prior diagnostics.
+     * @param n_iter  Number of sampling iterations
+     */
+    void reserve_gg_diagnostics(const size_t n_iter) {
+        gg_t_samples.set_size(n_iter);
+        has_gg_diagnostics = true;
     }
 
     /**
@@ -158,5 +175,14 @@ public:
      */
     void store_am_diagnostics(const size_t iter, double accept_prob) {
         am_accept_prob_samples(iter) = accept_prob;
+    }
+
+    /**
+     * Store Graphical-G-prior diagnostics for one iteration.
+     * @param iter  Iteration index (0-based)
+     * @param t     Current shared scale t = sqrt(g) at end of iteration
+     */
+    void store_gg_diagnostics(const size_t iter, double t) {
+        gg_t_samples(iter) = t;
     }
 };

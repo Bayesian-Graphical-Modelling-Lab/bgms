@@ -107,6 +107,21 @@ public:
     }
 
     /**
+     * @return True if this model maintains Graphical-G-prior diagnostics
+     * (per-iteration shared scale t). Default: false. Overridden by
+     * GGMModel when the GG-prior is enabled.
+     */
+    virtual bool has_gg_diagnostics() const { return false; }
+
+    /**
+     * @return Current Graphical-G-prior shared scale t = sqrt(g).
+     * Only meaningful when has_gg_diagnostics() returns true.
+     */
+    virtual double current_gg_t() const {
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+
+    /**
      * Set the target Metropolis acceptance rate for Robbins-Monro proposal
      * adaptation. Called by the sampler entry points (sample_omrf,
      * sample_mixed_mrf, sample_ggm) before the MCMC loop, with the value

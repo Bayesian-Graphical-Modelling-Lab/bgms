@@ -280,6 +280,11 @@ public:
     bool gg_prior_enabled() const { return use_gg_prior_; }
     double gg_current_t()  const { return t_; }
     double gg_current_g()  const { return t_ * t_; }
+
+    /** Per-iteration GG-prior diagnostic getters used by the chain
+     *  runner. Active iff the GG-prior is enabled on this model. */
+    bool   has_gg_diagnostics() const override { return use_gg_prior_; }
+    double current_gg_t()       const override { return t_; }
     const arma::mat& gg_V_ij() const { return V_ij_; }
     /** Read-only view of the current precision matrix. Used by test
      *  harnesses to snapshot the chain state directly. */

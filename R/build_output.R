@@ -309,6 +309,7 @@ build_output_bgm = function(spec, raw) {
       if(!is.null(chain$energy)) res[["energy__"]] = chain$energy
       if(!is.null(chain$accept_prob)) res[["accept_prob__"]] = chain$accept_prob
       if(!is.null(chain$am_accept_prob)) res[["am_accept_prob__"]] = chain$am_accept_prob
+      if(!is.null(chain$gg_t)) res[["gg_t__"]] = chain$gg_t
       res
     })
   } else {
@@ -526,6 +527,22 @@ build_output_bgm = function(spec, raw) {
     )
   } else if(s$update_method == "adaptive-metropolis") {
     results$am_diag = summarize_am_diagnostics(raw, names_main = names_main, names_pairwise = edge_names, target_accept = s$target_accept)
+  }
+
+  # --- Graphical-G-prior diagnostics ------------------------------------------
+  # Per-iteration shared scale t (and derived g = t^2) for GGM fits run
+  # under interaction_prior = graphical_g_prior(). NULL otherwise.
+  if(is_continuous && identical(spec$prior$interaction_prior_type, "graphical_g")) {
+    gg_t_list = lapply(raw, function(ch) {
+      v = ch[["gg_t__"]]
+      if(is.null(v)) NULL else as.numeric(v)
+    })
+    if(!any(vapply(gg_t_list, is.null, logical(1L)))) {
+      results$gg_diagnostics = list(
+        t = gg_t_list,
+        g = lapply(gg_t_list, function(x) x * x)
+      )
+    }
   }
 
   results$.bgm_spec = spec
