@@ -105,7 +105,15 @@ run_sampler_ggm = function(spec) {
     max_tree_depth = s$nuts_max_depth,
     na_impute = m$na_impute,
     missing_index_nullable = m$missing_index,
-    delta = p$delta
+    delta = p$delta,
+    # Graphical G-prior: pass through hyperparameters when the
+    # interaction prior is graphical_g. Defaults are inert under the
+    # other prior families (sample_ggm ignores them).
+    gg_hyperprior = p$gg_hyperprior %||% "conjugate_gamma",
+    gg_a0         = p$gg_a0         %||% 1.0,
+    gg_b0         = p$gg_b0         %||% 1.0,
+    gg_g_fixed    = p$gg_g_fixed    %||% 1.0,
+    gg_g_init     = p$gg_g_init     %||% 1.0
   )
 
   out_raw

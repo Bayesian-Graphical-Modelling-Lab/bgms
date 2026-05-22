@@ -131,6 +131,95 @@ normal_prior = function(scale = 1) {
 #' beta_prime_prior()
 #' beta_prime_prior(alpha = 1, beta = 1)
 #'
+#' Graphical G-prior on the GGM edge parameters
+#'
+#' @description
+#' Specifies the unified mixtures-of-g-priors edge prior of the GG-prior
+#' construction (IDEA.md §5.1). The slab variance is per-edge,
+#' Fisher-information-calibrated, with a shared scale hyperparameter
+#' \eqn{g}:
+#' \deqn{ \omega_{ij} \,|\, \gamma_{ij} = 1, g \;\sim\; \mathrm{Normal}(0,\; g \cdot V_{ij}), }
+#' where \eqn{V_{ij} = 1/(4\,n\,\bar S_{ii}\,\bar S_{jj})} is computed at
+#' fit time from the data sufficient statistic and \eqn{g} is updated under
+#' the chosen hyperprior. The construction pairs this slab with a
+#' scale-matched Gamma diagonal (rate \eqn{1/\sqrt{g}}), so when supplied
+#' as \code{interaction_prior} to \code{\link{bgm}}, the
+#' \code{precision_scale_prior} argument is ignored.
+#'
+#' The g-hyperprior choice selects how \eqn{g} (or equivalently
+#' \eqn{t = \sqrt{g}}) is updated each sweep:
+#' \itemize{
+#'   \item \code{"fixed"} — \eqn{g} held at \code{g_fixed} (no update).
+#'   \item \code{"conjugate_gamma"} (default) — closed-form Gibbs draw of
+#'     \eqn{t \sim \mathrm{Gamma}(a_0, b_0)} prior. Convenience baseline.
+#'   \item \code{"zellner_siow"}, \code{"hyper_g"}, \code{"hyper_g_over_n"},
+#'     \code{"tCCH"} — placeholders; not yet implemented.
+#' }
+#'
+#' @param g_hyperprior Character. One of \code{"conjugate_gamma"} (default),
+#'   \code{"fixed"}, \code{"zellner_siow"}, \code{"hyper_g"},
+#'   \code{"hyper_g_over_n"}, \code{"tCCH"}.
+#' @param a0 Positive numeric. Shape of the Gamma prior on \eqn{t} under
+#'   \code{conjugate_gamma}. Default \code{1}.
+#' @param b0 Positive numeric. Rate of the Gamma prior on \eqn{t} under
+#'   \code{conjugate_gamma}. Default \code{1}.
+#' @param g_fixed Positive numeric. Value of \eqn{g} when
+#'   \code{g_hyperprior = "fixed"}. Default \code{1}.
+#' @param g_init Positive numeric. Initial value of \eqn{g} for the
+#'   chain. Default \code{1}.
+#'
+#' @return An object of class
+#'   \code{c("bgms_graphical_g_prior", "bgms_interaction_prior", "bgms_parameter_prior")}
+#'   with \code{family = "graphical_g"}.
+#'
+#' @family prior-constructors
+#' @seealso \code{\link{cauchy_prior}}, \code{\link{normal_prior}},
+#'   \code{\link{bgm}}
+#'
+#' @examples
+#' graphical_g_prior()
+#' graphical_g_prior(g_hyperprior = "fixed", g_fixed = 1)
+#' graphical_g_prior(g_hyperprior = "conjugate_gamma", a0 = 1, b0 = 1)
+#'
+#' @export
+graphical_g_prior = function(
+  g_hyperprior = c("conjugate_gamma", "fixed",
+                   "zellner_siow", "hyper_g", "hyper_g_over_n", "tCCH"),
+  a0      = 1,
+  b0      = 1,
+  g_fixed = 1,
+  g_init  = 1
+) {
+  g_hyperprior = match.arg(g_hyperprior)
+
+  validate_pos = function(x, nm) {
+    if(!is.numeric(x) || length(x) != 1L || is.na(x) || !is.finite(x) || x <= 0) {
+      stop(sprintf("'%s' must be a single positive finite number.", nm))
+    }
+  }
+  validate_pos(a0, "a0")
+  validate_pos(b0, "b0")
+  validate_pos(g_fixed, "g_fixed")
+  validate_pos(g_init,  "g_init")
+
+  structure(
+    list(
+      family = "graphical_g",
+      hyper.parameters = list(
+        g_hyperprior = g_hyperprior,
+        a0           = a0,
+        b0           = b0,
+        g_fixed      = g_fixed,
+        g_init       = g_init
+      )
+    ),
+    class = c("bgms_graphical_g_prior",
+              "bgms_interaction_prior",
+              "bgms_parameter_prior")
+  )
+}
+
+
 #' @export
 beta_prime_prior = function(alpha = 0.5, beta = 0.5) {
   if(!is.numeric(alpha) || length(alpha) != 1L || is.na(alpha)) {
@@ -538,6 +627,24 @@ unpack_scale_prior = function(prior) {
 #'
 #' @keywords internal
 unpack_interaction_prior = function(prior) {
+  # GG-prior is a model-level construction (per-edge V_ij + shared g state)
+  # rather than a single-parameter density, so it bypasses the standard
+  # (scale, alpha, beta) flat-parameter unpack. Surface the GG-specific
+  # hyperparameters directly under their own keys.
+  if (inherits(prior, "bgms_graphical_g_prior")) {
+    hp = prior$hyper.parameters
+    return(list(
+      interaction_prior_type = "graphical_g",
+      pairwise_scale         = NA_real_,
+      interaction_alpha      = NA_real_,
+      interaction_beta       = NA_real_,
+      gg_hyperprior          = hp$g_hyperprior,
+      gg_a0                  = hp$a0,
+      gg_b0                  = hp$b0,
+      gg_g_fixed             = hp$g_fixed,
+      gg_g_init              = hp$g_init
+    ))
+  }
   pp = unpack_parameter_prior(prior)
   list(
     interaction_prior_type = pp$prior_type,

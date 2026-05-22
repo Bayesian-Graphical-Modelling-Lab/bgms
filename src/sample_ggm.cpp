@@ -38,20 +38,36 @@ Rcpp::List sample_ggm(
     const int max_tree_depth = 10,
     const bool na_impute = false,
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable = R_NilValue,
-    const double delta = 0.0
+    const double delta = 0.0,
+    const std::string& gg_hyperprior = "conjugate_gamma",
+    const double       gg_a0      = 1.0,
+    const double       gg_b0      = 1.0,
+    const double       gg_g_fixed = 1.0,
+    const double       gg_g_init  = 1.0
 ) {
 
-    // Create parameter priors from R input
-    double pairwise_scale = Rcpp::as<double>(inputFromR["pairwise_scale"]);
+    // Create parameter priors from R input.
+    //
+    // GG-prior path: interaction_prior_type == "graphical_g" is a sentinel
+    // for "the model owns the slab + diagonal priors". We still build
+    // placeholder NormalPrior / GammaScalePrior here so the GGMModel ctor
+    // is happy; they will be immediately replaced by GraphicalG{Prior,Diag}
+    // bound to the model's V_ij/t state inside enable_gg_prior() below.
     std::string ipt_str = inputFromR.containsElementNamed("interaction_prior_type")
         ? Rcpp::as<std::string>(inputFromR["interaction_prior_type"]) : "cauchy";
+    const bool use_gg_prior = (ipt_str == "graphical_g");
+
+    double pairwise_scale = use_gg_prior
+        ? 1.0
+        : Rcpp::as<double>(inputFromR["pairwise_scale"]);
     double ia = inputFromR.containsElementNamed("interaction_alpha")
         ? Rcpp::as<double>(inputFromR["interaction_alpha"]) : NA_REAL;
     double ib = inputFromR.containsElementNamed("interaction_beta")
         ? Rcpp::as<double>(inputFromR["interaction_beta"]) : NA_REAL;
 
-    auto interaction_prior = create_parameter_prior(
-        ipt_str, pairwise_scale, ia, ib);
+    auto interaction_prior = use_gg_prior
+        ? std::unique_ptr<BaseParameterPrior>(std::make_unique<NormalPrior>(1.0))
+        : create_parameter_prior(ipt_str, pairwise_scale, ia, ib);
 
     // Scale prior on precision diagonal
     std::string spt_str = inputFromR.containsElementNamed("scale_prior_type")
@@ -84,6 +100,34 @@ Rcpp::List sample_ggm(
     // delta * log|K|. delta = 0 is the default (untilted). Consumed by
     // both gradient paths and all four MH ratios in GGMModel.
     model.set_determinant_tilt(delta);
+
+    // GG-prior path: build the per-edge V_ij table from suf_stat and
+    // install GraphicalG{Prior,Diag} as the slab / diagonal priors. The
+    // placeholder NormalPrior/GammaScalePrior we passed to the model
+    // ctor above are discarded inside enable_gg_prior. Must run AFTER
+    // set_determinant_tilt so the q·δ shape correction in the
+    // ConjugateGamma g-update sees the right δ value.
+    if (use_gg_prior) {
+        GGMModel::GGHyperprior hp = GGMModel::GGHyperprior::Fixed;
+        double g_init_used = gg_g_init;
+        if      (gg_hyperprior == "fixed")           {
+            hp = GGMModel::GGHyperprior::Fixed;
+            g_init_used = gg_g_fixed;
+        } else if (gg_hyperprior == "conjugate_gamma") {
+            hp = GGMModel::GGHyperprior::ConjugateGamma;
+        } else if (gg_hyperprior == "zellner_siow")    {
+            hp = GGMModel::GGHyperprior::ZellnerSiow;
+        } else if (gg_hyperprior == "hyper_g")         {
+            hp = GGMModel::GGHyperprior::HyperG;
+        } else if (gg_hyperprior == "hyper_g_over_n")  {
+            hp = GGMModel::GGHyperprior::HyperGOverN;
+        } else if (gg_hyperprior == "tCCH")            {
+            hp = GGMModel::GGHyperprior::TCCH;
+        } else {
+            Rcpp::stop("Unknown gg_hyperprior: '%s'", gg_hyperprior.c_str());
+        }
+        model.enable_gg_prior(hp, g_init_used, gg_a0, gg_b0);
+    }
 
     // Set up missing data imputation (same pattern as OMRF)
     if (na_impute && missing_index_nullable.isNotNull()) {

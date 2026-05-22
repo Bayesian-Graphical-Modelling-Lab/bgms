@@ -254,6 +254,13 @@ bgm_spec = function(x,
                     pairwise_scale = 1,
                     interaction_alpha = NA_real_,
                     interaction_beta = NA_real_,
+                    # Graphical G-prior hyperparameters (GGM only). Inert
+                    # unless interaction_prior_type == "graphical_g".
+                    gg_hyperprior = NULL,
+                    gg_a0         = NULL,
+                    gg_b0         = NULL,
+                    gg_g_fixed    = NULL,
+                    gg_g_init     = NULL,
                     threshold_prior_type = "beta-prime",
                     main_alpha = 0.5,
                     main_beta = 0.5,
@@ -429,6 +436,21 @@ bgm_spec = function(x,
 
   # --- Build by model type ----------------------------------------------------
   if(model_type == "ggm") {
+    # GG-prior validation: when the slab is graphical_g, the diagonal
+    # prior is pinned by the construction (Gamma(1, 1/√g)), so a
+    # user-supplied scale_prior_type / scale_shape / scale_rate would
+    # be silently overridden. Warn so users notice.
+    if (identical(interaction_prior_type, "graphical_g") &&
+        (!identical(scale_prior_type, "gamma") ||
+         !isTRUE(all.equal(scale_shape, 1)) ||
+         !isTRUE(all.equal(scale_rate, 1)))) {
+      warning(
+        "interaction_prior = graphical_g_prior() fixes the diagonal ",
+        "prior to Gamma(1, rate = 1/sqrt(g)); the supplied ",
+        "precision_scale_prior(...) will be ignored.",
+        call. = FALSE
+      )
+    }
     spec = build_spec_ggm(
       x = x, data_columnnames = data_columnnames,
       num_variables = num_variables,
@@ -440,6 +462,11 @@ bgm_spec = function(x,
       pairwise_scale = pairwise_scale,
       interaction_alpha = interaction_alpha,
       interaction_beta = interaction_beta,
+      gg_hyperprior = gg_hyperprior,
+      gg_a0         = gg_a0,
+      gg_b0         = gg_b0,
+      gg_g_fixed    = gg_g_fixed,
+      gg_g_init     = gg_g_init,
       scale_prior_type = scale_prior_type,
       scale_shape = scale_shape,
       scale_rate = scale_rate,
@@ -534,6 +561,11 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
                           na_action, sampler,
                           interaction_prior_type, pairwise_scale,
                           interaction_alpha, interaction_beta,
+                          gg_hyperprior = NULL,
+                          gg_a0         = NULL,
+                          gg_b0         = NULL,
+                          gg_g_fixed    = NULL,
+                          gg_g_init     = NULL,
                           scale_prior_type, scale_shape, scale_rate,
                           delta = 0,
                           edge_prior_flat) {
@@ -573,6 +605,11 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
       pairwise_scale = pairwise_scale,
       interaction_alpha = interaction_alpha,
       interaction_beta = interaction_beta,
+      gg_hyperprior = gg_hyperprior,
+      gg_a0         = gg_a0,
+      gg_b0         = gg_b0,
+      gg_g_fixed    = gg_g_fixed,
+      gg_g_init     = gg_g_init,
       scale_prior_type = scale_prior_type,
       scale_shape = scale_shape,
       scale_rate = scale_rate,
