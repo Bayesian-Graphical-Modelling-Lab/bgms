@@ -113,7 +113,11 @@ run_sampler_ggm = function(spec) {
     gg_a0         = p$gg_a0         %||% 1.0,
     gg_b0         = p$gg_b0         %||% 1.0,
     gg_g_fixed    = p$gg_g_fixed    %||% 1.0,
-    gg_g_init     = p$gg_g_init     %||% 1.0
+    gg_g_init     = p$gg_g_init     %||% 1.0,
+    # Prior-only mode: mute the data likelihood (n=0, S=0) after V_ij has
+    # been cached. Default FALSE; set TRUE via the helper that builds the
+    # prior-only chain used by summary()/coef() to compute inclusion BFs.
+    prior_only    = isTRUE(p$prior_only)
   )
 
   out_raw

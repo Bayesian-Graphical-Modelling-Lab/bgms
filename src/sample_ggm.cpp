@@ -43,7 +43,8 @@ Rcpp::List sample_ggm(
     const double       gg_a0      = 1.0,
     const double       gg_b0      = 1.0,
     const double       gg_g_fixed = 1.0,
-    const double       gg_g_init  = 1.0
+    const double       gg_g_init  = 1.0,
+    const bool         prior_only = false
 ) {
 
     // Create parameter priors from R input.
@@ -127,6 +128,15 @@ Rcpp::List sample_ggm(
             Rcpp::stop("Unknown gg_hyperprior: '%s'", gg_hyperprior.c_str());
         }
         model.enable_gg_prior(hp, g_init_used, gg_a0, gg_b0);
+    }
+
+    // Prior-only mode: mute the data likelihood AFTER enable_gg_prior has
+    // cached V_ij from the original (n, suf_stat). The chain then samples
+    // (K, Gamma) from the joint prior with the same V_ij scaling. Works for
+    // any prior family (GG-prior, Cauchy, Normal, ...) since the data only
+    // enters through n_ and suf_stat_ in MH ratios and the gradient engine.
+    if (prior_only) {
+        model.set_prior_only();
     }
 
     // Set up missing data imputation (same pattern as OMRF)

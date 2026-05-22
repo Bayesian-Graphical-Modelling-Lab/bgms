@@ -673,6 +673,27 @@ void GGMModel::enable_gg_prior(
 }
 
 
+void GGMModel::set_prior_only() {
+    // Zero the sufficient statistic and sample count so that every data-
+    // contribution term in the MH ratios and NUTS gradient evaluates to zero.
+    //   log_likelihood = n_ * (...) + log|K|/2 - tr(K·S)/2  → 0
+    //   block_log_likelihood: n_·logdet term + suf_stat trace contributions  → 0
+    // The GG-prior V_ij was already cached in V_ij_ at enable_gg_prior() time
+    // from the original (n_, suf_stat_), so the prior over (K, Gamma) is
+    // unchanged. Diagonal Gamma prior, slab Normal prior, edge prior and
+    // determinant tilt remain active and continue to drive the chain.
+    prior_only_       = true;
+    n_                = 0;
+    suf_stat_.zeros();
+    // Force a gradient-engine rebuild so its cached (n_, suf_stat_) views
+    // refresh to the zeroed state.
+    gradient_engine_.rebuild(
+        constraint_structure_, n_, suf_stat_,
+        *interaction_prior_, *diagonal_prior_, determinant_tilt_);
+    constraint_dirty_ = false;
+}
+
+
 void GGMModel::gg_rebind_priors_() {
     // Cloned priors may still hold pointers into the source model's V_ij_/t_.
     // dynamic_cast is safe on any other prior — falls through silently.

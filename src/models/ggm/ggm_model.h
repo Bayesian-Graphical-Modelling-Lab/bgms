@@ -281,6 +281,16 @@ public:
     double gg_current_t()  const { return t_; }
     double gg_current_g()  const { return t_ * t_; }
 
+    /**
+     * Mute the data likelihood: set n_ = 0 and suf_stat_ = 0, then rebuild
+     * the gradient engine. Used to run a prior-only chain (samples from
+     * the joint prior p(K, Gamma) under the original V_ij computed from
+     * the data). Call AFTER enable_gg_prior() so the GG-prior V_ij has
+     * already been cached from the original n_ and suf_stat_.
+     */
+    void set_prior_only();
+    bool prior_only() const { return prior_only_; }
+
     /** Per-iteration GG-prior diagnostic getters used by the chain
      *  runner. Active iff the GG-prior is enabled on this model. */
     bool   has_gg_diagnostics() const override { return use_gg_prior_; }
@@ -481,6 +491,10 @@ private:
     // interaction_prior_ / diagonal_prior_ hold non-owning pointers into
     // these two members; they MUST be rebound when the model is cloned.
     bool         use_gg_prior_ = false;
+    /// When true, n_ and suf_stat_ have been zeroed so the chain targets the
+    /// prior alone. The GG-prior V_ij was cached from the original data at
+    /// enable_gg_prior() time, so the prior over (K, Gamma) is unchanged.
+    bool         prior_only_   = false;
     arma::mat    V_ij_;
     double       t_            = 1.0;
     GGHyperprior gg_hyperprior_ = GGHyperprior::Fixed;

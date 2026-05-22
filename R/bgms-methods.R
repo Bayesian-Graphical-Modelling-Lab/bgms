@@ -97,6 +97,7 @@ print.bgms = function(x, ...) {
 #' @export
 summary.bgms = function(object, ...) {
   ensure_summaries(object)
+  ensure_inclusion_bayes_factor(object)
   arguments = extract_arguments(object)
 
   has_main = !is.null(object$posterior_summary_main)
@@ -120,6 +121,17 @@ summary.bgms = function(object, ...) {
 
     if(!is.null(object$posterior_summary_indicator)) {
       out$indicator = object$posterior_summary_indicator
+      # Graphical G-prior: surface per-edge prior PIP and inclusion BF.
+      # ensure_inclusion_bayes_factor() has already populated the cache for
+      # graphical_g_prior fits; for other priors we skip silently.
+      cache = get_fit_cache(object)
+      prior_pips = if(is.null(cache)) NULL else cache$gg_prior_pips
+      if(!is.null(prior_pips) &&
+         length(prior_pips) == nrow(out$indicator)) {
+        out$indicator$prior_inclusion = prior_pips
+        out$indicator$inclusion_bf =
+          inclusion_bayes_factor(out$indicator$mean, prior_pips)
+      }
     }
 
     if(!is.null(object$posterior_summary_pairwise_allocations)) {
