@@ -130,6 +130,13 @@ public:
     }
 
     /**
+     * @return Current RR truncation depth (K_depth) for the auxiliary
+     * U-pool. Only meaningful when has_v_ratio_diagnostics() returns true;
+     * default returns 0. Surfaces PMMH-on-RR slow mixing in K_depth.
+     */
+    virtual int current_K_depth() const { return 0; }
+
+    /**
      * Per-chain diagnostic summary captured once at the end of the chain.
      * Default is an empty list; models override to return counters / state
      * that aren't naturally per-iteration. Used by run_mcmc_chain to plumb
@@ -177,6 +184,15 @@ public:
      * RNG state consistently.
      */
     virtual void prepare_iteration() {}
+
+    /**
+     * Refresh auxiliary (non-(Γ, K)) state at the start of an iteration —
+     * intended for the V/RR U-pool refresh in hierarchical-spec GGM. Called
+     * by the chain runner only when `WarmupSchedule::u_refresh_enabled(iter)`
+     * is true, so models can rely on this being gated to phases where
+     * between-Γ MH is active (stage 3c + sampling). Default no-op.
+     */
+    virtual void refresh_auxiliary_u() {}
 
     // =========================================================================
     // Edge selection

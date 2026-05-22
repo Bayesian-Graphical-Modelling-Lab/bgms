@@ -65,6 +65,14 @@ public:
     /// and outlier detection.
     arma::ivec  v_sign_samples;
     arma::vec   v_log_abs_samples;
+    /// RR truncation depth (= K_depth) at the END of each sampling iteration,
+    /// captured straight from the model. Used to diagnose PMMH-on-RR slow
+    /// mixing / drift in K_depth (the "stuck at high K" pathology).
+    arma::ivec  K_depth_samples;
+    /// Per-sampling-iteration wall time in seconds (from a steady_clock delta
+    /// measured around `update_edge_indicators` + sampler->step in
+    /// run_mcmc_chain). Surfaces non-stationary per-iter cost.
+    arma::vec   iter_wall_samples;
     /// Whether V-ratio diagnostics are stored (true only for hierarchical-
     /// spec GGM chains).
     bool        has_v_ratio_diagnostics = false;
@@ -133,6 +141,9 @@ public:
     void reserve_v_ratio_diagnostics(const size_t n_iter) {
         v_sign_samples.set_size(n_iter);
         v_log_abs_samples.set_size(n_iter);
+        K_depth_samples.set_size(n_iter);
+        iter_wall_samples.set_size(n_iter);
+        iter_wall_samples.zeros();
         has_v_ratio_diagnostics = true;
     }
 

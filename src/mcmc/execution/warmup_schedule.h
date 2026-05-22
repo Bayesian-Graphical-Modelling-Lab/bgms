@@ -164,6 +164,15 @@ struct WarmupSchedule {
     return enable_selection && (in_stage3c(i) || sampling(i));
   }
 
+  /// Whether the auxiliary-U refresh (block-PMMH mh_U / fresh-from-prior)
+  /// is active. Tied to selection_enabled: U is only meaningful when Γ
+  /// moves consume it. Running mh_U during earlier warmup lets U/K_depth
+  /// drift via PMMH dynamics with no benefit, and burdens the chain on
+  /// entry to stage 3c.
+  bool u_refresh_enabled(int i) const {
+    return selection_enabled(i);
+  }
+
   /// Whether to adapt proposal_sd (Stage-3b only, if not skipped)
   bool adapt_proposal_sd(int i) const {
     return learn_proposal_sd && !stage3b_skipped && in_stage3b(i);

@@ -44,7 +44,10 @@ Rcpp::List sample_ggm(
     const double z_ratio_kappa   = 1.0,
     const double z_ratio_rho     = 0.5,
     const bool   use_manuscript_nlo = false,
-    const bool   mh_U = false
+    const bool   mh_U = false,
+    const bool   mh_U_local_K = false,
+    const double mh_U_local_K_global_freq = 0.02,
+    const bool   plug_in_nlo = false
 ) {
 
     // Create parameter priors from R input
@@ -99,6 +102,9 @@ Rcpp::List sample_ggm(
         model.set_z_ratio_tuning(z_ratio_M_inner, z_ratio_kappa, z_ratio_rho);
         model.set_use_manuscript_nlo(use_manuscript_nlo);
         model.set_mh_U(mh_U);
+        model.set_mh_U_local_K(mh_U_local_K);
+        model.set_mh_U_local_K_global_freq(mh_U_local_K_global_freq);
+        model.set_plug_in_nlo(plug_in_nlo);
         model.set_graph_prior_spec(GraphPriorSpec::Hierarchical);
     } else if (graph_prior_spec != "joint") {
         Rcpp::stop("graph_prior_spec must be 'joint' or 'hierarchical'.");

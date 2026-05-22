@@ -155,6 +155,9 @@ public:
           hierarchical_state_built_(false),
           use_manuscript_nlo_(other.use_manuscript_nlo_),
           mh_U_(other.mh_U_),
+          mh_U_local_K_(other.mh_U_local_K_),
+          mh_U_local_K_global_freq_(other.mh_U_local_K_global_freq_),
+          plug_in_nlo_(other.plug_in_nlo_),
           v_M_inner_(other.v_M_inner_),
           v_kappa_(other.v_kappa_),
           v_rho_(other.v_rho_),
@@ -205,6 +208,7 @@ public:
     }
     int    current_sign_V()    const override { return current_sign_V_; }
     double current_log_abs_V() const override { return current_log_abs_V_; }
+    int    current_K_depth()   const override { return v_K_depth_; }
 
     /** Impute missing entries from full-conditional normal distributions. */
     void impute_missing() override;
@@ -313,8 +317,59 @@ public:
     void set_mh_U(bool on) { mh_U_ = on; }
     bool mh_U() const { return mh_U_; }
 
+    /**
+     * Plug-in mNLO mode: replace the RR/V/U machinery with a deterministic
+     * closed-form Z(Γ) ratio in the between-Γ MH. Trades exactness for
+     * predictable cost (no K-tail, no pool work, flat per-toggle wall in p).
+     *
+     * Bias: smooth in Γ, of order |log Z(Γ) − log_Z_NLO(Γ)| per toggle —
+     * bit-exact at δ=0, controlled at small δ, grows with δ. The chain
+     * targets π(Γ) · exp(log_Z_NLO(Γ) − log Z(Γ)), i.e. the hierarchical
+     * target distorted by the centring miss. Under good mNLO centring this
+     * distortion is small and operationally negligible vs the K-scaling
+     * cost of the exact RR variant in dense / large-p regimes.
+     *
+     * Mutually exclusive with the RR machinery: when set, refresh_auxiliary_u
+     * early-returns and the between-Γ MH skips V_log_pair entirely. The
+     * mh_U / mh_U_local_K flags are ignored.
+     *
+     * Default `false`: exact RR + (optional) mh_U + (optional) local-K path.
+     */
+    void set_plug_in_nlo(bool on) { plug_in_nlo_ = on; }
+    bool plug_in_nlo() const { return plug_in_nlo_; }
+
+    /**
+     * Enable a local random-walk move on the RR truncation depth K instead
+     * of (or alongside) the fresh-from-prior K proposal. Targeted fix for
+     * the PMMH-on-RR K-dwell observed at p=20+, p_inc=0.05 (mean K drifts
+     * 2.4×−2.7× above the Geom prior; long streaks at K=5).
+     *
+     * Proposal: with probability mh_U_local_K_global_freq_ do the global
+     * fresh-from-prior step (keeps escape route alive); otherwise propose
+     * K_new ∈ {K_old−1, K_old+1} with reflection at 0. MH ratio includes
+     * the geometric-prior ratio ρ^(K_new−K_old) and the reflection boundary
+     * correction (±log 2 at K∈{0,1}).
+     *
+     * Default `false` preserves the fresh-from-prior dynamic.
+     */
+    void set_mh_U_local_K(bool on) { mh_U_local_K_ = on; }
+    bool mh_U_local_K() const { return mh_U_local_K_; }
+
+    /// Mixture fraction of fresh-from-prior K refreshes inside the local-K
+    /// regime. 0.02 (= 1-in-50) by default. Used only when mh_U_local_K_.
+    void set_mh_U_local_K_global_freq(double f) {
+        mh_U_local_K_global_freq_ = f;
+    }
+    double mh_U_local_K_global_freq() const {
+        return mh_U_local_K_global_freq_;
+    }
+
     /** Shuffle edge visit order (random scan). */
     void prepare_iteration() override;
+
+    /** V/RR U-pool refresh — gated by the chain runner on
+     *  WarmupSchedule::u_refresh_enabled(iter). See cpp for details. */
+    void refresh_auxiliary_u() override;
 
     /** Sweep over edges in shuffled order, proposing add/remove moves. */
     void update_edge_indicators() override;
@@ -510,6 +565,15 @@ private:
     // Toggle for the MH-on-U fix at sweep boundary (see set_mh_U). Default
     // `false` preserves the legacy fresh-from-μ refresh.
     bool   mh_U_ = false;
+    // Toggle for local random-walk on K_depth (see set_mh_U_local_K).
+    // Active only when mh_U_ is also true. Default `false` keeps the
+    // fresh-from-prior K proposal.
+    bool   mh_U_local_K_ = false;
+    double mh_U_local_K_global_freq_ = 0.02;
+    // Plug-in mNLO mode (see set_plug_in_nlo). When true, the RR/U/K machinery
+    // is fully bypassed and the between-Γ MH uses the closed-form NLO ratio
+    // directly. Default `false` keeps the exact PMMH path.
+    bool   plug_in_nlo_ = false;
     int    v_M_inner_ = 100;
     double v_kappa_   = 1.0;
     double v_rho_     = 0.5;
@@ -574,6 +638,16 @@ private:
     mutable long long n_mh_U_signzero_   = 0;
     mutable long long n_mh_U_signflip_   = 0;
 
+    // Local-K diagnostic counters (only incremented when mh_U_local_K_).
+    // Tracking up/down separately surfaces the signature of a healthy
+    // local-K kernel: acc_K_down > acc_K_up because the geometric prior
+    // pulls the chain back toward small K.
+    mutable long long n_mh_U_local_up_attempts_   = 0;
+    mutable long long n_mh_U_local_up_accepts_    = 0;
+    mutable long long n_mh_U_local_down_attempts_ = 0;
+    mutable long long n_mh_U_local_down_accepts_  = 0;
+    mutable long long n_mh_U_local_global_steps_  = 0;  // fresh-from-prior fraction
+
   public:
     /// @inheritdoc
     Rcpp::List get_diagnostics_summary() const override {
@@ -590,7 +664,12 @@ private:
             Rcpp::Named("mh_U_accepts")       = static_cast<double>(n_mh_U_accepts_),
             Rcpp::Named("mh_U_nonfinite")     = static_cast<double>(n_mh_U_nonfinite_),
             Rcpp::Named("mh_U_signzero")      = static_cast<double>(n_mh_U_signzero_),
-            Rcpp::Named("mh_U_signflip")      = static_cast<double>(n_mh_U_signflip_)
+            Rcpp::Named("mh_U_signflip")      = static_cast<double>(n_mh_U_signflip_),
+            Rcpp::Named("mh_U_local_up_att")  = static_cast<double>(n_mh_U_local_up_attempts_),
+            Rcpp::Named("mh_U_local_up_acc")  = static_cast<double>(n_mh_U_local_up_accepts_),
+            Rcpp::Named("mh_U_local_down_att")= static_cast<double>(n_mh_U_local_down_attempts_),
+            Rcpp::Named("mh_U_local_down_acc")= static_cast<double>(n_mh_U_local_down_accepts_),
+            Rcpp::Named("mh_U_local_global")  = static_cast<double>(n_mh_U_local_global_steps_)
         );
     }
 
@@ -602,10 +681,18 @@ private:
     void ensure_hierarchical_state_();
     /// Draw a fresh (K_depth, pools_t) U for the V estimator.
     void refresh_z_ratio_pool_();
-    /// MH step on (U, K_depth) using a fresh draw from μ as proposal. Accepts
-    /// on log|V(Γ_curr; U_new)| − log|V(Γ_curr; U_old)|; μ and P(N) cancel by
-    /// proposal symmetry. Companion-AI delivery 2026-05-21 (see set_mh_U).
+    /// MH step on (U, K_depth) at sweep boundary. Dispatches between the
+    /// fresh-from-prior kernel (global proposal) and the local random-walk
+    /// on K kernel (when mh_U_local_K_ is set), mixing them at the
+    /// configured global frequency.
     void mh_on_U_step_();
+    /// Fresh-from-prior MH proposal on (U, K_depth). Accepts on
+    /// log|V_new| − log|V_old|; μ and P(N) cancel by proposal symmetry.
+    void mh_on_U_step_global_();
+    /// Local random-walk MH proposal on K_depth with reflection at 0; U is
+    /// extended/shrunk in product-form fashion. Includes the geometric-prior
+    /// ratio ρ^(K_new−K_old) and ±log 2 boundary corrections at K∈{0,1}.
+    void mh_on_U_step_local_K_();
 
     /** Extract upper triangle of the precision matrix into a vector. */
     arma::vec extract_upper_triangle() const {

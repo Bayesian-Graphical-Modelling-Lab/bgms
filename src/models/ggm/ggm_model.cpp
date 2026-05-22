@@ -561,61 +561,50 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
                     G_star, prior_alpha_, prior_beta_, prior_sigma_,
                     determinant_tilt_, use_manuscript_nlo_);
             }
-            // V evaluated under the DEGORD permutation π that sends (i, j)
-            // to (q-2, q-1).
-            arma::ivec pi = degord::degord_permutation(
-                static_cast<int>(p_), static_cast<int>(i), static_cast<int>(j));
-            arma::imat G_pi_curr = degord::permute_graph(edge_indicators_, pi);
-            arma::imat G_pi_star = degord::permute_graph(G_star, pi);
-            // Log-space V: avoids underflow in c = kappa * exp(log_Z_NLO) at
-            // large p (log_Z_NLO is ~ -3500 at p=100, δ=1 → c flushes to 0).
-            // log_kappa cancels in the MH ratio, but log_c per Γ is needed
-            // to evaluate log|expm1(log_Zhat_m - log_c)| pointwise.
-            //
-            // Paired call shares the inner Phi-build across Γ_curr / Γ_star
-            // by caching (rw_head, S_trail) under a_curr and re-evaluating
-            // only row q-2 under a_star — halves per-pool work vs two
-            // independent V_log_at_Gamma_pi_degord calls.
-            double log_kappa = std::log(v_kappa_);
-            double log_c_curr = log_kappa + log_Z_NLO_curr_;
-            double log_c_star = log_kappa + log_Z_NLO_star;
-            auto V_pair = degord::V_log_pair_at_Gamma_curr_star_degord(
-                v_K_depth_, v_pools_t_,
-                G_pi_curr, G_pi_star, chain_aux_degord_,
-                log_c_curr, log_c_star, v_rho_);
-            // F2: initialise running V-diagnostic from V_pair.curr the first
-            // time we see a finite value (so the side-car has a meaningful
-            // entry from iteration 1 even before any accept). On accept the
-            // value is overwritten below from V_pair.star.
-            if (!v_diag_initialized_ &&
-                std::isfinite(V_pair.curr.first) && V_pair.curr.second != 0) {
-                current_sign_V_     = V_pair.curr.second;
-                current_log_abs_V_  = V_pair.curr.first;
-                v_diag_initialized_ = true;
-                last_v_pi_i_ = static_cast<int>(i);
-                last_v_pi_j_ = static_cast<int>(j);
-            }
-            V_star_sign_for_diag    = V_pair.star.second;
-            V_star_log_abs_for_diag = V_pair.star.first;
-            // Auto-reject on non-finite log|V| (sentinel for V = 0 or
-            // non-finite Zhat) or on sign flip across Γ_curr / Γ_star. The
-            // sign-flip reject remains until a proper Lyne sign accumulator
-            // composes downstream (F3).
-            if (!std::isfinite(V_pair.curr.first) || V_pair.curr.second == 0 ||
-                !std::isfinite(V_pair.star.first) || V_pair.star.second == 0 ||
-                V_pair.curr.second != V_pair.star.second) {
-                // Classify the auto-reject for diagnostics.
-                if (!std::isfinite(V_pair.curr.first) ||
-                    !std::isfinite(V_pair.star.first)) {
-                    ++n_hier_del_nonfinite_;
-                } else if (V_pair.curr.second == 0 || V_pair.star.second == 0) {
-                    ++n_hier_del_signzero_;
-                } else {
-                    ++n_hier_del_signflip_;
-                }
-                ln_alpha = -std::numeric_limits<double>::infinity();
+            if (plug_in_nlo_) {
+                // Plug-in mode: replace V_pair entirely with the deterministic
+                // closed-form ratio log Z(Γ_curr) − log Z(Γ_star), approximated
+                // by mNLO. No U, no K, no pool work. Flat cost in p.
+                ln_alpha += log_Z_NLO_curr_ - log_Z_NLO_star;
             } else {
-                ln_alpha += V_pair.star.first - V_pair.curr.first;
+                // V evaluated under the DEGORD permutation π that sends (i, j)
+                // to (q-2, q-1).
+                arma::ivec pi = degord::degord_permutation(
+                    static_cast<int>(p_), static_cast<int>(i), static_cast<int>(j));
+                arma::imat G_pi_curr = degord::permute_graph(edge_indicators_, pi);
+                arma::imat G_pi_star = degord::permute_graph(G_star, pi);
+                double log_kappa = std::log(v_kappa_);
+                double log_c_curr = log_kappa + log_Z_NLO_curr_;
+                double log_c_star = log_kappa + log_Z_NLO_star;
+                auto V_pair = degord::V_log_pair_at_Gamma_curr_star_degord(
+                    v_K_depth_, v_pools_t_,
+                    G_pi_curr, G_pi_star, chain_aux_degord_,
+                    log_c_curr, log_c_star, v_rho_);
+                if (!v_diag_initialized_ &&
+                    std::isfinite(V_pair.curr.first) && V_pair.curr.second != 0) {
+                    current_sign_V_     = V_pair.curr.second;
+                    current_log_abs_V_  = V_pair.curr.first;
+                    v_diag_initialized_ = true;
+                    last_v_pi_i_ = static_cast<int>(i);
+                    last_v_pi_j_ = static_cast<int>(j);
+                }
+                V_star_sign_for_diag    = V_pair.star.second;
+                V_star_log_abs_for_diag = V_pair.star.first;
+                if (!std::isfinite(V_pair.curr.first) || V_pair.curr.second == 0 ||
+                    !std::isfinite(V_pair.star.first) || V_pair.star.second == 0) {
+                    if (!std::isfinite(V_pair.curr.first) ||
+                        !std::isfinite(V_pair.star.first)) {
+                        ++n_hier_del_nonfinite_;
+                    } else {
+                        ++n_hier_del_signzero_;
+                    }
+                    ln_alpha = -std::numeric_limits<double>::infinity();
+                } else {
+                    if (V_pair.curr.second != V_pair.star.second) {
+                        ++n_hier_del_signflip_;
+                    }
+                    ln_alpha += V_pair.star.first - V_pair.curr.first;
+                }
             }
         }
 
@@ -640,12 +629,14 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
             theta_valid_ = false;
             if (hier_active) {
                 log_Z_NLO_curr_ = log_Z_NLO_star;
-                // Γ_star is now Γ_curr; advance the running V state.
-                current_sign_V_    = V_star_sign_for_diag;
-                current_log_abs_V_ = V_star_log_abs_for_diag;
-                v_diag_initialized_ = true;
-                last_v_pi_i_ = static_cast<int>(i);
-                last_v_pi_j_ = static_cast<int>(j);
+                if (!plug_in_nlo_) {
+                    // Γ_star is now Γ_curr; advance the running V state.
+                    current_sign_V_    = V_star_sign_for_diag;
+                    current_log_abs_V_ = V_star_log_abs_for_diag;
+                    v_diag_initialized_ = true;
+                    last_v_pi_i_ = static_cast<int>(i);
+                    last_v_pi_j_ = static_cast<int>(j);
+                }
             }
         }
 
@@ -720,45 +711,45 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
                     G_star, prior_alpha_, prior_beta_, prior_sigma_,
                     determinant_tilt_, use_manuscript_nlo_);
             }
-            arma::ivec pi = degord::degord_permutation(
-                static_cast<int>(p_), static_cast<int>(i), static_cast<int>(j));
-            arma::imat G_pi_curr = degord::permute_graph(edge_indicators_, pi);
-            arma::imat G_pi_star = degord::permute_graph(G_star, pi);
-            // Log-space V with within-toggle cache reuse (see DELETE branch
-            // for the underflow rationale and the sign-flip auto-reject
-            // contract).
-            double log_kappa = std::log(v_kappa_);
-            double log_c_curr = log_kappa + log_Z_NLO_curr_;
-            double log_c_star = log_kappa + log_Z_NLO_star_add;
-            auto V_pair = degord::V_log_pair_at_Gamma_curr_star_degord(
-                v_K_depth_, v_pools_t_,
-                G_pi_curr, G_pi_star, chain_aux_degord_,
-                log_c_curr, log_c_star, v_rho_);
-            // F2: same diagnostic seeding as in the DELETE branch.
-            if (!v_diag_initialized_ &&
-                std::isfinite(V_pair.curr.first) && V_pair.curr.second != 0) {
-                current_sign_V_     = V_pair.curr.second;
-                current_log_abs_V_  = V_pair.curr.first;
-                v_diag_initialized_ = true;
-                last_v_pi_i_ = static_cast<int>(i);
-                last_v_pi_j_ = static_cast<int>(j);
-            }
-            V_star_sign_for_diag_add    = V_pair.star.second;
-            V_star_log_abs_for_diag_add = V_pair.star.first;
-            if (!std::isfinite(V_pair.curr.first) || V_pair.curr.second == 0 ||
-                !std::isfinite(V_pair.star.first) || V_pair.star.second == 0 ||
-                V_pair.curr.second != V_pair.star.second) {
-                if (!std::isfinite(V_pair.curr.first) ||
-                    !std::isfinite(V_pair.star.first)) {
-                    ++n_hier_add_nonfinite_;
-                } else if (V_pair.curr.second == 0 || V_pair.star.second == 0) {
-                    ++n_hier_add_signzero_;
-                } else {
-                    ++n_hier_add_signflip_;
-                }
-                ln_alpha = -std::numeric_limits<double>::infinity();
+            if (plug_in_nlo_) {
+                ln_alpha += log_Z_NLO_curr_ - log_Z_NLO_star_add;
             } else {
-                ln_alpha += V_pair.star.first - V_pair.curr.first;
+                arma::ivec pi = degord::degord_permutation(
+                    static_cast<int>(p_), static_cast<int>(i), static_cast<int>(j));
+                arma::imat G_pi_curr = degord::permute_graph(edge_indicators_, pi);
+                arma::imat G_pi_star = degord::permute_graph(G_star, pi);
+                double log_kappa = std::log(v_kappa_);
+                double log_c_curr = log_kappa + log_Z_NLO_curr_;
+                double log_c_star = log_kappa + log_Z_NLO_star_add;
+                auto V_pair = degord::V_log_pair_at_Gamma_curr_star_degord(
+                    v_K_depth_, v_pools_t_,
+                    G_pi_curr, G_pi_star, chain_aux_degord_,
+                    log_c_curr, log_c_star, v_rho_);
+                if (!v_diag_initialized_ &&
+                    std::isfinite(V_pair.curr.first) && V_pair.curr.second != 0) {
+                    current_sign_V_     = V_pair.curr.second;
+                    current_log_abs_V_  = V_pair.curr.first;
+                    v_diag_initialized_ = true;
+                    last_v_pi_i_ = static_cast<int>(i);
+                    last_v_pi_j_ = static_cast<int>(j);
+                }
+                V_star_sign_for_diag_add    = V_pair.star.second;
+                V_star_log_abs_for_diag_add = V_pair.star.first;
+                if (!std::isfinite(V_pair.curr.first) || V_pair.curr.second == 0 ||
+                    !std::isfinite(V_pair.star.first) || V_pair.star.second == 0) {
+                    if (!std::isfinite(V_pair.curr.first) ||
+                        !std::isfinite(V_pair.star.first)) {
+                        ++n_hier_add_nonfinite_;
+                    } else {
+                        ++n_hier_add_signzero_;
+                    }
+                    ln_alpha = -std::numeric_limits<double>::infinity();
+                } else {
+                    if (V_pair.curr.second != V_pair.star.second) {
+                        ++n_hier_add_signflip_;
+                    }
+                    ln_alpha += V_pair.star.first - V_pair.curr.first;
+                }
             }
         }
 
@@ -770,11 +761,13 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 
             if (hier_active_add) {
                 log_Z_NLO_curr_ = log_Z_NLO_star_add;
-                current_sign_V_    = V_star_sign_for_diag_add;
-                current_log_abs_V_ = V_star_log_abs_for_diag_add;
-                v_diag_initialized_ = true;
-                last_v_pi_i_ = static_cast<int>(i);
-                last_v_pi_j_ = static_cast<int>(j);
+                if (!plug_in_nlo_) {
+                    current_sign_V_    = V_star_sign_for_diag_add;
+                    current_log_abs_V_ = V_star_log_abs_for_diag_add;
+                    v_diag_initialized_ = true;
+                    last_v_pi_i_ = static_cast<int>(i);
+                    last_v_pi_j_ = static_cast<int>(j);
+                }
             }
 
             // Update omega
@@ -840,30 +833,33 @@ void GGMModel::prepare_iteration() {
     // Shuffle edge visit order for random-scan edge selection.
     // Called unconditionally to keep RNG state consistent.
     shuffled_edge_order_ = arma_randperm(rng_, num_pairwise_);
-    // Refresh the V/RR U-pool at iteration start.
-    //   Legacy (mh_U_ = false): unconditional draw from μ(U). This breaks
-    //     PMMH invariance on (Γ, K, U, N) — the conditional under the
-    //     augmented target is V·μ, not μ alone — and yields a small Γ-
-    //     marginal bias (~−0.001 nats at p=20, p_inc=0.05).
-    //   Fixed (mh_U_ = true): V-ratio MH step on U, accepting on
-    //     log|V_new| − log|V_old|. Companion-AI delivery 2026-05-21.
-    //   On the very first prepare_iteration after lazy init, the state has
-    //     just been seeded with a fresh U via ensure_hierarchical_state_();
-    //     no comparison is possible, so we skip the MH step and treat the
-    //     init draw as the iteration-0 U.
-    if (graph_prior_spec_ == GraphPriorSpec::Hierarchical) {
-        bool was_built = hierarchical_state_built_;
-        ensure_hierarchical_state_();
-        if (!was_built) {
-            // First iteration: state seeded by ensure_hierarchical_state_;
-            // nothing more to do.
-            return;
-        }
-        if (mh_U_) {
-            mh_on_U_step_();
-        } else {
-            refresh_z_ratio_pool_();
-        }
+}
+
+
+// V/RR U-pool refresh — only relevant when between-Γ moves are active.
+// The chain runner calls this iff WarmupSchedule::u_refresh_enabled(iter)
+// is true (i.e., stage 3c + sampling), so this method itself doesn't
+// re-check the schedule — it just executes whichever refresh strategy is
+// configured (mh_U or legacy fresh-from-prior). Running this earlier
+// would let U/K_depth drift via PMMH dynamics with no Γ moves consuming
+// it, polluting the sampling phase with inflated K_depth.
+void GGMModel::refresh_auxiliary_u() {
+    if (graph_prior_spec_ != GraphPriorSpec::Hierarchical) return;
+    // Plug-in mode skips the U machinery entirely — the closed-form mNLO
+    // ratio carries the hierarchical correction deterministically.
+    if (plug_in_nlo_) return;
+
+    bool was_built = hierarchical_state_built_;
+    ensure_hierarchical_state_();
+    if (!was_built) {
+        // First refresh after lazy init: state was just seeded with a
+        // fresh U; no MH comparison is possible yet.
+        return;
+    }
+    if (mh_U_) {
+        mh_on_U_step_();
+    } else {
+        refresh_z_ratio_pool_();
     }
 }
 
@@ -944,9 +940,29 @@ void GGMModel::refresh_z_ratio_pool_() {
 // π: arbitrary; any π yields an unbiased V estimator. We pick π = (0, 1)
 // for simplicity (gives the canonical degord reordering that maps the first
 // two vertices to themselves).
+// Dispatcher: routes to local-K or global proposal depending on flag and
+// mixture frequency. Bit-equality with the pre-flag binary is preserved
+// when mh_U_local_K_ == false (no RNG draws on the new branch).
 void GGMModel::mh_on_U_step_() {
     if (graph_prior_spec_ != GraphPriorSpec::Hierarchical) return;
 
+    if (mh_U_local_K_) {
+        // Local + global mixture. The global slice (fresh-from-prior K)
+        // keeps the long-jump escape route alive at low frequency.
+        bool do_global = (runif(rng_) < mh_U_local_K_global_freq_);
+        if (do_global) {
+            ++n_mh_U_local_global_steps_;
+            mh_on_U_step_global_();
+        } else {
+            mh_on_U_step_local_K_();
+        }
+        return;
+    }
+    mh_on_U_step_global_();
+}
+
+
+void GGMModel::mh_on_U_step_global_() {
     ++n_mh_U_attempts_;
 
     // V_old at (Γ_curr, U_old). Reuse the cached running V state when it's
@@ -990,7 +1006,8 @@ void GGMModel::mh_on_U_step_() {
         K_depth_new, pools_new, G_pi_curr, chain_aux_degord_,
         log_c, v_rho_);
 
-    // Auto-reject paths.
+    // Auto-reject only on degenerate sentinels (Lyne 2015: chain targets
+    // π·|V|·μ·P(N), sign flips are tracked not rejected).
     if (!std::isfinite(V_old.first) || !std::isfinite(V_new.first)) {
         ++n_mh_U_nonfinite_;
         return;
@@ -1000,8 +1017,7 @@ void GGMModel::mh_on_U_step_() {
         return;
     }
     if (V_old.second != V_new.second) {
-        ++n_mh_U_signflip_;
-        return;
+        ++n_mh_U_signflip_;  // diagnostic only; sign flips no longer reject
     }
 
     double log_alpha = V_new.first - V_old.first;
@@ -1018,6 +1034,106 @@ void GGMModel::mh_on_U_step_() {
     }
     // Reject: current_log_abs_V_ / current_sign_V_ already correspond to
     // (Γ_curr, U_old) under last_v_pi_i_,last_v_pi_j_; nothing to update.
+}
+
+
+// Local random-walk on K_depth with reflection at 0. The geometric prior
+// P(K=k) = (1−ρ)·ρ^k anchors the chain near small K via the prior ratio
+// ρ^(K_new − K_old) in the MH numerator; this attacks the K-dwell trap
+// that fresh-from-prior K proposals cannot escape efficiently.
+//
+// Pool reconstruction is product-form: shrink drops the last pool, grow
+// appends one fresh draw. The auxiliary draw's μ density cancels with the
+// corresponding μ factor in the augmented target — no Jacobian.
+//
+// Boundary corrections (q proposal asymmetry under reflection at 0):
+//   K_old = 0 → K_new = 1 (forced):       log_q_ratio = log(1/2)
+//   K_old = 1 → K_new = 0 (down, p=1/2):  log_q_ratio = log(2)
+//   interior:                              log_q_ratio = 0
+void GGMModel::mh_on_U_step_local_K_() {
+    ++n_mh_U_attempts_;
+
+    // V_old fetch — same cache logic as the global path.
+    double log_c = std::log(v_kappa_) + log_Z_NLO_curr_;
+    int    pi_i, pi_j;
+    std::pair<double, int> V_old;
+    if (v_diag_initialized_) {
+        V_old = { current_log_abs_V_, current_sign_V_ };
+        pi_i = last_v_pi_i_;
+        pi_j = last_v_pi_j_;
+    } else {
+        pi_i = 0;
+        pi_j = 1;
+        arma::ivec pi_canon = degord::degord_permutation(
+            static_cast<int>(p_), pi_i, pi_j);
+        arma::imat G_pi_canon = degord::permute_graph(edge_indicators_, pi_canon);
+        V_old = degord::V_log_at_Gamma_pi_degord(
+            v_K_depth_, v_pools_t_, G_pi_canon, chain_aux_degord_,
+            log_c, v_rho_);
+    }
+
+    // Propose K_new
+    const int K_old = v_K_depth_;
+    int    K_new;
+    double log_q_ratio = 0.0;
+    bool   moves_up;
+    if (K_old == 0) {
+        K_new   = 1;
+        moves_up = true;
+        log_q_ratio = -MY_LOG(2.0);  // forced up; reverse picks down with p=1/2
+    } else {
+        moves_up = (runif(rng_) < 0.5);
+        K_new   = moves_up ? K_old + 1 : K_old - 1;
+        if (K_old == 1 && K_new == 0) {
+            log_q_ratio = MY_LOG(2.0);  // reverse from K=0 is forced up
+        }
+    }
+    if (moves_up) ++n_mh_U_local_up_attempts_;
+    else          ++n_mh_U_local_down_attempts_;
+
+    // Construct pools_new: shrink drops last; grow appends fresh.
+    std::vector<arma::mat> pools_new;
+    if (moves_up) {
+        pools_new = v_pools_t_;
+        pools_new.push_back(degord::draw_bartlett_pool(
+            rng_, static_cast<int>(p_), v_M_inner_));
+    } else {
+        pools_new.assign(
+            v_pools_t_.begin(),
+            v_pools_t_.begin() + static_cast<std::ptrdiff_t>(K_new));
+    }
+
+    arma::ivec pi_vec = degord::degord_permutation(
+        static_cast<int>(p_), pi_i, pi_j);
+    arma::imat G_pi_curr = degord::permute_graph(edge_indicators_, pi_vec);
+    auto V_new = degord::V_log_at_Gamma_pi_degord(
+        K_new, pools_new, G_pi_curr, chain_aux_degord_, log_c, v_rho_);
+
+    if (!std::isfinite(V_old.first) || !std::isfinite(V_new.first)) {
+        ++n_mh_U_nonfinite_; return;
+    }
+    if (V_old.second == 0 || V_new.second == 0) {
+        ++n_mh_U_signzero_; return;
+    }
+    if (V_old.second != V_new.second) {
+        ++n_mh_U_signflip_;
+    }
+
+    // MH ratio: log|V_new/V_old| + log(P(K_new)/P(K_old)) + log(q_rev/q_fwd)
+    double log_alpha = V_new.first - V_old.first
+                     + static_cast<double>(K_new - K_old) * std::log(v_rho_)
+                     + log_q_ratio;
+
+    if (MY_LOG(runif(rng_)) < log_alpha) {
+        v_pools_t_ = std::move(pools_new);
+        v_K_depth_ = K_new;
+        current_log_abs_V_ = V_new.first;
+        current_sign_V_    = V_new.second;
+        v_diag_initialized_ = true;
+        ++n_mh_U_accepts_;
+        if (moves_up) ++n_mh_U_local_up_accepts_;
+        else          ++n_mh_U_local_down_accepts_;
+    }
 }
 
 

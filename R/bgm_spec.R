@@ -412,6 +412,17 @@ bgm_spec = function(x,
   zrt_rho     = z_ratio_tuning$rho     %||% 0.5
   zrt_use_manuscript_nlo = isTRUE(z_ratio_tuning$use_manuscript_nlo)
   zrt_mh_U = isTRUE(z_ratio_tuning$mh_U)
+  zrt_mh_U_local_K = isTRUE(z_ratio_tuning$mh_U_local_K)
+  zrt_plug_in_nlo = isTRUE(z_ratio_tuning$plug_in_nlo)
+  zrt_mh_U_local_K_global_freq =
+    if (is.numeric(z_ratio_tuning$mh_U_local_K_global_freq) &&
+        length(z_ratio_tuning$mh_U_local_K_global_freq) == 1L &&
+        z_ratio_tuning$mh_U_local_K_global_freq >= 0 &&
+        z_ratio_tuning$mh_U_local_K_global_freq <= 1) {
+      as.numeric(z_ratio_tuning$mh_U_local_K_global_freq)
+    } else {
+      0.02
+    }
   if(!is.numeric(zrt_M_inner) || length(zrt_M_inner) != 1L ||
      !is.finite(zrt_M_inner) || zrt_M_inner < 1L)
     stop("'z_ratio_tuning$M_inner' must be a positive integer.")
@@ -425,7 +436,10 @@ bgm_spec = function(x,
                         kappa   = as.numeric(zrt_kappa),
                         rho     = as.numeric(zrt_rho),
                         use_manuscript_nlo = zrt_use_manuscript_nlo,
-                        mh_U = zrt_mh_U)
+                        mh_U = zrt_mh_U,
+                        mh_U_local_K = zrt_mh_U_local_K,
+                        mh_U_local_K_global_freq = zrt_mh_U_local_K_global_freq,
+                        plug_in_nlo = zrt_plug_in_nlo)
 
   if(delta > 0 && model_type %in% c("omrf", "compare")) {
     stop(
