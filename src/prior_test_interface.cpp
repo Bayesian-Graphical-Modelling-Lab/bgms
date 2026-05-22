@@ -165,7 +165,6 @@ Rcpp::List ggm_gg_prior_smoke_cpp(
         static_cast<GGMModel::GGHyperprior>(g_hyperprior),
         g_init, tcch_a, tcch_b);
 
-    const int dim = p * (p + 1) / 2;
     const int n_edges_off = p * (p - 1) / 2;
 
     arma::cube K_samples(p, p, n_iter, arma::fill::zeros);
