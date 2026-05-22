@@ -33,9 +33,9 @@ gamma_prior(shape = 2, rate = 0.5)
 Other prior-constructors:
 \code{\link[=bernoulli_prior]{bernoulli_prior()}},
 \code{\link[=beta_bernoulli_prior]{beta_bernoulli_prior()}},
-\code{\link[=beta_prime_prior]{beta_prime_prior()}},
 \code{\link[=cauchy_prior]{cauchy_prior()}},
 \code{\link[=exponential_prior]{exponential_prior()}},
+\code{\link[=graphical_g_prior]{graphical_g_prior()}},
 \code{\link[=normal_prior]{normal_prior()}},
 \code{\link[=sbm_prior]{sbm_prior()}}
 }
