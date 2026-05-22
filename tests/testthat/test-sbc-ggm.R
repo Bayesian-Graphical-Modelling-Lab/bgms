@@ -500,3 +500,120 @@ test_that("SBC: GGM NUTS produces uniform ranks under tilt (p=3, delta=1)", {
     info = sprintf("SBC global chi-squared (delta=1) p=%.4f", chisq_p)
   )
 })
+
+
+# ---- SBC test: Joint specification (edge selection on) ----------------------
+
+# Reconstruct a p x p symmetric K matrix from the (off-diag, diag) row pair
+# returned by sample_ggm_prior(spec = "joint"). Column order in off matches
+# the (i < j) upper-triangle visit order.
+reconstruct_K = function(off_row, diag_row, p) {
+  K = matrix(0, p, p)
+  idx = 1L
+  for(i in seq_len(p - 1)) {
+    for(j in (i + 1):p) {
+      K[i, j] = off_row[idx]
+      K[j, i] = off_row[idx]
+      idx = idx + 1L
+    }
+  }
+  diag(K) = diag_row
+  K
+}
+
+test_that("SBC: GGM joint-spec produces uniform ranks (p=5, edge selection)", {
+  skip_unless_slow_sbc()
+
+  # Joint-specification SBC: draw (K_true, Gamma_true) from the un-normalised
+  # joint prior via sample_ggm_prior(spec = "joint"), simulate Y | K_true, and
+  # check that bgm()'s default-MH posterior reproduces the prior in rank
+  # histograms. Generator and fit both use the auto-default tilt (delta =
+  # 0.5 * log(p)), and both target the joint specification, so the SBC ranks
+  # should be uniform.
+  #
+  # Test functions are the continuous K diagonals and log|K|. Off-diagonal
+  # K_ij entries are skipped here because the spike-and-slab point mass at
+  # zero induces tied ranks that break standard uniformity tests (the same
+  # rationale as the existing edge-selection SBC test, which only checks the
+  # diagonal).
+  p = 5
+  n = 100
+  R = 300
+  L = 999
+  thin = 10
+
+  set.seed(2030)
+
+  # Step 1: a single thinned joint-prior chain produces R quasi-independent
+  # (K_true, Gamma_true) draws. Auto-default delta on the prior generator.
+  joint = sample_ggm_prior(
+    p = p, n_samples = as.integer(R * thin), n_warmup = 2000L,
+    spec = "joint", delta = NULL, seed = 2030L, verbose = FALSE
+  )
+  thin_idx = seq(thin, R * thin, by = thin)
+  K_off_true  = joint$K_offdiag[thin_idx, , drop = FALSE]
+  K_diag_true = joint$K_diag[thin_idx, , drop = FALSE]
+
+  n_params = p + 1L                          # K_11, ..., K_pp, log|K|
+  ranks = matrix(NA_real_, nrow = R, ncol = n_params)
+
+  for(r in seq_len(R)) {
+    K_true = reconstruct_K(K_off_true[r, ], K_diag_true[r, ], p)
+    Sigma = solve(K_true)
+    X = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
+    dat = as.data.frame(X)
+    colnames(dat) = paste0("V", seq_len(p))
+
+    fit = bgm(dat,
+      variable_type = "continuous",
+      iter = L, warmup = 1000, chains = 1,
+      edge_selection = TRUE, update_method = "adaptive-metropolis",
+      delta = NULL,                          # auto-default, matches generator
+      display_progress = "none", seed = 2030L + r
+    )
+
+    main_samples = do.call(rbind, fit$raw_samples$main)
+    pw_samples   = do.call(rbind, fit$raw_samples$pairwise)
+
+    # K diagonal ranks
+    for(i in seq_len(p)) {
+      ranks[r, i] = sum(main_samples[, i] < K_true[i, i])
+    }
+
+    # log|K| rank: rebuild K_post per iteration, compute log|K|.
+    log_det_K_true = determinant(K_true, logarithm = TRUE)$modulus
+    log_det_K_post = vapply(seq_len(nrow(main_samples)), function(it) {
+      K_it = reconstruct_K(pw_samples[it, ], main_samples[it, ], p)
+      determinant(K_it, logarithm = TRUE)$modulus
+    }, numeric(1))
+    ranks[r, p + 1L] = sum(log_det_K_post < log_det_K_true)
+  }
+
+  # Per-parameter KS test, allowing 1 false positive across (p + 1)
+  # parameters at alpha = 0.01.
+  n_fail_ks = 0
+  for(j in seq_len(ncol(ranks))) {
+    u = ranks[, j] / (L + 1)
+    p_val = suppressWarnings(ks.test(u, "punif")$p.value)
+    if(p_val <= 0.01) n_fail_ks = n_fail_ks + 1
+  }
+  max_fail = max(1, ceiling(n_params * 0.01 * 2))
+  expect_true(n_fail_ks <= max_fail,
+    info = sprintf(
+      "SBC KS (joint): %d/%d parameters failed (limit %d)",
+      n_fail_ks, n_params, max_fail
+    )
+  )
+
+  # Global chi-squared on aggregated ranks.
+  all_ranks = as.vector(ranks)
+  bins = cut(all_ranks / (L + 1),
+    breaks = seq(0, 1, length.out = 21),
+    include.lowest = TRUE
+  )
+  counts = tabulate(bins, nbins = 20)
+  chisq_p = chisq.test(counts)$p.value
+  expect_true(chisq_p > 0.001,
+    info = sprintf("SBC global chi-squared (joint) p=%.4f", chisq_p)
+  )
+})

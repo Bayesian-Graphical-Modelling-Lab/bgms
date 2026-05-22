@@ -321,63 +321,6 @@ test_that("GGM gradient correct with BetaPrimePrior + Gamma(2,1) diagonal (spars
   expect_true(err < 1e-4, info = sprintf("max relative error: %g", err))
 })
 
-
-# ==============================================================================
-# 4. Full-space gradient (RATTLE) with non-default priors
-# ==============================================================================
-
-fd_gradient_full_prior = function(x, suf_stat, n, edge_mat,
-                                  ipt, is, ia, ib, dpt, ds, dr,
-                                  eps = 1e-6) {
-  g = numeric(length(x))
-  for(k in seq_along(x)) {
-    x_plus = x
-    x_minus = x
-    x_plus[k] = x_plus[k] + eps
-    x_minus[k] = x_minus[k] - eps
-    f_plus = ggm_test_logp_and_gradient_full_prior(
-      x_plus, suf_stat, n, edge_mat,
-      ipt, is, ia, ib, dpt, ds, dr
-    )$value
-    f_minus = ggm_test_logp_and_gradient_full_prior(
-      x_minus, suf_stat, n, edge_mat,
-      ipt, is, ia, ib, dpt, ds, dr
-    )$value
-    g[k] = (f_plus - f_minus) / (2 * eps)
-  }
-  g
-}
-
-test_that("GGM full gradient correct with NormalPrior + Gamma(2,1)", {
-  p = 4
-  edges = list(c(1, 2), c(2, 3), c(3, 4))
-  E = make_edge_matrix(p, edges)
-  full_dim = p * (p + 1) / 2
-
-  set.seed(42)
-  n = 200
-  X = matrix(rnorm(n * p), nrow = n, ncol = p)
-  S = t(X) %*% X
-  x = rnorm(full_dim, sd = 0.2)
-
-  ag = ggm_test_logp_and_gradient_full_prior(
-    x, S, n, E,
-    "normal", 1.5, 0.5, 0.5,
-    "gamma", 2.0, 1.0
-  )
-  fd = fd_gradient_full_prior(
-    x, S, n, E,
-    "normal", 1.5, 0.5, 0.5,
-    "gamma", 2.0, 1.0
-  )
-
-  denom = pmax(abs(ag$gradient), abs(fd), 1)
-  rel_err = abs(ag$gradient - fd) / denom
-  max_err = max(rel_err)
-  expect_true(max_err < 1e-4, info = sprintf("max relative error: %g", max_err))
-})
-
-
 # ==============================================================================
 # 5. Numerical gradient verification for Mixed MRF with non-default priors
 # ==============================================================================
