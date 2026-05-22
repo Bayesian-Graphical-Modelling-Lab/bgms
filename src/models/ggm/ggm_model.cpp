@@ -1021,7 +1021,13 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
     } else {
         // α > 1: GH quadrature for log_BF (reliable across cells), Laplace
         // for the proposal mode/curvature (cheap; if Laplace fails, use the
-        // pure-Gaussian fallback B/(2A), 1/√(2A)).
+        // pure-Gaussian fallback B/(2A), 1/√(2A)). N=32 nodes is accurate to
+        // ~10 digits for the smooth integrand here and halves the per-call
+        // cost vs N=64 — we tried hybrid Laplace/GH but Laplace+NLO at
+        // status=0 still has 1e-2 residual error in many cells, which
+        // compounds in the chain into multi-σ bias.
+        constexpr int kSDLspaceGHNodes_ = 32;
+
         const double A_post  = 0.5 * (l_ii * l_ii * inv_sigma2
                                       + 2.0 * beta + S_jj_data);
         const double B_post  = l_ii * l_ii * m_ij * inv_sigma2
@@ -1031,9 +1037,9 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
         const double s_jj    = precision_matrix_(j, j) - l_ji * l_ji;
         if (!(s_jj > 0.0) || !(A_post > 0.0) || !(A_prior > 0.0)) return;
         const auto gh_post  = ggm_sd::density_at_l_ji_gh(
-            m_ij, A_post,  B_post,  s_jj, prior_alpha_);
+            m_ij, A_post,  B_post,  s_jj, prior_alpha_, kSDLspaceGHNodes_);
         const auto gh_prior = ggm_sd::density_at_l_ji_gh(
-            m_ij, A_prior, B_prior, s_jj, prior_alpha_);
+            m_ij, A_prior, B_prior, s_jj, prior_alpha_, kSDLspaceGHNodes_);
         if (gh_post.status != 0 || gh_prior.status != 0
             || !std::isfinite(gh_post.log_density)
             || !std::isfinite(gh_prior.log_density)) {
@@ -1080,10 +1086,17 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
     // ADD: log_α += log π_target(l_ji_new) − log q_proposal(l_ji_new)
     // DEL: log_α −= log π_target(l_ji_curr) − log q_proposal(l_ji_curr)
     // (At α=1 the proposal IS the conditional, correction ≡ 0.)
+    //
+    // Mirror the hybrid policy above: try Laplace+NLO first, fall back to
+    // GH if Laplace's status is non-zero at this evaluation point. Calling
+    // density_at_l_ji_one at x_corr re-runs Newton but the cost is
+    // negligible compared to GH (~10 ops vs ~200).
     if (prior_alpha_ != 1.0) {
-        const double x_corr  = (curr_g == 0) ? l_ji_new : l_ji;
-        const auto gh_corr   = ggm_sd::density_at_l_ji_gh(
-            x_corr, A_post_save, B_post_save, s_jj_save, prior_alpha_);
+        constexpr int kSDLspaceGHNodes_ = 32;
+        const double x_corr = (curr_g == 0) ? l_ji_new : l_ji;
+        const auto gh_corr  = ggm_sd::density_at_l_ji_gh(
+            x_corr, A_post_save, B_post_save, s_jj_save, prior_alpha_,
+            kSDLspaceGHNodes_);
         if (gh_corr.status != 0 || !std::isfinite(gh_corr.log_density)) {
             ++n_pd_reverts_;
             return;
