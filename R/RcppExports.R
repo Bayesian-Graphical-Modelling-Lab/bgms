@@ -121,8 +121,8 @@ chol_perm_trailing_2x2_cpp <- function(K, i_1based, j_1based) {
     .Call(`_bgms_chol_perm_trailing_2x2_cpp`, K, i_1based, j_1based)
 }
 
-ggm_sd_smoke_cpp <- function(observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, n_warmup, n_sweeps, seed, prior_only = FALSE, include_within_k = TRUE, use_lspace = FALSE) {
-    .Call(`_bgms_ggm_sd_smoke_cpp`, observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, n_warmup, n_sweeps, seed, prior_only, include_within_k, use_lspace)
+ggm_sd_smoke_cpp <- function(observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, n_warmup, n_sweeps, seed, prior_only = FALSE, include_within_k = TRUE, use_lspace = FALSE, sample_thin = 0L, edge_selection = TRUE) {
+    .Call(`_bgms_ggm_sd_smoke_cpp`, observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, n_warmup, n_sweeps, seed, prior_only, include_within_k, use_lspace, sample_thin, edge_selection)
 }
 
 .compute_ess_cpp <- function(array3d) {

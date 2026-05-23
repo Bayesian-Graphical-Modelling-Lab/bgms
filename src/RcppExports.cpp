@@ -551,8 +551,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // ggm_sd_smoke_cpp
-Rcpp::List ggm_sd_smoke_cpp(const arma::mat& observations, double inclusion_prob, double interaction_scale, double diagonal_shape, double diagonal_rate, double delta, int n_warmup, int n_sweeps, int seed, bool prior_only, bool include_within_k, bool use_lspace);
-RcppExport SEXP _bgms_ggm_sd_smoke_cpp(SEXP observationsSEXP, SEXP inclusion_probSEXP, SEXP interaction_scaleSEXP, SEXP diagonal_shapeSEXP, SEXP diagonal_rateSEXP, SEXP deltaSEXP, SEXP n_warmupSEXP, SEXP n_sweepsSEXP, SEXP seedSEXP, SEXP prior_onlySEXP, SEXP include_within_kSEXP, SEXP use_lspaceSEXP) {
+Rcpp::List ggm_sd_smoke_cpp(const arma::mat& observations, double inclusion_prob, double interaction_scale, double diagonal_shape, double diagonal_rate, double delta, int n_warmup, int n_sweeps, int seed, bool prior_only, bool include_within_k, bool use_lspace, int sample_thin, bool edge_selection);
+RcppExport SEXP _bgms_ggm_sd_smoke_cpp(SEXP observationsSEXP, SEXP inclusion_probSEXP, SEXP interaction_scaleSEXP, SEXP diagonal_shapeSEXP, SEXP diagonal_rateSEXP, SEXP deltaSEXP, SEXP n_warmupSEXP, SEXP n_sweepsSEXP, SEXP seedSEXP, SEXP prior_onlySEXP, SEXP include_within_kSEXP, SEXP use_lspaceSEXP, SEXP sample_thinSEXP, SEXP edge_selectionSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -568,7 +568,9 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< bool >::type prior_only(prior_onlySEXP);
     Rcpp::traits::input_parameter< bool >::type include_within_k(include_within_kSEXP);
     Rcpp::traits::input_parameter< bool >::type use_lspace(use_lspaceSEXP);
-    rcpp_result_gen = Rcpp::wrap(ggm_sd_smoke_cpp(observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, n_warmup, n_sweeps, seed, prior_only, include_within_k, use_lspace));
+    Rcpp::traits::input_parameter< int >::type sample_thin(sample_thinSEXP);
+    Rcpp::traits::input_parameter< bool >::type edge_selection(edge_selectionSEXP);
+    rcpp_result_gen = Rcpp::wrap(ggm_sd_smoke_cpp(observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, n_warmup, n_sweeps, seed, prior_only, include_within_k, use_lspace, sample_thin, edge_selection));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -1137,7 +1139,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sd_log_density_at_l_ji_gh_cpp", (DL_FUNC) &_bgms_sd_log_density_at_l_ji_gh_cpp, 6},
     {"_bgms_ggm_plug_in_smoke_cpp", (DL_FUNC) &_bgms_ggm_plug_in_smoke_cpp, 15},
     {"_bgms_chol_perm_trailing_2x2_cpp", (DL_FUNC) &_bgms_chol_perm_trailing_2x2_cpp, 3},
-    {"_bgms_ggm_sd_smoke_cpp", (DL_FUNC) &_bgms_ggm_sd_smoke_cpp, 12},
+    {"_bgms_ggm_sd_smoke_cpp", (DL_FUNC) &_bgms_ggm_sd_smoke_cpp, 14},
     {"_bgms_compute_ess_cpp", (DL_FUNC) &_bgms_compute_ess_cpp, 1},
     {"_bgms_compute_rhat_cpp", (DL_FUNC) &_bgms_compute_rhat_cpp, 1},
     {"_bgms_compute_indicator_ess_cpp", (DL_FUNC) &_bgms_compute_indicator_ess_cpp, 1},

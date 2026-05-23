@@ -250,7 +250,12 @@ double GGMModel::log_det_ratio_edge(size_t i, size_t j) const {
     // Rank-2 matrix-determinant lemma: log|K_prop| - log|K_curr| where K_prop
     // differs from K_curr at entries (i,j), (j,i), and (j,j). cc11, cc12, cc22
     // are the entries of the 2x2 update Gram matrix I + V^T Sigma U used by
-    // the lemma; |det(...)| is its determinant.
+    // the lemma. The formula's `cc11*cc22 - cc12²` equals MINUS the true
+    // determinant ratio (sign-flipped by the lemma's convention here), so
+    // std::abs recovers |K*|/|K|. PD-violation protection is provided by the
+    // explicit arma::chol canaries in update_edge_parameter and
+    // update_diagonal_parameter (prior_only mode), not by detecting the sign
+    // here.
     double Ui2 = precision_matrix_(i, j) - precision_proposal_(i, j);
     double Uj2 = (precision_matrix_(j, j) - precision_proposal_(j, j)) / 2;
 
@@ -265,7 +270,8 @@ double GGMModel::log_det_ratio_edge(size_t i, size_t j) const {
 }
 
 double GGMModel::log_det_ratio_diag(size_t j) const {
-    // Rank-1 specialisation of log_det_ratio_edge (Ui2 = 0).
+    // Rank-1 specialisation of log_det_ratio_edge (Ui2 = 0). Same sign-flip
+    // convention; std::abs recovers the true |K*|/|K|.
     double Uj2 = (precision_matrix_(j, j) - precision_proposal_(j, j)) / 2;
 
     double cc11 = covariance_matrix_(j, j);
@@ -427,9 +433,15 @@ double GGMModel::update_diagonal_parameter(size_t i) {
     precision_proposal_ = precision_matrix_;
     precision_proposal_(i, i) = precision_matrix_(i, i) - MY_EXP(theta_curr) * MY_EXP(theta_curr) + MY_EXP(theta_prop) * MY_EXP(theta_prop);
 
-    // prior_only_: skip likelihood; still validate PD via the implicit
-    // positive-K_ii proposal (theta_prop on log-scale → K_ii > 0).
+    // prior_only_: skip likelihood, but explicitly PD-check the proposal —
+    // K_ii > 0 by construction is not sufficient (a small K_ii relative to
+    // off-diagonals can still violate PD). Without this canary the chain
+    // accumulates non-PD K accepts at shallow det-tilt (cf. 2026-05-23).
     double ln_alpha = prior_only_ ? 0.0 : log_density_impl_diag(i);
+    if (prior_only_) {
+        arma::mat R_chk;
+        if (!arma::chol(R_chk, precision_proposal_)) return 0.0;
+    }
 
     // Determinant-tilt prior: |K|^delta contributes delta * log_det_ratio
     // to the MH ratio. Rank-1 update => O(1) via the cached covariance.
@@ -829,6 +841,11 @@ void GGMModel::update_edge_indicator_parameter_pair_sd(size_t i, size_t j) {
     ensure_prior_params_extracted_();
     const int curr_g = edge_indicators_(i, j);
 
+    // bgms convention: NormalPrior(σ_user) is on K_yy = -K/2, so the slab
+    // on K_ij has sd σ_K = 2·σ_user. The K-space SD primitive
+    // (sd_density_at_zero.h) documents slab as N(0, σ²) on K_ij directly.
+    const double sigma_K = 2.0 * prior_sigma_;
+
     // Call the SD primitive for the posterior Laplace (we always need x_-,
     // x_+ for the truncated proposal, and in posterior mode we also need
     // log_density for the BF). apply_pd_truncation=true so the returned
@@ -837,7 +854,7 @@ void GGMModel::update_edge_indicator_parameter_pair_sd(size_t i, size_t j) {
         precision_matrix_,
         static_cast<int>(i), static_cast<int>(j),
         suf_stat_, static_cast<int>(n_),
-        determinant_tilt_, prior_sigma_,
+        determinant_tilt_, sigma_K,
         /*nlo=*/true,
         /*apply_pd_truncation=*/true);
     if (sd.status == 1) return;  // K_0 not PD — chain stays put.
@@ -860,10 +877,10 @@ void GGMModel::update_edge_indicator_parameter_pair_sd(size_t i, size_t j) {
     if (prior_only_) {
         log_BF_1_to_0 = 0.0;
         proposal_mean = 0.0;
-        proposal_sd   = prior_sigma_;
+        proposal_sd   = sigma_K;
     } else {
         const double log_slab_at_0 =
-            -0.5 * std::log(2.0 * arma::datum::pi) - std::log(prior_sigma_);
+            -0.5 * std::log(2.0 * arma::datum::pi) - std::log(sigma_K);
         log_BF_1_to_0 = sd.log_density - log_slab_at_0;
         proposal_mean = sd.x_mode;
         proposal_sd   = 1.0 / std::sqrt(sd.curvature);
@@ -960,7 +977,11 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
     ensure_prior_params_extracted_();
     const int curr_g = edge_indicators_(i, j);
     const double p_inc = inclusion_probability_(i, j);
-    const double sigma = prior_sigma_;
+    // bgms convention: NormalPrior(scale = σ_user) is on K_yy = -K/2, so the
+    // slab on K_ij has sd σ_K = 2·σ_user (variance 4σ_user²). The SD primitive
+    // (sd_density_l_space.h) documents slab as N(0, σ²) on K_ij directly, so
+    // we pass σ_K = 2·prior_sigma_ to match the within-K parameterization.
+    const double sigma = 2.0 * prior_sigma_;
     const double beta  = prior_beta_;
     const double sigma2     = sigma * sigma;
     const double inv_sigma2 = 1.0 / sigma2;
@@ -1001,12 +1022,19 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
     //      SD log-BF and Laplace-Gaussian as proposal with an explicit MH
     //      correction term log[π_target / q_proposal] evaluated at the
     //      sample point (ADD) or current state (DEL).
+    //
+    // Diag prior convention: bgms evaluates diag at K_jj/2 ~ Gamma(α, β),
+    // implying K_jj ~ Gamma(α, β/2). Under Roverato slaving K_jj = c_3 + l²,
+    // the resulting contribution to the kernel -A l² + B l is A = β/2, so
+    // tau = 2A picks up β (not 2β). Match the within-K convention by using
+    // `beta` rather than `2β` below. (Companion to the slab σ_K = 2σ_user
+    // fix at line 977.)
     double log_BF_1_to_0;
     double proposal_mu, proposal_sd;
     double A_post_save = 0.0, B_post_save = 0.0, s_jj_save = 0.0;  // for α>1 correction
     if (prior_alpha_ == 1.0) {
-        const double tau_post  = l_ii * l_ii * inv_sigma2 + 2.0 * beta + S_jj_data;
-        const double tau_prior = l_ii * l_ii * inv_sigma2 + 2.0 * beta;
+        const double tau_post  = l_ii * l_ii * inv_sigma2 + beta + S_jj_data;
+        const double tau_prior = l_ii * l_ii * inv_sigma2 + beta;
         if (!(tau_post > 0.0) || !(tau_prior > 0.0)) return;
         const double mu_post   = (l_ii * l_ii * m_ij * inv_sigma2
                                   - S_ij_data * l_ii) / tau_post;
@@ -1029,10 +1057,10 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
         constexpr int kSDLspaceGHNodes_ = 32;
 
         const double A_post  = 0.5 * (l_ii * l_ii * inv_sigma2
-                                      + 2.0 * beta + S_jj_data);
+                                      + beta + S_jj_data);
         const double B_post  = l_ii * l_ii * m_ij * inv_sigma2
                                - S_ij_data * l_ii;
-        const double A_prior = 0.5 * (l_ii * l_ii * inv_sigma2 + 2.0 * beta);
+        const double A_prior = 0.5 * (l_ii * l_ii * inv_sigma2 + beta);
         const double B_prior = l_ii * l_ii * m_ij * inv_sigma2;
         const double s_jj    = precision_matrix_(j, j) - l_ji * l_ji;
         if (!(s_jj > 0.0) || !(A_post > 0.0) || !(A_prior > 0.0)) return;
@@ -1661,7 +1689,33 @@ void GGMModel::check_and_refresh_if_drift_() {
 
 
 void GGMModel::refresh_cholesky() {
-    cholesky_of_precision_ = arma::chol(precision_matrix_, "upper");
+    arma::mat U_new;
+    if (!arma::chol(U_new, precision_matrix_, "upper")) {
+        // Diagnostic dump on failure.
+        arma::vec eigs;
+        bool eig_ok = arma::eig_sym(eigs, precision_matrix_);
+        arma::vec diag_K = precision_matrix_.diag();
+        arma::mat off = precision_matrix_;
+        off.diag().zeros();
+        double max_abs_off = arma::abs(off).max();
+        double drift_max  = arma::abs(arma::sum(covariance_matrix_ % precision_matrix_, 1) - 1.0).max();
+        int n_edges = (static_cast<int>(arma::accu(edge_indicators_)) - static_cast<int>(p_)) / 2;
+        Rcpp::Rcout << "[refresh_cholesky] non-PD K detected:"
+                    << "  p="          << p_
+                    << "  n_edges="    << n_edges
+                    << "  min(diag K)="  << diag_K.min()
+                    << "  max(diag K)="  << diag_K.max()
+                    << "  max|offdiag|=" << max_abs_off
+                    << "  cov*K drift=" << drift_max;
+        if (eig_ok) {
+            Rcpp::Rcout << "  min_eig=" << eigs.min() << "  max_eig=" << eigs.max();
+        } else {
+            Rcpp::Rcout << "  (eig_sym failed too)";
+        }
+        Rcpp::Rcout << std::endl;
+        Rcpp::stop("refresh_cholesky: precision matrix is not positive definite");
+    }
+    cholesky_of_precision_ = U_new;
     arma::solve(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_),
                 arma::eye(p_, p_), arma::solve_opts::fast);
     covariance_matrix_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();

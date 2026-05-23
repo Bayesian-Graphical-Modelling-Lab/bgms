@@ -550,6 +550,11 @@ public:
         return edge_indicators_;
     }
 
+    /** @return Current precision matrix K. */
+    const arma::mat& get_precision_matrix() const {
+        return precision_matrix_;
+    }
+
     /** @return Mutable reference to the prior inclusion-probability matrix. */
     arma::mat& get_inclusion_probability() override {
         return inclusion_probability_;

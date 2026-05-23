@@ -563,12 +563,19 @@ Rcpp::List ggm_sd_smoke_cpp(
     int    seed,
     bool   prior_only = false,
     bool   include_within_k = true,
-    bool   use_lspace = false
+    bool   use_lspace = false,
+    int    sample_thin = 0,      // 0 = don't save K samples; k>0 = save every k-th
+    bool   edge_selection = true // false = skip SD between-step, fixed graph
 ) {
     int p = observations.n_cols;
     arma::mat inclusion_probability(p, p, arma::fill::value(inclusion_prob));
     arma::imat initial_edges(p, p, arma::fill::zeros);
     for (int i = 0; i < p; ++i) initial_edges(i, i) = 1;
+    // For fixed-graph (no edge-selection) mode the caller can fill the initial
+    // edges externally before construction; default = identity (empty graph).
+    if (!edge_selection) {
+        initial_edges.ones();
+    }
 
     auto slab = std::make_unique<NormalPrior>(interaction_scale);
     auto diag = std::make_unique<GammaScalePrior>(diagonal_shape, diagonal_rate);
@@ -576,7 +583,7 @@ Rcpp::List ggm_sd_smoke_cpp(
     GGMModel model(observations,
                    inclusion_probability,
                    initial_edges,
-                   /*edge_selection=*/true,
+                   edge_selection,
                    std::move(slab),
                    std::move(diag),
                    /*na_impute=*/false);
@@ -591,13 +598,23 @@ Rcpp::List ggm_sd_smoke_cpp(
     arma::mat pip_counts(p, p, arma::fill::zeros);
     arma::ivec n_edges_path(n_sweeps, arma::fill::zeros);
 
+    // Optional K-sample accumulators (for SBC). Off-diagonals stored
+    // column-major upper-triangle to match sample_ggm_prior layout.
+    const int n_pairs   = p * (p - 1) / 2;
+    const int n_samples = (sample_thin > 0) ? (n_sweeps / sample_thin) : 0;
+    arma::mat K_offdiag_samples(n_samples, n_pairs, arma::fill::zeros);
+    arma::mat K_diag_samples   (n_samples, p,       arma::fill::zeros);
+
     int n_total = n_warmup + n_sweeps;
+    int sample_idx = 0;
     for (int s = 0; s < n_total; ++s) {
         model.prepare_iteration();
         if (include_within_k) {
             model.do_one_metropolis_step(s);
         }
-        model.update_edge_indicators();
+        if (edge_selection) {
+            model.update_edge_indicators();
+        }
         if (s >= n_warmup) {
             const arma::imat& E = model.get_edge_indicators();
             for (int ii = 0; ii < p; ++ii) {
@@ -608,6 +625,25 @@ Rcpp::List ggm_sd_smoke_cpp(
                 }
             }
             n_edges_path[s - n_warmup] = arma::accu(E) / 2;
+            const int post_idx = s - n_warmup;
+            if (sample_thin > 0 && (post_idx + 1) % sample_thin == 0 &&
+                sample_idx < n_samples) {
+                const arma::mat& K = model.get_precision_matrix();
+                int off_idx = 0;
+                for (int ii = 0; ii < p; ++ii) {
+                    K_diag_samples(sample_idx, ii) = K(ii, ii);
+                    for (int jj = ii + 1; jj < p; ++jj) {
+                        // Store K_ij * γ_ij so inactive edges are exact 0 (not
+                        // ~1e-18 floating-point noise from the Roverato DEL
+                        // cancellation), giving a clean spike-slab mixture
+                        // sample for downstream SBC analysis.
+                        K_offdiag_samples(sample_idx, off_idx) =
+                            (E(ii, jj) == 1) ? K(ii, jj) : 0.0;
+                        ++off_idx;
+                    }
+                }
+                ++sample_idx;
+            }
         }
     }
 
@@ -622,9 +658,12 @@ Rcpp::List ggm_sd_smoke_cpp(
             n_pd_reverts);
     }
     return Rcpp::List::create(
-        Rcpp::Named("pip")           = pip,
-        Rcpp::Named("final_edges")   = model.get_edge_indicators(),
-        Rcpp::Named("n_edges_path")  = n_edges_path,
-        Rcpp::Named("n_pd_reverts")  = n_pd_reverts
+        Rcpp::Named("pip")               = pip,
+        Rcpp::Named("final_edges")       = model.get_edge_indicators(),
+        Rcpp::Named("final_K")           = model.get_precision_matrix(),
+        Rcpp::Named("n_edges_path")      = n_edges_path,
+        Rcpp::Named("n_pd_reverts")      = n_pd_reverts,
+        Rcpp::Named("K_offdiag_samples") = K_offdiag_samples,
+        Rcpp::Named("K_diag_samples")    = K_diag_samples
     );
 }

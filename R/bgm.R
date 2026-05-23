@@ -493,12 +493,34 @@ bgm = function(
       )
     )
   } else {
-    # Warn if loose edge params are also supplied alongside an object
+    # Warn if loose edge params are also supplied alongside an object.
+    # When only the deprecated arg is supplied, honor it (rebuild edge_prior).
+    # When both are supplied, require the values to match — otherwise error,
+    # since the previous silent-drop behavior was misleading.
     if(hasArg(inclusion_probability)) {
       lifecycle::deprecate_warn(
         "0.2.0", "bgm(inclusion_probability =)",
         "bgm(edge_prior = 'bernoulli_prior()')"
       )
+      if(!hasArg(edge_prior)) {
+        edge_prior = bernoulli_prior(inclusion_probability = inclusion_probability)
+      } else {
+        ep_ip = if(inherits(edge_prior, "bgms_indicator_prior") &&
+                   identical(edge_prior$family, "Bernoulli")) {
+          edge_prior$hyper.parameters$inclusion_probability
+        } else {
+          NA
+        }
+        if(!isTRUE(all.equal(ep_ip, inclusion_probability))) {
+          stop(
+            "Conflicting prior inclusion probabilities: ",
+            "`edge_prior` implies ", format(ep_ip),
+            " but `inclusion_probability = ", format(inclusion_probability),
+            "`. Pass only one.",
+            call. = FALSE
+          )
+        }
+      }
     }
     if(hasArg(beta_bernoulli_alpha)) {
       lifecycle::deprecate_warn(
