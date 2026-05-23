@@ -82,7 +82,8 @@ test_that("sd_log_density_at_zero_cpp matches Z's standalone primitive", {
   for (row in seq_len(nrow(grid))) {
     pars <- grid[row, ]
     prob <- make_problem(pars$q, pars$seed, pars$n_obs)
-    i <- 1L; j <- 2L  # any off-diagonal pair will do
+    i <- 1L
+    j <- 2L # any off-diagonal pair will do
 
     ours <- sd_log_density_at_zero_cpp(
       K = prob$K, i = i, j = j, S = prob$S,
@@ -114,7 +115,8 @@ test_that("density at zero is symmetric under (i, j) <-> (j, i)", {
   for (seed in 1:5) {
     prob <- make_problem(q = 8, seed = seed)
     for (pair in list(c(1, 2), c(3, 5), c(2, 7))) {
-      i <- pair[1]; j <- pair[2]
+      i <- pair[1]
+      j <- pair[2]
       a <- sd_log_density_at_zero_cpp(
         K = prob$K, i = i, j = j, S = prob$S, n_obs = prob$n_obs,
         delta = 1.0, sigma = 1.0, nlo = TRUE)
@@ -160,8 +162,10 @@ test_that("Laplace+NLO agrees with adaptive quadrature in benign regime", {
   # Pick a cell where the 1D density is smooth and well-localised around
   # the mode (large n_obs, moderate sigma) so Laplace + NLO is tight.
   prob <- make_problem(q = 6, seed = 11, n_obs = 500)
-  delta <- 1.0; sigma <- 1.0
-  i <- 1L; j <- 2L
+  delta <- 1.0
+  sigma <- 1.0
+  i <- 1L
+  j <- 2L
 
   Lfun <- make_L_fun(prob$K, i, j, prob$S, prob$n_obs, delta, sigma)
   # Find a safe interval where the determinant factor D(x) > 0.
@@ -171,9 +175,11 @@ test_that("Laplace+NLO agrees with adaptive quadrature in benign regime", {
     r_neg <- (Lfun$c1 - sqrt(disc)) / Lfun$c2
     r_pos <- (Lfun$c1 + sqrt(disc)) / Lfun$c2
     eps <- 1e-6 * (r_pos - r_neg)
-    lo <- r_neg + eps; hi <- r_pos - eps
+    lo <- r_neg + eps
+    hi <- r_pos - eps
   } else {
-    lo <- -10; hi <- 10
+    lo <- -10
+    hi <- 10
   }
 
   # Locate the mode to use as the log-shift for numerical stability.
