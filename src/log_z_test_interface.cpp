@@ -13,6 +13,9 @@
 #include "models/ggm/ggm_model.h"
 #include "rng/rng_utils.h"
 #include "math/cholesky_helpers.h"
+#include "mcmc/algorithms/nuts.h"
+#include "mcmc/algorithms/hmc.h"
+#include "mcmc/samplers/nuts_adaptation.h"
 
 
 // [[Rcpp::export]]
@@ -565,7 +568,10 @@ Rcpp::List ggm_sd_smoke_cpp(
     bool   include_within_k = true,
     bool   use_lspace = false,
     int    sample_thin = 0,      // 0 = don't save K samples; k>0 = save every k-th
-    bool   edge_selection = true // false = skip SD between-step, fixed graph
+    bool   edge_selection = true, // false = skip SD between-step, fixed graph
+    std::string within_k_mode = "am",  // "am" = Roverato+RW, "nuts" = unconstrained NUTS on active theta
+    int    nuts_max_depth = 10,
+    double nuts_target_accept = 0.8
 ) {
     int p = observations.n_cols;
     arma::mat inclusion_probability(p, p, arma::fill::value(inclusion_prob));
@@ -580,19 +586,58 @@ Rcpp::List ggm_sd_smoke_cpp(
     auto slab = std::make_unique<NormalPrior>(interaction_scale);
     auto diag = std::make_unique<GammaScalePrior>(diagonal_shape, diagonal_rate);
 
-    GGMModel model(observations,
-                   inclusion_probability,
-                   initial_edges,
-                   edge_selection,
-                   std::move(slab),
-                   std::move(diag),
-                   /*na_impute=*/false);
+    // Under prior_only the chain must target π(K, Γ) with no likelihood. The
+    // AM within-K path checks `prior_only_` at the per-step MH ratio, but the
+    // NUTS gradient engine bakes `n_` and `suf_stat_` into the log-posterior
+    // without that flag. Build the model with n = 0, S = 0 so the prior is
+    // the engine's actual target (mirrors the trick sample_ggm_prior uses).
+    std::unique_ptr<GGMModel> model_ptr;
+    if (prior_only) {
+        arma::mat suf_stat_zero(p, p, arma::fill::zeros);
+        model_ptr = std::make_unique<GGMModel>(
+            /*n=*/0, suf_stat_zero, inclusion_probability,
+            initial_edges, edge_selection,
+            std::move(slab), std::move(diag));
+    } else {
+        model_ptr = std::make_unique<GGMModel>(
+            observations, inclusion_probability, initial_edges,
+            edge_selection, std::move(slab), std::move(diag),
+            /*na_impute=*/false);
+    }
+    GGMModel& model = *model_ptr;
     model.set_seed(seed);
     model.set_determinant_tilt(delta);
     model.set_use_sd_between_step(true);
     model.set_use_sd_lspace(use_lspace);
     model.set_prior_only(prior_only);
     model.reset_pd_revert_count();
+
+    // NUTS-within setup (only when within_k_mode == "nuts").
+    // Identity diagonal mass matrix; per-graph re-bootstrap is handled by the
+    // gradient engine's lazy rebuild on logp_and_gradient(). Step size is
+    // adapted by dual averaging during warmup, then frozen to its averaged
+    // value for sampling.
+    const bool use_nuts = (within_k_mode == "nuts");
+    if (!use_nuts && within_k_mode != "am") {
+        Rcpp::stop("ggm_sd_smoke_cpp: within_k_mode must be \"am\" or \"nuts\" "
+                   "(got: %s)", within_k_mode.c_str());
+    }
+    double nuts_step_size = 0.1;
+    std::unique_ptr<DualAveraging> nuts_da;
+    if (use_nuts) {
+        SafeRNG& rng = model.get_rng();
+        arma::vec theta0 = model.get_vectorized_parameters();
+        auto joint_fn0 = [&model](const arma::vec& th)
+            -> std::pair<double, arma::vec> {
+            return model.logp_and_gradient(th);
+        };
+        auto grad_fn0 = [&model](const arma::vec& th) -> arma::vec {
+            return model.logp_and_gradient(th).second;
+        };
+        nuts_step_size = heuristic_initial_step_size(
+            theta0, grad_fn0, joint_fn0, rng, nuts_target_accept);
+        nuts_da = std::make_unique<DualAveraging>(nuts_step_size);
+    }
 
     // PIP accumulator: count visits with γ_ij = 1 across post-warmup sweeps.
     arma::mat pip_counts(p, p, arma::fill::zeros);
@@ -610,7 +655,26 @@ Rcpp::List ggm_sd_smoke_cpp(
     for (int s = 0; s < n_total; ++s) {
         model.prepare_iteration();
         if (include_within_k) {
-            model.do_one_metropolis_step(s);
+            if (use_nuts) {
+                arma::vec theta  = model.get_vectorized_parameters();
+                arma::vec inv_m  = arma::ones<arma::vec>(theta.n_elem);
+                auto joint_fn = [&model](const arma::vec& th)
+                    -> std::pair<double, arma::vec> {
+                    return model.logp_and_gradient(th);
+                };
+                StepResult res = nuts_step(
+                    theta, nuts_step_size, joint_fn, inv_m,
+                    model.get_rng(), nuts_max_depth);
+                model.set_vectorized_parameters(res.state);
+                if (s < n_warmup) {
+                    nuts_da->update(res.accept_prob, nuts_target_accept);
+                    nuts_step_size = nuts_da->current();
+                } else if (s == n_warmup) {
+                    nuts_step_size = nuts_da->averaged();
+                }
+            } else {
+                model.do_one_metropolis_step(s);
+            }
         }
         if (edge_selection) {
             model.update_edge_indicators();
@@ -664,6 +728,8 @@ Rcpp::List ggm_sd_smoke_cpp(
         Rcpp::Named("n_edges_path")      = n_edges_path,
         Rcpp::Named("n_pd_reverts")      = n_pd_reverts,
         Rcpp::Named("K_offdiag_samples") = K_offdiag_samples,
-        Rcpp::Named("K_diag_samples")    = K_diag_samples
+        Rcpp::Named("K_diag_samples")    = K_diag_samples,
+        Rcpp::Named("within_k_mode")     = within_k_mode,
+        Rcpp::Named("nuts_step_size")    = nuts_step_size
     );
 }
