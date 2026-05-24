@@ -1137,13 +1137,51 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
         log_alpha += (curr_g == 0 ? +correction : -correction);
     }
 
-    if (!std::isfinite(log_alpha)) return;
-    if (MY_LOG(runif(rng_)) >= log_alpha) return;
-
-    // Translate Δl_ji into ΔK_ij, ΔK_jj.
+    // Translate Δl_ji into ΔK_ij, ΔK_jj. Compute before the MH check so we
+    // can evaluate the log|K| ratio for the MH correction below.
     const double d_l_ji = l_ji_new - l_ji;
     const double K_ij_new = K_ij + l_ii * d_l_ji;
     const double K_jj_new = precision_matrix_(j, j) + (l_ji_new + l_ji) * d_l_ji;
+
+    // ---- log|K| MH correction (likelihood log-det + determinant tilt) ----
+    // The L-space SD primitive's kernel f(l_ji) = -A l_ji² + B l_ji
+    //   + (α-1) log(s_jj + l_ji²) targets π_FALSE = π_TRUE / |K(l_ji)|^{n/2+δ}.
+    // (The (n/2) log|K| comes from the data likelihood; the δ log|K| from the
+    // tilt. Both depend on l_ji via K_ij(l_ji) and K_jj(l_ji), but neither is
+    // in f.) Shifting the chain to target π_TRUE via standard MH theory:
+    //   log α += [log π_TRUE(after) − log π_TRUE(before)]
+    //          − [log π_FALSE(after) − log π_FALSE(before)]
+    //          = (n/2 + δ) [log|K_after| − log|K_before|].
+    //
+    // Implementation: inline the rank-2 matrix-determinant lemma (the same
+    // formula as log_det_ratio_edge but with PD detection via the sign of
+    // the 2×2 determinant — negative = PD under the lemma's sign-flip
+    // convention, positive = K_proposed non-PD). This avoids an arma::chol
+    // per SD attempt and short-circuits on PD violations.
+    const double log_det_factor =
+        0.5 * static_cast<double>(n_) + determinant_tilt_;
+    if (log_det_factor != 0.0) {
+        const double Ui2 = K_ij - K_ij_new;
+        const double Uj2 = (precision_matrix_(j, j) - K_jj_new) * 0.5;
+        const double sii = covariance_matrix_(i, i);
+        const double sjj = covariance_matrix_(j, j);
+        const double sij = covariance_matrix_(i, j);
+        const double cc11 = sjj;
+        const double cc12 = 1.0 - (sij * Ui2 + sjj * Uj2);
+        const double cc22 = Ui2 * Ui2 * sii + 2.0 * Ui2 * Uj2 * sij
+                          + Uj2 * Uj2 * sjj;
+        const double det2x2 = cc11 * cc22 - cc12 * cc12;
+        if (det2x2 >= 0.0) {
+            // Under the lemma's sign-flip convention a non-negative value
+            // signals K_proposed is non-PD; reject without further work.
+            ++n_pd_reverts_;
+            return;
+        }
+        log_alpha += log_det_factor * MY_LOG(-det2x2);
+    }
+
+    if (!std::isfinite(log_alpha)) return;
+    if (MY_LOG(runif(rng_)) >= log_alpha) return;
 
     // Accept: install the new K and rebuild L + Σ from scratch via
     // arma::chol. O(p³) per accept, but the only path proven correct.
