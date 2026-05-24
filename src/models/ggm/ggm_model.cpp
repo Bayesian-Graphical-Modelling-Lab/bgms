@@ -1205,9 +1205,20 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
         edge_indicators_(j, i) = 0;
     }
 
-    // PD canary via two-arg arma::chol (returns bool, no throw).
+    // PD canary via two-arg arma::chol + min-pivot guard. arma::chol returns
+    // false only for strict non-PD; barely-PD K (one pivot ~ 1e-10) still
+    // passes but its κ(K) is huge, and the next within-K NUTS step computes
+    // K^{-1} entries on the order of 1/min_pivot — gradient overflow, theta
+    // becomes inf, K becomes garbage (we saw K_jj samples ~ 1e13 at
+    // extreme priors). Treat min_diag(U_check) < kSDMinCholDiag as a PD
+    // violation and revert. The threshold corresponds to a minimum K
+    // eigenvalue of ~kSDMinCholDiag² (= 1e-12 at 1e-6), well clear of
+    // double-precision noise but loose enough not to perturb well-conditioned
+    // chains.
+    constexpr double kSDMinCholDiag = 1.0e-6;
     arma::mat U_check;
-    if (!arma::chol(U_check, precision_matrix_, "upper")) {
+    if (!arma::chol(U_check, precision_matrix_, "upper")
+        || U_check.diag().min() < kSDMinCholDiag) {
         ++n_pd_reverts_;
         precision_matrix_(i, j) = omega_ij_old;
         precision_matrix_(j, i) = omega_ij_old;
