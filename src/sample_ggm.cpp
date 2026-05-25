@@ -39,15 +39,7 @@ Rcpp::List sample_ggm(
     const bool na_impute = false,
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable = R_NilValue,
     const double delta = 0.0,
-    const std::string& graph_prior_spec = "joint",
-    const int    z_ratio_M_inner = 100,
-    const double z_ratio_kappa   = 1.0,
-    const double z_ratio_rho     = 0.5,
-    const bool   use_manuscript_nlo = false,
-    const bool   mh_U = false,
-    const bool   mh_U_local_K = false,
-    const double mh_U_local_K_global_freq = 0.02,
-    const bool   plug_in_nlo = false
+    const std::string& graph_prior_spec = "joint"
 ) {
 
     // Create parameter priors from R input
@@ -94,17 +86,11 @@ Rcpp::List sample_ggm(
     // both gradient paths and all four MH ratios in GGMModel.
     model.set_determinant_tilt(delta);
 
-    // Graph-prior spec (joint vs hierarchical). Hierarchical mode adds the
-    // V(Γ_curr)/V(Γ_star) factor to the between-edge MH ratio, converting
-    // the implicit joint-marginal target π(Γ)·Z(Γ) into the user-specified
-    // π(Γ). Requires Normal slab + Gamma diagonal (validated at lazy init).
+    // Graph-prior spec. Hierarchical routes the between-edge MH to the
+    // L-space Savage-Dickey identity (closed-form Gaussian Bayes factor at
+    // α = 1, Gauss-Hermite quadrature at α > 1) under the encompassing
+    // Normal slab + Gamma diagonal. Joint keeps the Roverato block-update.
     if (graph_prior_spec == "hierarchical") {
-        model.set_z_ratio_tuning(z_ratio_M_inner, z_ratio_kappa, z_ratio_rho);
-        model.set_use_manuscript_nlo(use_manuscript_nlo);
-        model.set_mh_U(mh_U);
-        model.set_mh_U_local_K(mh_U_local_K);
-        model.set_mh_U_local_K_global_freq(mh_U_local_K_global_freq);
-        model.set_plug_in_nlo(plug_in_nlo);
         model.set_graph_prior_spec(GraphPriorSpec::Hierarchical);
     } else if (graph_prior_spec != "joint") {
         Rcpp::stop("graph_prior_spec must be 'joint' or 'hierarchical'.");

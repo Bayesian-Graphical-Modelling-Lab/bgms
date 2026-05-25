@@ -107,40 +107,9 @@ public:
     }
 
     /**
-     * @return True if this model maintains V-ratio diagnostics
-     * (sign(V_curr), log|V_curr|) suitable for Lyne-style sign-corrected
-     * ergodic averaging. Default: false. Overridden by GGMModel under
-     * hierarchical graph_prior_spec.
-     */
-    virtual bool has_v_ratio_diagnostics() const { return false; }
-
-    /**
-     * @return Current sign(V_curr) ∈ {-1, +1} for the running V state.
-     * Only meaningful when has_v_ratio_diagnostics() returns true.
-     */
-    virtual int current_sign_V() const { return 1; }
-
-    /**
-     * @return Current log|V_curr| for the running V state, or NaN if
-     * V has not been computed yet. Only meaningful when
-     * has_v_ratio_diagnostics() returns true.
-     */
-    virtual double current_log_abs_V() const {
-        return std::numeric_limits<double>::quiet_NaN();
-    }
-
-    /**
-     * @return Current RR truncation depth (K_depth) for the auxiliary
-     * U-pool. Only meaningful when has_v_ratio_diagnostics() returns true;
-     * default returns 0. Surfaces PMMH-on-RR slow mixing in K_depth.
-     */
-    virtual int current_K_depth() const { return 0; }
-
-    /**
      * Per-chain diagnostic summary captured once at the end of the chain.
      * Default is an empty list; models override to return counters / state
-     * that aren't naturally per-iteration. Used by run_mcmc_chain to plumb
-     * GGMModel's hierarchical auto-reject counters into ChainResult.
+     * that aren't naturally per-iteration.
      */
     virtual Rcpp::List get_diagnostics_summary() const {
         return Rcpp::List::create();
@@ -184,15 +153,6 @@ public:
      * RNG state consistently.
      */
     virtual void prepare_iteration() {}
-
-    /**
-     * Refresh auxiliary (non-(Γ, K)) state at the start of an iteration —
-     * intended for the V/RR U-pool refresh in hierarchical-spec GGM. Called
-     * by the chain runner only when `WarmupSchedule::u_refresh_enabled(iter)`
-     * is true, so models can rely on this being gated to phases where
-     * between-Γ MH is active (stage 3c + sampling). Default no-op.
-     */
-    virtual void refresh_auxiliary_u() {}
 
     // =========================================================================
     // Edge selection

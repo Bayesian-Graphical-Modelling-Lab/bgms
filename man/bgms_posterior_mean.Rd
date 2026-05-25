@@ -2,7 +2,7 @@
 % Please edit documentation in R/bgms_posterior_mean.R
 \name{bgms_posterior_mean}
 \alias{bgms_posterior_mean}
-\title{Sign-corrected posterior means for a bgms fit}
+\title{Posterior means for a bgms fit}
 \usage{
 bgms_posterior_mean(fit)
 }
@@ -12,40 +12,23 @@ bgms_posterior_mean(fit)
 \value{
 A list with components:
 \describe{
-\item{\code{main}}{Sign-corrected posterior mean of main effects.
-\code{NULL} for GGM (which has no main effects).}
-\item{\code{pairwise}}{Sign-corrected posterior mean of pairwise
-associations, as a symmetric \eqn{p \times p} matrix. For GGM
-this is on the association scale \eqn{-K_{ij}/2}.}
-\item{\code{indicator}}{Sign-corrected posterior mean of edge
-indicators \eqn{\gamma_{ij}}, as a symmetric \eqn{p \times p}
-matrix. Present only when the fit used edge selection.}
-\item{\code{residual_variance}}{Sign-corrected posterior mean
-of the residual variance \eqn{1/K_{ii}}. Present only for GGM
-fits.}
+\item{\code{main}}{Posterior mean of main effects. \code{NULL}
+for GGM (which has no main effects).}
+\item{\code{pairwise}}{Posterior mean of pairwise associations,
+symmetric \eqn{p \times p}.}
+\item{\code{indicator}}{Posterior mean of edge indicators
+\eqn{\gamma_{ij}}. Present only when edge selection was active.}
+\item{\code{residual_variance}}{Posterior mean of the residual
+variance \eqn{1/K_{ii}}. Present only for GGM fits.}
 }
 }
 \description{
-Computes posterior means using Lyne (2015)'s sign-corrected ergodic
-estimator. For a functional \eqn{f(K)} of the precision matrix,
+Returns the posterior-mean fields of a \code{bgm()} fit in a flat
+named list. Provided as a stable accessor that does not depend on S7
+property names.
 }
 \details{
-\deqn{E[f(K) \mid Y] \;\approx\; \frac{\sum_i \mathrm{sign}_i \cdot f(K_i)}{\sum_i \mathrm{sign}_i}}
-
-where \eqn{\mathrm{sign}_i} is the sign of the Russian-Roulette
-estimator of \eqn{1/Z(\Gamma)} at iteration \eqn{i}. The correction
-is required for the ergodic averages to converge to the true
-posterior expectation when running the hierarchical-spec GGM
-(\code{graph_prior_spec = "hierarchical"}) under settings that
-permit signed V values.
-
-Under operational tunings (low \eqn{\delta}, reasonably large
-\eqn{\kappa}) sign is identically \eqn{+1} and the correction
-collapses to the plain posterior mean. Sign correction matters
-primarily at high \eqn{\delta} or aggressive \eqn{\kappa}. The
-diagnostic vector lives at \code{fit$v_ratio_diagnostics$sign}.
-
-For joint-spec fits, or for any fit that has no
-\code{v_ratio_diagnostics} field, this function returns the
-\code{posterior_mean_*} fields unchanged.
+For GGM and mixed MRF fits, \code{pairwise} is the partial-correlation
+style association \eqn{-K_{ij}/2} (i.e. the value already stored in
+\code{fit$posterior_mean_pairwise}, not the raw precision entry).
 }

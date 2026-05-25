@@ -111,9 +111,6 @@ one_rep <- function(r, delta) {
     precision_scale_prior = gamma_prior(shape = 1, rate = 1),
     delta            = delta,
     graph_prior_spec = "hierarchical",
-    # Z-matched: M_inner = 50 (half), kappa = 2 (doubled for bigger V-series
-    # convergence margin at q = 10).
-    z_ratio_tuning   = list(M_inner = 50L, kappa = 2.0, rho = 0.5),
     iter             = iter_post,
     warmup           = warmup_post,
     update_method    = "adaptive-metropolis",

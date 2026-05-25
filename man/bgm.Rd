@@ -16,7 +16,6 @@ bgm(
   precision_scale_prior = gamma_prior(shape = 1, rate = 1),
   delta = NULL,
   graph_prior_spec = c("joint", "hierarchical"),
-  z_ratio_tuning = list(M_inner = 100L, kappa = 1, rho = 0.5),
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),
   na_action = c("listwise", "impute"),
@@ -141,23 +140,13 @@ indicators \eqn{\Gamma}. Under \code{"joint"} the implicit
 \eqn{\Gamma}-marginal is \eqn{\pi(\Gamma) \cdot Z(\Gamma)}, where
 \eqn{Z(\Gamma)} is the normalising constant of the precision-matrix
 prior conditional on the graph. Under \code{"hierarchical"} the
-chain compensates with an unbiased estimator of
-\eqn{Z(\Gamma_\text{curr}) / Z(\Gamma_\text{star})}, recovering
-\eqn{\pi(\Gamma)} as the \eqn{\Gamma}-marginal. Only supported when
-the interaction prior is \code{normal_prior(...)} and the precision-
-scale prior is \code{gamma_prior(...)} (the prior families for which
-the closed-form Laplace-NLO normaliser approximation is implemented).
+chain targets \eqn{\pi(\Gamma)} directly via a Savage-Dickey
+between-edge Metropolis-Hastings step (closed-form Gaussian Bayes
+factor at \eqn{\alpha = 1}, Gauss-Hermite quadrature at
+\eqn{\alpha > 1}) under the encompassing Normal slab. Only supported
+when the interaction prior is \code{normal_prior(...)} and the
+precision-scale prior is \code{gamma_prior(...)}.
 Default: \code{"joint"}.}
-
-\item{z_ratio_tuning}{Named list with components \code{M_inner}
-(positive integer, default 100), \code{kappa} (positive numeric,
-default 1.0), and \code{rho} (numeric in (0, 1), default 0.5).
-Tuning knobs for the V/Russian-Roulette estimator used when
-\code{graph_prior_spec = "hierarchical"}; ignored otherwise.
-\code{M_inner} is the number of inner Bartlett-Cholesky importance
-samples per Russian-Roulette pool, \code{kappa} sets the analytic
-centring \eqn{c = \kappa \exp(\log Z_\text{NLO}(\Gamma))}, and
-\code{rho} is the geometric-truncation continuation probability.}
 
 \item{edge_selection}{Logical. Whether to perform Bayesian edge selection.
 If \code{FALSE}, the model estimates all edges. Default: \code{TRUE}.}

@@ -29,82 +29,6 @@ sample_ggm_prior_cpp <- function(p, n_samples, n_warmup = 1000L, pairwise_scale 
     .Call(`_bgms_sample_ggm_prior`, p, n_samples, n_warmup, pairwise_scale, interaction_prior_type, scale_prior_type, gamma_shape, gamma_rate, step_size, max_depth, seed, verbose, edge_indicators_nullable, delta)
 }
 
-log_Z_NLO_gamma_cpp <- function(G, alpha, beta, sigma, include_F = FALSE, delta = 0.0) {
-    .Call(`_bgms_log_Z_NLO_gamma_cpp`, G, alpha, beta, sigma, include_F, delta)
-}
-
-log_Z_manuscript_NLO_alpha1_cpp <- function(G, beta, sigma, delta) {
-    .Call(`_bgms_log_Z_manuscript_NLO_alpha1_cpp`, G, beta, sigma, delta)
-}
-
-log_Z_manuscript_NLO_alpha1_degord_cpp <- function(G, i, j, beta, sigma, delta) {
-    .Call(`_bgms_log_Z_manuscript_NLO_alpha1_degord_cpp`, G, i, j, beta, sigma, delta)
-}
-
-log_Z_NLO_gamma_degord_cpp <- function(G, i, j, alpha, beta, sigma, include_F = FALSE, delta = 0.0) {
-    .Call(`_bgms_log_Z_NLO_gamma_degord_cpp`, G, i, j, alpha, beta, sigma, include_F, delta)
-}
-
-log_Z_NLO_gamma_delta_incr_alpha1_cpp <- function(G_before, i, j, beta, sigma, delta, include_F = FALSE) {
-    .Call(`_bgms_log_Z_NLO_gamma_delta_incr_alpha1_cpp`, G_before, i, j, beta, sigma, delta, include_F)
-}
-
-log_Z_NLO_gamma_delta_incr_alphaN_cpp <- function(G_before, i, j, alpha, beta, sigma, delta, include_F = FALSE) {
-    .Call(`_bgms_log_Z_NLO_gamma_delta_incr_alphaN_cpp`, G_before, i, j, alpha, beta, sigma, delta, include_F)
-}
-
-sd_log_density_at_zero_cpp <- function(K, i, j, S, n_obs, delta, sigma, nlo = TRUE, apply_pd_truncation = FALSE, newton_max_iter = 50L, newton_tol = 1e-10) {
-    .Call(`_bgms_sd_log_density_at_zero_cpp`, K, i, j, S, n_obs, delta, sigma, nlo, apply_pd_truncation, newton_max_iter, newton_tol)
-}
-
-degord_chain_aux_cpp <- function(q, alpha, beta, sigma, delta) {
-    .Call(`_bgms_degord_chain_aux_cpp`, q, alpha, beta, sigma, delta)
-}
-
-degord_pi_aux_cpp <- function(G_pi, alpha, beta, sigma, delta) {
-    .Call(`_bgms_degord_pi_aux_cpp`, G_pi, alpha, beta, sigma, delta)
-}
-
-degord_permute_graph_cpp <- function(G, i, j) {
-    .Call(`_bgms_degord_permute_graph_cpp`, G, i, j)
-}
-
-degord_log_Zhat_pi_from_pool_cpp <- function(noise_pool_t, G_pi, alpha, beta, sigma, delta, slab_tilt_mode = 0L) {
-    .Call(`_bgms_degord_log_Zhat_pi_from_pool_cpp`, noise_pool_t, G_pi, alpha, beta, sigma, delta, slab_tilt_mode)
-}
-
-degord_delta_log_Zhat_pi_toggle_cpp <- function(noise_pool, noise_pool_t, G_curr, i, j, alpha, beta, sigma, delta, slab_tilt_mode = 0L) {
-    .Call(`_bgms_degord_delta_log_Zhat_pi_toggle_cpp`, noise_pool, noise_pool_t, G_curr, i, j, alpha, beta, sigma, delta, slab_tilt_mode)
-}
-
-degord_draw_bartlett_pool_cpp <- function(q, M_inner, seed) {
-    .Call(`_bgms_degord_draw_bartlett_pool_cpp`, q, M_inner, seed)
-}
-
-degord_V_at_Gamma_pi_cpp <- function(K_depth, pools_t, G_pi, alpha, beta, sigma, delta, c_val, rho, slab_tilt_mode = 0L) {
-    .Call(`_bgms_degord_V_at_Gamma_pi_cpp`, K_depth, pools_t, G_pi, alpha, beta, sigma, delta, c_val, rho, slab_tilt_mode)
-}
-
-degord_V_log_at_Gamma_pi_cpp <- function(K_depth, pools_t, G_pi, alpha, beta, sigma, delta, log_c, rho, slab_tilt_mode = 0L) {
-    .Call(`_bgms_degord_V_log_at_Gamma_pi_cpp`, K_depth, pools_t, G_pi, alpha, beta, sigma, delta, log_c, rho, slab_tilt_mode)
-}
-
-degord_V_log_pair_at_Gamma_curr_star_cpp <- function(K_depth, pools_t, G_pi_curr, G_pi_star, alpha, beta, sigma, delta, log_c_curr, log_c_star, rho, slab_tilt_mode = 0L) {
-    .Call(`_bgms_degord_V_log_pair_at_Gamma_curr_star_cpp`, K_depth, pools_t, G_pi_curr, G_pi_star, alpha, beta, sigma, delta, log_c_curr, log_c_star, rho, slab_tilt_mode)
-}
-
-degord_log_Zhat_star_from_cache_cpp <- function(noise_pool_t, G_pi_curr, G_pi_star, alpha, beta, sigma, delta, slab_tilt_mode = 0L) {
-    .Call(`_bgms_degord_log_Zhat_star_from_cache_cpp`, noise_pool_t, G_pi_curr, G_pi_star, alpha, beta, sigma, delta, slab_tilt_mode)
-}
-
-degord_draw_U_rr_cpp <- function(M_inner, q, rho, seed) {
-    .Call(`_bgms_degord_draw_U_rr_cpp`, M_inner, q, rho, seed)
-}
-
-ggm_hierarchical_smoke_cpp <- function(observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, M_inner, kappa, rho, n_sweeps, seed, use_manuscript_nlo = FALSE) {
-    .Call(`_bgms_ggm_hierarchical_smoke_cpp`, observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, M_inner, kappa, rho, n_sweeps, seed, use_manuscript_nlo)
-}
-
 sd_log_density_at_l_ji_cpp <- function(x_eval, A, B, s_jj, alpha, nlo = TRUE, newton_max_iter = 50L, newton_tol = 1e-10) {
     .Call(`_bgms_sd_log_density_at_l_ji_cpp`, x_eval, A, B, s_jj, alpha, nlo, newton_max_iter, newton_tol)
 }
@@ -113,16 +37,12 @@ sd_log_density_at_l_ji_gh_cpp <- function(x_eval, A, B, s_jj, alpha, num_nodes =
     .Call(`_bgms_sd_log_density_at_l_ji_gh_cpp`, x_eval, A, B, s_jj, alpha, num_nodes)
 }
 
-ggm_plug_in_smoke_cpp <- function(observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, M_inner, kappa, rho, n_warmup, n_sweeps, seed, prior_only = FALSE, include_within_k = TRUE, use_manuscript_nlo = FALSE) {
-    .Call(`_bgms_ggm_plug_in_smoke_cpp`, observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, M_inner, kappa, rho, n_warmup, n_sweeps, seed, prior_only, include_within_k, use_manuscript_nlo)
-}
-
 chol_perm_trailing_2x2_cpp <- function(K, i_1based, j_1based) {
     .Call(`_bgms_chol_perm_trailing_2x2_cpp`, K, i_1based, j_1based)
 }
 
-ggm_sd_smoke_cpp <- function(observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, n_warmup, n_sweeps, seed, prior_only = FALSE, include_within_k = TRUE, use_lspace = FALSE, sample_thin = 0L, edge_selection = TRUE, within_k_mode = "am", nuts_max_depth = 10L, nuts_target_accept = 0.8) {
-    .Call(`_bgms_ggm_sd_smoke_cpp`, observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, n_warmup, n_sweeps, seed, prior_only, include_within_k, use_lspace, sample_thin, edge_selection, within_k_mode, nuts_max_depth, nuts_target_accept)
+ggm_sd_smoke_cpp <- function(observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, n_warmup, n_sweeps, seed, prior_only = FALSE, include_within_k = TRUE, sample_thin = 0L, edge_selection = TRUE, within_k_mode = "am", nuts_max_depth = 10L, nuts_target_accept = 0.8, user_edges = NULL) {
+    .Call(`_bgms_ggm_sd_smoke_cpp`, observations, inclusion_prob, interaction_scale, diagonal_shape, diagonal_rate, delta, n_warmup, n_sweeps, seed, prior_only, include_within_k, sample_thin, edge_selection, within_k_mode, nuts_max_depth, nuts_target_accept, user_edges)
 }
 
 .compute_ess_cpp <- function(array3d) {
@@ -209,8 +129,8 @@ ggm_test_logp_and_gradient_prior <- function(theta, suf_stat, n, edge_indicators
     .Call(`_bgms_ggm_test_logp_and_gradient_prior`, theta, suf_stat, n, edge_indicators, interaction_prior_type, interaction_scale, interaction_alpha, interaction_beta, diagonal_prior_type, diagonal_shape, diagonal_rate)
 }
 
-sample_ggm <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback = NULL, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, target_acceptance = 0.8, max_tree_depth = 10L, na_impute = FALSE, missing_index_nullable = NULL, delta = 0.0, graph_prior_spec = "joint", z_ratio_M_inner = 100L, z_ratio_kappa = 1.0, z_ratio_rho = 0.5, use_manuscript_nlo = FALSE, mh_U = FALSE, mh_U_local_K = FALSE, mh_U_local_K_global_freq = 0.02, plug_in_nlo = FALSE) {
-    .Call(`_bgms_sample_ggm`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, target_acceptance, max_tree_depth, na_impute, missing_index_nullable, delta, graph_prior_spec, z_ratio_M_inner, z_ratio_kappa, z_ratio_rho, use_manuscript_nlo, mh_U, mh_U_local_K, mh_U_local_K_global_freq, plug_in_nlo)
+sample_ggm <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback = NULL, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, target_acceptance = 0.8, max_tree_depth = 10L, na_impute = FALSE, missing_index_nullable = NULL, delta = 0.0, graph_prior_spec = "joint") {
+    .Call(`_bgms_sample_ggm`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, target_acceptance, max_tree_depth, na_impute, missing_index_nullable, delta, graph_prior_spec)
 }
 
 sample_mixed_mrf <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, progress_callback = NULL, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, sampler_type = "mh", target_acceptance = 0.80, max_tree_depth = 10L, na_impute = FALSE, missing_index_discrete_nullable = NULL, missing_index_continuous_nullable = NULL, delta = 0.0) {

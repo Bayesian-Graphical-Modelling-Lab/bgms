@@ -43,52 +43,10 @@ void run_mcmc_chain(
 
     const int total_iter = config.no_warmup + config.no_iter;
 
-    // Live-diagnostic envelope. Activated when BGMS_LIVE_DIAG=<path> and the
-    // model carries V-ratio diagnostics (hierarchical-spec). Each line is
-    // appended to <path>.<pid>.<chain> with explicit flush, so `tail -f`
-    // shows real-time per-iter state. Format CSV.
-    const char* env_live  = std::getenv("BGMS_LIVE_DIAG");
-    const bool  live_diag = (env_live != nullptr)
-                            && model.has_v_ratio_diagnostics();
-    const char* env_every = std::getenv("BGMS_LIVE_DIAG_EVERY");
-    const int   live_every = (env_every != nullptr)
-                             ? std::max(1, std::atoi(env_every)) : 25;
-    auto chain_t0 = std::chrono::steady_clock::now();
-    std::ofstream diag_file;
-    // Snapshot of mh_U counters at the LAST print, so the live diag can
-    // emit per-window accept rate / per-window auto-reject rate (rather
-    // than just cumulative totals).
-    long long last_mh_U_attempts = 0;
-    long long last_mh_U_accepts  = 0;
-    if (live_diag) {
-        std::string path = std::string(env_live)
-                         + "." + std::to_string(::getpid())
-                         + "." + std::to_string(chain_id + 1);
-        diag_file.open(path, std::ios::out | std::ios::trunc);
-        if (diag_file.is_open()) {
-            diag_file << "iter,phase,K_depth,sign_V,wall_per_iter_s,"
-                      << "wall_total_s,"
-                      << "mh_U_attempts_window,mh_U_accepts_window,"
-                      << "mh_U_attempts_total,mh_U_accepts_total\n";
-            diag_file.flush();
-        }
-    }
-
     // ---- Main MCMC loop (warmup + sampling) ----
     for (int iter = 0; iter < total_iter; ++iter) {
-        // Iteration wall-clock timer (only used when V-ratio diagnostics are
-        // tracked; cheap regardless).
-        auto iter_t0 = std::chrono::steady_clock::now();
-
         // Per-iteration preparation (e.g., shuffle edge order)
         model.prepare_iteration();
-
-        // Auxiliary-U refresh (hierarchical-spec V/RR machinery). Gated by
-        // the schedule so the U pool doesn't drift via PMMH dynamics during
-        // early warmup when no Γ moves consume it.
-        if (schedule.u_refresh_enabled(iter)) {
-            model.refresh_auxiliary_u();
-        }
 
         // Optional missing-data imputation
         if (config.na_impute && model.has_missing_data()) {
@@ -135,13 +93,6 @@ void run_mcmc_chain(
                 chain_result.store_am_diagnostics(sample_index, result.accept_prob);
             }
 
-            if (chain_result.has_v_ratio_diagnostics) {
-                chain_result.store_v_ratio_diagnostics(
-                    sample_index,
-                    model.current_sign_V(),
-                    model.current_log_abs_V());
-            }
-
             chain_result.store_sample(sample_index, model.get_storage_vectorized_parameters());
 
             if (chain_result.has_indicators) {
@@ -151,59 +102,6 @@ void run_mcmc_chain(
             if (chain_result.has_allocations && edge_prior.has_allocations()) {
                 chain_result.store_allocations(sample_index, edge_prior.get_allocations());
             }
-        }
-
-        // Capture per-iter wall delta (always cheap; only used by the
-        // K_depth_samples store below and the live-diag print).
-        auto iter_t1 = std::chrono::steady_clock::now();
-        double wall_iter = std::chrono::duration<double>(iter_t1 - iter_t0).count();
-
-        // Per-iter K_depth + wall in the sampling phase, for post-hoc analysis.
-        if (schedule.sampling(iter) && chain_result.has_v_ratio_diagnostics) {
-            int sample_index = iter - config.no_warmup;
-            chain_result.K_depth_samples(sample_index)   = model.current_K_depth();
-            chain_result.iter_wall_samples(sample_index) = wall_iter;
-        }
-
-        // Live diagnostic: append one CSV row every live_every iters,
-        // regardless of phase, so we can watch warmup vs sampling cost
-        // transition in real time. Explicit flush per line.
-        if (live_diag && diag_file.is_open()
-            && (iter % live_every == 0 || iter + 1 == total_iter)) {
-            double wall_total =
-                std::chrono::duration<double>(iter_t1 - chain_t0).count();
-            const char* phase = schedule.sampling(iter)
-                ? "sample"
-                : (schedule.selection_enabled(iter) ? "stage3c" : "warm");
-
-            // Pull cumulative mh_U counters from the model's diag summary
-            // (cheap: it's just a struct read). Compute per-window delta.
-            Rcpp::List ds = model.get_diagnostics_summary();
-            long long mh_att_tot = 0, mh_acc_tot = 0;
-            if (ds.containsElementNamed("mh_U_attempts")) {
-                mh_att_tot = static_cast<long long>(
-                    Rcpp::as<double>(ds["mh_U_attempts"]));
-            }
-            if (ds.containsElementNamed("mh_U_accepts")) {
-                mh_acc_tot = static_cast<long long>(
-                    Rcpp::as<double>(ds["mh_U_accepts"]));
-            }
-            long long mh_att_win = mh_att_tot - last_mh_U_attempts;
-            long long mh_acc_win = mh_acc_tot - last_mh_U_accepts;
-            last_mh_U_attempts = mh_att_tot;
-            last_mh_U_accepts  = mh_acc_tot;
-
-            diag_file << iter
-                      << "," << phase
-                      << "," << model.current_K_depth()
-                      << "," << model.current_sign_V()
-                      << "," << wall_iter
-                      << "," << wall_total
-                      << "," << mh_att_win
-                      << "," << mh_acc_win
-                      << "," << mh_att_tot
-                      << "," << mh_acc_tot << "\n";
-            diag_file.flush();
         }
 
         pm.update(chain_id);
@@ -274,10 +172,6 @@ std::vector<ChainResult> run_mcmc_sampler(
         if (has_am_diag) {
             results[c].reserve_am_diagnostics(config.no_iter);
         }
-
-        if (model.has_v_ratio_diagnostics()) {
-            results[c].reserve_v_ratio_diagnostics(config.no_iter);
-        }
     }
 
     if (no_threads > 1) {
@@ -344,13 +238,6 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
 
             if (chain.has_am_diagnostics) {
                 chain_list["am_accept_prob"] = chain.am_accept_prob_samples;
-            }
-
-            if (chain.has_v_ratio_diagnostics) {
-                chain_list["v_sign"]    = chain.v_sign_samples;
-                chain_list["v_log_abs"] = chain.v_log_abs_samples;
-                chain_list["K_depth"]   = chain.K_depth_samples;
-                chain_list["iter_wall"] = chain.iter_wall_samples;
             }
 
             if (chain.diagnostics_summary.size() > 0) {

@@ -106,15 +106,7 @@ run_sampler_ggm = function(spec) {
     na_impute = m$na_impute,
     missing_index_nullable = m$missing_index,
     delta = p$delta,
-    graph_prior_spec = p$graph_prior_spec %||% "joint",
-    z_ratio_M_inner = p$z_ratio_tuning$M_inner %||% 100L,
-    z_ratio_kappa   = p$z_ratio_tuning$kappa   %||% 1.0,
-    z_ratio_rho     = p$z_ratio_tuning$rho     %||% 0.5,
-    use_manuscript_nlo = isTRUE(p$z_ratio_tuning$use_manuscript_nlo),
-    mh_U = isTRUE(p$z_ratio_tuning$mh_U),
-    mh_U_local_K = isTRUE(p$z_ratio_tuning$mh_U_local_K),
-    mh_U_local_K_global_freq = p$z_ratio_tuning$mh_U_local_K_global_freq %||% 0.02,
-    plug_in_nlo = isTRUE(p$z_ratio_tuning$plug_in_nlo)
+    graph_prior_spec = p$graph_prior_spec %||% "joint"
   )
 
   out_raw

@@ -267,9 +267,6 @@ bgm_spec = function(x,
                     scale_rate = 1,
                     delta = NULL,
                     graph_prior_spec = c("joint", "hierarchical"),
-                    z_ratio_tuning = list(M_inner = 100L,
-                                          kappa   = 1.0,
-                                          rho     = 0.5),
                     standardize = FALSE,
                     edge_selection = TRUE,
                     edge_prior = bernoulli_prior(0.5),
@@ -403,44 +400,6 @@ bgm_spec = function(x,
       "prior (scale_prior_type = \"gamma\")."
     )
   }
-  # Validate z_ratio_tuning shape (only enforced if hierarchical; for joint
-  # the defaults pass through unused).
-  if(!is.list(z_ratio_tuning))
-    stop("'z_ratio_tuning' must be a list with components M_inner, kappa, rho.")
-  zrt_M_inner = z_ratio_tuning$M_inner %||% 100L
-  zrt_kappa   = z_ratio_tuning$kappa   %||% 1.0
-  zrt_rho     = z_ratio_tuning$rho     %||% 0.5
-  zrt_use_manuscript_nlo = isTRUE(z_ratio_tuning$use_manuscript_nlo)
-  zrt_mh_U = isTRUE(z_ratio_tuning$mh_U)
-  zrt_mh_U_local_K = isTRUE(z_ratio_tuning$mh_U_local_K)
-  zrt_plug_in_nlo = isTRUE(z_ratio_tuning$plug_in_nlo)
-  zrt_mh_U_local_K_global_freq =
-    if (is.numeric(z_ratio_tuning$mh_U_local_K_global_freq) &&
-        length(z_ratio_tuning$mh_U_local_K_global_freq) == 1L &&
-        z_ratio_tuning$mh_U_local_K_global_freq >= 0 &&
-        z_ratio_tuning$mh_U_local_K_global_freq <= 1) {
-      as.numeric(z_ratio_tuning$mh_U_local_K_global_freq)
-    } else {
-      0.02
-    }
-  if(!is.numeric(zrt_M_inner) || length(zrt_M_inner) != 1L ||
-     !is.finite(zrt_M_inner) || zrt_M_inner < 1L)
-    stop("'z_ratio_tuning$M_inner' must be a positive integer.")
-  if(!is.numeric(zrt_kappa) || length(zrt_kappa) != 1L ||
-     !is.finite(zrt_kappa) || zrt_kappa <= 0)
-    stop("'z_ratio_tuning$kappa' must be a positive number.")
-  if(!is.numeric(zrt_rho) || length(zrt_rho) != 1L ||
-     !is.finite(zrt_rho) || zrt_rho <= 0 || zrt_rho >= 1)
-    stop("'z_ratio_tuning$rho' must be in (0, 1).")
-  z_ratio_tuning = list(M_inner = as.integer(zrt_M_inner),
-                        kappa   = as.numeric(zrt_kappa),
-                        rho     = as.numeric(zrt_rho),
-                        use_manuscript_nlo = zrt_use_manuscript_nlo,
-                        mh_U = zrt_mh_U,
-                        mh_U_local_K = zrt_mh_U_local_K,
-                        mh_U_local_K_global_freq = zrt_mh_U_local_K_global_freq,
-                        plug_in_nlo = zrt_plug_in_nlo)
-
   if(delta > 0 && model_type %in% c("omrf", "compare")) {
     stop(
       "'delta' (determinant tilt) requires continuous variables; the ",
@@ -522,7 +481,6 @@ bgm_spec = function(x,
       scale_rate = scale_rate,
       delta = delta,
       graph_prior_spec = graph_prior_spec,
-      z_ratio_tuning = z_ratio_tuning,
       edge_prior_flat = ep_flat
     )
   } else if(model_type == "mixed_mrf") {
@@ -616,9 +574,6 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
                           scale_prior_type, scale_shape, scale_rate,
                           delta = 0,
                           graph_prior_spec = "joint",
-                          z_ratio_tuning = list(M_inner = 100L,
-                                                kappa   = 1.0,
-                                                rho     = 0.5),
                           edge_prior_flat) {
   # Missing data
   md = validate_missing_data(
@@ -661,7 +616,6 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
       scale_rate = scale_rate,
       delta = delta,
       graph_prior_spec = graph_prior_spec,
-      z_ratio_tuning = z_ratio_tuning,
       edge_selection = ep$edge_selection,
       edge_prior = ep$edge_prior,
       inclusion_probability = ep$inclusion_probability,

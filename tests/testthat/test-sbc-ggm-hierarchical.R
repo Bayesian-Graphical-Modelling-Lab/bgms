@@ -108,7 +108,6 @@ one_rep <- function(r, delta) {
     precision_scale_prior = gamma_prior(shape = 1, rate = 1),
     delta            = delta,
     graph_prior_spec = "hierarchical",
-    z_ratio_tuning   = list(M_inner = 100L, kappa = 1.0, rho = 0.5),
     iter             = iter_post,
     warmup           = warmup_post,
     update_method    = "adaptive-metropolis",

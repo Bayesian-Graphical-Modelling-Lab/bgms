@@ -80,7 +80,6 @@ bgms_class = new_class("bgms",
     # --- Optional ---
     nuts_diag = new_property(class_any, default = NULL),
     am_diag = new_property(class_any, default = NULL),
-    v_ratio_diagnostics = new_property(class_any, default = NULL),
 
     # --- easybgm compatibility (deprecated) ---
     indicator = new_property(class_any, default = NULL),
@@ -120,7 +119,6 @@ s3_list_to_bgms = function(results) {
     posterior_summary_pairwise_allocations = .subset2(results, "posterior_summary_pairwise_allocations"),
     nuts_diag = .subset2(results, "nuts_diag"),
     am_diag = .subset2(results, "am_diag"),
-    v_ratio_diagnostics = .subset2(results, "v_ratio_diagnostics"),
     indicator = .subset2(results, "indicator"),
     interactions = .subset2(results, "interactions"),
     thresholds = .subset2(results, "thresholds"),
@@ -195,7 +193,6 @@ bgmCompare_class = new_class("bgmCompare",
     # --- Optional ---
     nuts_diag = new_property(class_any, default = NULL),
     am_diag = new_property(class_any, default = NULL),
-    v_ratio_diagnostics = new_property(class_any, default = NULL),
 
     # --- Internal ---
     .bgm_spec = new_property(class_any, default = NULL),
