@@ -10,12 +10,12 @@ bgm(
   baseline_category,
   iter = 2000,
   warmup = 2000,
-  interaction_prior = cauchy_prior(scale = 1),
+  interaction_prior = normal_prior(scale = 1),
   threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
   means_prior = normal_prior(scale = 1),
   precision_scale_prior = gamma_prior(shape = 1, rate = 1),
   delta = NULL,
-  graph_prior_spec = c("joint", "hierarchical"),
+  prior_factorization = NULL,
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),
   na_action = c("listwise", "impute"),
@@ -80,11 +80,15 @@ samples. Short warmups trigger progressive warnings (NUTS only); see
 \item{interaction_prior}{A prior specification object for pairwise
 interaction parameters, created by one of the prior constructor functions:
 \itemize{
-\item \code{\link{cauchy_prior}()}: Cauchy(0, scale) prior (default).
-\item \code{\link{normal_prior}()}: Normal(0, scale) prior.
+\item \code{\link{normal_prior}()}: Normal(0, scale) prior (default).
+\item \code{\link{cauchy_prior}()}: Cauchy(0, scale) prior.
 \item \code{\link{beta_prime_prior}()}: Beta-prime prior.
 }
-Default: \code{cauchy_prior(scale = 1)}.}
+Default: \code{normal_prior(scale = 1)}. The Normal slab is the
+encompassing prior under which the L-space Savage-Dickey between-edge
+step (i.e. \code{prior_factorization = "hierarchical"}) is defined,
+so this default lets the default-default \code{bgm(x)} call land on
+the hierarchical factorization for GGM and mixed-MRF data.}
 
 \item{threshold_prior}{A prior specification object for threshold (main
 effect) parameters, created by one of the prior constructor functions:
@@ -134,19 +138,35 @@ numeric to override. Both NUTS and adaptive-Metropolis update paths
 apply the tilt. Not allowed for pure ordinal models (no precision
 matrix to tilt).}
 
-\item{graph_prior_spec}{Character; one of \code{"joint"} (default)
-or \code{"hierarchical"}. Controls the marginal prior on the graph
-indicators \eqn{\Gamma}. Under \code{"joint"} the implicit
-\eqn{\Gamma}-marginal is \eqn{\pi(\Gamma) \cdot Z(\Gamma)}, where
-\eqn{Z(\Gamma)} is the normalising constant of the precision-matrix
-prior conditional on the graph. Under \code{"hierarchical"} the
-chain targets \eqn{\pi(\Gamma)} directly via a Savage-Dickey
-between-edge Metropolis-Hastings step (closed-form Gaussian Bayes
-factor at \eqn{\alpha = 1}, Gauss-Hermite quadrature at
-\eqn{\alpha > 1}) under the encompassing Normal slab. Only supported
-when the interaction prior is \code{normal_prior(...)} and the
-precision-scale prior is \code{gamma_prior(...)}.
-Default: \code{"joint"}.}
+\item{prior_factorization}{Character; one of \code{"hierarchical"}
+or \code{"joint"}. Controls how the joint prior on the precision
+matrix \eqn{K} and graph \eqn{\Gamma} is factored, which in turn
+determines the marginal prior on \eqn{\Gamma}. Under
+\code{"hierarchical"} the factorization is
+\eqn{p(K, \Gamma) = p(K \mid \Gamma) \, \pi(\Gamma)} and the
+\eqn{\Gamma}-marginal is \eqn{\pi(\Gamma)} exactly; the chain
+targets this marginal via a Savage-Dickey between-edge
+Metropolis-Hastings step (closed-form Gaussian Bayes factor at
+\eqn{\alpha = 1}, Gauss-Hermite quadrature at \eqn{\alpha > 1})
+under the encompassing Normal slab. Only available when the
+interaction prior is \code{normal_prior(...)} and the
+precision-scale prior is \code{gamma_prior(...)}. Under
+\code{"joint"} the factorization is
+\eqn{p(K, \Gamma) \propto p(K \mid \Gamma) \, \pi(\Gamma)} with
+\eqn{K} drawn from the encompassing slab (Γ acts as a hard mask),
+so the implicit \eqn{\Gamma}-marginal is
+\eqn{\pi(\Gamma) \cdot Z(\Gamma)}, where \eqn{Z(\Gamma)} is the
+precision-matrix-prior normalising constant conditional on the
+graph. Combining \code{"joint"} with a Beta-Bernoulli or SBM
+inclusion prior is not well-defined (the intractable
+\eqn{Z(\Gamma)} factor propagates into the implied likelihood for
+the inclusion hyperparameters); a warning is emitted in that case.
+Default: \code{NULL}, which auto-resolves to \code{"hierarchical"}
+whenever the model and prior combination supports it (GGM or
+mixed-MRF with a Normal slab and Gamma diagonal prior — the
+default prior combination), and to \code{"joint"} otherwise (e.g.,
+pure ordinal models, or continuous models with a non-Normal slab).
+Pass the value explicitly to override.}
 
 \item{edge_selection}{Logical. Whether to perform Bayesian edge selection.
 If \code{FALSE}, the model estimates all edges. Default: \code{TRUE}.}

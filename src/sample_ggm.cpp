@@ -39,7 +39,7 @@ Rcpp::List sample_ggm(
     const bool na_impute = false,
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable = R_NilValue,
     const double delta = 0.0,
-    const std::string& graph_prior_spec = "joint"
+    const std::string& prior_factorization = "joint"
 ) {
 
     // Create parameter priors from R input
@@ -86,14 +86,14 @@ Rcpp::List sample_ggm(
     // both gradient paths and all four MH ratios in GGMModel.
     model.set_determinant_tilt(delta);
 
-    // Graph-prior spec. Hierarchical routes the between-edge MH to the
+    // Prior factorization. Hierarchical routes the between-edge MH to the
     // L-space Savage-Dickey identity (closed-form Gaussian Bayes factor at
     // α = 1, Gauss-Hermite quadrature at α > 1) under the encompassing
     // Normal slab + Gamma diagonal. Joint keeps the Roverato block-update.
-    if (graph_prior_spec == "hierarchical") {
+    if (prior_factorization == "hierarchical") {
         model.set_graph_prior_spec(GraphPriorSpec::Hierarchical);
-    } else if (graph_prior_spec != "joint") {
-        Rcpp::stop("graph_prior_spec must be 'joint' or 'hierarchical'.");
+    } else if (prior_factorization != "joint") {
+        Rcpp::stop("prior_factorization must be 'joint' or 'hierarchical'.");
     }
 
     // Set up missing data imputation (same pattern as OMRF)

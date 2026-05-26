@@ -266,7 +266,7 @@ bgm_spec = function(x,
                     scale_shape = 1,
                     scale_rate = 1,
                     delta = NULL,
-                    graph_prior_spec = c("joint", "hierarchical"),
+                    prior_factorization = NULL,
                     standardize = FALSE,
                     edge_selection = TRUE,
                     edge_prior = bernoulli_prior(0.5),
@@ -365,38 +365,47 @@ bgm_spec = function(x,
      !is.finite(delta) || delta < 0) {
     stop("'delta' must be a single finite non-negative numeric, or NULL.")
   }
-  # Validate hierarchical-spec args (only meaningful for ggm/mixed_mrf).
-  graph_prior_spec = if(is.character(graph_prior_spec) &&
-                        length(graph_prior_spec) > 1L) {
-    match.arg(graph_prior_spec)
-  } else {
-    if(!(length(graph_prior_spec) == 1L &&
-         is.character(graph_prior_spec) &&
-         graph_prior_spec %in% c("joint", "hierarchical"))) {
-      stop("'graph_prior_spec' must be \"joint\" or \"hierarchical\".")
+  # Resolve prior_factorization default. Pick "hierarchical" when it is
+  # actually applicable: model has a continuous precision block AND the
+  # encompassing slab/diag prior pair matches what the L-space SD step
+  # requires (Normal slab + Gamma diagonal). Otherwise fall back to
+  # "joint" so the historical Cauchy-slab default keeps working.
+  # omrf/compare have no Z(Γ) factor, so "joint" is the only valid path
+  # there anyway.
+  if(is.null(prior_factorization)) {
+    prior_factorization = if(model_type %in% c("ggm", "mixed_mrf") &&
+                               interaction_prior_type == "normal" &&
+                               scale_prior_type == "gamma") {
+      "hierarchical"
+    } else {
+      "joint"
     }
-    graph_prior_spec
   }
-  if(graph_prior_spec == "hierarchical" &&
+  if(!(length(prior_factorization) == 1L &&
+       is.character(prior_factorization) &&
+       prior_factorization %in% c("joint", "hierarchical"))) {
+    stop("'prior_factorization' must be \"joint\" or \"hierarchical\".")
+  }
+  if(prior_factorization == "hierarchical" &&
      !(model_type %in% c("ggm", "mixed_mrf"))) {
     stop(
-      "'graph_prior_spec = \"hierarchical\"' requires continuous data; ",
+      "'prior_factorization = \"hierarchical\"' requires continuous data; ",
       "the current model_type is '", model_type, "', which has no ",
       "continuous precision block. Use \"joint\" or supply continuous data."
     )
   }
-  if(graph_prior_spec == "hierarchical" &&
+  if(prior_factorization == "hierarchical" &&
      interaction_prior_type != "normal") {
     stop(
-      "'graph_prior_spec = \"hierarchical\"' requires a Normal slab ",
+      "'prior_factorization = \"hierarchical\"' requires a Normal slab ",
       "prior (interaction_prior_type = \"normal\"). Re-fit with ",
       "interaction_prior = normal_prior(scale = ...)."
     )
   }
-  if(graph_prior_spec == "hierarchical" &&
+  if(prior_factorization == "hierarchical" &&
      scale_prior_type != "gamma") {
     stop(
-      "'graph_prior_spec = \"hierarchical\"' requires a Gamma diagonal ",
+      "'prior_factorization = \"hierarchical\"' requires a Gamma diagonal ",
       "prior (scale_prior_type = \"gamma\")."
     )
   }
@@ -463,6 +472,26 @@ bgm_spec = function(x,
     ep_flat$inclusion_probability = matrix(0.5, nrow = 1, ncol = 1)
   }
 
+  # Joint factorization with a hyperprior on inclusion probabilities is not
+  # well-defined: the marginal on Γ under "joint" is π(Γ)·Z(Γ), and the
+  # intractable G-Wishart normalising constant Z(Γ) propagates into the
+  # conditional update for the inclusion hyperparameters (Beta-Bernoulli's
+  # p, the SBM block-level probabilities). Hierarchical factors out Z(Γ)
+  # cleanly. Only matters for models with a continuous precision block.
+  if(edge_selection &&
+     prior_factorization == "joint" &&
+     model_type %in% c("ggm", "mixed_mrf") &&
+     ep_flat$edge_prior %in% c("Beta-Bernoulli", "Stochastic-Block")) {
+    warning(
+      "'prior_factorization = \"joint\"' combined with a ", ep_flat$edge_prior,
+      " inclusion prior is not properly defined: under the joint ",
+      "factorization the marginal on Γ is π(Γ)·Z(Γ), so the intractable ",
+      "G-Wishart normalising constant Z(Γ) propagates into the likelihood ",
+      "for the inclusion hyperparameters. Use ",
+      "'prior_factorization = \"hierarchical\"' for a clean factorization."
+    )
+  }
+
   # --- Build by model type ----------------------------------------------------
   if(model_type == "ggm") {
     spec = build_spec_ggm(
@@ -480,7 +509,7 @@ bgm_spec = function(x,
       scale_shape = scale_shape,
       scale_rate = scale_rate,
       delta = delta,
-      graph_prior_spec = graph_prior_spec,
+      prior_factorization = prior_factorization,
       edge_prior_flat = ep_flat
     )
   } else if(model_type == "mixed_mrf") {
@@ -573,7 +602,7 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
                           interaction_alpha, interaction_beta,
                           scale_prior_type, scale_shape, scale_rate,
                           delta = 0,
-                          graph_prior_spec = "joint",
+                          prior_factorization = "hierarchical",
                           edge_prior_flat) {
   # Missing data
   md = validate_missing_data(
@@ -615,7 +644,7 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
       scale_shape = scale_shape,
       scale_rate = scale_rate,
       delta = delta,
-      graph_prior_spec = graph_prior_spec,
+      prior_factorization = prior_factorization,
       edge_selection = ep$edge_selection,
       edge_prior = ep$edge_prior,
       inclusion_probability = ep$inclusion_probability,

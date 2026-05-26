@@ -1,7 +1,7 @@
 # --------------------------------------------------------------------------- #
 # Hierarchical-spec integration tests.
 #
-# `bgm(graph_prior_spec = "hierarchical")` is wired to the L-space
+# `bgm(prior_factorization = "hierarchical")` is wired to the L-space
 # Savage-Dickey between-edge MH step (closed-form Gaussian BF at α = 1,
 # Gauss-Hermite quadrature at α > 1). End-to-end coverage via bgm(); the
 # underlying SD primitive has its own unit tests + SBC sweeps under
@@ -10,7 +10,7 @@
 
 
 
-test_that("bgm() R API accepts graph_prior_spec = 'hierarchical' end-to-end", {
+test_that("bgm() R API accepts prior_factorization = 'hierarchical' end-to-end", {
   set.seed(99)
   p <- 5L
   n <- 100L
@@ -22,7 +22,7 @@ test_that("bgm() R API accepts graph_prior_spec = 'hierarchical' end-to-end", {
     interaction_prior     = normal_prior(scale = 1),
     precision_scale_prior = gamma_prior(shape = 1, rate = 1),
     delta = 0.5,
-    graph_prior_spec = "hierarchical",
+    prior_factorization = "hierarchical",
     iter = 200L, warmup = 50L,
     update_method = "adaptive-metropolis",
     chains = 1L, cores = 1L, seed = 1L,
@@ -50,7 +50,7 @@ test_that("bgm() accepts update_method = 'nuts' + 'hierarchical' (2x2 API)", {
     interaction_prior     = normal_prior(scale = 1),
     precision_scale_prior = gamma_prior(shape = 1, rate = 1),
     delta = 0.5,
-    graph_prior_spec = "hierarchical",
+    prior_factorization = "hierarchical",
     iter = 200L, warmup = 50L,
     update_method = "nuts",
     chains = 1L, cores = 1L, seed = 1L,
@@ -78,7 +78,7 @@ test_that("bgm() with hierarchical errors helpfully for Cauchy slab", {
   expect_error(
     bgm(Y, variable_type = "continuous",
         interaction_prior     = cauchy_prior(scale = 1),
-        graph_prior_spec      = "hierarchical",
+        prior_factorization      = "hierarchical",
         iter = 50L, warmup = 25L,
         update_method = "adaptive-metropolis",
         chains = 1L, cores = 1L, seed = 1L,
@@ -94,7 +94,7 @@ test_that("bgm() rejects hierarchical for non-continuous models", {
   X <- matrix(sample(0:3, 200 * 4L, replace = TRUE), 200, 4L)
   expect_error(
     bgm(X, variable_type = "ordinal",
-        graph_prior_spec = "hierarchical",
+        prior_factorization = "hierarchical",
         iter = 50L, warmup = 25L,
         update_method = "adaptive-metropolis",
         chains = 1L, cores = 1L, seed = 1L,

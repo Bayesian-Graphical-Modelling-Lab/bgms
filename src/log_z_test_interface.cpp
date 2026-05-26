@@ -85,7 +85,7 @@ Rcpp::List chol_perm_trailing_2x2_cpp(
 // Thin GGM SD chain driver, used by SBC and PD diagnostic scripts that
 // want PIP, K samples, and PD-revert counts without going through the
 // bgm() wrapper. The production bgm() path with
-// graph_prior_spec = "hierarchical" hits the same code (the L-space SD
+// prior_factorization = "hierarchical" hits the same code (the L-space SD
 // between-step + the configurable within-K sampler).
 //
 // [[Rcpp::export]]

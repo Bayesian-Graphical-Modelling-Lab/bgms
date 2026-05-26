@@ -16,7 +16,7 @@
 #   3. Generate Y | K_true ~ N(0, K_true^{-1}), n_obs cases.
 #
 # Inference:
-#   4. Fit bgm() with graph_prior_spec = "hierarchical" on Y.
+#   4. Fit bgm() with prior_factorization = "hierarchical" on Y.
 #
 # Per-replicate ranks:
 #   - K_ii ranks of K_diag_true[i] in raw_samples$main[[1]][, i].
@@ -107,7 +107,7 @@ one_rep <- function(r, delta) {
     interaction_prior     = normal_prior(scale = 1),
     precision_scale_prior = gamma_prior(shape = 1, rate = 1),
     delta            = delta,
-    graph_prior_spec = "hierarchical",
+    prior_factorization = "hierarchical",
     iter             = iter_post,
     warmup           = warmup_post,
     update_method    = "adaptive-metropolis",

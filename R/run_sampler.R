@@ -106,7 +106,7 @@ run_sampler_ggm = function(spec) {
     na_impute = m$na_impute,
     missing_index_nullable = m$missing_index,
     delta = p$delta,
-    graph_prior_spec = p$graph_prior_spec %||% "joint"
+    prior_factorization = p$prior_factorization %||% "joint"
   )
 
   out_raw
