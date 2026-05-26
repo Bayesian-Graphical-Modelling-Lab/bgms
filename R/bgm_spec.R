@@ -362,7 +362,7 @@ bgm_spec = function(x,
 
   # Validate determinant-tilt exponent and reject for pure-ordinal models
   if(!is.numeric(delta) || length(delta) != 1L || is.na(delta) ||
-     !is.finite(delta) || delta < 0) {
+    !is.finite(delta) || delta < 0) {
     stop("'delta' must be a single finite non-negative numeric, or NULL.")
   }
   # Resolve prior_factorization default. Pick "hierarchical" when it is
@@ -374,20 +374,20 @@ bgm_spec = function(x,
   # there anyway.
   if(is.null(prior_factorization)) {
     prior_factorization = if(model_type %in% c("ggm", "mixed_mrf") &&
-                               interaction_prior_type == "normal" &&
-                               scale_prior_type == "gamma") {
+      interaction_prior_type == "normal" &&
+      scale_prior_type == "gamma") {
       "hierarchical"
     } else {
       "joint"
     }
   }
   if(!(length(prior_factorization) == 1L &&
-       is.character(prior_factorization) &&
-       prior_factorization %in% c("joint", "hierarchical"))) {
+    is.character(prior_factorization) &&
+    prior_factorization %in% c("joint", "hierarchical"))) {
     stop("'prior_factorization' must be \"joint\" or \"hierarchical\".")
   }
   if(prior_factorization == "hierarchical" &&
-     !(model_type %in% c("ggm", "mixed_mrf"))) {
+    !(model_type %in% c("ggm", "mixed_mrf"))) {
     stop(
       "'prior_factorization = \"hierarchical\"' requires continuous data; ",
       "the current model_type is '", model_type, "', which has no ",
@@ -395,7 +395,7 @@ bgm_spec = function(x,
     )
   }
   if(prior_factorization == "hierarchical" &&
-     interaction_prior_type != "normal") {
+    interaction_prior_type != "normal") {
     stop(
       "'prior_factorization = \"hierarchical\"' requires a Normal slab ",
       "prior (interaction_prior_type = \"normal\"). Re-fit with ",
@@ -403,7 +403,7 @@ bgm_spec = function(x,
     )
   }
   if(prior_factorization == "hierarchical" &&
-     scale_prior_type != "gamma") {
+    scale_prior_type != "gamma") {
     stop(
       "'prior_factorization = \"hierarchical\"' requires a Gamma diagonal ",
       "prior (scale_prior_type = \"gamma\")."
@@ -479,9 +479,9 @@ bgm_spec = function(x,
   # p, the SBM block-level probabilities). Hierarchical factors out Z(Γ)
   # cleanly. Only matters for models with a continuous precision block.
   if(edge_selection &&
-     prior_factorization == "joint" &&
-     model_type %in% c("ggm", "mixed_mrf") &&
-     ep_flat$edge_prior %in% c("Beta-Bernoulli", "Stochastic-Block")) {
+    prior_factorization == "joint" &&
+    model_type %in% c("ggm", "mixed_mrf") &&
+    ep_flat$edge_prior %in% c("Beta-Bernoulli", "Stochastic-Block")) {
     warning(
       "'prior_factorization = \"joint\"' combined with a ", ep_flat$edge_prior,
       " inclusion prior is not properly defined: under the joint ",
