@@ -370,8 +370,8 @@ bgm_spec = function(x,
   # encompassing slab/diag prior pair matches what the L-space SD step
   # requires (Normal slab + Gamma diagonal). Otherwise fall back to
   # "joint" so the historical Cauchy-slab default keeps working.
-  # omrf/compare have no Z(Γ) factor, so "joint" is the only valid path
-  # there anyway.
+  # omrf/compare have no Z(Gamma) factor, so "joint" is the only valid
+  # path there anyway.
   if(is.null(prior_factorization)) {
     prior_factorization = if(model_type %in% c("ggm", "mixed_mrf") &&
       interaction_prior_type == "normal" &&
@@ -472,12 +472,13 @@ bgm_spec = function(x,
     ep_flat$inclusion_probability = matrix(0.5, nrow = 1, ncol = 1)
   }
 
-  # Joint factorization with a hyperprior on inclusion probabilities is not
-  # well-defined: the marginal on Γ under "joint" is π(Γ)·Z(Γ), and the
-  # intractable G-Wishart normalising constant Z(Γ) propagates into the
-  # conditional update for the inclusion hyperparameters (Beta-Bernoulli's
-  # p, the SBM block-level probabilities). Hierarchical factors out Z(Γ)
-  # cleanly. Only matters for models with a continuous precision block.
+  # Joint factorization with a hyperprior on inclusion probabilities is
+  # not well-defined: the marginal on Gamma under "joint" is
+  # pi(Gamma) * Z(Gamma), and the intractable G-Wishart normalising
+  # constant Z(Gamma) propagates into the conditional update for the
+  # inclusion hyperparameters (Beta-Bernoulli's p, the SBM block-level
+  # probabilities). Hierarchical factors out Z(Gamma) cleanly. Only
+  # matters for models with a continuous precision block.
   if(edge_selection &&
     prior_factorization == "joint" &&
     model_type %in% c("ggm", "mixed_mrf") &&
@@ -485,10 +486,11 @@ bgm_spec = function(x,
     warning(
       "'prior_factorization = \"joint\"' combined with a ", ep_flat$edge_prior,
       " inclusion prior is not properly defined: under the joint ",
-      "factorization the marginal on Γ is π(Γ)·Z(Γ), so the intractable ",
-      "G-Wishart normalising constant Z(Γ) propagates into the likelihood ",
-      "for the inclusion hyperparameters. Use ",
-      "'prior_factorization = \"hierarchical\"' for a clean factorization."
+      "factorization the marginal on Gamma is pi(Gamma) * Z(Gamma), ",
+      "so the intractable G-Wishart normalising constant Z(Gamma) ",
+      "propagates into the likelihood for the inclusion hyperparameters. ",
+      "Use 'prior_factorization = \"hierarchical\"' for a clean ",
+      "factorization."
     )
   }
 

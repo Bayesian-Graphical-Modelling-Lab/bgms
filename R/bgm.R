@@ -130,7 +130,7 @@
 #'   precision-scale prior is \code{gamma_prior(...)}. Under
 #'   \code{"joint"} the factorization is
 #'   \eqn{p(K, \Gamma) \propto p(K \mid \Gamma) \, \pi(\Gamma)} with
-#'   \eqn{K} drawn from the encompassing slab (Γ acts as a hard mask),
+#'   \eqn{K} drawn from the encompassing slab (\eqn{\Gamma} acts as a hard mask),
 #'   so the implicit \eqn{\Gamma}-marginal is
 #'   \eqn{\pi(\Gamma) \cdot Z(\Gamma)}, where \eqn{Z(\Gamma)} is the
 #'   precision-matrix-prior normalising constant conditional on the
@@ -140,7 +140,7 @@
 #'   the inclusion hyperparameters); a warning is emitted in that case.
 #'   Default: \code{NULL}, which auto-resolves to \code{"hierarchical"}
 #'   whenever the model and prior combination supports it (GGM or
-#'   mixed-MRF with a Normal slab and Gamma diagonal prior — the
+#'   mixed-MRF with a Normal slab and Gamma diagonal prior --- the
 #'   default prior combination), and to \code{"joint"} otherwise (e.g.,
 #'   pure ordinal models, or continuous models with a non-Normal slab).
 #'   Pass the value explicitly to override.
@@ -508,7 +508,7 @@ bgm <- function(
   } else {
     # Warn if loose edge params are also supplied alongside an object.
     # When only the deprecated arg is supplied, honor it (rebuild edge_prior).
-    # When both are supplied, require the values to match — otherwise error,
+    # When both are supplied, require the values to match -- otherwise error,
     # since the previous silent-drop behavior was misleading.
     if (hasArg(inclusion_probability)) {
       lifecycle::deprecate_warn(
