@@ -725,14 +725,14 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
     } else {
         // α > 1: adaptive Gauss-Hermite quadrature centred at the actual
         // mode of ell_post via the closed-form cubic critical-point solver
-        // (sd_density_cubic.h), with an internal four-level escalation
-        // cascade (N = 16/32/64/128) for self-validating accuracy. One
-        // AGHQ call gives the BF log-density at the atom m_ij, the Laplace
-        // centre/curvature for the proposal Gaussian, and the empirical
-        // truncation estimate. Replaces the previous (GH at B/(2A))
+        // (sd_density_cubic.h). One AGHQ call gives both the BF log-density
+        // at the atom m_ij and the Laplace centre/curvature for the
+        // proposal Gaussian -- replaces the previous (GH at B/(2A))
         // + (Newton+Laplace) two-step. Bimodal cells fall through with
-        // single-Laplace at the global mode in Phase 3a; Phase 3b adds the
+        // single-Laplace at the global mode for now; Phase 3 adds the
         // mixture-AGHQ branch over both cubic modes.
+        constexpr int kSDLspaceAGHQNodes_ = 32;
+
         const double A_post  = 0.5 * (l_ii * l_ii * inv_sigma2
                                       + beta + S_jj_data);
         const double B_post  = l_ii * l_ii * m_ij * inv_sigma2
@@ -745,16 +745,13 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
             return;
         }
         const auto aghq_post  = ggm_sd::density_at_l_ji_aghq(
-            m_ij, A_post,  B_post,  s_jj, prior_alpha_);
+            m_ij, A_post,  B_post,  s_jj, prior_alpha_, kSDLspaceAGHQNodes_);
         const auto aghq_prior = ggm_sd::density_at_l_ji_aghq(
-            m_ij, A_prior, B_prior, s_jj, prior_alpha_);
-        // status 1 (A<=0), 2 (s_jj<=0), 4 (cascade exhausted without
-        // converging) are PD reverts; status 3 (alpha=1 fallback reference)
-        // is still a usable result.
+            m_ij, A_prior, B_prior, s_jj, prior_alpha_, kSDLspaceAGHQNodes_);
+        // status 1 (A<=0) and status 2 (s_jj<=0) are PD reverts; status 3
+        // (alpha=1 fallback reference) is still a valid result.
         if (aghq_post.status  == 1 || aghq_post.status  == 2 ||
-            aghq_post.status  == 4 ||
             aghq_prior.status == 1 || aghq_prior.status == 2 ||
-            aghq_prior.status == 4 ||
             !std::isfinite(aghq_post.log_density) ||
             !std::isfinite(aghq_prior.log_density)) {
             ++n_pd_reverts_;
@@ -802,12 +799,13 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
     // and the earlier post AGHQ (deterministic in A, B, s_jj, alpha),
     // so this is effectively a kernel re-evaluation at x_corr.
     if (prior_alpha_ != 1.0) {
+        constexpr int kSDLspaceAGHQNodes_ = 32;
         const double x_corr = (curr_g == 0) ? l_ji_new : l_ji;
         const auto aghq_corr = ggm_sd::density_at_l_ji_aghq(
-            x_corr, A_post_save, B_post_save, s_jj_save, prior_alpha_);
-        if (aghq_corr.status == 1 || aghq_corr.status == 2 ||
-            aghq_corr.status == 4 ||
-            !std::isfinite(aghq_corr.log_density)) {
+            x_corr, A_post_save, B_post_save, s_jj_save, prior_alpha_,
+            kSDLspaceAGHQNodes_);
+        if ((aghq_corr.status == 1 || aghq_corr.status == 2)
+            || !std::isfinite(aghq_corr.log_density)) {
             ++n_pd_reverts_;
             return;
         }

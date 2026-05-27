@@ -33,66 +33,37 @@ LSDQuadResult density_at_l_ji_gh(double x_eval,
                                   int num_nodes = 64);
 
 // Adaptive Gauss-Hermite quadrature variant. Locates the actual mode of f
-// via the closed-form cubic solver (sd_density_cubic.h), centres the
-// nodes there with curvature kappa = -f''(phi*), and runs a three-level
-// escalation cascade through the nested Genz-Keister sequence
-// GK_3 -> GK_9 -> GK_35 until the |I_high - I_low| difference between
-// adjacent levels falls below tol_strict. The GK nodes are nested
-// (GK_3 nodes are a subset of GK_9, which is a subset of GK_35) and all
-// weights are strictly positive, so the cascade's worst-case kernel-eval
-// cost is one GK_35 evaluation (35 evals), not 3 + 9 + 35 = 47.
+// via the closed-form cubic solver (sd_density_cubic.h) and centres the GH
+// nodes there with curvature kappa = -f''(phi*). At alpha = 1 the cubic
+// returns phi* = B/(2A) and kappa = 2A; the AGHQ integrand becomes constant
+// in y_k and the formula recovers the closed-form Gaussian normaliser at
+// any N >= 1.
 //
-// At alpha = 1 the cubic returns phi* = B/(2A), kappa = 2A, and every
-// level returns the same value to machine roundoff (the AGHQ integrand
-// collapses to a constant in y_k).
-//
-// Polynomial exactness per level (verified against the analytic moments
-// of exp(-y^2)):
-//   GK_3:  degree 5
-//   GK_9:  degree 15
-//   GK_35: degree >= 50
-//
-// Escalation cascade (see density_at_l_ji_aghq impl):
-//   1.  Compute I_GK3.
-//   2.  Compute I_GK9.  If |I_GK9  - I_GK3| < tol_strict: return I_GK9.
-//   3.  Compute I_GK35. If |I_GK35 - I_GK9| < tol_strict: return I_GK35.
-//   4.  Otherwise return I_GK35 with status = 4 (not converged); the
-//       caller should PD-revert.
-//
-// Bimodal cells (Delta >= 0 from the cubic) use the global mode as a single
-// Laplace reference in this Phase-3a implementation; Phase 3b adds the
-// mixture branch over both cubic modes, with each component running through
-// the same per-mode cascade.
+// At alpha > 1 with Delta >= 0 (bimodal cubic) this Phase-2 implementation
+// uses only the global mode as the single Laplace reference; Phase 3 adds
+// the mixture-AGHQ branch over both modes.
 //
 // Status codes:
-//   0  ok (converged at some level <= GK_35).
+//   0  ok.
 //   1  A <= 0 (PD-revert condition).
 //   2  s_jj <= 0 (PD-revert condition).
 //   3  numerical fallback to the alpha=1 reference Gaussian (phi* = B/(2A),
 //      kappa = 2A); the cubic solver returned no usable mode (e.g. triple-
-//      root degeneracy) or curvature was below kappa_floor.
-//   4  cascade exhausted without converging; |I_GK35 - I_GK9| > tol_strict
-//      at the final step. Note: tol_strict is calibrated to the cheaper
-//      rule's truncation error (GK_9 degree 15), so status = 4 means
-//      "GK_9 was off by more than tol; the integrand has non-Gaussian
-//      structure that the single-Laplace AGHQ at the global mode cannot
-//      capture cleanly." Typically: bimodal cells where Phase 3b's
-//      mixture branch is needed.
+//      root degeneracy) or curvature was non-positive at the returned mode.
+//      log_Z is still computed via GH against the fallback Gaussian.
 
 struct LSDAGHQResult {
     double log_density;    ///< log pi(x_eval | rest, Y)
-    double log_Z;          ///< log of the normaliser at the final level
-    double log_Z_err_est;  ///< |I_final - I_previous|: the cascade's
-                           ///< empirical truncation estimate
+    double log_Z;          ///< log of the normaliser
     double x_mode;         ///< mode used as the Laplace centre
     double curvature;      ///< -f''(x_mode); positive
-    int    n_nodes_used;   ///< 3, 9, or 35 (Genz-Keister level reached)
     int    status;
 };
 
 LSDAGHQResult density_at_l_ji_aghq(double x_eval,
                                     double A, double B,
                                     double s_jj,
-                                    double alpha);
+                                    double alpha,
+                                    int num_nodes = 32);
 
 }  // namespace ggm_sd
