@@ -7,6 +7,7 @@
 #include <RcppArmadillo.h>
 #include "models/ggm/sd_density_l_space.h"
 #include "models/ggm/sd_density_l_space_quad.h"
+#include "models/ggm/sd_density_l_space_sinh.h"
 #include "models/ggm/sd_density_cubic.h"
 #include "models/ggm/ggm_model.h"
 #include "rng/rng_utils.h"
@@ -45,6 +46,25 @@ Rcpp::List sd_log_density_at_l_ji_gh_cpp(
     int num_nodes = 64
 ) {
     auto r = ggm_sd::density_at_l_ji_gh(x_eval, A, B, s_jj, alpha, num_nodes);
+    return Rcpp::List::create(
+        Rcpp::Named("log_density") = r.log_density,
+        Rcpp::Named("log_Z")       = r.log_Z,
+        Rcpp::Named("status")      = r.status
+    );
+}
+
+
+// Test interface for ggm_sd::density_at_l_ji_sinh (sinh-substitution +
+// midpoint-rule quadrature). Returns log_density at x_eval, log_Z, and
+// the status code. See sd_density_l_space_sinh.h for the convention.
+//
+// [[Rcpp::export]]
+Rcpp::List sd_log_density_at_l_ji_sinh_cpp(
+    double x_eval, double A, double B, double s_jj, double alpha,
+    int num_nodes = 32
+) {
+    auto r = ggm_sd::density_at_l_ji_sinh(
+        x_eval, A, B, s_jj, alpha, num_nodes);
     return Rcpp::List::create(
         Rcpp::Named("log_density") = r.log_density,
         Rcpp::Named("log_Z")       = r.log_Z,

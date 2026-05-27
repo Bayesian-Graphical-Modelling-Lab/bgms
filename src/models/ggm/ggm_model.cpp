@@ -6,6 +6,7 @@
 #include "mcmc/execution/warmup_schedule.h"
 #include "models/ggm/sd_density_l_space.h"
 #include "models/ggm/sd_density_l_space_quad.h"
+#include "models/ggm/sd_density_l_space_sinh.h"
 #include "models/ggm/sd_density_cubic.h"
 #include <stdexcept>
 
@@ -724,15 +725,20 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
         proposal_mu    = mu_post;
         proposal_sd    = 1.0 / std::sqrt(tau_post);
     } else {
-        // α > 1: GH quadrature at B/(2A) for the local Bayes factor
-        // (reliable across cells; polynomial degree 63 captures the
-        // integrand to roundoff in the chain's operational regime), and
-        // the cubic critical-point solver (sd_density_cubic.h) for the
-        // proposal Gaussian's mode and curvature -- replaces the previous
-        // Newton iteration which could fail at the triple-root degeneracy
-        // or land on a saddle.
-        constexpr int kSDLspaceGHNodes_ = 32;
-
+        // α > 1: sinh-substitution + midpoint-rule quadrature
+        // (sd_density_l_space_sinh.h) for the local Bayes factor. The
+        // substitution phi = sqrt(s) sinh(t) pins the integrand's
+        // branch points at t = +- i pi/2 (constant distance from the
+        // real axis, independent of s), giving uniform exponential
+        // convergence across the (A, B, s, alpha) plane. At N = 128
+        // the worst-case error in the chain-realistic regime is
+        // ~1e-10 (machine roundoff floor), versus ~1e-1 for the
+        // legacy non-adaptive GH-32 at B/(2A) on cells where s_jj
+        // is small and alpha is fractional.
+        //
+        // The proposal Gaussian uses the cubic critical-point solver
+        // (sd_density_cubic.h) -- replaces the Newton iteration which
+        // could fail at the triple-root degeneracy or land on a saddle.
         const double A_post  = 0.5 * (l_ii * l_ii * inv_sigma2
                                       + beta + S_jj_data);
         const double B_post  = l_ii * l_ii * m_ij * inv_sigma2
@@ -741,17 +747,17 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
         const double B_prior = l_ii * l_ii * m_ij * inv_sigma2;
         const double s_jj    = precision_matrix_(j, j) - l_ji * l_ji;
         if (!(s_jj > 0.0) || !(A_post > 0.0) || !(A_prior > 0.0)) return;
-        const auto gh_post  = ggm_sd::density_at_l_ji_gh(
-            m_ij, A_post,  B_post,  s_jj, prior_alpha_, kSDLspaceGHNodes_);
-        const auto gh_prior = ggm_sd::density_at_l_ji_gh(
-            m_ij, A_prior, B_prior, s_jj, prior_alpha_, kSDLspaceGHNodes_);
-        if (gh_post.status != 0 || gh_prior.status != 0
-            || !std::isfinite(gh_post.log_density)
-            || !std::isfinite(gh_prior.log_density)) {
+        const auto sinh_post  = ggm_sd::density_at_l_ji_sinh(
+            m_ij, A_post,  B_post,  s_jj, prior_alpha_);
+        const auto sinh_prior = ggm_sd::density_at_l_ji_sinh(
+            m_ij, A_prior, B_prior, s_jj, prior_alpha_);
+        if (sinh_post.status != 0 || sinh_prior.status != 0
+            || !std::isfinite(sinh_post.log_density)
+            || !std::isfinite(sinh_prior.log_density)) {
             ++n_pd_reverts_;
             return;
         }
-        log_BF_1_to_0 = gh_post.log_density - gh_prior.log_density;
+        log_BF_1_to_0 = sinh_post.log_density - sinh_prior.log_density;
 
         // Proposal Gaussian: closed-form mode + curvature via the
         // critical-point cubic. Replaces the previous Newton iteration
@@ -806,17 +812,15 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
     // DEL: log_α −= log π_target(l_ji_curr) − log q_proposal(l_ji_curr)
     // (At α=1 the proposal IS the conditional, correction ≡ 0.)
     //
-    // Mirror the hybrid policy above: try Laplace+NLO first, fall back to
-    // GH if Laplace's status is non-zero at this evaluation point. Calling
-    // density_at_l_ji_one at x_corr re-runs Newton but the cost is
-    // negligible compared to GH (~10 ops vs ~200).
+    // Uses the same sinh-substitution + midpoint-rule primitive as the
+    // BF computation; log_Z is identical between this call and the
+    // earlier sinh_post (deterministic in A, B, s_jj, alpha), so this
+    // is effectively a kernel re-evaluation at x_corr.
     if (prior_alpha_ != 1.0) {
-        constexpr int kSDLspaceGHNodes_ = 32;
         const double x_corr = (curr_g == 0) ? l_ji_new : l_ji;
-        const auto gh_corr  = ggm_sd::density_at_l_ji_gh(
-            x_corr, A_post_save, B_post_save, s_jj_save, prior_alpha_,
-            kSDLspaceGHNodes_);
-        if (gh_corr.status != 0 || !std::isfinite(gh_corr.log_density)) {
+        const auto sinh_corr = ggm_sd::density_at_l_ji_sinh(
+            x_corr, A_post_save, B_post_save, s_jj_save, prior_alpha_);
+        if (sinh_corr.status != 0 || !std::isfinite(sinh_corr.log_density)) {
             ++n_pd_reverts_;
             return;
         }
@@ -824,7 +828,7 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
         const double log_q  = -0.5 * std::log(2.0 * arma::datum::pi)
                               - std::log(proposal_sd)
                               - 0.5 * dx * dx;
-        const double correction = gh_corr.log_density - log_q;
+        const double correction = sinh_corr.log_density - log_q;
         log_alpha += (curr_g == 0 ? +correction : -correction);
     }
 
