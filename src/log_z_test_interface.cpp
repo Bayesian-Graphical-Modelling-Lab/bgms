@@ -59,16 +59,17 @@ Rcpp::List sd_log_density_at_l_ji_gh_cpp(
 //
 // [[Rcpp::export]]
 Rcpp::List sd_log_density_at_l_ji_aghq_cpp(
-    double x_eval, double A, double B, double s_jj, double alpha,
-    int num_nodes = 32
+    double x_eval, double A, double B, double s_jj, double alpha
 ) {
-    auto r = ggm_sd::density_at_l_ji_aghq(x_eval, A, B, s_jj, alpha, num_nodes);
+    auto r = ggm_sd::density_at_l_ji_aghq(x_eval, A, B, s_jj, alpha);
     return Rcpp::List::create(
-        Rcpp::Named("log_density") = r.log_density,
-        Rcpp::Named("log_Z")       = r.log_Z,
-        Rcpp::Named("x_mode")      = r.x_mode,
-        Rcpp::Named("curvature")   = r.curvature,
-        Rcpp::Named("status")      = r.status
+        Rcpp::Named("log_density")   = r.log_density,
+        Rcpp::Named("log_Z")         = r.log_Z,
+        Rcpp::Named("log_Z_err_est") = r.log_Z_err_est,
+        Rcpp::Named("x_mode")        = r.x_mode,
+        Rcpp::Named("curvature")     = r.curvature,
+        Rcpp::Named("n_nodes_used")  = r.n_nodes_used,
+        Rcpp::Named("status")        = r.status
     );
 }
 
