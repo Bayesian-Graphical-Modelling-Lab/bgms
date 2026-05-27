@@ -37,6 +37,14 @@ sd_log_density_at_l_ji_gh_cpp <- function(x_eval, A, B, s_jj, alpha, num_nodes =
     .Call(`_bgms_sd_log_density_at_l_ji_gh_cpp`, x_eval, A, B, s_jj, alpha, num_nodes)
 }
 
+sd_cubic_solve_cpp <- function(A, B, s_jj, alpha) {
+    .Call(`_bgms_sd_cubic_solve_cpp`, A, B, s_jj, alpha)
+}
+
+sd_log_kernel_cpp <- function(phi, A, B, s_jj, alpha) {
+    .Call(`_bgms_sd_log_kernel_cpp`, phi, A, B, s_jj, alpha)
+}
+
 chol_perm_trailing_2x2_cpp <- function(K, i_1based, j_1based) {
     .Call(`_bgms_chol_perm_trailing_2x2_cpp`, K, i_1based, j_1based)
 }

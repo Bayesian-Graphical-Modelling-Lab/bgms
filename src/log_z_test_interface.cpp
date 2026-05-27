@@ -7,6 +7,7 @@
 #include <RcppArmadillo.h>
 #include "models/ggm/sd_density_l_space.h"
 #include "models/ggm/sd_density_l_space_quad.h"
+#include "models/ggm/sd_density_cubic.h"
 #include "models/ggm/ggm_model.h"
 #include "rng/rng_utils.h"
 #include "math/cholesky_helpers.h"
@@ -48,6 +49,57 @@ Rcpp::List sd_log_density_at_l_ji_gh_cpp(
         Rcpp::Named("log_density") = r.log_density,
         Rcpp::Named("log_Z")       = r.log_Z,
         Rcpp::Named("status")      = r.status
+    );
+}
+
+
+// Test interface for ggm_sd::solve_sd_cubic. Solves the critical-point cubic
+// for the L-space SD kernel f(phi) = -A phi^2 + B phi + (alpha-1) log(s_jj +
+// phi^2) and returns all real roots together with ell, ell'', curvature, and
+// mode/saddle classification. See sd_density_cubic.h for the convention.
+//
+// [[Rcpp::export]]
+Rcpp::List sd_cubic_solve_cpp(double A, double B, double s_jj, double alpha) {
+    auto r = ggm_sd::solve_sd_cubic(A, B, s_jj, alpha);
+    const int n = r.n_real_roots;
+    Rcpp::NumericVector phi      (n);
+    Rcpp::NumericVector ell      (n);
+    Rcpp::NumericVector ell_pp   (n);
+    Rcpp::NumericVector curvature(n);
+    Rcpp::LogicalVector is_mode  (n);
+    for (int k = 0; k < n; ++k) {
+        phi[k]       = r.roots[k].phi;
+        ell[k]       = r.roots[k].ell;
+        ell_pp[k]    = r.roots[k].ell_pp;
+        curvature[k] = r.roots[k].curvature;
+        is_mode[k]   = r.roots[k].is_mode;
+    }
+    return Rcpp::List::create(
+        Rcpp::Named("n_real_roots")      = r.n_real_roots,
+        Rcpp::Named("n_modes")           = r.n_modes,
+        Rcpp::Named("phi")               = phi,
+        Rcpp::Named("ell")               = ell,
+        Rcpp::Named("ell_pp")            = ell_pp,
+        Rcpp::Named("curvature")         = curvature,
+        Rcpp::Named("is_mode")           = is_mode,
+        Rcpp::Named("global_mode_index") = r.global_mode_index,
+        Rcpp::Named("local_mode_index")  = r.local_mode_index,
+        Rcpp::Named("saddle_index")      = r.saddle_index,
+        Rcpp::Named("status")            = r.status
+    );
+}
+
+
+// Test interface for ggm_sd::sd_log_kernel and ggm_sd::sd_log_kernel_pp.
+// Direct evaluation of the kernel and its second derivative; lets unit tests
+// verify mode classification and curvature without trusting the solver.
+//
+// [[Rcpp::export]]
+Rcpp::List sd_log_kernel_cpp(double phi, double A, double B,
+                              double s_jj, double alpha) {
+    return Rcpp::List::create(
+        Rcpp::Named("ell")    = ggm_sd::sd_log_kernel   (phi, A, B, s_jj, alpha),
+        Rcpp::Named("ell_pp") = ggm_sd::sd_log_kernel_pp(phi, A,    s_jj, alpha)
     );
 }
 

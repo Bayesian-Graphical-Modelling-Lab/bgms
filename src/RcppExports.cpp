@@ -183,6 +183,35 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// sd_cubic_solve_cpp
+Rcpp::List sd_cubic_solve_cpp(double A, double B, double s_jj, double alpha);
+RcppExport SEXP _bgms_sd_cubic_solve_cpp(SEXP ASEXP, SEXP BSEXP, SEXP s_jjSEXP, SEXP alphaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< double >::type A(ASEXP);
+    Rcpp::traits::input_parameter< double >::type B(BSEXP);
+    Rcpp::traits::input_parameter< double >::type s_jj(s_jjSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    rcpp_result_gen = Rcpp::wrap(sd_cubic_solve_cpp(A, B, s_jj, alpha));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sd_log_kernel_cpp
+Rcpp::List sd_log_kernel_cpp(double phi, double A, double B, double s_jj, double alpha);
+RcppExport SEXP _bgms_sd_log_kernel_cpp(SEXP phiSEXP, SEXP ASEXP, SEXP BSEXP, SEXP s_jjSEXP, SEXP alphaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< double >::type phi(phiSEXP);
+    Rcpp::traits::input_parameter< double >::type A(ASEXP);
+    Rcpp::traits::input_parameter< double >::type B(BSEXP);
+    Rcpp::traits::input_parameter< double >::type s_jj(s_jjSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    rcpp_result_gen = Rcpp::wrap(sd_log_kernel_cpp(phi, A, B, s_jj, alpha));
+    return rcpp_result_gen;
+END_RCPP
+}
 // chol_perm_trailing_2x2_cpp
 Rcpp::List chol_perm_trailing_2x2_cpp(const arma::mat& K, int i_1based, int j_1based);
 RcppExport SEXP _bgms_chol_perm_trailing_2x2_cpp(SEXP KSEXP, SEXP i_1basedSEXP, SEXP j_1basedSEXP) {
@@ -759,6 +788,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sample_ggm_prior", (DL_FUNC) &_bgms_sample_ggm_prior, 14},
     {"_bgms_sd_log_density_at_l_ji_cpp", (DL_FUNC) &_bgms_sd_log_density_at_l_ji_cpp, 8},
     {"_bgms_sd_log_density_at_l_ji_gh_cpp", (DL_FUNC) &_bgms_sd_log_density_at_l_ji_gh_cpp, 6},
+    {"_bgms_sd_cubic_solve_cpp", (DL_FUNC) &_bgms_sd_cubic_solve_cpp, 4},
+    {"_bgms_sd_log_kernel_cpp", (DL_FUNC) &_bgms_sd_log_kernel_cpp, 5},
     {"_bgms_chol_perm_trailing_2x2_cpp", (DL_FUNC) &_bgms_chol_perm_trailing_2x2_cpp, 3},
     {"_bgms_ggm_sd_smoke_cpp", (DL_FUNC) &_bgms_ggm_sd_smoke_cpp, 17},
     {"_bgms_compute_ess_cpp", (DL_FUNC) &_bgms_compute_ess_cpp, 1},
