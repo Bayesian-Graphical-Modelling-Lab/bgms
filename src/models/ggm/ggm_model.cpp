@@ -6,6 +6,7 @@
 #include "mcmc/execution/warmup_schedule.h"
 #include "models/ggm/sd_density_l_space.h"
 #include "models/ggm/sd_density_l_space_quad.h"
+#include "models/ggm/sd_density_cubic.h"
 #include <stdexcept>
 
 // =====================================================================
@@ -723,13 +724,13 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
         proposal_mu    = mu_post;
         proposal_sd    = 1.0 / std::sqrt(tau_post);
     } else {
-        // α > 1: GH quadrature for log_BF (reliable across cells), Laplace
-        // for the proposal mode/curvature (cheap; if Laplace fails, use the
-        // pure-Gaussian fallback B/(2A), 1/√(2A)). N=32 nodes is accurate to
-        // ~10 digits for the smooth integrand here and halves the per-call
-        // cost vs N=64 — we tried hybrid Laplace/GH but Laplace+NLO at
-        // status=0 still has 1e-2 residual error in many cells, which
-        // compounds in the chain into multi-σ bias.
+        // α > 1: GH quadrature at B/(2A) for the local Bayes factor
+        // (reliable across cells; polynomial degree 63 captures the
+        // integrand to roundoff in the chain's operational regime), and
+        // the cubic critical-point solver (sd_density_cubic.h) for the
+        // proposal Gaussian's mode and curvature -- replaces the previous
+        // Newton iteration which could fail at the triple-root degeneracy
+        // or land on a saddle.
         constexpr int kSDLspaceGHNodes_ = 32;
 
         const double A_post  = 0.5 * (l_ii * l_ii * inv_sigma2
@@ -752,12 +753,26 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
         }
         log_BF_1_to_0 = gh_post.log_density - gh_prior.log_density;
 
-        const auto lp_post = ggm_sd::density_at_l_ji_one(
-            0.0, A_post, B_post, s_jj, prior_alpha_, /*nlo=*/false);
-        if (lp_post.status == 0
-            && std::isfinite(lp_post.curvature) && lp_post.curvature > 0.0) {
-            proposal_mu = lp_post.x_mode;
-            proposal_sd = 1.0 / std::sqrt(lp_post.curvature);
+        // Proposal Gaussian: closed-form mode + curvature via the
+        // critical-point cubic. Replaces the previous Newton iteration
+        // (density_at_l_ji_one) which could land on a saddle, fail to
+        // converge from the alpha = 1 starting point, or return a near-
+        // zero curvature at the triple-root degeneracy. The cubic
+        // returns every real root in O(1) and labels modes by ell_pp
+        // sign; we use the global mode. If the cubic flags no usable
+        // mode (PD revert, near-zero curvature), fall back to the
+        // alpha = 1 reference Gaussian (B_post/(2 A_post), 2 A_post).
+        const auto cubic_post = ggm_sd::solve_sd_cubic(
+            A_post, B_post, s_jj, prior_alpha_);
+        const double kappa_floor = 1e-10 * 2.0 * A_post;
+        if (cubic_post.status == 0
+            && cubic_post.n_modes >= 1
+            && cubic_post.global_mode_index >= 0
+            && cubic_post.roots[cubic_post.global_mode_index].curvature
+                > kappa_floor) {
+            const auto& m = cubic_post.roots[cubic_post.global_mode_index];
+            proposal_mu = m.phi;
+            proposal_sd = 1.0 / std::sqrt(m.curvature);
         } else {
             proposal_mu = B_post / (2.0 * A_post);
             proposal_sd = 1.0 / std::sqrt(2.0 * A_post);
