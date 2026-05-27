@@ -53,26 +53,6 @@ Rcpp::List sd_log_density_at_l_ji_gh_cpp(
 }
 
 
-// Test interface for ggm_sd::density_at_l_ji_aghq (adaptive Gauss-Hermite
-// at the cubic-derived mode). Returns log_density at x_eval, log_Z, the
-// mode/curvature used as the Laplace reference, and the status code.
-//
-// [[Rcpp::export]]
-Rcpp::List sd_log_density_at_l_ji_aghq_cpp(
-    double x_eval, double A, double B, double s_jj, double alpha,
-    int num_nodes = 32
-) {
-    auto r = ggm_sd::density_at_l_ji_aghq(x_eval, A, B, s_jj, alpha, num_nodes);
-    return Rcpp::List::create(
-        Rcpp::Named("log_density") = r.log_density,
-        Rcpp::Named("log_Z")       = r.log_Z,
-        Rcpp::Named("x_mode")      = r.x_mode,
-        Rcpp::Named("curvature")   = r.curvature,
-        Rcpp::Named("status")      = r.status
-    );
-}
-
-
 // Test interface for ggm_sd::solve_sd_cubic. Solves the critical-point cubic
 // for the L-space SD kernel f(phi) = -A phi^2 + B phi + (alpha-1) log(s_jj +
 // phi^2) and returns all real roots together with ell, ell'', curvature, and

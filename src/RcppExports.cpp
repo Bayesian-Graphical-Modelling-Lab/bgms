@@ -183,22 +183,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// sd_log_density_at_l_ji_aghq_cpp
-Rcpp::List sd_log_density_at_l_ji_aghq_cpp(double x_eval, double A, double B, double s_jj, double alpha, int num_nodes);
-RcppExport SEXP _bgms_sd_log_density_at_l_ji_aghq_cpp(SEXP x_evalSEXP, SEXP ASEXP, SEXP BSEXP, SEXP s_jjSEXP, SEXP alphaSEXP, SEXP num_nodesSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< double >::type x_eval(x_evalSEXP);
-    Rcpp::traits::input_parameter< double >::type A(ASEXP);
-    Rcpp::traits::input_parameter< double >::type B(BSEXP);
-    Rcpp::traits::input_parameter< double >::type s_jj(s_jjSEXP);
-    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
-    Rcpp::traits::input_parameter< int >::type num_nodes(num_nodesSEXP);
-    rcpp_result_gen = Rcpp::wrap(sd_log_density_at_l_ji_aghq_cpp(x_eval, A, B, s_jj, alpha, num_nodes));
-    return rcpp_result_gen;
-END_RCPP
-}
 // sd_cubic_solve_cpp
 Rcpp::List sd_cubic_solve_cpp(double A, double B, double s_jj, double alpha);
 RcppExport SEXP _bgms_sd_cubic_solve_cpp(SEXP ASEXP, SEXP BSEXP, SEXP s_jjSEXP, SEXP alphaSEXP) {
@@ -804,7 +788,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sample_ggm_prior", (DL_FUNC) &_bgms_sample_ggm_prior, 14},
     {"_bgms_sd_log_density_at_l_ji_cpp", (DL_FUNC) &_bgms_sd_log_density_at_l_ji_cpp, 8},
     {"_bgms_sd_log_density_at_l_ji_gh_cpp", (DL_FUNC) &_bgms_sd_log_density_at_l_ji_gh_cpp, 6},
-    {"_bgms_sd_log_density_at_l_ji_aghq_cpp", (DL_FUNC) &_bgms_sd_log_density_at_l_ji_aghq_cpp, 6},
     {"_bgms_sd_cubic_solve_cpp", (DL_FUNC) &_bgms_sd_cubic_solve_cpp, 4},
     {"_bgms_sd_log_kernel_cpp", (DL_FUNC) &_bgms_sd_log_kernel_cpp, 5},
     {"_bgms_chol_perm_trailing_2x2_cpp", (DL_FUNC) &_bgms_chol_perm_trailing_2x2_cpp, 3},
