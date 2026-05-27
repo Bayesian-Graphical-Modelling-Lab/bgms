@@ -723,14 +723,15 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
         proposal_mu    = mu_post;
         proposal_sd    = 1.0 / std::sqrt(tau_post);
     } else {
-        // α > 1: GH quadrature for log_BF (reliable across cells), Laplace
-        // for the proposal mode/curvature (cheap; if Laplace fails, use the
-        // pure-Gaussian fallback B/(2A), 1/√(2A)). N=32 nodes is accurate to
-        // ~10 digits for the smooth integrand here and halves the per-call
-        // cost vs N=64 — we tried hybrid Laplace/GH but Laplace+NLO at
-        // status=0 still has 1e-2 residual error in many cells, which
-        // compounds in the chain into multi-σ bias.
-        constexpr int kSDLspaceGHNodes_ = 32;
+        // α > 1: adaptive Gauss-Hermite quadrature centred at the actual
+        // mode of ell_post via the closed-form cubic critical-point solver
+        // (sd_density_cubic.h). One AGHQ call gives both the BF log-density
+        // at the atom m_ij and the Laplace centre/curvature for the
+        // proposal Gaussian -- replaces the previous (GH at B/(2A))
+        // + (Newton+Laplace) two-step. Bimodal cells fall through with
+        // single-Laplace at the global mode for now; Phase 3 adds the
+        // mixture-AGHQ branch over both cubic modes.
+        constexpr int kSDLspaceAGHQNodes_ = 32;
 
         const double A_post  = 0.5 * (l_ii * l_ii * inv_sigma2
                                       + beta + S_jj_data);
@@ -739,29 +740,30 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
         const double A_prior = 0.5 * (l_ii * l_ii * inv_sigma2 + beta);
         const double B_prior = l_ii * l_ii * m_ij * inv_sigma2;
         const double s_jj    = precision_matrix_(j, j) - l_ji * l_ji;
-        if (!(s_jj > 0.0) || !(A_post > 0.0) || !(A_prior > 0.0)) return;
-        const auto gh_post  = ggm_sd::density_at_l_ji_gh(
-            m_ij, A_post,  B_post,  s_jj, prior_alpha_, kSDLspaceGHNodes_);
-        const auto gh_prior = ggm_sd::density_at_l_ji_gh(
-            m_ij, A_prior, B_prior, s_jj, prior_alpha_, kSDLspaceGHNodes_);
-        if (gh_post.status != 0 || gh_prior.status != 0
-            || !std::isfinite(gh_post.log_density)
-            || !std::isfinite(gh_prior.log_density)) {
+        if (!(s_jj > 0.0) || !(A_post > 0.0) || !(A_prior > 0.0)) {
             ++n_pd_reverts_;
             return;
         }
-        log_BF_1_to_0 = gh_post.log_density - gh_prior.log_density;
-
-        const auto lp_post = ggm_sd::density_at_l_ji_one(
-            0.0, A_post, B_post, s_jj, prior_alpha_, /*nlo=*/false);
-        if (lp_post.status == 0
-            && std::isfinite(lp_post.curvature) && lp_post.curvature > 0.0) {
-            proposal_mu = lp_post.x_mode;
-            proposal_sd = 1.0 / std::sqrt(lp_post.curvature);
-        } else {
-            proposal_mu = B_post / (2.0 * A_post);
-            proposal_sd = 1.0 / std::sqrt(2.0 * A_post);
+        const auto aghq_post  = ggm_sd::density_at_l_ji_aghq(
+            m_ij, A_post,  B_post,  s_jj, prior_alpha_, kSDLspaceAGHQNodes_);
+        const auto aghq_prior = ggm_sd::density_at_l_ji_aghq(
+            m_ij, A_prior, B_prior, s_jj, prior_alpha_, kSDLspaceAGHQNodes_);
+        // status 1 (A<=0) and status 2 (s_jj<=0) are PD reverts; status 3
+        // (alpha=1 fallback reference) is still a valid result.
+        if (aghq_post.status  == 1 || aghq_post.status  == 2 ||
+            aghq_prior.status == 1 || aghq_prior.status == 2 ||
+            !std::isfinite(aghq_post.log_density) ||
+            !std::isfinite(aghq_prior.log_density)) {
+            ++n_pd_reverts_;
+            return;
         }
+        log_BF_1_to_0 = aghq_post.log_density - aghq_prior.log_density;
+
+        // Proposal Gaussian: cubic-derived mode + curvature of the post
+        // density. At alpha = 1 the cubic returns the closed-form Gaussian
+        // mean B_post/(2 A_post) with curvature 2 A_post.
+        proposal_mu = aghq_post.x_mode;
+        proposal_sd = 1.0 / std::sqrt(aghq_post.curvature);
         A_post_save = A_post;
         B_post_save = B_post;
         s_jj_save   = s_jj;
@@ -791,17 +793,19 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
     // DEL: log_α −= log π_target(l_ji_curr) − log q_proposal(l_ji_curr)
     // (At α=1 the proposal IS the conditional, correction ≡ 0.)
     //
-    // Mirror the hybrid policy above: try Laplace+NLO first, fall back to
-    // GH if Laplace's status is non-zero at this evaluation point. Calling
-    // density_at_l_ji_one at x_corr re-runs Newton but the cost is
-    // negligible compared to GH (~10 ops vs ~200).
+    // Re-evaluates the AGHQ-normalised log density of the encompassing
+    // post conditional at x_corr; same primitive, same cubic mode,
+    // different evaluation point. log_Z is identical between this call
+    // and the earlier post AGHQ (deterministic in A, B, s_jj, alpha),
+    // so this is effectively a kernel re-evaluation at x_corr.
     if (prior_alpha_ != 1.0) {
-        constexpr int kSDLspaceGHNodes_ = 32;
+        constexpr int kSDLspaceAGHQNodes_ = 32;
         const double x_corr = (curr_g == 0) ? l_ji_new : l_ji;
-        const auto gh_corr  = ggm_sd::density_at_l_ji_gh(
+        const auto aghq_corr = ggm_sd::density_at_l_ji_aghq(
             x_corr, A_post_save, B_post_save, s_jj_save, prior_alpha_,
-            kSDLspaceGHNodes_);
-        if (gh_corr.status != 0 || !std::isfinite(gh_corr.log_density)) {
+            kSDLspaceAGHQNodes_);
+        if ((aghq_corr.status == 1 || aghq_corr.status == 2)
+            || !std::isfinite(aghq_corr.log_density)) {
             ++n_pd_reverts_;
             return;
         }
@@ -809,7 +813,7 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
         const double log_q  = -0.5 * std::log(2.0 * arma::datum::pi)
                               - std::log(proposal_sd)
                               - 0.5 * dx * dx;
-        const double correction = gh_corr.log_density - log_q;
+        const double correction = aghq_corr.log_density - log_q;
         log_alpha += (curr_g == 0 ? +correction : -correction);
     }
 

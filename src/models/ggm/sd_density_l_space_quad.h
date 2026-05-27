@@ -32,4 +32,38 @@ LSDQuadResult density_at_l_ji_gh(double x_eval,
                                   double alpha,
                                   int num_nodes = 64);
 
+// Adaptive Gauss-Hermite quadrature variant. Locates the actual mode of f
+// via the closed-form cubic solver (sd_density_cubic.h) and centres the GH
+// nodes there with curvature kappa = -f''(phi*). At alpha = 1 the cubic
+// returns phi* = B/(2A) and kappa = 2A; the AGHQ integrand becomes constant
+// in y_k and the formula recovers the closed-form Gaussian normaliser at
+// any N >= 1.
+//
+// At alpha > 1 with Delta >= 0 (bimodal cubic) this Phase-2 implementation
+// uses only the global mode as the single Laplace reference; Phase 3 adds
+// the mixture-AGHQ branch over both modes.
+//
+// Status codes:
+//   0  ok.
+//   1  A <= 0 (PD-revert condition).
+//   2  s_jj <= 0 (PD-revert condition).
+//   3  numerical fallback to the alpha=1 reference Gaussian (phi* = B/(2A),
+//      kappa = 2A); the cubic solver returned no usable mode (e.g. triple-
+//      root degeneracy) or curvature was non-positive at the returned mode.
+//      log_Z is still computed via GH against the fallback Gaussian.
+
+struct LSDAGHQResult {
+    double log_density;    ///< log pi(x_eval | rest, Y)
+    double log_Z;          ///< log of the normaliser
+    double x_mode;         ///< mode used as the Laplace centre
+    double curvature;      ///< -f''(x_mode); positive
+    int    status;
+};
+
+LSDAGHQResult density_at_l_ji_aghq(double x_eval,
+                                    double A, double B,
+                                    double s_jj,
+                                    double alpha,
+                                    int num_nodes = 32);
+
 }  // namespace ggm_sd
