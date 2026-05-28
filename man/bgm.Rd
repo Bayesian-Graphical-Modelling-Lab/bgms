@@ -84,11 +84,14 @@ interaction parameters, created by one of the prior constructor functions:
 \item \code{\link{cauchy_prior}()}: Cauchy(0, scale) prior.
 \item \code{\link{beta_prime_prior}()}: Beta-prime prior.
 }
-Default: \code{normal_prior(scale = 1)}. The Normal slab is the
-encompassing prior under which the L-space Savage-Dickey between-edge
-step (i.e. \code{prior_factorization = "hierarchical"}) is defined,
-so this default lets the default-default \code{bgm(x)} call land on
-the hierarchical factorization for GGM and mixed-MRF data.}
+Default: \code{normal_prior(scale = 1)}. The L-space Savage-Dickey
+between-edge step (i.e. \code{prior_factorization = "hierarchical"})
+supports the Normal slab directly and the Cauchy slab via the
+scale-mixture-of-normals representation
+(\eqn{K_{ij} \mid \omega \sim N(0, \sigma^2 \omega)},
+\eqn{\omega \sim \mathrm{InvGamma}(1/2, 1/2)}), so either default
+lets \code{bgm(x)} land on the hierarchical factorization for GGM
+and mixed-MRF data.}
 
 \item{threshold_prior}{A prior specification object for threshold (main
 effect) parameters, created by one of the prior constructor functions:
@@ -147,10 +150,12 @@ determines the marginal prior on \eqn{\Gamma}. Under
 \eqn{\Gamma}-marginal is \eqn{\pi(\Gamma)} exactly; the chain
 targets this marginal via a Savage-Dickey between-edge
 Metropolis-Hastings step (closed-form Gaussian Bayes factor at
-\eqn{\alpha = 1}, Gauss-Hermite quadrature at \eqn{\alpha > 1})
-under the encompassing Normal slab. Only available when the
-interaction prior is \code{normal_prior(...)} and the
-precision-scale prior is \code{gamma_prior(...)}. Under
+\eqn{\alpha = 1}, sinh-substitution quadrature at \eqn{\alpha > 1})
+under the encompassing slab. Available with a Normal slab directly
+or a Cauchy slab via the scale-mixture-of-normals representation
+(per-edge \eqn{\omega_{ij} \sim \mathrm{InvGamma}(1/2, 1/2)},
+slice-sampled); requires \code{precision_scale_prior =
+gamma_prior(...)} in both cases. Under
 \code{"joint"} the factorization is
 \eqn{p(K, \Gamma) \propto p(K \mid \Gamma) \, \pi(\Gamma)} with
 \eqn{K} drawn from the encompassing slab (\eqn{\Gamma} acts as a hard mask),
@@ -163,10 +168,10 @@ inclusion prior is not well-defined (the intractable
 the inclusion hyperparameters); a warning is emitted in that case.
 Default: \code{NULL}, which auto-resolves to \code{"hierarchical"}
 whenever the model and prior combination supports it (GGM or
-mixed-MRF with a Normal slab and Gamma diagonal prior --- the
-default prior combination), and to \code{"joint"} otherwise (e.g.,
-pure ordinal models, or continuous models with a non-Normal slab).
-Pass the value explicitly to override.}
+mixed-MRF with a Normal or Cauchy slab and Gamma diagonal prior),
+and to \code{"joint"} otherwise (e.g., pure ordinal models, or
+continuous models with a beta-prime slab). Pass the value explicitly
+to override.}
 
 \item{edge_selection}{Logical. Whether to perform Bayesian edge selection.
 If \code{FALSE}, the model estimates all edges. Default: \code{TRUE}.}

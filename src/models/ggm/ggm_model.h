@@ -21,12 +21,14 @@
  *   Hierarchical: π_hier(K, Γ)  ∝ slab·diag·|K|^δ·1{K∈M+(Γ)}/Z(Γ)·π(Γ).
  *                 Γ marginal is π(Γ) directly. Between-edge step is the
  *                 L-space Savage-Dickey identity (closed-form Gaussian Bayes
- *                 factor at α = 1, Gauss-Hermite quadrature at α > 1).
+ *                 factor at α = 1, sinh-substitution quadrature at α > 1).
  *
- * Hierarchical mode requires the slab to be NormalPrior and the diagonal to
- * be GammaScalePrior (the SD density-at-zero primitive is closed-form only
- * for this prior family). Construction will throw if hierarchical is
- * requested under any other family.
+ * Hierarchical mode requires GammaScalePrior on the diagonal and either a
+ * NormalPrior slab (direct) or a CauchyPrior slab (via the scale-mixture-of-
+ * normals representation K_ij | omega ~ N(0, sigma^2 omega), omega ~
+ * InvGamma(1/2, 1/2), with omega_ij slice-sampled per edge by
+ * math/savage_dickey/cauchy_omega.h). Construction will throw if
+ * hierarchical is requested under any other family.
  */
 enum class GraphPriorSpec { Joint, Hierarchical };
 
@@ -249,8 +251,8 @@ public:
     /**
      * Switch the chain to hierarchical-spec inference (default is Joint).
      * Hierarchical routes the between-edge step to the L-space Savage-Dickey
-     * MH. Requires NormalPrior slab + GammaScalePrior diagonal — the SD
-     * primitive validates this at first use.
+     * MH. Requires a NormalPrior or CauchyPrior slab + GammaScalePrior
+     * diagonal — the SD primitive validates this at first use.
      */
     void set_graph_prior_spec(GraphPriorSpec spec);
 
@@ -465,7 +467,7 @@ private:
     // Default is Joint (Roverato between-edge step). Hierarchical routes the
     // between-edge step to the L-space Savage-Dickey identity, targeting the
     // user-specified Γ-marginal π(Γ) directly under an encompassing Normal
-    // slab + Gamma diagonal.
+    // or Cauchy slab + Gamma diagonal.
     GraphPriorSpec graph_prior_spec_ = GraphPriorSpec::Joint;
     bool   prior_params_extracted_   = false;
     // Disables the likelihood contribution in all MH ratios when true; used
