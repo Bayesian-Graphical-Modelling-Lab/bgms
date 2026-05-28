@@ -27,7 +27,7 @@
 //   2  curvature non-positive (Laplace invalid at mode; chain should revert)
 //   3  Newton did not converge within newton_max_iter
 
-namespace ggm_sd {
+namespace savage_dickey {
 
 struct LSDResult {
     double log_density;   // log pi(x_eval | rest, Y) via Laplace + optional NLO
@@ -46,4 +46,4 @@ LSDResult density_at_l_ji_one(
     int    newton_max_iter = 50,
     double newton_tol      = 1e-10);
 
-}  // namespace ggm_sd
+}  // namespace savage_dickey

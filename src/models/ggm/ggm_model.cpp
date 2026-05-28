@@ -4,10 +4,10 @@
 #include "math/cholupdate.h"
 #include "mcmc/execution/step_result.h"
 #include "mcmc/execution/warmup_schedule.h"
-#include "models/ggm/sd_density_l_space.h"
-#include "models/ggm/sd_density_l_space_quad.h"
-#include "models/ggm/sd_density_l_space_sinh.h"
-#include "models/ggm/sd_density_cubic.h"
+#include "math/savage_dickey/laplace.h"
+#include "math/savage_dickey/gauss_hermite.h"
+#include "math/savage_dickey/sinh_midpoint.h"
+#include "math/savage_dickey/cubic_mode.h"
 #include <stdexcept>
 
 // =====================================================================
@@ -657,7 +657,7 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
     const double p_inc = inclusion_probability_(i, j);
     // bgms convention: NormalPrior(scale = σ_user) is on K_yy = -K/2, so the
     // slab on K_ij has sd σ_K = 2·σ_user (variance 4σ_user²). The SD primitive
-    // (sd_density_l_space.h) documents slab as N(0, σ²) on K_ij directly, so
+    // (math/savage_dickey/laplace.h) documents slab as N(0, σ²) on K_ij directly, so
     // we pass σ_K = 2·prior_sigma_ to match the within-K parameterization.
     const double sigma = 2.0 * prior_sigma_;
     const double beta  = prior_beta_;
@@ -726,7 +726,7 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
         proposal_sd    = 1.0 / std::sqrt(tau_post);
     } else {
         // α > 1: sinh-substitution + midpoint-rule quadrature
-        // (sd_density_l_space_sinh.h) for the local Bayes factor. The
+        // (math/savage_dickey/sinh_midpoint.h) for the local Bayes factor. The
         // substitution phi = sqrt(s) sinh(t) pins the integrand's
         // branch points at t = +- i pi/2 (constant distance from the
         // real axis, independent of s), giving uniform exponential
@@ -737,7 +737,7 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
         // is small and alpha is fractional.
         //
         // The proposal Gaussian uses the cubic critical-point solver
-        // (sd_density_cubic.h) -- replaces the Newton iteration which
+        // (math/savage_dickey/cubic_mode.h) -- replaces the Newton iteration which
         // could fail at the triple-root degeneracy or land on a saddle.
         const double A_post  = 0.5 * (l_ii * l_ii * inv_sigma2
                                       + beta + S_jj_data);
@@ -747,9 +747,9 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
         const double B_prior = l_ii * l_ii * m_ij * inv_sigma2;
         const double s_jj    = precision_matrix_(j, j) - l_ji * l_ji;
         if (!(s_jj > 0.0) || !(A_post > 0.0) || !(A_prior > 0.0)) return;
-        const auto sinh_post  = ggm_sd::density_at_l_ji_sinh(
+        const auto sinh_post  = savage_dickey::density_at_l_ji_sinh(
             m_ij, A_post,  B_post,  s_jj, prior_alpha_);
-        const auto sinh_prior = ggm_sd::density_at_l_ji_sinh(
+        const auto sinh_prior = savage_dickey::density_at_l_ji_sinh(
             m_ij, A_prior, B_prior, s_jj, prior_alpha_);
         if (sinh_post.status != 0 || sinh_prior.status != 0
             || !std::isfinite(sinh_post.log_density)
@@ -768,7 +768,7 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
         // sign; we use the global mode. If the cubic flags no usable
         // mode (PD revert, near-zero curvature), fall back to the
         // alpha = 1 reference Gaussian (B_post/(2 A_post), 2 A_post).
-        const auto cubic_post = ggm_sd::solve_sd_cubic(
+        const auto cubic_post = savage_dickey::solve_sd_cubic(
             A_post, B_post, s_jj, prior_alpha_);
         const double kappa_floor = 1e-10 * 2.0 * A_post;
         if (cubic_post.status == 0
@@ -818,7 +818,7 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
     // is effectively a kernel re-evaluation at x_corr.
     if (prior_alpha_ != 1.0) {
         const double x_corr = (curr_g == 0) ? l_ji_new : l_ji;
-        const auto sinh_corr = ggm_sd::density_at_l_ji_sinh(
+        const auto sinh_corr = savage_dickey::density_at_l_ji_sinh(
             x_corr, A_post_save, B_post_save, s_jj_save, prior_alpha_);
         if (sinh_corr.status != 0 || !std::isfinite(sinh_corr.log_density)) {
             ++n_pd_reverts_;

@@ -1,9 +1,9 @@
-#include "sd_density_l_space.h"
+#include "laplace.h"
 
 #include <cmath>
 #include <limits>
 
-namespace ggm_sd {
+namespace savage_dickey {
 
 namespace {
 
@@ -122,4 +122,4 @@ LSDResult density_at_l_ji_one(double x_eval,
     return out;
 }
 
-}  // namespace ggm_sd
+}  // namespace savage_dickey

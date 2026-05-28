@@ -18,7 +18,7 @@
 // Use as a drop-in replacement (or fallback) for the Laplace+NLO primitive
 // in cells where Newton/Laplace is unreliable.
 
-namespace ggm_sd {
+namespace savage_dickey {
 
 struct LSDQuadResult {
     double log_density;
@@ -32,4 +32,4 @@ LSDQuadResult density_at_l_ji_gh(double x_eval,
                                   double alpha,
                                   int num_nodes = 64);
 
-}  // namespace ggm_sd
+}  // namespace savage_dickey

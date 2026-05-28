@@ -43,7 +43,7 @@
 //      check failed): caller should fall back to the alpha=1 Gaussian
 //      reference (B/(2A), curvature 2A).
 
-namespace ggm_sd {
+namespace savage_dickey {
 
 struct CubicRoot {
     double phi;             ///< root value
@@ -70,4 +70,4 @@ CubicResult solve_sd_cubic(double A, double B, double s_jj, double alpha);
 double sd_log_kernel(double phi, double A, double B, double s_jj, double alpha);
 double sd_log_kernel_pp(double phi, double A, double s_jj, double alpha);
 
-}  // namespace ggm_sd
+}  // namespace savage_dickey

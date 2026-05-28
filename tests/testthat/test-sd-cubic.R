@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------------- #
-# Unit tests for ggm_sd::solve_sd_cubic.
+# Unit tests for savage_dickey::solve_sd_cubic.
 #
 # The cubic critical-point solver underpins the adaptive Gauss-Hermite
 # quadrature primitive for the alpha > 1 SD between-step. Correctness here
@@ -15,7 +15,7 @@
 # --------------------------------------------------------------------------- #
 
 # Reference: evaluate the kernel and its second derivative directly in R, to
-# cross-check the C++ wrappers. Same formulas as src/models/ggm/sd_density_cubic.cpp.
+# cross-check the C++ wrappers. Same formulas as src/math/savage_dickey/cubic_mode.cpp.
 ell_ref <- function(phi, A, B, s_jj, alpha) {
   -A * phi^2 + B * phi + (alpha - 1) * log(s_jj + phi^2)
 }

@@ -1,8 +1,8 @@
-#include "sd_density_l_space_sinh.h"
+#include "sinh_midpoint.h"
 
 #include <cmath>
 
-namespace ggm_sd {
+namespace savage_dickey {
 
 namespace {
 
@@ -85,4 +85,4 @@ LSDSinhResult density_at_l_ji_sinh(double x_eval, double A, double B,
     return out;
 }
 
-}  // namespace ggm_sd
+}  // namespace savage_dickey

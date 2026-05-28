@@ -1,9 +1,9 @@
-#include "sd_density_cubic.h"
+#include "cubic_mode.h"
 
 #include <algorithm>
 #include <cmath>
 
-namespace ggm_sd {
+namespace savage_dickey {
 
 double sd_log_kernel(double phi, double A, double B,
                      double s_jj, double alpha) {
@@ -238,4 +238,4 @@ CubicResult solve_sd_cubic(double A, double B, double s_jj, double alpha) {
     return out;
 }
 
-}  // namespace ggm_sd
+}  // namespace savage_dickey

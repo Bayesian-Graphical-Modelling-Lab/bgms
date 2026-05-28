@@ -1,10 +1,10 @@
-#include "sd_density_l_space_quad.h"
+#include "gauss_hermite.h"
 
 #include <cmath>
 #include <mutex>
 #include <unordered_map>
 
-namespace ggm_sd {
+namespace savage_dickey {
 
 namespace {
 
@@ -88,4 +88,4 @@ LSDQuadResult density_at_l_ji_gh(double x_eval, double A, double B,
     return out;
 }
 
-}  // namespace ggm_sd
+}  // namespace savage_dickey

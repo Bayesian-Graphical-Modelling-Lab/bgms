@@ -5,10 +5,10 @@
 // go through the full bgm() wrapper.
 
 #include <RcppArmadillo.h>
-#include "models/ggm/sd_density_l_space.h"
-#include "models/ggm/sd_density_l_space_quad.h"
-#include "models/ggm/sd_density_l_space_sinh.h"
-#include "models/ggm/sd_density_cubic.h"
+#include "math/savage_dickey/laplace.h"
+#include "math/savage_dickey/gauss_hermite.h"
+#include "math/savage_dickey/sinh_midpoint.h"
+#include "math/savage_dickey/cubic_mode.h"
 #include "models/ggm/ggm_model.h"
 #include "rng/rng_utils.h"
 #include "math/cholesky_helpers.h"
@@ -17,7 +17,7 @@
 #include "mcmc/samplers/nuts_adaptation.h"
 
 
-// Test interface for ggm_sd::density_at_l_ji_one (Laplace + optional NLO
+// Test interface for savage_dickey::density_at_l_ji_one (Laplace + optional NLO
 // 1D conditional density of l_ji at x_eval).
 //
 // [[Rcpp::export]]
@@ -25,7 +25,7 @@ Rcpp::List sd_log_density_at_l_ji_cpp(
     double x_eval, double A, double B, double s_jj, double alpha,
     bool nlo = true, int newton_max_iter = 50, double newton_tol = 1e-10
 ) {
-    auto r = ggm_sd::density_at_l_ji_one(x_eval, A, B, s_jj, alpha,
+    auto r = savage_dickey::density_at_l_ji_one(x_eval, A, B, s_jj, alpha,
                                           nlo, newton_max_iter, newton_tol);
     return Rcpp::List::create(
         Rcpp::Named("log_density") = r.log_density,
@@ -36,7 +36,7 @@ Rcpp::List sd_log_density_at_l_ji_cpp(
 }
 
 
-// Test interface for ggm_sd::density_at_l_ji_gh (Gauss-Hermite quadrature
+// Test interface for savage_dickey::density_at_l_ji_gh (Gauss-Hermite quadrature
 // variant; ~64 evaluations per call but more reliable than Laplace+NLO
 // across all chain configurations).
 //
@@ -45,7 +45,7 @@ Rcpp::List sd_log_density_at_l_ji_gh_cpp(
     double x_eval, double A, double B, double s_jj, double alpha,
     int num_nodes = 64
 ) {
-    auto r = ggm_sd::density_at_l_ji_gh(x_eval, A, B, s_jj, alpha, num_nodes);
+    auto r = savage_dickey::density_at_l_ji_gh(x_eval, A, B, s_jj, alpha, num_nodes);
     return Rcpp::List::create(
         Rcpp::Named("log_density") = r.log_density,
         Rcpp::Named("log_Z")       = r.log_Z,
@@ -54,16 +54,16 @@ Rcpp::List sd_log_density_at_l_ji_gh_cpp(
 }
 
 
-// Test interface for ggm_sd::density_at_l_ji_sinh (sinh-substitution +
+// Test interface for savage_dickey::density_at_l_ji_sinh (sinh-substitution +
 // midpoint-rule quadrature). Returns log_density at x_eval, log_Z, and
-// the status code. See sd_density_l_space_sinh.h for the convention.
+// the status code. See math/savage_dickey/sinh_midpoint.h for the convention.
 //
 // [[Rcpp::export]]
 Rcpp::List sd_log_density_at_l_ji_sinh_cpp(
     double x_eval, double A, double B, double s_jj, double alpha,
     int num_nodes = 32
 ) {
-    auto r = ggm_sd::density_at_l_ji_sinh(
+    auto r = savage_dickey::density_at_l_ji_sinh(
         x_eval, A, B, s_jj, alpha, num_nodes);
     return Rcpp::List::create(
         Rcpp::Named("log_density") = r.log_density,
@@ -73,14 +73,14 @@ Rcpp::List sd_log_density_at_l_ji_sinh_cpp(
 }
 
 
-// Test interface for ggm_sd::solve_sd_cubic. Solves the critical-point cubic
+// Test interface for savage_dickey::solve_sd_cubic. Solves the critical-point cubic
 // for the L-space SD kernel f(phi) = -A phi^2 + B phi + (alpha-1) log(s_jj +
 // phi^2) and returns all real roots together with ell, ell'', curvature, and
-// mode/saddle classification. See sd_density_cubic.h for the convention.
+// mode/saddle classification. See math/savage_dickey/cubic_mode.h for the convention.
 //
 // [[Rcpp::export]]
 Rcpp::List sd_cubic_solve_cpp(double A, double B, double s_jj, double alpha) {
-    auto r = ggm_sd::solve_sd_cubic(A, B, s_jj, alpha);
+    auto r = savage_dickey::solve_sd_cubic(A, B, s_jj, alpha);
     const int n = r.n_real_roots;
     Rcpp::NumericVector phi      (n);
     Rcpp::NumericVector ell      (n);
@@ -110,7 +110,7 @@ Rcpp::List sd_cubic_solve_cpp(double A, double B, double s_jj, double alpha) {
 }
 
 
-// Test interface for ggm_sd::sd_log_kernel and ggm_sd::sd_log_kernel_pp.
+// Test interface for savage_dickey::sd_log_kernel and savage_dickey::sd_log_kernel_pp.
 // Direct evaluation of the kernel and its second derivative; lets unit tests
 // verify mode classification and curvature without trusting the solver.
 //
@@ -118,8 +118,8 @@ Rcpp::List sd_cubic_solve_cpp(double A, double B, double s_jj, double alpha) {
 Rcpp::List sd_log_kernel_cpp(double phi, double A, double B,
                               double s_jj, double alpha) {
     return Rcpp::List::create(
-        Rcpp::Named("ell")    = ggm_sd::sd_log_kernel   (phi, A, B, s_jj, alpha),
-        Rcpp::Named("ell_pp") = ggm_sd::sd_log_kernel_pp(phi, A,    s_jj, alpha)
+        Rcpp::Named("ell")    = savage_dickey::sd_log_kernel   (phi, A, B, s_jj, alpha),
+        Rcpp::Named("ell_pp") = savage_dickey::sd_log_kernel_pp(phi, A,    s_jj, alpha)
     );
 }
 

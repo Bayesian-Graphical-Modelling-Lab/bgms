@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------------- #
-# Tests for ggm_sd::density_at_l_ji_sinh (sinh-substitution + midpoint-rule
+# Tests for savage_dickey::density_at_l_ji_sinh (sinh-substitution + midpoint-rule
 # quadrature for the L-space SD primitive).
 #
 # Mathematical setup. The substitution phi = sqrt(s) * sinh(t) maps the

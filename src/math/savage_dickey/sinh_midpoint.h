@@ -45,7 +45,7 @@
 //   1  A <= 0 (PD revert condition).
 //   2  s_jj <= 0 (PD revert condition).
 
-namespace ggm_sd {
+namespace savage_dickey {
 
 struct LSDSinhResult {
     double log_density;  ///< log pi(x_eval | rest, Y)
@@ -59,4 +59,4 @@ LSDSinhResult density_at_l_ji_sinh(double x_eval,
                                     double alpha,
                                     int num_nodes = 128);
 
-}  // namespace ggm_sd
+}  // namespace savage_dickey
