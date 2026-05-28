@@ -1,26 +1,26 @@
 # --------------------------------------------------------------------------- #
-# Pre-refactor snapshots of the L-space SD chain at alpha = 1 and alpha = 3.
+# Bit-equality snapshots of the L-space SD chain at alpha = 1 and alpha = 3.
 #
-# Purpose: lock the chain output before the AGHQ refactor (Phase 2 of the
-# plan at dev/plans/active/sd-aghq-cubic.md) so the migration has a concrete
-# baseline to assert against.
+# Purpose: same-platform refactor guard. Catches wiring-level changes to the
+# SD chain (arg swaps, missed state updates, broken covariance refresh) that
+# the primitive tests in test-sd-cubic.R / test-sd-sinh.R don't exercise and
+# the SBC tests would catch only after a long statistical run.
 #
 # Behaviour:
 #   - If the fixture file does not exist, the test regenerates and saves it,
-#     and the test passes with a note. Use this on the parent commit to
-#     produce the baseline.
+#     and the test passes with a note. Use this to refresh the fixture after
+#     an intentional behaviour change.
 #   - If the fixture exists, the chain is re-run with the same seeds /
-#     inputs and the output is compared to the saved fixture.
+#     inputs and the output is compared to the saved fixture at
+#     tolerance = 1e-12 (essentially machine roundoff).
 #
-# Bit-equality expectation:
-#   alpha = 1: the new AGHQ primitive collapses to the closed-form Gaussian
-#     (the cubic factors and the AGHQ at the closed-form mode with N = 32
-#     nodes is a single well-placed sweep). Chain output must match the
-#     fixture to within roundoff (tolerance 1e-12).
-#   alpha = 3: the AGHQ refactor changes the BF and the proposal Gaussian,
-#     so chain output is expected to drift. The test reports the drift but
-#     does not gate on it; the post-refactor SBC at alpha > 1 is the
-#     end-to-end calibration check.
+# Platform scope:
+#   The fixtures are generated on arm64 macOS. Bit-equality of MCMC chain
+#   output across BLAS / libm / SIMD boundaries is not achievable -- a 1e-15
+#   drift in any primitive evaluation can flip an MH accept/reject decision
+#   and the trajectories diverge globally from that iteration on. The test
+#   therefore skips on linux + windows; cross-platform correctness is gated
+#   by the primitive tests (analytic references) and the SBC suite.
 # --------------------------------------------------------------------------- #
 
 # Run a deterministic SD chain at fixed seed + data. Returns the elements we
@@ -89,6 +89,15 @@ compare_to_fixture <- function(got, ref, tol, info_prefix) {
 # --------------------------------------------------------------------------- #
 
 test_that("SD chain at alpha = 1 matches pre-refactor baseline (bit-equality)", {
+  # Bit-equality of MCMC chain output across BLAS / libm / SIMD boundaries
+  # is unattainable: a 1e-15 difference in any primitive evaluation can flip
+  # one MH accept/reject decision and the chain trajectories diverge globally
+  # from that iteration on. The fixture was generated on arm64 macOS and the
+  # snapshot reproduces there; on linux + windows it cannot. Cross-platform
+  # correctness of the SD code is gated by test-sd-cubic.R / test-sd-sinh.R
+  # (analytic-reference primitive tests) and the SBC suite (statistical
+  # calibration); this test exists as a same-platform refactor guard.
+  skip_on_os(c("linux", "windows"))
   fixture_path <- testthat::test_path("fixtures", "sd_baseline_alpha1.rds")
   seeds <- c(11, 23, 47)
   got <- lapply(seeds, run_sd_baseline_chain, alpha = 1)
@@ -115,6 +124,8 @@ test_that("SD chain at alpha = 1 matches pre-refactor baseline (bit-equality)", 
 # --------------------------------------------------------------------------- #
 
 test_that("SD chain at alpha = 3 baseline exists and captures current behaviour", {
+  # Same cross-platform-FP rationale as the alpha = 1 case above.
+  skip_on_os(c("linux", "windows"))
   fixture_path <- testthat::test_path("fixtures", "sd_baseline_alpha3.rds")
   seeds <- c(11, 23, 47)
   got <- lapply(seeds, run_sd_baseline_chain, alpha = 3)
