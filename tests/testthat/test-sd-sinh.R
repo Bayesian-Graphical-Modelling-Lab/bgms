@@ -305,14 +305,13 @@ test_that("sinh fuzz (500 random configs) is below 1e-8 at N=128", {
 })
 
 
-# --- 13. sinh-32 not worse than legacy GH-32 on the same cells --- #
+# --- 13. sinh-32 accurate on the canonical configuration grid --- #
 
-test_that("sinh-32 worst-case error never exceeds GH-32 by more than 10x", {
-  # On cells where both methods are accurate, both reach roundoff. On
-  # cells where one is loose, we want sinh to be no worse than 10x GH.
-  # This catches the "sinh regression on bimodal cells" scenario seen
-  # earlier with the GK cascade.
-  set.seed(7)
+test_that("sinh-32 worst-case absolute log_Z error < 1e-3 on the canonical grid", {
+  # On well-behaved cells both quadratures reach roundoff; the looser
+  # cells (small s, bimodal modes) historically tripped the legacy
+  # alternatives. With sinh-32 the worst-case error on this grid is
+  # bounded by 1e-3.
   configs <- list(
     list(A = 1, B = 0, s = 1, alpha = 0.5),
     list(A = 0.5, B = -2, s = 0.05, alpha = 0.8),
@@ -326,16 +325,11 @@ test_that("sinh-32 worst-case error never exceeds GH-32 by more than 10x", {
     r_sinh <- bgms:::sd_log_density_at_l_ji_sinh_cpp(
       0, cfg$A, cfg$B, cfg$s, cfg$alpha, 32
     )
-    r_gh <- bgms:::sd_log_density_at_l_ji_gh_cpp(
-      0, cfg$A, cfg$B, cfg$s, cfg$alpha, 32
-    )
     err_sinh <- abs(r_sinh$log_Z - ref)
-    err_gh <- abs(r_gh$log_Z - ref)
-    expect_lt(err_sinh, max(10 * err_gh, 1e-3),
+    expect_lt(err_sinh, 1e-3,
       label = sprintf(
-        "alpha=%g A=%g B=%g s=%g: sinh=%g gh=%g",
-        cfg$alpha, cfg$A, cfg$B, cfg$s,
-        err_sinh, err_gh
+        "alpha=%g A=%g B=%g s=%g: err_sinh=%g",
+        cfg$alpha, cfg$A, cfg$B, cfg$s, err_sinh
       )
     )
   }

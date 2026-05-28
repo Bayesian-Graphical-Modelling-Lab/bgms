@@ -5,8 +5,6 @@
 // go through the full bgm() wrapper.
 
 #include <RcppArmadillo.h>
-#include "math/savage_dickey/laplace.h"
-#include "math/savage_dickey/gauss_hermite.h"
 #include "math/savage_dickey/sinh_midpoint.h"
 #include "math/savage_dickey/cubic_mode.h"
 #include "math/savage_dickey/cauchy_omega.h"
@@ -16,43 +14,6 @@
 #include "mcmc/algorithms/nuts.h"
 #include "mcmc/algorithms/hmc.h"
 #include "mcmc/samplers/nuts_adaptation.h"
-
-
-// Test interface for savage_dickey::density_at_l_ji_one (Laplace + optional NLO
-// 1D conditional density of l_ji at x_eval).
-//
-// [[Rcpp::export]]
-Rcpp::List sd_log_density_at_l_ji_cpp(
-    double x_eval, double A, double B, double s_jj, double alpha,
-    bool nlo = true, int newton_max_iter = 50, double newton_tol = 1e-10
-) {
-    auto r = savage_dickey::density_at_l_ji_one(x_eval, A, B, s_jj, alpha,
-                                          nlo, newton_max_iter, newton_tol);
-    return Rcpp::List::create(
-        Rcpp::Named("log_density") = r.log_density,
-        Rcpp::Named("x_mode")      = r.x_mode,
-        Rcpp::Named("curvature")   = r.curvature,
-        Rcpp::Named("status")      = r.status
-    );
-}
-
-
-// Test interface for savage_dickey::density_at_l_ji_gh (Gauss-Hermite quadrature
-// variant; ~64 evaluations per call but more reliable than Laplace+NLO
-// across all chain configurations).
-//
-// [[Rcpp::export]]
-Rcpp::List sd_log_density_at_l_ji_gh_cpp(
-    double x_eval, double A, double B, double s_jj, double alpha,
-    int num_nodes = 64
-) {
-    auto r = savage_dickey::density_at_l_ji_gh(x_eval, A, B, s_jj, alpha, num_nodes);
-    return Rcpp::List::create(
-        Rcpp::Named("log_density") = r.log_density,
-        Rcpp::Named("log_Z")       = r.log_Z,
-        Rcpp::Named("status")      = r.status
-    );
-}
 
 
 // Test interface for savage_dickey::density_at_l_ji_sinh (sinh-substitution +

@@ -4,8 +4,6 @@
 #include "math/cholupdate.h"
 #include "mcmc/execution/step_result.h"
 #include "mcmc/execution/warmup_schedule.h"
-#include "math/savage_dickey/laplace.h"
-#include "math/savage_dickey/gauss_hermite.h"
 #include "math/savage_dickey/sinh_midpoint.h"
 #include "math/savage_dickey/cubic_mode.h"
 #include "math/savage_dickey/cauchy_omega.h"

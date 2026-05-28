@@ -125,14 +125,6 @@ sample_omrf <- function(inputFromR, prior_inclusion_prob, initial_edge_indicator
     .Call(`_bgms_sample_omrf`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback, edge_prior, na_impute, missing_index_nullable, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, target_acceptance, max_tree_depth, pairwise_scaling_factors_nullable)
 }
 
-sd_log_density_at_l_ji_cpp <- function(x_eval, A, B, s_jj, alpha, nlo = TRUE, newton_max_iter = 50L, newton_tol = 1e-10) {
-    .Call(`_bgms_sd_log_density_at_l_ji_cpp`, x_eval, A, B, s_jj, alpha, nlo, newton_max_iter, newton_tol)
-}
-
-sd_log_density_at_l_ji_gh_cpp <- function(x_eval, A, B, s_jj, alpha, num_nodes = 64L) {
-    .Call(`_bgms_sd_log_density_at_l_ji_gh_cpp`, x_eval, A, B, s_jj, alpha, num_nodes)
-}
-
 sd_log_density_at_l_ji_sinh_cpp <- function(x_eval, A, B, s_jj, alpha, num_nodes = 32L) {
     .Call(`_bgms_sd_log_density_at_l_ji_sinh_cpp`, x_eval, A, B, s_jj, alpha, num_nodes)
 }
