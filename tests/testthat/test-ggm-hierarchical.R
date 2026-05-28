@@ -101,6 +101,39 @@ test_that("bgm() with Cauchy slab + hierarchical runs end-to-end", {
 })
 
 
+test_that("Cauchy + hierarchical at alpha > 1 exercises the sinh primitive", {
+  # alpha > 1 (diag prior shape) routes the SD between-step through the
+  # sinh-midpoint quadrature primitive instead of the alpha = 1 closed
+  # form. The Cauchy slab sigma^2 -> sigma^2 * omega_ij substitution
+  # applies identically; this test guards against regressions in the
+  # alpha > 1 dispatch under the Cauchy path.
+  set.seed(7L)
+  p <- 4L
+  n <- 80L
+  Y <- scale(matrix(rnorm(n * p), n, p), scale = FALSE)
+  colnames(Y) <- paste0("V", seq_len(p))
+
+  fit <- bgm(
+    Y, variable_type = "continuous",
+    interaction_prior     = cauchy_prior(scale = 0.5),
+    precision_scale_prior = gamma_prior(shape = 3, rate = 1),
+    prior_factorization = "hierarchical",
+    iter = 200L, warmup = 50L,
+    update_method = "adaptive-metropolis",
+    chains = 1L, cores = 1L, seed = 1L,
+    display_progress = "none", verbose = FALSE
+  )
+  ind <- S7::prop(fit, "posterior_mean_indicator")
+  expect_true(all(is.finite(ind)))
+  expect_true(all(ind >= 0 & ind <= 1))
+  # Non-degenerate edge-count trajectory.
+  raw <- S7::prop(fit, "raw_samples")
+  ind_chn <- raw$indicator[[1L]]
+  n_edges_path <- rowSums(ind_chn)
+  expect_gt(length(unique(n_edges_path)), 1L)
+})
+
+
 test_that("Cauchy + hierarchical recovers a single true edge in q=4, n=120", {
   # End-to-end correctness: a clean q = 4 GGM with one strong edge
   # (K_12 = -0.5) should produce PIP near 1 on the true edge and PIPs
