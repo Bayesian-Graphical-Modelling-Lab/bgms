@@ -16,7 +16,6 @@ reference:
       - print.bgms
       - summary.bgms
       - coef.bgms
-      - bgms_posterior_mean
       - print.bgmCompare
       - summary.bgmCompare
       - coef.bgmCompare
