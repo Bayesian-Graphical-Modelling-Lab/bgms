@@ -655,8 +655,8 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
     const int curr_g = edge_indicators_(i, j);
     const double p_inc = inclusion_probability_(i, j);
     // bgms convention: NormalPrior(scale = σ_user) is on K_yy = -K/2, so the
-    // slab on K_ij has sd σ_K = 2·σ_user (variance 4σ_user²). The SD primitive
-    // (math/savage_dickey/laplace.h) documents slab as N(0, σ²) on K_ij directly, so
+    // slab on K_ij has sd σ_K = 2·σ_user (variance 4σ_user²). The SD primitives
+    // in math/savage_dickey/ take the slab as N(0, σ²) on K_ij directly, so
     // we pass σ_K = 2·prior_sigma_ to match the within-K parameterization.
     //
     // Cauchy slab: K_ij | gamma=1, omega ~ N(0, sigma^2 * omega_ij) with
@@ -738,13 +738,12 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
         // real axis, independent of s), giving uniform exponential
         // convergence across the (A, B, s, alpha) plane. At N = 128
         // the worst-case error in the chain-realistic regime is
-        // ~1e-10 (machine roundoff floor), versus ~1e-1 for the
-        // legacy non-adaptive GH-32 at B/(2A) on cells where s_jj
-        // is small and alpha is fractional.
+        // ~1e-10 (machine roundoff floor).
         //
         // The proposal Gaussian uses the cubic critical-point solver
-        // (math/savage_dickey/cubic_mode.h) -- replaces the Newton iteration which
-        // could fail at the triple-root degeneracy or land on a saddle.
+        // (math/savage_dickey/cubic_mode.h) for closed-form mode and
+        // curvature in O(1) -- no Newton iteration, no saddle / triple-root
+        // failure modes.
         const double A_post  = 0.5 * (l_ii * l_ii * inv_sigma2
                                       + beta + S_jj_data);
         const double B_post  = l_ii * l_ii * m_ij * inv_sigma2
@@ -766,14 +765,11 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
         log_BF_1_to_0 = sinh_post.log_density - sinh_prior.log_density;
 
         // Proposal Gaussian: closed-form mode + curvature via the
-        // critical-point cubic. Replaces the previous Newton iteration
-        // (density_at_l_ji_one) which could land on a saddle, fail to
-        // converge from the alpha = 1 starting point, or return a near-
-        // zero curvature at the triple-root degeneracy. The cubic
-        // returns every real root in O(1) and labels modes by ell_pp
-        // sign; we use the global mode. If the cubic flags no usable
-        // mode (PD revert, near-zero curvature), fall back to the
-        // alpha = 1 reference Gaussian (B_post/(2 A_post), 2 A_post).
+        // critical-point cubic. The cubic returns every real root in
+        // O(1) and labels modes by ell_pp sign; we use the global mode.
+        // If the cubic flags no usable mode (PD revert, near-zero
+        // curvature), fall back to the alpha = 1 reference Gaussian
+        // (B_post/(2 A_post), 2 A_post).
         const auto cubic_post = savage_dickey::solve_sd_cubic(
             A_post, B_post, s_jj, prior_alpha_);
         const double kappa_floor = 1e-10 * 2.0 * A_post;
