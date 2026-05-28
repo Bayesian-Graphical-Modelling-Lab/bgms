@@ -312,7 +312,7 @@ test_that("sinh-32 worst-case absolute log_Z error < 1e-3 on the canonical grid"
   # cells (small s, bimodal modes) historically tripped the legacy
   # alternatives. With sinh-32 the worst-case error on this grid is
   # bounded by 1e-3.
-  configs <- list(
+  configs = list(
     list(A = 1, B = 0, s = 1, alpha = 0.5),
     list(A = 0.5, B = -2, s = 0.05, alpha = 0.8),
     list(A = 3, B = 5, s = 1, alpha = 2.5),
@@ -320,12 +320,12 @@ test_that("sinh-32 worst-case absolute log_Z error < 1e-3 on the canonical grid"
     list(A = 0.3, B = 0, s = 0.1, alpha = 4),
     list(A = 1, B = 10, s = 1, alpha = 2)
   )
-  for (cfg in configs) {
-    ref <- grid_logZ(cfg$A, cfg$B, cfg$s, cfg$alpha)
-    r_sinh <- bgms:::sd_log_density_at_l_ji_sinh_cpp(
+  for(cfg in configs) {
+    ref = grid_logZ(cfg$A, cfg$B, cfg$s, cfg$alpha)
+    r_sinh = bgms:::sd_log_density_at_l_ji_sinh_cpp(
       0, cfg$A, cfg$B, cfg$s, cfg$alpha, 32
     )
-    err_sinh <- abs(r_sinh$log_Z - ref)
+    err_sinh = abs(r_sinh$log_Z - ref)
     expect_lt(err_sinh, 1e-3,
       label = sprintf(
         "alpha=%g A=%g B=%g s=%g: err_sinh=%g",

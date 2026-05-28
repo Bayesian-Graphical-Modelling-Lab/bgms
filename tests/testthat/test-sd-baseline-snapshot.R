@@ -25,27 +25,27 @@
 
 # Run a deterministic SD chain at fixed seed + data. Returns the elements we
 # compare against the fixture.
-run_sd_baseline_chain <- function(seed,
-                                  alpha,
-                                  q = 6,
-                                  n_obs = 80,
-                                  n_warmup = 100,
-                                  n_sweeps = 200,
-                                  sample_thin = 20) {
+run_sd_baseline_chain = function(seed,
+                                 alpha,
+                                 q = 6,
+                                 n_obs = 80,
+                                 n_warmup = 100,
+                                 n_sweeps = 200,
+                                 sample_thin = 20) {
   # Fixed-seed observations so the chain is reproducible.
   set.seed(seed)
-  Y <- matrix(rnorm(n_obs * q), nrow = n_obs, ncol = q)
+  Y = matrix(rnorm(n_obs * q), nrow = n_obs, ncol = q)
   # Centre to match bgm() default (per memory project_ggm_n_minus_1_bug).
-  Y <- scale(Y, center = TRUE, scale = FALSE)
-  attr(Y, "scaled:center") <- NULL
+  Y = scale(Y, center = TRUE, scale = FALSE)
+  attr(Y, "scaled:center") = NULL
 
-  out <- bgms:::ggm_sd_smoke_cpp(
+  out = bgms:::ggm_sd_smoke_cpp(
     observations       = Y,
     inclusion_prob     = 0.5,
-    interaction_scale  = 0.5,           # sigma
+    interaction_scale  = 0.5, # sigma
     diagonal_shape     = alpha,
     diagonal_rate      = 2.0,
-    delta              = 0.0,            # no determinant tilt at the baseline
+    delta              = 0.0, # no determinant tilt at the baseline
     n_warmup           = n_warmup,
     n_sweeps           = n_sweeps,
     seed               = seed,
@@ -53,7 +53,7 @@ run_sd_baseline_chain <- function(seed,
     include_within_k   = TRUE,
     sample_thin        = sample_thin,
     edge_selection     = TRUE,
-    within_k_mode      = "am"            # Roverato + diag RW within K
+    within_k_mode      = "am" # Roverato + diag RW within K
   )
   list(
     pip               = out$pip,
@@ -66,21 +66,32 @@ run_sd_baseline_chain <- function(seed,
   )
 }
 
-compare_to_fixture <- function(got, ref, tol, info_prefix) {
-  expect_equal(got$pip,              ref$pip,              tolerance = tol,
-               info = paste(info_prefix, "pip"))
+compare_to_fixture = function(got, ref, tol, info_prefix) {
+  expect_equal(got$pip, ref$pip,
+    tolerance = tol,
+    info = paste(info_prefix, "pip")
+  )
   expect_equal(unname(got$final_edges), unname(ref$final_edges),
-               info = paste(info_prefix, "final_edges"))
-  expect_equal(got$final_K,          ref$final_K,          tolerance = tol,
-               info = paste(info_prefix, "final_K"))
-  expect_equal(got$n_edges_path,     ref$n_edges_path,
-               info = paste(info_prefix, "n_edges_path"))
-  expect_equal(got$K_offdiag_samples, ref$K_offdiag_samples, tolerance = tol,
-               info = paste(info_prefix, "K_offdiag_samples"))
-  expect_equal(got$K_diag_samples,   ref$K_diag_samples,   tolerance = tol,
-               info = paste(info_prefix, "K_diag_samples"))
-  expect_equal(got$n_pd_reverts,     ref$n_pd_reverts,
-               info = paste(info_prefix, "n_pd_reverts"))
+    info = paste(info_prefix, "final_edges")
+  )
+  expect_equal(got$final_K, ref$final_K,
+    tolerance = tol,
+    info = paste(info_prefix, "final_K")
+  )
+  expect_equal(got$n_edges_path, ref$n_edges_path,
+    info = paste(info_prefix, "n_edges_path")
+  )
+  expect_equal(got$K_offdiag_samples, ref$K_offdiag_samples,
+    tolerance = tol,
+    info = paste(info_prefix, "K_offdiag_samples")
+  )
+  expect_equal(got$K_diag_samples, ref$K_diag_samples,
+    tolerance = tol,
+    info = paste(info_prefix, "K_diag_samples")
+  )
+  expect_equal(got$n_pd_reverts, ref$n_pd_reverts,
+    info = paste(info_prefix, "n_pd_reverts")
+  )
 }
 
 
@@ -98,19 +109,22 @@ test_that("SD chain at alpha = 1 matches pre-refactor baseline (bit-equality)", 
   # (analytic-reference primitive tests) and the SBC suite (statistical
   # calibration); this test exists as a same-platform refactor guard.
   skip_on_os(c("linux", "windows"))
-  fixture_path <- testthat::test_path("fixtures", "sd_baseline_alpha1.rds")
-  seeds <- c(11, 23, 47)
-  got <- lapply(seeds, run_sd_baseline_chain, alpha = 1)
-  names(got) <- paste0("seed_", seeds)
-  if (!file.exists(fixture_path)) {
+  fixture_path = testthat::test_path("fixtures", "sd_baseline_alpha1.rds")
+  seeds = c(11, 23, 47)
+  got = lapply(seeds, run_sd_baseline_chain, alpha = 1)
+  names(got) = paste0("seed_", seeds)
+  if(!file.exists(fixture_path)) {
     saveRDS(got, fixture_path)
-    skip(sprintf("Created baseline fixture at %s; rerun to verify.",
-                 fixture_path))
+    skip(sprintf(
+      "Created baseline fixture at %s; rerun to verify.",
+      fixture_path
+    ))
   }
-  ref <- readRDS(fixture_path)
-  for (s in seq_along(seeds)) {
+  ref = readRDS(fixture_path)
+  for(s in seq_along(seeds)) {
     compare_to_fixture(
-      got[[s]], ref[[s]], tol = 1e-12,
+      got[[s]], ref[[s]],
+      tol = 1e-12,
       info_prefix = sprintf("alpha=1 seed=%d", seeds[s])
     )
   }
@@ -126,23 +140,26 @@ test_that("SD chain at alpha = 1 matches pre-refactor baseline (bit-equality)", 
 test_that("SD chain at alpha = 3 baseline exists and captures current behaviour", {
   # Same cross-platform-FP rationale as the alpha = 1 case above.
   skip_on_os(c("linux", "windows"))
-  fixture_path <- testthat::test_path("fixtures", "sd_baseline_alpha3.rds")
-  seeds <- c(11, 23, 47)
-  got <- lapply(seeds, run_sd_baseline_chain, alpha = 3)
-  names(got) <- paste0("seed_", seeds)
-  if (!file.exists(fixture_path)) {
+  fixture_path = testthat::test_path("fixtures", "sd_baseline_alpha3.rds")
+  seeds = c(11, 23, 47)
+  got = lapply(seeds, run_sd_baseline_chain, alpha = 3)
+  names(got) = paste0("seed_", seeds)
+  if(!file.exists(fixture_path)) {
     saveRDS(got, fixture_path)
-    skip(sprintf("Created baseline fixture at %s; rerun to verify.",
-                 fixture_path))
+    skip(sprintf(
+      "Created baseline fixture at %s; rerun to verify.",
+      fixture_path
+    ))
   }
   # Under pre-refactor code we require an exact match to the fixture; under
   # post-refactor code the AGHQ path replaces GH-fixed and the chain drifts.
   # Both cases use the same expectation: bit-equality. If a future change
   # shifts the chain intentionally, regenerate the fixture and document why.
-  ref <- readRDS(fixture_path)
-  for (s in seq_along(seeds)) {
+  ref = readRDS(fixture_path)
+  for(s in seq_along(seeds)) {
     compare_to_fixture(
-      got[[s]], ref[[s]], tol = 1e-12,
+      got[[s]], ref[[s]],
+      tol = 1e-12,
       info_prefix = sprintf("alpha=3 seed=%d", seeds[s])
     )
   }
