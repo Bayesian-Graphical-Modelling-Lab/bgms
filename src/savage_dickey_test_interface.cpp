@@ -9,6 +9,7 @@
 #include "math/savage_dickey/gauss_hermite.h"
 #include "math/savage_dickey/sinh_midpoint.h"
 #include "math/savage_dickey/cubic_mode.h"
+#include "math/savage_dickey/cauchy_omega.h"
 #include "models/ggm/ggm_model.h"
 #include "rng/rng_utils.h"
 #include "math/cholesky_helpers.h"
@@ -121,6 +122,33 @@ Rcpp::List sd_log_kernel_cpp(double phi, double A, double B,
         Rcpp::Named("ell")    = savage_dickey::sd_log_kernel   (phi, A, B, s_jj, alpha),
         Rcpp::Named("ell_pp") = savage_dickey::sd_log_kernel_pp(phi, A,    s_jj, alpha)
     );
+}
+
+
+// Test interface for savage_dickey::slice_sample_cauchy_omega_active.
+// Returns a single slice-sampler draw of omega given (K, sigma^2,
+// A_diag_K, B_K, omega_curr) seeded by `seed`. See
+// math/savage_dickey/cauchy_omega.h for the model-agnostic interface
+// and experiments/cauchy-slab/ for the derivation and validation.
+//
+// [[Rcpp::export]]
+double sd_slice_sample_cauchy_omega_active_cpp(
+    double K, double sigma2, double A_diag_K, double B_K,
+    double omega_curr, int seed
+) {
+    SafeRNG rng(seed);
+    return savage_dickey::slice_sample_cauchy_omega_active(
+        K, sigma2, A_diag_K, B_K, omega_curr, rng);
+}
+
+
+// Test interface for savage_dickey::sample_cauchy_omega_prior.
+// Returns a single IG(1/2, 1/2) draw of omega seeded by `seed`.
+//
+// [[Rcpp::export]]
+double sd_sample_cauchy_omega_prior_cpp(int seed) {
+    SafeRNG rng(seed);
+    return savage_dickey::sample_cauchy_omega_prior(rng);
 }
 
 

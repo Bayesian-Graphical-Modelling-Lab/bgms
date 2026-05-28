@@ -145,6 +145,14 @@ sd_log_kernel_cpp <- function(phi, A, B, s_jj, alpha) {
     .Call(`_bgms_sd_log_kernel_cpp`, phi, A, B, s_jj, alpha)
 }
 
+sd_slice_sample_cauchy_omega_active_cpp <- function(K, sigma2, A_diag_K, B_K, omega_curr, seed) {
+    .Call(`_bgms_sd_slice_sample_cauchy_omega_active_cpp`, K, sigma2, A_diag_K, B_K, omega_curr, seed)
+}
+
+sd_sample_cauchy_omega_prior_cpp <- function(seed) {
+    .Call(`_bgms_sd_sample_cauchy_omega_prior_cpp`, seed)
+}
+
 chol_perm_trailing_2x2_cpp <- function(K, i_1based, j_1based) {
     .Call(`_bgms_chol_perm_trailing_2x2_cpp`, K, i_1based, j_1based)
 }

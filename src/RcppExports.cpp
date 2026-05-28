@@ -739,6 +739,33 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// sd_slice_sample_cauchy_omega_active_cpp
+double sd_slice_sample_cauchy_omega_active_cpp(double K, double sigma2, double A_diag_K, double B_K, double omega_curr, int seed);
+RcppExport SEXP _bgms_sd_slice_sample_cauchy_omega_active_cpp(SEXP KSEXP, SEXP sigma2SEXP, SEXP A_diag_KSEXP, SEXP B_KSEXP, SEXP omega_currSEXP, SEXP seedSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< double >::type K(KSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma2(sigma2SEXP);
+    Rcpp::traits::input_parameter< double >::type A_diag_K(A_diag_KSEXP);
+    Rcpp::traits::input_parameter< double >::type B_K(B_KSEXP);
+    Rcpp::traits::input_parameter< double >::type omega_curr(omega_currSEXP);
+    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
+    rcpp_result_gen = Rcpp::wrap(sd_slice_sample_cauchy_omega_active_cpp(K, sigma2, A_diag_K, B_K, omega_curr, seed));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sd_sample_cauchy_omega_prior_cpp
+double sd_sample_cauchy_omega_prior_cpp(int seed);
+RcppExport SEXP _bgms_sd_sample_cauchy_omega_prior_cpp(SEXP seedSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
+    rcpp_result_gen = Rcpp::wrap(sd_sample_cauchy_omega_prior_cpp(seed));
+    return rcpp_result_gen;
+END_RCPP
+}
 // chol_perm_trailing_2x2_cpp
 Rcpp::List chol_perm_trailing_2x2_cpp(const arma::mat& K, int i_1based, int j_1based);
 RcppExport SEXP _bgms_chol_perm_trailing_2x2_cpp(SEXP KSEXP, SEXP i_1basedSEXP, SEXP j_1basedSEXP) {
@@ -831,6 +858,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sd_log_density_at_l_ji_sinh_cpp", (DL_FUNC) &_bgms_sd_log_density_at_l_ji_sinh_cpp, 6},
     {"_bgms_sd_cubic_solve_cpp", (DL_FUNC) &_bgms_sd_cubic_solve_cpp, 4},
     {"_bgms_sd_log_kernel_cpp", (DL_FUNC) &_bgms_sd_log_kernel_cpp, 5},
+    {"_bgms_sd_slice_sample_cauchy_omega_active_cpp", (DL_FUNC) &_bgms_sd_slice_sample_cauchy_omega_active_cpp, 6},
+    {"_bgms_sd_sample_cauchy_omega_prior_cpp", (DL_FUNC) &_bgms_sd_sample_cauchy_omega_prior_cpp, 1},
     {"_bgms_chol_perm_trailing_2x2_cpp", (DL_FUNC) &_bgms_chol_perm_trailing_2x2_cpp, 3},
     {"_bgms_ggm_sd_smoke_cpp", (DL_FUNC) &_bgms_ggm_sd_smoke_cpp, 17},
     {"_bgms_compute_Vn_mfm_sbm", (DL_FUNC) &_bgms_compute_Vn_mfm_sbm, 4},

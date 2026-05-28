@@ -8,6 +8,7 @@
 #include "math/savage_dickey/gauss_hermite.h"
 #include "math/savage_dickey/sinh_midpoint.h"
 #include "math/savage_dickey/cubic_mode.h"
+#include "math/savage_dickey/cauchy_omega.h"
 #include <stdexcept>
 
 // =====================================================================
@@ -1029,122 +1030,49 @@ void GGMModel::ensure_prior_params_extracted_() {
 }
 
 
-// ----------------------------------------------------------------------
-// Cauchy slab via scale mixture: omega_(i,j) update
-// ----------------------------------------------------------------------
+// Thin GGM-side wrapper around the model-agnostic Cauchy omega primitive
+// in math/savage_dickey/cauchy_omega.h. Extracts (l_ii, m_ij) from the
+// maintained Cholesky/covariance state, computes the GGM-specific
+// diag-prior contributions
 //
-// Under the auxiliary representation K_ij | gamma=1, omega ~ N(0, sigma^2 omega)
-// with omega ~ IG(1/2, 1/2), conditional on the L-space framework (rest =
-// (l_ii, c_3 = K_jj - l_ji^2, ...)) the prior on K_ij | gamma=1, omega is
-// the slab convolved with the diag prior's K_jj-coupling:
+//     A_diag_K =  beta / (2 * l_ii^2),
+//     B_K      = -beta * m_ij / l_ii,
 //
-//   log p_K(K_ij | gamma=1, omega, rest_L) prop
-//       -A_K(omega) K^2 + B_K K - log Z(omega)
-//
-//   A_K(omega) = 1 / (2 sigma^2 omega) + beta / (2 l_ii^2)
-//   B_K        = -beta * m_ij / l_ii                       (omega-independent)
-//   Z(omega)   = sqrt(pi / A_K(omega)) * exp(B_K^2 / (4 A_K(omega)))
-//
-// The omega full conditional (collecting omega-dependent terms only):
-//
-//   log p(omega | K_ij, gamma=1, rest_L) prop
-//       -K^2 / (2 sigma^2 omega) - 1/(2 omega) - 1.5 log omega
-//        + 0.5 log A_K(omega) - B_K^2 / (4 A_K(omega))
-//
-// At gamma=0, K_ij = 0 and the slab is irrelevant; omega draws from its
-// IG(1/2, 1/2) prior.
-//
-// For gamma=1 we slice-sample on u = log omega (unconstrained); the +u
-// Jacobian and the -1.5 log omega prior combine to -0.5 u in the u target.
-//
-// Pure-slab special case (beta = 0): A_K(omega) = 1/(2 sigma^2 omega),
-// B_K = 0, log Z(omega) = 0.5 log(2 pi sigma^2 omega), and the
-// log-conditional collapses to the standard InvGamma(1, 1/2 + K^2/(2 sigma^2))
-// conjugate. We don't special-case this in code; the slice sampler handles
-// it identically.
+// and forwards to savage_dickey::slice_sample_cauchy_omega_active. At
+// gamma = 0 the slab carries no information about omega; we sample from
+// the IG(1/2, 1/2) prior via sample_cauchy_omega_prior.
 void GGMModel::slice_sample_omega_ij_(size_t i, size_t j) {
     if (!slab_is_cauchy_) return;
 
-    // gamma = 0: omega ~ IG(1/2, 1/2) prior. Draw via 1 / Gamma(1/2, 1/2).
     if (edge_indicators_(i, j) == 0) {
-        const double v = rgamma(rng_, 0.5, 0.5);
-        omega_(i, j) = 1.0 / std::max(v, 1e-300);
-        omega_(j, i) = omega_(i, j);
+        const double w = savage_dickey::sample_cauchy_omega_prior(rng_);
+        omega_(i, j) = w;
+        omega_(j, i) = w;
         return;
     }
 
-    // gamma = 1: extract l_ii, m_ij from the maintained covariance matrix.
     const double s_ii_cov = covariance_matrix_(i, i);
     const double s_jj_cov = covariance_matrix_(j, j);
     const double s_ij_cov = covariance_matrix_(i, j);
     const double det_cov  = s_ii_cov * s_jj_cov - s_ij_cov * s_ij_cov;
     if (!(det_cov > 0.0)) return;
-    const double S_11 =  s_jj_cov / det_cov;
+    const double S_11 = s_jj_cov / det_cov;
     if (!(S_11 > 0.0)) return;
-    const double l_ii  = std::sqrt(S_11);
-    const double l_ji  = (-s_ij_cov / det_cov) / l_ii;
-    const double K_ij  = precision_matrix_(i, j);
-    const double m_ij  = l_ji - K_ij / l_ii;
+    const double l_ii = std::sqrt(S_11);
+    const double l_ji = (-s_ij_cov / det_cov) / l_ii;
+    const double K_ij = precision_matrix_(i, j);
+    const double m_ij = l_ji - K_ij / l_ii;
 
-    const double sigma  = 2.0 * prior_sigma_;           // slab sd on K_ij
-    const double sigma2 = sigma * sigma;
-    const double beta   = prior_beta_;
+    const double sigma    = 2.0 * prior_sigma_;
+    const double sigma2   = sigma * sigma;
+    const double beta     = prior_beta_;
+    const double A_diag_K = 0.5 * beta / (l_ii * l_ii);
+    const double B_K      = -beta * m_ij / l_ii;
 
-    const double A_diag_K = 0.5 * beta / (l_ii * l_ii);  // omega-independent
-    const double B_K      = -beta * m_ij / l_ii;          // omega-independent
-    const double half_K2  = 0.5 * K_ij * K_ij;
-    const double half_B2  = 0.25 * B_K * B_K;
-
-    // log-target in u = log(omega), up to a constant in u.
-    auto log_target = [&](double u) -> double {
-        const double w   = std::exp(u);
-        const double inv_w = std::exp(-u);
-        const double A_K = 0.5 / (sigma2 * w) + A_diag_K;
-        if (!(A_K > 0.0) || !std::isfinite(A_K)) return -std::numeric_limits<double>::infinity();
-        // -K^2/(2 sigma^2 omega) - 1/(2 omega) - 0.5 u + 0.5 log A_K - B_K^2 / (4 A_K)
-        return -half_K2 * inv_w / sigma2
-               - 0.5 * inv_w
-               - 0.5 * u
-               + 0.5 * std::log(A_K)
-               - half_B2 / A_K;
-    };
-
-    // Stepping-out + shrinkage slice sampler on u = log(omega).  Initial
-    // step width w_step = 1.0 (one log-unit) is fine; with one or two
-    // steps the interval covers the typical posterior on the chain.
-    constexpr double w_step      = 1.0;
-    constexpr int    max_expand  = 50;
-    constexpr int    max_shrink  = 100;
-
-    double u_curr = std::log(omega_(i, j));
-    if (!std::isfinite(u_curr)) u_curr = 0.0;
-    const double log_y = log_target(u_curr) - rexp(rng_, 1.0);
-
-    double L = u_curr - w_step * runif(rng_);
-    double R = L + w_step;
-    for (int k = 0; k < max_expand; ++k) {
-        if (log_target(L) <= log_y) break;
-        L -= w_step;
-    }
-    for (int k = 0; k < max_expand; ++k) {
-        if (log_target(R) <= log_y) break;
-        R += w_step;
-    }
-
-    double u_new = u_curr;
-    bool accepted = false;
-    for (int k = 0; k < max_shrink; ++k) {
-        u_new = L + (R - L) * runif(rng_);
-        if (log_target(u_new) > log_y) { accepted = true; break; }
-        if (u_new < u_curr) L = u_new; else R = u_new;
-    }
-    if (!accepted) return;  // give up: keep previous omega
-
-    const double w_new = std::exp(u_new);
-    if (std::isfinite(w_new) && w_new > 0.0) {
-        omega_(i, j) = w_new;
-        omega_(j, i) = w_new;
-    }
+    const double w_new = savage_dickey::slice_sample_cauchy_omega_active(
+        K_ij, sigma2, A_diag_K, B_K, omega_(i, j), rng_);
+    omega_(i, j) = w_new;
+    omega_(j, i) = w_new;
 }
 
 
