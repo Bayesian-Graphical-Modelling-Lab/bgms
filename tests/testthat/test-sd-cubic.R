@@ -43,9 +43,11 @@ cubic_residual_ref <- function(phi, A, B, s_jj, alpha) {
 # dominated regions (tight A with large |B|) where absolute residuals can
 # be O(1e-7) even at a numerically correct root.
 residual_tol <- function(phi, A, B, s_jj, alpha, k = 1e-9) {
-  r <- -B / (2 * A); c <- s_jj - (alpha - 1) / A; d <- r * s_jj
+  r <- -B / (2 * A)
+  c <- s_jj - (alpha - 1) / A
+  d <- r * s_jj
   coef_scale <- 1 + abs(r) + abs(c) + abs(d)
-  phi_scale  <- 1 + abs(phi) + abs(phi)^2 + abs(phi)^3
+  phi_scale <- 1 + abs(phi) + abs(phi)^2 + abs(phi)^3
   k * coef_scale * phi_scale
 }
 
@@ -60,17 +62,24 @@ test_that("solve_sd_cubic: polynomial residual is tiny at every returned root", 
     p <- grid[i, ]
     r <- bgms:::sd_cubic_solve_cpp(p$A, p$B, p$s_jj, p$alpha)
     expect_equal(r$status, 0,
-                 info = sprintf("status != 0 at A=%g B=%g s=%g a=%g",
-                                p$A, p$B, p$s_jj, p$alpha))
+      info = sprintf(
+        "status != 0 at A=%g B=%g s=%g a=%g",
+        p$A, p$B, p$s_jj, p$alpha
+      )
+    )
     n <- r$n_real_roots
     expect_true(n %in% c(1L, 3L),
-                info = sprintf("n_real_roots=%d not in {1,3}", n))
+      info = sprintf("n_real_roots=%d not in {1,3}", n)
+    )
     for (k in seq_len(n)) {
       res <- cubic_residual_ref(r$phi[k], p$A, p$B, p$s_jj, p$alpha)
       tol <- residual_tol(r$phi[k], p$A, p$B, p$s_jj, p$alpha)
       expect_lt(abs(res), tol,
-                label = sprintf("residual at root %d (A=%g B=%g s=%g a=%g): %g",
-                                k, p$A, p$B, p$s_jj, p$alpha, res))
+        label = sprintf(
+          "residual at root %d (A=%g B=%g s=%g a=%g): %g",
+          k, p$A, p$B, p$s_jj, p$alpha, res
+        )
+      )
     }
   }
 })
@@ -89,8 +98,10 @@ test_that("solve_sd_cubic: alpha = 1 returns single root at B/(2A) exactly", {
         expect_equal(r$status, 0)
         expect_equal(r$n_real_roots, 1L)
         expect_equal(r$n_modes, 1L)
-        expect_equal(r$phi[1], B / (2 * A), tolerance = 1e-12,
-                     info = sprintf("A=%g B=%g s=%g", A, B, s_jj))
+        expect_equal(r$phi[1], B / (2 * A),
+          tolerance = 1e-12,
+          info = sprintf("A=%g B=%g s=%g", A, B, s_jj)
+        )
         expect_true(r$is_mode[1])
       }
     }
@@ -110,7 +121,7 @@ test_that("solve_sd_cubic: bimodal symmetric cell yields two modes + one saddle"
   expect_equal(r$n_real_roots, 3L)
   expect_equal(r$n_modes, 2L)
   # The saddle is at phi = 0; the two modes are symmetric.
-  saddle_phi <- r$phi[r$saddle_index + 1]   # 0-indexed -> 1-indexed
+  saddle_phi <- r$phi[r$saddle_index + 1] # 0-indexed -> 1-indexed
   expect_equal(saddle_phi, 0, tolerance = 1e-10)
   expect_gt(r$ell_pp[r$saddle_index + 1], 0)
   # Mode positions are mirrored across phi = 0.
@@ -122,7 +133,7 @@ test_that("solve_sd_cubic: bimodal symmetric cell yields two modes + one saddle"
   # Symmetric case: the two modes have equal ell value.
   expect_equal(
     r$ell[r$global_mode_index + 1],
-    r$ell[r$local_mode_index  + 1],
+    r$ell[r$local_mode_index + 1],
     tolerance = 1e-10
   )
 })
@@ -135,10 +146,10 @@ test_that("solve_sd_cubic: bimodal symmetric cell yields two modes + one saddle"
 
 test_that("solve_sd_cubic: ell and ell_pp at roots match R-side reference", {
   configs <- list(
-    list(A = 1,   B = 2,  s_jj = 1,    alpha = 1.5),
-    list(A = 0.5, B = 0,  s_jj = 0.2,  alpha = 3),
-    list(A = 3,   B = -2, s_jj = 5,    alpha = 2),
-    list(A = 0.1, B = 0,  s_jj = 0.05, alpha = 5)
+    list(A = 1, B = 2, s_jj = 1, alpha = 1.5),
+    list(A = 0.5, B = 0, s_jj = 0.2, alpha = 3),
+    list(A = 3, B = -2, s_jj = 5, alpha = 2),
+    list(A = 0.1, B = 0, s_jj = 0.05, alpha = 5)
   )
   for (cfg in configs) {
     r <- bgms:::sd_cubic_solve_cpp(cfg$A, cfg$B, cfg$s_jj, cfg$alpha)
@@ -190,14 +201,14 @@ test_that("solve_sd_cubic: s_jj <= 0 returns status = 2", {
 test_that("solve_sd_cubic: B -> -B reflects every root across zero", {
   configs <- list(
     list(A = 0.5, s_jj = 0.2, alpha = 3, B = 0.4),
-    list(A = 2,   s_jj = 1,   alpha = 2, B = 1.7),
+    list(A = 2, s_jj = 1, alpha = 2, B = 1.7),
     list(A = 0.1, s_jj = 0.5, alpha = 5, B = 0.3)
   )
   for (cfg in configs) {
-    r_pos <- bgms:::sd_cubic_solve_cpp(cfg$A,  cfg$B, cfg$s_jj, cfg$alpha)
+    r_pos <- bgms:::sd_cubic_solve_cpp(cfg$A, cfg$B, cfg$s_jj, cfg$alpha)
     r_neg <- bgms:::sd_cubic_solve_cpp(cfg$A, -cfg$B, cfg$s_jj, cfg$alpha)
     expect_equal(r_pos$n_real_roots, r_neg$n_real_roots)
-    expect_equal(r_pos$n_modes,      r_neg$n_modes)
+    expect_equal(r_pos$n_modes, r_neg$n_modes)
     expect_equal(
       sort(r_pos$phi[seq_len(r_pos$n_real_roots)]),
       sort(-r_neg$phi[seq_len(r_neg$n_real_roots)]),
@@ -241,8 +252,10 @@ test_that("solve_sd_cubic: curvature-at-zero predicts bimodality (with B=0)", {
     expect_equal(
       r$n_modes == 2,
       bimodal_predicted,
-      info = sprintf("A=%g s=%g alpha=%g: predicted bimodal=%s but n_modes=%d",
-                     cfg$A, cfg$s_jj, cfg$alpha, bimodal_predicted, r$n_modes)
+      info = sprintf(
+        "A=%g s=%g alpha=%g: predicted bimodal=%s but n_modes=%d",
+        cfg$A, cfg$s_jj, cfg$alpha, bimodal_predicted, r$n_modes
+      )
     )
   }
 })
@@ -256,31 +269,40 @@ test_that("solve_sd_cubic: curvature-at-zero predicts bimodality (with B=0)", {
 test_that("solve_sd_cubic: 5000 random configs satisfy residual + ell consistency", {
   set.seed(2026)
   N <- 5000L
-  A_vec     <- exp(runif(N, log(0.01), log(100)))
-  B_vec     <- runif(N, -50, 50)
-  s_jj_vec  <- exp(runif(N, log(1e-3), log(10)))
+  A_vec <- exp(runif(N, log(0.01), log(100)))
+  B_vec <- runif(N, -50, 50)
+  s_jj_vec <- exp(runif(N, log(1e-3), log(10)))
   alpha_vec <- runif(N, 1.001, 5)
 
   for (i in seq_len(N)) {
     r <- bgms:::sd_cubic_solve_cpp(A_vec[i], B_vec[i], s_jj_vec[i], alpha_vec[i])
-    if (r$status != 0) next   # numerical fallback; covered separately below
+    if (r$status != 0) next # numerical fallback; covered separately below
     for (k in seq_len(r$n_real_roots)) {
-      res <- cubic_residual_ref(r$phi[k], A_vec[i], B_vec[i],
-                                s_jj_vec[i], alpha_vec[i])
+      res <- cubic_residual_ref(
+        r$phi[k], A_vec[i], B_vec[i],
+        s_jj_vec[i], alpha_vec[i]
+      )
       tol <- residual_tol(r$phi[k], A_vec[i], B_vec[i],
-                          s_jj_vec[i], alpha_vec[i], k = 1e-7)
+        s_jj_vec[i], alpha_vec[i],
+        k = 1e-7
+      )
       expect_lt(
         abs(res), tol,
-        label = sprintf("residual i=%d k=%d (A=%g B=%g s=%g a=%g): %g vs tol %g",
-                        i, k, A_vec[i], B_vec[i], s_jj_vec[i],
-                        alpha_vec[i], res, tol)
+        label = sprintf(
+          "residual i=%d k=%d (A=%g B=%g s=%g a=%g): %g vs tol %g",
+          i, k, A_vec[i], B_vec[i], s_jj_vec[i],
+          alpha_vec[i], res, tol
+        )
       )
       ell_diff <- abs(
-        r$ell[k] - ell_ref(r$phi[k], A_vec[i], B_vec[i],
-                           s_jj_vec[i], alpha_vec[i])
+        r$ell[k] - ell_ref(
+          r$phi[k], A_vec[i], B_vec[i],
+          s_jj_vec[i], alpha_vec[i]
+        )
       )
       expect_lt(ell_diff, 1e-10,
-                label = sprintf("ell mismatch i=%d k=%d", i, k))
+        label = sprintf("ell mismatch i=%d k=%d", i, k)
+      )
     }
   }
 })
@@ -293,11 +315,13 @@ test_that("solve_sd_cubic: 5000 random configs satisfy residual + ell consistenc
 test_that("sd_log_kernel and sd_log_kernel_pp match R reference", {
   set.seed(11)
   for (.k in 1:200) {
-    A <- exp(runif(1, -2, 2)); B <- runif(1, -3, 3)
-    s <- exp(runif(1, -3, 1)); a <- runif(1, 1.01, 4)
+    A <- exp(runif(1, -2, 2))
+    B <- runif(1, -3, 3)
+    s <- exp(runif(1, -3, 1))
+    a <- runif(1, 1.01, 4)
     phi <- runif(1, -3, 3)
     got <- bgms:::sd_log_kernel_cpp(phi, A, B, s, a)
-    expect_equal(got$ell,    ell_ref(phi, A, B, s, a), tolerance = 1e-12)
+    expect_equal(got$ell, ell_ref(phi, A, B, s, a), tolerance = 1e-12)
     expect_equal(got$ell_pp, ell_pp_ref(phi, A, s, a), tolerance = 1e-12)
   }
 })

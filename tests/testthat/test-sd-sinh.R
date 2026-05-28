@@ -33,22 +33,24 @@
 
 # --- references --- #
 
-ell_ref <- function(phi, A, B, s, alpha)
+ell_ref <- function(phi, A, B, s, alpha) {
   -A * phi^2 + B * phi + (alpha - 1) * log(s + phi^2)
+}
 
 grid_logZ <- function(A, B, s, alpha, R = 30, N = 2000000) {
   centre <- B / (2 * A)
-  x <- seq(centre - R/sqrt(A), centre + R/sqrt(A), length.out = N)
+  x <- seq(centre - R / sqrt(A), centre + R / sqrt(A), length.out = N)
   e <- ell_ref(x, A, B, s, alpha)
-  M <- max(e); log(sum(exp(e - M))) + M + log(diff(x)[1])
+  M <- max(e)
+  log(sum(exp(e - M))) + M + log(diff(x)[1])
 }
 
 closed_alpha1 <- function(A, B, s = NA) {
   0.5 * log(2 * pi / (2 * A)) + B^2 / (4 * A)
 }
 closed_alpha2 <- function(A, B, s) {
-  factor <- s + 1/(2*A) + B^2/(4*A^2)
-  log(factor) + 0.5*log(pi/A) + B^2/(4*A)
+  factor <- s + 1 / (2 * A) + B^2 / (4 * A^2)
+  log(factor) + 0.5 * log(pi / A) + B^2 / (4 * A)
 }
 
 
@@ -63,7 +65,8 @@ test_that("sinh primitive matches closed-form Gaussian (alpha = 1) at production
     r <- bgms:::sd_log_density_at_l_ji_sinh_cpp(0, A, B, s, alpha = 1, num_nodes = 128)
     expect_equal(r$status, 0L)
     expect_lt(abs(r$log_Z - closed_alpha1(A, B)), 1e-10,
-              label = sprintf("A=%g B=%g s=%g", A, B, s))
+      label = sprintf("A=%g B=%g s=%g", A, B, s)
+    )
   }
 })
 
@@ -76,7 +79,8 @@ test_that("sinh primitive matches closed-form (alpha = 2) at production N=128", 
     r <- bgms:::sd_log_density_at_l_ji_sinh_cpp(0, A, B, s, alpha = 2, num_nodes = 128)
     expect_equal(r$status, 0L)
     expect_lt(abs(r$log_Z - closed_alpha2(A, B, s)), 1e-10,
-              label = sprintf("A=%g B=%g s=%g", A, B, s))
+      label = sprintf("A=%g B=%g s=%g", A, B, s)
+    )
   }
 })
 
@@ -88,18 +92,21 @@ run_grid_cell <- function(A, B, s, alpha, tol, N = 32) {
   r <- bgms:::sd_log_density_at_l_ji_sinh_cpp(0, A, B, s, alpha, N)
   expect_equal(r$status, 0L)
   expect_lt(abs(r$log_Z - ref), tol,
-            label = sprintf("alpha=%g A=%g B=%g s=%g sinh=%g ref=%g",
-                            alpha, A, B, s, r$log_Z, ref))
+    label = sprintf(
+      "alpha=%g A=%g B=%g s=%g sinh=%g ref=%g",
+      alpha, A, B, s, r$log_Z, ref
+    )
+  )
 }
 
 test_that("sinh N=32 unimodal-smooth cells match fine grid to ~1e-7", {
   configs <- list(
-    list(A = 2,   B = 1,   s = 1,    alpha = 1.5),
-    list(A = 1,   B = 0,   s = 2,    alpha = 0.7),
-    list(A = 0.5, B = -2,  s = 3,    alpha = 0.3),
-    list(A = 3,   B = 5,   s = 0.5,  alpha = 4),
-    list(A = 0.3, B = 0.5, s = 0.4,  alpha = 3),
-    list(A = 1,   B = -1,  s = 0.5,  alpha = 0.9)
+    list(A = 2, B = 1, s = 1, alpha = 1.5),
+    list(A = 1, B = 0, s = 2, alpha = 0.7),
+    list(A = 0.5, B = -2, s = 3, alpha = 0.3),
+    list(A = 3, B = 5, s = 0.5, alpha = 4),
+    list(A = 0.3, B = 0.5, s = 0.4, alpha = 3),
+    list(A = 1, B = -1, s = 0.5, alpha = 0.9)
   )
   for (cfg in configs) {
     run_grid_cell(cfg$A, cfg$B, cfg$s, cfg$alpha, tol = 1e-5)
@@ -118,13 +125,13 @@ test_that("sinh converges on sharp-log cells with increasing N", {
   )
   for (cfg in sharp) {
     ref <- grid_logZ(cfg$A, cfg$B, cfg$s, cfg$alpha)
-    e32  <- abs(bgms:::sd_log_density_at_l_ji_sinh_cpp(0, cfg$A, cfg$B, cfg$s, cfg$alpha,  32)$log_Z - ref)
-    e64  <- abs(bgms:::sd_log_density_at_l_ji_sinh_cpp(0, cfg$A, cfg$B, cfg$s, cfg$alpha,  64)$log_Z - ref)
+    e32 <- abs(bgms:::sd_log_density_at_l_ji_sinh_cpp(0, cfg$A, cfg$B, cfg$s, cfg$alpha, 32)$log_Z - ref)
+    e64 <- abs(bgms:::sd_log_density_at_l_ji_sinh_cpp(0, cfg$A, cfg$B, cfg$s, cfg$alpha, 64)$log_Z - ref)
     e128 <- abs(bgms:::sd_log_density_at_l_ji_sinh_cpp(0, cfg$A, cfg$B, cfg$s, cfg$alpha, 128)$log_Z - ref)
     # N = 32 should be within 1e-3 even on the hardest sharp-log cells.
-    expect_lt(e32,  1e-3, label = sprintf("N=32 alpha=%g", cfg$alpha))
+    expect_lt(e32, 1e-3, label = sprintf("N=32 alpha=%g", cfg$alpha))
     # N = 64 should be much tighter -- below 1e-6.
-    expect_lt(e64,  1e-6, label = sprintf("N=64 alpha=%g", cfg$alpha))
+    expect_lt(e64, 1e-6, label = sprintf("N=64 alpha=%g", cfg$alpha))
     # N = 128 should reach near-roundoff.
     expect_lt(e128, 1e-9, label = sprintf("N=128 alpha=%g", cfg$alpha))
   }
@@ -137,9 +144,9 @@ test_that("sinh handles alpha < 0.5 correctly", {
   # alpha = 0.1: integrable singularity at t = +-i pi/2 of order (z)^(-0.8).
   # Midpoint rule still converges; just with a slightly larger prefactor.
   configs <- list(
-    list(A = 1, B = 0,    s = 1,    alpha = 0.1),
-    list(A = 1, B = 1,    s = 0.5,  alpha = 0.2),
-    list(A = 2, B = -1.5, s = 0.3,  alpha = 0.3),
+    list(A = 1, B = 0, s = 1, alpha = 0.1),
+    list(A = 1, B = 1, s = 0.5, alpha = 0.2),
+    list(A = 2, B = -1.5, s = 0.3, alpha = 0.3),
     list(A = 0.5, B = 0.5, s = 1.5, alpha = 0.4)
   )
   for (cfg in configs) {
@@ -174,7 +181,8 @@ test_that("sinh handles large |B| at N = 64", {
     ref <- grid_logZ(1, B, 1, 2)
     r <- bgms:::sd_log_density_at_l_ji_sinh_cpp(0, 1, B, 1, 2, 64)
     expect_lt(abs(r$log_Z - ref), 1e-9,
-              label = sprintf("B=%g", B))
+      label = sprintf("B=%g", B)
+    )
   }
 })
 
@@ -201,9 +209,9 @@ test_that("sinh s_jj <= 0 returns status 2", {
 test_that("sinh log_density = ell(x_eval) - log_Z", {
   set.seed(7)
   for (.k in 1:200) {
-    A     <- exp(runif(1, -1, 2))
-    B     <- runif(1, -3, 3)
-    s     <- exp(runif(1, -2, 1))
+    A <- exp(runif(1, -1, 2))
+    B <- runif(1, -3, 3)
+    s <- exp(runif(1, -2, 1))
     alpha <- runif(1, 0.1, 5)
     x_eval <- runif(1, -2, 2)
     r <- bgms:::sd_log_density_at_l_ji_sinh_cpp(x_eval, A, B, s, alpha, 64)
@@ -230,14 +238,16 @@ test_that("sinh log_Z is invariant under B -> -B (B = 0 axis check)", {
   # exp(-A phi^2 + (-B) phi); substitute phi -> -phi to recover original).
   set.seed(31)
   for (.k in 1:30) {
-    A     <- exp(runif(1, -1, 2))
-    B     <- runif(1, 0.5, 3)
-    s     <- exp(runif(1, -2, 1))
+    A <- exp(runif(1, -1, 2))
+    B <- runif(1, 0.5, 3)
+    s <- exp(runif(1, -2, 1))
     alpha <- runif(1, 0.2, 4)
-    r_pos <- bgms:::sd_log_density_at_l_ji_sinh_cpp(0, A,  B, s, alpha, 64)
+    r_pos <- bgms:::sd_log_density_at_l_ji_sinh_cpp(0, A, B, s, alpha, 64)
     r_neg <- bgms:::sd_log_density_at_l_ji_sinh_cpp(0, A, -B, s, alpha, 64)
-    expect_equal(r_pos$log_Z, r_neg$log_Z, tolerance = 1e-10,
-                 info = sprintf("A=%g B=%g s=%g alpha=%g", A, B, s, alpha))
+    expect_equal(r_pos$log_Z, r_neg$log_Z,
+      tolerance = 1e-10,
+      info = sprintf("A=%g B=%g s=%g alpha=%g", A, B, s, alpha)
+    )
   }
 })
 
@@ -246,9 +256,9 @@ test_that("sinh log_Z is invariant under B -> -B (B = 0 axis check)", {
 
 test_that("sinh error at N=64 is strictly tighter than at N=32 on hard cells", {
   configs <- list(
-    list(A = 0.66, B = 3.73,  s = 0.011, alpha = 1.27),
+    list(A = 0.66, B = 3.73, s = 0.011, alpha = 1.27),
     list(A = 0.50, B = -2.24, s = 0.029, alpha = 1.11),
-    list(A = 0.1,  B = 1,     s = 0.001, alpha = 1.05)
+    list(A = 0.1, B = 1, s = 0.001, alpha = 1.05)
   )
   for (cfg in configs) {
     ref <- grid_logZ(cfg$A, cfg$B, cfg$s, cfg$alpha)
@@ -270,9 +280,9 @@ test_that("sinh fuzz (500 random configs) is below 1e-8 at N=128", {
   # (machine roundoff floor for double-precision quadrature).
   set.seed(2026)
   N <- 500L
-  A_vec     <- exp(runif(N, log(0.3), log(50)))
-  B_vec     <- runif(N, -5, 5)
-  s_vec     <- exp(runif(N, log(0.01), log(10)))
+  A_vec <- exp(runif(N, log(0.3), log(50)))
+  B_vec <- runif(N, -5, 5)
+  s_vec <- exp(runif(N, log(0.01), log(10)))
   alpha_vec <- runif(N, 0.1, 5)
 
   worst <- 0
@@ -285,8 +295,11 @@ test_that("sinh fuzz (500 random configs) is below 1e-8 at N=128", {
     err <- abs(r$log_Z - ref)
     worst <- max(worst, err)
     expect_lt(err, 1e-8,
-              label = sprintf("i=%d A=%g B=%g s=%g a=%g err=%g",
-                              i, A_vec[i], B_vec[i], s_vec[i], alpha_vec[i], err))
+      label = sprintf(
+        "i=%d A=%g B=%g s=%g a=%g err=%g",
+        i, A_vec[i], B_vec[i], s_vec[i], alpha_vec[i], err
+      )
+    )
   }
   cat(sprintf("  [fuzz N=128 worst error: %.2e]\n", worst))
 })
@@ -301,24 +314,29 @@ test_that("sinh-32 worst-case error never exceeds GH-32 by more than 10x", {
   # earlier with the GK cascade.
   set.seed(7)
   configs <- list(
-    list(A = 1,   B = 0,    s = 1,    alpha = 0.5),
-    list(A = 0.5, B = -2,   s = 0.05, alpha = 0.8),
-    list(A = 3,   B = 5,    s = 1,    alpha = 2.5),
-    list(A = 0.3, B = 0.5,  s = 0.4,  alpha = 3),
-    list(A = 0.3, B = 0,    s = 0.1,  alpha = 4),
-    list(A = 1,   B = 10,   s = 1,    alpha = 2)
+    list(A = 1, B = 0, s = 1, alpha = 0.5),
+    list(A = 0.5, B = -2, s = 0.05, alpha = 0.8),
+    list(A = 3, B = 5, s = 1, alpha = 2.5),
+    list(A = 0.3, B = 0.5, s = 0.4, alpha = 3),
+    list(A = 0.3, B = 0, s = 0.1, alpha = 4),
+    list(A = 1, B = 10, s = 1, alpha = 2)
   )
   for (cfg in configs) {
     ref <- grid_logZ(cfg$A, cfg$B, cfg$s, cfg$alpha)
     r_sinh <- bgms:::sd_log_density_at_l_ji_sinh_cpp(
-      0, cfg$A, cfg$B, cfg$s, cfg$alpha, 32)
-    r_gh   <- bgms:::sd_log_density_at_l_ji_gh_cpp(
-      0, cfg$A, cfg$B, cfg$s, cfg$alpha, 32)
+      0, cfg$A, cfg$B, cfg$s, cfg$alpha, 32
+    )
+    r_gh <- bgms:::sd_log_density_at_l_ji_gh_cpp(
+      0, cfg$A, cfg$B, cfg$s, cfg$alpha, 32
+    )
     err_sinh <- abs(r_sinh$log_Z - ref)
-    err_gh   <- abs(r_gh$log_Z - ref)
+    err_gh <- abs(r_gh$log_Z - ref)
     expect_lt(err_sinh, max(10 * err_gh, 1e-3),
-              label = sprintf("alpha=%g A=%g B=%g s=%g: sinh=%g gh=%g",
-                              cfg$alpha, cfg$A, cfg$B, cfg$s,
-                              err_sinh, err_gh))
+      label = sprintf(
+        "alpha=%g A=%g B=%g s=%g: sinh=%g gh=%g",
+        cfg$alpha, cfg$A, cfg$B, cfg$s,
+        err_sinh, err_gh
+      )
+    )
   }
 })
