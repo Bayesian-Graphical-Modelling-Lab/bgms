@@ -30,7 +30,6 @@
 
 # Development helpers
 ^dev$
-^experiments$
 ^paper$
 ^LICENSE$
 
