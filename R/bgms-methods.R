@@ -352,3 +352,12 @@ names.bgms = function(x) {
 }
 
 
+.warning_state = new.env(parent = emptyenv())
+.warning_state$issued = FALSE
+
+warning_once = function(msg) {
+  if(!.warning_state$issued) {
+    warning(msg, call. = FALSE)
+    .warning_state$issued = TRUE
+  }
+}
