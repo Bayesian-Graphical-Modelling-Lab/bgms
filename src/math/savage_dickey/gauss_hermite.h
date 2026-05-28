@@ -2,28 +2,29 @@
 
 #include <RcppArmadillo.h>
 
-// Gauss-Hermite quadrature variant of the L-space SD primitive. Reliable
-// across all chain configurations (no Laplace failure modes / bimodality
-// issues), at the cost of ~64 log-kernel evaluations per call.
-//
-// Mathematically: with f(x) = -A x² + B x + (alpha-1) log(s + x²), the
-// substitution y = sqrt(A) (x - B/(2A)) gives
-//   ∫ exp(f(x)) dx = exp(B²/(4A)) / sqrt(A)
-//                  · ∫ (s + (y/sqrt(A) + B/(2A))²)^(alpha-1) e^{-y²} dy
-// and the inner integral is approximated by N-point Gauss-Hermite
-// quadrature (physicists' convention, weight e^{-y²}).
-//
-// log_density returned is log pi(x_eval) = f(x_eval) - log_Z_quadrature.
-//
-// Use as a drop-in replacement (or fallback) for the Laplace+NLO primitive
-// in cells where Newton/Laplace is unreliable.
+/**
+ * @file gauss_hermite.h
+ * @brief Gauss-Hermite quadrature of the Savage-Dickey L-space density.
+ *
+ * Drop-in alternative to the Laplace primitive (laplace.h) for cells where
+ * Newton iteration is unreliable. Substitutes y = sqrt(A) (x - B/(2A)) so
+ * the Gaussian weight e^{-y²} is exposed, then approximates the remaining
+ * (s_jj + (y/sqrt(A) + B/(2A))²)^(alpha-1) factor by N-point Gauss-Hermite
+ * quadrature (physicists' convention).
+ *
+ * See the bgms manuscript / Savage-Dickey article for the derivation.
+ *
+ * Status codes (LSDQuadResult.status):
+ *   0  ok
+ *   1  A <= 0 (must be positive for the substitution to be valid)
+ */
 
 namespace savage_dickey {
 
 struct LSDQuadResult {
     double log_density;
     double log_Z;
-    int    status;        // 0 ok; 1 invalid A (must be > 0)
+    int    status;
 };
 
 LSDQuadResult density_at_l_ji_gh(double x_eval,
