@@ -659,9 +659,16 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
     // slab on K_ij has sd σ_K = 2·σ_user (variance 4σ_user²). The SD primitive
     // (math/savage_dickey/laplace.h) documents slab as N(0, σ²) on K_ij directly, so
     // we pass σ_K = 2·prior_sigma_ to match the within-K parameterization.
+    //
+    // Cauchy slab: K_ij | gamma=1, omega ~ N(0, sigma^2 * omega_ij) with
+    // omega_ij ~ IG(1/2, 1/2) marginalised to Cauchy(0, sigma). The kernel
+    // structure is unchanged; the per-edge omega_(i,j) just rescales the
+    // effective slab variance. Normal slab has omega_ij == 1.0 from the
+    // constructor so this multiplication is a no-op there.
     const double sigma = 2.0 * prior_sigma_;
     const double beta  = prior_beta_;
-    const double sigma2     = sigma * sigma;
+    const double omega_ij_slab = slab_is_cauchy_ ? omega_(i, j) : 1.0;
+    const double sigma2     = sigma * sigma * omega_ij_slab;
     const double inv_sigma2 = 1.0 / sigma2;
 
     // Extract the trailing 2×2 (l_ii, l_ji) of the DEGORD-permuted Cholesky
@@ -996,24 +1003,150 @@ void GGMModel::set_graph_prior_spec(GraphPriorSpec spec) {
 
 void GGMModel::ensure_prior_params_extracted_() {
     if (prior_params_extracted_) return;
-    // Validate prior family. The closed-form log_Z_NLO_gamma and SD
-    // density-at-zero machinery only covers slab = Normal(0, σ) and
-    // diag = Gamma(α, β) on K_ii/2.
-    const auto* slab = dynamic_cast<const NormalPrior*>(interaction_prior_.get());
-    if (slab == nullptr)
+    // Validate prior family. The SD density-at-zero machinery covers the
+    // Normal slab directly and the Cauchy slab via the scale-mixture
+    // representation (K_ij | omega ~ N(0, sigma^2 * omega); omega ~ IG(1/2, 1/2)).
+    // Diag must be Gamma(alpha, beta) on K_ii/2.
+    if (const auto* slab_n = dynamic_cast<const NormalPrior*>(interaction_prior_.get())) {
+        prior_sigma_     = slab_n->scale();
+        slab_is_cauchy_  = false;
+    } else if (const auto* slab_c = dynamic_cast<const CauchyPrior*>(interaction_prior_.get())) {
+        prior_sigma_     = slab_c->scale();
+        slab_is_cauchy_  = true;
+    } else {
         throw std::runtime_error(
-            "This code path requires a Normal slab (NormalPrior). "
-            "Re-fit with interaction_prior_type = 'normal'.");
+            "This code path requires a Normal or Cauchy slab. "
+            "Re-fit with interaction_prior_type = 'normal' or 'cauchy'.");
+    }
     const auto* diag = dynamic_cast<const GammaScalePrior*>(diagonal_prior_.get());
     if (diag == nullptr)
         throw std::runtime_error(
             "This code path requires a Gamma diagonal prior "
             "(GammaScalePrior).");
-    prior_sigma_ = slab->scale();
     prior_alpha_ = diag->shape();
     prior_beta_  = diag->rate();
     prior_params_extracted_ = true;
 }
+
+
+// ----------------------------------------------------------------------
+// Cauchy slab via scale mixture: omega_(i,j) update
+// ----------------------------------------------------------------------
+//
+// Under the auxiliary representation K_ij | gamma=1, omega ~ N(0, sigma^2 omega)
+// with omega ~ IG(1/2, 1/2), conditional on the L-space framework (rest =
+// (l_ii, c_3 = K_jj - l_ji^2, ...)) the prior on K_ij | gamma=1, omega is
+// the slab convolved with the diag prior's K_jj-coupling:
+//
+//   log p_K(K_ij | gamma=1, omega, rest_L) prop
+//       -A_K(omega) K^2 + B_K K - log Z(omega)
+//
+//   A_K(omega) = 1 / (2 sigma^2 omega) + beta / (2 l_ii^2)
+//   B_K        = -beta * m_ij / l_ii                       (omega-independent)
+//   Z(omega)   = sqrt(pi / A_K(omega)) * exp(B_K^2 / (4 A_K(omega)))
+//
+// The omega full conditional (collecting omega-dependent terms only):
+//
+//   log p(omega | K_ij, gamma=1, rest_L) prop
+//       -K^2 / (2 sigma^2 omega) - 1/(2 omega) - 1.5 log omega
+//        + 0.5 log A_K(omega) - B_K^2 / (4 A_K(omega))
+//
+// At gamma=0, K_ij = 0 and the slab is irrelevant; omega draws from its
+// IG(1/2, 1/2) prior.
+//
+// For gamma=1 we slice-sample on u = log omega (unconstrained); the +u
+// Jacobian and the -1.5 log omega prior combine to -0.5 u in the u target.
+//
+// Pure-slab special case (beta = 0): A_K(omega) = 1/(2 sigma^2 omega),
+// B_K = 0, log Z(omega) = 0.5 log(2 pi sigma^2 omega), and the
+// log-conditional collapses to the standard InvGamma(1, 1/2 + K^2/(2 sigma^2))
+// conjugate. We don't special-case this in code; the slice sampler handles
+// it identically.
+void GGMModel::slice_sample_omega_ij_(size_t i, size_t j) {
+    if (!slab_is_cauchy_) return;
+
+    // gamma = 0: omega ~ IG(1/2, 1/2) prior. Draw via 1 / Gamma(1/2, 1/2).
+    if (edge_indicators_(i, j) == 0) {
+        const double v = rgamma(rng_, 0.5, 0.5);
+        omega_(i, j) = 1.0 / std::max(v, 1e-300);
+        omega_(j, i) = omega_(i, j);
+        return;
+    }
+
+    // gamma = 1: extract l_ii, m_ij from the maintained covariance matrix.
+    const double s_ii_cov = covariance_matrix_(i, i);
+    const double s_jj_cov = covariance_matrix_(j, j);
+    const double s_ij_cov = covariance_matrix_(i, j);
+    const double det_cov  = s_ii_cov * s_jj_cov - s_ij_cov * s_ij_cov;
+    if (!(det_cov > 0.0)) return;
+    const double S_11 =  s_jj_cov / det_cov;
+    if (!(S_11 > 0.0)) return;
+    const double l_ii  = std::sqrt(S_11);
+    const double l_ji  = (-s_ij_cov / det_cov) / l_ii;
+    const double K_ij  = precision_matrix_(i, j);
+    const double m_ij  = l_ji - K_ij / l_ii;
+
+    const double sigma  = 2.0 * prior_sigma_;           // slab sd on K_ij
+    const double sigma2 = sigma * sigma;
+    const double beta   = prior_beta_;
+
+    const double A_diag_K = 0.5 * beta / (l_ii * l_ii);  // omega-independent
+    const double B_K      = -beta * m_ij / l_ii;          // omega-independent
+    const double half_K2  = 0.5 * K_ij * K_ij;
+    const double half_B2  = 0.25 * B_K * B_K;
+
+    // log-target in u = log(omega), up to a constant in u.
+    auto log_target = [&](double u) -> double {
+        const double w   = std::exp(u);
+        const double inv_w = std::exp(-u);
+        const double A_K = 0.5 / (sigma2 * w) + A_diag_K;
+        if (!(A_K > 0.0) || !std::isfinite(A_K)) return -std::numeric_limits<double>::infinity();
+        // -K^2/(2 sigma^2 omega) - 1/(2 omega) - 0.5 u + 0.5 log A_K - B_K^2 / (4 A_K)
+        return -half_K2 * inv_w / sigma2
+               - 0.5 * inv_w
+               - 0.5 * u
+               + 0.5 * std::log(A_K)
+               - half_B2 / A_K;
+    };
+
+    // Stepping-out + shrinkage slice sampler on u = log(omega).  Initial
+    // step width w_step = 1.0 (one log-unit) is fine; with one or two
+    // steps the interval covers the typical posterior on the chain.
+    constexpr double w_step      = 1.0;
+    constexpr int    max_expand  = 50;
+    constexpr int    max_shrink  = 100;
+
+    double u_curr = std::log(omega_(i, j));
+    if (!std::isfinite(u_curr)) u_curr = 0.0;
+    const double log_y = log_target(u_curr) - rexp(rng_, 1.0);
+
+    double L = u_curr - w_step * runif(rng_);
+    double R = L + w_step;
+    for (int k = 0; k < max_expand; ++k) {
+        if (log_target(L) <= log_y) break;
+        L -= w_step;
+    }
+    for (int k = 0; k < max_expand; ++k) {
+        if (log_target(R) <= log_y) break;
+        R += w_step;
+    }
+
+    double u_new = u_curr;
+    bool accepted = false;
+    for (int k = 0; k < max_shrink; ++k) {
+        u_new = L + (R - L) * runif(rng_);
+        if (log_target(u_new) > log_y) { accepted = true; break; }
+        if (u_new < u_curr) L = u_new; else R = u_new;
+    }
+    if (!accepted) return;  // give up: keep previous omega
+
+    const double w_new = std::exp(u_new);
+    if (std::isfinite(w_new) && w_new > 0.0) {
+        omega_(i, j) = w_new;
+        omega_(j, i) = w_new;
+    }
+}
+
 
 void GGMModel::update_edge_indicators() {
     for (size_t idx = 0; idx < num_pairwise_; ++idx) {
@@ -1033,6 +1166,10 @@ void GGMModel::update_edge_indicators() {
         }
         if (graph_prior_spec_ == GraphPriorSpec::Hierarchical) {
             update_edge_indicator_parameter_pair_sd_lspace(i, j);
+            // Cauchy slab: refresh omega_(i,j) from its L-space-consistent
+            // full conditional after the (gamma, K_ij) MH step.  No-op for
+            // Normal slab (omega_ij is fixed at 1.0).
+            if (slab_is_cauchy_) slice_sample_omega_ij_(i, j);
         } else {
             update_edge_indicator_parameter_pair(i, j);
         }

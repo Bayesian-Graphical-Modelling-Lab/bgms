@@ -368,13 +368,15 @@ bgm_spec = function(x,
   # Resolve prior_factorization default. Pick "hierarchical" when it is
   # actually applicable: model has a continuous precision block AND the
   # encompassing slab/diag prior pair matches what the L-space SD step
-  # requires (Normal slab + Gamma diagonal). Otherwise fall back to
-  # "joint" so the historical Cauchy-slab default keeps working.
-  # omrf/compare have no Z(Gamma) factor, so "joint" is the only valid
-  # path there anyway.
+  # supports. The SD path supports a Normal slab directly and a Cauchy
+  # slab via the scale-mixture-of-normals representation
+  # (K_ij | omega ~ N(0, sigma^2 omega), omega ~ IG(1/2, 1/2)); both
+  # require a Gamma diagonal. Otherwise fall back to "joint" so the
+  # historical Roverato path keeps working. omrf/compare have no
+  # Z(Gamma) factor, so "joint" is the only valid path there anyway.
   if(is.null(prior_factorization)) {
     prior_factorization = if(model_type %in% c("ggm", "mixed_mrf") &&
-      interaction_prior_type == "normal" &&
+      interaction_prior_type %in% c("normal", "cauchy") &&
       scale_prior_type == "gamma") {
       "hierarchical"
     } else {
@@ -395,11 +397,12 @@ bgm_spec = function(x,
     )
   }
   if(prior_factorization == "hierarchical" &&
-    interaction_prior_type != "normal") {
+    !(interaction_prior_type %in% c("normal", "cauchy"))) {
     stop(
-      "'prior_factorization = \"hierarchical\"' requires a Normal slab ",
-      "prior (interaction_prior_type = \"normal\"). Re-fit with ",
-      "interaction_prior = normal_prior(scale = ...)."
+      "'prior_factorization = \"hierarchical\"' requires a Normal or Cauchy ",
+      "slab prior (interaction_prior_type in {\"normal\", \"cauchy\"}). ",
+      "Re-fit with interaction_prior = normal_prior(scale = ...) or ",
+      "cauchy_prior(scale = ...)."
     )
   }
   if(prior_factorization == "hierarchical" &&

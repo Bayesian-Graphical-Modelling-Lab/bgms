@@ -83,6 +83,8 @@ public:
         return std::make_unique<CauchyPrior>(*this);
     }
 
+    double scale() const { return scale_; }
+
 private:
     double scale_;
 };

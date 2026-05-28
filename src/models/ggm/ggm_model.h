@@ -84,7 +84,8 @@ public:
         proposal_sds_(arma::mat(dim_, 1, arma::fill::ones) * 0.25),
         num_pairwise_(p_ * (p_ - 1) / 2),
         observations_(na_impute ? observations : arma::mat()),
-        precision_proposal_(arma::mat(p_, p_, arma::fill::none))
+        precision_proposal_(arma::mat(p_, p_, arma::fill::none)),
+        omega_(arma::ones<arma::mat>(p_, p_))
     {
         int num_edges = arma::accu(edge_indicators_) / 2;
         int max_edges = static_cast<int>(p_ * (p_ - 1) / 2);
@@ -131,7 +132,8 @@ public:
         vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
         proposal_sds_(arma::mat(dim_, 1, arma::fill::ones) * 0.25),
         num_pairwise_(p_ * (p_ - 1) / 2),
-        precision_proposal_(arma::mat(p_, p_, arma::fill::none))
+        precision_proposal_(arma::mat(p_, p_, arma::fill::none)),
+        omega_(arma::ones<arma::mat>(p_, p_))
     {
         int num_edges = arma::accu(edge_indicators_) / 2;
         int max_edges = static_cast<int>(p_ * (p_ - 1) / 2);
@@ -172,6 +174,7 @@ public:
           has_missing_(other.has_missing_),
           missing_index_(other.missing_index_),
           precision_proposal_(other.precision_proposal_),
+          omega_(other.omega_),
           constraint_structure_(other.constraint_structure_),
           gradient_engine_(other.gradient_engine_),
           constraint_dirty_(other.constraint_dirty_),
@@ -472,16 +475,23 @@ private:
     // only — should be 0 in well-conditioned regimes.
     long   n_pd_reverts_ = 0;
     // Extracted prior-family params (cached on first SD call).
-    double prior_sigma_ = 1.0;  // NormalPrior scale
+    double prior_sigma_ = 1.0;  // NormalPrior or CauchyPrior scale
     double prior_alpha_ = 1.0;  // GammaScalePrior shape
     double prior_beta_  = 1.0;  // GammaScalePrior rate
+    bool   slab_is_cauchy_ = false;  // true => Cauchy slab via scale mixture
 
   private:
 
     /// Lightweight prior-family validator and parameter extractor. Sets
-    /// prior_sigma_, prior_alpha_, prior_beta_ from the configured slab and
-    /// diagonal priors. Used by the L-space SD between-step. Idempotent.
+    /// prior_sigma_, prior_alpha_, prior_beta_, slab_is_cauchy_ from the
+    /// configured slab and diagonal priors. Used by the L-space SD
+    /// between-step. Idempotent.
     void ensure_prior_params_extracted_();
+
+    /// Slice-sample omega_(i,j) from its L-space-consistent full conditional
+    /// p(omega | K_ij, gamma_ij, rest). Called after the SD between-step
+    /// updates (gamma_ij, K_ij). No-op when slab is Normal.
+    void slice_sample_omega_ij_(size_t i, size_t j);
     /** Extract upper triangle of the precision matrix into a vector. */
     arma::vec extract_upper_triangle() const {
         arma::vec result(dim_);
@@ -556,6 +566,12 @@ private:
 
     /// Scratch matrix for proposed precision values.
     arma::mat precision_proposal_;
+
+    /// Per-edge mixing weight omega_ij for the scale-mixture-of-normals
+    /// representation of the Cauchy slab. K_ij | gamma=1, omega ~ N(0, sigma^2 omega).
+    /// Stored upper-triangular (omega_(i,j) for i < j); diagonal and lower
+    /// triangle unused. Initialised to 1.0 (= Normal slab pointwise).
+    arma::mat omega_;
 
     /**
      * Workspace for conditional precision reparameterization.
