@@ -400,7 +400,7 @@ output interpretation, see the package website at
 \examples{
 \donttest{
 # Run bgm on subset of the Wenchuan dataset
-fit <- bgm(x = Wenchuan[, 1:5], chains = 2)
+fit = bgm(x = Wenchuan[, 1:5], chains = 2)
 
 # Posterior inclusion probabilities
 summary(fit)$indicator
