@@ -46,7 +46,9 @@ void GGMModel::recompute_theta() const {
         arma::vec R_diag;
         std::vector<GivensRotation> rots_tmp;
         GGMGradientEngine::build_Aq(cholesky_of_precision_, col, q, Aq_buf);
-        GGMGradientEngine::givens_qr(Aq_buf.t(), Q_tmp, R_tmp, R_diag, rots_tmp);
+        // givens_qr now consumes A_q directly and stores R in transposed
+        // orientation; Q is still (q × q), unaffected by R's layout.
+        GGMGradientEngine::givens_qr(Aq_buf, Q_tmp, R_tmp, R_diag, rots_tmp);
         arma::mat Nq = Q_tmp.cols(col.m_q, q - 1);
 
         // f_q = N_q^T x_q
