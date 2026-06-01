@@ -413,6 +413,121 @@ void GGMModel::apply_rank2_chol_smw_update_()
     }
 }
 
+bool GGMModel::row_block_gibbs_eligible() {
+    // Normal slab + Gamma(alpha=1, .) on K_ii/2 + zero determinant tilt is
+    // the exact-conjugate scope of PR-2. Other prior families and alpha/delta
+    // values land in PR-4..PR-6 as post-step corrections.
+    if (dynamic_cast<const NormalPrior*>(interaction_prior_.get()) == nullptr)
+        return false;
+    const auto* diag = dynamic_cast<const GammaScalePrior*>(diagonal_prior_.get());
+    if (diag == nullptr) return false;
+    if (std::abs(diag->shape() - 1.0) > 1e-12) return false;
+    if (determinant_tilt_ != 0.0) return false;
+    return true;
+}
+
+void GGMModel::update_row_block_gibbs(size_t i) {
+    // Conjugate Gaussian–Gamma draw of (β = K_{N_i, i}, kii = K_{i,i}) given
+    // A = K_{-i, -i}, S, and the Normal-slab × Gamma(α=1) prior. δ = 0 here;
+    // PR-4 will add the determinant-tilt shape shift.
+    ensure_prior_params_extracted_();
+    const double sigma = prior_sigma_;     // Normal slab std on K_yy_ij = -K_ij/2
+    const double beta0 = prior_beta_;      // Gamma rate on K_ii/2
+    const double s_ii  = suf_stat_(i, i);
+
+    // Active neighbour set N_i (in row order).
+    std::vector<size_t> Ni;
+    Ni.reserve(p_ - 1);
+    for (size_t k = 0; k < p_; ++k) {
+        if (k != i && edge_indicators_(i, k) == 1) Ni.push_back(k);
+    }
+    const size_t q = Ni.size();
+
+    // Stash old K column entries so the rank-2 update can encode the delta.
+    const double kii_old = precision_matrix_(i, i);
+    arma::vec beta_old(q);
+    for (size_t k = 0; k < q; ++k) beta_old(k) = precision_matrix_(i, Ni[k]);
+
+    // ξ shape α = 1, δ = 0 → n/2 + 1.
+    const double xi_shape = static_cast<double>(n_) / 2.0 + 1.0;
+    const double xi_rate  = (beta0 + s_ii) / 2.0;
+
+    arma::vec beta_new(q, arma::fill::zeros);
+    double kii_new;
+
+    if (q == 0) {
+        // No active neighbours: K_{i,i} = ξ, no β draw.
+        kii_new = rgamma(rng_, xi_shape, xi_rate);
+    } else {
+        // C = (A⁻¹)_{N_i, N_i} via Schur on Σ:
+        //   C_{kl} = Σ_{N_i[k], N_i[l]} − Σ_{N_i[k], i} Σ_{i, N_i[l]} / Σ_{ii}
+        const double sigma_ii = covariance_matrix_(i, i);
+        arma::vec sigma_iNi(q);
+        for (size_t k = 0; k < q; ++k) sigma_iNi(k) = covariance_matrix_(i, Ni[k]);
+        arma::mat C(q, q);
+        for (size_t k = 0; k < q; ++k) {
+            for (size_t l = 0; l < q; ++l) {
+                C(k, l) = covariance_matrix_(Ni[k], Ni[l])
+                          - sigma_iNi(k) * sigma_iNi(l) / sigma_ii;
+            }
+        }
+
+        // M = (β₀ + S_ii) C + (1/(4σ²)) I — symmetric positive-definite.
+        const double inv_4sig2 = 1.0 / (4.0 * sigma * sigma);
+        arma::mat M = (beta0 + s_ii) * C;
+        for (size_t k = 0; k < q; ++k) M(k, k) += inv_4sig2;
+
+        arma::mat L_M;
+        if (!arma::chol(L_M, M, "lower")) {
+            // M is PD by construction (C PD as submatrix of A⁻¹, prior precision > 0).
+            // A failure here means numerical trouble; skip this row's update
+            // rather than corrupt K.
+            return;
+        }
+
+        // S_{N_i, i} vector.
+        arma::vec s_Ni_i(q);
+        for (size_t k = 0; k < q; ++k) s_Ni_i(k) = suf_stat_(Ni[k], i);
+
+        // Mean μ = −M⁻¹ S_{N_i, i}. Two triangular solves: L y = −S, Lᵀ μ = y.
+        arma::vec y  = arma::solve(arma::trimatl(L_M), -s_Ni_i);
+        arma::vec mu = arma::solve(arma::trimatu(L_M.t()), y);
+
+        // β = μ + Lᵀ⁻¹ z, z ~ N(0, I_q): one triangular solve.
+        arma::vec z = arma_rnorm_vec(rng_, q);
+        arma::vec w = arma::solve(arma::trimatu(L_M.t()), z);
+        beta_new = mu + w;
+
+        // ξ ~ Gamma; K_{i,i} = ξ + βᵀ C β.
+        const double xi = rgamma(rng_, xi_shape, xi_rate);
+        kii_new = xi + arma::as_scalar(beta_new.t() * C * beta_new);
+    }
+
+    // Write the new K column / row, then apply the symmetric rank-2 update
+    // to chol(K) and Σ. The rank-2 decomposition is
+    //   ΔK = e_i vf2ᵀ + vf2 e_iᵀ,
+    //   (vf2)_i      = (kii_new − kii_old) / 2,
+    //   (vf2)_{N_i} = β_new − β_old,
+    //   (vf2)_k      = 0  otherwise
+    // which reproduces the sparse column-change at row/col i without touching
+    // the (k, l) entries off row i.
+    precision_matrix_(i, i) = kii_new;
+    for (size_t k = 0; k < q; ++k) {
+        precision_matrix_(i, Ni[k]) = beta_new(k);
+        precision_matrix_(Ni[k], i) = beta_new(k);
+    }
+
+    vf1_[i] = 1.0;
+    vf2_[i] = (kii_new - kii_old) / 2.0;
+    for (size_t k = 0; k < q; ++k) vf2_[Ni[k]] = beta_new(k) - beta_old(k);
+
+    apply_rank2_chol_smw_update_();
+
+    vf1_[i] = 0.0;
+    vf2_[i] = 0.0;
+    for (size_t k = 0; k < q; ++k) vf2_[Ni[k]] = 0.0;
+}
+
 double GGMModel::update_diagonal_parameter(size_t i) {
     double logdet_omega = cholesky_helpers::get_log_det(cholesky_of_precision_);
     double logdet_omega_sub_ii = logdet_omega + MY_LOG(covariance_matrix_(i, i));

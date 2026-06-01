@@ -198,6 +198,38 @@ public:
     bool has_gradient()        const override { return true; }
     /** @return true (GGM supports adaptive Metropolis). */
     bool has_adaptive_metropolis()     const override { return true; }
+
+    /**
+     * @return true iff the conjugate row-block Gibbs within-step is exact:
+     * Normal slab on K_yy off-diagonals, Gamma(α = 1, ·) on K_ii/2, and
+     * determinant tilt δ == 0. Other prior families (or α ≠ 1, δ ≠ 0) need
+     * the post-step correction extensions planned in PR-4..PR-6 and return
+     * false here for now.
+     */
+    bool row_block_gibbs_eligible();
+
+    /**
+     * Closed-form Gibbs draw for row i of K given the rest of K and the
+     * graph.
+     *
+     * Partitions K with A = K_{-i,-i}, β = K_{N_i, i}, kii = K_{i,i}, where
+     * N_i is the active neighbour set of i. With Normal slab N(0, σ²) on
+     * K_yy_ij = -K_ij/2 and Gamma(α = 1, β₀) prior on K_ii/2, the conditional
+     * (β, ξ = kii − βᵀCβ) is conjugate:
+     *
+     *   ξ | rest ∼ Gamma(n/2 + 1, (β₀ + S_ii)/2)
+     *   β | rest ∼ N(−M⁻¹ S_{N_i, i}, M⁻¹),
+     *     M = (β₀ + S_ii) C + (1/(4σ²)) I,
+     *     C = (A⁻¹)_{N_i, N_i} = Σ_{N_i, N_i} − Σ_{N_i, i} Σ_{i, N_i}/Σ_ii.
+     *
+     * Public for now so the PR-2 test interface can drive it directly; once
+     * PR-3 wires `within_step_kind` into do_one_metropolis_step the only
+     * caller outside tests will be the dispatcher.
+     *
+     * Preconditions: row_block_gibbs_eligible() == true; covariance_matrix_
+     * holds K⁻¹ up to date with precision_matrix_.
+     */
+    void update_row_block_gibbs(size_t i);
     /** @return true when edge selection is enabled. */
     bool has_edge_selection()  const override { return edge_selection_; }
     /** @return true when missing-data imputation is active. */
