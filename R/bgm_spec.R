@@ -294,11 +294,8 @@ bgm_spec = function(x,
                     # Sampler
                     update_method = c(
                       "nuts",
-                      "adaptive-metropolis"
-                    ),
-                    within_step_kind = c(
-                      "adaptive_metropolis",
-                      "row_block_gibbs"
+                      "adaptive-metropolis",
+                      "Gibbs"
                     ),
                     target_accept = NULL,
                     iter = 10000L,
@@ -439,8 +436,7 @@ bgm_spec = function(x,
     is_continuous = is_continuous,
     edge_selection = if(model_type == "compare") FALSE else edge_selection,
     verbose = verbose,
-    progress_callback = progress_callback,
-    within_step_kind = within_step_kind
+    progress_callback = progress_callback
   )
 
   # --- Resolve edge prior object -----------------------------------------------

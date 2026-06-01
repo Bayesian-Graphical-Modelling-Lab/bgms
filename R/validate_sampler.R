@@ -98,20 +98,17 @@ validate_sampler = function(update_method,
                             is_continuous = FALSE,
                             edge_selection = FALSE,
                             verbose = TRUE,
-                            progress_callback = NULL,
-                            within_step_kind = "adaptive_metropolis") {
+                            progress_callback = NULL) {
   # --- update_method ----------------------------------------------------------
+  # Three GGM kernels:
+  #   "nuts"                — NUTS on the free-element Cholesky parameterization
+  #   "adaptive-metropolis" — q+p componentwise random-walk MH on K
+  #   "Gibbs"               — row-block conjugate Gibbs sweep on rows of K
+  # NUTS routes through the gradient engine; AM and Gibbs share the MH chain
+  # runner and differ only in the within-step kernel.
   update_method = match.arg(
     update_method,
-    choices = c("nuts", "adaptive-metropolis")
-  )
-
-  # --- within_step_kind -------------------------------------------------------
-  # GGM-only knob: which kernel runs inside do_one_metropolis_step under the
-  # adaptive-metropolis update_method. Ignored under update_method = "nuts".
-  within_step_kind = match.arg(
-    within_step_kind,
-    choices = c("adaptive_metropolis", "row_block_gibbs")
+    choices = c("nuts", "adaptive-metropolis", "Gibbs")
   )
 
   # --- target_accept ----------------------------------------------------------
@@ -119,8 +116,12 @@ validate_sampler = function(update_method,
     target_accept = min(target_accept, 1 - sqrt(.Machine$double.eps))
     target_accept = max(target_accept, 0 + sqrt(.Machine$double.eps))
   } else {
+    # Gibbs has no per-row acceptance to tune (the alpha != 1 wrapper is a
+    # smooth scalar correction); pick 0.44 as a harmless default since the
+    # between-step adapter still consumes target_accept.
     target_accept = switch(update_method,
       "adaptive-metropolis" = 0.44,
+      "Gibbs"               = 0.44,
       "nuts"                = 0.80
     )
   }
@@ -191,7 +192,6 @@ validate_sampler = function(update_method,
     cores = cores,
     seed = seed,
     progress_type = progress_type,
-    progress_callback = progress_callback,
-    within_step_kind = within_step_kind
+    progress_callback = progress_callback
   )
 }
