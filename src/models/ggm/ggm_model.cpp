@@ -385,12 +385,19 @@ void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_o
     if (!std::isfinite(det) || std::abs(det) < 1e-14) {
         refresh_cholesky();
     } else {
-        double inv_c00 =  c22 / det;
-        double inv_c11 =  c11 / det;
-        double inv_c01 = -c12 / det;
-        covariance_matrix_ -= inv_c00 * (a1 * a1.t());
-        covariance_matrix_ -= inv_c11 * (a2 * a2.t());
-        covariance_matrix_ -= inv_c01 * (a1 * a2.t() + a2 * a1.t());
+        const double inv_c00 =  c22 / det;
+        const double inv_c11 =  c11 / det;
+        const double inv_c01 = -c12 / det;
+        // ΔΣ = -inv_c00 · a1 a1ᵀ - inv_c11 · a2 a2ᵀ - inv_c01 · (a1 a2ᵀ + a2 a1ᵀ)
+        // Refactor to two rank-1 outer products with bundled scalar weights:
+        //   ΔΣ = -(a1 b1ᵀ + a2 b2ᵀ),  with
+        //     b1 = inv_c00 · a1 + inv_c01 · a2
+        //     b2 = inv_c01 · a1 + inv_c11 · a2
+        // Saves 2 of the 4 arma p×p temporaries the 3-line form materialised.
+        const arma::vec b1 = inv_c00 * a1 + inv_c01 * a2;
+        const arma::vec b2 = inv_c01 * a1 + inv_c11 * a2;
+        covariance_matrix_ -= a1 * b1.t();
+        covariance_matrix_ -= a2 * b2.t();
     }
 
     // reset for next iteration
