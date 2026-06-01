@@ -201,11 +201,11 @@ public:
     bool has_adaptive_metropolis()     const override { return true; }
 
     /**
-     * @return true iff the conjugate row-block Gibbs within-step is exact:
-     * Normal slab on K_yy off-diagonals, Gamma(α = 1, ·) on K_ii/2, and
-     * determinant tilt δ == 0. Other prior families (or α ≠ 1, δ ≠ 0) need
-     * the post-step correction extensions planned in PR-4..PR-6 and return
-     * false here for now.
+     * @return true iff the row-block Gibbs within-step covers the current
+     * prior: Normal slab on K_yy off-diagonals and Gamma(α = 1, ·) on K_ii/2.
+     * δ ≠ 0 is handled in-line as a shape shift on ξ, so it does not gate
+     * eligibility. α ≠ 1 and Cauchy slab arrive in PR-5/PR-6 as post-step
+     * corrections and return false here for now.
      */
     bool row_block_gibbs_eligible();
 

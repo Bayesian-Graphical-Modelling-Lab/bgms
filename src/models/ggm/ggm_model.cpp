@@ -421,7 +421,7 @@ void GGMModel::set_within_step_kind(WithinStepKind kind) {
         Rcpp::warning(
             "within_step_kind = 'row_block_gibbs' requested but the prior "
             "configuration is not yet supported (need Normal slab, Gamma "
-            "alpha=1, delta=0). Falling back to 'adaptive_metropolis'.");
+            "alpha=1). Falling back to 'adaptive_metropolis'.");
         within_step_kind_ = WithinStepKind::AdaptiveMetropolis;
         return;
     }
@@ -429,22 +429,22 @@ void GGMModel::set_within_step_kind(WithinStepKind kind) {
 }
 
 bool GGMModel::row_block_gibbs_eligible() {
-    // Normal slab + Gamma(alpha=1, .) on K_ii/2 + zero determinant tilt is
-    // the exact-conjugate scope of PR-2. Other prior families and alpha/delta
-    // values land in PR-4..PR-6 as post-step corrections.
+    // Normal slab + Gamma(alpha=1, .) on K_ii/2 is the exact-conjugate scope.
+    // delta is handled directly via a shift in the xi Gamma shape (PR-4);
+    // alpha != 1 and Cauchy slab land in PR-5/PR-6 as post-step corrections.
     if (dynamic_cast<const NormalPrior*>(interaction_prior_.get()) == nullptr)
         return false;
     const auto* diag = dynamic_cast<const GammaScalePrior*>(diagonal_prior_.get());
     if (diag == nullptr) return false;
     if (std::abs(diag->shape() - 1.0) > 1e-12) return false;
-    if (determinant_tilt_ != 0.0) return false;
     return true;
 }
 
 void GGMModel::update_row_block_gibbs(size_t i) {
     // Conjugate Gaussian–Gamma draw of (β = K_{N_i, i}, kii = K_{i,i}) given
-    // A = K_{-i, -i}, S, and the Normal-slab × Gamma(α=1) prior. δ = 0 here;
-    // PR-4 will add the determinant-tilt shape shift.
+    // A = K_{-i, -i}, S, and the Normal-slab × Gamma(α=1) prior. The
+    // determinant tilt δ enters as a shape shift on ξ; α ≠ 1 and Cauchy slab
+    // arrive in PR-5/PR-6.
     ensure_prior_params_extracted_();
     const double sigma = prior_sigma_;     // Normal slab std on K_yy_ij = -K_ij/2
     const double beta0 = prior_beta_;      // Gamma rate on K_ii/2
@@ -463,8 +463,9 @@ void GGMModel::update_row_block_gibbs(size_t i) {
     arma::vec beta_old(q);
     for (size_t k = 0; k < q; ++k) beta_old(k) = precision_matrix_(i, Ni[k]);
 
-    // ξ shape α = 1, δ = 0 → n/2 + 1.
-    const double xi_shape = static_cast<double>(n_) / 2.0 + 1.0;
+    // ξ shape: n/2 + δ + 1 (α = 1; δ from determinant_tilt_).
+    const double xi_shape = static_cast<double>(n_) / 2.0
+                            + determinant_tilt_ + 1.0;
     const double xi_rate  = (beta0 + s_ii) / 2.0;
 
     arma::vec beta_new(q, arma::fill::zeros);
