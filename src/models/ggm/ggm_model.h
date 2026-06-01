@@ -93,6 +93,13 @@ public:
         int max_edges = static_cast<int>(p_ * (p_ - 1) / 2);
         has_sparse_graph_ = !edge_selection_ && (num_edges < max_edges);
         initialize_precision_from_mle();
+        // Defensive: when there is no data (n == 0), enable prior_only_ so the
+        // PD canary inside update_edge_parameter / update_diagonal_parameter /
+        // update_edge_indicator_parameter_pair fires. Without it the chain
+        // can accept moves that take K out of the PD cone (no likelihood
+        // anchor), drift in Σ compounds, and the next refresh_cholesky throws
+        // on a now-non-PD K. See sample_ggm_prior(spec = "joint").
+        if (n_ == 0) prior_only_ = true;
     }
 
     /**
@@ -141,6 +148,9 @@ public:
         int max_edges = static_cast<int>(p_ * (p_ - 1) / 2);
         has_sparse_graph_ = !edge_selection_ && (num_edges < max_edges);
         initialize_precision_from_mle();
+        // Defensive: see X-based constructor above. n == 0 → prior-only target,
+        // PD canary must run.
+        if (n_ == 0) prior_only_ = true;
     }
 
     /** Copy constructor for cloning (required for parallel chains). */
