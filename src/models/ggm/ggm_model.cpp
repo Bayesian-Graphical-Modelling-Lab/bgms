@@ -413,6 +413,21 @@ void GGMModel::apply_rank2_chol_smw_update_()
     }
 }
 
+void GGMModel::set_within_step_kind(WithinStepKind kind) {
+    if (kind == WithinStepKind::RowBlockGibbs && !row_block_gibbs_eligible()) {
+        // Warn-and-downgrade: opt-in scripts under unusual prior combinations
+        // (Cauchy slab, Gamma α ≠ 1, δ ≠ 0) keep running on the AM path
+        // until the planned PR-4..PR-6 coverage lands.
+        Rcpp::warning(
+            "within_step_kind = 'row_block_gibbs' requested but the prior "
+            "configuration is not yet supported (need Normal slab, Gamma "
+            "alpha=1, delta=0). Falling back to 'adaptive_metropolis'.");
+        within_step_kind_ = WithinStepKind::AdaptiveMetropolis;
+        return;
+    }
+    within_step_kind_ = kind;
+}
+
 bool GGMModel::row_block_gibbs_eligible() {
     // Normal slab + Gamma(alpha=1, .) on K_ii/2 + zero determinant tilt is
     // the exact-conjugate scope of PR-2. Other prior families and alpha/delta
@@ -1077,6 +1092,18 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
 
 
 void GGMModel::do_one_metropolis_step(int iteration) {
+    if (within_step_kind_ == WithinStepKind::RowBlockGibbs) {
+        // Conjugate row sweep — no acceptance, no per-slot adaptation. The
+        // within-slot entries of proposal_sds_ become inert (no mask bits
+        // are ever set under this branch); between-step adaptation still
+        // fires from its own driver.
+        for (size_t i = 0; i < p_; ++i) {
+            update_row_block_gibbs(i);
+        }
+        check_and_refresh_if_drift_();
+        return;
+    }
+
     // Collect per-slot accept probabilities for the Robbins-Monro adapter.
     // proposal_sds_ is stored as a flat dim_-length vec indexed by the
     // upper-triangle scheme `e = j * (j + 1) / 2 + i`; we mirror that here

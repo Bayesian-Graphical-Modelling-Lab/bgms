@@ -98,11 +98,20 @@ validate_sampler = function(update_method,
                             is_continuous = FALSE,
                             edge_selection = FALSE,
                             verbose = TRUE,
-                            progress_callback = NULL) {
+                            progress_callback = NULL,
+                            within_step_kind = "adaptive_metropolis") {
   # --- update_method ----------------------------------------------------------
   update_method = match.arg(
     update_method,
     choices = c("nuts", "adaptive-metropolis")
+  )
+
+  # --- within_step_kind -------------------------------------------------------
+  # GGM-only knob: which kernel runs inside do_one_metropolis_step under the
+  # adaptive-metropolis update_method. Ignored under update_method = "nuts".
+  within_step_kind = match.arg(
+    within_step_kind,
+    choices = c("adaptive_metropolis", "row_block_gibbs")
   )
 
   # --- target_accept ----------------------------------------------------------
@@ -182,6 +191,7 @@ validate_sampler = function(update_method,
     cores = cores,
     seed = seed,
     progress_type = progress_type,
-    progress_callback = progress_callback
+    progress_callback = progress_callback,
+    within_step_kind = within_step_kind
   )
 }

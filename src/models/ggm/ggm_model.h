@@ -158,6 +158,7 @@ public:
         : BaseModel(other),
           target_accept_(other.target_accept_),
           determinant_tilt_(other.determinant_tilt_),
+          within_step_kind_(other.within_step_kind_),
           graph_prior_spec_(other.graph_prior_spec_),
           prior_params_extracted_(false),
           prior_only_(other.prior_only_),
@@ -207,6 +208,27 @@ public:
      * false here for now.
      */
     bool row_block_gibbs_eligible();
+
+    /**
+     * Which within-step kernel do_one_metropolis_step dispatches to.
+     *   AdaptiveMetropolis: the existing q + p componentwise RW MH loop.
+     *   RowBlockGibbs:      one conjugate row draw per node, no acceptance.
+     */
+    enum class WithinStepKind {
+        AdaptiveMetropolis,
+        RowBlockGibbs,
+    };
+
+    /**
+     * Request a within-step kernel. If `kind == RowBlockGibbs` but
+     * row_block_gibbs_eligible() is false, the request is downgraded to
+     * AdaptiveMetropolis with a warning (so opt-in scripts keep working
+     * under unusual prior combinations).
+     */
+    void set_within_step_kind(WithinStepKind kind);
+
+    /** @return the active within-step kernel (post-eligibility downgrade). */
+    WithinStepKind within_step_kind() const { return within_step_kind_; }
 
     /**
      * Closed-form Gibbs draw for row i of K given the rest of K and the
@@ -504,6 +526,10 @@ private:
     // Determinant-tilt exponent (see set_determinant_tilt). Forwarded to
     // GGMGradientEngine on every rebuild.
     double determinant_tilt_ = 0.0;
+
+    // Within-step kernel used by do_one_metropolis_step. Defaults to AM for
+    // parity with the established AM path; switched via set_within_step_kind().
+    WithinStepKind within_step_kind_ = WithinStepKind::AdaptiveMetropolis;
 
     // ---- Hierarchical-spec inference ----
     // Default is Joint (Roverato between-edge step). Hierarchical routes the

@@ -106,7 +106,8 @@ run_sampler_ggm = function(spec) {
     na_impute = m$na_impute,
     missing_index_nullable = m$missing_index,
     delta = p$delta,
-    prior_factorization = p$prior_factorization %||% "joint"
+    prior_factorization = p$prior_factorization %||% "joint",
+    within_step_kind = s$within_step_kind %||% "adaptive_metropolis"
   )
 
   out_raw

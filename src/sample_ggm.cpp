@@ -39,7 +39,8 @@ Rcpp::List sample_ggm(
     const bool na_impute = false,
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable = R_NilValue,
     const double delta = 0.0,
-    const std::string& prior_factorization = "joint"
+    const std::string& prior_factorization = "joint",
+    const std::string& within_step_kind = "adaptive_metropolis"
 ) {
 
     // Create parameter priors from R input
@@ -94,6 +95,20 @@ Rcpp::List sample_ggm(
         model.set_graph_prior_spec(GraphPriorSpec::Hierarchical);
     } else if (prior_factorization != "joint") {
         Rcpp::stop("prior_factorization must be 'joint' or 'hierarchical'.");
+    }
+
+    // Within-step kernel selection. AdaptiveMetropolis preserves the
+    // established q + p RW MH loop; RowBlockGibbs swaps in the conjugate
+    // row sweep (Normal slab × Gamma(α=1) × δ=0, eligibility-gated with
+    // warn-and-downgrade). NUTS chains ignore this — sampler_type=="nuts"
+    // bypasses do_one_metropolis_step entirely.
+    if (within_step_kind == "row_block_gibbs") {
+        model.set_within_step_kind(GGMModel::WithinStepKind::RowBlockGibbs);
+    } else if (within_step_kind == "adaptive_metropolis") {
+        model.set_within_step_kind(GGMModel::WithinStepKind::AdaptiveMetropolis);
+    } else {
+        Rcpp::stop("within_step_kind must be 'adaptive_metropolis' or "
+                   "'row_block_gibbs'.");
     }
 
     // Set up missing data imputation (same pattern as OMRF)
