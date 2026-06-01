@@ -363,7 +363,7 @@ void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_o
 
 }
 
-void GGMModel::apply_rank2_chol_smw_update_()
+void GGMModel::apply_rank2_chol_smw_update_(bool update_L)
 {
     // K_new = K_old + vf1 vf2^T + vf2 vf1^T = K_old + u1 u1^T - u2 u2^T,
     // where u1 = (vf1 + vf2) / sqrt(2), u2 = (vf1 - vf2) / sqrt(2). The
@@ -372,10 +372,14 @@ void GGMModel::apply_rank2_chol_smw_update_()
     u1_ = (vf1_ + vf2_) / sqrt(2);
     u2_ = (vf1_ - vf2_) / sqrt(2);
 
-    // L update (2 x O(p^2)). Still required so cholesky_of_precision_ tracks
-    // K (used by get_log_det in the next iteration).
-    cholesky_update(cholesky_of_precision_, u1_);
-    cholesky_downdate(cholesky_of_precision_, u2_);
+    // L update (2 x O(p^2)). Required when a caller reads chol(K)/log-det
+    // before the next full refresh (the edge accept does). The row-block
+    // Gibbs sweep skips it (update_L = false) and rebuilds chol(K) once at
+    // sweep end — chol(K) is never read between rows there.
+    if (update_L) {
+        cholesky_update(cholesky_of_precision_, u1_);
+        cholesky_downdate(cholesky_of_precision_, u2_);
+    }
 
     // Sherman-Morrison-Woodbury rank-2 update of covariance_matrix_ = inv(K).
     // Replaces the prior arma::solve(trimatu(L), I) (O(p^3)) + inv_L * inv_L.t()
@@ -560,7 +564,10 @@ void GGMModel::update_row_block_gibbs(size_t i) {
     vf2_[i] = (kii_new - kii_old) / 2.0;
     for (size_t k = 0; k < q; ++k) vf2_[Ni[k]] = beta_new(k) - beta_old(k);
 
-    apply_rank2_chol_smw_update_();
+    // Defer the chol(K) Givens passes: nothing reads chol(K) between rows of
+    // the sweep. Σ is still refreshed so the next row's Schur extraction is
+    // exact; chol(K) is rebuilt once in do_one_metropolis_step after the sweep.
+    apply_rank2_chol_smw_update_(/*update_L=*/false);
 
     vf1_[i] = 0.0;
     vf2_[i] = 0.0;
@@ -1125,21 +1132,27 @@ void GGMModel::do_one_metropolis_step(int iteration) {
         for (size_t i = 0; i < p_; ++i) {
             update_row_block_gibbs(i);
         }
+        // chol(K) was deferred during the sweep — the row draws read only Σ,
+        // so the p per-row Givens update/downdates were skipped. Rebuild it
+        // once here: refresh_cholesky() restores chol(K), inv chol(K), and an
+        // exact Σ (clearing the SMW drift the sweep would otherwise accumulate,
+        // which the plan flagged as a row-Gibbs risk at large p). This single
+        // O(p^3) factorisation replaces 2p sequential rank-1 Givens passes and
+        // subsumes the old conditional drift check. Verified L^T L = K and
+        // Σ K = I to ~1e-16 per sweep under edge selection (between-step
+        // handoff), and the SMW within-sweep Σ stays exact without per-row L.
+        refresh_cholesky();
         // Cauchy slab: alternate row Gibbs (conditional on omega) with a
-        // per-edge omega slice. inv_L has gone stale during the row sweep
-        // (apply_rank2_chol_smw_update_ maintains L and Σ only), so refresh
-        // it once before the slice reads inv_L row inner products.
+        // per-edge omega slice, which reads inv chol(K) row inner products —
+        // refreshed just above. The slice updates only omega, not K, so no
+        // further factor refresh is needed afterwards.
         if (slab_is_cauchy_) {
-            arma::solve(inv_cholesky_of_precision_,
-                        arma::trimatu(cholesky_of_precision_),
-                        arma::eye(p_, p_), arma::solve_opts::fast);
             for (size_t i = 0; i + 1 < p_; ++i) {
                 for (size_t j = i + 1; j < p_; ++j) {
                     slice_sample_omega_ij_(i, j);
                 }
             }
         }
-        check_and_refresh_if_drift_();
         return;
     }
 

@@ -814,8 +814,15 @@ private:
      * can populate them in-place without an extra copy. The helper does not
      * touch precision_matrix_ — the caller must already have written the
      * post-update entries it represents.
+     *
+     * `update_L` controls whether chol(K) is advanced. The edge accept needs
+     * it true (the between-step reads chol(K)/log-det immediately). The
+     * row-block Gibbs sweep passes false: chol(K) is never read between rows
+     * (the row draw reads only Σ), so the p per-row Givens passes are skipped
+     * and chol(K) is rebuilt once via refresh_cholesky() at the end of the
+     * sweep. Σ is always maintained so the next row's Schur extraction is exact.
      */
-    void apply_rank2_chol_smw_update_();
+    void apply_rank2_chol_smw_update_(bool update_L = true);
 
     /**
      * Update the Cholesky factor after changing a diagonal element.
