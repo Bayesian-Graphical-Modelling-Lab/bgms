@@ -742,6 +742,23 @@ private:
     void cholesky_update_after_edge(double omega_ij_old, double omega_jj_old, size_t i, size_t j);
 
     /**
+     * Apply a symmetric rank-2 update to K, refresh chol(K), and refresh Σ.
+     *
+     * Given vf1, vf2 of length p, this carries out
+     *   K_new      = K_old + vf1 vf2ᵀ + vf2 vf1ᵀ
+     *   chol(K)   ← Givens update + downdate on u1 = (vf1+vf2)/√2, u2 = (vf1−vf2)/√2
+     *   Σ ← Σ − A C⁻¹ Aᵀ   (Sherman–Morrison–Woodbury)
+     * with the same capacitance-singular fallback to refresh_cholesky() used
+     * by the edge update.
+     *
+     * Inputs are taken as the model's vf1_, vf2_ scratch members so callers
+     * can populate them in-place without an extra copy. The helper does not
+     * touch precision_matrix_ — the caller must already have written the
+     * post-update entries it represents.
+     */
+    void apply_rank2_chol_smw_update_();
+
+    /**
      * Update the Cholesky factor after changing a diagonal element.
      *
      * Applies a rank-1 update and recomputes the inverse Cholesky

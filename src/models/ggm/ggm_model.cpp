@@ -353,6 +353,18 @@ void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_o
     vf2_[i] = v2_[0];
     vf2_[j] = v2_[1];
 
+    apply_rank2_chol_smw_update_();
+
+    // reset for next iteration
+    vf1_[i] = 0.0;
+    vf1_[j] = 0.0;
+    vf2_[i] = 0.0;
+    vf2_[j] = 0.0;
+
+}
+
+void GGMModel::apply_rank2_chol_smw_update_()
+{
     // K_new = K_old + vf1 vf2^T + vf2 vf1^T = K_old + u1 u1^T - u2 u2^T,
     // where u1 = (vf1 + vf2) / sqrt(2), u2 = (vf1 - vf2) / sqrt(2). The
     // change-of-basis diagonalises the symmetric rank-2 update so the chol
@@ -399,13 +411,6 @@ void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_o
         covariance_matrix_ -= a1 * b1.t();
         covariance_matrix_ -= a2 * b2.t();
     }
-
-    // reset for next iteration
-    vf1_[i] = 0.0;
-    vf1_[j] = 0.0;
-    vf2_[i] = 0.0;
-    vf2_[j] = 0.0;
-
 }
 
 double GGMModel::update_diagonal_parameter(size_t i) {
