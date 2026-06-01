@@ -673,13 +673,16 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
     const double inv_sigma2 = 1.0 / sigma2;
 
     // Extract the trailing 2×2 (l_ii, l_ji) of the DEGORD-permuted Cholesky
-    // factor via the Σ_BB block, read directly from the maintained
-    // covariance_matrix_ (no triangular solves — the accept block below
-    // refreshes Σ from K via arma::chol on every accept, so Σ is exactly in
-    // sync with K).
-    const double s_ii_cov = covariance_matrix_(i, i);
-    const double s_jj_cov = covariance_matrix_(j, j);
-    const double s_ij_cov = covariance_matrix_(i, j);
+    // factor via the Σ_BB block. Σ_corner is computed on demand as
+    // Σ_kl = inv(L)[k,:] · inv(L)[l,:]^T (one dot product per entry). The
+    // accept block keeps inv(L) fresh per accept (chol + triangular solve)
+    // and skips the full Σ matmul; Σ is refreshed once at the end of
+    // update_edge_indicators() for the within-step's reads.
+    const arma::rowvec ri = inv_cholesky_of_precision_.row(i);
+    const arma::rowvec rj = inv_cholesky_of_precision_.row(j);
+    const double s_ii_cov = arma::dot(ri, ri);
+    const double s_jj_cov = arma::dot(rj, rj);
+    const double s_ij_cov = arma::dot(ri, rj);
     const double det_cov  = s_ii_cov * s_jj_cov - s_ij_cov * s_ij_cov;
     if (!(det_cov > 0.0)) return;
     const double S_11 =  s_jj_cov / det_cov;
@@ -862,9 +865,12 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
     if (log_det_factor != 0.0) {
         const double Ui2 = K_ij - K_ij_new;
         const double Uj2 = (precision_matrix_(j, j) - K_jj_new) * 0.5;
-        const double sii = covariance_matrix_(i, i);
-        const double sjj = covariance_matrix_(j, j);
-        const double sij = covariance_matrix_(i, j);
+        // Reuse the Σ corner already computed above (s_ii_cov, s_jj_cov,
+        // s_ij_cov) so we never read covariance_matrix_ here. log_det MH
+        // agrees with the log_BF moments computed at the start of the attempt.
+        const double sii = s_ii_cov;
+        const double sjj = s_jj_cov;
+        const double sij = s_ij_cov;
         const double cc11 = sjj;
         const double cc12 = 1.0 - (sij * Ui2 + sjj * Uj2);
         const double cc22 = Ui2 * Ui2 * sii + 2.0 * Ui2 * Uj2 * sij
@@ -934,7 +940,10 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
     cholesky_of_precision_ = U_check;
     arma::solve(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_),
                 arma::eye(p_, p_), arma::solve_opts::fast);
-    covariance_matrix_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
+    // Σ is intentionally NOT refreshed here — Σ_corner reads inside the
+    // sweep go directly off inv(L) row inner products, and update_edge_
+    // indicators() refreshes covariance_matrix_ once at the end of the
+    // between sweep for the within-step's reads.
     constraint_dirty_ = true;
     theta_valid_ = false;
 }
@@ -1047,9 +1056,11 @@ void GGMModel::slice_sample_omega_ij_(size_t i, size_t j) {
         return;
     }
 
-    const double s_ii_cov = covariance_matrix_(i, i);
-    const double s_jj_cov = covariance_matrix_(j, j);
-    const double s_ij_cov = covariance_matrix_(i, j);
+    const arma::rowvec ri_cov = inv_cholesky_of_precision_.row(i);
+    const arma::rowvec rj_cov = inv_cholesky_of_precision_.row(j);
+    const double s_ii_cov = arma::dot(ri_cov, ri_cov);
+    const double s_jj_cov = arma::dot(rj_cov, rj_cov);
+    const double s_ij_cov = arma::dot(ri_cov, rj_cov);
     const double det_cov  = s_ii_cov * s_jj_cov - s_ij_cov * s_ij_cov;
     if (!(det_cov > 0.0)) return;
     const double S_11 = s_jj_cov / det_cov;
@@ -1073,6 +1084,16 @@ void GGMModel::slice_sample_omega_ij_(size_t i, size_t j) {
 
 
 void GGMModel::update_edge_indicators() {
+    // Hierarchical SD between-step reads Σ_corner on demand via inv(L) row
+    // inner products. Within-step's SMW updates have made inv_L stale wrt
+    // the L modified by cholesky_update_after_edge/diag; refresh inv_L once
+    // at the top of the sweep so the corner reads are consistent.
+    if (graph_prior_spec_ == GraphPriorSpec::Hierarchical) {
+        arma::solve(inv_cholesky_of_precision_,
+                    arma::trimatu(cholesky_of_precision_),
+                    arma::eye(p_, p_), arma::solve_opts::fast);
+    }
+
     for (size_t idx = 0; idx < num_pairwise_; ++idx) {
         size_t flat = shuffled_edge_order_(idx);
         // Convert flat index to (i, j) upper-triangle pair.
@@ -1097,6 +1118,15 @@ void GGMModel::update_edge_indicators() {
         } else {
             update_edge_indicator_parameter_pair(i, j);
         }
+    }
+    // Hierarchical: Σ has been bypassed throughout the between sweep
+    // (corner reads come from inv_L row inner products). Refresh Σ once here
+    // so the within-step that follows reads a fresh covariance_matrix_. One
+    // matmul per iter, vs one matmul per SD accept under the old refresh-
+    // per-accept scheme.
+    if (graph_prior_spec_ == GraphPriorSpec::Hierarchical) {
+        covariance_matrix_ = inv_cholesky_of_precision_
+                           * inv_cholesky_of_precision_.t();
     }
     // SMW drift check; same rationale as the end-of-MH-step path.
     check_and_refresh_if_drift_();
