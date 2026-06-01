@@ -815,6 +815,10 @@ private:
      * touch precision_matrix_ — the caller must already have written the
      * post-update entries it represents.
      *
+     * `support` lists the nonzero indices of vf1/vf2 ({i,j} for an edge
+     * accept, {i} ∪ N_i for a row-Gibbs row); the SMW matvec Σ·u touches only
+     * those columns, O(p·|support|) instead of a dense O(p^2) gemv.
+     *
      * `update_L` controls whether chol(K) is advanced. The edge accept needs
      * it true (the between-step reads chol(K)/log-det immediately). The
      * row-block Gibbs sweep passes false: chol(K) is never read between rows
@@ -822,7 +826,8 @@ private:
      * and chol(K) is rebuilt once via refresh_cholesky() at the end of the
      * sweep. Σ is always maintained so the next row's Schur extraction is exact.
      */
-    void apply_rank2_chol_smw_update_(bool update_L = true);
+    void apply_rank2_chol_smw_update_(const arma::uvec& support,
+                                      bool update_L = true);
 
     /**
      * Update the Cholesky factor after changing a diagonal element.
