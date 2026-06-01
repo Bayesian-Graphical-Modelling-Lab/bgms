@@ -420,8 +420,8 @@ void GGMModel::set_within_step_kind(WithinStepKind kind) {
         // until the planned PR-4..PR-6 coverage lands.
         Rcpp::warning(
             "within_step_kind = 'row_block_gibbs' requested but the prior "
-            "configuration is not yet supported (need Normal slab, Gamma "
-            "alpha=1). Falling back to 'adaptive_metropolis'.");
+            "configuration is not yet supported (need Normal slab + Gamma "
+            "diagonal). Falling back to 'adaptive_metropolis'.");
         within_step_kind_ = WithinStepKind::AdaptiveMetropolis;
         return;
     }
@@ -429,14 +429,13 @@ void GGMModel::set_within_step_kind(WithinStepKind kind) {
 }
 
 bool GGMModel::row_block_gibbs_eligible() {
-    // Normal slab + Gamma(alpha=1, .) on K_ii/2 is the exact-conjugate scope.
-    // delta is handled directly via a shift in the xi Gamma shape (PR-4);
-    // alpha != 1 and Cauchy slab land in PR-5/PR-6 as post-step corrections.
+    // Normal slab + Gamma(., .) on K_ii/2. delta is absorbed by an xi shape
+    // shift (PR-4); alpha != 1 is handled by a scalar independent-MH wrapper
+    // (PR-5). Cauchy slab lands in PR-6 as the omega slice extension.
     if (dynamic_cast<const NormalPrior*>(interaction_prior_.get()) == nullptr)
         return false;
     const auto* diag = dynamic_cast<const GammaScalePrior*>(diagonal_prior_.get());
     if (diag == nullptr) return false;
-    if (std::abs(diag->shape() - 1.0) > 1e-12) return false;
     return true;
 }
 
@@ -517,6 +516,21 @@ void GGMModel::update_row_block_gibbs(size_t i) {
         // ξ ~ Gamma; K_{i,i} = ξ + βᵀ C β.
         const double xi = rgamma(rng_, xi_shape, xi_rate);
         kii_new = xi + arma::as_scalar(beta_new.t() * C * beta_new);
+    }
+
+    // Independent-MH correction for Gamma(α, β₀) with α ≠ 1.
+    //   target_α(β, kii)   ∝ target_1(β, kii) × (kii/2)^(α-1)
+    //   proposal q          = target_1
+    // So the MH ratio reduces to (kii_new / kii_old)^(α-1); the /2 and β
+    // factors cancel. The guard preserves bit-identity at α = 1 by
+    // skipping the runif draw entirely.
+    if (std::abs(prior_alpha_ - 1.0) > 1e-12) {
+        const double log_alpha_mh = (prior_alpha_ - 1.0)
+                                    * (std::log(kii_new) - std::log(kii_old));
+        if (MY_LOG(runif(rng_)) >= log_alpha_mh) {
+            // Reject: leave precision_matrix_, chol(K), Σ unchanged.
+            return;
+        }
     }
 
     // Write the new K column / row, then apply the symmetric rank-2 update

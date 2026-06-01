@@ -202,10 +202,10 @@ public:
 
     /**
      * @return true iff the row-block Gibbs within-step covers the current
-     * prior: Normal slab on K_yy off-diagonals and Gamma(α = 1, ·) on K_ii/2.
-     * δ ≠ 0 is handled in-line as a shape shift on ξ, so it does not gate
-     * eligibility. α ≠ 1 and Cauchy slab arrive in PR-5/PR-6 as post-step
-     * corrections and return false here for now.
+     * prior: Normal slab on K_yy off-diagonals and any Gamma(α, ·) on K_ii/2.
+     * δ is absorbed by a shape shift on ξ; α ≠ 1 is handled by a scalar
+     * independent-MH wrapper around the conjugate (α = 1) proposal. Cauchy
+     * slab arrives in PR-6 and returns false here for now.
      */
     bool row_block_gibbs_eligible();
 
