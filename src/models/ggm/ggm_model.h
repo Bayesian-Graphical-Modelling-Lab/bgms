@@ -202,10 +202,11 @@ public:
 
     /**
      * @return true iff the row-block Gibbs within-step covers the current
-     * prior: Normal slab on K_yy off-diagonals and any Gamma(α, ·) on K_ii/2.
-     * δ is absorbed by a shape shift on ξ; α ≠ 1 is handled by a scalar
-     * independent-MH wrapper around the conjugate (α = 1) proposal. Cauchy
-     * slab arrives in PR-6 and returns false here for now.
+     * prior: Normal *or* Cauchy slab on K_yy off-diagonals and any Gamma(α, ·)
+     * on K_ii/2. δ is absorbed by a shape shift on ξ; α ≠ 1 is handled by a
+     * scalar independent-MH wrapper around the conjugate (α = 1) proposal;
+     * Cauchy is handled by the scale-mixture representation
+     * (K_yy_ij | ω_ij ~ N(0, σ² ω_ij)) plus a per-edge ω slice update.
      */
     bool row_block_gibbs_eligible();
 

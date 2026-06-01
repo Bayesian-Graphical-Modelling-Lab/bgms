@@ -420,8 +420,8 @@ void GGMModel::set_within_step_kind(WithinStepKind kind) {
         // until the planned PR-4..PR-6 coverage lands.
         Rcpp::warning(
             "within_step_kind = 'row_block_gibbs' requested but the prior "
-            "configuration is not yet supported (need Normal slab + Gamma "
-            "diagonal). Falling back to 'adaptive_metropolis'.");
+            "configuration is not yet supported (need Normal or Cauchy slab "
+            "+ Gamma diagonal). Falling back to 'adaptive_metropolis'.");
         within_step_kind_ = WithinStepKind::AdaptiveMetropolis;
         return;
     }
@@ -429,11 +429,14 @@ void GGMModel::set_within_step_kind(WithinStepKind kind) {
 }
 
 bool GGMModel::row_block_gibbs_eligible() {
-    // Normal slab + Gamma(., .) on K_ii/2. delta is absorbed by an xi shape
-    // shift (PR-4); alpha != 1 is handled by a scalar independent-MH wrapper
-    // (PR-5). Cauchy slab lands in PR-6 as the omega slice extension.
-    if (dynamic_cast<const NormalPrior*>(interaction_prior_.get()) == nullptr)
-        return false;
+    // Normal or Cauchy slab + Gamma(., .) on K_ii/2. delta is absorbed by an
+    // xi shape shift (PR-4); alpha != 1 is handled by a scalar independent-MH
+    // wrapper (PR-5); Cauchy is handled by treating K_yy_ij | omega as
+    // Normal(0, sigma^2 omega) and alternating row Gibbs with a per-edge
+    // omega slice update (PR-6).
+    const bool normal = dynamic_cast<const NormalPrior*>(interaction_prior_.get()) != nullptr;
+    const bool cauchy = dynamic_cast<const CauchyPrior*>(interaction_prior_.get()) != nullptr;
+    if (!normal && !cauchy) return false;
     const auto* diag = dynamic_cast<const GammaScalePrior*>(diagonal_prior_.get());
     if (diag == nullptr) return false;
     return true;
@@ -487,10 +490,16 @@ void GGMModel::update_row_block_gibbs(size_t i) {
             }
         }
 
-        // M = (β₀ + S_ii) C + (1/(4σ²)) I — symmetric positive-definite.
+        // M = (β₀ + S_ii) C + diag(1/(4σ² ω_k)) — symmetric positive-definite.
+        // Cauchy slab: ω_{i, Ni[k]} carries the scale-mixture conditional
+        // variance, refreshed per sweep by slice_sample_omega_ij_. Normal
+        // slab keeps ω fixed at 1, recovering the constant 1/(4σ²) precision.
         const double inv_4sig2 = 1.0 / (4.0 * sigma * sigma);
         arma::mat M = (beta0 + s_ii) * C;
-        for (size_t k = 0; k < q; ++k) M(k, k) += inv_4sig2;
+        for (size_t k = 0; k < q; ++k) {
+            const double w_k = slab_is_cauchy_ ? omega_(i, Ni[k]) : 1.0;
+            M(k, k) += inv_4sig2 / w_k;
+        }
 
         arma::mat L_M;
         if (!arma::chol(L_M, M, "lower")) {
@@ -1108,12 +1117,27 @@ void GGMModel::update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j
 
 void GGMModel::do_one_metropolis_step(int iteration) {
     if (within_step_kind_ == WithinStepKind::RowBlockGibbs) {
-        // Conjugate row sweep — no acceptance, no per-slot adaptation. The
-        // within-slot entries of proposal_sds_ become inert (no mask bits
-        // are ever set under this branch); between-step adaptation still
-        // fires from its own driver.
+        // Conjugate row sweep — no acceptance from row Gibbs itself (the
+        // alpha-correction MH may reject; see update_row_block_gibbs). No
+        // per-slot AM adaptation: within-slot proposal_sds_ entries become
+        // inert under this branch. Between-step adaptation still fires from
+        // its own driver.
         for (size_t i = 0; i < p_; ++i) {
             update_row_block_gibbs(i);
+        }
+        // Cauchy slab: alternate row Gibbs (conditional on omega) with a
+        // per-edge omega slice. inv_L has gone stale during the row sweep
+        // (apply_rank2_chol_smw_update_ maintains L and Σ only), so refresh
+        // it once before the slice reads inv_L row inner products.
+        if (slab_is_cauchy_) {
+            arma::solve(inv_cholesky_of_precision_,
+                        arma::trimatu(cholesky_of_precision_),
+                        arma::eye(p_, p_), arma::solve_opts::fast);
+            for (size_t i = 0; i + 1 < p_; ++i) {
+                for (size_t j = i + 1; j < p_; ++j) {
+                    slice_sample_omega_ij_(i, j);
+                }
+            }
         }
         check_and_refresh_if_drift_();
         return;
