@@ -248,17 +248,36 @@ build_output = function(spec, raw) {
 # ordinal_threshold_labels()
 # ------------------------------------------------------------------------------
 # Labels for an ordinal variable's category thresholds (recoded categories
-# 1..K). When the fit carries a recode map (category_levels_v: the sorted
-# original training values, length K+1 with position 1 the reference category),
-# the original category values for categories 1..K are returned so output is in
-# the user's scale. Otherwise the rescored indices 1..K are used (older fits).
+# 1..K), in the user's original category scale when the fit carries a recode
+# map (category_levels_v). Two map forms are supported:
+#
+#   * OMRF / mixed-MRF: an UNNAMED vector of the sorted original training
+#     values, length K+1 with position 1 the reference category. The originals
+#     for categories 1..K are returned directly.
+#   * bgmCompare: a NAMED lookup, names = original values, values = the final
+#     0-based category. Cross-group collapse makes this many-to-one, so for
+#     each final category 1..K the contributing original values are joined with
+#     "/" (e.g. "4/5" when originals 4 and 5 merged into one category).
+#
+# Without a usable map (NULL, or an unnamed vector whose length != K+1) the
+# rescored indices 1..K are returned, matching older fits.
 ordinal_threshold_labels = function(num_categories_v, category_levels_v = NULL) {
-  if(!is.null(category_levels_v) &&
-    length(category_levels_v) == num_categories_v + 1L) {
-    category_levels_v[-1L] # drop the reference category (recoded 0)
-  } else {
-    seq_len(num_categories_v)
+  if(is.null(category_levels_v)) {
+    return(seq_len(num_categories_v))
   }
+  if(!is.null(names(category_levels_v))) {
+    finals = as.integer(category_levels_v)
+    originals = names(category_levels_v)
+    return(vapply(
+      seq_len(num_categories_v),
+      function(k) paste(originals[finals == k], collapse = "/"),
+      character(1)
+    ))
+  }
+  if(length(category_levels_v) == num_categories_v + 1L) {
+    return(category_levels_v[-1L]) # drop the reference category (recoded 0)
+  }
+  seq_len(num_categories_v)
 }
 
 
@@ -877,7 +896,8 @@ build_output_compare = function(spec, raw) {
     num_categories      = num_categories,
     is_ordinal_variable = is_ordinal_variable,
     num_variables       = num_variables,
-    num_groups          = num_groups
+    num_groups          = num_groups,
+    category_levels     = d$category_levels
   )
 
   # --- Lazy MCMC diagnostics cache --------------------------------------------
@@ -1097,6 +1117,9 @@ build_output_compare = function(spec, raw) {
 # @param is_ordinal_variable  Logical vector: TRUE = ordinal, FALSE = BC.
 # @param num_variables  Integer: number of variables.
 # @param num_groups  Integer: number of groups.
+# @param category_levels  Optional list of per-variable recode maps (named
+#   lookups from original category value to final 0-based category). When
+#   supplied, ordinal threshold names use the original category scale.
 #
 # Returns: named list with main_baseline, main_diff, pairwise_baseline,
 #   pairwise_diff, and indicators character vectors.
@@ -1106,13 +1129,17 @@ generate_param_names_bgmCompare = function(
   num_categories,
   is_ordinal_variable,
   num_variables,
-  num_groups
+  num_groups,
+  category_levels = NULL
 ) {
   # --- main baselines
   names_main_baseline = character()
   for(v in seq_len(num_variables)) {
     if(is_ordinal_variable[v]) {
-      cats = seq_len(num_categories[v])
+      cats = ordinal_threshold_labels(
+        num_categories[v],
+        if(!is.null(category_levels)) category_levels[[v]] else NULL
+      )
       names_main_baseline = c(
         names_main_baseline,
         paste0(data_columnnames[v], " (", cats, ")")
@@ -1131,7 +1158,10 @@ generate_param_names_bgmCompare = function(
   for(g in 2:num_groups) {
     for(v in seq_len(num_variables)) {
       if(is_ordinal_variable[v]) {
-        cats = seq_len(num_categories[v])
+        cats = ordinal_threshold_labels(
+          num_categories[v],
+          if(!is.null(category_levels)) category_levels[[v]] else NULL
+        )
         names_main_diff = c(
           names_main_diff,
           paste0(data_columnnames[v], " (diff", g - 1, "; ", cats, ")")
