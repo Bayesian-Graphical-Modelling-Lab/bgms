@@ -361,7 +361,7 @@ bgm_spec = function(x,
 
   # Validate determinant-tilt exponent and reject for pure-ordinal models
   if(!is.numeric(delta) || length(delta) != 1L || is.na(delta) ||
-     !is.finite(delta) || delta < 0) {
+    !is.finite(delta) || delta < 0) {
     stop("'delta' must be a single finite non-negative numeric, or NULL.")
   }
   if(delta > 0 && model_type %in% c("omrf", "compare")) {
@@ -528,6 +528,25 @@ bgm_spec = function(x,
 # Internal builders (one per model type)
 # ==============================================================================
 
+# The inclusion / edge-prior fields shared by the GGM, OMRF, and mixed-MRF spec
+# prior lists, selected by name from the flattened edge prior (ep). Spliced into
+# each builder's prior list via c() so the field set stays in sync. bgmCompare
+# uses a separate difference-prior block and does not share this.
+edge_prior_spec_fields = function(ep) {
+  list(
+    edge_selection = ep$edge_selection,
+    edge_prior = ep$edge_prior,
+    inclusion_probability = ep$inclusion_probability,
+    beta_bernoulli_alpha = ep$beta_bernoulli_alpha,
+    beta_bernoulli_beta = ep$beta_bernoulli_beta,
+    beta_bernoulli_alpha_between = ep$beta_bernoulli_alpha_between,
+    beta_bernoulli_beta_between = ep$beta_bernoulli_beta_between,
+    dirichlet_alpha = ep$dirichlet_alpha,
+    lambda = ep$lambda
+  )
+}
+
+
 build_spec_ggm = function(x, data_columnnames, num_variables,
                           variable_type, is_ordinal, is_continuous,
                           baseline_category,
@@ -568,24 +587,18 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
       na_impute     = md$na_impute,
       missing_index = md$missing_index
     ),
-    prior = list(
-      interaction_prior_type = interaction_prior_type,
-      pairwise_scale = pairwise_scale,
-      interaction_alpha = interaction_alpha,
-      interaction_beta = interaction_beta,
-      scale_prior_type = scale_prior_type,
-      scale_shape = scale_shape,
-      scale_rate = scale_rate,
-      delta = delta,
-      edge_selection = ep$edge_selection,
-      edge_prior = ep$edge_prior,
-      inclusion_probability = ep$inclusion_probability,
-      beta_bernoulli_alpha = ep$beta_bernoulli_alpha,
-      beta_bernoulli_beta = ep$beta_bernoulli_beta,
-      beta_bernoulli_alpha_between = ep$beta_bernoulli_alpha_between,
-      beta_bernoulli_beta_between = ep$beta_bernoulli_beta_between,
-      dirichlet_alpha = ep$dirichlet_alpha,
-      lambda = ep$lambda
+    prior = c(
+      list(
+        interaction_prior_type = interaction_prior_type,
+        pairwise_scale = pairwise_scale,
+        interaction_alpha = interaction_alpha,
+        interaction_beta = interaction_beta,
+        scale_prior_type = scale_prior_type,
+        scale_shape = scale_shape,
+        scale_rate = scale_rate,
+        delta = delta
+      ),
+      edge_prior_spec_fields(ep)
     ),
     sampler = sampler_sublist(sampler),
     precomputed = list()
@@ -669,26 +682,20 @@ build_spec_omrf = function(x, data_columnnames, num_variables,
       na_impute     = md$na_impute,
       missing_index = missing_index
     ),
-    prior = list(
-      interaction_prior_type = interaction_prior_type,
-      pairwise_scale = pairwise_scale,
-      interaction_alpha = interaction_alpha,
-      interaction_beta = interaction_beta,
-      threshold_prior_type = threshold_prior_type,
-      main_alpha = main_alpha,
-      main_beta = main_beta,
-      threshold_scale = threshold_scale,
-      standardize = standardize,
-      pairwise_scaling_factors = psf,
-      edge_selection = ep$edge_selection,
-      edge_prior = ep$edge_prior,
-      inclusion_probability = ep$inclusion_probability,
-      beta_bernoulli_alpha = ep$beta_bernoulli_alpha,
-      beta_bernoulli_beta = ep$beta_bernoulli_beta,
-      beta_bernoulli_alpha_between = ep$beta_bernoulli_alpha_between,
-      beta_bernoulli_beta_between = ep$beta_bernoulli_beta_between,
-      dirichlet_alpha = ep$dirichlet_alpha,
-      lambda = ep$lambda
+    prior = c(
+      list(
+        interaction_prior_type = interaction_prior_type,
+        pairwise_scale = pairwise_scale,
+        interaction_alpha = interaction_alpha,
+        interaction_beta = interaction_beta,
+        threshold_prior_type = threshold_prior_type,
+        main_alpha = main_alpha,
+        main_beta = main_beta,
+        threshold_scale = threshold_scale,
+        standardize = standardize,
+        pairwise_scaling_factors = psf
+      ),
+      edge_prior_spec_fields(ep)
     ),
     sampler = sampler_sublist(sampler),
     precomputed = list(
@@ -841,33 +848,27 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
       missing_index_discrete = missing_index_discrete,
       missing_index_continuous = missing_index_continuous
     ),
-    prior = list(
-      interaction_prior_type = interaction_prior_type,
-      pairwise_scale = pairwise_scale,
-      interaction_alpha = interaction_alpha,
-      interaction_beta = interaction_beta,
-      threshold_prior_type = threshold_prior_type,
-      main_alpha = main_alpha,
-      main_beta = main_beta,
-      threshold_scale = threshold_scale,
-      means_prior_type = means_prior_type,
-      means_scale = means_scale,
-      means_alpha = means_alpha,
-      means_beta = means_beta,
-      scale_prior_type = scale_prior_type,
-      scale_shape = scale_shape,
-      scale_rate = scale_rate,
-      delta = delta,
-      standardize = standardize,
-      edge_selection = ep$edge_selection,
-      edge_prior = ep$edge_prior,
-      inclusion_probability = ep$inclusion_probability,
-      beta_bernoulli_alpha = ep$beta_bernoulli_alpha,
-      beta_bernoulli_beta = ep$beta_bernoulli_beta,
-      beta_bernoulli_alpha_between = ep$beta_bernoulli_alpha_between,
-      beta_bernoulli_beta_between = ep$beta_bernoulli_beta_between,
-      dirichlet_alpha = ep$dirichlet_alpha,
-      lambda = ep$lambda
+    prior = c(
+      list(
+        interaction_prior_type = interaction_prior_type,
+        pairwise_scale = pairwise_scale,
+        interaction_alpha = interaction_alpha,
+        interaction_beta = interaction_beta,
+        threshold_prior_type = threshold_prior_type,
+        main_alpha = main_alpha,
+        main_beta = main_beta,
+        threshold_scale = threshold_scale,
+        means_prior_type = means_prior_type,
+        means_scale = means_scale,
+        means_alpha = means_alpha,
+        means_beta = means_beta,
+        scale_prior_type = scale_prior_type,
+        scale_shape = scale_shape,
+        scale_rate = scale_rate,
+        delta = delta,
+        standardize = standardize
+      ),
+      edge_prior_spec_fields(ep)
     ),
     sampler = sampler_sublist(sampler),
     precomputed = list(
