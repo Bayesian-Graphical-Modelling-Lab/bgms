@@ -281,28 +281,10 @@ coef.bgmCompare = function(object, ...) {
   num_variables = as.integer(args$num_variables)
   projection = args$projection # [num_groups x (num_groups-1)]
 
-  # ---- helper: combine chains into [iter, chain, param], robust to vectors/1-col
-  to_array3d = function(xlist) {
-    if(is.null(xlist)) {
-      return(NULL)
-    }
-    stopifnot(length(xlist) >= 1)
-    mats = lapply(xlist, function(x) {
-      m = as.matrix(x)
-      if(is.null(dim(m))) m = matrix(m, ncol = 1L)
-      m
-    })
-    niter = nrow(mats[[1]])
-    nparam = ncol(mats[[1]])
-    arr = array(NA_real_, dim = c(niter, length(mats), nparam))
-    for(c in seq_along(mats)) arr[, c, ] = mats[[c]]
-    arr
-  }
-
   # ============================================================
   # ---- main effects ----
   raw = get_raw_samples(object)
-  array3d_main = to_array3d(raw$main)
+  array3d_main = samples_to_array3d(raw$main)
   stopifnot(!is.null(array3d_main))
   mean_main = apply(array3d_main, 3, mean)
 
@@ -336,7 +318,7 @@ coef.bgmCompare = function(object, ...) {
 
   # ============================================================
   # ---- pairwise effects ----
-  array3d_pair = to_array3d(raw$pairwise)
+  array3d_pair = samples_to_array3d(raw$pairwise)
   stopifnot(!is.null(array3d_pair))
   mean_pair = apply(array3d_pair, 3, mean)
 
@@ -370,7 +352,7 @@ coef.bgmCompare = function(object, ...) {
   # ============================================================
   # ---- indicators (present only if selection was used) ----
   indicators = NULL
-  array3d_ind = to_array3d(raw$indicator)
+  array3d_ind = samples_to_array3d(raw$indicator)
   if(!is.null(array3d_ind)) {
     mean_ind = apply(array3d_ind, 3, mean)
 
