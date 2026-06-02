@@ -1434,9 +1434,10 @@ predict.bgmCompare = function(object,
     }
   }
 
-  # Recode data to 0-based integers
+  # Recode data to 0-based integers using the stored recode map when available.
   newdata_recoded = recode_data_for_prediction(
-    newdata, num_categories, is_ordinal
+    newdata, num_categories, is_ordinal,
+    category_levels = arguments$category_levels
   )
 
   if(method == "posterior-mean") {
@@ -1531,10 +1532,14 @@ reconstruct_main = function(main_vec, num_variables,
 
 
 # Helper function to recode newdata to the 0-based categories the model was
-# fitted on. When the fit carries a recode map (category_levels: the sorted
-# original training values per ordinal variable), each newdata value is mapped
-# through it exactly as bgm() recoded the training data --- so non-contiguous
-# training categories and newdata with a different range are handled correctly.
+# fitted on. When the fit carries a recode map (category_levels) per ordinal
+# variable, each newdata value is mapped through it exactly as the training data
+# was recoded -- so non-contiguous categories and newdata with a different range
+# are handled correctly. The map is either:
+#   - an unnamed sorted vector of original values (bgm/OMRF): recoded category =
+#     position - 1; or
+#   - a named vector lookup (bgmCompare): names are original values, values are
+#     the final (collapsed) categories, which may be many-to-one.
 # Fits without a map (older fits) fall back to the legacy subtract-minimum shift.
 recode_data_for_prediction = function(x, num_categories, is_ordinal,
                                       category_levels = NULL) {
@@ -1547,9 +1552,13 @@ recode_data_for_prediction = function(x, num_categories, is_ordinal,
     levels_v = if(!is.null(category_levels)) category_levels[[v]] else NULL
 
     if(!is.null(levels_v)) {
-      # Map original value -> 0-based category via its position in the training
-      # levels (match), matching reformat_ordinal_data()'s recoding.
-      recoded = match(x[, v], levels_v) - 1L
+      if(!is.null(names(levels_v))) {
+        # Named lookup (bgmCompare): map original value -> final category.
+        recoded = unname(levels_v[match(x[, v], as.numeric(names(levels_v)))])
+      } else {
+        # Sorted original values (OMRF): recoded category = position - 1.
+        recoded = match(x[, v], levels_v) - 1L
+      }
       observed = !is.na(x[, v])
       if(any(observed & is.na(recoded))) {
         warning(

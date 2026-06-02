@@ -225,7 +225,7 @@ test_that("Compare build_arguments: all expected field names present", {
     "nuts_max_depth", "learn_mass_matrix",
     "num_chains", "num_groups",
     "data_columnnames", "projection",
-    "num_categories", "is_ordinal_variable",
+    "num_categories", "category_levels", "is_ordinal_variable",
     "group", "pairwise_scaling_factors",
     "model_type"
   )

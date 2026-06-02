@@ -1002,6 +1002,8 @@ build_spec_compare = function(x, y, group_indicator,
   }
 
   # --- Ordinal recoding (compare path) ----------------------------------------
+  # Keep the original category values to build the recode map for predict().
+  x_original = x
   ord = reformat_ordinal_data(
     x                 = x,
     is_ordinal        = is_ordinal,
@@ -1023,6 +1025,20 @@ build_spec_compare = function(x, y, group_indicator,
   num_categories = col$num_categories
   bc_final = col$baseline_category
   ordinal_variable = is_ordinal
+
+  # Recode map per ordinal variable: a named vector mapping each original
+  # category value to its final (collapsed) 0-based category. reformat + cross-
+  # group collapse can merge categories, so this is many-to-one in general --
+  # hence a lookup (names = original values) rather than a sorted-value vector.
+  category_levels = vector("list", ncol(x_recoded))
+  for(vi in seq_len(ncol(x_recoded))) {
+    if(ordinal_variable[vi]) {
+      pairs = unique(cbind(x_original[, vi], x_recoded[, vi]))
+      lookup = pairs[, 2]
+      names(lookup) = pairs[, 1]
+      category_levels[[vi]] = lookup[order(as.numeric(names(lookup)))]
+    }
+  }
 
   num_variables = ncol(x_recoded)
   num_groups = length(unique(group))
@@ -1122,6 +1138,7 @@ build_spec_compare = function(x, y, group_indicator,
       num_variables    = as.integer(num_variables),
       num_cases        = as.integer(nrow(observations)),
       num_categories   = as.integer(num_categories),
+      category_levels  = category_levels,
       group            = as.integer(group),
       num_groups       = as.integer(num_groups),
       group_indices    = group_indices,
@@ -1363,6 +1380,7 @@ build_arguments_compare = function(spec) {
     data_columnnames                   = spec$data$data_columnnames,
     projection                         = spec$data$projection,
     num_categories                     = spec$data$num_categories,
+    category_levels                    = spec$data$category_levels,
     is_ordinal_variable                = spec$variables$is_ordinal,
     group                              = sort(spec$data$group),
     pairwise_scaling_factors           = spec$prior$pairwise_scaling_factors,

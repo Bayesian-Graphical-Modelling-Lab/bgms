@@ -53,3 +53,34 @@ test_that("continuous/non-ordinal columns are left unchanged", {
   expect_equal(out[, 1], c(1.5, 2.5, 3.5))
   expect_equal(out[, 2], c(0, 1, 2))
 })
+
+# ------------------------------------------------------------------------------
+# bgmCompare uses a NAMED lookup (names = original values, values = final
+# collapsed categories) which may be many-to-one when cross-group collapsing
+# merged categories.
+# ------------------------------------------------------------------------------
+
+test_that("named lookup maps original values to final categories (bijective)", {
+  lk = c(0L, 1L, 2L)
+  names(lk) = c("1", "3", "5")
+  out = recode(matrix(c(1, 3, 5), ncol = 1), 2, TRUE, category_levels = list(lk))
+  expect_equal(out[, 1], c(0, 1, 2))
+})
+
+test_that("named lookup handles many-to-one (merged categories)", {
+  # original 1 and 3 both map to category 0 (merged); 5 -> 1.
+  lk = c(0L, 0L, 1L)
+  names(lk) = c("1", "3", "5")
+  out = recode(matrix(c(1, 3, 5, 1, 5), ncol = 1), 1, TRUE, category_levels = list(lk))
+  expect_equal(out[, 1], c(0, 0, 1, 0, 1))
+})
+
+test_that("named lookup warns + NA on values absent from the lookup", {
+  lk = c(0L, 1L)
+  names(lk) = c("1", "2")
+  expect_warning(
+    out <- recode(matrix(c(1, 9), ncol = 1), 1, TRUE, category_levels = list(lk)),
+    "not\\s+observed in the training data"
+  )
+  expect_true(is.na(out[2, 1]))
+})
