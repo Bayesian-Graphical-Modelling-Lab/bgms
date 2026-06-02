@@ -822,6 +822,9 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
       num_continuous = as.integer(q),
       num_cases = as.integer(nrow(x_disc_recoded)),
       num_categories = as.integer(num_categories),
+      # Recode map (sorted original values per discrete variable) for original-
+      # scale threshold labels; NULL for Blume-Capel.
+      category_levels = ord$category_levels,
       discrete_indices = disc_idx,
       continuous_indices = cont_idx
     ),
@@ -1320,6 +1323,7 @@ build_arguments_mixed_mrf = function(spec) {
     nuts_max_depth               = spec$sampler$nuts_max_depth,
     num_chains                   = spec$sampler$chains,
     num_categories               = spec$data$num_categories,
+    category_levels              = spec$data$category_levels,
     data_columnnames             = spec$data$data_columnnames,
     data_columnnames_discrete    = spec$data$data_columnnames_discrete,
     data_columnnames_continuous  = spec$data$data_columnnames_continuous,

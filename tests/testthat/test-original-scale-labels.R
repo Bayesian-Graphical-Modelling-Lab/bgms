@@ -35,3 +35,19 @@ test_that("summary labels ordinal thresholds in the original category scale", {
   # Variable B is 0-based, so labels are unchanged.
   expect_true(all(c("B (1)", "B (2)") %in% rn))
 })
+
+test_that("mixed-MRF discrete thresholds use the original category scale", {
+  set.seed(1)
+  n = 80L
+  x = cbind(sample(c(1, 3, 5), n, TRUE), rnorm(n))
+  colnames(x) = c("D", "C")
+  fit = bgm(x,
+    variable_type = c("ordinal", "continuous"),
+    iter = 80, warmup = 80, chains = 1, display_progress = "none"
+  )
+  rn = rownames(summary(fit)$main)
+  # Discrete variable D's thresholds carry the original values 3 and 5;
+  # the continuous variable keeps its (mean) label.
+  expect_true(all(c("D (3)", "D (5)") %in% rn))
+  expect_true("C (mean)" %in% rn)
+})

@@ -633,7 +633,10 @@ build_output_mixed_mrf = function(spec, raw) {
   names_main = character()
   for(si in seq_len(p)) {
     if(is_ordinal[si]) {
-      cats = seq_len(num_categories[si])
+      cats = ordinal_threshold_labels(
+        num_categories[si],
+        if(!is.null(d$category_levels)) d$category_levels[[si]] else NULL
+      )
       names_main = c(names_main, paste0(disc_names[si], " (", cats, ")"))
     } else {
       names_main = c(
