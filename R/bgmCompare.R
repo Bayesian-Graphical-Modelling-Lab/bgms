@@ -307,7 +307,7 @@ bgmCompare = function(
 
   if(hasArg(pairwise_scale)) {
     lifecycle::deprecate_warn(
-      "0.3.0", "bgmCompare(pairwise_scale =)",
+      "0.2.0", "bgmCompare(pairwise_scale =)",
       "bgmCompare(interaction_prior =)"
     )
     if(identical(interaction_prior, cauchy_prior(scale = 1))) {
@@ -330,7 +330,7 @@ bgmCompare = function(
 
   if(hasArg(main_alpha) || hasArg(main_beta)) {
     lifecycle::deprecate_warn(
-      "0.3.0", "bgmCompare(main_alpha =)",
+      "0.2.0", "bgmCompare(main_alpha =)",
       "bgmCompare(threshold_prior =)"
     )
     if(identical(threshold_prior, beta_prime_prior(0.5, 0.5))) {
@@ -352,7 +352,7 @@ bgmCompare = function(
   # --- Handle difference_prior: accept both string (deprecated) and object ------
   if(is.character(difference_prior)) {
     lifecycle::deprecate_warn(
-      "0.3.0", "bgmCompare(difference_prior = 'must be a prior object')",
+      "0.2.0", "bgmCompare(difference_prior = 'must be a prior object')",
       "bgmCompare(difference_prior = 'bernoulli_prior()')"
     )
     difference_prior_str = match.arg(difference_prior,
@@ -370,7 +370,7 @@ bgmCompare = function(
   } else {
     if(hasArg(difference_probability)) {
       lifecycle::deprecate_warn(
-        "0.3.0", "bgmCompare(difference_probability =)",
+        "0.2.0", "bgmCompare(difference_probability =)",
         "bgmCompare(difference_prior = 'bernoulli_prior()')"
       )
     }
