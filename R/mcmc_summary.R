@@ -532,20 +532,6 @@ posterior_summary_SBM = function(
 }
 
 
-# Combine MCMC chains for bgmCompare into a 3D array [niter x nchains x nparam]
-combine_chains_compare = function(fit, component) {
-  nchains = length(fit)
-  samples_list = lapply(fit, function(x) x[[component]])
-  niter = nrow(samples_list[[1]])
-  nparam = ncol(samples_list[[1]])
-  array3d = array(NA_real_, dim = c(niter, nchains, nparam))
-  for(i in seq_len(nchains)) {
-    array3d[, i, ] = samples_list[[i]]
-  }
-  array3d
-}
-
-
 summarize_manual_compare = function(fit_or_array,
                                     component = c("main_samples", "pairwise_samples"),
                                     param_names = NULL) {
@@ -555,7 +541,7 @@ summarize_manual_compare = function(fit_or_array,
   if(is.array(fit_or_array)) {
     array3d = fit_or_array
   } else {
-    array3d = combine_chains_compare(fit_or_array, component)
+    array3d = combine_chains(fit_or_array, component)
   }
 
   nparam = dim(array3d)[3]
@@ -581,7 +567,7 @@ summarize_manual_compare = function(fit_or_array,
 
 
 summarize_indicator_compare = function(fit, component = "indicator_samples", param_names = NULL) {
-  array3d = combine_chains_compare(fit, component)
+  array3d = combine_chains(fit, component)
   nparam = dim(array3d)[3]
 
   # Batch indicator ESS + transition counts via C++
@@ -693,8 +679,8 @@ summarize_main_diff_compare = function(
   num_groups,
   param_names = NULL
 ) {
-  main_effect_samples = combine_chains_compare(fit, "main_samples")
-  indicator_samples = combine_chains_compare(fit, "indicator_samples")
+  main_effect_samples = combine_chains(fit, "main_samples")
+  indicator_samples = combine_chains(fit, "indicator_samples")
 
   V = nrow(main_effect_indices)
   num_main = main_effect_indices[V, 2] + 1L # total rows in main-effects matrix
@@ -742,8 +728,8 @@ summarize_pairwise_diff_compare = function(
   num_groups,
   param_names = NULL
 ) {
-  pairwise_effect_samples = combine_chains_compare(fit, "pairwise_samples")
-  indicator_samples = combine_chains_compare(fit, "indicator_samples")
+  pairwise_effect_samples = combine_chains(fit, "pairwise_samples")
+  indicator_samples = combine_chains(fit, "indicator_samples")
 
   V = num_variables
   num_pair = max(pairwise_effect_indices, na.rm = TRUE) + 1L # total rows in pairwise-effects matrix
@@ -804,7 +790,7 @@ summarize_fit_compare = function(
 
 
   # --- main baseline
-  array3d_main = combine_chains_compare(fit, "main_samples")
+  array3d_main = combine_chains(fit, "main_samples")
   num_main = count_main(main_effect_indices)
   main_baseline = summarize_manual_compare(
     array3d_main[, , 1:num_main, drop = FALSE],
@@ -813,7 +799,7 @@ summarize_fit_compare = function(
   )
 
   # --- pairwise baseline
-  array3d_pair = combine_chains_compare(fit, "pairwise_samples")
+  array3d_pair = combine_chains(fit, "pairwise_samples")
   num_pair = count_pairwise(pairwise_effect_indices)
   pairwise_baseline = summarize_manual_compare(
     array3d_pair[, , 1:num_pair, drop = FALSE],
