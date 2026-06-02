@@ -1153,9 +1153,11 @@ predict.bgms = function(object,
   #   OMRF (ordinal) path
   # ============================================================================
 
-  # Recode data to 0-based integers (matching what bgm() does)
+  # Recode data to 0-based integers (matching what bgm() did to the training
+  # data) using the stored recode map when available.
   newdata_recoded = recode_data_for_prediction(
-    newdata, num_categories, is_ordinal
+    newdata, num_categories, is_ordinal,
+    category_levels = arguments$category_levels
   )
 
   if(method == "posterior-mean") {
@@ -1528,17 +1530,40 @@ reconstruct_main = function(main_vec, num_variables,
 }
 
 
-# Helper function to recode data for prediction
-recode_data_for_prediction = function(x, num_categories, is_ordinal) {
+# Helper function to recode newdata to the 0-based categories the model was
+# fitted on. When the fit carries a recode map (category_levels: the sorted
+# original training values per ordinal variable), each newdata value is mapped
+# through it exactly as bgm() recoded the training data --- so non-contiguous
+# training categories and newdata with a different range are handled correctly.
+# Fits without a map (older fits) fall back to the legacy subtract-minimum shift.
+recode_data_for_prediction = function(x, num_categories, is_ordinal,
+                                      category_levels = NULL) {
   x = as.matrix(x)
   num_variables = ncol(x)
 
   for(v in seq_len(num_variables)) {
-    if(is_ordinal[v]) {
-      # For ordinal variables, ensure values are in 0:num_categories[v]
+    if(!is_ordinal[v]) next
+
+    levels_v = if(!is.null(category_levels)) category_levels[[v]] else NULL
+
+    if(!is.null(levels_v)) {
+      # Map original value -> 0-based category via its position in the training
+      # levels (match), matching reformat_ordinal_data()'s recoding.
+      recoded = match(x[, v], levels_v) - 1L
+      observed = !is.na(x[, v])
+      if(any(observed & is.na(recoded))) {
+        warning(
+          "newdata for variable ", v, " contains category values not ",
+          "observed in the training data; predictions for those cells are NA.",
+          call. = FALSE
+        )
+      }
+      x[, v] = recoded
+    } else {
+      # Legacy fallback (fit has no recode map): shift to 0-based by the
+      # per-column minimum.
       x[, v] = as.integer(x[, v])
       if(min(x[, v], na.rm = TRUE) > 0) {
-        # Shift to 0-based if necessary
         x[, v] = x[, v] - min(x[, v], na.rm = TRUE)
       }
     }

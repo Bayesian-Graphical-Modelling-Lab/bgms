@@ -315,3 +315,17 @@ test_that("ordinal: does not error when values repeat even if a code equals nrow
     reformat_ordinal_data(x, is_ordinal = TRUE, baseline_category = 0L)
   )
 })
+
+test_that("ordinal: returns the recode map (sorted original values) per variable", {
+  x = matrix(c(1, 3, 5, 1, 3, 5), nrow = 6, ncol = 1)
+  result = reformat_ordinal_data(x, is_ordinal = TRUE, baseline_category = 0L)
+  # category_levels[[1]] are the original sorted values; recoded = match - 1.
+  expect_equal(result$category_levels[[1]], c(1, 3, 5))
+  expect_equal(result$x[, 1], match(x[, 1], result$category_levels[[1]]) - 1L)
+})
+
+test_that("Blume-Capel variables get no recode map (NULL)", {
+  x = matrix(c(0, 1, 2, 0, 1, 2), nrow = 6, ncol = 1)
+  result = reformat_ordinal_data(x, is_ordinal = FALSE, baseline_category = 0L)
+  expect_null(result$category_levels[[1]])
+})

@@ -161,7 +161,7 @@ test_that("OMRF build_arguments: all expected field names present", {
     "dirichlet_alpha", "lambda", "na_action", "version",
     "update_method", "target_accept",
     "nuts_max_depth", "learn_mass_matrix",
-    "num_chains", "num_categories",
+    "num_chains", "num_categories", "category_levels",
     "data_columnnames", "baseline_category",
     "pairwise_scaling_factors", "no_variables",
     "model_type"

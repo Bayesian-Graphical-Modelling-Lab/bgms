@@ -1,0 +1,55 @@
+# ==============================================================================
+# recode_data_for_prediction(): newdata must be recoded to the 0-based
+# categories the model was fitted on, using the stored training recode map
+# (category_levels). Subtracting the per-column minimum (the legacy fallback)
+# is wrong when training categories were non-contiguous or newdata spans a
+# different range.
+# ==============================================================================
+
+recode = bgms:::recode_data_for_prediction
+
+test_that("map recodes non-contiguous training categories correctly", {
+  # Training values {1,3,5} -> categories {0,1,2}. Legacy subtract-min gives
+  # {0,2,4} (wrong); the map gives {0,1,2}.
+  levels = list(c(1, 3, 5))
+  out = recode(matrix(c(1, 3, 5), ncol = 1), 2, TRUE, category_levels = levels)
+  expect_equal(out[, 1], c(0, 1, 2))
+})
+
+test_that("map is absolute, not relative to newdata's range", {
+  # Training {1,2,3} -> {0,1,2}; value 2 is category 1 regardless of whether
+  # the lowest category appears in newdata.
+  levels = list(c(1, 2, 3))
+  out = recode(matrix(c(2, 3), ncol = 1), 2, TRUE, category_levels = levels)
+  expect_equal(out[, 1], c(1, 2))
+})
+
+test_that("values not observed in training give NA with a warning", {
+  levels = list(c(1, 2, 3))
+  expect_warning(
+    out <- recode(matrix(c(1, 9), ncol = 1), 2, TRUE, category_levels = levels),
+    "not\\s+observed in the training data"
+  )
+  expect_true(is.na(out[2, 1]))
+  expect_equal(out[1, 1], 0)
+})
+
+test_that("Blume-Capel columns (NULL level entry) fall back to subtract-min", {
+  # category_levels present but NULL for this variable -> legacy behaviour.
+  levels = list(NULL)
+  out = recode(matrix(c(2, 3, 4), ncol = 1), 2, TRUE, category_levels = levels)
+  expect_equal(out[, 1], c(0, 1, 2))
+})
+
+test_that("no map at all (old fit) preserves legacy subtract-min behaviour", {
+  out = recode(matrix(c(2, 3, 4), ncol = 1), 2, TRUE, category_levels = NULL)
+  expect_equal(out[, 1], c(0, 1, 2))
+})
+
+test_that("continuous/non-ordinal columns are left unchanged", {
+  levels = list(NULL, c(0, 1, 2))
+  x = matrix(c(1.5, 2.5, 3.5, 0, 1, 2), ncol = 2)
+  out = recode(x, c(NA, 2), c(FALSE, TRUE), category_levels = levels)
+  expect_equal(out[, 1], c(1.5, 2.5, 3.5))
+  expect_equal(out[, 2], c(0, 1, 2))
+})

@@ -229,6 +229,10 @@ reformat_ordinal_data = function(x, is_ordinal, baseline_category) {
   check_fail_zero = FALSE
   num_variables = ncol(x)
   num_categories = vector(length = num_variables)
+  # Per ordinal variable: the sorted unique ORIGINAL values, i.e. the recode
+  # map. The recoded category of an original value v is match(v, levels) - 1.
+  # predict() needs this to recode newdata the same way (NULL for Blume-Capel).
+  category_levels = vector("list", num_variables)
 
   for(node in 1:num_variables) {
     unq_vls = sort(unique(x[, node]))
@@ -236,6 +240,8 @@ reformat_ordinal_data = function(x, is_ordinal, baseline_category) {
 
     # Recode data --------------------------------------------------------------
     if(is_ordinal[node]) { # Regular ordinal variable
+      # Capture the recode map (original sorted values) before recoding x.
+      category_levels[[node]] = unq_vls
       # A regular ordinal variable needs repeated values: its category
       # thresholds are unidentified if every response is distinct (the column
       # then looks continuous). Blume-Capel is parametric in the category score
@@ -344,7 +350,8 @@ reformat_ordinal_data = function(x, is_ordinal, baseline_category) {
   list(
     x                 = x,
     num_categories    = num_categories,
-    baseline_category = baseline_category
+    baseline_category = baseline_category,
+    category_levels   = category_levels
   )
 }
 

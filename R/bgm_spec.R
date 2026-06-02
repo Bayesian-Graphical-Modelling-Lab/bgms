@@ -653,7 +653,10 @@ build_spec_omrf = function(x, data_columnnames, num_variables,
       data_columnnames = data_columnnames,
       num_variables    = as.integer(num_variables),
       num_cases        = as.integer(nrow(x_recoded)),
-      num_categories   = as.integer(num_categories)
+      num_categories   = as.integer(num_categories),
+      # Recode map (sorted original values per ordinal variable) so predict()
+      # can recode newdata the same way bgm() recoded the training data.
+      category_levels  = ord$category_levels
     ),
     variables = list(
       variable_type     = variable_type,
@@ -1278,6 +1281,7 @@ build_arguments_omrf = function(spec) {
     learn_mass_matrix            = spec$sampler$learn_mass_matrix,
     num_chains                   = spec$sampler$chains,
     num_categories               = spec$data$num_categories,
+    category_levels              = spec$data$category_levels,
     data_columnnames             = spec$data$data_columnnames,
     baseline_category            = spec$variables$baseline_category,
     pairwise_scaling_factors     = spec$prior$pairwise_scaling_factors,
