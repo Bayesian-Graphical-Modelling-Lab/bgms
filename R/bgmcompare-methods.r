@@ -273,81 +273,17 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
 #' @export
 coef.bgmCompare = function(object, ...) {
   args = extract_arguments(object)
+  raw = get_raw_samples(object)
 
   var_names = args$data_columnnames
-  num_categories = as.integer(args$num_categories)
-  is_ordinal = as.logical(args$is_ordinal_variable)
-  num_groups = as.integer(args$num_groups)
   num_variables = as.integer(args$num_variables)
-  projection = args$projection # [num_groups x (num_groups-1)]
 
-  # ============================================================
-  # ---- main effects ----
-  raw = get_raw_samples(object)
-  array3d_main = samples_to_array3d(raw$main)
-  stopifnot(!is.null(array3d_main))
-  mean_main = apply(array3d_main, 3, mean)
-
-  stopifnot(length(mean_main) %% num_groups == 0L)
-  num_main = as.integer(length(mean_main) / num_groups)
-
-  main_mat = matrix(mean_main, nrow = num_main, ncol = num_groups, byrow = FALSE)
-
-  # row names in sampler row order
-  rownames(main_mat) = unlist(lapply(seq_len(num_variables), function(v) {
-    if(is_ordinal[v]) {
-      paste0(var_names[v], "(c", seq_len(num_categories[v]), ")")
-    } else {
-      c(
-        paste0(var_names[v], "(linear)"),
-        paste0(var_names[v], "(quadratic)")
-      )
-    }
-  }))
-  colnames(main_mat) = c("baseline", paste0("diff", seq_len(num_groups - 1L)))
-
-  # group-specific main effects: baseline + P %*% diffs
-  main_effects_groups = matrix(NA_real_, nrow = num_main, ncol = num_groups)
-  for(r in seq_len(num_main)) {
-    baseline = main_mat[r, 1]
-    diffs = main_mat[r, -1, drop = TRUE]
-    main_effects_groups[r, ] = baseline + as.vector(projection %*% diffs)
-  }
-  rownames(main_effects_groups) = rownames(main_mat)
-  colnames(main_effects_groups) = paste0("group", seq_len(num_groups))
-
-  # ============================================================
-  # ---- pairwise effects ----
-  array3d_pair = samples_to_array3d(raw$pairwise)
-  stopifnot(!is.null(array3d_pair))
-  mean_pair = apply(array3d_pair, 3, mean)
-
-  stopifnot(length(mean_pair) %% num_groups == 0L)
-  num_pair = as.integer(length(mean_pair) / num_groups)
-
-  pairwise_mat = matrix(mean_pair, nrow = num_pair, ncol = num_groups, byrow = FALSE)
-
-  # row names in sampler row order (upper-tri i<j)
-  pair_names = character()
-  if(num_variables >= 2L) {
-    for(i in 1L:(num_variables - 1L)) {
-      for(j in (i + 1L):num_variables) {
-        pair_names = c(pair_names, paste0(var_names[i], "-", var_names[j]))
-      }
-    }
-  }
-  rownames(pairwise_mat) = pair_names
-  colnames(pairwise_mat) = c("baseline", paste0("diff", seq_len(num_groups - 1L)))
-
-  # group-specific pairwise effects
-  pairwise_effects_groups = matrix(NA_real_, nrow = num_pair, ncol = num_groups)
-  for(r in seq_len(num_pair)) {
-    baseline = pairwise_mat[r, 1]
-    diffs = pairwise_mat[r, -1, drop = TRUE]
-    pairwise_effects_groups[r, ] = baseline + as.vector(projection %*% diffs)
-  }
-  rownames(pairwise_effects_groups) = rownames(pairwise_mat)
-  colnames(pairwise_effects_groups) = paste0("group", seq_len(num_groups))
+  # ---- baseline + group-specific main and pairwise effects ----
+  gp = .compute_group_param_matrices(args, raw)
+  main_mat = gp$main_mat
+  pairwise_mat = gp$pairwise_mat
+  main_effects_groups = gp$main_effects_groups
+  pairwise_effects_groups = gp$pairwise_effects_groups
 
   # ============================================================
   # ---- indicators (present only if selection was used) ----

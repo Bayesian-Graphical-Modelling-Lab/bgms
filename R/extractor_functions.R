@@ -763,7 +763,23 @@ extract_group_params.bgmCompare = function(bgms_object) {
 }
 
 # Helper for current format (0.1.6+)
-.extract_group_params_current = function(bgms_object, arguments) {
+# ------------------------------------------------------------------------------
+# .compute_group_param_matrices()
+# ------------------------------------------------------------------------------
+# Shared bgmCompare group-parameter reconstruction. From the posterior-mean
+# main and pairwise samples, builds the [param x (baseline, diff...)] matrices
+# and the projection-expanded [param x group] effect matrices. Used by both
+# extract_group_params() (group effects only) and coef.bgmCompare() (which also
+# returns the raw baseline+diff matrices alongside the indicators).
+#
+# @param arguments  Fit arguments (data_columnnames, num_categories,
+#   is_ordinal_variable, num_groups, num_variables, projection).
+# @param raw        get_raw_samples() output (uses $main, $pairwise).
+#
+# Returns: list(main_mat, pairwise_mat, main_effects_groups,
+#   pairwise_effects_groups).
+# ------------------------------------------------------------------------------
+.compute_group_param_matrices = function(arguments, raw) {
   var_names = arguments$data_columnnames
   num_categories = as.integer(arguments$num_categories)
   is_ordinal = as.logical(arguments$is_ordinal_variable)
@@ -771,10 +787,9 @@ extract_group_params.bgmCompare = function(bgms_object) {
   num_variables = as.integer(arguments$num_variables)
   projection = arguments$projection # [num_groups x (num_groups-1)]
 
-  # ============================================================
   # ---- main effects ----
-  raw = get_raw_samples(bgms_object)
   array3d_main = samples_to_array3d(raw$main)
+  stopifnot(!is.null(array3d_main))
   mean_main = apply(array3d_main, 3, mean)
 
   stopifnot(length(mean_main) %% num_groups == 0L)
@@ -805,9 +820,9 @@ extract_group_params.bgmCompare = function(bgms_object) {
   rownames(main_effects_groups) = rownames(main_mat)
   colnames(main_effects_groups) = paste0("group", seq_len(num_groups))
 
-  # ============================================================
   # ---- pairwise effects ----
   array3d_pair = samples_to_array3d(raw$pairwise)
+  stopifnot(!is.null(array3d_pair))
   mean_pair = apply(array3d_pair, 3, mean)
 
   stopifnot(length(mean_pair) %% num_groups == 0L)
@@ -837,10 +852,20 @@ extract_group_params.bgmCompare = function(bgms_object) {
   rownames(pairwise_effects_groups) = rownames(pairwise_mat)
   colnames(pairwise_effects_groups) = paste0("group", seq_len(num_groups))
 
-  return(list(
+  list(
+    main_mat = main_mat,
+    pairwise_mat = pairwise_mat,
     main_effects_groups = main_effects_groups,
     pairwise_effects_groups = pairwise_effects_groups
-  ))
+  )
+}
+
+.extract_group_params_current = function(bgms_object, arguments) {
+  gp = .compute_group_param_matrices(arguments, get_raw_samples(bgms_object))
+  list(
+    main_effects_groups = gp$main_effects_groups,
+    pairwise_effects_groups = gp$pairwise_effects_groups
+  )
 }
 
 # Helper for legacy format (0.1.4--0.1.5)
