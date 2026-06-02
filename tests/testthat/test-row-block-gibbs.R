@@ -1,11 +1,11 @@
 # --------------------------------------------------------------------------- #
-# Row-block conjugate Gibbs within-step (update_method = "Gibbs").
+# Row-block conjugate Gibbs within-step (update_method = "gibbs").
 #
 # One block per feature increment landed on feat/row-block-gibbs-within, so a
 # regression in any single commit is isolated to its block:
 #
 #   a9068d9  Normal slab, alpha = 1, delta = 0  -> exact conjugate draw anchor
-#   04e8122  within_step_kind dispatch wiring   -> update_method = "Gibbs" routes
+#   04e8122  within_step_kind dispatch wiring   -> update_method = "gibbs" routes
 #   041e77d  delta != 0 (xi shape shift)        -> AM agreement at delta = 0.5
 #   64f952e  Gamma(alpha != 1) independent-MH   -> AM agreement at alpha = 2
 #   c193dec  Cauchy slab via omega mixture      -> AM agreement under cauchy_prior
@@ -120,7 +120,7 @@ test_that("update_method = 'Gibbs' routes and agrees with AM (Normal, alpha=1, d
   args = list(Y = Y, interaction_prior = normal_prior(scale = 1),
               alpha = 1, delta = 0, iter = 2500L, warmup = 600L)
   am   = do.call(ggm_K_means, c(args, update_method = "adaptive-metropolis"))
-  gibb = do.call(ggm_K_means, c(args, update_method = "Gibbs"))
+  gibb = do.call(ggm_K_means, c(args, update_method = "gibbs"))
   expect_K_agreement(gibb, am, tol_abs = 0.06, tol_rel = 0.025)
 })
 
@@ -134,7 +134,7 @@ test_that("Gibbs agrees with AM at delta = 0.5 (xi shape shift)", {
   args = list(Y = Y, interaction_prior = normal_prior(scale = 1),
               alpha = 1, delta = 0.5, iter = 2500L, warmup = 600L)
   am   = do.call(ggm_K_means, c(args, update_method = "adaptive-metropolis"))
-  gibb = do.call(ggm_K_means, c(args, update_method = "Gibbs"))
+  gibb = do.call(ggm_K_means, c(args, update_method = "gibbs"))
   expect_K_agreement(gibb, am, tol_abs = 0.06, tol_rel = 0.025)
 })
 
@@ -148,7 +148,7 @@ test_that("Gibbs agrees with AM at alpha = 2 (independent-MH on gamma)", {
   args = list(Y = Y, interaction_prior = normal_prior(scale = 1),
               alpha = 2, delta = 0, iter = 2500L, warmup = 600L)
   am   = do.call(ggm_K_means, c(args, update_method = "adaptive-metropolis"))
-  gibb = do.call(ggm_K_means, c(args, update_method = "Gibbs"))
+  gibb = do.call(ggm_K_means, c(args, update_method = "gibbs"))
   # alpha != 1 adds an MH correction on the diagonal; allow a touch more slack.
   expect_K_agreement(gibb, am, tol_abs = 0.07, tol_rel = 0.035)
 })
@@ -164,6 +164,6 @@ test_that("Gibbs agrees with AM under a Cauchy slab (omega scale-mixture)", {
   args = list(Y = Y, interaction_prior = cauchy_prior(scale = 1),
               alpha = 1, delta = 0, iter = 4000L, warmup = 1000L)
   am   = do.call(ggm_K_means, c(args, update_method = "adaptive-metropolis"))
-  gibb = do.call(ggm_K_means, c(args, update_method = "Gibbs"))
+  gibb = do.call(ggm_K_means, c(args, update_method = "gibbs"))
   expect_K_agreement(gibb, am, tol_abs = 0.10, tol_rel = 0.05)
 })

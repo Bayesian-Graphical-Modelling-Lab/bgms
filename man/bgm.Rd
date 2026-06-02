@@ -19,7 +19,7 @@ bgm(
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),
   na_action = c("listwise", "impute"),
-  update_method = c("nuts", "adaptive-metropolis"),
+  update_method = c("nuts", "adaptive-metropolis", "gibbs"),
   target_accept,
   nuts_max_depth = 10,
   learn_mass_matrix = TRUE,
@@ -199,6 +199,8 @@ the model parameters:
 with Robbins--Monro proposal adaptation.}
 \item{"nuts"}{The No-U-Turn Sampler with RATTLE constrained integration
 for Gaussian models with edge selection.}
+\item{"gibbs"}{Row-block conjugate Gibbs sweep on the precision matrix.
+Gaussian (continuous) models only.}
 }
 Default: \code{"nuts"}.}
 

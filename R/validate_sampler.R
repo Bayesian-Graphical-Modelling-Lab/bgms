@@ -100,16 +100,26 @@ validate_sampler = function(update_method,
                             verbose = TRUE,
                             progress_callback = NULL) {
   # --- update_method ----------------------------------------------------------
-  # Three GGM kernels:
+  # Kernels:
   #   "nuts"                — NUTS on the free-element Cholesky parameterization
   #   "adaptive-metropolis" — q+p componentwise random-walk MH on K
-  #   "Gibbs"               — row-block conjugate Gibbs sweep on rows of K
+  #   "gibbs"               — row-block conjugate Gibbs sweep on rows of K
   # NUTS routes through the gradient engine; AM and Gibbs share the MH chain
-  # runner and differ only in the within-step kernel.
-  update_method = match.arg(
-    update_method,
-    choices = c("nuts", "adaptive-metropolis", "Gibbs")
-  )
+  # runner and differ only in the within-step kernel. "gibbs" is the GGM
+  # (continuous) row-block kernel only — it is not valid for the discrete/mixed
+  # engines, so it is offered only when is_continuous.
+  #
+  # bgm() and bgmCompare() carry different multi-value formal defaults, so
+  # match.arg's "default identical to choices" fall-through is unreliable here;
+  # take the first element of a passed default vector explicitly, then validate
+  # against the kernels valid for this model.
+  valid_methods = if (is_continuous) {
+    c("nuts", "adaptive-metropolis", "gibbs")
+  } else {
+    c("nuts", "adaptive-metropolis")
+  }
+  if (length(update_method) > 1L) update_method = update_method[1L]
+  update_method = match.arg(update_method, choices = valid_methods)
 
   # --- target_accept ----------------------------------------------------------
   if(!is.null(target_accept)) {
@@ -121,7 +131,7 @@ validate_sampler = function(update_method,
     # between-step adapter still consumes target_accept.
     target_accept = switch(update_method,
       "adaptive-metropolis" = 0.44,
-      "Gibbs"               = 0.44,
+      "gibbs"               = 0.44,
       "nuts"                = 0.80
     )
   }

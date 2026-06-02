@@ -295,7 +295,7 @@ bgm_spec = function(x,
                     update_method = c(
                       "nuts",
                       "adaptive-metropolis",
-                      "Gibbs"
+                      "gibbs"
                     ),
                     target_accept = NULL,
                     iter = 10000L,
