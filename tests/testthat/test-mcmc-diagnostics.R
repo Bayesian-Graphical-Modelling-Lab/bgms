@@ -462,3 +462,39 @@ test_that("NaN in one indicator parameter does not corrupt others", {
   expect_true(is.finite(result[1, "n_eff_mixt"]))
   expect_true(all(is.na(result[2, ]))) # bad parameter
 })
+
+
+# ---- NUTS diagnostics return-type contract --------------------------------- #
+
+test_that("summarize_nuts_diagnostics honors the integer matrix contract", {
+  mk_chain = function() {
+    list(
+      treedepth__ = c(2, 3, 2, 4),
+      divergent__ = c(0, 0, 1, 0),
+      energy__ = c(1.2, 0.8, 1.5, 0.9),
+      non_reversible__ = c(0, 1, 0, 0),
+      accept_prob__ = c(0.9, 0.8, 0.95, 0.7)
+    )
+  }
+  res = bgms:::summarize_nuts_diagnostics(
+    list(mk_chain(), mk_chain()),
+    nuts_max_depth = 4, verbose = FALSE
+  )
+  # Count fields are integer matrices; real-valued fields are double.
+  expect_true(is.integer(res$treedepth))
+  expect_true(is.integer(res$divergent))
+  expect_true(is.integer(res$non_reversible))
+  expect_true(is.double(res$energy))
+  expect_true(is.double(res$accept_prob))
+  # Exact integer tree-depth comparison: depth 4 hit once per chain.
+  expect_equal(res$summary$max_tree_depth_hits, 2L)
+})
+
+
+# ---- Compare fallback parameter labels ------------------------------------- #
+
+test_that("summarize_manual_compare brackets fallback parameter labels", {
+  arr = array(rnorm(5 * 2 * 3), dim = c(5, 2, 3))
+  res = bgms:::summarize_manual_compare(arr, "main_samples", param_names = NULL)
+  expect_equal(res$parameter, c("param [1]", "param [2]", "param [3]"))
+})

@@ -573,7 +573,7 @@ summarize_manual_compare = function(fit_or_array,
   result = cbind(mean = means, mcse = mcse, sd = sds, n_eff = ess, Rhat = rhat)
 
   if(is.null(param_names)) {
-    data.frame(parameter = paste0("param [", seq_len(nparam)), result, check.names = FALSE)
+    data.frame(parameter = paste0("param [", seq_len(nparam), "]"), result, check.names = FALSE)
   } else {
     data.frame(parameter = param_names, result, check.names = FALSE)
   }

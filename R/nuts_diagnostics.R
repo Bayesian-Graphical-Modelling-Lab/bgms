@@ -129,17 +129,20 @@ summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) 
     stop("No NUTS diagnostics found in output.")
   }
 
-  # Combine fields into matrices (chains x iterations)
-  combine_diag = function(field) {
-    do.call(rbind, lapply(nuts_chains, function(chain) as.numeric(chain[[field]])))
+  # Combine fields into matrices (chains x iterations). Count fields
+  # (treedepth, divergence flags) are integer per the return contract;
+  # energy and acceptance probabilities are real-valued.
+  combine_diag = function(field, integer = FALSE) {
+    coerce = if(integer) as.integer else as.numeric
+    do.call(rbind, lapply(nuts_chains, function(chain) coerce(chain[[field]])))
   }
 
-  treedepth_mat = combine_diag("treedepth__")
-  divergent_mat = combine_diag("divergent__")
+  treedepth_mat = combine_diag("treedepth__", integer = TRUE)
+  divergent_mat = combine_diag("divergent__", integer = TRUE)
   energy_mat = combine_diag("energy__")
 
   non_reversible_mat = if("non_reversible__" %in% names(nuts_chains[[1]])) {
-    combine_diag("non_reversible__")
+    combine_diag("non_reversible__", integer = TRUE)
   } else {
     matrix(0L, nrow = nrow(divergent_mat), ncol = ncol(divergent_mat))
   }
