@@ -245,6 +245,23 @@ build_output = function(spec, raw) {
 
 
 # ==============================================================================
+# ordinal_threshold_labels()
+# ------------------------------------------------------------------------------
+# Labels for an ordinal variable's category thresholds (recoded categories
+# 1..K). When the fit carries a recode map (category_levels_v: the sorted
+# original training values, length K+1 with position 1 the reference category),
+# the original category values for categories 1..K are returned so output is in
+# the user's scale. Otherwise the rescored indices 1..K are used (older fits).
+ordinal_threshold_labels = function(num_categories_v, category_levels_v = NULL) {
+  if(!is.null(category_levels_v) &&
+    length(category_levels_v) == num_categories_v + 1L) {
+    category_levels_v[-1L] # drop the reference category (recoded 0)
+  } else {
+    seq_len(num_categories_v)
+  }
+}
+
+
 # build_output_bgm()  --- unified GGM + OMRF
 # ==============================================================================
 #
@@ -354,7 +371,10 @@ build_output_bgm = function(spec, raw) {
     names_main = character()
     for(vi in seq_len(num_variables)) {
       if(is_ordinal_variable[vi]) {
-        cats = seq_len(num_categories[vi])
+        cats = ordinal_threshold_labels(
+          num_categories[vi],
+          if(!is.null(d$category_levels)) d$category_levels[[vi]] else NULL
+        )
         names_main = c(
           names_main,
           paste0(data_columnnames[vi], " (", cats, ")")
