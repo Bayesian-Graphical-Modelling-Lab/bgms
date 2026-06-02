@@ -425,8 +425,10 @@ private:
     // Rank-1 Cholesky update workspace
     std::array<double, 6> cont_constants_{};  ///< Reparameterization constants
     arma::mat precision_proposal_;        ///< q x q scratch for proposed precision
-    arma::vec cont_v1_ = {0, -1};             ///< Rank-2 decomposition helper 1
-    arma::vec cont_v2_ = {0, 0};              ///< Rank-2 decomposition helper 2
+    // 2-element scratch vectors for the symmetric rank-2 precision update;
+    // entries are set per edge before use (mirrors GGMModel::v1_/v2_).
+    arma::vec cont_v1_ = {0, -1};
+    arma::vec cont_v2_ = {0, 0};
     arma::vec cont_vf1_;                      ///< q-vector, zeroed between uses
     arma::vec cont_vf2_;                      ///< q-vector, zeroed between uses
     arma::vec cont_u1_;                       ///< q-vector workspace
