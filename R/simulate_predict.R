@@ -880,22 +880,12 @@ simulate.bgmCompare = function(object,
     main_group = group_params$main_effects_groups[, group]
     pairwise_group = group_params$pairwise_effects_groups[, group]
 
-    # Reconstruct threshold matrix
-    max_cats = max(num_categories)
-    main = matrix(NA_real_, nrow = num_variables, ncol = max_cats)
-
-    pos = 1
-    for(v in seq_len(num_variables)) {
-      if(is_ordinal[v]) {
-        k = num_categories[v]
-        main[v, 1:k] = main_group[pos:(pos + k - 1)]
-        pos = pos + k
-      } else {
-        # Blume-Capel: 2 parameters
-        main[v, 1:2] = main_group[pos:(pos + 1)]
-        pos = pos + 2
-      }
-    }
+    # Reconstruct threshold matrix (variable_type is ifelse(is_ordinal,
+    # "ordinal", "blume-capel"), so reconstruct_main's blume-capel branch
+    # matches the per-variable parameter count exactly).
+    main = reconstruct_main(
+      main_group, num_variables, num_categories, variable_type
+    )
 
     # Reconstruct interaction matrix
     pairwise = matrix(0, nrow = num_variables, ncol = num_variables)
@@ -1471,22 +1461,12 @@ predict.bgmCompare = function(object,
     main_group = group_params$main_effects_groups[, group]
     pairwise_group = group_params$pairwise_effects_groups[, group]
 
-    # Reconstruct threshold matrix
-    max_cats = max(num_categories)
-    main = matrix(NA_real_, nrow = num_variables, ncol = max_cats)
-
-    pos = 1
-    for(v in seq_len(num_variables)) {
-      if(is_ordinal[v]) {
-        k = num_categories[v]
-        main[v, 1:k] = main_group[pos:(pos + k - 1)]
-        pos = pos + k
-      } else {
-        # Blume-Capel: 2 parameters
-        main[v, 1:2] = main_group[pos:(pos + 1)]
-        pos = pos + 2
-      }
-    }
+    # Reconstruct threshold matrix (variable_type is ifelse(is_ordinal,
+    # "ordinal", "blume-capel"), so reconstruct_main's blume-capel branch
+    # matches the per-variable parameter count exactly).
+    main = reconstruct_main(
+      main_group, num_variables, num_categories, variable_type
+    )
 
     # Reconstruct interaction matrix
     pairwise = matrix(0, nrow = num_variables, ncol = num_variables)
