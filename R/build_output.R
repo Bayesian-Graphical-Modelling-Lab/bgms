@@ -225,6 +225,45 @@ attach_diagnostic_traces = function(res, chain) {
 
 
 # ------------------------------------------------------------------
+# attach_sampler_diagnostics
+# ------------------------------------------------------------------
+# Attach the sampler-specific diagnostics block to a results list:
+# NUTS diagnostics under "nuts", adaptive-Metropolis diagnostics under
+# "adaptive-metropolis", nothing otherwise. The three output builders
+# differ only in the parameter-name vectors they pass to the AM
+# summary, so those are arguments.
+#
+# @param results        Results list under construction.
+# @param raw            Normalized per-chain list.
+# @param update_method  Sampler name from spec$sampler$update_method.
+# @param nuts_max_depth  Max tree depth (for the NUTS summary).
+# @param names_main     Main-effect parameter names (for the AM summary).
+# @param names_pairwise Pairwise parameter names (for the AM summary).
+# @param target_accept  Target acceptance (for the AM summary).
+#
+# Returns: `results`, with $nuts_diag or $am_diag attached as applicable.
+# ------------------------------------------------------------------
+attach_sampler_diagnostics = function(results, raw, update_method,
+                                      nuts_max_depth, names_main,
+                                      names_pairwise, target_accept) {
+  if(update_method == "nuts") {
+    results$nuts_diag = summarize_nuts_diagnostics(
+      raw,
+      nuts_max_depth = nuts_max_depth
+    )
+  } else if(update_method == "adaptive-metropolis") {
+    results$am_diag = summarize_am_diagnostics(
+      raw,
+      names_main = names_main,
+      names_pairwise = names_pairwise,
+      target_accept = target_accept
+    )
+  }
+  results
+}
+
+
+# ------------------------------------------------------------------
 # needs_easybgm_s3_compat
 # ------------------------------------------------------------------
 # Returns TRUE when easybgm is loaded at a version that overwrites
@@ -551,15 +590,12 @@ build_output_bgm = function(spec, raw) {
   }
   results$cache = cache
 
-  # --- NUTS diagnostics -------------------------------------------------------
-  if(s$update_method == "nuts") {
-    results$nuts_diag = summarize_nuts_diagnostics(
-      raw,
-      nuts_max_depth = s$nuts_max_depth
-    )
-  } else if(s$update_method == "adaptive-metropolis") {
-    results$am_diag = summarize_am_diagnostics(raw, names_main = names_main, names_pairwise = edge_names, target_accept = s$target_accept)
-  }
+  # --- Sampler diagnostics ----------------------------------------------------
+  results = attach_sampler_diagnostics(
+    results, raw, s$update_method, s$nuts_max_depth,
+    names_main = names_main, names_pairwise = edge_names,
+    target_accept = s$target_accept
+  )
 
   results$.bgm_spec = spec
   if(needs_easybgm_s3_compat()) {
@@ -833,15 +869,12 @@ build_output_mixed_mrf = function(spec, raw) {
     raw, edge_selection, edge_prior, names_main, edge_names, alloc_names
   )
 
-  # --- NUTS diagnostics -------------------------------------------------------
-  if(s$update_method == "nuts") {
-    results$nuts_diag = summarize_nuts_diagnostics(
-      raw,
-      nuts_max_depth = s$nuts_max_depth
-    )
-  } else if(s$update_method == "adaptive-metropolis") {
-    results$am_diag = summarize_am_diagnostics(raw, names_main = names_main, names_pairwise = edge_names, target_accept = s$target_accept)
-  }
+  # --- Sampler diagnostics ----------------------------------------------------
+  results = attach_sampler_diagnostics(
+    results, raw, s$update_method, s$nuts_max_depth,
+    names_main = names_main, names_pairwise = edge_names,
+    target_accept = s$target_accept
+  )
 
   results$.bgm_spec = spec
   if(needs_easybgm_s3_compat()) {
@@ -1069,20 +1102,13 @@ build_output_compare = function(spec, raw) {
   results$cache = cache
   class(results) = "bgmCompare"
 
-  # --- NUTS diagnostics -------------------------------------------------------
-  if(s$update_method == "nuts") {
-    results$nuts_diag = summarize_nuts_diagnostics(
-      raw,
-      nuts_max_depth = s$nuts_max_depth
-    )
-  } else if(s$update_method == "adaptive-metropolis") {
-    results$am_diag = summarize_am_diagnostics(
-      raw,
-      names_main     = c(names_all$main_baseline, names_all$main_diff),
-      names_pairwise = c(names_all$pairwise_baseline, names_all$pairwise_diff),
-      target_accept  = s$target_accept
-    )
-  }
+  # --- Sampler diagnostics ----------------------------------------------------
+  results = attach_sampler_diagnostics(
+    results, raw, s$update_method, s$nuts_max_depth,
+    names_main = c(names_all$main_baseline, names_all$main_diff),
+    names_pairwise = c(names_all$pairwise_baseline, names_all$pairwise_diff),
+    target_accept = s$target_accept
+  )
 
   results$.bgm_spec = spec
   if(needs_easybgm_s3_compat()) {
