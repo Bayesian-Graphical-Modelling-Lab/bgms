@@ -968,9 +968,9 @@ double log_pseudoposterior_main_component(
 //  - inclusion_indicator: Symmetric binary matrix of active variables (diag) and pairs (off-diag).
 //  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
 //  - baseline_category: Reference categories for Blume–Capel variables.
-//  - interaction_scale: Scale parameter for Cauchy prior on baseline pairwise effects.
+//  - interaction_prior: Prior (BaseParameterPrior) on baseline pairwise effects.
 //  - pairwise_scaling_factors: Per-pair scaling factors for the prior.
-//  - difference_scale: Scale parameter for Cauchy prior on group differences.
+//  - difference_prior: Prior (BaseParameterPrior) on group differences.
 //  - variable1, variable2: Indices of the variable pair.
 //  - h: Column index (0 = baseline, > 0 = group difference).
 //  - delta: Parameter change (proposed - current).

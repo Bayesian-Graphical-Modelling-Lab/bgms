@@ -121,8 +121,6 @@ bool ProgressManager::shouldExit() const {
 void ProgressManager::checkConsoleWidthChange() {
   if (!isRStudio) return;
 
-  Rcpp::Environment base("package:base");
-  Rcpp::Function getOption = base["getOption"];
   size_t currentWidth = getConsoleWidth();
 
   if (prevConsoleWidth == -1) {

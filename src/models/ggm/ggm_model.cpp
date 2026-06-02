@@ -439,17 +439,7 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         get_constants(i, j);
         precision_proposal_(j, j) = constrained_diagonal(0.0);
 
-        // double ln_alpha = log_likelihood(precision_proposal_) - log_likelihood();
         double ln_alpha = log_density_impl_edge(i, j);
-        // {
-        //     double ln_alpha_ref = log_likelihood(precision_proposal_) - log_likelihood();
-        //     if (std::abs(ln_alpha - ln_alpha_ref) > 1e-6) {
-        //         Rcpp::Rcout << "Warning: log density implementations do not match for edge indicator (" << i << ", " << j << ")" << std::endl;
-        //         precision_matrix_.print(Rcpp::Rcout, "Current omega:");
-        //         precision_proposal_.print(Rcpp::Rcout, "Proposed omega:");
-        //         Rcpp::Rcout << "ln_alpha: " << ln_alpha << ", ln_alpha_ref: " << ln_alpha_ref << std::endl;
-        //     }
-        // }
 
         // Determinant-tilt prior: |K|^delta contributes delta * log_det_ratio
         // to the MH ratio. The rank-2 update at (i,j),(j,j) makes this O(p).
@@ -504,17 +494,7 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         precision_proposal_(j, i) = omega_prop_ij;
         precision_proposal_(j, j) = omega_prop_jj;
 
-        // double ln_alpha = log_likelihood(precision_proposal_) - log_likelihood();
         double ln_alpha = log_density_impl_edge(i, j);
-        // {
-        //     double ln_alpha_ref = log_likelihood(precision_proposal_) - log_likelihood();
-        //     if (std::abs(ln_alpha - ln_alpha_ref) > 1e-6) {
-        //         Rcpp::Rcout << "Warning: log density implementations do not match for edge indicator (" << i << ", " << j << ")" << std::endl;
-        //         precision_matrix_.print(Rcpp::Rcout, "Current omega:");
-        //         precision_proposal_.print(Rcpp::Rcout, "Proposed omega:");
-        //         Rcpp::Rcout << "ln_alpha: " << ln_alpha << ", ln_alpha_ref: " << ln_alpha_ref << std::endl;
-        //     }
-        // }
 
         // Determinant-tilt prior: |K|^delta contributes delta * log_det_ratio
         // to the MH ratio.

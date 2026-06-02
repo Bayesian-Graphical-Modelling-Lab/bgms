@@ -88,7 +88,8 @@ fill_mixed_symmetric = function(values, p, q, disc_idx, cont_idx, dimnames) {
 # @param p               Number of discrete variables.
 # @param q               Number of continuous variables.
 #
-# Returns: List with components num_thresholds, main_idx, pairwise_idx.
+# Returns: List with components num_thresholds, num_quadratic, main_idx,
+#   pairwise_idx.
 # ------------------------------------------------------------------
 compute_mixed_parameter_indices = function(num_thresholds, p, q) {
   nt = num_thresholds

@@ -318,7 +318,6 @@ summarize_fit = function(fit, edge_selection = FALSE) {
 
 # Calculate convergence diagnostics on the pairwise cluster co-appearance values
 summarize_alloc_pairs = function(allocations, node_names = NULL) {
-  # stopifnot(is.list(allocations), length(allocations) >= 2)
   n_ch = length(allocations)
   n_iter = nrow(allocations[[1]])
   no_variables = ncol(allocations[[1]])

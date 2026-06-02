@@ -40,7 +40,7 @@ print.bgmCompare = function(x, ...) {
     cat(paste0(" Number of groups: ", arguments$num_groups, "\n"))
   }
   if(!is.null(arguments$num_cases)) {
-    # In our prepare_output_bgmCompare() we stored total cases in num_cases.
+    # In our build_output_compare() we stored total cases in num_cases.
     if(isTRUE(arguments$na_impute)) {
       cat(paste0(" Number of cases: ", arguments$num_cases, " (missings imputed)\n"))
     } else {

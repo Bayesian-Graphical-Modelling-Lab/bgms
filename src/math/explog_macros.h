@@ -46,9 +46,6 @@
 #define ARMA_MY_LOG custom_arma_log
 
 // log1p has no OpenLibM port shipped here yet; keep std::log1p universally.
-// TODO: add and use these
-// #define MY_EXPM1 std::expm1
-// #define MY_LOG1PEXP
 
 #define MY_LOG1P std::log1p
 

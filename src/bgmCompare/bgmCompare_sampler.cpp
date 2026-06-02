@@ -223,8 +223,8 @@ void impute_missing_bgmcompare(
 //  - counts_per_category, blume_capel_stats: Group-specific sufficient statistics.
 //  - is_ordinal_variable: Indicator for ordinal vs. Blume–Capel.
 //  - baseline_category: Reference categories (Blume–Capel only).
-//  - difference_scale: Scale parameter for group difference priors.
-//  - main_alpha, main_beta: Parameters for the Beta prior on main effects.
+//  - difference_prior: Prior (BaseParameterPrior) on group differences.
+//  - threshold_prior: Prior (BaseParameterPrior) on main effects (thresholds).
 //  - iteration: Current iteration index (for adaptation).
 //  - rwm_adapt: Adaptation controller for proposal SDs.
 //  - rng: Random number generator.

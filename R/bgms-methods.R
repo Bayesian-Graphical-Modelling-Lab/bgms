@@ -166,7 +166,6 @@ print.summary.bgms = function(x, digits = 3, ...) {
     pair = head(x$pairwise, 6)
     pair[] = lapply(pair, function(col) ifelse(is.na(col), "", round(col, digits)))
     print(pair)
-    # print(round(head(x$pairwise, 6), digits = digits))
     if(nrow(x$pairwise) > 6) cat("... (use `summary(fit)$pairwise` to see full output)\n")
     if(!is.null(x$indicator)) {
       cat("Note: NA values are suppressed in the print table. They occur here when an \n")
