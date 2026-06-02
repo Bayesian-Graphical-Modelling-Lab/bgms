@@ -12,8 +12,9 @@
 #   - bgms_indicator_prior   : prior on inclusion indicators (edge selection,
 #                               difference selection)
 #
-# Legacy subclasses bgms_interaction_prior and bgms_threshold_prior are
-# retained for backward compatibility but are no longer distinct types.
+# Interaction vs threshold is determined by the bgm()/bgmCompare() argument
+# slot (interaction_prior / threshold_prior) and the prior's `family` field,
+# not by the prior's class.
 # ==============================================================================
 
 
@@ -59,7 +60,7 @@ cauchy_prior = function(scale = 1) {
       family = "cauchy",
       hyper.parameters = list(scale = scale)
     ),
-    class = c("bgms_interaction_prior", "bgms_parameter_prior")
+    class = "bgms_parameter_prior"
   )
 }
 
@@ -103,7 +104,7 @@ normal_prior = function(scale = 1) {
       family = "normal",
       hyper.parameters = list(scale = scale)
     ),
-    class = c("bgms_interaction_prior", "bgms_parameter_prior")
+    class = "bgms_parameter_prior"
   )
 }
 
@@ -151,7 +152,7 @@ beta_prime_prior = function(alpha = 0.5, beta = 0.5) {
       family = "beta-prime",
       hyper.parameters = list(alpha = alpha, beta = beta)
     ),
-    class = c("bgms_threshold_prior", "bgms_parameter_prior")
+    class = "bgms_parameter_prior"
   )
 }
 

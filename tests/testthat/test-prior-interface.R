@@ -18,26 +18,23 @@
 # 1. Prior Constructor Tests
 # ==============================================================================
 
-test_that("cauchy_prior creates valid prior object with dual class", {
+test_that("cauchy_prior creates valid prior object (single class)", {
   p = cauchy_prior(scale = 2.5)
-  expect_s3_class(p, "bgms_parameter_prior")
-  expect_s3_class(p, "bgms_interaction_prior")
+  expect_identical(class(p), "bgms_parameter_prior")
   expect_equal(p$family, "cauchy")
   expect_equal(p$hyper.parameters$scale, 2.5)
 })
 
-test_that("normal_prior creates valid prior object with dual class", {
+test_that("normal_prior creates valid prior object (single class)", {
   p = normal_prior(scale = 0.5)
-  expect_s3_class(p, "bgms_parameter_prior")
-  expect_s3_class(p, "bgms_interaction_prior")
+  expect_identical(class(p), "bgms_parameter_prior")
   expect_equal(p$family, "normal")
   expect_equal(p$hyper.parameters$scale, 0.5)
 })
 
-test_that("beta_prime_prior creates valid prior object with dual class", {
+test_that("beta_prime_prior creates valid prior object (single class)", {
   p = beta_prime_prior(alpha = 1, beta = 1)
-  expect_s3_class(p, "bgms_parameter_prior")
-  expect_s3_class(p, "bgms_threshold_prior")
+  expect_identical(class(p), "bgms_parameter_prior")
   expect_equal(p$family, "beta-prime")
   expect_equal(p$hyper.parameters$alpha, 1)
   expect_equal(p$hyper.parameters$beta, 1)
