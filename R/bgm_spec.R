@@ -281,7 +281,7 @@ bgm_spec = function(x,
                     difference_prior = c(
                       "Bernoulli", "Beta-Bernoulli", "Stochastic-Block"
                     ),
-                    difference_scale = 2.5,
+                    difference_scale = 1,
                     difference_probability = 0.5,
                     # Compare difference prior hyperparameters
                     beta_bernoulli_alpha = 1,

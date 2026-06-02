@@ -182,11 +182,13 @@ handle_impute = function(x, group = NULL) {
   for(node in seq_len(num_variables)) {
     mis = which(is.na(x[, node]))
     if(length(mis) > 0) {
+      observed = x[-mis, node]
       for(i in seq_along(mis)) {
         cntr = cntr + 1
         missing_index[cntr, 1] = mis[i] - 1 # C++ 0-based index
         missing_index[cntr, 2] = node - 1 # C++ 0-based index
-        x[mis[i], node] = sample(x[-mis, node], size = 1)
+        # Index explicitly: sample(v, 1) treats a length-1 numeric v as 1:v.
+        x[mis[i], node] = observed[sample.int(length(observed), 1)]
       }
     }
   }
@@ -232,17 +234,19 @@ reformat_ordinal_data = function(x, is_ordinal, baseline_category) {
     unq_vls = sort(unique(x[, node]))
     mx_vl = max(unq_vls)
 
-    # Check if observed responses are not all unique ---------------------------
-    if(mx_vl == nrow(x)) {
-      stop(paste0(
-        "Only unique responses observed for variable ",
-        node,
-        ". We expect >= 1 observations per category."
-      ))
-    }
-
     # Recode data --------------------------------------------------------------
     if(is_ordinal[node]) { # Regular ordinal variable
+      # A regular ordinal variable needs repeated values: its category
+      # thresholds are unidentified if every response is distinct (the column
+      # then looks continuous). Blume-Capel is parametric in the category score
+      # and is exempt.
+      if(length(unq_vls) == nrow(x)) {
+        stop(paste0(
+          "Only unique responses observed for variable ",
+          node,
+          ". We expect >= 1 observations per category."
+        ))
+      }
       if(length(unq_vls) != mx_vl + 1 || any(unq_vls != 0:mx_vl)) {
         y = x[, node]
         cntr = 0

@@ -176,3 +176,19 @@ test_that("group is absent from result when not provided", {
   result = validate_missing_data(x, na_action = "listwise")
   expect_null(result$group)
 })
+
+# ==============================================================================
+# Imputation draws from the observed values, indexing explicitly so a column
+# with a single observed value is filled with that value (not sample(v, 1),
+# which would treat a length-1 numeric v as the range 1:v).
+# ==============================================================================
+
+test_that("impute fills a single-observed-value column with that value", {
+  x = matrix(c(
+    7, NA, NA, NA, NA, NA,
+    1, 0, 1, 0, 1, 0
+  ), nrow = 6, ncol = 2)
+  set.seed(1)
+  result = validate_missing_data(x, na_action = "impute")
+  expect_true(all(result$x[, 1] == 7))
+})

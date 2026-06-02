@@ -9,7 +9,7 @@
 # ==============================================================================
 
 test_that("ordinal: already contiguous 0-based passes through unchanged", {
-  x = matrix(c(0, 1, 2, 0, 1, 2), nrow = 3, ncol = 2)
+  x = matrix(c(0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2), nrow = 6, ncol = 2)
   is_ordinal = c(TRUE, TRUE)
   bc = c(0, 0)
 
@@ -20,13 +20,13 @@ test_that("ordinal: already contiguous 0-based passes through unchanged", {
 })
 
 test_that("ordinal: non-contiguous values are recoded to contiguous 0-based", {
-  x = matrix(c(1, 3, 5, 1, 3, 5), nrow = 3, ncol = 2)
+  x = matrix(c(1, 3, 5, 1, 3, 5, 1, 3, 5, 1, 3, 5), nrow = 6, ncol = 2)
   is_ordinal = c(TRUE, TRUE)
   bc = c(0, 0)
 
   result = reformat_ordinal_data(x, is_ordinal, bc)
-  expect_equal(result$x[, 1], c(0, 1, 2))
-  expect_equal(result$x[, 2], c(0, 1, 2))
+  expect_equal(result$x[, 1], c(0, 1, 2, 0, 1, 2))
+  expect_equal(result$x[, 2], c(0, 1, 2, 0, 1, 2))
   expect_equal(result$num_categories, c(2, 2))
 })
 
@@ -285,4 +285,33 @@ test_that("validate_missing_data + reformat_ordinal_data pipeline works end-to-e
   expect_equal(result$x[, 1], c(0, 1, 2, 0, 1, 2))
   expect_equal(result$num_categories, c(2, 2))
   expect_false(md$na_impute)
+})
+
+# ==============================================================================
+# All-unique guard: a regular ordinal variable needs repeated values (category
+# thresholds are unidentified otherwise). Blume-Capel is parametric in the
+# category score and is exempt.
+# ==============================================================================
+
+test_that("ordinal: errors when every response is distinct", {
+  x = matrix(0:4, ncol = 1) # 5 rows, 5 distinct values
+  expect_error(
+    reformat_ordinal_data(x, is_ordinal = TRUE, baseline_category = 0L),
+    "Only unique responses"
+  )
+})
+
+test_that("Blume-Capel: all-distinct responses are allowed (parametric, exempt)", {
+  x = matrix(0:4, ncol = 1) # 5 rows, 5 distinct values -> fine for BC
+  expect_no_error(
+    reformat_ordinal_data(x, is_ordinal = FALSE, baseline_category = 0L)
+  )
+})
+
+test_that("ordinal: does not error when values repeat even if a code equals nrow", {
+  # nrow = 4, max code = 4 (== nrow), but only 3 distinct values: not all unique.
+  x = matrix(c(0, 4, 4, 1), ncol = 1)
+  expect_no_error(
+    reformat_ordinal_data(x, is_ordinal = TRUE, baseline_category = 0L)
+  )
 })

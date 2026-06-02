@@ -681,3 +681,15 @@ test_that("mixed MRF: disc-length baseline_category works", {
   expect_equal(s$model_type, "mixed_mrf")
   expect_equal(s$variables$baseline_category[1:2], c(1L, 1L))
 })
+
+# ==============================================================================
+# bgm_spec() and bgmCompare() must share the same difference_scale default so
+# that a direct bgm_spec(model_type = "compare") call matches the public API.
+# ==============================================================================
+
+test_that("bgm_spec and bgmCompare share the difference_scale default", {
+  expect_equal(
+    eval(formals(bgm_spec)$difference_scale),
+    eval(formals(bgmCompare)$difference_scale)
+  )
+})
