@@ -7,7 +7,7 @@
 
 #include <RcppArmadillo.h>
 #include "utils/common_helpers.h"
-#include "bgmCompare/bgmCompare_output.h"
+#include "models/bgmCompare/bgmCompare_output.h"
 #include "priors/parameter_prior.h"
 #include "priors/edge_prior.h"
 #include <string>

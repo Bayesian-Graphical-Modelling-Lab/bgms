@@ -1,6 +1,6 @@
 #include <RcppArmadillo.h>
 #include <cmath>
-#include "bgmCompare/bgmCompare_helper.h"
+#include "models/bgmCompare/bgmCompare_helper.h"
 #include "utils/common_helpers.h"
 
 

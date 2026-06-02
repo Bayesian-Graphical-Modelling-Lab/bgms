@@ -1,8 +1,8 @@
 #include <RcppArmadillo.h>
-#include "bgmCompare/bgmCompare_helper.h"
-#include "bgmCompare/bgmCompare_logp_and_grad.h"
-#include "bgmCompare/bgmCompare_sampler.h"
-#include "bgmCompare/bgmCompare_output.h"
+#include "models/bgmCompare/bgmCompare_helper.h"
+#include "models/bgmCompare/bgmCompare_logp_and_grad.h"
+#include "models/bgmCompare/bgmCompare_sampler.h"
+#include "models/bgmCompare/bgmCompare_output.h"
 #include "mcmc/samplers/metropolis_adaptation.h"
 #include "mcmc/samplers/nuts_adaptation.h"
 #include "mcmc/algorithms/hmc.h"

@@ -2,10 +2,10 @@
 
 #include <memory>
 #include <RcppArmadillo.h>
-#include "../rng/rng_utils.h"
-#include "../utils/common_helpers.h"
+#include "rng/rng_utils.h"
+#include "utils/common_helpers.h"
 #include "sbm_edge_prior.h"
-#include "../sbm_edge_prior_interface.h"
+#include "sbm_edge_prior_interface.h"
 
 
 /**
