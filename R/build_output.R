@@ -309,6 +309,8 @@ build_output_bgm = function(spec, raw) {
       if(!is.null(chain$energy)) res[["energy__"]] = chain$energy
       if(!is.null(chain$accept_prob)) res[["accept_prob__"]] = chain$accept_prob
       if(!is.null(chain$am_accept_prob)) res[["am_accept_prob__"]] = chain$am_accept_prob
+      if(!is.null(chain$v_sign)) res[["v_sign__"]] = chain$v_sign
+      if(!is.null(chain$v_log_abs)) res[["v_log_abs__"]] = chain$v_log_abs
       res
     })
   } else {

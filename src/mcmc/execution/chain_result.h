@@ -56,6 +56,12 @@ public:
     /// Whether AM diagnostics are stored.
     bool        has_am_diagnostics = false;
 
+    /// Hierarchical-spec V-ratio diagnostics. sign(V_curr) ∈ {-1, +1} and
+    /// End-of-chain model diagnostics snapshot (model.get_diagnostics_summary()).
+    /// Default-constructed empty list; populated once at the end of
+    /// run_mcmc_chain.
+    Rcpp::List  diagnostics_summary = Rcpp::List::create();
+
     /**
      * Reserve storage for samples
      * @param param_dim  Number of parameters per sample
@@ -106,6 +112,7 @@ public:
         am_accept_prob_samples.set_size(n_iter);
         has_am_diagnostics = true;
     }
+
 
     /**
      * Store a parameter sample
@@ -159,4 +166,5 @@ public:
     void store_am_diagnostics(const size_t iter, double accept_prob) {
         am_accept_prob_samples(iter) = accept_prob;
     }
+
 };

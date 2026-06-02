@@ -1,6 +1,11 @@
 #include "mcmc/execution/chain_runner.h"
 
+#include <chrono>
+#include <cstdlib>
 #include <exception>
+#include <fstream>
+#include <string>
+#include <unistd.h>
 #include <tbb/global_control.h>
 #include "mcmc/samplers/nuts_sampler.h"
 #include "mcmc/samplers/metropolis_sampler.h"
@@ -40,7 +45,6 @@ void run_mcmc_chain(
 
     // ---- Main MCMC loop (warmup + sampling) ----
     for (int iter = 0; iter < total_iter; ++iter) {
-
         // Per-iteration preparation (e.g., shuffle edge order)
         model.prepare_iteration();
 
@@ -107,6 +111,10 @@ void run_mcmc_chain(
         }
     }
 
+    // Capture end-of-chain diagnostic snapshot from the model. For GGMModel
+    // this surfaces the hierarchical auto-reject counters; for other models
+    // the override returns an empty list and we just store that.
+    chain_result.diagnostics_summary = model.get_diagnostics_summary();
 }
 
 
@@ -230,6 +238,10 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
 
             if (chain.has_am_diagnostics) {
                 chain_list["am_accept_prob"] = chain.am_accept_prob_samples;
+            }
+
+            if (chain.diagnostics_summary.size() > 0) {
+                chain_list["diagnostics_summary"] = chain.diagnostics_summary;
             }
         }
 

@@ -584,13 +584,16 @@ test_that("GGM edge selection works with beta_prime_prior interaction", {
 test_that("GGM edge selection works with non-default diagonal prior", {
   set.seed(42)
   Y = as.data.frame(matrix(rnorm(200), nrow = 50, ncol = 4))
-  fit = bgm(Y,
+  # Cauchy slab + BB inclusion lands on "joint" factorization, which
+  # warns about Z(Γ) propagation; expected, test just verifies the
+  # non-default diagonal prior plumbing.
+  fit = suppressWarnings(bgm(Y,
     variable_type = "continuous",
     precision_scale_prior = gamma_prior(shape = 2, rate = 0.5),
     edge_prior = beta_bernoulli_prior(1, 1),
     iter = 50, warmup = 100, chains = 1,
     display_progress = "none"
-  )
+  ))
   expect_s3_class(fit, "bgms")
   expect_false(is.null(fit$posterior_mean_indicator))
 })

@@ -224,3 +224,54 @@ Rcpp::List sample_ggm_prior(
         Rcpp::Named("edge_indicators") = Rcpp::wrap(edge_indicators)
     );
 }
+
+
+// -----------------------------------------------------------------------------
+// ggm_test_row_block_gibbs:
+//   Direct driver for the row-block-Gibbs within-step kernel — bypasses the
+//   between-step (no edge updates) and the AM dispatcher so the smoke test
+//   can validate the conjugate math in isolation.
+//
+// Loops over rows i = 0..p-1 each sweep, calling update_row_block_gibbs(i).
+// Returns the p × p K samples at every sweep (no warmup, no thinning, no
+// adaptation).
+// -----------------------------------------------------------------------------
+
+// [[Rcpp::export(name = "ggm_test_row_block_gibbs")]]
+Rcpp::List ggm_test_row_block_gibbs(
+    const arma::mat& suf_stat,
+    int n,
+    const arma::imat& edge_indicators,
+    double pairwise_scale,
+    double gamma_shape,
+    double gamma_rate,
+    int n_sweeps,
+    int seed)
+{
+    const int p = edge_indicators.n_rows;
+    auto ip = create_parameter_prior("normal", pairwise_scale);
+    auto dp = create_scale_prior("gamma", gamma_shape, gamma_rate);
+
+    arma::mat inc_prob(p, p, arma::fill::value(0.5));
+    GGMModel model(n, suf_stat, inc_prob, edge_indicators,
+                   /*edge_selection=*/false, std::move(ip), std::move(dp));
+    model.set_determinant_tilt(0.0);
+    model.set_seed(seed);
+
+    if (!model.row_block_gibbs_eligible()) {
+        Rcpp::stop("ggm_test_row_block_gibbs: model is not eligible "
+                   "(requires Normal slab, Gamma alpha=1, delta=0).");
+    }
+
+    arma::cube K_samples(p, p, n_sweeps);
+    for (int s = 0; s < n_sweeps; ++s) {
+        for (int i = 0; i < p; ++i) {
+            model.update_row_block_gibbs(static_cast<size_t>(i));
+        }
+        K_samples.slice(s) = model.get_precision_matrix();
+    }
+
+    return Rcpp::List::create(
+        Rcpp::Named("K_samples") = K_samples
+    );
+}

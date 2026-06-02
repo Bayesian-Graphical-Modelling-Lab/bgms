@@ -100,18 +100,38 @@ validate_sampler = function(update_method,
                             verbose = TRUE,
                             progress_callback = NULL) {
   # --- update_method ----------------------------------------------------------
-  update_method = match.arg(
-    update_method,
-    choices = c("nuts", "adaptive-metropolis")
-  )
+  # Kernels:
+  #   "nuts"                — NUTS on the free-element Cholesky parameterization
+  #   "adaptive-metropolis" — q+p componentwise random-walk MH on K
+  #   "gibbs"               — row-block conjugate Gibbs sweep on rows of K
+  # NUTS routes through the gradient engine; AM and Gibbs share the MH chain
+  # runner and differ only in the within-step kernel. "gibbs" is the GGM
+  # (continuous) row-block kernel only — it is not valid for the discrete/mixed
+  # engines, so it is offered only when is_continuous.
+  #
+  # bgm() and bgmCompare() carry different multi-value formal defaults, so
+  # match.arg's "default identical to choices" fall-through is unreliable here;
+  # take the first element of a passed default vector explicitly, then validate
+  # against the kernels valid for this model.
+  valid_methods = if (is_continuous) {
+    c("nuts", "adaptive-metropolis", "gibbs")
+  } else {
+    c("nuts", "adaptive-metropolis")
+  }
+  if (length(update_method) > 1L) update_method = update_method[1L]
+  update_method = match.arg(update_method, choices = valid_methods)
 
   # --- target_accept ----------------------------------------------------------
   if(!is.null(target_accept)) {
     target_accept = min(target_accept, 1 - sqrt(.Machine$double.eps))
     target_accept = max(target_accept, 0 + sqrt(.Machine$double.eps))
   } else {
+    # Gibbs has no per-row acceptance to tune (the alpha != 1 wrapper is a
+    # smooth scalar correction); pick 0.44 as a harmless default since the
+    # between-step adapter still consumes target_accept.
     target_accept = switch(update_method,
       "adaptive-metropolis" = 0.44,
+      "gibbs"               = 0.44,
       "nuts"                = 0.80
     )
   }

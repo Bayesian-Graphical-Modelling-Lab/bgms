@@ -50,20 +50,33 @@ void GGMGradientEngine::build_Aq(
 }
 
 // =====================================================================
-// givens_qr
+// givens_qr  — transposed-storage variant
 // =====================================================================
-// Compute null-space basis N_q and QR R-diagonal from A_q.
+// Compute the QR factorisation of A_q^T (conceptual shape q × m_q) but
+// store its working "R" factor in TRANSPOSED form (m_q × q). The Givens
+// rotations that act on rows of conceptual R thereby act on COLUMNS of
+// the transposed storage — and column slices are contiguous in arma's
+// column-major layout, so the inner kernel is cache-friendly and the
+// compiler auto-vectorises it cleanly.
 //
-// Uses QR of A_q^T (which is q x m_q). The last (q - rank) columns
-// of Q form the null-space basis. The diagonal of R gives the
-// Givens QR decomposition of n x m matrix M (n >= m).
+// Input M is passed in its natural orientation (A_q itself, m_q × q).
+// No transpose op runs — M is consumed directly as the working storage
+// for "R-transposed". For the algorithm semantics let R = M^T:
+//     R(i, j)   =  M(j, i)       (i ∈ [0, n), j ∈ [0, m))
+//   with n = q (conceptual R rows = M cols) and m = m_q (conceptual R
+//   cols = M rows).
 //
-// Computes M = Q R via bottom-to-top Givens rotations. Stores the
-// rotation sequence for reverse-mode differentiation in the backward
-// pass. The convention is:
-//   G = [[c, s], [-s, c]]  applied to rows (r1, r2) of W from the left.
-//   Q accumulates G^T on columns.
-// R diagonal entries are always positive by construction.
+// Givens rotation row-update of conceptual R thus becomes a column-update
+// of the storage M:
+//     for k in [j, m):
+//        M(k, r1), M(k, r2)  rotated by (c, s)
+// Outputs:
+//   Q   : (n × n) orthogonal accumulator (unchanged column-rotation kernel)
+//   R   : (m × n) storage of R^T — diagonal R(j, j) still gives R(j, j)
+//   R_diag, rots : as before
+//
+// G = [[c, s], [-s, c]] applied to rows (r1, r2) of conceptual R from the
+// left. R diagonal entries are always non-negative by construction.
 
 void GGMGradientEngine::givens_qr(
     const arma::mat& M,
@@ -72,10 +85,10 @@ void GGMGradientEngine::givens_qr(
     arma::vec& R_diag,
     std::vector<GivensRotation>& rots)
 {
-    size_t n = M.n_rows;
-    size_t m = M.n_cols;
-    R = M;            // working copy, will become R
-    Q.eye(n, n);      // accumulate Q
+    size_t n = M.n_cols;   // conceptual R rows  (was M.n_rows)
+    size_t m = M.n_rows;   // conceptual R cols  (was M.n_cols)
+    R = M;                 // working copy in transposed storage (m × n)
+    Q.eye(n, n);
     rots.clear();
 
     for (size_t j = 0; j < m; ++j) {
@@ -83,24 +96,26 @@ void GGMGradientEngine::givens_qr(
             for (size_t i = n - 1; i > j; --i) {
                 size_t r1 = i - 1;
                 size_t r2 = i;
-                double a = R(r1, j);
-                double b = R(r2, j);
+                // conceptual R(r1, j) = M(j, r1) = R-storage(j, r1)
+                double a = R(j, r1);
+                double b = R(j, r2);
                 double r_val = std::sqrt(a * a + b * b);
 
-                if (r_val < 1e-300) continue;  // skip identity rotation
+                if (r_val < 1e-300) continue;  // identity rotation
 
                 double c = a / r_val;
                 double s = b / r_val;
 
                 rots.push_back({c, s, r1, r2, j});
 
-                // G * R: rotate rows (r1, r2) of R
+                // G * R: rotate rows (r1, r2) of conceptual R = columns
+                // (r1, r2) of R-storage; access is contiguous in column-major.
                 for (size_t k = j; k < m; ++k) {
-                    double w1 = R(r1, k), w2 = R(r2, k);
-                    R(r1, k) =  c * w1 + s * w2;
-                    R(r2, k) = -s * w1 + c * w2;
+                    double w1 = R(k, r1), w2 = R(k, r2);
+                    R(k, r1) =  c * w1 + s * w2;
+                    R(k, r2) = -s * w1 + c * w2;
                 }
-                // Q * G^T: rotate columns (r1, r2) of Q
+                // Q * G^T: rotate columns (r1, r2) of Q — already contiguous.
                 for (size_t l = 0; l < n; ++l) {
                     double q1 = Q(l, r1), q2 = Q(l, r2);
                     Q(l, r1) =  c * q1 + s * q2;
@@ -110,7 +125,7 @@ void GGMGradientEngine::givens_qr(
         }
     }
 
-    // Extract positive R diagonal
+    // R diagonal: conceptual R(j, j) lives at R-storage(j, j) — same index.
     size_t rank = std::min(n, m);
     R_diag.set_size(rank);
     for (size_t j = 0; j < rank; ++j) {
@@ -174,7 +189,7 @@ ForwardMapResult GGMGradientEngine::forward_map(const arma::vec& theta) const {
             // Givens QR for R_diag (Jacobian) and stored rotations
             if (m_q > 0) {
                 build_Aq(result.Phi, col, q, Aq_buf);
-                givens_qr(Aq_buf.t(),
+                givens_qr(Aq_buf,
                           result.Q_full[q], result.R_full[q],
                           result.R_diag[q], result.givens_rotations[q]);
             }
@@ -183,7 +198,7 @@ ForwardMapResult GGMGradientEngine::forward_map(const arma::vec& theta) const {
         } else {
             // General case: build A_q, Givens QR, null space
             build_Aq(result.Phi, col, q, Aq_buf);
-            givens_qr(Aq_buf.t(),
+            givens_qr(Aq_buf,
                       result.Q_full[q], result.R_full[q],
                       result.R_diag[q], result.givens_rotations[q]);
 
@@ -365,13 +380,18 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
         const auto& rotations = fm.givens_rotations[q];
         size_t n_rot = rotations.size();
 
-        // Initialize W_bar (R_bar) and Q_bar with seed adjoints.
-        arma::mat W_bar(q, m_q, arma::fill::zeros);
+        // Transposed-storage R: W_bar / W_work hold conceptual (q × m_q)
+        // adjoint matrices physically as (m_q × q). Conceptual W(r, c) is
+        // stored at W(c, r) — every (r1, cj) access in the original code
+        // becomes (cj, r1) here. Inner-loop column slices are contiguous
+        // in column-major, matching the forward Givens cache win.
+        arma::mat W_bar(m_q, q, arma::fill::zeros);
         arma::mat Q_bar(q, q, arma::fill::zeros);
 
         size_t rank = std::min(m_q, q);
-        const arma::mat& R = fm.R_full[q];
+        const arma::mat& R = fm.R_full[q];   // also transposed: (m_q × q)
         for (size_t j = 0; j < rank; ++j) {
+            // Conceptual W_bar(j, j) = -1 / R(j, j); diagonal index unchanged
             W_bar(j, j) = -1.0 / R(j, j);
         }
 
@@ -379,23 +399,26 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
             arma::vec f_q = theta.subvec(offset, offset + d_q - 1);
             for (size_t k = 0; k < d_q; ++k) {
                 for (size_t l = 0; l < q; ++l) {
+                    // Q_bar is q × q (not transposed); same index as before.
                     Q_bar(l, m_q + k) = x_bar(l) * f_q(k);
                 }
             }
         }
 
-        arma::mat Q_work = fm.Q_full[q];
-        arma::mat W_work = fm.R_full[q];
+        arma::mat Q_work = fm.Q_full[q];      // (q × q), unchanged
+        arma::mat W_work = fm.R_full[q];      // transposed: (m_q × q)
 
         for (size_t k = n_rot; k-- > 0; ) {
             const auto& rot = rotations[k];
             double cc = rot.c, ss = rot.s;
             size_t r1 = rot.r1, r2 = rot.r2;
 
+            // Row-rotation of conceptual W_work = column-rotation of storage.
+            // Contiguous column-slice access.
             for (size_t cj = 0; cj < m_q; ++cj) {
-                double w1 = W_work(r1, cj), w2 = W_work(r2, cj);
-                W_work(r1, cj) =  cc * w1 - ss * w2;
-                W_work(r2, cj) =  ss * w1 + cc * w2;
+                double w1 = W_work(cj, r1), w2 = W_work(cj, r2);
+                W_work(cj, r1) =  cc * w1 - ss * w2;
+                W_work(cj, r2) =  ss * w1 + cc * w2;
             }
             for (size_t ri = 0; ri < q; ++ri) {
                 double q1 = Q_work(ri, r1), q2 = Q_work(ri, r2);
@@ -405,10 +428,10 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
 
             double c_bar = 0.0, s_bar = 0.0;
             for (size_t cj = 0; cj < m_q; ++cj) {
-                c_bar += W_bar(r1, cj) * W_work(r1, cj) +
-                         W_bar(r2, cj) * W_work(r2, cj);
-                s_bar += W_bar(r1, cj) * W_work(r2, cj) -
-                         W_bar(r2, cj) * W_work(r1, cj);
+                c_bar += W_bar(cj, r1) * W_work(cj, r1) +
+                         W_bar(cj, r2) * W_work(cj, r2);
+                s_bar += W_bar(cj, r1) * W_work(cj, r2) -
+                         W_bar(cj, r2) * W_work(cj, r1);
             }
             for (size_t ri = 0; ri < q; ++ri) {
                 c_bar += Q_bar(ri, r1) * Q_work(ri, r1) +
@@ -418,9 +441,9 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
             }
 
             for (size_t cj = 0; cj < m_q; ++cj) {
-                double wb1 = W_bar(r1, cj), wb2 = W_bar(r2, cj);
-                W_bar(r1, cj) = cc * wb1 - ss * wb2;
-                W_bar(r2, cj) = ss * wb1 + cc * wb2;
+                double wb1 = W_bar(cj, r1), wb2 = W_bar(cj, r2);
+                W_bar(cj, r1) = cc * wb1 - ss * wb2;
+                W_bar(cj, r2) = ss * wb1 + cc * wb2;
             }
 
             for (size_t ri = 0; ri < q; ++ri) {
@@ -430,20 +453,22 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
             }
 
             size_t j_col = rot.col;
-            double a = W_work(r1, j_col);
-            double b = W_work(r2, j_col);
+            // Conceptual W(r1, j_col) lives at storage (j_col, r1).
+            double a = W_work(j_col, r1);
+            double b = W_work(j_col, r2);
             double r_val = std::sqrt(a * a + b * b);
             if (r_val > 1e-300) {
                 double r3 = r_val * r_val * r_val;
-                W_bar(r1, j_col) += (c_bar * b * b - s_bar * a * b) / r3;
-                W_bar(r2, j_col) += (-c_bar * a * b + s_bar * a * a) / r3;
+                W_bar(j_col, r1) += (c_bar * b * b - s_bar * a * b) / r3;
+                W_bar(j_col, r2) += (-c_bar * a * b + s_bar * a * a) / r3;
             }
         }
 
+        // Conceptual W_bar(l, r) lives at storage W_bar(r, l).
         for (size_t r = 0; r < m_q; ++r) {
             size_t i = col.excluded_indices[r];
             for (size_t l = 0; l <= i; ++l) {
-                Phi_bar(l, i) += W_bar(l, r);
+                Phi_bar(l, i) += W_bar(r, l);
             }
         }
     }

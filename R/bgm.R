@@ -57,11 +57,18 @@
 #' @param interaction_prior A prior specification object for pairwise
 #'   interaction parameters, created by one of the prior constructor functions:
 #'   \itemize{
-#'     \item \code{\link{cauchy_prior}()}: Cauchy(0, scale) prior (default).
-#'     \item \code{\link{normal_prior}()}: Normal(0, scale) prior.
+#'     \item \code{\link{normal_prior}()}: Normal(0, scale) prior (default).
+#'     \item \code{\link{cauchy_prior}()}: Cauchy(0, scale) prior.
 #'     \item \code{\link{beta_prime_prior}()}: Beta-prime prior.
 #'   }
-#'   Default: \code{cauchy_prior(scale = 1)}.
+#'   Default: \code{normal_prior(scale = 1)}. The L-space Savage-Dickey
+#'   between-edge step (i.e. \code{prior_factorization = "hierarchical"})
+#'   supports the Normal slab directly and the Cauchy slab via the
+#'   scale-mixture-of-normals representation
+#'   (\eqn{K_{ij} \mid \omega \sim N(0, \sigma^2 \omega)},
+#'   \eqn{\omega \sim \mathrm{InvGamma}(1/2, 1/2)}), so either default
+#'   lets \code{bgm(x)} land on the hierarchical factorization for GGM
+#'   and mixed-MRF data.
 #'
 #' @param threshold_prior A prior specification object for threshold (main
 #'   effect) parameters, created by one of the prior constructor functions:
@@ -110,6 +117,38 @@
 #'   numeric to override. Both NUTS and adaptive-Metropolis update paths
 #'   apply the tilt. Not allowed for pure ordinal models (no precision
 #'   matrix to tilt).
+#'
+#' @param prior_factorization Character; one of \code{"hierarchical"}
+#'   or \code{"joint"}. Controls how the joint prior on the precision
+#'   matrix \eqn{K} and graph \eqn{\Gamma} is factored, which in turn
+#'   determines the marginal prior on \eqn{\Gamma}. Under
+#'   \code{"hierarchical"} the factorization is
+#'   \eqn{p(K, \Gamma) = p(K \mid \Gamma) \, \pi(\Gamma)} and the
+#'   \eqn{\Gamma}-marginal is \eqn{\pi(\Gamma)} exactly; the chain
+#'   targets this marginal via a Savage-Dickey between-edge
+#'   Metropolis-Hastings step (closed-form Gaussian Bayes factor at
+#'   \eqn{\alpha = 1}, sinh-substitution quadrature at \eqn{\alpha > 1})
+#'   under the encompassing slab. Available with a Normal slab directly
+#'   or a Cauchy slab via the scale-mixture-of-normals representation
+#'   (per-edge \eqn{\omega_{ij} \sim \mathrm{InvGamma}(1/2, 1/2)},
+#'   slice-sampled); requires \code{precision_scale_prior =
+#'   gamma_prior(...)} in both cases. Under
+#'   \code{"joint"} the factorization is
+#'   \eqn{p(K, \Gamma) \propto p(K \mid \Gamma) \, \pi(\Gamma)} with
+#'   \eqn{K} drawn from the encompassing slab (\eqn{\Gamma} acts as a hard mask),
+#'   so the implicit \eqn{\Gamma}-marginal is
+#'   \eqn{\pi(\Gamma) \cdot Z(\Gamma)}, where \eqn{Z(\Gamma)} is the
+#'   precision-matrix-prior normalising constant conditional on the
+#'   graph. Combining \code{"joint"} with a Beta-Bernoulli or SBM
+#'   inclusion prior is not well-defined (the intractable
+#'   \eqn{Z(\Gamma)} factor propagates into the implied likelihood for
+#'   the inclusion hyperparameters); a warning is emitted in that case.
+#'   Default: \code{NULL}, which auto-resolves to \code{"hierarchical"}
+#'   whenever the model and prior combination supports it (GGM or
+#'   mixed-MRF with a Normal or Cauchy slab and Gamma diagonal prior),
+#'   and to \code{"joint"} otherwise (e.g., pure ordinal models, or
+#'   continuous models with a beta-prime slab). Pass the value explicitly
+#'   to override.
 #'
 #' @param pairwise_scale `r lifecycle::badge("deprecated")` Double.
 #'   Scale of the Cauchy prior for pairwise
@@ -208,6 +247,8 @@
 #'       with Robbins--Monro proposal adaptation.}
 #'     \item{"nuts"}{The No-U-Turn Sampler with RATTLE constrained integration
 #'       for Gaussian models with edge selection.}
+#'     \item{"gibbs"}{Row-block conjugate Gibbs sweep on the precision matrix.
+#'       Gaussian (continuous) models only.}
 #'   }
 #'   Default: \code{"nuts"}.
 #'
@@ -338,15 +379,16 @@ bgm = function(
   baseline_category,
   iter = 2e3,
   warmup = 2e3,
-  interaction_prior = cauchy_prior(scale = 1),
+  interaction_prior = normal_prior(scale = 1),
   threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
   means_prior = normal_prior(scale = 1),
   precision_scale_prior = gamma_prior(shape = 1, rate = 1),
   delta = NULL,
+  prior_factorization = NULL,
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),
   na_action = c("listwise", "impute"),
-  update_method = c("nuts", "adaptive-metropolis"),
+  update_method = c("nuts", "adaptive-metropolis", "gibbs"),
   target_accept,
   nuts_max_depth = 10,
   learn_mass_matrix = TRUE,
@@ -388,7 +430,9 @@ bgm = function(
       "bgm(interaction_prior =)"
     )
     if(!hasArg(pairwise_scale) &&
-      identical(interaction_prior, cauchy_prior(scale = 1))) {
+      identical(interaction_prior, normal_prior(scale = 1))) {
+      # Legacy interaction_scale was the Cauchy scale; preserve that
+      # semantics when the caller has otherwise kept the default.
       interaction_prior = cauchy_prior(scale = interaction_scale)
     }
   }
@@ -421,7 +465,9 @@ bgm = function(
       "0.2.0", "bgm(pairwise_scale =)",
       "bgm(interaction_prior =)"
     )
-    if(identical(interaction_prior, cauchy_prior(scale = 1))) {
+    if(identical(interaction_prior, normal_prior(scale = 1))) {
+      # Legacy pairwise_scale was the Cauchy scale; preserve that
+      # semantics when the caller has otherwise kept the default.
       interaction_prior = cauchy_prior(scale = pairwise_scale)
     }
   }
@@ -467,12 +513,34 @@ bgm = function(
       )
     )
   } else {
-    # Warn if loose edge params are also supplied alongside an object
+    # Warn if loose edge params are also supplied alongside an object.
+    # When only the deprecated arg is supplied, honor it (rebuild edge_prior).
+    # When both are supplied, require the values to match -- otherwise error,
+    # since the previous silent-drop behavior was misleading.
     if(hasArg(inclusion_probability)) {
       lifecycle::deprecate_warn(
         "0.2.0", "bgm(inclusion_probability =)",
         "bgm(edge_prior = 'bernoulli_prior()')"
       )
+      if(!hasArg(edge_prior)) {
+        edge_prior = bernoulli_prior(inclusion_probability = inclusion_probability)
+      } else {
+        ep_ip = if(inherits(edge_prior, "bgms_indicator_prior") &&
+          identical(edge_prior$family, "Bernoulli")) {
+          edge_prior$hyper.parameters$inclusion_probability
+        } else {
+          NA
+        }
+        if(!isTRUE(all.equal(ep_ip, inclusion_probability))) {
+          stop(
+            "Conflicting prior inclusion probabilities: ",
+            "`edge_prior` implies ", format(ep_ip),
+            " but `inclusion_probability = ", format(inclusion_probability),
+            "`. Pass only one.",
+            call. = FALSE
+          )
+        }
+      }
     }
     if(hasArg(beta_bernoulli_alpha)) {
       lifecycle::deprecate_warn(
@@ -511,6 +579,7 @@ bgm = function(
     scale_shape = sp$scale_shape,
     scale_rate = sp$scale_rate,
     delta = delta,
+    prior_factorization = prior_factorization,
     standardize = standardize,
     edge_selection = edge_selection,
     edge_prior = edge_prior,

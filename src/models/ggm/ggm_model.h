@@ -2,6 +2,7 @@
 
 #include <array>
 #include <memory>
+#include <vector>
 #include "models/base_model.h"
 #include "math/cholesky_helpers.h"
 #include "rng/rng_utils.h"
@@ -9,6 +10,27 @@
 #include "models/ggm/ggm_gradient.h"
 #include "priors/parameter_prior.h"
 #include "mcmc/samplers/metropolis_adaptation.h"
+
+
+/**
+ * Graph-prior specification for the GGM with edge selection.
+ *
+ *   Joint         (default): π_joint(K, Γ) ∝ slab·diag·|K|^δ·1{K∈M+(Γ)}·π(Γ).
+ *                 Γ marginal is π(Γ)·Z(Γ). Between-edge step is the Roverato
+ *                 block-update on K.
+ *   Hierarchical: π_hier(K, Γ)  ∝ slab·diag·|K|^δ·1{K∈M+(Γ)}/Z(Γ)·π(Γ).
+ *                 Γ marginal is π(Γ) directly. Between-edge step is the
+ *                 L-space Savage-Dickey identity (closed-form Gaussian Bayes
+ *                 factor at α = 1, sinh-substitution quadrature at α > 1).
+ *
+ * Hierarchical mode requires GammaScalePrior on the diagonal and either a
+ * NormalPrior slab (direct) or a CauchyPrior slab (via the scale-mixture-of-
+ * normals representation K_ij | omega ~ N(0, sigma^2 omega), omega ~
+ * InvGamma(1/2, 1/2), with omega_ij slice-sampled per edge by
+ * math/savage_dickey/cauchy_omega.h). Construction will throw if
+ * hierarchical is requested under any other family.
+ */
+enum class GraphPriorSpec { Joint, Hierarchical };
 
 
 /**
@@ -64,12 +86,20 @@ public:
         proposal_sds_(arma::mat(dim_, 1, arma::fill::ones) * 0.25),
         num_pairwise_(p_ * (p_ - 1) / 2),
         observations_(na_impute ? observations : arma::mat()),
-        precision_proposal_(arma::mat(p_, p_, arma::fill::none))
+        precision_proposal_(arma::mat(p_, p_, arma::fill::none)),
+        omega_(arma::ones<arma::mat>(p_, p_))
     {
         int num_edges = arma::accu(edge_indicators_) / 2;
         int max_edges = static_cast<int>(p_ * (p_ - 1) / 2);
         has_sparse_graph_ = !edge_selection_ && (num_edges < max_edges);
         initialize_precision_from_mle();
+        // Defensive: when there is no data (n == 0), enable prior_only_ so the
+        // PD canary inside update_edge_parameter / update_diagonal_parameter /
+        // update_edge_indicator_parameter_pair fires. Without it the chain
+        // can accept moves that take K out of the PD cone (no likelihood
+        // anchor), drift in Σ compounds, and the next refresh_cholesky throws
+        // on a now-non-PD K. See sample_ggm_prior(spec = "joint").
+        if (n_ == 0) prior_only_ = true;
     }
 
     /**
@@ -111,12 +141,16 @@ public:
         vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
         proposal_sds_(arma::mat(dim_, 1, arma::fill::ones) * 0.25),
         num_pairwise_(p_ * (p_ - 1) / 2),
-        precision_proposal_(arma::mat(p_, p_, arma::fill::none))
+        precision_proposal_(arma::mat(p_, p_, arma::fill::none)),
+        omega_(arma::ones<arma::mat>(p_, p_))
     {
         int num_edges = arma::accu(edge_indicators_) / 2;
         int max_edges = static_cast<int>(p_ * (p_ - 1) / 2);
         has_sparse_graph_ = !edge_selection_ && (num_edges < max_edges);
         initialize_precision_from_mle();
+        // Defensive: see X-based constructor above. n == 0 → prior-only target,
+        // PD canary must run.
+        if (n_ == 0) prior_only_ = true;
     }
 
     /** Copy constructor for cloning (required for parallel chains). */
@@ -124,6 +158,11 @@ public:
         : BaseModel(other),
           target_accept_(other.target_accept_),
           determinant_tilt_(other.determinant_tilt_),
+          within_step_kind_(other.within_step_kind_),
+          graph_prior_spec_(other.graph_prior_spec_),
+          prior_params_extracted_(false),
+          prior_only_(other.prior_only_),
+          n_pd_reverts_(other.n_pd_reverts_),
           n_(other.n_),
           p_(other.p_),
           dim_(other.dim_),
@@ -148,6 +187,7 @@ public:
           has_missing_(other.has_missing_),
           missing_index_(other.missing_index_),
           precision_proposal_(other.precision_proposal_),
+          omega_(other.omega_),
           constraint_structure_(other.constraint_structure_),
           gradient_engine_(other.gradient_engine_),
           constraint_dirty_(other.constraint_dirty_),
@@ -159,6 +199,60 @@ public:
     bool has_gradient()        const override { return true; }
     /** @return true (GGM supports adaptive Metropolis). */
     bool has_adaptive_metropolis()     const override { return true; }
+
+    /**
+     * @return true iff the row-block Gibbs within-step covers the current
+     * prior: Normal *or* Cauchy slab on K_yy off-diagonals and any Gamma(α, ·)
+     * on K_ii/2. δ is absorbed by a shape shift on ξ; α ≠ 1 is handled by a
+     * scalar independent-MH wrapper around the conjugate (α = 1) proposal;
+     * Cauchy is handled by the scale-mixture representation
+     * (K_yy_ij | ω_ij ~ N(0, σ² ω_ij)) plus a per-edge ω slice update.
+     */
+    bool row_block_gibbs_eligible();
+
+    /**
+     * Which within-step kernel do_one_metropolis_step dispatches to.
+     *   AdaptiveMetropolis: the existing q + p componentwise RW MH loop.
+     *   RowBlockGibbs:      one conjugate row draw per node, no acceptance.
+     */
+    enum class WithinStepKind {
+        AdaptiveMetropolis,
+        RowBlockGibbs,
+    };
+
+    /**
+     * Request a within-step kernel. If `kind == RowBlockGibbs` but
+     * row_block_gibbs_eligible() is false, the request is downgraded to
+     * AdaptiveMetropolis with a warning (so opt-in scripts keep working
+     * under unusual prior combinations).
+     */
+    void set_within_step_kind(WithinStepKind kind);
+
+    /** @return the active within-step kernel (post-eligibility downgrade). */
+    WithinStepKind within_step_kind() const { return within_step_kind_; }
+
+    /**
+     * Closed-form Gibbs draw for row i of K given the rest of K and the
+     * graph.
+     *
+     * Partitions K with A = K_{-i,-i}, β = K_{N_i, i}, kii = K_{i,i}, where
+     * N_i is the active neighbour set of i. With Normal slab N(0, σ²) on
+     * K_yy_ij = -K_ij/2 and Gamma(α = 1, β₀) prior on K_ii/2, the conditional
+     * (β, ξ = kii − βᵀCβ) is conjugate:
+     *
+     *   ξ | rest ∼ Gamma(n/2 + 1, (β₀ + S_ii)/2)
+     *   β | rest ∼ N(−M⁻¹ S_{N_i, i}, M⁻¹),
+     *     M = (β₀ + S_ii) C + (1/(4σ²)) I,
+     *     C = (A⁻¹)_{N_i, N_i} = Σ_{N_i, N_i} − Σ_{N_i, i} Σ_{i, N_i}/Σ_ii.
+     *
+     * Public for now so the PR-2 test interface can drive it directly; once
+     * PR-3 wires `within_step_kind` into do_one_metropolis_step the only
+     * caller outside tests will be the dispatcher.
+     *
+     * Preconditions: row_block_gibbs_eligible() == true; covariance_matrix_
+     * holds K⁻¹ up to date with precision_matrix_.
+     */
+    void update_row_block_gibbs(size_t i);
     /** @return true when edge selection is enabled. */
     bool has_edge_selection()  const override { return edge_selection_; }
     /** @return true when missing-data imputation is active. */
@@ -218,6 +312,33 @@ public:
         determinant_tilt_ = delta;
         constraint_dirty_ = true;
     }
+
+    /**
+     * Switch the chain to hierarchical-spec inference (default is Joint).
+     * Hierarchical routes the between-edge step to the L-space Savage-Dickey
+     * MH. Requires a NormalPrior or CauchyPrior slab + GammaScalePrior
+     * diagonal — the SD primitive validates this at first use.
+     */
+    void set_graph_prior_spec(GraphPriorSpec spec);
+
+    /**
+     * Diagnostic: number of times the L-space SD between-step's PD-revert
+     * defense fired during this chain. Should be zero in well-conditioned
+     * regimes; non-zero is a canary for pathological K. Reset via
+     * reset_pd_revert_count().
+     */
+    long n_pd_reverts() const { return n_pd_reverts_; }
+    void reset_pd_revert_count() { n_pd_reverts_ = 0; }
+
+    /**
+     * Disable the likelihood contribution in all MH ratios. When true the
+     * chain targets the prior π(Γ, K) instead of the posterior π(Γ, K | Y).
+     * Used for stationarity / calibration tests: under prior-only mode the
+     * empirical edge-inclusion frequencies should converge to
+     * inclusion_probability_. Default `false`.
+     */
+    void set_prior_only(bool on) { prior_only_ = on; }
+    bool prior_only() const { return prior_only_; }
 
     /** Shuffle edge visit order (random scan). */
     void prepare_iteration() override;
@@ -351,6 +472,11 @@ public:
         return edge_indicators_;
     }
 
+    /** @return Current precision matrix K. */
+    const arma::mat& get_precision_matrix() const {
+        return precision_matrix_;
+    }
+
     /** @return Mutable reference to the prior inclusion-probability matrix. */
     arma::mat& get_inclusion_probability() override {
         return inclusion_probability_;
@@ -402,6 +528,41 @@ private:
     // GGMGradientEngine on every rebuild.
     double determinant_tilt_ = 0.0;
 
+    // Within-step kernel used by do_one_metropolis_step. Defaults to AM for
+    // parity with the established AM path; switched via set_within_step_kind().
+    WithinStepKind within_step_kind_ = WithinStepKind::AdaptiveMetropolis;
+
+    // ---- Hierarchical-spec inference ----
+    // Default is Joint (Roverato between-edge step). Hierarchical routes the
+    // between-edge step to the L-space Savage-Dickey identity, targeting the
+    // user-specified Γ-marginal π(Γ) directly under an encompassing Normal
+    // or Cauchy slab + Gamma diagonal.
+    GraphPriorSpec graph_prior_spec_ = GraphPriorSpec::Joint;
+    bool   prior_params_extracted_   = false;
+    // Disables the likelihood contribution in all MH ratios when true; used
+    // to verify Γ-marginal stationarity against the prior. See set_prior_only.
+    bool   prior_only_ = false;
+    // Count of PD-revert events inside the L-space SD between-step. Diagnostic
+    // only — should be 0 in well-conditioned regimes.
+    long   n_pd_reverts_ = 0;
+    // Extracted prior-family params (cached on first SD call).
+    double prior_sigma_ = 1.0;  // NormalPrior or CauchyPrior scale
+    double prior_alpha_ = 1.0;  // GammaScalePrior shape
+    double prior_beta_  = 1.0;  // GammaScalePrior rate
+    bool   slab_is_cauchy_ = false;  // true => Cauchy slab via scale mixture
+
+  private:
+
+    /// Lightweight prior-family validator and parameter extractor. Sets
+    /// prior_sigma_, prior_alpha_, prior_beta_, slab_is_cauchy_ from the
+    /// configured slab and diagonal priors. Used by the L-space SD
+    /// between-step. Idempotent.
+    void ensure_prior_params_extracted_();
+
+    /// Slice-sample omega_(i,j) from its L-space-consistent full conditional
+    /// p(omega | K_ij, gamma_ij, rest). Called after the SD between-step
+    /// updates (gamma_ij, K_ij). No-op when slab is Normal.
+    void slice_sample_omega_ij_(size_t i, size_t j);
     /** Extract upper triangle of the precision matrix into a vector. */
     arma::vec extract_upper_triangle() const {
         arma::vec result(dim_);
@@ -477,6 +638,12 @@ private:
     /// Scratch matrix for proposed precision values.
     arma::mat precision_proposal_;
 
+    /// Per-edge mixing weight omega_ij for the scale-mixture-of-normals
+    /// representation of the Cauchy slab. K_ij | gamma=1, omega ~ N(0, sigma^2 omega).
+    /// Stored upper-triangular (omega_(i,j) for i < j); diagonal and lower
+    /// triangle unused. Initialised to 1.0 (= Normal slab pointwise).
+    arma::mat omega_;
+
     /**
      * Workspace for conditional precision reparameterization.
      *
@@ -502,6 +669,22 @@ private:
     arma::vec vf2_ = arma::zeros<arma::vec>(p_);
     arma::vec u1_ = arma::zeros<arma::vec>(p_);
     arma::vec u2_ = arma::zeros<arma::vec>(p_);
+
+    /**
+     * Row-block Gibbs per-row scratch, reused across the p rows of a sweep so
+     * the within-step does not churn the allocator. These are the buffers
+     * filled element-by-element (loops) or via set_size, which Armadillo
+     * resizes by reusing the existing allocation when it fits — unlike the
+     * solve/chol/matmul results, which materialise a temporary and are left as
+     * locals. gibbs_Ni_ in particular replaces a per-row std::vector with a
+     * reserve(p-1) that allocated ~p on every call.
+     */
+    std::vector<arma::uword> gibbs_Ni_;
+    arma::uvec gibbs_support_;
+    arma::vec gibbs_beta_old_;
+    arma::vec gibbs_sigma_iNi_;
+    arma::vec gibbs_s_Ni_i_;
+    arma::mat gibbs_C_;
 
     /**
      * Propose a new off-diagonal precision entry via a normal perturbation
@@ -536,6 +719,21 @@ private:
      * @param j  Column index
      */
     void update_edge_indicator_parameter_pair(size_t i, size_t j);
+
+    /**
+     * L-space Savage-Dickey variant of the between-Γ MH step (the production
+     * hierarchical-spec path). Derives the trailing-2×2 Cholesky factor of
+     * the DEGORD-permuted K from the 2×2 corner of Σ, computes the slave
+     * m_ij and the conditional posterior moments (τ_post, μ_post) of l_ji in
+     * closed form at α = 1 (Gauss-Hermite quadrature at α > 1), evaluates the
+     * SD log-BF, and on accept updates K_ij and K_jj jointly through Δl_ji.
+     * PD is automatic via the l_ji ∈ ℝ parameterisation; no truncation.
+     *
+     * Activated when graph_prior_spec_ == GraphPriorSpec::Hierarchical.
+     * Honours prior_only_: under prior-only the data terms drop and the MH
+     * ratio reduces to the prior odds.
+     */
+    void update_edge_indicator_parameter_pair_sd_lspace(size_t i, size_t j);
 
     /**
      * Precompute reparameterization constants for the (i, j) element.
@@ -619,6 +817,35 @@ private:
     void cholesky_update_after_edge(double omega_ij_old, double omega_jj_old, size_t i, size_t j);
 
     /**
+     * Apply a symmetric rank-2 update to K, refresh chol(K), and refresh Σ.
+     *
+     * Given vf1, vf2 of length p, this carries out
+     *   K_new      = K_old + vf1 vf2ᵀ + vf2 vf1ᵀ
+     *   chol(K)   ← Givens update + downdate on u1 = (vf1+vf2)/√2, u2 = (vf1−vf2)/√2
+     *   Σ ← Σ − A C⁻¹ Aᵀ   (Sherman–Morrison–Woodbury)
+     * with the same capacitance-singular fallback to refresh_cholesky() used
+     * by the edge update.
+     *
+     * Inputs are taken as the model's vf1_, vf2_ scratch members so callers
+     * can populate them in-place without an extra copy. The helper does not
+     * touch precision_matrix_ — the caller must already have written the
+     * post-update entries it represents.
+     *
+     * `support` lists the nonzero indices of vf1/vf2 ({i,j} for an edge
+     * accept, {i} ∪ N_i for a row-Gibbs row); the SMW matvec Σ·u touches only
+     * those columns, O(p·|support|) instead of a dense O(p^2) gemv.
+     *
+     * `update_L` controls whether chol(K) is advanced. The edge accept needs
+     * it true (the between-step reads chol(K)/log-det immediately). The
+     * row-block Gibbs sweep passes false: chol(K) is never read between rows
+     * (the row draw reads only Σ), so the p per-row Givens passes are skipped
+     * and chol(K) is rebuilt once via refresh_cholesky() at the end of the
+     * sweep. Σ is always maintained so the next row's Schur extraction is exact.
+     */
+    void apply_rank2_chol_smw_update_(const arma::uvec& support,
+                                      bool update_L = true);
+
+    /**
      * Update the Cholesky factor after changing a diagonal element.
      *
      * Applies a rank-1 update and recomputes the inverse Cholesky
@@ -638,6 +865,26 @@ private:
      * from precision_matrix_, then recomputes covariance_matrix_.
      */
     void refresh_cholesky();
+
+    /**
+     * End-of-sweep drift check on covariance_matrix_.
+     *
+     * The SMW rank-1/rank-2 updates that replace the per-accept
+     * O(p^3) refresh in cholesky_update_after_{edge,diag} are
+     * backward stable but still accumulate FP error in
+     * covariance_matrix_ over a long chain. This helper measures
+     * max_i |sum_k cov(i,k) * K(k,i) - 1| -- the worst-case
+     * diagonal entry of cov*K minus the identity -- and triggers
+     * refresh_cholesky() when it exceeds kCovDriftTol_.
+     * Computed in O(p^2) so the check fits comfortably inside the
+     * MH sweep budget.
+     */
+    void check_and_refresh_if_drift_();
+
+    /// Absolute tolerance on max|diag(cov*K) - 1| before refresh.
+    /// Set conservatively; on a clean refresh this quantity is
+    /// O(p * eps * cond(K)).
+    static constexpr double kCovDriftTol_ = 1e-8;
 
     /**
      * Initialize precision matrix at the regularized MLE.

@@ -33,8 +33,10 @@
 ^paper$
 ^LICENSE$
 
-# ---- Legacy test fixtures (GitHub CI only, not shipped to CRAN) ----
-^tests/testthat/fixtures$
+# ---- Legacy test fixtures: only the `legacy` subdirectory is excluded
+#      so it does not bloat the tarball; live fixtures used by tests in
+#      R CMD check must ship so the matching tests can run.
+^tests/testthat/fixtures/legacy$
 
 # ---- C/C++ build artifacts (REQUIRED) ----
 ^src/.*\.o$

@@ -38,7 +38,9 @@ Rcpp::List sample_ggm(
     const int max_tree_depth = 10,
     const bool na_impute = false,
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable = R_NilValue,
-    const double delta = 0.0
+    const double delta = 0.0,
+    const std::string& prior_factorization = "joint",
+    const std::string& within_step_kind = "adaptive_metropolis"
 ) {
 
     // Create parameter priors from R input
@@ -84,6 +86,30 @@ Rcpp::List sample_ggm(
     // delta * log|K|. delta = 0 is the default (untilted). Consumed by
     // both gradient paths and all four MH ratios in GGMModel.
     model.set_determinant_tilt(delta);
+
+    // Prior factorization. Hierarchical routes the between-edge MH to the
+    // L-space Savage-Dickey identity (closed-form Gaussian Bayes factor at
+    // α = 1, Gauss-Hermite quadrature at α > 1) under the encompassing
+    // Normal slab + Gamma diagonal. Joint keeps the Roverato block-update.
+    if (prior_factorization == "hierarchical") {
+        model.set_graph_prior_spec(GraphPriorSpec::Hierarchical);
+    } else if (prior_factorization != "joint") {
+        Rcpp::stop("prior_factorization must be 'joint' or 'hierarchical'.");
+    }
+
+    // Within-step kernel selection. AdaptiveMetropolis preserves the
+    // established q + p RW MH loop; RowBlockGibbs swaps in the conjugate
+    // row sweep (Normal slab × Gamma(α=1) × δ=0, eligibility-gated with
+    // warn-and-downgrade). NUTS chains ignore this — sampler_type=="nuts"
+    // bypasses do_one_metropolis_step entirely.
+    if (within_step_kind == "row_block_gibbs") {
+        model.set_within_step_kind(GGMModel::WithinStepKind::RowBlockGibbs);
+    } else if (within_step_kind == "adaptive_metropolis") {
+        model.set_within_step_kind(GGMModel::WithinStepKind::AdaptiveMetropolis);
+    } else {
+        Rcpp::stop("within_step_kind must be 'adaptive_metropolis' or "
+                   "'row_block_gibbs'.");
+    }
 
     // Set up missing data imputation (same pattern as OMRF)
     if (na_impute && missing_index_nullable.isNotNull()) {

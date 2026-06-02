@@ -90,7 +90,11 @@ run_sampler_ggm = function(spec) {
     no_warmup = s$warmup,
     no_chains = s$chains,
     edge_selection = p$edge_selection,
-    sampler_type = s$update_method,
+    # "gibbs" rides on the AM chain runner with a different within-step
+    # kernel; pass it through as ("adaptive-metropolis", "row_block_gibbs")
+    # to the C++ entry. "nuts" and "adaptive-metropolis" map verbatim.
+    sampler_type = if(s$update_method == "gibbs") "adaptive-metropolis"
+                   else s$update_method,
     seed = s$seed,
     no_threads = s$cores,
     progress_type = s$progress_type,
@@ -105,7 +109,10 @@ run_sampler_ggm = function(spec) {
     max_tree_depth = s$nuts_max_depth,
     na_impute = m$na_impute,
     missing_index_nullable = m$missing_index,
-    delta = p$delta
+    delta = p$delta,
+    prior_factorization = p$prior_factorization %||% "joint",
+    within_step_kind = if(s$update_method == "gibbs") "row_block_gibbs"
+                       else "adaptive_metropolis"
   )
 
   out_raw

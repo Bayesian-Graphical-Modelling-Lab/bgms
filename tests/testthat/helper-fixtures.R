@@ -655,7 +655,10 @@ get_bgms_fit_mixed_mrf_beta_bernoulli = function() {
       sample(0:2, n, replace = TRUE)
     )
     colnames(x) = c("d1", "c1", "d2", "c2", "d3")
-    .test_cache$bgms_fit_mixed_mrf_beta_bernoulli = bgm(
+    # Cauchy slab + BB inclusion lands on "joint" factorization, which
+    # now warns about the Z(Γ) propagation; expected, just verify the
+    # mixed MRF + BB combo runs through.
+    .test_cache$bgms_fit_mixed_mrf_beta_bernoulli = suppressWarnings(bgm(
       x = x,
       variable_type = c(
         "ordinal", "continuous", "ordinal",
@@ -666,7 +669,7 @@ get_bgms_fit_mixed_mrf_beta_bernoulli = function() {
       iter = 50, warmup = 100, chains = 1,
       seed = 77777,
       display_progress = "none"
-    )
+    ))
   }
   .test_cache$bgms_fit_mixed_mrf_beta_bernoulli
 }
@@ -683,7 +686,10 @@ get_bgms_fit_mixed_mrf_sbm = function() {
       sample(0:2, n, replace = TRUE)
     )
     colnames(x) = c("d1", "c1", "d2", "c2", "d3")
-    .test_cache$bgms_fit_mixed_mrf_sbm = bgm(
+    # Cauchy slab + SBM inclusion lands on "joint" factorization, which
+    # now warns about the Z(Γ) propagation; expected, just verify the
+    # mixed MRF + SBM combo runs through.
+    .test_cache$bgms_fit_mixed_mrf_sbm = suppressWarnings(bgm(
       x = x,
       variable_type = c(
         "ordinal", "continuous", "ordinal",
@@ -694,7 +700,7 @@ get_bgms_fit_mixed_mrf_sbm = function() {
       iter = 50, warmup = 100, chains = 1,
       seed = 77778,
       display_progress = "none"
-    )
+    ))
   }
   .test_cache$bgms_fit_mixed_mrf_sbm
 }
