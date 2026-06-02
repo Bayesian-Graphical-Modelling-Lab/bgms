@@ -277,8 +277,8 @@ void OMRFModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) 
 
             if (current != value) {
                 double delta = value - current;
-                residual_matrix_.col(variable1) += observations_double_.col(variable2) * delta;
-                residual_matrix_.col(variable2) += observations_double_.col(variable1) * delta;
+                residual_matrix_.col(variable1) += 2.0 * observations_double_.col(variable2) * delta;
+                residual_matrix_.col(variable2) += 2.0 * observations_double_.col(variable1) * delta;
             }
 
             proposal_sd = update_proposal_sd_with_robbins_monro(

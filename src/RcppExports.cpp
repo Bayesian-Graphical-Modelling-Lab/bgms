@@ -505,6 +505,24 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// test_omrf_residual_invariant
+Rcpp::List test_omrf_residual_invariant(const arma::imat& observations, const arma::ivec& num_categories, const arma::mat& pairwise, const int warmup, const int seed, const double target_accept, const bool enable_selection, const bool learn_sd);
+RcppExport SEXP _bgms_test_omrf_residual_invariant(SEXP observationsSEXP, SEXP num_categoriesSEXP, SEXP pairwiseSEXP, SEXP warmupSEXP, SEXP seedSEXP, SEXP target_acceptSEXP, SEXP enable_selectionSEXP, SEXP learn_sdSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::imat& >::type observations(observationsSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type num_categories(num_categoriesSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type pairwise(pairwiseSEXP);
+    Rcpp::traits::input_parameter< const int >::type warmup(warmupSEXP);
+    Rcpp::traits::input_parameter< const int >::type seed(seedSEXP);
+    Rcpp::traits::input_parameter< const double >::type target_accept(target_acceptSEXP);
+    Rcpp::traits::input_parameter< const bool >::type enable_selection(enable_selectionSEXP);
+    Rcpp::traits::input_parameter< const bool >::type learn_sd(learn_sdSEXP);
+    rcpp_result_gen = Rcpp::wrap(test_omrf_residual_invariant(observations, num_categories, pairwise, warmup, seed, target_accept, enable_selection, learn_sd));
+    return rcpp_result_gen;
+END_RCPP
+}
 // test_parameter_prior
 Rcpp::List test_parameter_prior(const std::string& type, double x, double scale, double alpha, double beta, double scale_factor);
 RcppExport SEXP _bgms_test_parameter_prior(SEXP typeSEXP, SEXP xSEXP, SEXP scaleSEXP, SEXP alphaSEXP, SEXP betaSEXP, SEXP scale_factorSEXP) {
@@ -700,6 +718,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_run_ggm_simulation_parallel", (DL_FUNC) &_bgms_run_ggm_simulation_parallel, 9},
     {"_bgms_sample_mixed_mrf_gibbs", (DL_FUNC) &_bgms_sample_mixed_mrf_gibbs, 11},
     {"_bgms_run_mixed_simulation_parallel", (DL_FUNC) &_bgms_run_mixed_simulation_parallel, 16},
+    {"_bgms_test_omrf_residual_invariant", (DL_FUNC) &_bgms_test_omrf_residual_invariant, 8},
     {"_bgms_test_parameter_prior", (DL_FUNC) &_bgms_test_parameter_prior, 6},
     {"_bgms_test_scale_prior", (DL_FUNC) &_bgms_test_scale_prior, 4},
     {"_bgms_ggm_test_logp_and_gradient_prior", (DL_FUNC) &_bgms_ggm_test_logp_and_gradient_prior, 11},

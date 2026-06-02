@@ -101,6 +101,10 @@ run_mixed_simulation_parallel <- function(mux_samples, disc_samples, muy_samples
     .Call(`_bgms_run_mixed_simulation_parallel`, mux_samples, disc_samples, muy_samples, cont_samples, cross_samples, draw_indices, num_states, p, q, num_categories, variable_type_r, baseline_category, iter, nThreads, seed, progress_type)
 }
 
+test_omrf_residual_invariant <- function(observations, num_categories, pairwise, warmup, seed, target_accept = 0.44, enable_selection = TRUE, learn_sd = TRUE) {
+    .Call(`_bgms_test_omrf_residual_invariant`, observations, num_categories, pairwise, warmup, seed, target_accept, enable_selection, learn_sd)
+}
+
 test_parameter_prior <- function(type, x, scale = 1.0, alpha = 0.5, beta = 0.5, scale_factor = 1.0) {
     .Call(`_bgms_test_parameter_prior`, type, x, scale, alpha, beta, scale_factor)
 }
