@@ -146,12 +146,12 @@ sample_ggm_prior = function(
   edge_inclusion_prob = 0.5
 ) {
   spec = match.arg(spec)
-  validate_positive_integer(p, "p", min_value = 2L)
-  validate_positive_integer(n_samples, "n_samples", min_value = 1L)
-  validate_positive_integer(n_warmup, "n_warmup", min_value = 0L)
-  validate_positive_integer(max_depth, "max_depth", min_value = 1L)
+  validate_integer(p, "p", min_value = 2L)
+  validate_integer(n_samples, "n_samples", min_value = 1L)
+  validate_integer(n_warmup, "n_warmup", min_value = 0L)
+  validate_integer(max_depth, "max_depth", min_value = 1L)
   validate_finite_scalar(step_size, "step_size", positive = TRUE)
-  validate_positive_integer(seed, "seed", min_value = 0L)
+  validate_integer(seed, "seed", min_value = 0L)
   if(is.null(delta)) {
     delta = 0.5 * log(p)
   }
@@ -279,7 +279,7 @@ sample_ggm_prior = function(
 
 # Internal helpers -------------------------------------------------------------
 
-validate_positive_integer = function(x, name, min_value = 1L) {
+validate_integer = function(x, name, min_value = 1L) {
   if(!is.numeric(x) || length(x) != 1L || is.na(x) || !is.finite(x)) {
     stop(sprintf("'%s' must be a single finite integer.", name))
   }

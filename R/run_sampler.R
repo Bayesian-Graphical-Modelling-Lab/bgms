@@ -8,7 +8,7 @@
 
 
 # ------------------------------------------------------------------
-# bb_between_default
+# bb_between_or_sentinel
 # ------------------------------------------------------------------
 # Maps NULL to -1.0 (C++ sentinel for "no between-cluster prior").
 #
@@ -16,7 +16,7 @@
 #
 # Returns: value unchanged, or -1.0 when NULL.
 # ------------------------------------------------------------------
-bb_between_default = function(value) {
+bb_between_or_sentinel = function(value) {
   if(is.null(value)) -1.0 else value
 }
 
@@ -67,8 +67,8 @@ run_sampler_ggm = function(spec) {
   s = spec$sampler
   m = spec$missing
 
-  bb_alpha_between = bb_between_default(p$beta_bernoulli_alpha_between)
-  bb_beta_between = bb_between_default(p$beta_bernoulli_beta_between)
+  bb_alpha_between = bb_between_or_sentinel(p$beta_bernoulli_alpha_between)
+  bb_beta_between = bb_between_or_sentinel(p$beta_bernoulli_beta_between)
 
   out_raw = sample_ggm(
     inputFromR = list(
@@ -122,8 +122,8 @@ run_sampler_omrf = function(spec) {
   p = spec$prior
   s = spec$sampler
 
-  bb_alpha_between = bb_between_default(p$beta_bernoulli_alpha_between)
-  bb_beta_between = bb_between_default(p$beta_bernoulli_beta_between)
+  bb_alpha_between = bb_between_or_sentinel(p$beta_bernoulli_alpha_between)
+  bb_beta_between = bb_between_or_sentinel(p$beta_bernoulli_beta_between)
 
   input_list = list(
     observations           = d$x,
@@ -184,8 +184,8 @@ run_sampler_mixed_mrf = function(spec) {
   p = spec$prior
   s = spec$sampler
 
-  bb_alpha_between = bb_between_default(p$beta_bernoulli_alpha_between)
-  bb_beta_between = bb_between_default(p$beta_bernoulli_beta_between)
+  bb_alpha_between = bb_between_or_sentinel(p$beta_bernoulli_alpha_between)
+  bb_beta_between = bb_between_or_sentinel(p$beta_bernoulli_beta_between)
 
   input_list = list(
     discrete_observations   = d$x_discrete,

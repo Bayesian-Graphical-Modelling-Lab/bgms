@@ -1,3 +1,7 @@
+# Number of rows shown in summary print previews before truncating with "...".
+.summary_preview_rows = 6L
+
+
 #' @name print.bgms
 #' @title Print method for `bgms` objects
 #'
@@ -149,24 +153,24 @@ print.summary.bgms = function(x, digits = 3, ...) {
   if(!is.null(x$main)) {
     main_label = attr(x, "main_label") %||% "Main effects:"
     cat(main_label, "\n")
-    print(round(head(x$main, 6), digits = digits))
-    if(nrow(x$main) > 6) cat("... (use `summary(fit)$main` to see full output)\n")
+    print(round(head(x$main, .summary_preview_rows), digits = digits))
+    if(nrow(x$main) > .summary_preview_rows) cat("... (use `summary(fit)$main` to see full output)\n")
     cat("\n")
   }
 
   if(!is.null(x$quadratic)) {
     cat("Residual variances:\n")
-    print(round(head(x$quadratic, 6), digits = digits))
-    if(nrow(x$quadratic) > 6) cat("... (use `summary(fit)$quadratic` to see full output)\n")
+    print(round(head(x$quadratic, .summary_preview_rows), digits = digits))
+    if(nrow(x$quadratic) > .summary_preview_rows) cat("... (use `summary(fit)$quadratic` to see full output)\n")
     cat("\n")
   }
 
   if(!is.null(x$pairwise)) {
     cat("Pairwise interactions:\n")
-    pair = head(x$pairwise, 6)
+    pair = head(x$pairwise, .summary_preview_rows)
     pair[] = lapply(pair, function(col) ifelse(is.na(col), "", round(col, digits)))
     print(pair)
-    if(nrow(x$pairwise) > 6) cat("... (use `summary(fit)$pairwise` to see full output)\n")
+    if(nrow(x$pairwise) > .summary_preview_rows) cat("... (use `summary(fit)$pairwise` to see full output)\n")
     if(!is.null(x$indicator)) {
       cat("Note: NA values are suppressed in the print table. They occur here when an \n")
       cat("indicator was zero across all iterations, so mcse/n_eff/n_eff_mixt/Rhat are undefined;\n")
@@ -177,7 +181,7 @@ print.summary.bgms = function(x, digits = 3, ...) {
 
   if(!is.null(x$indicator)) {
     cat("Inclusion probabilities:\n")
-    ind = head(x$indicator, 6)
+    ind = head(x$indicator, .summary_preview_rows)
     # Suppress n_eff_mixt where fewer than 5 transitions observed
     if(all(c("n0->1", "n1->0", "n_eff_mixt") %in% names(ind))) {
       few = ind[["n0->1"]] + ind[["n1->0"]] < 5
@@ -186,7 +190,7 @@ print.summary.bgms = function(x, digits = 3, ...) {
     }
     ind[] = lapply(ind, function(col) ifelse(is.na(col), "", round(col, digits)))
     print(ind)
-    if(nrow(x$indicator) > 6) cat("... (use `summary(fit)$indicator` to see full output)\n")
+    if(nrow(x$indicator) > .summary_preview_rows) cat("... (use `summary(fit)$indicator` to see full output)\n")
     cat("Note: NA values are suppressed in the print table. They occur when an indicator\n")
     cat("was constant or had fewer than 5 transitions, so n_eff_mixt is unreliable;\n")
     cat("`summary(fit)$indicator` still contains all computed values.\n\n")
@@ -194,23 +198,23 @@ print.summary.bgms = function(x, digits = 3, ...) {
 
   if(!is.null(x$allocations)) {
     cat("Pairwise node co-clustering proportion:\n")
-    print(round(head(x$allocations, 6), digits = digits))
-    if(nrow(x$allocations) > 6) cat("... (use `summary(fit)$allocations` to see full output)\n")
+    print(round(head(x$allocations, .summary_preview_rows), digits = digits))
+    if(nrow(x$allocations) > .summary_preview_rows) cat("... (use `summary(fit)$allocations` to see full output)\n")
     cat("\n")
   }
 
   if(!is.null(x$mean_allocations)) {
     cat("Mean posterior node allocation vector:\n")
-    print(round(head(x$mean_allocations, 6), digits = digits))
+    print(round(head(x$mean_allocations, .summary_preview_rows), digits = digits))
     cat("Mode posterior node allocation vector:\n")
-    print(round(head(x$mode_allocations, 6), digits = digits))
+    print(round(head(x$mode_allocations, .summary_preview_rows), digits = digits))
     cat("\n")
   }
 
   if(!is.null(x$num_blocks)) {
     cat("Number of blocks and their posterior probability :\n")
-    print(round(head(x$num_blocks, 6), digits = digits))
-    if(nrow(x$num_blocks) > 6) cat("... (use `summary(fit)$num_blocks` to see full output)\n")
+    print(round(head(x$num_blocks, .summary_preview_rows), digits = digits))
+    if(nrow(x$num_blocks) > .summary_preview_rows) cat("... (use `summary(fit)$num_blocks` to see full output)\n")
     cat("\n")
   }
 
