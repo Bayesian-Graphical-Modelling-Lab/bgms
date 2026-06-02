@@ -264,6 +264,34 @@ attach_sampler_diagnostics = function(results, raw, update_method,
 
 
 # ------------------------------------------------------------------
+# attach_sbm_posterior_summary
+# ------------------------------------------------------------------
+# Attach the Stochastic-Block posterior allocation summary (mean,
+# mode, and block count) to a results list. All three output builders
+# call posterior_summary_SBM() identically; they differ only in the
+# `arguments` they pass (bgm/mixed forward build_arguments(spec);
+# compare hand-builds list(dirichlet_alpha, lambda)), so that is an
+# argument here.
+#
+# @param results    Results list under construction.
+# @param raw        Normalized per-chain list (each carrying $allocations).
+# @param arguments  Argument list forwarded to posterior_summary_SBM().
+#
+# Returns: `results`, with the three SBM allocation fields attached.
+# ------------------------------------------------------------------
+attach_sbm_posterior_summary = function(results, raw, arguments) {
+  sbm_summary = posterior_summary_SBM(
+    allocations = lapply(raw, `[[`, "allocations"),
+    arguments = arguments
+  )
+  results$posterior_mean_allocations = sbm_summary$allocations_mean
+  results$posterior_mode_allocations = sbm_summary$allocations_mode
+  results$posterior_num_blocks = sbm_summary$blocks
+  results
+}
+
+
+# ------------------------------------------------------------------
 # needs_easybgm_s3_compat
 # ------------------------------------------------------------------
 # Returns TRUE when easybgm is loaded at a version that overwrites
@@ -553,15 +581,7 @@ build_output_bgm = function(spec, raw) {
 
     if(has_sbm) {
       results$posterior_mean_coclustering_matrix = co_occur_matrix
-
-      arguments = build_arguments(spec)
-      sbm_summary = posterior_summary_SBM(
-        allocations = lapply(raw, `[[`, "allocations"),
-        arguments   = arguments
-      )
-      results$posterior_mean_allocations = sbm_summary$allocations_mean
-      results$posterior_mode_allocations = sbm_summary$allocations_mode
-      results$posterior_num_blocks = sbm_summary$blocks
+      results = attach_sbm_posterior_summary(results, raw, build_arguments(spec))
     }
   }
 
@@ -835,15 +855,7 @@ build_output_mixed_mrf = function(spec, raw) {
 
     if(has_sbm) {
       results$posterior_mean_coclustering_matrix = co_occur_matrix
-
-      arguments = build_arguments(spec)
-      sbm_summary = posterior_summary_SBM(
-        allocations = lapply(raw, `[[`, "allocations"),
-        arguments   = arguments
-      )
-      results$posterior_mean_allocations = sbm_summary$allocations_mean
-      results$posterior_mode_allocations = sbm_summary$allocations_mode
-      results$posterior_num_blocks = sbm_summary$blocks
+      results = attach_sbm_posterior_summary(results, raw, build_arguments(spec))
     }
   }
 
@@ -1057,16 +1069,10 @@ build_output_compare = function(spec, raw) {
     results$posterior_summary_pairwise_allocations = sbm_convergence$sbm_summary
     results$posterior_mean_coclustering_matrix = sbm_convergence$co_occur_matrix
 
-    sbm_summary = posterior_summary_SBM(
-      allocations = lapply(raw, `[[`, "allocations"),
-      arguments = list(
-        dirichlet_alpha = p$dirichlet_alpha,
-        lambda          = p$lambda
-      )
+    results = attach_sbm_posterior_summary(
+      results, raw,
+      list(dirichlet_alpha = p$dirichlet_alpha, lambda = p$lambda)
     )
-    results$posterior_mean_allocations = sbm_summary$allocations_mean
-    results$posterior_mode_allocations = sbm_summary$allocations_mode
-    results$posterior_num_blocks = sbm_summary$blocks
   }
 
   # --- raw_samples ------------------------------------------------------------
