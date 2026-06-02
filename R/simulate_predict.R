@@ -923,6 +923,35 @@ simulate.bgmCompare = function(object,
 }
 
 
+# ------------------------------------------------------------------------------
+# average_draws()
+# ------------------------------------------------------------------------------
+# Posterior-sample prediction averaging. Given a per-draw list (one element
+# per posterior draw, each itself a list indexed by predicted variable), stack
+# variable `v`'s per-draw matrices into an n x k x ndraws array and reduce to
+# posterior mean and sd matrices. Each per-draw matrix is n_obs x k, so the
+# array dims are read from the matrix itself (rather than re-deriving n_obs /
+# k at each call site, which had drifted across the three predict methods).
+#
+# @param per_draw_list  List of length ndraws; element i is a per-variable
+#   list of n_obs x k prediction matrices.
+# @param v              Index of the predicted variable to average.
+#
+# Returns: list(mean = n_obs x k matrix, sd = n_obs x k matrix).
+# ------------------------------------------------------------------------------
+average_draws = function(per_draw_list, v) {
+  var_mats = lapply(per_draw_list, `[[`, v)
+  arr = array(
+    unlist(var_mats),
+    dim = c(nrow(var_mats[[1]]), ncol(var_mats[[1]]), length(var_mats))
+  )
+  list(
+    mean = apply(arr, c(1, 2), mean),
+    sd = apply(arr, c(1, 2), sd)
+  )
+}
+
+
 # ==============================================================================
 #   predict.bgms() - S3 Method for Conditional Probability Prediction
 # ==============================================================================
@@ -1233,14 +1262,9 @@ predict.bgms = function(object,
     names(probs_sd) = data_columnnames[predict_vars]
 
     for(v in seq_along(predict_vars)) {
-      # Stack probabilities from all draws: n x categories x ndraws
-      var_probs = lapply(all_probs, `[[`, v)
-      prob_array = array(unlist(var_probs),
-        dim = c(nrow(newdata), ncol(var_probs[[1]]), ndraws)
-      )
-
-      probs[[v]] = apply(prob_array, c(1, 2), mean)
-      probs_sd[[v]] = apply(prob_array, c(1, 2), sd)
+      avg = average_draws(all_probs, v)
+      probs[[v]] = avg$mean
+      probs_sd[[v]] = avg$sd
 
       var_idx = predict_vars[v]
       n_cats = num_categories[var_idx] + 1
@@ -1708,14 +1732,9 @@ predict_bgms_ggm = function(object, newdata, predict_vars, data_columnnames,
     names(result_sd) = data_columnnames[predict_vars]
 
     for(v in seq_along(predict_vars)) {
-      # Stack predictions: n x 2 x ndraws
-      var_preds = lapply(all_preds, `[[`, v)
-      pred_array = array(unlist(var_preds),
-        dim = c(nrow(newdata), 2, ndraws)
-      )
-
-      result[[v]] = apply(pred_array, c(1, 2), mean)
-      result_sd[[v]] = apply(pred_array, c(1, 2), sd)
+      avg = average_draws(all_preds, v)
+      result[[v]] = avg$mean
+      result_sd[[v]] = avg$sd
 
       colnames(result[[v]]) = c("mean", "sd")
       colnames(result_sd[[v]]) = c("mean", "sd")
@@ -2038,14 +2057,9 @@ predict_bgms_mixed = function(object, newdata, predict_vars, arguments,
     names(probs_sd) = data_columnnames[predict_vars]
 
     for(k in seq_len(num_pv)) {
-      # Stack all draws into an array: n x ncol x ndraws
-      var_preds = lapply(all_results, `[[`, k)
-      pred_array = array(unlist(var_preds),
-        dim = c(nrow(var_preds[[1]]), ncol(var_preds[[1]]), ndraws)
-      )
-
-      probs[[k]] = apply(pred_array, c(1, 2), mean)
-      probs_sd[[k]] = apply(pred_array, c(1, 2), sd)
+      avg = average_draws(all_results, k)
+      probs[[k]] = avg$mean
+      probs_sd[[k]] = avg$sd
     }
 
     probs = format_mixed_predictions(
