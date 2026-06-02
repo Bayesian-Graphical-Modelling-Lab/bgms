@@ -1,13 +1,13 @@
 // [[Rcpp::depends(RcppParallel, RcppArmadillo, dqrng)]]
 #include <RcppArmadillo.h>
-#include "bgmCompare/bgmCompare_sampler.h"
+#include "models/bgmCompare/bgmCompare_sampler.h"
 #include "rng/rng_utils.h" // must be included before RcppParallel
 #include <RcppParallel.h>
 #include <tbb/global_control.h>
 #include <vector>
 #include <string>
 #include "utils/progress_manager.h"
-#include "bgmCompare/bgmCompare_output.h"
+#include "models/bgmCompare/bgmCompare_output.h"
 #include "mcmc/samplers/metropolis_adaptation.h"
 #include "utils/common_helpers.h"
 #include "priors/parameter_prior.h"
