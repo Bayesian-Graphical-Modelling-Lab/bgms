@@ -9,7 +9,7 @@
 std::unique_ptr<SamplerBase> create_sampler(const SamplerConfig& config, WarmupSchedule& schedule) {
     if (config.sampler_type == "nuts") {
         return std::make_unique<NUTSSampler>(config, schedule);
-    } else if (config.sampler_type == "mh" || config.sampler_type == "adaptive-metropolis") {
+    } else if (config.sampler_type == "adaptive-metropolis") {
         return std::make_unique<MetropolisSampler>(config, schedule);
     } else {
         Rcpp::stop("Unknown sampler_type: '%s'", config.sampler_type.c_str());
@@ -139,8 +139,7 @@ std::vector<ChainResult> run_mcmc_sampler(
     ProgressManager& pm
 ) {
     const bool has_nuts_diag = (config.sampler_type == "nuts");
-    const bool has_am_diag = (config.sampler_type == "adaptive-metropolis" ||
-                              config.sampler_type == "mh");
+    const bool has_am_diag = (config.sampler_type == "adaptive-metropolis");
     const bool has_sbm_alloc = edge_prior.has_allocations() ||
         (config.edge_selection && dynamic_cast<StochasticBlockEdgePrior*>(&edge_prior) != nullptr);
 

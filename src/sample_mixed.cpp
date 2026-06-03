@@ -42,7 +42,7 @@
 // @param beta_bernoulli_beta_between  SBM between-cluster beta
 // @param dirichlet_alpha         Dirichlet alpha for SBM
 // @param lambda                  Lambda for SBM
-// @param sampler_type            Sampler type string ("mh", "nuts", etc.)
+// @param sampler_type            Sampler type string ("adaptive-metropolis" or "nuts")
 // @param target_acceptance       Target acceptance rate for gradient-based samplers
 // @param max_tree_depth          Maximum tree depth for NUTS
 // @param na_impute               Whether to impute missing data
@@ -70,7 +70,7 @@ Rcpp::List sample_mixed_mrf(
     const double beta_bernoulli_beta_between = 1.0,
     const double dirichlet_alpha = 1.0,
     const double lambda = 1.0,
-    const std::string& sampler_type = "mh",
+    const std::string& sampler_type = "adaptive-metropolis",
     const double target_acceptance = 0.80,
     const int max_tree_depth = 10,
     const bool na_impute = false,
