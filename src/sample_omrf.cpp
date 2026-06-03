@@ -24,7 +24,7 @@
 // @param no_warmup           Number of warmup iterations
 // @param no_chains           Number of parallel chains
 // @param edge_selection      Whether to do edge selection (spike-and-slab)
-// @param sampler_type        "mh" or "nuts"
+// @param sampler_type        "adaptive-metropolis" or "nuts"
 // @param seed                Random seed
 // @param no_threads          Number of threads for parallel execution
 // @param progress_type       Progress bar type
