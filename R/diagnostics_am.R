@@ -3,7 +3,7 @@
 # ==============================================================================
 #
 # Post-sampling diagnostics for the componentwise adaptive-Metropolis
-# sampler. Mirrors the role of nuts_diagnostics.R for NUTS, but
+# sampler. Mirrors the role of diagnostics_nuts.R for NUTS, but
 # necessarily lives in its own file because the underlying sampler
 # organisation is different: NUTS does one accept/reject per iteration
 # over the whole parameter vector, whereas adaptive-Metropolis does
