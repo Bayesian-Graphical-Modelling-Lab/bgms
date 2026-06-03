@@ -1,3 +1,12 @@
+/**
+ * mixed_mrf_model.cpp — MixedMRFModel core.
+ *
+ * Construction, sufficient statistics, parameter (de)vectorization, the
+ * `do_one_metropolis_step` driver, missing-data imputation, proposal-SD tuning,
+ * and the position/momentum projection cache for constrained NUTS. The likelihood,
+ * gradient, and within-model MH update bodies live in the sibling translation units
+ * (mixed_mrf_likelihoods.cpp, mixed_mrf_gradient.cpp, mixed_mrf_metropolis.cpp).
+ */
 #include <RcppArmadillo.h>
 #include "models/mixed/mixed_mrf_model.h"
 #include "math/explog_macros.h"

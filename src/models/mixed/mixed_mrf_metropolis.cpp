@@ -1,3 +1,12 @@
+/**
+ * mixed_mrf_metropolis.cpp — MixedMRFModel within-model MH updates.
+ *
+ * The per-parameter Metropolis-Hastings sweeps (main effects, discrete/cross/continuous
+ * pairwise effects, edge indicators, continuous mean) and the rank-2 precision math they
+ * rely on: `get_precision_constants`, `log_det_ratio_yy_*`, `log_ggm_ratio_*`, and the
+ * `cholesky_update_after_precision_*` helpers. The load-bearing `std::abs` sign convention
+ * in the det-ratio helpers must be preserved (see architecture.md, Numerical Considerations).
+ */
 #include <RcppArmadillo.h>
 #include <utility>
 #include "models/mixed/mixed_mrf_model.h"

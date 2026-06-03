@@ -21,8 +21,9 @@ struct WarmupSchedule;
  * and are guarded by the has_gradient() capability query.
  *
  * Subclass hierarchy:
- *   - GGMModel  — Gaussian Graphical Model (precision matrix, Metropolis only)
- *   - OMRFModel — Ordinal Markov Random Field (Metropolis + NUTS)
+ *   - GGMModel      — Gaussian Graphical Model (precision matrix, Metropolis + NUTS)
+ *   - OMRFModel     — Ordinal Markov Random Field (Metropolis + NUTS)
+ *   - MixedMRFModel — Mixed discrete + continuous MRF (Metropolis + NUTS)
  *
  * Methods fall into several groups:
  *   - **Capability queries** (has_gradient, has_adaptive_metropolis, etc.)

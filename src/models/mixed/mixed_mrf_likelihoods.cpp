@@ -1,3 +1,11 @@
+/**
+ * mixed_mrf_likelihoods.cpp — MixedMRFModel likelihood terms.
+ *
+ * The two log-likelihood contributions of the mixed model: `log_conditional_ggm`
+ * (continuous block conditional on the discrete state) and `log_marginal_omrf`
+ * (discrete block). Consumed by the gradient and Metropolis update bodies in the
+ * sibling translation units.
+ */
 #include <RcppArmadillo.h>
 #include "models/mixed/mixed_mrf_model.h"
 #include "utils/variable_helpers.h"

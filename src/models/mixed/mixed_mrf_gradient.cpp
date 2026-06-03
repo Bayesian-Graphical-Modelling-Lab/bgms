@@ -1,3 +1,11 @@
+/**
+ * mixed_mrf_gradient.cpp — MixedMRFModel gradient engine (NUTS support).
+ *
+ * `gradient`, `logp_and_gradient`, and the full-space variant, plus the gradient-cache
+ * bookkeeping (`ensure_gradient_cache`, `invalidate_gradient_cache`) and the
+ * NUTS-vector → working-temps unpacking. Pairs with the constrained-NUTS projection
+ * cache in mixed_mrf_model.cpp.
+ */
 #include <RcppArmadillo.h>
 #include "models/mixed/mixed_mrf_model.h"
 #include "utils/variable_helpers.h"
