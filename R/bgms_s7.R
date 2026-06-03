@@ -5,7 +5,7 @@
 # These S7 classes define the structure of fit objects returned by bgm()
 # and bgmCompare(). They replace the previous S3 list-based representation
 # while preserving the same user-facing API via $ and [[ compatibility
-# methods (see bgms-methods.R and bgmcompare-methods.r).
+# methods (see bgms-methods.R and bgmcompare-methods.R).
 #
 # Lazy summary computation:
 # The posterior_summary_* properties use S7 custom getters that trigger
