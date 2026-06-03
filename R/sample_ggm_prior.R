@@ -83,8 +83,9 @@
 #'   \describe{
 #'     \item{\code{K_offdiag}}{Numeric matrix of size
 #'       \code{n_samples} x \code{p * (p - 1) / 2} containing the upper-triangle
-#'       off-diagonal entries of \eqn{K} for each draw, in column-major order
-#'       \eqn{(K_{12}, K_{13}, K_{23}, K_{14}, \ldots)}. Under
+#'       off-diagonal entries of \eqn{K} for each draw, in row-major order
+#'       (the upper triangle traversed by row)
+#'       \eqn{(K_{12}, K_{13}, \ldots, K_{1p}, K_{23}, K_{24}, \ldots, K_{2p}, K_{34}, \ldots)}. Under
 #'       \code{spec = "conditional"}, excluded edges are returned as
 #'       \code{0}; under \code{spec = "joint"}, off-diagonals at excluded
 #'       edges are sampled at \code{0} per the inclusion indicator.}

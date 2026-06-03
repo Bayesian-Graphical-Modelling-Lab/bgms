@@ -2,7 +2,7 @@
 % Please edit documentation in R/extractor_functions.R
 \name{extract_log_odds}
 \alias{extract_log_odds}
-\title{Extract Posterior Mean Log-Odds}
+\title{Extract Posterior Mean Log-Odds (Pairwise Interactions)}
 \usage{
 extract_log_odds(bgms_object)
 }
@@ -25,9 +25,6 @@ Retrieves the posterior mean pairwise interaction matrix for discrete
 variables from a model fitted with \code{\link[=bgm]{bgm()}}. These are the log-odds
 parameters of the discrete (Markov random field) block. GGM models have
 no discrete variables and return \code{NULL}.
-}
-\details{
-Extract Posterior Mean Log-Odds (Pairwise Interactions)
 }
 \examples{
 \donttest{

@@ -35,7 +35,8 @@ public:
      * @param inclusion_probability Prior inclusion probabilities for each edge
      * @param initial_edge_indicators Initial edge inclusion indicators
      * @param edge_selection        Enable edge selection (spike-and-slab)
-     * @param pairwise_scale        Scale parameter of Cauchy slab prior
+     * @param interaction_prior      Polymorphic prior on the off-diagonal interaction/pairwise parameters
+     * @param diagonal_prior         Polymorphic prior on the diagonal precision parameters
      * @param na_impute             Retain observations for missing-data imputation
      */
     GGMModel(
@@ -83,8 +84,8 @@ public:
      * @param inclusion_probability Prior inclusion probabilities for each edge
      * @param initial_edge_indicators Initial edge inclusion indicators
      * @param edge_selection        Enable edge selection (spike-and-slab)
-     * @param pairwise_scale        Scale parameter of Cauchy slab prior
-     * @param interaction_prior_type Type of interaction prior (Cauchy or Normal)
+     * @param interaction_prior      Polymorphic prior on the off-diagonal interaction/pairwise parameters
+     * @param diagonal_prior         Polymorphic prior on the diagonal precision parameters
      */
     GGMModel(
             const int n,
@@ -267,8 +268,9 @@ public:
     /**
      * Perform one full Metropolis sweep.
      *
-     * Iterates over all off-diagonal entries (edge updates), all diagonal
-     * entries, and (when active) all edge indicator add-delete moves.
+     * Iterates over all off-diagonal entries (edge parameter updates) and
+     * all diagonal entries; edge-indicator add-delete moves are handled
+     * separately in update_edge_indicators().
      *
      * @param iteration  Current iteration index (for Robbins-Monro adaptation)
      */
@@ -429,7 +431,9 @@ private:
     bool edge_selection_;
     /// Whether edge add-delete proposals are currently active.
     bool edge_selection_active_ = false;
-    /// Whether the initial graph excludes any edges (triggers RATTLE).
+    /// Whether the initial graph excludes any edges (used by
+    /// initialize_precision_from_mle to zero excluded entries and restore
+    /// positive-definiteness; does not trigger RATTLE in GGM).
     bool has_sparse_graph_ = false;
     /// Prior on off-diagonal precision elements (interactions).
     std::unique_ptr<BaseParameterPrior> interaction_prior_;
@@ -562,7 +566,7 @@ private:
     double constrained_diagonal(const double x) const;
 
     /**
-     * Full Gaussian log-likelihood: n/2 * (log|Omega| - tr(Omega S) / n).
+     * Full Gaussian log-likelihood: n/2 * (p*log(2*pi) + log|Omega|) - tr(Omega S)/2.
      *
      * @param omega  Precision matrix
      * @param phi    Upper-triangular Cholesky factor of omega
@@ -692,7 +696,8 @@ public:
  * @param inclusion_probability   Prior inclusion probabilities for each edge
  * @param initial_edge_indicators Initial edge inclusion indicators
  * @param edge_selection          Enable edge selection (spike-and-slab)
- * @param pairwise_scale          Scale parameter of Cauchy slab prior
+ * @param interaction_prior       Prior on pairwise interaction / off-diagonal precision parameters
+ * @param diagonal_prior          Prior on diagonal precision parameters
  * @param na_impute               Retain observations for missing-data imputation
  * @return Fully constructed GGMModel
  */

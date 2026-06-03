@@ -58,7 +58,7 @@ NULL
 #' includes 18 items: 9 Inattentive (I) and 9 Hyperactive/Impulsive (HI). Each item is binary
 #' (1 = present, 0 = absent).
 #'
-#' @format A matrix with 355 rows and 19 columns.
+#' @format A data frame with 355 rows and 19 columns.
 #' \describe{
 #'   \item{group}{ADHD diagnosis: 1 = diagnosed, 0 = not diagnosed}
 #'   \item{avoid}{Often avoids, dislikes, or is reluctant to engage in tasks
@@ -112,7 +112,7 @@ NULL
 #' ranging from 1 ("strongly disagree") to 7 ("strongly agree"). The scale was administered
 #' in either English \insertCite{Struk_2015_boredom}{bgms} or French (translated by \insertCite{Martarelli_2023_Boredom}{bgms}).
 #'
-#' @format A matrix with 986 rows and 9 columns. Each row corresponds to a respondent.
+#' @format A data frame with 986 rows and 9 columns. Each row corresponds to a respondent.
 #' \describe{
 #'   \item{language}{Language in which the SBPS was administered: "en" = English, "fr" = French}
 #'   \item{loose_ends}{I often find myself at "loose ends," not knowing what to

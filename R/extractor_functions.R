@@ -564,13 +564,12 @@ extract_pairwise_interactions.bgmCompare = function(bgms_object) {
 
 #' Extract Main Effect Estimates
 #'
-#' @title Extract Main Effect Estimates
-#'
 #' @description
-#' Retrieves posterior mean main-effect parameters from a model fitted with
-#' [bgm()] or [bgmCompare()]. For OMRF models these are category thresholds;
-#' for mixed MRF models these include discrete thresholds and continuous
-#' means. GGM models have no main effects and return `NULL`.
+#' Retrieves main-effect parameters from a model fitted with [bgm()]
+#' (posterior means) or [bgmCompare()] (posterior samples of baseline main
+#' effects). For OMRF models these are category thresholds; for mixed MRF
+#' models these include discrete thresholds and continuous means. GGM models
+#' have no main effects and return `NULL`.
 #'
 #' @param bgms_object A fitted model object of class `bgms` (from [bgm()])
 #'   or `bgmCompare` (from [bgmCompare()]).
@@ -692,8 +691,6 @@ extract_main_effects.bgmCompare = function(bgms_object) {
 
 
 #' Extract Category Threshold Estimates
-#'
-#' @title Extract Category Threshold Estimates
 #'
 #' @description
 #' `r lifecycle::badge("deprecated")`
@@ -1189,8 +1186,6 @@ extract_ess.bgmCompare = function(bgms_object) {
 
 #' Extract Posterior Mean Precision Matrix
 #'
-#' @title Extract Posterior Mean Precision Matrix
-#'
 #' @description
 #' Retrieves the posterior mean precision matrix from a model fitted with
 #' [bgm()]. For GGM models this is the full precision matrix. For
@@ -1261,8 +1256,6 @@ extract_precision.bgms = function(bgms_object) {
 
 #' Extract Posterior Mean Partial Correlations
 #'
-#' @title Extract Posterior Mean Partial Correlations
-#'
 #' @description
 #' Computes the posterior mean partial correlation matrix from a model fitted
 #' with [bgm()]. For GGM models this is the full matrix. For mixed
@@ -1321,8 +1314,6 @@ extract_partial_correlations.bgms = function(bgms_object) {
 
 
 #' Extract Posterior Mean Log-Odds (Pairwise Interactions)
-#'
-#' @title Extract Posterior Mean Log-Odds
 #'
 #' @description
 #' Retrieves the posterior mean pairwise interaction matrix for discrete

@@ -9,6 +9,8 @@
 # Three prior roles:
 #   - bgms_parameter_prior   : prior on real-valued model parameters
 #                               (interactions, thresholds, means)
+#   - bgms_scale_prior       : prior on positive scale parameters
+#                               (precision matrix diagonal)
 #   - bgms_indicator_prior   : prior on inclusion indicators (edge selection,
 #                               difference selection)
 #
@@ -534,8 +536,9 @@ unpack_scale_prior = function(prior) {
 #'
 #' @param prior A \code{bgms_parameter_prior} object.
 #'
-#' @return A list with \code{interaction_prior_type} (character) and
-#'   \code{pairwise_scale} (numeric).
+#' @return A list with \code{interaction_prior_type} (character),
+#'   \code{pairwise_scale} (numeric), \code{interaction_alpha} (numeric), and
+#'   \code{interaction_beta} (numeric).
 #'
 #' @keywords internal
 unpack_interaction_prior = function(prior) {

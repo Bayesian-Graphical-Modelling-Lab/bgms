@@ -81,7 +81,7 @@
 #' the second is \eqn{\beta}{\beta}, the quadratic contribution.
 #' For continuous variables: a numeric vector of length \code{num_variables}
 #' containing the means \eqn{\mu}{mu} for each variable. Defaults to zeros
-#' if not supplied or if all values are zero.
+#' if not supplied (missing(main)).
 #'
 #' @param variable_type What kind of variables are simulated? Can be a single
 #' character string specifying the variable type of all \code{p} variables at

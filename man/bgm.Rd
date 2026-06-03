@@ -157,8 +157,10 @@ the model parameters:
 \describe{
 \item{"adaptive-metropolis"}{Componentwise adaptive Metropolis--Hastings
 with Robbins--Monro proposal adaptation.}
-\item{"nuts"}{The No-U-Turn Sampler with RATTLE constrained integration
-for Gaussian models with edge selection.}
+\item{"nuts"}{The No-U-Turn Sampler (gradient-based); the Gaussian
+graphical model (GGM) uses a theta-space (free-element Cholesky)
+parameterization, while models with edge selection or a sparse graph
+(mixed MRF / ordinal MRF) use RATTLE constrained integration.}
 }
 Default: \code{"nuts"}.}
 
@@ -252,12 +254,15 @@ Default: \code{1}.}
 
 \item{interaction_scale, burnin, save, threshold_alpha, threshold_beta}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}}
 Deprecated arguments as of \strong{bgms 0.1.6.0}.
-Use \code{pairwise_scale}, \code{warmup}, \code{main_alpha}, and \code{main_beta} instead.}
+Use \code{interaction_prior}, \code{warmup}, and \code{threshold_prior} instead.}
 }
 \value{
-A list of class \code{"bgms"} with posterior summaries, posterior mean
-matrices, and access to raw MCMC draws. The object can be passed to
-\code{print()}, \code{summary()}, and \code{coef()}.
+An S7 object of class \code{bgms} with posterior summaries, posterior mean
+matrices, and access to raw MCMC draws. Its fields are accessible with
+\code{$} and \code{[[} for backward compatibility, and it can be passed to
+\code{print()}, \code{summary()}, and \code{coef()}. (When an incompatible
+\pkg{easybgm} < 0.5.0 is loaded, a plain S3 list with the same fields is
+returned for compatibility.)
 
 Main components include:
 \itemize{
@@ -300,7 +305,7 @@ posterior summaries (mean, sd, MCSE, ESS, Rhat) for the pairwise
 cluster co-occurrence of the nodes. This serves to indicate
 whether the estimated posterior allocations,co-clustering matrix
 and posterior cluster probabilities (see blow) have converged.
-\item \code{posterior_coclustering_matrix}: a symmetric matrix of
+\item \code{posterior_mean_coclustering_matrix}: a symmetric matrix of
 pairwise proportions of occurrence of every variable. This matrix
 can be plotted to visually inspect the estimated number of clusters
 and visually inspect nodes that tend to switch clusters.

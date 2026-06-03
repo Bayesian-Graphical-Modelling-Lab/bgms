@@ -156,8 +156,9 @@ pairwise interaction (both baseline and difference) is adjusted based on
 the range of response scores. Without standardization, pairs with more
 response categories experience less shrinkage because their naturally
 smaller interaction effects make a fixed prior relatively wide.
-Standardization equalizes relative shrinkage across all pairs, with
-\code{pairwise_scale} itself applying to the unit interval (binary) case.
+Standardization equalizes relative shrinkage across all pairs, with the
+\code{interaction_prior} (e.g. \code{cauchy_prior(scale)}) scale itself
+applying to the unit interval (binary) case.
 See \code{\link{bgm}} for details on the adjustment. Default: \code{FALSE}.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints informational messages
@@ -173,11 +174,13 @@ iterations. Useful for external front-ends (e.g., JASP) that supply
 their own progress reporting.
 When \code{NULL} (the default), no callback is invoked.}
 
-\item{pairwise_scale}{Double. Scale of the Cauchy prior for baseline
-pairwise interactions. Default: \code{1}.}
+\item{pairwise_scale}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Double. Scale of the
+Cauchy prior for baseline pairwise interactions.
+Use \code{interaction_prior = cauchy_prior(scale)} instead.}
 
-\item{main_alpha, main_beta}{Doubles. Shape parameters of the beta-prime
-prior for baseline threshold parameters. Defaults: \code{0.5}.}
+\item{main_alpha, main_beta}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Doubles. Shape
+parameters of the beta-prime prior for baseline threshold parameters.
+Use \code{threshold_prior = beta_prime_prior(alpha, beta)} instead.}
 
 \item{beta_bernoulli_alpha, beta_bernoulli_beta}{Doubles. Shape parameters
 of the Beta prior for inclusion probabilities in the Beta--Bernoulli
@@ -187,11 +190,13 @@ model. Defaults: \code{1}.}
 Deprecated arguments as of \strong{bgms 0.1.6.0}.
 Use \code{difference_scale}, \code{difference_prior}, \code{difference_probability},
 \code{beta_bernoulli_alpha}, \code{beta_bernoulli_beta}, \code{baseline_category},
-\code{pairwise_scale}, and \code{warmup} instead.}
+\code{interaction_prior}, \code{threshold_prior}, and \code{warmup} instead.}
 }
 \value{
-A list of class \code{"bgmCompare"} containing posterior summaries,
-posterior mean matrices, and raw MCMC samples:
+An S7 object of class \code{bgmCompare} supporting list-style \code{$} /
+\code{[[} access for backward compatibility, containing posterior summaries,
+posterior mean matrices, and raw MCMC samples. Some
+\code{posterior_summary_*} fields are computed lazily on first access:
 \itemize{
 \item \code{posterior_summary_main_baseline},
 \code{posterior_summary_pairwise_baseline}: summaries of baseline

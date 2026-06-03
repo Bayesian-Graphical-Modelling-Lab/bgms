@@ -10,8 +10,9 @@ unpack_interaction_prior(prior)
 \item{prior}{A \code{bgms_parameter_prior} object.}
 }
 \value{
-A list with \code{interaction_prior_type} (character) and
-\code{pairwise_scale} (numeric).
+A list with \code{interaction_prior_type} (character),
+\code{pairwise_scale} (numeric), \code{interaction_alpha} (numeric), and
+\code{interaction_beta} (numeric).
 }
 \description{
 Unpack an interaction prior into the flat parameters used by bgm_spec

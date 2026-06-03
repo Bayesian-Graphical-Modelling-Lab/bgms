@@ -20,9 +20,6 @@ See \code{\link[=extract_main_effects]{extract_main_effects()}} for details.
 reflect that main effects include continuous means and precision diagonal
 (mixed MRF), not only category thresholds.
 }
-\details{
-Extract Category Threshold Estimates
-}
 \seealso{
 \code{\link[=extract_main_effects]{extract_main_effects()}}
 

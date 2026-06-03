@@ -9,7 +9,7 @@
 #   build_output_mixed_mrf() --- build_output_mixed_mrf.R (Mixed MRF)
 #   build_output_compare()   --- build_output_compare.R   (bgmCompare)
 #
-# All builders use build_arguments() from bgm_spec.R for the $arguments list.
+# All builders use build_arguments() from build_arguments.R for the $arguments list.
 # ==============================================================================
 
 
@@ -207,8 +207,8 @@ build_raw_samples_list = function(raw, edge_selection, edge_prior,
 # ------------------------------------------------------------------
 # Copy NUTS / adaptive-Metropolis diagnostic traces from a raw C++
 # chain onto the normalized chain list `res`, applying the trailing
-# "__" naming convention expected by summarize_nuts_diagnostics() and
-# summarize_am_diagnostics(). Each trace is attached only when present
+# "__" naming convention expected by summarize_nuts_diagnostics().
+# Each trace is attached only when present
 # on the raw chain. Returns `res` with the traces attached.
 #
 # @param res    Normalized chain list under construction.

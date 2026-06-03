@@ -16,8 +16,9 @@
  * rotation downdate algorithm.
  *
  * The two C++ wrappers below accept Armadillo matrices and forward to the
- * column-major C implementation. The first two sub-diagonal rows of R are
- * used as scratch storage during the computation but are zeroed on return.
+ * column-major C implementation. The sub-diagonal entries of the first two
+ * columns of R are used as scratch storage during the computation but are
+ * zeroed on return.
  */
 
 #include <RcppArmadillo.h>

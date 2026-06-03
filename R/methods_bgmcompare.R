@@ -1,4 +1,4 @@
-# R/bgmCompare-methods.R
+# R/methods_bgmcompare.R
 
 #' @name print.bgmCompare
 #' @title Print method for `bgmCompare` objects

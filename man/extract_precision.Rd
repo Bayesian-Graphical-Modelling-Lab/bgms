@@ -28,9 +28,6 @@ mixed MRF models this is the precision matrix of the continuous
 For mixed MRF models the precision matrix is reconstructed from the
 internal association-scale parameterization.
 }
-\details{
-Extract Posterior Mean Precision Matrix
-}
 \examples{
 \donttest{
 fit = bgm(

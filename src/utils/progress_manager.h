@@ -121,7 +121,7 @@ private:
     // Thread synchronization
     std::mutex printMutex;          // Mutex for thread-safe printing
 
-    // R callback (called without arguments at throttled intervals)
+    // R callback (called as callback(completed, total) at throttled intervals)
     Rcpp::Nullable<Rcpp::Function> callback;
 };
 

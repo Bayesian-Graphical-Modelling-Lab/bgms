@@ -61,14 +61,14 @@ arma::vec compute_denom_ordinal(
 );
 
 /**
- * Compute denom = Sigma_c exp( theta(c) + c*r - b ), with
+ * Compute denom = Sigma_c exp( theta(c) + (c-ref)*r - b ), with
  *    theta(c) = lin_eff*(c-ref) + quad_eff*(c-ref)^2
- *    b    = max_c( theta(c) + c*r )   (vectorized)
+ *    b    = max_c( theta(c) + (c-ref)*r )   (vectorized)
  *
  * Two modes:
  *
  * FAST (preexp + power-chain):
- *    denom = Sigma_c exp_theta[c] * exp(-b) * exp(r)^c
+ *    denom = Sigma_c exp_theta[c] * exp(-b) * exp(r)^(c-ref)
  * Used only when all exponent terms are safe:
  *    |b| <= EXP_BOUND,
  *    underflow_bound >= -EXP_BOUND,
@@ -76,7 +76,7 @@ arma::vec compute_denom_ordinal(
  * This guarantees the recursive pow-chain stays finite.
  *
  * SAFE (direct evaluation):
- *    denom = Sigma_c exp(theta(c) + c*r - b)
+ *    denom = Sigma_c exp(theta(c) + (c-ref)*r - b)
  * Used whenever any FAST-condition fails. Slower but always stable.
  *
  * FAST gives identical results when safe, otherwise SAFE is used.
@@ -94,11 +94,11 @@ arma::vec compute_denom_blume_capel(
  * Compute category probabilities in a numerically stable manner.
  *
  * Uses pre-exp or bounded formulations depending on the magnitude of `bound`.
- *  - If |bound| < 700: uses cheaper direct pre-exp computation
+ *  - If |bound| <= 709 (EXP_BOUND): uses cheaper direct pre-exp computation
  *  - Else: clips bound at zero and applies stabilized scaling
  *
- * Empirical tests (see R/compare_prob_ratios.R) showed:
- *   - Clipping necessary for bound < -700
+ * Empirical tests showed:
+ *   - Clipping necessary for bound < -709
  *   - Bounds improve stability when large
  *
  * Returns:
@@ -116,7 +116,7 @@ arma::mat compute_probs_ordinal(
  *
  * Model:
  *   theta(c) = lin_eff * (c - ref) + quad_eff * (c - ref)^2,  c = 0..num_cats
- *   exps_i(c) = theta(c) + c * r_i
+ *   exps_i(c) = theta(c) + (c-ref) * r_i
  *   b_i       = max_c exps_i(c)
  *
  * Probabilities:

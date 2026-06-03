@@ -206,8 +206,10 @@
 #'   \describe{
 #'     \item{"adaptive-metropolis"}{Componentwise adaptive Metropolis--Hastings
 #'       with Robbins--Monro proposal adaptation.}
-#'     \item{"nuts"}{The No-U-Turn Sampler with RATTLE constrained integration
-#'       for Gaussian models with edge selection.}
+#'     \item{"nuts"}{The No-U-Turn Sampler (gradient-based); the Gaussian
+#'       graphical model (GGM) uses a theta-space (free-element Cholesky)
+#'       parameterization, while models with edge selection or a sparse graph
+#'       (mixed MRF / ordinal MRF) use RATTLE constrained integration.}
 #'   }
 #'   Default: \code{"nuts"}.
 #'
@@ -233,12 +235,15 @@
 #' @param interaction_scale,burnin,save,threshold_alpha,threshold_beta
 #'   `r lifecycle::badge("deprecated")`
 #'   Deprecated arguments as of \strong{bgms 0.1.6.0}.
-#'   Use `pairwise_scale`, `warmup`, `main_alpha`, and `main_beta` instead.
+#'   Use `interaction_prior`, `warmup`, and `threshold_prior` instead.
 #'
 #' @return
-#' A list of class \code{"bgms"} with posterior summaries, posterior mean
-#' matrices, and access to raw MCMC draws. The object can be passed to
-#' \code{print()}, \code{summary()}, and \code{coef()}.
+#' An S7 object of class \code{bgms} with posterior summaries, posterior mean
+#' matrices, and access to raw MCMC draws. Its fields are accessible with
+#' \code{$} and \code{[[} for backward compatibility, and it can be passed to
+#' \code{print()}, \code{summary()}, and \code{coef()}. (When an incompatible
+#' \pkg{easybgm} < 0.5.0 is loaded, a plain S3 list with the same fields is
+#' returned for compatibility.)
 #'
 #' Main components include:
 #' \itemize{
@@ -281,7 +286,7 @@
 #'       cluster co-occurrence of the nodes. This serves to indicate
 #'       whether the estimated posterior allocations,co-clustering matrix
 #'       and posterior cluster probabilities (see blow) have converged.
-#'       \item \code{posterior_coclustering_matrix}: a symmetric matrix of
+#'       \item \code{posterior_mean_coclustering_matrix}: a symmetric matrix of
 #'       pairwise proportions of occurrence of every variable. This matrix
 #'       can be plotted to visually inspect the estimated number of clusters
 #'       and visually inspect nodes that tend to switch clusters.

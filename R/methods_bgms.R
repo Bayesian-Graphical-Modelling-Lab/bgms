@@ -250,6 +250,12 @@ print.summary.bgms = function(x, digits = 3, ...) {
 #'   \item{pairwise}{Posterior mean of the partial association matrix (zero
 #'     diagonal). Use [extract_precision()] for the full precision matrix.}
 #'   \item{indicator}{Posterior mean of the edge inclusion indicators (if available).}
+#'   \item{mean_allocations}{Posterior mean block allocations. Present only for
+#'     Stochastic-Block edge-prior fits.}
+#'   \item{mode_allocations}{Posterior mode block allocations. Present only for
+#'     Stochastic-Block edge-prior fits.}
+#'   \item{num_blocks}{Data frame of the posterior distribution over the number
+#'     of blocks. Present only for Stochastic-Block edge-prior fits.}
 #' }
 #'
 #' @examples

@@ -80,10 +80,13 @@ progress_type_from_display_progress = function(display_progress = c("per-chain",
 # @param is_continuous  Logical: TRUE for GGM model.
 # @param edge_selection  Logical: affects warmup warning tiers.
 # @param verbose  Logical: whether to emit warmup warnings.
+# @param progress_callback  A function or NULL: an optional progress-reporting
+#   callback forwarded unchanged into the returned list.
 #
 # Returns:
 #   list(update_method, target_accept, iter, warmup,
-#        nuts_max_depth, learn_mass_matrix, chains, cores, seed, progress_type)
+#        nuts_max_depth, learn_mass_matrix, chains, cores, seed, progress_type,
+#        progress_callback)
 # ------------------------------------------------------------------------------
 validate_sampler = function(update_method,
                             target_accept = NULL,

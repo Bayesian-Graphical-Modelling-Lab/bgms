@@ -110,8 +110,10 @@ coef(fit)$indicator
 
 # Bayes factors
 
-When the prior inclusion probability for an edge is equal to 0.5 (e.g., using a 
-Bernoulli prior with `inclusion_probability = 0.5` or a symmetric Beta prior, `main_alpha = main_beta`), we can directly transform inclusion probabilities into
+When the prior inclusion probability for an edge is equal to 0.5 (e.g., using
+`edge_prior = bernoulli_prior(0.5)`, the default, or a symmetric Beta prior
+`edge_prior = beta_bernoulli_prior(alpha, beta)` with `alpha == beta`), we can
+directly transform inclusion probabilities into
 Bayes factors for edge presence vs absence:
 
 ```{r}

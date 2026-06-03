@@ -6,14 +6,14 @@
  * SamplerConfig - Configuration for MCMC sampling
  *
  * Holds all settings for the generic MCMC runner, including:
- * - Sampler type selection (Metropolis or NUTS)
+ * - Sampler type selection (NUTS, adaptive-metropolis, or mh)
  * - Iteration counts
  * - NUTS-specific parameters
  * - Edge selection settings
  */
 struct SamplerConfig {
-    /// Sampler type: "adaptive_metropolis" or "nuts".
-    std::string sampler_type = "adaptive_metropolis";
+    /// Sampler type: "nuts", "adaptive-metropolis", or "mh".
+    std::string sampler_type = "adaptive-metropolis";
 
     /// Number of post-warmup iterations.
     int no_iter = 1000;

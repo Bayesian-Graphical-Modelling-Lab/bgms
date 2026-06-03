@@ -5,7 +5,7 @@
 \alias{ADHD}
 \title{ADHD Symptom Checklist for Children Aged 6--8 Years}
 \format{
-A matrix with 355 rows and 19 columns.
+A data frame with 355 rows and 19 columns.
 \describe{
 \item{group}{ADHD diagnosis: 1 = diagnosed, 0 = not diagnosed}
 \item{avoid}{Often avoids, dislikes, or is reluctant to engage in tasks

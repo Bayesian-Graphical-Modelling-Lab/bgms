@@ -30,14 +30,10 @@ class ProgressManager;
  * @param blume_capel_stats          Blume-Capel statistics per group (modified during imputation)
  * @param pairwise_stats             Pairwise sufficient statistics per group (modified during imputation)
  * @param num_categories             Number of categories per variable
- * @param main_alpha                 Beta prior alpha for baseline main effects
- * @param main_beta                  Beta prior beta for baseline main effects
- * @param pairwise_scale             Cauchy scale for baseline pairwise effects
  * @param pairwise_scaling_factors   Per-pair scaling factors for the Cauchy prior
- * @param difference_scale           Cauchy scale for group-difference parameters
  * @param difference_selection_alpha Alpha for difference-selection Beta-Bernoulli prior
  * @param difference_selection_beta  Beta for difference-selection Beta-Bernoulli prior
- * @param difference_prior           Prior family for inclusion probabilities (e.g. "Beta-Bernoulli")
+ * @param difference_prior_type      Prior family for inclusion probabilities (e.g. "Beta-Bernoulli")
  * @param iter                       Number of post-warmup iterations
  * @param warmup                     Number of warmup iterations
  * @param na_impute                  Enable missing-data imputation
@@ -59,6 +55,9 @@ class ProgressManager;
  * @param rng                        Random number generator
  * @param update_method              Sampler type (adaptive_metropolis, nuts)
  * @param pm                         Progress manager for user feedback
+ * @param interaction_prior          Prior for the baseline pairwise interaction parameters
+ * @param difference_prior           Prior for the group-difference parameters
+ * @param threshold_prior            Prior for the threshold (main effect) parameters
  * @param difference_edge_prior      Indicator prior for difference selection;
  *                                   for Stochastic-Block, governs off-diagonal
  *                                   (pairwise) inclusions and exposes block

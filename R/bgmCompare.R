@@ -76,18 +76,21 @@
 #' @param beta_bernoulli_alpha,beta_bernoulli_beta Doubles. Shape parameters
 #'   of the Beta prior for inclusion probabilities in the Beta--Bernoulli
 #'   model. Defaults: \code{1}.
-#' @param pairwise_scale Double. Scale of the Cauchy prior for baseline
-#'   pairwise interactions. Default: \code{1}.
+#' @param pairwise_scale `r lifecycle::badge("deprecated")` Double. Scale of the
+#'   Cauchy prior for baseline pairwise interactions.
+#'   Use \code{interaction_prior = cauchy_prior(scale)} instead.
 #' @param standardize Logical. If \code{TRUE}, the Cauchy prior scale for each
 #'   pairwise interaction (both baseline and difference) is adjusted based on
 #'   the range of response scores. Without standardization, pairs with more
 #'   response categories experience less shrinkage because their naturally
 #'   smaller interaction effects make a fixed prior relatively wide.
-#'   Standardization equalizes relative shrinkage across all pairs, with
-#'   \code{pairwise_scale} itself applying to the unit interval (binary) case.
+#'   Standardization equalizes relative shrinkage across all pairs, with the
+#'   \code{interaction_prior} (e.g. \code{cauchy_prior(scale)}) scale itself
+#'   applying to the unit interval (binary) case.
 #'   See \code{\link{bgm}} for details on the adjustment. Default: \code{FALSE}.
-#' @param main_alpha,main_beta Doubles. Shape parameters of the beta-prime
-#'   prior for baseline threshold parameters. Defaults: \code{0.5}.
+#' @param main_alpha,main_beta `r lifecycle::badge("deprecated")` Doubles. Shape
+#'   parameters of the beta-prime prior for baseline threshold parameters.
+#'   Use \code{threshold_prior = beta_prime_prior(alpha, beta)} instead.
 #' @param iter Integer. Number of post--warmup iterations per chain.
 #'   Default: \code{2e3}.
 #' @param warmup Integer. Number of warmup iterations before sampling.
@@ -125,10 +128,12 @@
 #'   Deprecated arguments as of \strong{bgms 0.1.6.0}.
 #'   Use `difference_scale`, `difference_prior`, `difference_probability`,
 #'   `beta_bernoulli_alpha`, `beta_bernoulli_beta`, `baseline_category`,
-#'   `pairwise_scale`, and `warmup` instead.
+#'   `interaction_prior`, `threshold_prior`, and `warmup` instead.
 #' @return
-#' A list of class \code{"bgmCompare"} containing posterior summaries,
-#' posterior mean matrices, and raw MCMC samples:
+#' An S7 object of class \code{bgmCompare} supporting list-style \code{$} /
+#' \code{[[} access for backward compatibility, containing posterior summaries,
+#' posterior mean matrices, and raw MCMC samples. Some
+#' \code{posterior_summary_*} fields are computed lazily on first access:
 #' \itemize{
 #'   \item \code{posterior_summary_main_baseline},
 #'     \code{posterior_summary_pairwise_baseline}: summaries of baseline

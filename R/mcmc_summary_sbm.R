@@ -75,13 +75,13 @@ summarize_alloc_pairs = function(allocations, node_names = NULL) {
 }
 
 # calculate a representative allocation vector using
-# (1) the median of the posterior distribution of the cluster allocations
-# (2) the mean which is based on Dahl's method: This part of the code
+# (1) the mean, based on Dahl's method: This part of the code
 # was adapted from the R
 # code accompanying the paper:
 #  Geng, J., Bhattacharya, A., & Pati, D. (2019). Probabilistic Community
 #  Detection With Unknown Number of Communities, Journal of the American
 #  Statistical Association, 114:526, 893-905, DOI:10.1080/01621459.2018.1458618
+# (2) the mode (most frequent co-clustering).
 find_representative_clustering = function(cluster_matrix) {
   stopifnot(is.matrix(cluster_matrix))
   n_iter = nrow(cluster_matrix)

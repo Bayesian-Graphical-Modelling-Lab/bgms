@@ -45,8 +45,10 @@ devtools::check()
 ## Code style
 
 bgms uses `=` for assignment (not `<-`) and omits the space between
-`if`/`for`/`while` and `(`. You do not need to memorize these rules;
-the pre-commit checks enforce them automatically.
+`if`/`for`/`while` and `(`. You do not need to memorize these rules:
+running the project styler (step 1 below) applies the formatting, and CI
+runs `lintr::lint_package()` on every push and pull request
+(`.github/workflows/lint.yaml`) to catch violations.
 
 Before committing, run the following in order:
 
@@ -93,6 +95,7 @@ should be an imperative sentence.
 Pull requests are checked automatically by GitHub Actions:
 
 - `R-CMD-check.yaml` — builds and checks on multiple platforms
+- `lint.yaml` — runs `lintr::lint_package()` and fails the PR on lint errors
 - `test-coverage.yaml` — reports test coverage
 - `pkgdown.yaml` — builds the documentation site
 

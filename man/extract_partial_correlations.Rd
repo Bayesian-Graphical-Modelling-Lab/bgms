@@ -29,9 +29,6 @@ have no partial correlations and return \code{NULL}.
 Partial correlations are computed from the precision matrix as
 \eqn{\rho_{ij} = -\Theta_{ij} / \sqrt{\Theta_{ii} \Theta_{jj}}}{rho_ij = -Theta_ij / sqrt(Theta_ii * Theta_jj)}.
 }
-\details{
-Extract Posterior Mean Partial Correlations
-}
 \examples{
 \donttest{
 fit = bgm(

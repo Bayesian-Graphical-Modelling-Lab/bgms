@@ -97,9 +97,11 @@ public:
      * Mean Metropolis acceptance probability across all components updated
      * in the most recent do_one_metropolis_step() call.
      *
-     * Used to populate the per-iteration `am_diag$accept_prob` diagnostic
-     * for the adaptive-Metropolis sampler. Defaults to NaN for models that
-     * do not implement Metropolis updates or have not yet taken a step.
+     * Surfaced as the per-iteration `am_accept_prob__` trace for the
+     * adaptive-Metropolis sampler. This is not `fit$am_diag$accept_prob`,
+     * which summarize_am_diagnostics computes in R as a per-parameter
+     * empirical move rate. Defaults to NaN for models that do not implement
+     * Metropolis updates or have not yet taken a step.
      *
      * @return Mean acceptance probability over the last sweep, or NaN.
      */
@@ -153,8 +155,8 @@ public:
     /**
      * Update edge indicators via Metropolis-Hastings add-delete moves.
      *
-     * Only meaningful when has_edge_selection() returns true. GGMModel
-     * handles this inside do_one_metropolis_step() instead.
+     * Only meaningful when has_edge_selection() returns true. Each derived
+     * model implements its own edge-indicator sweep here.
      */
     virtual void update_edge_indicators() = 0;
 

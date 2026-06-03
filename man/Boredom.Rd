@@ -5,7 +5,7 @@
 \alias{Boredom}
 \title{Short Boredom Proneness Scale Responses}
 \format{
-A matrix with 986 rows and 9 columns. Each row corresponds to a respondent.
+A data frame with 986 rows and 9 columns. Each row corresponds to a respondent.
 \describe{
 \item{language}{Language in which the SBPS was administered: "en" = English, "fr" = French}
 \item{loose_ends}{I often find myself at "loose ends," not knowing what to

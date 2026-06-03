@@ -69,7 +69,7 @@ Blume-Capel, continuous (GGM), and mixed MRF models.
 This function uses the estimated interaction and threshold
 parameters to generate new data via Gibbs sampling. When
 \code{method = "posterior-sample"}, parameter uncertainty is
-parameter uncertainty is propagated to the simulated data by using different
+propagated to the simulated data by using different
 posterior draws. Parallel processing is available for this method via the
 \code{cores} argument.
 }

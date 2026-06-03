@@ -42,8 +42,11 @@ public:
      * Perform one Metropolis step with adaptation.
      *
      * Returns the mean acceptance probability over all components updated
-     * in the sweep (read from the model). This drives the per-iteration
-     * AM diagnostics surfaced as fit$am_diag$accept_prob.
+     * in the sweep (read from the model). This value is stored as the
+     * per-iteration trace surfaced as the am_accept_prob__ output column
+     * (build_output.R). It does NOT feed fit$am_diag$accept_prob, which is
+     * a separate per-parameter empirical move-rate matrix computed in R by
+     * summarize_am_diagnostics() from the stored samples.
      */
     StepResult step(BaseModel& model, int iteration) override {
         if (!initialized_) {

@@ -30,13 +30,11 @@ containing posterior samples of baseline main-effect parameters.}
 }
 }
 \description{
-Retrieves posterior mean main-effect parameters from a model fitted with
-\code{\link[=bgm]{bgm()}} or \code{\link[=bgmCompare]{bgmCompare()}}. For OMRF models these are category thresholds;
-for mixed MRF models these include discrete thresholds and continuous
-means. GGM models have no main effects and return \code{NULL}.
-}
-\details{
-Extract Main Effect Estimates
+Retrieves main-effect parameters from a model fitted with \code{\link[=bgm]{bgm()}}
+(posterior means) or \code{\link[=bgmCompare]{bgmCompare()}} (posterior samples of baseline main
+effects). For OMRF models these are category thresholds; for mixed MRF
+models these include discrete thresholds and continuous means. GGM models
+have no main effects and return \code{NULL}.
 }
 \examples{
 \donttest{
