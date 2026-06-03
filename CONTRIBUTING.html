@@ -68,7 +68,7 @@
 </div>
 <div class="section level2">
 <h2 id="code-style">Code style<a class="anchor" aria-label="anchor" href="#code-style"></a></h2>
-<p>bgms uses <code>=</code> for assignment (not <code>&lt;-</code>) and omits the space between <code>if</code>/<code>for</code>/<code>while</code> and <code>(</code>. You do not need to memorize these rules; the pre-commit checks enforce them automatically.</p>
+<p>bgms uses <code>=</code> for assignment (not <code>&lt;-</code>) and omits the space between <code>if</code>/<code>for</code>/<code>while</code> and <code>(</code>. You do not need to memorize these rules: running the project styler (step 1 below) applies the formatting, and CI runs <code>lintr::lint_package()</code> on every push and pull request (<code>.github/workflows/lint.yaml</code>) to catch violations.</p>
 <p>Before committing, run the following in order:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># 1. Enforce code style</span></span>
@@ -106,6 +106,8 @@
 <p>Pull requests are checked automatically by GitHub Actions:</p>
 <ul><li>
 <code>R-CMD-check.yaml</code> — builds and checks on multiple platforms</li>
+<li>
+<code>lint.yaml</code> — runs <code>lintr::lint_package()</code> and fails the PR on lint errors</li>
 <li>
 <code>test-coverage.yaml</code> — reports test coverage</li>
 <li>

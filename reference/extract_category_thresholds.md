@@ -28,10 +28,6 @@ See
 [`extract_main_effects()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_main_effects.md)
 for details.
 
-## Details
-
-Extract Category Threshold Estimates
-
 ## See also
 
 [`extract_main_effects()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_main_effects.md)

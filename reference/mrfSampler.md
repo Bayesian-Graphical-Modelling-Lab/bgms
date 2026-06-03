@@ -60,7 +60,7 @@ mrfSampler(
   model and the second is \\\beta\\, the quadratic contribution. For
   continuous variables: a numeric vector of length `num_variables`
   containing the means \\\mu\\ for each variable. Defaults to zeros if
-  not supplied or if all values are zero.
+  not supplied (missing(main)).
 
 - variable_type:
 

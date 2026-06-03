@@ -16,5 +16,6 @@ unpack_interaction_prior(prior)
 
 ## Value
 
-A list with `interaction_prior_type` (character) and `pairwise_scale`
+A list with `interaction_prior_type` (character), `pairwise_scale`
+(numeric), `interaction_alpha` (numeric), and `interaction_beta`
 (numeric).

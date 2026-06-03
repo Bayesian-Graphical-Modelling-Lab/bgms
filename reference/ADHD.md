@@ -17,7 +17,7 @@ data("ADHD")
 
 ## Format
 
-A matrix with 355 rows and 19 columns.
+A data frame with 355 rows and 19 columns.
 
 - group:
 

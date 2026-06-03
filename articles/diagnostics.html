@@ -194,11 +194,11 @@ edges:</p>
 <h2 id="bayes-factors">Bayes factors<a class="anchor" aria-label="anchor" href="#bayes-factors"></a>
 </h2>
 <p>When the prior inclusion probability for an edge is equal to 0.5
-(e.g., using a Bernoulli prior with
-<code>inclusion_probability = 0.5</code> or a symmetric Beta prior,
-<code>main_alpha = main_beta</code>), we can directly transform
-inclusion probabilities into Bayes factors for edge presence vs
-absence:</p>
+(e.g., using <code>edge_prior = bernoulli_prior(0.5)</code>, the
+default, or a symmetric Beta prior
+<code>edge_prior = beta_bernoulli_prior(alpha, beta)</code> with
+<code>alpha == beta</code>), we can directly transform inclusion
+probabilities into Bayes factors for edge presence vs absence:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Example for one edge</span></span>
 <span><span class="va">p</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">$</span><span class="va">indicator</span><span class="op">[</span><span class="fl">1</span>, <span class="fl">5</span><span class="op">]</span></span>

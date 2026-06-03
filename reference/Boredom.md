@@ -15,7 +15,7 @@ data("Boredom")
 
 ## Format
 
-A matrix with 986 rows and 9 columns. Each row corresponds to a
+A data frame with 986 rows and 9 columns. Each row corresponds to a
 respondent.
 
 - language:

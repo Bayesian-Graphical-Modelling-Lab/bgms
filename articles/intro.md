@@ -181,8 +181,13 @@ fit_ggm = bgm(continuous_data, variable_type = "continuous", seed = 1234)
 summary(fit_ggm)
 ```
 
-The pairwise effects are partial correlations (off-diagonal entries of
-the standardized precision matrix). Missing values can be imputed during
+The pairwise effects are unstandardized partial associations derived
+from the off-diagonal entries of the precision matrix (stored as
+`-0.5 * K_ij`). They are not standardized partial correlations. Use
+[`extract_partial_correlations()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_partial_correlations.md)
+to convert them to actual partial correlations, or
+[`extract_precision()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_precision.md)
+to obtain the precision matrix. Missing values can be imputed during
 sampling with `na_action = "impute"`.
 
 ## Next steps

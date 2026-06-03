@@ -99,7 +99,7 @@ Extract specific components from fitted model objects.
 - [`extract_indicators()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_indicators.md)
   : Extract Indicator Samples
 - [`extract_log_odds()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_log_odds.md)
-  : Extract Posterior Mean Log-Odds
+  : Extract Posterior Mean Log-Odds (Pairwise Interactions)
 - [`extract_main_effects()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_main_effects.md)
   : Extract Main Effect Estimates
 - [`extract_pairwise_interactions()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_pairwise_interactions.md)

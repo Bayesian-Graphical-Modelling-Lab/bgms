@@ -232,9 +232,13 @@ workflow is the same:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_ggm</span> <span class="op">=</span> <span class="fu"><a href="../reference/bgm.html">bgm</a></span><span class="op">(</span><span class="va">continuous_data</span>, variable_type <span class="op">=</span> <span class="st">"continuous"</span>, seed <span class="op">=</span> <span class="fl">1234</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_ggm</span><span class="op">)</span></span></code></pre></div>
-<p>The pairwise effects are partial correlations (off-diagonal entries
-of the standardized precision matrix). Missing values can be imputed
-during sampling with <code>na_action = "impute"</code>.</p>
+<p>The pairwise effects are unstandardized partial associations derived
+from the off-diagonal entries of the precision matrix (stored as
+<code>-0.5 * K_ij</code>). They are not standardized partial
+correlations. Use <code><a href="../reference/extract_partial_correlations.html">extract_partial_correlations()</a></code> to convert
+them to actual partial correlations, or <code><a href="../reference/extract_precision.html">extract_precision()</a></code>
+to obtain the precision matrix. Missing values can be imputed during
+sampling with <code>na_action = "impute"</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="next-steps">Next steps<a class="anchor" aria-label="anchor" href="#next-steps"></a>

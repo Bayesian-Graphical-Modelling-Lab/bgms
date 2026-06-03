@@ -134,10 +134,11 @@ A list with components
 
   Numeric matrix of size `n_samples` x `p * (p - 1) / 2` containing the
   upper-triangle off-diagonal entries of \\K\\ for each draw, in
-  column-major order \\(K\_{12}, K\_{13}, K\_{23}, K\_{14}, \ldots)\\.
-  Under `spec = "conditional"`, excluded edges are returned as `0`;
-  under `spec = "joint"`, off-diagonals at excluded edges are sampled at
-  `0` per the inclusion indicator.
+  row-major order (the upper triangle traversed by row) \\(K\_{12},
+  K\_{13}, \ldots, K\_{1p}, K\_{23}, K\_{24}, \ldots, K\_{2p}, K\_{34},
+  \ldots)\\. Under `spec = "conditional"`, excluded edges are returned
+  as `0`; under `spec = "joint"`, off-diagonals at excluded edges are
+  sampled at `0` per the inclusion indicator.
 
 - `K_diag`:
 

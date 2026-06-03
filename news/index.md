@@ -29,8 +29,10 @@
 
 - Gaussian graphical models (GGM):
   `bgm(x, variable_type = "continuous")` fits a GGM with Bayesian edge
-  selection. Sampling uses the RATTLE constrained HMC algorithm to
-  maintain positive-definiteness of the precision matrix.
+  selection. Sampling uses NUTS on a free-element Cholesky (theta-space)
+  parameterization of the precision matrix, which keeps the precision
+  matrix positive-definite by construction; adaptive-metropolis is also
+  available.
 - Mixed MRF models:
   [`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md)
   accepts a per-variable `variable_type` vector that mixes `"ordinal"`,

@@ -42,10 +42,6 @@ or `NULL` for OMRF models.
 
   `NULL` (invisibly).
 
-## Details
-
-Extract Posterior Mean Partial Correlations
-
 ## See also
 
 [`bgm()`](https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.md),

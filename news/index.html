@@ -45,7 +45,7 @@
 </ul></div>
 <div class="section level3">
 <h3 id="new-features-0-2-0-0">New features<a class="anchor" aria-label="anchor" href="#new-features-0-2-0-0"></a></h3>
-<ul><li>Gaussian graphical models (GGM): <code>bgm(x, variable_type = "continuous")</code> fits a GGM with Bayesian edge selection. Sampling uses the RATTLE constrained HMC algorithm to maintain positive-definiteness of the precision matrix.</li>
+<ul><li>Gaussian graphical models (GGM): <code>bgm(x, variable_type = "continuous")</code> fits a GGM with Bayesian edge selection. Sampling uses NUTS on a free-element Cholesky (theta-space) parameterization of the precision matrix, which keeps the precision matrix positive-definite by construction; adaptive-metropolis is also available.</li>
 <li>Mixed MRF models: <code><a href="../reference/bgm.html">bgm()</a></code> accepts a per-variable <code>variable_type</code> vector that mixes <code>"ordinal"</code>, <code>"blume-capel"</code>, and <code>"continuous"</code> types to estimate networks with both discrete and continuous variables. <code><a href="../reference/simulate.bgms.html">simulate.bgms()</a></code> and <code><a href="../reference/predict.bgms.html">predict.bgms()</a></code> also support mixed models.</li>
 <li>Missing data imputation: <code>na_action = "impute"</code> integrates over missing values during MCMC sampling for ordinal, continuous, and mixed models.</li>
 <li>

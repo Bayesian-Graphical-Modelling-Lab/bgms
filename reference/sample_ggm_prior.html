@@ -202,8 +202,9 @@ Bernoulli edge prior used when <code>spec = "joint"</code>. Default
     <p>A list with components</p><dl><dt><code>K_offdiag</code></dt>
 <dd><p>Numeric matrix of size
 <code>n_samples</code> x <code>p * (p - 1) / 2</code> containing the upper-triangle
-off-diagonal entries of \(K\) for each draw, in column-major order
-\((K_{12}, K_{13}, K_{23}, K_{14}, \ldots)\). Under
+off-diagonal entries of \(K\) for each draw, in row-major order
+(the upper triangle traversed by row)
+\((K_{12}, K_{13}, \ldots, K_{1p}, K_{23}, K_{24}, \ldots, K_{2p}, K_{34}, \ldots)\). Under
 <code>spec = "conditional"</code>, excluded edges are returned as
 <code>0</code>; under <code>spec = "joint"</code>, off-diagonals at excluded
 edges are sampled at <code>0</code> per the inclusion indicator.</p></dd>
