@@ -157,10 +157,11 @@ the model parameters:
 \describe{
 \item{"adaptive-metropolis"}{Componentwise adaptive Metropolis--Hastings
 with Robbins--Monro proposal adaptation.}
-\item{"nuts"}{The No-U-Turn Sampler (gradient-based); the Gaussian
-graphical model (GGM) uses a theta-space (free-element Cholesky)
-parameterization, while models with edge selection or a sparse graph
-(mixed MRF / ordinal MRF) use RATTLE constrained integration.}
+\item{"nuts"}{The No-U-Turn Sampler, a gradient-based sampler available
+for all variable types, including under edge selection. The Gaussian
+graphical model uses a free-element Cholesky parameterization that keeps
+the precision matrix positive-definite; the mixed model uses RATTLE
+constrained integration when excluded edges impose constraints.}
 }
 Default: \code{"nuts"}.}
 
@@ -260,9 +261,7 @@ Use \code{interaction_prior}, \code{warmup}, and \code{threshold_prior} instead.
 An S7 object of class \code{bgms} with posterior summaries, posterior mean
 matrices, and access to raw MCMC draws. Its fields are accessible with
 \code{$} and \code{[[} for backward compatibility, and it can be passed to
-\code{print()}, \code{summary()}, and \code{coef()}. (When an incompatible
-\pkg{easybgm} < 0.5.0 is loaded, a plain S3 list with the same fields is
-returned for compatibility.)
+\code{print()}, \code{summary()}, and \code{coef()}.
 
 Main components include:
 \itemize{
