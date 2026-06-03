@@ -431,9 +431,9 @@ private:
     bool edge_selection_;
     /// Whether edge add-delete proposals are currently active.
     bool edge_selection_active_ = false;
-    /// Whether the initial graph excludes any edges (used by
-    /// initialize_precision_from_mle to zero excluded entries and restore
-    /// positive-definiteness; does not trigger RATTLE in GGM).
+    /// Whether the initial graph excludes any edges; used by
+    /// initialize_precision_from_mle to zero the excluded entries and restore
+    /// positive-definiteness.
     bool has_sparse_graph_ = false;
     /// Prior on off-diagonal precision elements (interactions).
     std::unique_ptr<BaseParameterPrior> interaction_prior_;
