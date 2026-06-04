@@ -47,30 +47,22 @@ public:
             std::unique_ptr<BaseParameterPrior> interaction_prior,
             std::unique_ptr<BaseParameterPrior> diagonal_prior,
             const bool na_impute = false
-    ) : n_(observations.n_rows - 1),  // centered data has n-1 effective df
-        p_(observations.n_cols),
-        dim_((p_ * (p_ + 1)) / 2),
-        suf_stat_(observations.t() * observations),
-        inclusion_probability_(inclusion_probability),
-        edge_selection_(edge_selection),
-        interaction_prior_(std::move(interaction_prior)),
-        diagonal_prior_(std::move(diagonal_prior)),
-        precision_matrix_(arma::eye<arma::mat>(p_, p_)),
-        cholesky_of_precision_(arma::eye<arma::mat>(p_, p_)),
-        inv_cholesky_of_precision_(arma::eye<arma::mat>(p_, p_)),
-        covariance_matrix_(arma::eye<arma::mat>(p_, p_)),
-        edge_indicators_(initial_edge_indicators),
-        vectorized_parameters_(dim_),
-        vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
-        proposal_sds_(arma::mat(dim_, 1, arma::fill::ones) * 0.25),
-        num_pairwise_(p_ * (p_ - 1) / 2),
-        observations_(na_impute ? observations : arma::mat()),
-        precision_proposal_(arma::mat(p_, p_, arma::fill::none))
+    )   // Delegate to the sufficient-statistics constructor: the raw-data path
+        // differs only in deriving n (centered data has n-1 effective df) and
+        // S = X'X from the observations, and in retaining the observations for
+        // missing-data imputation. All member init and the MLE warm-start live
+        // in the delegated constructor.
+        : GGMModel(observations.n_rows - 1,
+                   observations.t() * observations,
+                   inclusion_probability,
+                   initial_edge_indicators,
+                   edge_selection,
+                   std::move(interaction_prior),
+                   std::move(diagonal_prior))
     {
-        int num_edges = arma::accu(edge_indicators_) / 2;
-        int max_edges = static_cast<int>(p_ * (p_ - 1) / 2);
-        has_sparse_graph_ = !edge_selection_ && (num_edges < max_edges);
-        initialize_precision_from_mle();
+        if (na_impute) {
+            observations_ = observations;
+        }
     }
 
     /**
