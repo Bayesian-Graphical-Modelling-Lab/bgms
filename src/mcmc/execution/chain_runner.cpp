@@ -6,6 +6,24 @@
 #include "mcmc/samplers/metropolis_sampler.h"
 
 
+namespace {
+
+// Store this sample's NUTS per-iteration diagnostics, if the chain is collecting
+// them and the step produced a NUTSDiagnostics object. Keeps the dynamic_cast
+// and the wide store_nuts_diagnostics call out of the main sampling loop.
+void store_nuts_diagnostics_if_present(ChainResult& chain_result, int sample_index,
+                                       const SamplerBase& sampler, const StepResult& result) {
+    if (!chain_result.has_nuts_diagnostics || !sampler.has_nuts_diagnostics()) return;
+    auto* diag = dynamic_cast<NUTSDiagnostics*>(result.diagnostics.get());
+    if (diag) {
+        chain_result.store_nuts_diagnostics(sample_index, diag->tree_depth, diag->divergent,
+                                            diag->non_reversible, diag->energy, diag->accept_prob);
+    }
+}
+
+}  // namespace
+
+
 std::unique_ptr<SamplerBase> create_sampler(const SamplerConfig& config, WarmupSchedule& schedule) {
     if (config.sampler_type == "nuts") {
         return std::make_unique<NUTSSampler>(config, schedule);
@@ -78,12 +96,7 @@ void run_mcmc_chain(
         if (schedule.sampling(iter)) {
             int sample_index = iter - config.no_warmup;
 
-            if (chain_result.has_nuts_diagnostics && sampler->has_nuts_diagnostics()) {
-                auto* diag = dynamic_cast<NUTSDiagnostics*>(result.diagnostics.get());
-                if (diag) {
-                    chain_result.store_nuts_diagnostics(sample_index, diag->tree_depth, diag->divergent, diag->non_reversible, diag->energy, diag->accept_prob);
-                }
-            }
+            store_nuts_diagnostics_if_present(chain_result, sample_index, *sampler, result);
 
             if (chain_result.has_am_diagnostics) {
                 chain_result.store_am_diagnostics(sample_index, result.accept_prob);
