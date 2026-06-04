@@ -14,14 +14,38 @@
 #include "mcmc/execution/warmup_schedule.h"
 
 
+/** Which concrete sampler a run uses. */
+enum class SamplerKind { NUTS, AdaptiveMetropolis };
+
 /**
- * Create a sampler matching config.sampler_type
+ * Behavioral descriptor for a sampler type. resolve_sampler_spec is the single
+ * place that decodes the config.sampler_type string; all downstream code reads
+ * these fields instead of re-comparing the string.
+ */
+struct SamplerSpec {
+    SamplerKind kind;
+    bool learn_sd;    ///< NUTS dual-averaging step-size adaptation during warmup
+    bool nuts_diag;   ///< reserve/store NUTS per-iteration diagnostics
+    bool am_diag;     ///< reserve/store adaptive-Metropolis diagnostics
+};
+
+/**
+ * Decode a sampler-type string into a SamplerSpec.
  *
- * @param config   Sampler configuration (type, step size, tree depth, etc.)
+ * @param sampler_type  "nuts" or "adaptive-metropolis".
+ * @return Descriptor with the concrete kind and its derived behavior flags.
+ */
+SamplerSpec resolve_sampler_spec(const std::string& sampler_type);
+
+/**
+ * Create a sampler of the given kind.
+ *
+ * @param kind     Concrete sampler kind (from resolve_sampler_spec).
+ * @param config   Sampler configuration (step size, tree depth, etc.)
  * @param schedule Shared warmup schedule for adaptation staging
  * @return Owning pointer to a concrete SamplerBase subclass
  */
-std::unique_ptr<SamplerBase> create_sampler(const SamplerConfig& config, WarmupSchedule& schedule);
+std::unique_ptr<SamplerBase> create_sampler(SamplerKind kind, const SamplerConfig& config, WarmupSchedule& schedule);
 
 /**
  * Run a single MCMC chain (warmup + sampling)

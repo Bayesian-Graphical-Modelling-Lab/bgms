@@ -6,14 +6,24 @@
 #include "mcmc/samplers/metropolis_sampler.h"
 
 
-std::unique_ptr<SamplerBase> create_sampler(const SamplerConfig& config, WarmupSchedule& schedule) {
-    if (config.sampler_type == "nuts") {
-        return std::make_unique<NUTSSampler>(config, schedule);
-    } else if (config.sampler_type == "adaptive-metropolis") {
-        return std::make_unique<MetropolisSampler>(config, schedule);
+SamplerSpec resolve_sampler_spec(const std::string& sampler_type) {
+    if (sampler_type == "nuts") {
+        return SamplerSpec{SamplerKind::NUTS, /*learn_sd=*/true, /*nuts_diag=*/true, /*am_diag=*/false};
+    } else if (sampler_type == "adaptive-metropolis") {
+        return SamplerSpec{SamplerKind::AdaptiveMetropolis, /*learn_sd=*/false, /*nuts_diag=*/false, /*am_diag=*/true};
     } else {
-        Rcpp::stop("Unknown sampler_type: '%s'", config.sampler_type.c_str());
+        Rcpp::stop("Unknown sampler_type: '%s'", sampler_type.c_str());
     }
+}
+
+std::unique_ptr<SamplerBase> create_sampler(SamplerKind kind, const SamplerConfig& config, WarmupSchedule& schedule) {
+    switch (kind) {
+        case SamplerKind::NUTS:
+            return std::make_unique<NUTSSampler>(config, schedule);
+        case SamplerKind::AdaptiveMetropolis:
+            return std::make_unique<MetropolisSampler>(config, schedule);
+    }
+    Rcpp::stop("Unhandled SamplerKind");  // unreachable: kind comes from resolve_sampler_spec
 }
 
 
@@ -28,10 +38,10 @@ void run_mcmc_chain(
     chain_result.chain_id = chain_id + 1;
 
     // Construct warmup schedule (shared by runner and sampler)
-    const bool learn_sd = (config.sampler_type == "nuts");
-    WarmupSchedule schedule(config.no_warmup, config.edge_selection, learn_sd);
+    const SamplerSpec spec = resolve_sampler_spec(config.sampler_type);
+    WarmupSchedule schedule(config.no_warmup, config.edge_selection, spec.learn_sd);
 
-    auto sampler = create_sampler(config, schedule);
+    auto sampler = create_sampler(spec.kind, config, schedule);
 
     // Initialize sampler (step-size heuristic) before the main loop
     sampler->initialize(model);
@@ -138,8 +148,9 @@ std::vector<ChainResult> run_mcmc_sampler(
     const int no_threads,
     ProgressManager& pm
 ) {
-    const bool has_nuts_diag = (config.sampler_type == "nuts");
-    const bool has_am_diag = (config.sampler_type == "adaptive-metropolis");
+    const SamplerSpec spec = resolve_sampler_spec(config.sampler_type);
+    const bool has_nuts_diag = spec.nuts_diag;
+    const bool has_am_diag = spec.am_diag;
     const bool has_sbm_alloc = edge_prior.has_allocations() ||
         (config.edge_selection && dynamic_cast<StochasticBlockEdgePrior*>(&edge_prior) != nullptr);
 
