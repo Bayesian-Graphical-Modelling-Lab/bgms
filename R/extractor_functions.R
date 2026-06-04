@@ -562,7 +562,7 @@ extract_pairwise_interactions.bgmCompare = function(bgms_object) {
   stop("No pairwise interaction samples found in fit object.")
 }
 
-#' Extract Main Effect Estimates
+#' @title Extract Main Effect Estimates
 #'
 #' @description
 #' Retrieves main-effect parameters from a model fitted with [bgm()]
@@ -690,7 +690,7 @@ extract_main_effects.bgmCompare = function(bgms_object) {
 }
 
 
-#' Extract Category Threshold Estimates
+#' @title Extract Category Threshold Estimates
 #'
 #' @description
 #' `r lifecycle::badge("deprecated")`
@@ -1184,7 +1184,7 @@ extract_ess.bgmCompare = function(bgms_object) {
 }
 
 
-#' Extract Posterior Mean Precision Matrix
+#' @title Extract Posterior Mean Precision Matrix
 #'
 #' @description
 #' Retrieves the posterior mean precision matrix from a model fitted with
@@ -1254,7 +1254,7 @@ extract_precision.bgms = function(bgms_object) {
 }
 
 
-#' Extract Posterior Mean Partial Correlations
+#' @title Extract Posterior Mean Partial Correlations
 #'
 #' @description
 #' Computes the posterior mean partial correlation matrix from a model fitted
@@ -1313,7 +1313,7 @@ extract_partial_correlations.bgms = function(bgms_object) {
 }
 
 
-#' Extract Posterior Mean Log-Odds (Pairwise Interactions)
+#' @title Extract Posterior Mean Log-Odds (Pairwise Interactions)
 #'
 #' @description
 #' Retrieves the posterior mean pairwise interaction matrix for discrete
