@@ -21,10 +21,7 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::remotes
-
-      - name: Install mixedGM (needed for cross-package tests)
-        run: Rscript -e 'remotes::install_github("MaartenMarsman/mixedGM")'
+          extra-packages: local::.
 
       - name: Generate compliance fixtures (if missing)
         run: |
