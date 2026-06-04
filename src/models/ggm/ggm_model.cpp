@@ -162,27 +162,10 @@ arma::vec GGMModel::get_active_inv_mass() const {
 
 
 void GGMModel::get_constants(size_t i, size_t j) {
-
-    double logdet_omega = cholesky_helpers::get_log_det(cholesky_of_precision_);
-
-    double log_adj_omega_ii = logdet_omega + MY_LOG(std::abs(covariance_matrix_(i, i)));
-    double log_adj_omega_ij = logdet_omega + MY_LOG(std::abs(covariance_matrix_(i, j)));
-    double log_adj_omega_jj = logdet_omega + MY_LOG(std::abs(covariance_matrix_(j, j)));
-
-    double inv_omega_sub_j1j1 = cholesky_helpers::compute_inv_submatrix_i(covariance_matrix_, i, j, j);
-    double log_abs_inv_omega_sub_jj = log_adj_omega_ii + MY_LOG(std::abs(inv_omega_sub_j1j1));
-    double Phi_q1q  = (2 * std::signbit(covariance_matrix_(i, j)) - 1) * MY_EXP(
-        (log_adj_omega_ij - (log_adj_omega_jj + log_abs_inv_omega_sub_jj) / 2)
-    );
-    double Phi_q1q1 = MY_EXP((log_adj_omega_jj - log_abs_inv_omega_sub_jj) / 2);
-
-    constants_[0] = Phi_q1q;
-    constants_[1] = Phi_q1q1;
-    constants_[2] = precision_matrix_(i, j) - Phi_q1q * Phi_q1q1;
-    constants_[3] = Phi_q1q1;
-    constants_[4] = precision_matrix_(j, j) - Phi_q1q * Phi_q1q;
-    constants_[5] = constants_[4] + constants_[2] * constants_[2] / (constants_[3] * constants_[3]);
-
+    // GGM stores K directly, so the precision entries are precision_matrix_.
+    constants_ = cholesky_helpers::precision_proposal_constants(
+        cholesky_of_precision_, covariance_matrix_, i, j,
+        precision_matrix_(i, j), precision_matrix_(j, j));
 }
 
 double GGMModel::constrained_diagonal(const double x) const {
@@ -205,31 +188,18 @@ double GGMModel::log_density_impl(const arma::mat& omega, const arma::mat& phi) 
 
 double GGMModel::log_det_ratio_edge(size_t i, size_t j) const {
     // Rank-2 matrix-determinant lemma: log|K_prop| - log|K_curr| where K_prop
-    // differs from K_curr at entries (i,j), (j,i), and (j,j). cc11, cc12, cc22
-    // are the entries of the 2x2 update Gram matrix I + V^T Sigma U used by
-    // the lemma; |det(...)| is its determinant.
-    double Ui2 = precision_matrix_(i, j) - precision_proposal_(i, j);
-    double Uj2 = (precision_matrix_(j, j) - precision_proposal_(j, j)) / 2;
-
-    double cc11 = covariance_matrix_(j, j);
-    double cc12 = 1 - (covariance_matrix_(i, j) * Ui2
-                       + covariance_matrix_(j, j) * Uj2);
-    double cc22 = Ui2 * Ui2 * covariance_matrix_(i, i)
-                + 2 * Ui2 * Uj2 * covariance_matrix_(i, j)
-                + Uj2 * Uj2 * covariance_matrix_(j, j);
-
-    return MY_LOG(std::abs(cc11 * cc22 - cc12 * cc12));
+    // differs from K_curr at entries (i,j), (j,i), and (j,j). GGM stores K
+    // directly, so the precision scalars are precision_matrix_ entries.
+    return cholesky_helpers::log_det_ratio_edge_kernel(
+        covariance_matrix_, i, j,
+        precision_matrix_(i, j), precision_proposal_(i, j),
+        precision_matrix_(j, j), precision_proposal_(j, j));
 }
 
 double GGMModel::log_det_ratio_diag(size_t j) const {
-    // Rank-1 specialisation of log_det_ratio_edge (Ui2 = 0).
-    double Uj2 = (precision_matrix_(j, j) - precision_proposal_(j, j)) / 2;
-
-    double cc11 = covariance_matrix_(j, j);
-    double cc12 = 1 - covariance_matrix_(j, j) * Uj2;
-    double cc22 = Uj2 * Uj2 * covariance_matrix_(j, j);
-
-    return MY_LOG(std::abs(cc11 * cc22 - cc12 * cc12));
+    return cholesky_helpers::log_det_ratio_diag_kernel(
+        covariance_matrix_, j,
+        precision_matrix_(j, j), precision_proposal_(j, j));
 }
 
 double GGMModel::log_density_impl_edge(size_t i, size_t j) const {

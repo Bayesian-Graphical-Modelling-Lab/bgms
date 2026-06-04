@@ -182,31 +182,14 @@ double MixedMRFModel::update_pairwise_discrete(int i, int j, std::optional<doubl
 // =============================================================================
 
 void MixedMRFModel::get_precision_constants(int i, int j) {
-    double logdet = cholesky_helpers::get_log_det(cholesky_of_precision_);
-
-    double log_adj_ii = logdet + MY_LOG(std::abs(covariance_continuous_(i, i)));
-    double log_adj_ij = logdet + MY_LOG(std::abs(covariance_continuous_(i, j)));
-    double log_adj_jj = logdet + MY_LOG(std::abs(covariance_continuous_(j, j)));
-
-    double inv_sub_jj = cholesky_helpers::compute_inv_submatrix_i(covariance_continuous_, i, j, j);
-    double log_abs_inv_sub_jj = log_adj_ii + MY_LOG(std::abs(inv_sub_jj));
-
-    double Phi_q1q  = (2 * std::signbit(covariance_continuous_(i, j)) - 1) * MY_EXP(
-        (log_adj_ij - (log_adj_jj + log_abs_inv_sub_jj) / 2)
-    );
-    double Phi_q1q1 = MY_EXP((log_adj_jj - log_abs_inv_sub_jj) / 2);
-
-    // Read precision = -2 * pairwise_effects_continuous_ for constants extraction
-    double precision_ij = -2.0 * pairwise_effects_continuous_(i, j);
-    double precision_jj = -2.0 * pairwise_effects_continuous_(j, j);
-
-    cont_constants_[0] = Phi_q1q;
-    cont_constants_[1] = Phi_q1q1;
-    cont_constants_[2] = precision_ij - Phi_q1q * Phi_q1q1;
-    cont_constants_[3] = Phi_q1q1;
-    cont_constants_[4] = precision_jj - Phi_q1q * Phi_q1q;
-    cont_constants_[5] = cont_constants_[4] +
-        cont_constants_[2] * cont_constants_[2] / (cont_constants_[3] * cont_constants_[3]);
+    // Kyy = -2 * pairwise_effects_continuous_; delegate to the shared kernel,
+    // passing the resolved precision entries.
+    size_t ui = static_cast<size_t>(i);
+    size_t uj = static_cast<size_t>(j);
+    cont_constants_ = cholesky_helpers::precision_proposal_constants(
+        cholesky_of_precision_, covariance_continuous_, ui, uj,
+        -2.0 * pairwise_effects_continuous_(ui, uj),
+        -2.0 * pairwise_effects_continuous_(uj, uj));
 }
 
 double MixedMRFModel::precision_constrained_diagonal(double x) const {
@@ -231,37 +214,20 @@ double MixedMRFModel::precision_constrained_diagonal(double x) const {
 // =============================================================================
 
 double MixedMRFModel::log_det_ratio_yy_edge(int i, int j) const {
-    // Rank-2 matrix-determinant lemma applied to the Kyy block. Mirrors
-    // GGMModel::log_det_ratio_edge but uses pairwise_effects_continuous_
-    // (Kyy = -2 * pairwise_effects_continuous_) and covariance_continuous_.
+    // Kyy = -2 * pairwise_effects_continuous_; delegate to the shared kernel.
     size_t ui = static_cast<size_t>(i);
     size_t uj = static_cast<size_t>(j);
-    double precision_ij_curr = -2.0 * pairwise_effects_continuous_(ui, uj);
-    double precision_jj_curr = -2.0 * pairwise_effects_continuous_(uj, uj);
-    double Ui = precision_ij_curr - precision_proposal_(ui, uj);
-    double Uj = (precision_jj_curr - precision_proposal_(uj, uj)) / 2.0;
-
-    double cc11 = covariance_continuous_(uj, uj);
-    double cc12 = 1.0 - (covariance_continuous_(ui, uj) * Ui +
-                         covariance_continuous_(uj, uj) * Uj);
-    double cc22 = Ui * Ui * covariance_continuous_(ui, ui) +
-                  2.0 * Ui * Uj * covariance_continuous_(ui, uj) +
-                  Uj * Uj * covariance_continuous_(uj, uj);
-
-    return MY_LOG(std::abs(cc11 * cc22 - cc12 * cc12));
+    return cholesky_helpers::log_det_ratio_edge_kernel(
+        covariance_continuous_, ui, uj,
+        -2.0 * pairwise_effects_continuous_(ui, uj), precision_proposal_(ui, uj),
+        -2.0 * pairwise_effects_continuous_(uj, uj), precision_proposal_(uj, uj));
 }
 
 double MixedMRFModel::log_det_ratio_yy_diag(int i) const {
-    // Rank-1 specialisation of log_det_ratio_yy_edge (Ui = 0).
     size_t ui = static_cast<size_t>(i);
-    double precision_ii_curr = -2.0 * pairwise_effects_continuous_(ui, ui);
-    double Uj = (precision_ii_curr - precision_proposal_(ui, ui)) / 2.0;
-
-    double cc11 = covariance_continuous_(ui, ui);
-    double cc12 = 1.0 - covariance_continuous_(ui, ui) * Uj;
-    double cc22 = Uj * Uj * covariance_continuous_(ui, ui);
-
-    return MY_LOG(std::abs(cc11 * cc22 - cc12 * cc12));
+    return cholesky_helpers::log_det_ratio_diag_kernel(
+        covariance_continuous_, ui,
+        -2.0 * pairwise_effects_continuous_(ui, ui), precision_proposal_(ui, ui));
 }
 
 
