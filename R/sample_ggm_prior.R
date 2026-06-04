@@ -1,5 +1,6 @@
-#' Sample from the GGM (Partial-Association) Prior
+#' @title Sample from the GGM (Partial-Association) Prior
 #'
+#' @description
 #' Draws from the prior of a Gaussian graphical model. The likelihood is
 #' omitted (\eqn{n = 0}, \eqn{S = 0}), so the chain targets the prior alone.
 #' Two specifications are supported via the \code{spec} argument:
@@ -21,6 +22,7 @@
 #'     calibration of \code{\link{bgm}}'s default sampler.
 #' }
 #'
+#' @details
 #' The priors are specified on the partial-association scale
 #' \eqn{K_{yy} = -K/2}: \code{interaction_prior} acts on
 #' \eqn{K_{yy,ij} = -K_{ij}/2}, and \code{precision_scale_prior} acts on

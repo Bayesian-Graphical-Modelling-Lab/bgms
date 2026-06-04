@@ -24,7 +24,7 @@
 # Parameter priors (interactions, thresholds, means)
 # ==============================================================================
 
-#' Cauchy Prior for Model Parameters
+#' @title Cauchy Prior for Model Parameters
 #'
 #' @description
 #' Specifies a Cauchy(0, scale) prior on model parameters.
@@ -67,7 +67,7 @@ cauchy_prior = function(scale = 1) {
 }
 
 
-#' Normal Prior for Model Parameters
+#' @title Normal Prior for Model Parameters
 #'
 #' @description
 #' Specifies a Normal(0, scale) prior on model parameters.
@@ -111,7 +111,7 @@ normal_prior = function(scale = 1) {
 }
 
 
-#' Beta-Prime Prior for Model Parameters
+#' @title Beta-Prime Prior for Model Parameters
 #'
 #' @description
 #' Specifies a beta-prime prior on model parameters.
@@ -163,7 +163,7 @@ beta_prime_prior = function(alpha = 0.5, beta = 0.5) {
 # Scale priors (positive parameters: precision diagonal)
 # ==============================================================================
 
-#' Gamma Prior for Scale Parameters
+#' @title Gamma Prior for Scale Parameters
 #'
 #' @description
 #' Specifies a Gamma(shape, rate) prior for positive scale parameters such as
@@ -210,7 +210,7 @@ gamma_prior = function(shape = 1, rate = 1) {
 }
 
 
-#' Exponential Prior for Scale Parameters
+#' @title Exponential Prior for Scale Parameters
 #'
 #' @description
 #' Specifies an Exponential(rate) prior for positive scale parameters.
@@ -256,7 +256,7 @@ exponential_prior = function(rate = 1) {
 # Indicator priors (selection: edges, differences)
 # ==============================================================================
 
-#' Bernoulli Prior for Inclusion Indicators
+#' @title Bernoulli Prior for Inclusion Indicators
 #'
 #' @description
 #' Specifies a Bernoulli prior for inclusion indicators with a fixed
@@ -293,7 +293,7 @@ bernoulli_prior = function(inclusion_probability = 0.5) {
 }
 
 
-#' Beta-Bernoulli Prior for Inclusion Indicators
+#' @title Beta-Bernoulli Prior for Inclusion Indicators
 #'
 #' @description
 #' Specifies a Beta-Bernoulli prior for inclusion indicators. The inclusion
@@ -341,7 +341,7 @@ beta_bernoulli_prior = function(alpha = 1, beta = 1) {
 }
 
 
-#' Stochastic Block Model Prior for Inclusion Indicators
+#' @title Stochastic Block Model Prior for Inclusion Indicators
 #'
 #' @description
 #' Specifies a Stochastic Block Model (SBM) prior for inclusion indicators.

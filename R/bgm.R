@@ -1,4 +1,4 @@
-#' Bayesian Estimation or Edge Selection for Markov Random Fields
+#' @title Bayesian Estimation or Edge Selection for Markov Random Fields
 #'
 #' @description
 #' The \code{bgm} function estimates the pseudoposterior distribution of the

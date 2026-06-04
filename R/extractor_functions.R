@@ -35,7 +35,7 @@ samples_to_array3d = function(xlist) {
 }
 
 
-#' Extract Model Arguments
+#' @title Extract Model Arguments
 #'
 #' @description
 #' Retrieves the arguments used when fitting a model with [bgm()] or
@@ -75,7 +75,7 @@ extract_arguments.bgmCompare = function(bgms_object) {
   return(bgms_object$arguments)
 }
 
-#' Extract Indicator Samples
+#' @title Extract Indicator Samples
 #'
 #' @description
 #' Retrieves posterior samples of inclusion indicators from a model fitted
@@ -171,7 +171,7 @@ extract_indicators.bgmCompare = function(bgms_object) {
   stop("No indicator samples found in fit object.")
 }
 
-#' Extract Posterior Inclusion Probabilities
+#' @title Extract Posterior Inclusion Probabilities
 #'
 #' @description
 #' Computes posterior inclusion probabilities from a model fitted with
@@ -242,7 +242,7 @@ extract_posterior_inclusion_probabilities.bgms = function(bgms_object) {
 }
 
 
-#' Extract Stochastic Block Model Summaries
+#' @title Extract Stochastic Block Model Summaries
 #'
 #' @description
 #' Retrieves posterior summaries from a model fitted with the Stochastic
@@ -384,7 +384,7 @@ extract_posterior_inclusion_probabilities.bgmCompare = function(bgms_object) {
   stop("No indicator samples found in fit object.")
 }
 
-#' Extract Indicator Prior Structure
+#' @title Extract Indicator Prior Structure
 #'
 #' @description
 #' Retrieves the prior specification used for inclusion indicators in a
@@ -445,7 +445,7 @@ extract_indicator_priors.bgmCompare = function(bgms_object) {
 }
 
 
-#' Extract Pairwise Interaction Samples
+#' @title Extract Pairwise Interaction Samples
 #'
 #' @description
 #' Retrieves posterior samples of pairwise interaction parameters from a
@@ -716,7 +716,7 @@ extract_category_thresholds = function(bgms_object) {
   extract_main_effects(bgms_object)
 }
 
-#' Extract Group-Specific Parameters
+#' @title Extract Group-Specific Parameters
 #'
 #' @description
 #' Computes group-specific parameter estimates by combining baseline
@@ -953,7 +953,7 @@ extract_group_params.bgmCompare = function(bgms_object) {
   ))
 }
 
-#' Deprecated: Use extract_indicators instead
+#' @title Deprecated: Use extract_indicators instead
 #' @param bgms_object A bgms or bgmCompare object.
 #' @keywords internal
 #' @export
@@ -962,7 +962,7 @@ extract_edge_indicators = function(bgms_object) {
   extract_indicators(bgms_object)
 }
 
-#' Deprecated: Use extract_main_effects instead
+#' @title Deprecated: Use extract_main_effects instead
 #' @param bgms_object A bgms or bgmCompare object.
 #' @keywords internal
 #' @export
@@ -976,7 +976,7 @@ extract_pairwise_thresholds = function(bgms_object) {
 # extract_rhat() - R-hat Convergence Diagnostics
 # ------------------------------------------------------------------------------
 
-#' Extract R-hat Convergence Diagnostics
+#' @title Extract R-hat Convergence Diagnostics
 #'
 #' @description
 #' Retrieves R-hat convergence diagnostics for all parameters from a
@@ -1082,7 +1082,7 @@ extract_rhat.bgmCompare = function(bgms_object) {
 # extract_ess() - Effective Sample Size
 # ------------------------------------------------------------------------------
 
-#' Extract Effective Sample Size
+#' @title Extract Effective Sample Size
 #'
 #' @description
 #' Retrieves effective sample size estimates for all parameters from a

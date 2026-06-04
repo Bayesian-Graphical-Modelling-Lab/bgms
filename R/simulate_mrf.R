@@ -5,8 +5,7 @@
 # methods and shared helpers stay in simulate_predict.R.
 
 
-
-#' Simulate Observations from a Markov Random Field
+#' @title Simulate Observations from a Markov Random Field
 #'
 #' @description
 #' `simulate_mrf()` generates observations from a Markov Random
@@ -487,7 +486,7 @@ simulate_mrf = function(num_states,
 #   mrfSampler() - Deprecated Wrapper for simulate_mrf()
 # ==============================================================================
 
-#' Sample observations from the ordinal MRF
+#' @title Sample observations from the ordinal MRF
 #'
 #' @description
 #' `r lifecycle::badge("deprecated")`
@@ -526,4 +525,3 @@ mrfSampler = function(num_states,
     seed = seed
   )
 }
-

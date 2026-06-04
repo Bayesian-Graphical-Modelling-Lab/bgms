@@ -1,4 +1,4 @@
-#' Bayesian Estimation and Variable Selection for Group Differences in Markov Random Fields
+#' @title Bayesian Estimation and Variable Selection for Group Differences in Markov Random Fields
 #'
 #' @description
 #' The \code{bgmCompare} function estimates group differences in category
