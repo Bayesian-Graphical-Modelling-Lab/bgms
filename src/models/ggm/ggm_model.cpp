@@ -89,24 +89,11 @@ arma::vec GGMModel::get_full_vectorized_parameters() const {
     const auto& cs = constraint_structure_;
     arma::vec full(cs.full_dim, arma::fill::zeros);
 
-    for (size_t q = 0; q < p_; ++q) {
-        const auto& col = cs.columns[q];
-        size_t active_offset = cs.theta_offsets[q];
-        size_t full_offset = cs.full_theta_offsets[q];
-
-        // Copy f_q entries into their matching slots in the full vector.
-        // In the full vector, column q has q slots for off-diagonal + 1 for diagonal.
-        // The included indices map to specific positions.
-        for (size_t k = 0; k < col.d_q; ++k) {
-            // The k-th included index maps to position included_indices[k] in
-            // the column's off-diagonal block
-            size_t full_pos = full_offset + col.included_indices[k];
-            full(full_pos) = theta_(active_offset + k);
-        }
-
-        // psi_q is at the end of the column's block in both layouts
-        full(cs.full_psi_offset(q)) = theta_(active_offset + col.d_q);
-    }
+    // Scatter each active theta entry into its slot in the full (zero-padded)
+    // vector; excluded off-diagonal slots stay zero.
+    cs.for_each_active_full_pair([&](size_t active_idx, size_t full_idx) {
+        full(full_idx) = theta_(active_idx);
+    });
 
     return full;
 }
@@ -160,17 +147,12 @@ arma::vec GGMModel::get_active_inv_mass() const {
     // the theta entry at that slot directly, so the active inverse mass is
     // simply the included-slot subset — no N_q rotation needed.
     if (inv_mass_.n_elem == cs.full_dim) {
+        // Gather the full-dim inverse mass back into the active layout — the
+        // exact inverse of the get_full_vectorized_parameters scatter.
         arma::vec active(cs.active_dim);
-        for (size_t q = 0; q < p_; ++q) {
-            const auto& col = cs.columns[q];
-            size_t active_offset = cs.theta_offsets[q];
-            size_t full_offset = cs.full_theta_offsets[q];
-            for (size_t k = 0; k < col.d_q; ++k) {
-                active(active_offset + k) =
-                    inv_mass_(full_offset + col.included_indices[k]);
-            }
-            active(cs.psi_offset(q)) = inv_mass_(cs.full_psi_offset(q));
-        }
+        cs.for_each_active_full_pair([&](size_t active_idx, size_t full_idx) {
+            active(active_idx) = inv_mass_(full_idx);
+        });
         return active;
     }
 

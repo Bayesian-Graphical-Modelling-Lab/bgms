@@ -107,4 +107,26 @@ struct GraphConstraintStructure {
     size_t full_psi_offset(size_t q) const {
         return full_theta_offsets[q] + q;
     }
+
+    /**
+     * Visit every active theta entry, invoking fn(active_index, full_index)
+     * with its slot in the active (packed) vector and the matching slot in the
+     * full (zero-padded) vector. Per column q: the d_q free off-diagonal
+     * entries (active theta_offsets[q]+k -> full full_theta_offsets[q]+
+     * included_indices[k]), then psi_q (active psi_offset(q) -> full
+     * full_psi_offset(q)). The active<->full scatter and gather share this one
+     * traversal instead of duplicating the index arithmetic.
+     */
+    template <typename Fn>
+    void for_each_active_full_pair(Fn&& fn) const {
+        for (size_t q = 0; q < p; ++q) {
+            const auto& col = columns[q];
+            size_t active_offset = theta_offsets[q];
+            size_t full_offset = full_theta_offsets[q];
+            for (size_t k = 0; k < col.d_q; ++k) {
+                fn(active_offset + k, full_offset + col.included_indices[k]);
+            }
+            fn(psi_offset(q), full_psi_offset(q));
+        }
+    }
 };
