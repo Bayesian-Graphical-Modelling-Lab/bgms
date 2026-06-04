@@ -16,9 +16,9 @@ struct WarmupSchedule;
  * Defines the virtual methods that the MCMC framework (MetropolisSampler,
  * NUTSSampler, ChainRunner) calls during sampling. Most methods are pure
  * virtual (`= 0`) so the compiler enforces implementation in every
- * subclass. The exceptions are gradient-only methods (gradient,
- * logp_and_gradient, set_vectorized_parameters) which throw at runtime
- * and are guarded by the has_gradient() capability query.
+ * subclass. The exceptions are gradient-only methods (logp_and_gradient,
+ * set_vectorized_parameters) which throw at runtime for models that do not
+ * support NUTS.
  *
  * Subclass hierarchy:
  *   - GGMModel      — Gaussian Graphical Model (precision matrix, Metropolis + NUTS)
@@ -26,15 +26,16 @@ struct WarmupSchedule;
  *   - MixedMRFModel — Mixed discrete + continuous MRF (Metropolis + NUTS)
  *
  * Methods fall into several groups:
- *   - **Capability queries** (has_gradient, has_adaptive_metropolis, etc.)
- *     — samplers inspect these to choose the right algorithm.
- *   - **Sampling steps** (do_one_metropolis_step, gradient, logp_and_gradient)
+ *   - **Capability queries** (has_edge_selection, has_constraints, has_missing_data)
+ *     — run/data-dependent toggles the runner and samplers branch on. (Sampler
+ *     choice itself is config-driven, not capability-driven.)
+ *   - **Sampling steps** (do_one_metropolis_step, logp_and_gradient)
  *     — called by the sampler each iteration.
  *   - **Edge selection** (update_edge_indicators)
  *     — spike-and-slab structure learning.
  *   - **Parameter access** (get/set_vectorized_parameters, get_full_vectorized_parameters)
  *     — used by NUTS for momentum-based proposals and by the runner for output.
- *   - **Adaptation** (set_step_size, set_inv_mass, tune_proposal_sd)
+ *   - **Adaptation** (set_inv_mass, tune_proposal_sd)
  *     — tuned during warmup.
  *   - **Missing data** (has_missing_data, impute_missing)
  *     — full-conditional imputation between iterations.
@@ -47,27 +48,12 @@ public:
     // Capability queries
     // =========================================================================
 
-    /** @return true if the model provides a gradient (enables NUTS). */
-    virtual bool has_gradient() const { return false; }
-    /** @return true if the model supports adaptive Metropolis. */
-    virtual bool has_adaptive_metropolis() const { return false; }
-    /** @return true if the model supports NUTS (default: same as has_gradient). */
-    virtual bool has_nuts() const { return has_gradient(); }
     /** @return true if the model supports edge selection (spike-and-slab). */
     virtual bool has_edge_selection() const { return false; }
 
     // =========================================================================
     // Core sampling methods
     // =========================================================================
-
-    /**
-     * Compute the gradient of the log-(pseudo)posterior.
-     * @param parameters  Vectorized parameters at which to evaluate
-     * @return Gradient vector
-     */
-    virtual arma::vec gradient(const arma::vec& parameters) {
-        throw std::runtime_error("Gradient not implemented for this model");
-    }
 
     /**
      * Combined log-(pseudo)posterior and gradient evaluation.
@@ -245,14 +231,6 @@ public:
     // =========================================================================
 
     /**
-     * Set the leapfrog step size for gradient-based samplers.
-     * @param step_size  New step size
-     */
-    virtual void set_step_size(double step_size) { step_size_ = step_size; }
-    /** @return Current leapfrog step size. */
-    virtual double get_step_size() const { return step_size_; }
-
-    /**
      * Set the inverse mass matrix diagonal for NUTS.
      * @param inv_mass  Diagonal elements of the inverse mass matrix
      */
@@ -412,8 +390,6 @@ public:
 
 protected:
     BaseModel() = default;
-    /// Leapfrog step size for NUTS.
-    double step_size_ = 0.1;
     /// Inverse mass matrix diagonal for NUTS.
     arma::vec inv_mass_;
 };

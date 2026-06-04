@@ -38,7 +38,6 @@ OMRFModel::OMRFModel(
     threshold_prior_(std::move(threshold_prior)),
     edge_selection_(edge_selection),
     edge_selection_active_(false),
-    step_size_(0.1),
     has_missing_(false),
     gradient_cache_valid_(false)
 {
@@ -119,7 +118,6 @@ OMRFModel::OMRFModel(const OMRFModel& other)
       proposal_sd_main_(other.proposal_sd_main_),
       proposal_sd_pairwise_(other.proposal_sd_pairwise_),
       rng_(other.rng_),
-      step_size_(other.step_size_),
       inv_mass_(other.inv_mass_),
       has_missing_(other.has_missing_),
       missing_index_(other.missing_index_),
@@ -575,74 +573,6 @@ void OMRFModel::get_active_inv_mass_into(arma::vec& active_inv_mass) const {
 // Log-pseudoposterior computation
 // =============================================================================
 
-double OMRFModel::log_pseudoposterior_with_state(
-    const arma::mat& main_eff,
-    const arma::mat& pairwise_eff,
-    const arma::mat& residual_mat
-) const {
-    double log_post = 0.0;
-
-    // Main effect contributions (priors and sufficient statistics)
-    for (size_t v = 0; v < p_; ++v) {
-        int num_cats = num_categories_(v);
-
-        if (is_ordinal_variable_(v)) {
-            for (int c = 0; c < num_cats; ++c) {
-                log_post += threshold_prior_->logp(main_eff(v, c));
-                log_post += main_eff(v, c) * counts_per_category_(c + 1, v);
-            }
-        } else {
-            log_post += threshold_prior_->logp(main_eff(v, 0));
-            log_post += threshold_prior_->logp(main_eff(v, 1));
-            log_post += main_eff(v, 0) * blume_capel_stats_(0, v);
-            log_post += main_eff(v, 1) * blume_capel_stats_(1, v);
-        }
-    }
-
-    // Log-normalizer using joint logZ+probs helpers — fill-in-place into
-    // the model's persistent scratch (shared with logp_and_gradient since the
-    // two are not called concurrently within a single chain).
-    for (size_t v = 0; v < p_; ++v) {
-        int num_cats = num_categories_(v);
-        arma::vec residual_score = residual_mat.col(v);
-        arma::vec bound = num_cats * residual_score;
-
-        if (is_ordinal_variable_(v)) {
-            arma::vec main_param = main_eff.row(v).cols(0, num_cats - 1).t();
-            compute_logZ_and_probs_ordinal_into(
-                main_param, residual_score, bound, num_cats,
-                logz_out_, logz_scratch_);
-            log_post -= arma::accu(logz_out_.log_Z);
-        } else {
-            int ref = baseline_category_(v);
-            double lin = main_eff(v, 0), quad = main_eff(v, 1);
-            compute_logZ_and_probs_blume_capel_into(
-                residual_score, lin, quad, ref, num_cats, bound,
-                logz_out_, logz_scratch_);
-            log_post -= arma::accu(logz_out_.log_Z);
-        }
-    }
-
-    // Pairwise effect contributions: sufficient statistics + Cauchy prior
-    for (size_t v1 = 0; v1 < p_ - 1; ++v1) {
-        for (size_t v2 = v1 + 1; v2 < p_; ++v2) {
-            if (edge_indicators_(v1, v2) == 1) {
-                double effect = pairwise_eff(v1, v2);
-                log_post += 4.0 * pairwise_stats_(v1, v2) * effect;
-                log_post += interaction_prior_->logp(effect, pairwise_scaling_factors_(v1, v2));
-            }
-        }
-    }
-
-    return log_post;
-}
-
-
-double OMRFModel::log_pseudoposterior_internal() const {
-    return log_pseudoposterior_with_state(main_effects_, pairwise_effects_, residual_matrix_);
-}
-
-
 double OMRFModel::log_pseudoposterior_main_component(int variable, int category, int parameter) const {
     double log_posterior = 0.0;
 
@@ -679,36 +609,6 @@ double OMRFModel::log_pseudoposterior_main_component(int variable, int category,
     }
 
     return log_posterior;
-}
-
-
-double OMRFModel::log_pseudoposterior_pairwise_component(int var1, int var2) const {
-    double log_post = 4.0 * pairwise_effects_(var1, var2) * pairwise_stats_(var1, var2);
-
-    for (int var : {var1, var2}) {
-        int num_cats = num_categories_(var);
-        arma::vec residual_score = residual_matrix_.col(var);
-
-        if (is_ordinal_variable_(var)) {
-            arma::vec main_param = main_effects_.row(var).cols(0, num_cats - 1).t();
-            arma::vec bound = num_cats * residual_score;
-            arma::vec denom = compute_denom_ordinal(residual_score, main_param, bound);
-            log_post -= arma::accu(bound + ARMA_MY_LOG(denom));
-        } else {
-            arma::vec bound(n_);
-            arma::vec denom = compute_denom_blume_capel(
-                residual_score, main_effects_(var, 0), main_effects_(var, 1),
-                baseline_category_(var), num_cats, bound
-            );
-            log_post -= arma::accu(bound + ARMA_MY_LOG(denom));
-        }
-    }
-
-    if (edge_indicators_(var1, var2) == 1) {
-        log_post += interaction_prior_->logp(pairwise_effects_(var1, var2), pairwise_scaling_factors_(var1, var2));
-    }
-
-    return log_post;
 }
 
 
@@ -882,106 +782,6 @@ void OMRFModel::ensure_gradient_cache() {
 
     gradient_cache_valid_ = true;
 }
-
-arma::vec OMRFModel::gradient(const arma::vec& parameters) {
-    ensure_gradient_cache();
-
-    arma::mat temp_main = main_effects_;
-    arma::mat temp_pairwise = pairwise_effects_;
-    arma::mat temp_residual;
-    unvectorize_to_temps(parameters, temp_main, temp_pairwise, temp_residual);
-
-    const int num_variables = static_cast<int>(p_);
-
-    // Start with cached observed gradient
-    arma::vec gradient = grad_obs_cache_;
-
-    // ---- Expected statistics ----
-    int offset = 0;
-    for (int variable = 0; variable < num_variables; variable++) {
-        const int num_cats = num_categories_(variable);
-        arma::vec residual_score = temp_residual.col(variable);
-        arma::vec bound = num_cats * residual_score;
-
-        if (is_ordinal_variable_(variable)) {
-            arma::vec main_param = temp_main.row(variable).cols(0, num_cats - 1).t();
-            arma::mat probs = compute_probs_ordinal(
-                main_param, residual_score, bound, num_cats
-            );
-
-            // Main effects gradient
-            for (int cat = 0; cat < num_cats; cat++) {
-                gradient(offset + cat) -= arma::accu(probs.col(cat + 1));
-            }
-
-            // Pairwise gradient (vectorized using BLAS)
-            arma::vec weights = arma::regspace<arma::vec>(1, num_cats);
-            arma::vec E = probs.cols(1, num_cats) * weights;
-            arma::vec pw_grad = observations_double_t_ * E;
-            for (int j = 0; j < num_variables; j++) {
-                if (edge_indicators_(variable, j) == 0 || variable == j) continue;
-                int location = (variable < j) ? index_matrix_cache_(variable, j) : index_matrix_cache_(j, variable);
-                gradient(location) -= 2.0 * pw_grad(j);
-            }
-            offset += num_cats;
-        } else {
-            const int ref = baseline_category_(variable);
-            const double lin_eff = temp_main(variable, 0);
-            const double quad_eff = temp_main(variable, 1);
-
-            arma::mat probs = compute_probs_blume_capel(
-                residual_score, lin_eff, quad_eff, ref, num_cats, bound
-            );
-
-            arma::vec score = arma::regspace<arma::vec>(0, num_cats) - static_cast<double>(ref);
-            arma::vec sq_score = arma::square(score);
-
-            // Main effects gradient
-            gradient(offset) -= arma::accu(probs * score);
-            gradient(offset + 1) -= arma::accu(probs * sq_score);
-
-            // Pairwise gradient (vectorized using BLAS)
-            arma::vec E = probs * score;
-            arma::vec pw_grad = observations_double_t_ * E;
-            for (int j = 0; j < num_variables; j++) {
-                if (edge_indicators_(variable, j) == 0 || variable == j) continue;
-                int location = (variable < j)
-                    ? index_matrix_cache_(variable, j)
-                    : index_matrix_cache_(j, variable);
-                gradient(location) -= 2.0 * pw_grad(j);
-            }
-            offset += 2;
-        }
-    }
-
-    // ---- Priors ----
-    offset = 0;
-    for (int variable = 0; variable < num_variables; variable++) {
-        if (is_ordinal_variable_(variable)) {
-            const int num_cats = num_categories_(variable);
-            for (int cat = 0; cat < num_cats; cat++) {
-                gradient(offset + cat) += threshold_prior_->grad(temp_main(variable, cat));
-            }
-            offset += num_cats;
-        } else {
-            for (int k = 0; k < 2; k++) {
-                gradient(offset + k) += threshold_prior_->grad(temp_main(variable, k));
-            }
-            offset += 2;
-        }
-    }
-    for (int i = 0; i < num_variables - 1; i++) {
-        for (int j = i + 1; j < num_variables; j++) {
-            if (edge_indicators_(i, j) == 0) continue;
-            int location = index_matrix_cache_(i, j);
-            const double effect = temp_pairwise(i, j);
-            gradient(location) += interaction_prior_->grad(effect, pairwise_scaling_factors_(i, j));
-        }
-    }
-
-    return gradient;
-}
-
 
 std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& parameters) {
     ensure_gradient_cache();

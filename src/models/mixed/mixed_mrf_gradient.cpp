@@ -168,16 +168,6 @@ void MixedMRFModel::unvectorize_nuts_to_temps(
 
 
 // =============================================================================
-// gradient
-// =============================================================================
-
-arma::vec MixedMRFModel::gradient(const arma::vec& parameters) {
-    auto [logp, grad] = logp_and_gradient(parameters);
-    return grad;
-}
-
-
-// =============================================================================
 // logp_and_gradient — marginal pseudo-likelihood
 // =============================================================================
 // Computes the log pseudo-posterior and its gradient with respect to the

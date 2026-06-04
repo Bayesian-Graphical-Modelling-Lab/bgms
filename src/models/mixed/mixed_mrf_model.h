@@ -88,10 +88,6 @@ public:
     // Capability queries
     // =========================================================================
 
-    /** @return true (MixedMRFModel supports NUTS gradient for the unconstrained block). */
-    bool has_gradient() const override { return true; }
-    /** @return true (supports adaptive Metropolis via Robbins-Monro). */
-    bool has_adaptive_metropolis() const override { return true; }
     /** @return true when edge selection is enabled. */
     bool has_edge_selection() const override { return edge_selection_; }
     /** @return true when missing-data imputation is active. */
@@ -102,13 +98,6 @@ public:
     // =========================================================================
     // Core sampling methods
     // =========================================================================
-
-    /**
-     * Compute gradient of the log pseudo-posterior (NUTS block only).
-     * @param parameters  NUTS-dimension parameter vector
-     * @return Gradient vector (same size as parameters)
-     */
-    arma::vec gradient(const arma::vec& parameters) override;
 
     /**
      * Combined log pseudo-posterior and gradient evaluation.

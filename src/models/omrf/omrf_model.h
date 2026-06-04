@@ -62,19 +62,10 @@ public:
     // BaseModel interface implementation
     // =========================================================================
 
-    /** @return true (OMRF supports gradient computation). */
-    bool has_gradient()    const override { return true; }
-    /** @return true (OMRF supports adaptive Metropolis). */
-    bool has_adaptive_metropolis() const override { return true; }
     /** @return true when edge selection is enabled. */
     bool has_edge_selection() const override { return edge_selection_; }
     /** @return true when missing-data imputation is active. */
     bool has_missing_data() const override { return has_missing_; }
-
-    /**
-     * Compute gradient of log-pseudoposterior
-     */
-    arma::vec gradient(const arma::vec& parameters) override;
 
     /**
      * Combined log-posterior and gradient evaluation (more efficient)
@@ -228,13 +219,6 @@ public:
     /** @return Number of observations (shorthand for interface compatibility). */
     size_t get_n() const { return n_; }
 
-    /**
-     * Set the NUTS leapfrog step size.
-     * @param step_size  New step size
-     */
-    void set_step_size(double step_size) override { step_size_ = step_size; }
-    /** @return Current NUTS leapfrog step size. */
-    double get_step_size() const override { return step_size_; }
     /**
      * Set the inverse mass matrix diagonal for NUTS.
      * @param inv_mass  Diagonal elements of the inverse mass matrix
@@ -402,28 +386,9 @@ private:
     // -------------------------------------------------------------------------
 
     /**
-     * Full log-pseudoposterior (internal, uses current state)
-     */
-    double log_pseudoposterior_internal() const;
-
-    /**
-     * Full log-pseudoposterior with external state (avoids modifying model)
-     */
-    double log_pseudoposterior_with_state(
-        const arma::mat& main_eff,
-        const arma::mat& pairwise_eff,
-        const arma::mat& residual_mat
-    ) const;
-
-    /**
      * Log-posterior for single main effect component
      */
     double log_pseudoposterior_main_component(int variable, int category, int parameter) const;
-
-    /**
-     * Log-posterior for single pairwise interaction
-     */
-    double log_pseudoposterior_pairwise_component(int var1, int var2) const;
 
     /**
      * Log-likelihood ratio for variable update

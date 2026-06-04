@@ -156,10 +156,6 @@ public:
           theta_(other.theta_)
     {}
 
-    /** @return true (GGM supports NUTS via free-element Cholesky gradient). */
-    bool has_gradient()        const override { return true; }
-    /** @return true (GGM supports adaptive Metropolis). */
-    bool has_adaptive_metropolis()     const override { return true; }
     /** @return true when edge selection is enabled. */
     bool has_edge_selection()  const override { return edge_selection_; }
     /** @return true when missing-data imputation is active. */

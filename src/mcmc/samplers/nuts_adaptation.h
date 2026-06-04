@@ -134,7 +134,6 @@ public:
       inv_mass_(arma::ones<arma::vec>(dim)),
       step_size_(initial_step_size),
       target_accept_(target_accept),
-      finalized_mass_(false),
       mass_matrix_updated_(false) {}
 
   void update(const arma::vec& theta,
@@ -183,7 +182,6 @@ public:
   double current_step_size() const { return step_size_; }
   double final_step_size() const { return step_adapter.averaged(); }
   const arma::vec& inv_mass_diag() const { return inv_mass_; }
-  bool has_fixed_mass_matrix() const { return finalized_mass_; }
 
   /**
    * Check if the mass matrix was just updated and needs step size re-initialization.
@@ -219,6 +217,5 @@ private:
   arma::vec inv_mass_;
   double step_size_;
   double target_accept_;
-  bool finalized_mass_;
   bool mass_matrix_updated_;
 };
