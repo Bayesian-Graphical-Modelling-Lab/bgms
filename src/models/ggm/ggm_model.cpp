@@ -482,8 +482,7 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 
             cholesky_update_after_edge(omega_ij_old, omega_jj_old, i, j);
 
-            constraint_dirty_ = true;
-            theta_valid_ = false;
+            invalidate_gradient_cache();
         }
 
     } else {
@@ -539,8 +538,7 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 
             cholesky_update_after_edge(omega_ij_old, omega_jj_old, i, j);
 
-            constraint_dirty_ = true;
-            theta_valid_ = false;
+            invalidate_gradient_cache();
         }
     }
 }
@@ -641,8 +639,7 @@ void GGMModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {
     }
 
     // Invalidate gradient cache after MH updates
-    constraint_dirty_ = true;
-    theta_valid_ = false;
+    invalidate_gradient_cache();
 }
 
 void GGMModel::refresh_cholesky() {

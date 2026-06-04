@@ -681,6 +681,21 @@ private:
 
 public:
     /**
+     * Mark the NUTS gradient caches stale after a change to the precision
+     * matrix or the edge set. Both the constraint structure (active dimension
+     * depends on the edge indicators) and the cached theta parameterization
+     * become invalid, so the MH within-K, edge-selection, and proposal-SD
+     * tuning paths all funnel their invalidation through here rather than
+     * repeating the two flag writes. (set_determinant_tilt is intentionally
+     * NOT routed through this: it only needs a gradient-engine rebuild, not a
+     * theta invalidation.)
+     */
+    void invalidate_gradient_cache() {
+        constraint_dirty_ = true;
+        theta_valid_ = false;
+    }
+
+    /**
      * Rebuild the constraint structure and gradient engine from current
      * edge indicators. Called lazily before gradient evaluation.
      */
