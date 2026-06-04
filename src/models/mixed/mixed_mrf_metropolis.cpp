@@ -13,6 +13,42 @@
 #include "math/explog_macros.h"
 
 
+namespace {
+
+// RAII guard for evaluating the OMRF marginal log-likelihood under a *proposed*
+// continuous state. The three continuous Kyy moves (offdiag, diag, edge
+// indicator) temporarily set pairwise_effects_continuous_, covariance_continuous_,
+// and marginal_interactions_ to proposed values, sum the OMRF marginals, then
+// must restore the accepted state regardless of the accept/reject outcome. This
+// snapshots those three fields on construction and restores them on scope exit,
+// replacing the open-coded save / mutate / recompute / restore dance.
+struct ProposedContinuousState {
+    arma::mat& pairwise;
+    arma::mat& covariance;
+    arma::mat& marginal;
+    arma::mat pairwise_saved;
+    arma::mat covariance_saved;
+    arma::mat marginal_saved;
+
+    ProposedContinuousState(arma::mat& pairwise_ref, arma::mat& covariance_ref,
+                            arma::mat& marginal_ref)
+        : pairwise(pairwise_ref), covariance(covariance_ref), marginal(marginal_ref),
+          pairwise_saved(pairwise_ref), covariance_saved(covariance_ref),
+          marginal_saved(marginal_ref) {}
+
+    ~ProposedContinuousState() {
+        pairwise = std::move(pairwise_saved);
+        covariance = std::move(covariance_saved);
+        marginal = std::move(marginal_saved);
+    }
+
+    ProposedContinuousState(const ProposedContinuousState&) = delete;
+    ProposedContinuousState& operator=(const ProposedContinuousState&) = delete;
+};
+
+}  // namespace
+
+
 // =============================================================================
 // update_main_effect
 // =============================================================================
@@ -466,20 +502,19 @@ double MixedMRFModel::update_pairwise_effects_continuous_offdiag(int i, int j, s
     for(size_t s = 0; s < p_; ++s)
         ln_alpha -= log_marginal_omrf(s);
 
-    arma::mat marginal_saved = marginal_interactions_;
-    arma::mat covariance_saved = covariance_continuous_;
-    arma::mat pairwise_effects_continuous_saved = pairwise_effects_continuous_;
-    // Temporarily set continuous interactions and covariance to proposed values.
-    pairwise_effects_continuous_(i, j) = -0.5 * theta_prop_ij;
-    pairwise_effects_continuous_(j, i) = -0.5 * theta_prop_ij;
-    pairwise_effects_continuous_(j, j) = -0.5 * theta_prop_jj;
-    covariance_continuous_ = cov_prop;
-    recompute_marginal_interactions();
-    for(size_t s = 0; s < p_; ++s)
-        ln_alpha += log_marginal_omrf(s);
-    pairwise_effects_continuous_ = pairwise_effects_continuous_saved;
-    covariance_continuous_ = std::move(covariance_saved);
-    marginal_interactions_ = std::move(marginal_saved);
+    {
+        // Evaluate the proposed-state OMRF marginals under (Kyy', Σ'); the guard
+        // restores the continuous fields when the block exits.
+        ProposedContinuousState proposed_state(
+            pairwise_effects_continuous_, covariance_continuous_, marginal_interactions_);
+        pairwise_effects_continuous_(i, j) = -0.5 * theta_prop_ij;
+        pairwise_effects_continuous_(j, i) = -0.5 * theta_prop_ij;
+        pairwise_effects_continuous_(j, j) = -0.5 * theta_prop_jj;
+        covariance_continuous_ = cov_prop;
+        recompute_marginal_interactions();
+        for(size_t s = 0; s < p_; ++s)
+            ln_alpha += log_marginal_omrf(s);
+    }
 
     // Prior ratio:
     //   Cauchy(0, scale) on off-diagonal = -1/2 * precision_ij
@@ -556,17 +591,17 @@ double MixedMRFModel::update_pairwise_effects_continuous_diag(int i, std::option
     for(size_t s = 0; s < p_; ++s)
         ln_alpha -= log_marginal_omrf(s);
 
-    arma::mat marginal_saved = marginal_interactions_;
-    arma::mat covariance_saved = covariance_continuous_;
-    double cont_saved = pairwise_effects_continuous_(i, i);
-    pairwise_effects_continuous_(i, i) = -0.5 * theta_ii_prop;
-    covariance_continuous_ = cov_prop;
-    recompute_marginal_interactions();
-    for(size_t s = 0; s < p_; ++s)
-        ln_alpha += log_marginal_omrf(s);
-    pairwise_effects_continuous_(i, i) = cont_saved;
-    covariance_continuous_ = std::move(covariance_saved);
-    marginal_interactions_ = std::move(marginal_saved);
+    {
+        // Evaluate the proposed-state OMRF marginals under (Kyy', Σ'); the guard
+        // restores the continuous fields when the block exits.
+        ProposedContinuousState proposed_state(
+            pairwise_effects_continuous_, covariance_continuous_, marginal_interactions_);
+        pairwise_effects_continuous_(i, i) = -0.5 * theta_ii_prop;
+        covariance_continuous_ = cov_prop;
+        recompute_marginal_interactions();
+        for(size_t s = 0; s < p_; ++s)
+            ln_alpha += log_marginal_omrf(s);
+    }
 
     // Prior ratio: Gamma(1,1) on K_ii (precision diagonal)
     ln_alpha += diagonal_prior_->logp(0.5 * theta_ii_prop);
@@ -754,20 +789,19 @@ void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
     for(size_t s = 0; s < p_; ++s)
         ln_alpha -= log_marginal_omrf(s);
 
-    arma::mat marginal_saved = marginal_interactions_;
-    arma::mat covariance_saved = covariance_continuous_;
-    arma::mat pairwise_effects_continuous_saved = pairwise_effects_continuous_;
-    // Temporarily set continuous interactions and covariance to proposed values.
-    pairwise_effects_continuous_(i, j) = -0.5 * theta_prop_ij;
-    pairwise_effects_continuous_(j, i) = -0.5 * theta_prop_ij;
-    pairwise_effects_continuous_(j, j) = -0.5 * theta_prop_jj;
-    covariance_continuous_ = cov_prop;
-    recompute_marginal_interactions();
-    for(size_t s = 0; s < p_; ++s)
-        ln_alpha += log_marginal_omrf(s);
-    pairwise_effects_continuous_ = pairwise_effects_continuous_saved;
-    covariance_continuous_ = std::move(covariance_saved);
-    marginal_interactions_ = std::move(marginal_saved);
+    {
+        // Evaluate the proposed-state OMRF marginals under (Kyy', Σ'); the guard
+        // restores the continuous fields when the block exits.
+        ProposedContinuousState proposed_state(
+            pairwise_effects_continuous_, covariance_continuous_, marginal_interactions_);
+        pairwise_effects_continuous_(i, j) = -0.5 * theta_prop_ij;
+        pairwise_effects_continuous_(j, i) = -0.5 * theta_prop_ij;
+        pairwise_effects_continuous_(j, j) = -0.5 * theta_prop_jj;
+        covariance_continuous_ = cov_prop;
+        recompute_marginal_interactions();
+        for(size_t s = 0; s < p_; ++s)
+            ln_alpha += log_marginal_omrf(s);
+    }
 
     // --- Spike-and-slab terms ---
     // off-diagonal = -1/2 * precision_ij
