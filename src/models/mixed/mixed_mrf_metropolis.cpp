@@ -369,9 +369,16 @@ void MixedMRFModel::cholesky_update_after_precision_edge(
     cholesky_update(cholesky_of_precision_, cont_u1_);
     cholesky_downdate(cholesky_of_precision_, cont_u2_);
 
-    arma::inv(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_));
-    covariance_continuous_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
-    log_det_precision_ = cholesky_helpers::get_log_det(cholesky_of_precision_);
+    // Update the inverse Cholesky; if the rank-2 update has drifted into
+    // ill-conditioning, rebuild the decomposition from scratch (mirrors
+    // GGMModel's drift-guard). pairwise_effects_continuous_ already holds the
+    // accepted value here, so the rebuild reconstructs the accepted state.
+    if (arma::inv(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_))) {
+        covariance_continuous_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
+        log_det_precision_ = cholesky_helpers::get_log_det(cholesky_of_precision_);
+    } else {
+        recompute_pairwise_effects_continuous_decomposition();
+    }
 
     cont_vf1_[i] = 0.0;
     cont_vf1_[j] = 0.0;
@@ -397,9 +404,14 @@ void MixedMRFModel::cholesky_update_after_precision_diag(double old_ii, int i) {
     else
         cholesky_update(cholesky_of_precision_, cont_vf1_);
 
-    arma::inv(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_));
-    covariance_continuous_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
-    log_det_precision_ = cholesky_helpers::get_log_det(cholesky_of_precision_);
+    // Update the inverse Cholesky; fall back to a full rebuild on drift
+    // (mirrors GGMModel's drift-guard).
+    if (arma::inv(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_))) {
+        covariance_continuous_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
+        log_det_precision_ = cholesky_helpers::get_log_det(cholesky_of_precision_);
+    } else {
+        recompute_pairwise_effects_continuous_decomposition();
+    }
 
     cont_vf1_[i] = 0.0;
 }
