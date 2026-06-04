@@ -238,18 +238,14 @@ double MixedMRFModel::log_ggm_ratio_edge(int i, int j, arma::mat& cov_prop_out) 
 
     // --- Log-determinant ratio via matrix determinant lemma ---
     // ΔΩ has 3 nonzero entries: (i,j), (j,i), (j,j).
-    // Ui = old - new off-diag, Uj = (old - new diag) / 2
+    // Ui = old - new off-diag, Uj = (old - new diag) / 2. The same Ui/Uj also
+    // drive the Woodbury covariance update below, so they are kept here; the
+    // log-det ratio itself is the canonical rank-2 det-lemma in
+    // log_det_ratio_yy_edge (recomputes the identical Ui/Uj internally).
     double Ui = precision_curr(ui, uj) - precision_proposal_(ui, uj);
     double Uj = (precision_curr(uj, uj) - precision_proposal_(uj, uj)) / 2.0;
 
-    double cc11 = covariance_continuous_(uj, uj);
-    double cc12 = 1.0 - (covariance_continuous_(ui, uj) * Ui +
-                          covariance_continuous_(uj, uj) * Uj);
-    double cc22 = Ui * Ui * covariance_continuous_(ui, ui) +
-                  2.0 * Ui * Uj * covariance_continuous_(ui, uj) +
-                  Uj * Uj * covariance_continuous_(uj, uj);
-
-    double logdet_ratio = MY_LOG(std::abs(cc11 * cc22 - cc12 * cc12));
+    double logdet_ratio = log_det_ratio_yy_edge(i, j);
 
     // --- Proposed covariance via Woodbury ---
     // ΔΩ = vf1 vf2' + vf2 vf1' where vf1 = [0,...,-1,...] (j-th),
@@ -311,13 +307,12 @@ double MixedMRFModel::log_ggm_ratio_diag(int i, arma::mat& cov_prop_out) const {
     double precision_ii = -2.0 * pairwise_effects_continuous_(ui, ui);
 
     // --- Log-determinant ratio (rank-1) ---
+    // Uj also drives the Sherman-Morrison covariance update below, so it is
+    // kept here; the log-det ratio itself is the canonical rank-1 det-lemma in
+    // log_det_ratio_yy_diag (recomputes the identical Uj internally).
     double Uj = (precision_ii - precision_proposal_(ui, ui)) / 2.0;
 
-    double cc11 = covariance_continuous_(ui, ui);
-    double cc12 = 1.0 - covariance_continuous_(ui, ui) * Uj;
-    double cc22 = Uj * Uj * covariance_continuous_(ui, ui);
-
-    double logdet_ratio = MY_LOG(std::abs(cc11 * cc22 - cc12 * cc12));
+    double logdet_ratio = log_det_ratio_yy_diag(i);
 
     // --- Proposed covariance via Sherman-Morrison (rank-1 special case) ---
     // ΔΩ = -2Uj * e_i e_i', so Σ' = Σ + 2Uj * Σ[:,i] Σ[i,:]' / (1 - 2Uj * Σ(i,i))
