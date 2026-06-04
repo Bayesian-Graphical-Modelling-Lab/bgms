@@ -266,12 +266,7 @@ double GGMModel::log_density_impl_diag(size_t j) const {
     return (n_ * logdet - trace_prod) / 2;
 }
 
-double GGMModel::update_edge_parameter(size_t i, size_t j) {
-
-    if (edge_indicators_(i, j) == 0) {
-        return 0.0; // Edge is not included; skip update (AR irrelevant, masked out)
-    }
-
+double GGMModel::ggm_edge_move(size_t i, size_t j) {
     get_constants(i, j);
     double Phi_q1q  = constants_[0];
     (void)constants_[1]; // Phi_q1q1 computed in get_constants but unused here
@@ -320,7 +315,14 @@ double GGMModel::update_edge_parameter(size_t i, size_t j) {
         cholesky_update_after_edge(omega_ij_old, omega_jj_old, i, j);
     }
 
-    return std::min(1.0, std::exp(ln_alpha));
+    return ln_alpha;
+}
+
+double GGMModel::update_edge_parameter(size_t i, size_t j) {
+    if (edge_indicators_(i, j) == 0) {
+        return 0.0; // Edge is not included; skip update (AR irrelevant, masked out)
+    }
+    return std::min(1.0, std::exp(ggm_edge_move(i, j)));
 }
 
 void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_old, size_t i, size_t j)
@@ -362,7 +364,7 @@ void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_o
 
 }
 
-double GGMModel::update_diagonal_parameter(size_t i) {
+double GGMModel::ggm_diag_move(size_t i) {
     double logdet_omega = cholesky_helpers::get_log_det(cholesky_of_precision_);
     double logdet_omega_sub_ii = logdet_omega + MY_LOG(covariance_matrix_(i, i));
 
@@ -393,7 +395,11 @@ double GGMModel::update_diagonal_parameter(size_t i) {
         cholesky_update_after_diag(omega_ii, i);
     }
 
-    return std::min(1.0, std::exp(ln_alpha));
+    return ln_alpha;
+}
+
+double GGMModel::update_diagonal_parameter(size_t i) {
+    return std::min(1.0, std::exp(ggm_diag_move(i)));
 }
 
 void GGMModel::cholesky_update_after_diag(double omega_ii_old, size_t i)
@@ -614,42 +620,11 @@ void GGMModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {
         for (size_t j = i + 1; j < p_; ++j) {
             if (edge_indicators_(i, j) == 0) continue;
 
-            get_constants(i, j);
-            double Phi_q1q = constants_[0];
+            // Same proposal/accept/update as the sampling path; only the
+            // Robbins-Monro adaptation of proposal_sds_ differs (it consumes
+            // the raw ln_alpha rather than the min(1,exp()) accept prob).
             size_t e = j * (j + 1) / 2 + i;
-            double proposal_sd = proposal_sds_(e);
-
-            double phi_prop = rnorm(rng_, Phi_q1q, proposal_sd);
-            double omega_prop_q1q = constants_[2] + constants_[3] * phi_prop;
-            double omega_prop_qq = constrained_diagonal(omega_prop_q1q);
-
-            precision_proposal_ = precision_matrix_;
-            precision_proposal_(i, j) = omega_prop_q1q;
-            precision_proposal_(j, i) = omega_prop_q1q;
-            precision_proposal_(j, j) = omega_prop_qq;
-
-            double ln_alpha = log_density_impl_edge(i, j);
-            if (determinant_tilt_ != 0.0) {
-                ln_alpha += determinant_tilt_ * log_det_ratio_edge(i, j);
-            }
-            // Interaction prior on K_yy_{ij} = -0.5 * Omega_{ij}
-            ln_alpha += interaction_prior_->logp(-0.5 * precision_proposal_(i, j));
-            ln_alpha -= interaction_prior_->logp(-0.5 * precision_matrix_(i, j));
-
-            // Gamma(shape, rate) prior on changed diagonal K_jj. The Roverato move
-            // slaves K_jj = c_3 + phi_{q-1,q}^2, so K_jj moves with the off-diagonal
-            // and its prior must be re-evaluated.
-            ln_alpha += diagonal_prior_->logp(0.5 * precision_proposal_(j, j));
-            ln_alpha -= diagonal_prior_->logp(0.5 * precision_matrix_(j, j));
-
-            if (MY_LOG(runif(rng_)) < ln_alpha) {
-                double omega_ij_old = precision_matrix_(i, j);
-                double omega_jj_old = precision_matrix_(j, j);
-                precision_matrix_(i, j) = omega_prop_q1q;
-                precision_matrix_(j, i) = omega_prop_q1q;
-                precision_matrix_(j, j) = omega_prop_qq;
-                cholesky_update_after_edge(omega_ij_old, omega_jj_old, i, j);
-            }
+            double ln_alpha = ggm_edge_move(i, j);
 
             proposal_sds_(e) = update_proposal_sd_with_robbins_monro(
                 proposal_sds_(e), ln_alpha, rm_weight, target_accept);
@@ -658,33 +633,8 @@ void GGMModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {
 
     // Diagonal sweeps
     for (size_t i = 0; i < p_; ++i) {
-        double logdet_omega = cholesky_helpers::get_log_det(cholesky_of_precision_);
-        double logdet_omega_sub_ii = logdet_omega + MY_LOG(covariance_matrix_(i, i));
-
         size_t e = i * (i + 3) / 2;
-        double proposal_sd = proposal_sds_(e);
-
-        double theta_curr = (logdet_omega - logdet_omega_sub_ii) / 2;
-        double theta_prop = rnorm(rng_, theta_curr, proposal_sd);
-
-        precision_proposal_ = precision_matrix_;
-        precision_proposal_(i, i) = precision_matrix_(i, i)
-            - MY_EXP(theta_curr) * MY_EXP(theta_curr)
-            + MY_EXP(theta_prop) * MY_EXP(theta_prop);
-
-        double ln_alpha = log_density_impl_diag(i);
-        if (determinant_tilt_ != 0.0) {
-            ln_alpha += determinant_tilt_ * log_det_ratio_diag(i);
-        }
-        ln_alpha += diagonal_prior_->logp(0.5 * precision_proposal_(i, i));
-        ln_alpha -= diagonal_prior_->logp(0.5 * precision_matrix_(i, i));
-        ln_alpha += 2.0 * (theta_prop - theta_curr); // Jacobian: dK_ii/dtheta = 2*exp(2*theta)
-
-        if (MY_LOG(runif(rng_)) < ln_alpha) {
-            double omega_ii = precision_matrix_(i, i);
-            precision_matrix_(i, i) = precision_proposal_(i, i);
-            cholesky_update_after_diag(omega_ii, i);
-        }
+        double ln_alpha = ggm_diag_move(i);
 
         proposal_sds_(e) = update_proposal_sd_with_robbins_monro(
             proposal_sds_(e), ln_alpha, rm_weight, target_accept);

@@ -526,6 +526,20 @@ private:
     double update_diagonal_parameter(size_t i);
 
     /**
+     * Within-model MH move primitives. Each proposes, computes the full
+     * acceptance ratio, and applies the move (with Cholesky update) on accept,
+     * returning the RAW ln_alpha. Both the sampling path
+     * (update_edge_parameter/update_diagonal_parameter) and the Robbins-Monro
+     * tuning path (tune_proposal_sd) call these, so the proposal RNG and math
+     * are defined in exactly one place. Callers own the edge-active guard, the
+     * cache-flag invalidation, and the min(1,exp())/RM consumption of ln_alpha.
+     *
+     * ggm_edge_move assumes the edge (i,j) is active (caller short-circuits).
+     */
+    double ggm_edge_move(size_t i, size_t j);
+    double ggm_diag_move(size_t i);
+
+    /**
      * Metropolis-Hastings add-delete move for an edge indicator.
      *
      * If the edge is on, proposes deletion; if off, proposes a new value
