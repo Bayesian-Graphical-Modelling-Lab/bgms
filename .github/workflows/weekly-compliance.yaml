@@ -20,6 +20,8 @@ jobs:
           use-public-rspm: true
 
       - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::remotes
 
       - name: Install mixedGM (needed for cross-package tests)
         run: Rscript -e 'remotes::install_github("MaartenMarsman/mixedGM")'
