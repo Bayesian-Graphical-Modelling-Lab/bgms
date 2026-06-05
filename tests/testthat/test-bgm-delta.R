@@ -33,13 +33,13 @@ test_that("delta > 0 shifts NUTS K_ii posterior mean upward (GGM)", {
   base = bgm(
     x, variable_type = "continuous",
     iter = 300L, warmup = 300L, chains = 1L,
-    edge_selection = FALSE, verbose = FALSE, seed = 2L,
+    edge_selection = FALSE, verbose = FALSE, display_progress = "none", seed = 2L,
     delta = 0
   )
   tilted = bgm(
     x, variable_type = "continuous",
     iter = 300L, warmup = 300L, chains = 1L,
-    edge_selection = FALSE, verbose = FALSE, seed = 2L,
+    edge_selection = FALSE, verbose = FALSE, display_progress = "none", seed = 2L,
     delta = 5
   )
   expect_gt(trace_K(tilted), trace_K(base))
@@ -52,14 +52,14 @@ test_that("delta > 0 shifts MH K_ii posterior mean upward (GGM)", {
     x, variable_type = "continuous",
     update_method = "adaptive-metropolis",
     iter = 400L, warmup = 400L, chains = 1L,
-    edge_selection = FALSE, verbose = FALSE, seed = 3L,
+    edge_selection = FALSE, verbose = FALSE, display_progress = "none", seed = 3L,
     delta = 0
   )
   tilted = bgm(
     x, variable_type = "continuous",
     update_method = "adaptive-metropolis",
     iter = 400L, warmup = 400L, chains = 1L,
-    edge_selection = FALSE, verbose = FALSE, seed = 3L,
+    edge_selection = FALSE, verbose = FALSE, display_progress = "none", seed = 3L,
     delta = 5
   )
   expect_gt(trace_K(tilted), trace_K(base))
@@ -75,7 +75,7 @@ test_that("delta > 0 is rejected for pure-ordinal models", {
     bgm(
       x, variable_type = "ordinal",
       iter = 20L, warmup = 20L, chains = 1L,
-      edge_selection = FALSE, verbose = FALSE,
+      edge_selection = FALSE, verbose = FALSE, display_progress = "none",
       delta = 1
     ),
     "no precision matrix to tilt"
@@ -89,7 +89,7 @@ test_that("invalid delta values are rejected with a clear message", {
     bgm(
       x, variable_type = "continuous",
       iter = 20L, warmup = 20L, chains = 1L,
-      verbose = FALSE, delta = -1
+      verbose = FALSE, display_progress = "none", delta = -1
     ),
     "non-negative"
   )
@@ -97,7 +97,7 @@ test_that("invalid delta values are rejected with a clear message", {
     bgm(
       x, variable_type = "continuous",
       iter = 20L, warmup = 20L, chains = 1L,
-      verbose = FALSE, delta = NA_real_
+      verbose = FALSE, display_progress = "none", delta = NA_real_
     ),
     "finite"
   )
@@ -105,7 +105,7 @@ test_that("invalid delta values are rejected with a clear message", {
     bgm(
       x, variable_type = "continuous",
       iter = 20L, warmup = 20L, chains = 1L,
-      verbose = FALSE, delta = c(0, 1)
+      verbose = FALSE, display_progress = "none", delta = c(0, 1)
     ),
     "single"
   )
