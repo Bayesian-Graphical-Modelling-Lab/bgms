@@ -299,6 +299,38 @@ test_that("extract_ess returns valid diagnostics for all fit types", {
   }
 })
 
+test_that("compare Rhat and ESS vectors are named by parameter", {
+  fixtures = get_extractor_fixtures()
+
+  for(spec in fixtures) {
+    if(spec$type == "bgms") next
+    ctx = sprintf("[%s]", spec$label)
+    fit = spec$get_fit()
+    names_all = get_fit_cache(fit)$names_all
+
+    # Named by parameter, as on the bgm side.
+    expected = list(
+      main_baseline = names_all$main_baseline,
+      main_differences = names_all$main_diff,
+      pairwise_baseline = names_all$pairwise_baseline,
+      pairwise_differences = names_all$pairwise_diff,
+      indicator = names_all$indicators
+    )
+
+    rhat = extract_rhat(fit)
+    ess = extract_ess(fit)
+    for(element in names(expected)) {
+      if(is.null(rhat[[element]])) next
+      expect_equal(names(rhat[[element]]), expected[[element]],
+        info = paste(ctx, element)
+      )
+      expect_equal(names(ess[[element]]), expected[[element]],
+        info = paste(ctx, element)
+      )
+    }
+  }
+})
+
 test_that("extract_ess indicators default to the RB n_eff and honour estimator", {
   fixtures = get_extractor_fixtures()
   checked = 0L

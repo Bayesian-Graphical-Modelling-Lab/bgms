@@ -121,8 +121,19 @@ check_warmup_complete = function(energy_mat) {
     time_idx = seq_len(n_chain)
     trend_lm = stats::lm(energy ~ time_idx)
     slope = stats::coef(trend_lm)[2]
-    slope_se = summary(trend_lm)$coefficients[2, 2]
-    slope_significant = abs(slope / slope_se) > 2.58
+    # Constant trace: slope and its SE are both ~0, so the t-ratio is
+    # undefined. Set slope = 0, SE = 0, not significant, and skip summary.lm(),
+    # which warns about the exact fit.
+    if(stats::var(energy) == 0) {
+      slope[] = 0
+      slope_se = 0
+      slope_significant = FALSE
+    } else {
+      slope_se = summary(trend_lm)$coefficients[2, 2]
+      # isTRUE(): an NA comparison counts as not triggered, so the flag stays
+      # logical.
+      slope_significant = isTRUE(abs(slope / slope_se) > 2.58)
+    }
 
     # Reported alongside the flag, not part of it: the same statistic with its
     # standard error corrected for autocorrelation. tau comes from the second
@@ -142,8 +153,11 @@ check_warmup_complete = function(energy_mat) {
     # Variance ratio
     var_ratio = stats::var(first_half) / stats::var(second_half)
 
-    # Flag if any criterion triggered
-    warmup_incomplete = slope_significant || ebfmi_first < 0.3 || var_ratio > 2.0
+    # Flag if any criterion triggered. A constant half makes ebfmi_first and
+    # var_ratio NaN; isTRUE() keeps the flag logical instead of NA.
+    warmup_incomplete = slope_significant ||
+      isTRUE(ebfmi_first < 0.3) ||
+      isTRUE(var_ratio > 2.0)
 
     list(
       warmup_incomplete = warmup_incomplete,
@@ -193,10 +207,12 @@ check_warmup_complete = function(energy_mat) {
 #   - energy:     Numeric matrix (chains x iterations).
 #   - accept_prob: Numeric matrix (chains x iterations) of mean
 #       per-trajectory Metropolis acceptance (Stan's accept_stat__).
-#   - ebfmi:      Numeric vector of per-chain E-BFMI values.
+#   - ebfmi:      Numeric vector of per-chain E-BFMI values, computed from the
+#       finite energy draws only and NA for a chain with fewer than two.
 #   - warmup_check: Output of check_warmup_complete().
 #   - summary:    List with total_divergences, max_tree_depth_hits,
-#       min_ebfmi, mean_accept_prob, and warmup_incomplete (logical).
+#       min_ebfmi (the minimum over the chains with a computable E-BFMI, NA if
+#       no chain has one), mean_accept_prob, and warmup_incomplete (logical).
 # ------------------------------------------------------------------------------
 summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) {
   nuts_chains = Filter(function(chain) {
@@ -225,8 +241,13 @@ summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) 
     matrix(NA_real_, nrow = nrow(divergent_mat), ncol = ncol(divergent_mat))
   }
 
-  # E-BFMI per chain
+  # E-BFMI per chain, from the finite energy draws only (as in
+  # check_warmup_complete()). NA with fewer than two finite draws.
   compute_ebfmi = function(energy) {
+    energy = energy[is.finite(energy)]
+    if(length(energy) < 2L) {
+      return(NA_real_)
+    }
     mean(diff(energy)^2) / stats::var(energy)
   }
   ebfmi_per_chain = apply(energy_mat, 1, compute_ebfmi)
@@ -237,8 +258,12 @@ summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) 
   n_total = nrow(divergent_mat) * ncol(divergent_mat)
   total_divergences = sum(divergent_mat)
   max_tree_depth_hits = sum(treedepth_mat == nuts_max_depth)
-  min_ebfmi = min(ebfmi_per_chain)
-  low_ebfmi_chains = which(ebfmi_per_chain < 0.2)
+  # min and threshold over the chains with a computable E-BFMI; the others get
+  # their own issue line below.
+  ebfmi_computed = is.finite(ebfmi_per_chain)
+  min_ebfmi = if(any(ebfmi_computed)) min(ebfmi_per_chain[ebfmi_computed]) else NA_real_
+  low_ebfmi_chains = which(ebfmi_computed & ebfmi_per_chain < 0.2)
+  unusable_ebfmi_chains = which(!ebfmi_computed)
 
   divergence_rate = total_divergences / n_total
   depth_hit_rate = max_tree_depth_hits / n_total
@@ -282,6 +307,14 @@ summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) 
       min_ebfmi,
       if(length(low_ebfmi_chains) > 1) "s" else "",
       paste(low_ebfmi_chains, collapse = ", ")
+    ))
+  }
+
+  if(length(unusable_ebfmi_chains) > 0) {
+    issues = c(issues, sprintf(
+      "E-BFMI: not computable in chain%s %s - fewer than two finite energy draws",
+      if(length(unusable_ebfmi_chains) > 1) "s" else "",
+      paste(unusable_ebfmi_chains, collapse = ", ")
     ))
   }
 
