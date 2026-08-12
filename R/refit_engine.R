@@ -313,7 +313,10 @@ verdict_from_lbf = function(lbf, lthr) {
 # ------------------------------------------------------------------
 refit_edge_stats = function(fit, evidence_threshold) {
   raw = get_raw_samples(fit)
-  enm = raw$parameter_names$indicator %||% raw$parameter_names$pairwise
+  # bgm() stores `indicator`, bgmCompare() stores `indicators`; read both
+  # exactly.
+  pnm = raw$parameter_names
+  enm = pnm[["indicator"]] %||% pnm[["indicators"]] %||% pnm[["pairwise"]]
   M = length(raw$rb_inclusion)
   pc = sapply(raw$rb_inclusion, colMeans) # n_edges x M
   if(is.null(dim(pc))) pc = matrix(pc, ncol = M)
@@ -437,8 +440,13 @@ refit_convergence_gate = function(fit) {
   }
   var_ratio = if(is.null(wc)) 0 else finite_reduce(wc$var_ratio, max, 0)
 
+  # An RB-inclusion R-hat that cannot be computed abstains, as an absent energy
+  # diagnostic does: a fit whose every indicator is saturated (one edge, never
+  # flipped) has no between-chain variance and so no R-hat, which is not a
+  # convergence failure.
+  rb_ok = !is.finite(rb_med_rhat) || rb_med_rhat < 1.01
   usable = is.finite(rhat_cont) && rhat_cont < 1.01 &&
-    rb_med_rhat < 1.01 && ebfmi > 0.3 && var_ratio < 2
+    rb_ok && ebfmi > 0.3 && var_ratio < 2
   list(
     usable = usable, rhat_cont = rhat_cont, rhat_cont_max = rhat_cont_max,
     ess_cont = ess_cont, ess_incl = ess_incl, rb_med_rhat = rb_med_rhat,
@@ -456,16 +464,28 @@ refit_convergence_gate = function(fit) {
 # ------------------------------------------------------------------
 gate_failure_reason = function(g) {
   if(!is.finite(g$rhat_cont) || g$rhat_cont >= 1.01) {
-    return("the parameter chains have not converged (split R-hat above 1.01)")
+    return(sprintf(
+      "split R-hat values above 1.01 on the parameters (largest %s), which may mean its chains have not converged",
+      format(round(g$rhat_cont_max, 2))
+    ))
   }
-  if(g$rb_med_rhat >= 1.01) {
-    return("the edge-inclusion chains have not converged (R-hat above 1.01)")
+  if(is.finite(g$rb_med_rhat) && g$rb_med_rhat >= 1.01) {
+    return(sprintf(
+      "R-hat values above 1.01 on the edge indicators (median %s), which may mean its inclusion chains have not converged",
+      format(round(g$rb_med_rhat, 2))
+    ))
   }
   if(g$min_ebfmi <= 0.3) {
-    return("the sampler explored the posterior poorly (low energy efficiency)")
+    return(sprintf(
+      "low energy efficiency (E-BFMI %s), which may mean the sampler explored the posterior poorly",
+      format(round(g$min_ebfmi, 2))
+    ))
   }
   if(g$max_var_ratio >= 2) {
-    return("the warmup did not settle (the sampling energy kept drifting)")
+    return(sprintf(
+      "sampling energy still drifting during warmup (variance ratio %s), which may mean the warmup was too short",
+      format(round(g$max_var_ratio, 1))
+    ))
   }
   NA_character_
 }
