@@ -1,13 +1,25 @@
 #!/bin/sh
 
+# Exit on the first failing command (for example an Rscript call with R_HOME
+# unset), instead of handing make an empty sources.mk.
+set -e
+
+RSCRIPT="${R_HOME}/bin/Rscript"
+
 # RcppParallel flags
-RCPP_PARALLEL_CPPFLAGS=`"${R_HOME}/bin/Rscript" -e "cat(RcppParallel::CxxFlags())"`
-RCPP_PARALLEL_LIBS=`"${R_HOME}/bin/Rscript" -e "cat(RcppParallel::LdFlags())"`
+RCPP_PARALLEL_CPPFLAGS=`"${RSCRIPT}" -e "cat(RcppParallel::CxxFlags())"`
+RCPP_PARALLEL_LIBS=`"${RSCRIPT}" -e "cat(RcppParallel::LdFlags())"`
 
 # Generate sources.mk using R (the script writes src/sources.mk itself)
-"${R_HOME}/bin/Rscript" inst/generate_makevars_sources.R
+"${RSCRIPT}" inst/generate_makevars_sources.R
 
 # Substitute into Makevars
 sed -e "s|@RCPP_PARALLEL_CPPFLAGS@|${RCPP_PARALLEL_CPPFLAGS}|" \
     -e "s|@RCPP_PARALLEL_LIBS@|${RCPP_PARALLEL_LIBS}|" \
 src/Makevars.in > src/Makevars
+
+# make needs a non-empty object list; check the file, not only the exit status.
+if [ ! -s src/sources.mk ]; then
+  echo "configure: src/sources.mk was not generated; cannot build bgms." >&2
+  exit 1
+fi

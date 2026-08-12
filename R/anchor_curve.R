@@ -33,6 +33,11 @@ anchor_draws = function(fit) {
   if(identical(spec$model_type, "compare")) {
     return(compare_anchor_draws(fit, spec, raw))
   }
+  # GGM pairwise draws are K_ij; the slab prior is evaluated at -K_ij / 2
+  # (ggm_model.cpp:313). The mixed sampler stores every pairwise block on the
+  # slab's own scale: the discrete and cross blocks as is
+  # (mixed_mrf_gradient.cpp:503, 521), the continuous block as -Omega / 2
+  # (mixed_mrf_model.cpp:534, mixed_mrf_gradient.cpp:574).
   slab_factor = if(identical(spec$model_type, "ggm")) -0.5 else 1
   theta = lapply(raw$pairwise, function(m) slab_factor * m)
   gamma = raw$indicator
@@ -54,8 +59,14 @@ anchor_draws = function(fit) {
 # Under vary = "slab-and-diagonal" the refits set the diagonal rate to eta / s
 # (vary_diagonal_rate()), so the weight ratio carries the diagonal prior as
 # well as the slab. The sampler evaluates that prior at K_jj / 2
-# (ggm_model.cpp:320, mixed_mrf_gradient.cpp:559); the raw main draws store
-# K_jj.
+# (ggm_model.cpp:320, mixed_mrf_gradient.cpp:559). The two model types store
+# the diagonal on different scales:
+#
+#   ggm        raw main draws are K_jj (build_precision_from_draw());
+#              K_jj / 2 = 0.5 * draw.
+#   mixed_mrf  the "(precision diag)" columns are the diagonal of
+#              pairwise_effects_continuous_, stored as -Omega / 2 for the whole
+#              continuous block (mixed_mrf_model.cpp:534); K_jj / 2 = -draw.
 #
 # @param spec  The fit's spec.
 # @param raw   Its raw samples.
@@ -64,7 +75,8 @@ anchor_draws = function(fit) {
 #   diagonal elements, shape = the Gamma shape alpha), or NULL.
 # ------------------------------------------------------------------
 anchor_diagonal = function(spec, raw) {
-  cols = if(identical(spec$model_type, "ggm")) {
+  is_ggm = identical(spec$model_type, "ggm")
+  cols = if(is_ggm) {
     seq_len(ncol(raw$main[[1]]))
   } else if(identical(spec$model_type, "mixed_mrf")) {
     which(endsWith(raw$parameter_names[["main"]], "(precision diag)"))
@@ -74,8 +86,11 @@ anchor_diagonal = function(spec, raw) {
   if(length(cols) == 0L) {
     return(NULL)
   }
+  to_half_precision = if(is_ggm) 0.5 else -1
   list(
-    sum = lapply(raw$main, function(m) 0.5 * rowSums(m[, cols, drop = FALSE])),
+    sum = lapply(raw$main, function(m) {
+      to_half_precision * rowSums(m[, cols, drop = FALSE])
+    }),
     n = length(cols),
     shape = spec$prior$scale_shape %||% 1
   )

@@ -27,6 +27,9 @@ mixed MRF models this is the precision matrix of the continuous
 
 For mixed MRF models the precision matrix is reconstructed from the
 internal association-scale parameterization.
+
+Each entry, diagonal included, is the posterior mean of the corresponding
+precision draw. This is the matrix \code{predict()} and \code{simulate()} use.
 }
 \examples{
 \donttest{
