@@ -142,6 +142,10 @@ graph_prior_conditioning = function(ep, p, theta, allocations, block_probs) {
 #' a Bernoulli or Beta-Bernoulli prior, and \code{allocations} plus
 #' \code{block_probs} fix the block structure of a Stochastic-Block prior
 #' (reducing it to independent pair flips at the given block probabilities).
+#' Either way the graph law that is sampled is a Bernoulli prior at the fixed
+#' pair probabilities, under both specifications, so the returned
+#' \code{edge_prior} reports \code{"Bernoulli"} and the requested family is
+#' returned separately in \code{requested_edge_prior}.
 #'
 #' Under \code{spec = "joint"} the tilted graph law depends on the precision
 #' prior through its normalizer, so \code{interaction_prior},
@@ -192,8 +196,16 @@ graph_prior_conditioning = function(ep, p, theta, allocations, block_probs) {
 #'     \item{\code{allocations}}{Only with an unconditioned
 #'       \code{sbm_prior()}: integer matrix (\code{n_samples x p}) of sampled
 #'       block allocations.}
-#'     \item{\code{spec}, \code{edge_prior}, \code{p}}{The specification,
-#'       edge-prior family, and node count of the draw.}
+#'     \item{\code{edge_prior}}{The edge-prior family of the draw:
+#'       \code{"Bernoulli"} whenever \code{theta} or (\code{allocations},
+#'       \code{block_probs}) is supplied, since conditioning fixes the
+#'       hyperparameters and leaves independent pair flips; otherwise the
+#'       family of the \code{edge_prior} argument.}
+#'     \item{\code{requested_edge_prior}}{The family of the \code{edge_prior}
+#'       argument. Equal to \code{edge_prior} unless a conditioning argument
+#'       was supplied.}
+#'     \item{\code{spec}, \code{p}}{The specification and node count of the
+#'       draw.}
 #'   }
 #'
 #' @examples
@@ -256,6 +268,12 @@ sample_graph_prior = function(
   ep = unpack_indicator_prior(edge_prior, num_variables = p)
   cond_prob = graph_prior_conditioning(ep, p, theta, allocations, block_probs)
 
+  # Conditioning fixes the hyperparameters, which collapses either spec to
+  # independent pair flips at `cond_prob`: a Bernoulli prior, whichever family
+  # was requested. `edge_prior` reports the family that ran; the request is
+  # kept in `requested_edge_prior`.
+  run_edge_prior = if(is.null(cond_prob)) ep$edge_prior else "Bernoulli"
+
   pairs = graph_pair_indices(p)
   pair_names = paste0(pairs[, 1L], "-", pairs[, 2L])
 
@@ -282,7 +300,8 @@ sample_graph_prior = function(
       theta = draws$theta,
       allocations = draws$allocations,
       spec = spec,
-      edge_prior = ep$edge_prior,
+      edge_prior = run_edge_prior,
+      requested_edge_prior = ep$edge_prior,
       p = p
     )
     return(out)
@@ -330,7 +349,8 @@ sample_graph_prior = function(
     theta = res$theta,
     allocations = res$allocations,
     spec = spec,
-    edge_prior = ep$edge_prior,
+    edge_prior = run_edge_prior,
+    requested_edge_prior = ep$edge_prior,
     p = p
   )
 }
