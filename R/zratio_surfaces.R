@@ -373,8 +373,14 @@ zratio_anchor_grids_empty = function(cap) {
 # the cap cannot drift between them.
 .zratio_surface_size_cap = 80L
 
+# `verbose` governs the build announcement and the completion line. It
+# defaults to the bgms.verbose option; zratio_attach_surface passes the fit's
+# own flag.
 zratio_build_surfaces = function(zc, max_size = .zratio_surface_size_cap,
-                                 cores = 1L, seed0 = 700000L) {
+                                 cores = 1L, seed0 = 700000L,
+                                 verbose = isTRUE(
+                                   getOption("bgms.verbose", TRUE)
+                                 )) {
   if(zc$alpha < .zratio_surface_shape_lo ||
     zc$alpha > .zratio_surface_shape_hi) {
     return(NULL)
@@ -479,7 +485,7 @@ zratio_build_surfaces = function(zc, max_size = .zratio_surface_size_cap,
   # the one-time cost so the pre-chain pause is not silent. n_workers is the
   # parallelism actually used, which drops to 1 on the Windows serial tier.
   n_workers = if(use_psock || .Platform$OS.type == "unix") cores else 1L
-  verbose = isTRUE(getOption("bgms.verbose", TRUE))
+  verbose = isTRUE(verbose)
   if(verbose) {
     message(
       "Building normalizing-constant corrections for the hierarchical ",
@@ -511,8 +517,13 @@ zratio_build_surfaces = function(zc, max_size = .zratio_surface_size_cap,
       mc.cores = mc, mc.preschedule = FALSE
     )
   }
-  cn_rows = do.call(rbind, res[jobs$fam == "cn"])
-  bip_rows = do.call(rbind, res[jobs$fam == "bip"])
+  # An anchor job returns a one-row data frame, or NULL when the oracle did
+  # not converge; rbind drops the NULLs. A worker that died comes back from
+  # mclapply as a try-error, which rbind would coerce into a character matrix,
+  # so keep only the data frames.
+  is_row = vapply(res, is.data.frame, logical(1))
+  cn_rows = do.call(rbind, res[is_row & jobs$fam == "cn"])
+  bip_rows = do.call(rbind, res[is_row & jobs$fam == "bip"])
 
   if(is.null(cn_rows) || is.null(bip_rows)) {
     return(NULL)
@@ -656,13 +667,17 @@ zratio_spec_list = function(zc, gauge_sweeps) {
 # Build the Option-B surface for cell `zc`, sized on `size` variables, and, on a
 # successful build, attach it to the `zratio` spec; otherwise keep whatever
 # route the spec already carries -- isolated-edge past the validated shape
-# range, additive elsewhere -- and message the reason when `verbose`.
+# range, additive elsewhere -- and message the reason when `verbose`. The same
+# flag governs the build's own announcement.
 # Centralizes the size cap, cores policy, and fence message the GGM, mixed, and
 # prior sampler paths share. Returns the (possibly surface-carrying) `zratio`
 # list.
 zratio_attach_surface = function(zratio, zc, size, cores, verbose = FALSE) {
   max_size = min(size, .zratio_surface_size_cap)
-  surf = zratio_build_surfaces(zc, max_size = max_size, cores = cores)
+  surf = zratio_build_surfaces(
+    zc,
+    max_size = max_size, cores = cores, verbose = verbose
+  )
   if(!is.null(surf)) {
     zratio$surface = surf
   } else if(isTRUE(verbose)) {
