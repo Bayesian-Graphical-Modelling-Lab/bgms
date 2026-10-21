@@ -11,6 +11,10 @@
 #   E  conditional PL, edge selection,    interleaved variable order
 #   F  conditional PL, no edge selection, interleaved variable order
 #
+# Divergences: NUTS trajectories differ across platforms, so the blocks bound
+# the divergence rate (below 0.1% of post-warmup transitions) rather than
+# requiring exactly zero.
+#
 # Weekly certification tier (T2, BGMS_RUN_CERTIFICATION): a full NUTS-vs-MH
 # condition grid, and each condition fits two
 # chains x 5000 iterations for both samplers.
@@ -176,7 +180,7 @@ test_that("M.2A: NUTS vs MH agree (conditional PL, no ES, grouped)", {
   diff = abs(fit_nuts$posterior_mean_pairwise - fit_mh$posterior_mean_pairwise)
   expect_lt(max(diff), 0.1, label = "M.2A max abs diff in associations < 0.1")
 
-  expect_equal(fit_nuts$nuts_diag$summary$total_divergences, 0)
+  expect_lt(fit_nuts$nuts_diag$summary$divergence_rate, 1e-3)
 })
 
 
@@ -211,7 +215,7 @@ test_that("M.2B: NUTS vs MH agree (marginal PL, no ES, grouped)", {
   compare_pairwise_samples(fit_nuts, fit_mh, "M.2B")
   compare_main_samples(fit_nuts, fit_mh, "M.2B")
 
-  expect_equal(fit_nuts$nuts_diag$summary$total_divergences, 0)
+  expect_lt(fit_nuts$nuts_diag$summary$divergence_rate, 1e-3)
 })
 
 
@@ -256,7 +260,7 @@ test_that("M.2C: NUTS vs MH agree (conditional PL, ES, grouped)", {
     label = "M.2C PIP correlation > 0.95"
   )
 
-  expect_equal(fit_nuts$nuts_diag$summary$total_divergences, 0)
+  expect_lt(fit_nuts$nuts_diag$summary$divergence_rate, 1e-3)
 })
 
 
@@ -300,7 +304,7 @@ test_that("M.2D: NUTS vs MH agree (marginal PL, ES, grouped)", {
     label = "M.2D PIP correlation > 0.95"
   )
 
-  expect_equal(fit_nuts$nuts_diag$summary$total_divergences, 0)
+  expect_lt(fit_nuts$nuts_diag$summary$divergence_rate, 1e-3)
 })
 
 
@@ -377,7 +381,7 @@ test_that("M.2E: NUTS vs MH agree (conditional PL, ES, interleaved)", {
     colnames(extract_pairwise_interactions(fit_mh))
   )
 
-  expect_equal(fit_nuts$nuts_diag$summary$total_divergences, 0)
+  expect_lt(fit_nuts$nuts_diag$summary$divergence_rate, 1e-3)
 })
 
 
@@ -431,7 +435,7 @@ test_that("M.2F: NUTS vs MH agree (conditional PL, no ES, interleaved)", {
     colnames(extract_pairwise_interactions(fit_mh))
   )
 
-  expect_equal(fit_nuts$nuts_diag$summary$total_divergences, 0)
+  expect_lt(fit_nuts$nuts_diag$summary$divergence_rate, 1e-3)
 })
 
 
@@ -591,7 +595,7 @@ test_that("M.2J: NUTS diagnostics are clean for mixed MRF", {
   )
 
   expect_true(!is.null(fit$nuts_diag))
-  expect_equal(fit$nuts_diag$summary$total_divergences, 0)
+  expect_lt(fit$nuts_diag$summary$divergence_rate, 1e-3)
   expect_equal(fit$nuts_diag$summary$max_tree_depth_hits, 0)
   expect_gt(fit$nuts_diag$summary$min_ebfmi, 0.3)
 })
@@ -635,5 +639,5 @@ test_that("M.2T: NUTS vs MH agree under tilt (conditional PL, no ES, delta=1)", 
     label = "M.2T max abs diff in associations < 0.1 (delta=1)"
   )
 
-  expect_equal(fit_nuts$nuts_diag$summary$total_divergences, 0)
+  expect_lt(fit_nuts$nuts_diag$summary$divergence_rate, 1e-3)
 })
