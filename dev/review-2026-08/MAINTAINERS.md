@@ -218,7 +218,7 @@ be T1. Budget is the tie-breaker, never the criterion.
 
 | Tier | Cadence | Content, by bug class | Budget | Gate |
 |---|---|---|---|---|
-| **T0** every run | local `devtools::test()`; every push to develop and every PR (`fast-checks.yaml`) | contracts, validation, wiring, unit guards, product surface | **≤ 15 min of tests** in the `fast-checks` job (`timeout-minutes: 30`) | none |
+| **T0** every run | local `devtools::test()`; every push to develop and every PR (`fast-checks.yaml`) | contracts, validation, wiring, unit guards, product surface | the `fast-checks` job's own test phase: 25 min on the October 2026 runner (`timeout-minutes: 45`) | none |
 | **T1** nightly heartbeat | daily 03:00 UTC on **develop** (`nightly-validation.yaml`) | curated calibration subset — graph-law and prior-chain identities, gauge detector, single surface-vs-gold cells, RB saturation, concordance smokes. "Does the settled math still hold tonight" | **≤ 60 min** on the 2-core runner; `timeout-minutes: 90` | `BGMS_RUN_SLOW_TESTS=true` |
 | **T2** weekly certification | Sunday 03:00 UTC on **develop** (`weekly-certification.yaml`) | the heavy Monte-Carlo machinery — SBC suites, full parameter-recovery sweeps, full NUTS-vs-MH condition grids, n = 2e6 MC channels, refit cross-validations (incl. the F-049 gate) | `timeout-minutes: 360` | `BGMS_RUN_CERTIFICATION=true` (the T2 workflow sets **both** vars, so a weekly run also carries T1) |
 
@@ -233,9 +233,11 @@ machine and landed 89.7 s; `devtools::test()` and every CI tier compile a
 *debug* build (`pkgbuild::compiler_flags(debug = TRUE)` is `-UNDEBUG -Wall
 -pedantic -g -O0`). Measured on byte-identical content the build is worth
 **2.38x**, and the 2-core runner a further **~2.31x** over one developer
-machine (`dev/review-2026-08/reports/40-t0-retier.md`). So the audit's 89.7 s
-and anything CI reports were never comparable, and T0 drifted for five weeks
-without the drift being visible to either number. The reference instrument is
+machine (`dev/review-2026-08/reports/40-t0-retier.md`). The audit's 89.7 s
+and anything CI reports are not comparable. The runner itself also moves:
+between the August and October 2026 images of `ubuntu-latest` every test file
+ran 1.4-2x slower (fast-checks runs 31265365814 and 39602904192), which took
+the every-run tier from 14 to 25 min of tests. The reference instrument is
 the `fast-checks` job's own test phase. When re-tiering, measure from a run
 that FINISHED, in that job, and quote minutes.
 

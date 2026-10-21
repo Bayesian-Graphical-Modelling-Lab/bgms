@@ -10,19 +10,11 @@
 #       Every push to develop and every pull request. No gate, so the run is
 #       exactly what a maintainer sees locally: contracts, validation, wiring,
 #       the product surface, and the tight numerical unit guards that catch a
-#       shifted constant in one run. Budget: <= 15 min of tests in THIS job,
-#       which keeps the whole job near half its 30-minute timeout.
-#
-#       Read the budget off this job's own test phase. The tiering audit's
-#       "~90 s" is a different measurement -- an OPTIMIZED build on a developer
-#       machine -- and nothing this job prints can be compared against it.
-#       devtools::test() compiles a debug build (pkgbuild::compiler_flags(debug
-#       = TRUE) gives "-UNDEBUG -Wall -pedantic -g -O0"), and this job keeps it
-#       that way on purpose (see the extra-packages note below). Measured on
-#       identical content that build costs 2.38x, and this 2-core runner a
-#       further ~2.31x over one developer machine. So quote CI minutes here, or
-#       say which build a local number came from; a bare seconds figure is not
-#       comparable across the two and let this tier drift unnoticed once.
+#       shifted constant in one run. The budget is this job's own test phase:
+#       25 min on the October 2026 ubuntu-latest runner (run 39602904192),
+#       against timeout-minutes: 45. A local devtools::test() wall time is
+#       not comparable: it compiles a debug build (-O0) on a different
+#       machine. Measure from a run of this job that finished.
 #
 #   T1  nightly     .github/workflows/nightly-validation.yaml. Daily 03:00 UTC
 #       on develop, BGMS_RUN_SLOW_TESTS=true, <= 60 min, timeout 90.
@@ -48,9 +40,9 @@ on:
 
 jobs:
   fast-tests:
-    name: T0 every-run tier (~90 s of tests)
+    name: T0 every-run tier
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
