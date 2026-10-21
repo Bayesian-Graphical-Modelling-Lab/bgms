@@ -79,6 +79,14 @@ released from this line yet.
   so the 1x anchor still contributes, `$grid` records the true gate result
   together with a `forced` flag.
 
+* The run-to-run noise band of `prior_sensitivity_check()` pools the edges
+  that are threshold-relevant in both refits, and counts an edge inside the
+  window in only one of them as censored, whichever refit that is. It
+  previously selected edges on the first refit alone, so an edge that
+  saturated in the replicate but not in the first refit could carry the band
+  up, and the reverse case was dropped silently. The band and the
+  within-noise classification can change for edges near the thresholds.
+
 * `calibration_check()` rejects `newdata` values outside the fit's support,
   naming the variable and the offending values; both branches previously
   failed silently (`NA` through the isotonic fit in the ordinal branch, silent

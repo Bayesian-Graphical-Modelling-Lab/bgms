@@ -101,13 +101,14 @@ verdict_from_bf = function(bf, threshold) {
 #' chain-level spread of the reweighted estimate (so it carries both the
 #' between-chain and the importance-sampling uncertainty) and the noise band
 #' the 95th percentile of the spread between one anchor refit and its
-#' repeat, over threshold-relevant edges
-#' (\eqn{|\log \mathrm{BF}| \le 3 \log 10 \approx 6.91}; near-saturated edges would
-#' inflate it). An edge that is threshold-relevant in one of the two refits and
-#' saturated in the other has a censored rather than an infinite spread, and is
-#' left out of that percentile; the printed report counts them. When no
-#' threshold-relevant edge has a measurable spread the noise band is \code{NA}
-#' and the mover rule falls back to \code{max(tolerance, 2 * MCSE)}.
+#' repeat, over the edges that are threshold-relevant in both refits
+#' (\eqn{|\log \mathrm{BF}| \le 3 \log 10 \approx 6.91} in each; near-saturated
+#' edges would inflate it). The rule is symmetric in the two refits. An edge
+#' inside that window in one refit but not the other, whether saturated or
+#' finite beyond the window there, has a censored spread and is left out of
+#' the percentile; the printed report counts them. When no edge is
+#' threshold-relevant in both refits the noise band is \code{NA} and the mover
+#' rule falls back to \code{max(tolerance, 2 * MCSE)}.
 #' The \code{$edges$mover} column stores \code{stable},
 #' \code{indistinguishable-from-wobble}, or \code{moved-beyond-wobble}; the
 #' printed report shows the same categories in plain language ("robust",
@@ -873,34 +874,35 @@ order_upper_tri_rowmajor = function(p) {
 # wobble_yardstick
 # ------------------------------------------------------------------
 # Monte Carlo wobble from the chosen-scale refit and its replicate. The
-# q95 pools threshold-relevant edges only (|log BF| <= 3 log(10) at s0,
-# the former 3-log10 window in natural log units):
-# near-saturated edges have an exploding log-odds derivative, and their
-# replicate spread would inflate the yardstick past any genuine
-# scale-driven move. The per-edge spread and its median cover all edges.
+# q95 pools the edges that are threshold-relevant in both refits,
+# |log BF| <= 3 log(10) in each (near-saturated edges have an exploding
+# log-odds derivative and would inflate the yardstick). The rule is
+# symmetric in the two refits. An edge inside the window in one refit
+# only, whether saturated or finite outside the window in the other, has
+# a censored spread and is counted, not pooled. The per-edge spread and
+# its median cover all edges.
 #
 # @param lbf_s0   Per-edge natural log BF from the chosen-scale refit.
 # @param lbf_rep  Per-edge natural log BF from the s0 replicate.
 #
-# Returns: list(q95, median, per_edge); q95 is NA when no edge is
-# threshold-relevant.
+# Returns: list(q95, median, per_edge, censored); q95 is NA when no edge
+# is threshold-relevant in both refits.
 # ------------------------------------------------------------------
 wobble_yardstick = function(lbf_s0, lbf_rep) {
   per_edge = abs(lbf_s0 - lbf_rep)
-  relevant = is.finite(lbf_s0) & abs(lbf_s0) <= 3 * log(10)
-  # An edge that is threshold-relevant in one refit and saturated in the other
-  # has a censored spread, not an infinite one. Pooling it would carry the
-  # yardstick to Inf, which classes every verdict move as run-to-run noise.
-  measurable = relevant & is.finite(per_edge)
+  window = 3 * log(10)
+  in_window_1 = is.finite(lbf_s0) & abs(lbf_s0) <= window
+  in_window_2 = is.finite(lbf_rep) & abs(lbf_rep) <= window
+  eligible = in_window_1 & in_window_2
   list(
-    q95 = if(any(measurable)) {
-      stats::quantile(per_edge[measurable], 0.95, names = FALSE)
+    q95 = if(any(eligible)) {
+      stats::quantile(per_edge[eligible], 0.95, names = FALSE)
     } else {
       NA_real_
     },
     median = stats::median(per_edge[is.finite(per_edge)]),
     per_edge = per_edge,
-    censored = sum(relevant & !is.finite(per_edge))
+    censored = sum((in_window_1 | in_window_2) & !eligible)
   )
 }
 
@@ -1235,7 +1237,7 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
     ))
     if(isTRUE(x$wobble$censored > 0)) {
       cat(sprintf(
-        "         %d edge%s saturated in one of the two and %s left out of that spread.\n",
+        "         %d edge%s near the thresholds in only one of the two and %s left out of that spread.\n",
         x$wobble$censored, if(x$wobble$censored == 1L) "" else "s",
         if(x$wobble$censored == 1L) "was" else "were"
       ))

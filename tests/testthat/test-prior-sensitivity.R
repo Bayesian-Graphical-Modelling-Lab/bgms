@@ -59,6 +59,31 @@ test_that("an edge saturating in one refit does not carry the yardstick to Inf",
 })
 
 
+test_that("the wobble window is symmetric in the two refits", {
+  # An edge inside the window in one refit and finite beyond it in the other
+  # is censored, not pooled, whichever refit it saturates in.
+  a = log(c(2, 2))
+  b = log(c(2000, 3))
+  w_ab = wobble_yardstick(a, b)
+  w_ba = wobble_yardstick(b, a)
+  expect_equal(w_ab$q95, abs(log(2) - log(3)))
+  expect_equal(w_ab$q95, w_ba$q95)
+  expect_equal(w_ab$censored, 1L)
+  expect_equal(w_ba$censored, 1L)
+
+  # Swapping the inputs never changes the yardstick or the censored count.
+  lbf_s0 = log(10) * c(0.2, -1.5, 2.9, 1.0, -12.0, 2.5)
+  lbf_rep = log(10) * c(0.3, -1.3, 2.7, 4.0, -10.7, Inf)
+  w = wobble_yardstick(lbf_s0, lbf_rep)
+  s = wobble_yardstick(lbf_rep, lbf_s0)
+  expect_equal(w$q95, stats::quantile(abs(lbf_s0 - lbf_rep)[1:3], 0.95, names = FALSE))
+  expect_equal(w$censored, 2L)
+  expect_equal(s$q95, w$q95)
+  expect_equal(s$censored, w$censored)
+  expect_equal(s$median, w$median)
+})
+
+
 test_that("vary resolves against the frame the fit used", {
   standardized = list(prior = list(
     pairwise_scale = 2, scale_rate = 0.5, scale_eta = 1
