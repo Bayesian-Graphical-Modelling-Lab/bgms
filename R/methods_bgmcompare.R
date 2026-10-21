@@ -139,15 +139,9 @@ compare_prior_only_main_diff = function(arguments, num_rows) {
   by_row = unname(unlist(by_row))
 
   num_contrasts = num_groups - 1L
-  flags = if(isTRUE(arguments$difference_selection)) {
-    # selection path (summarize_main_diff_compare): variable-major, with the
-    # contrasts of one row adjacent
-    rep(by_row, each = num_contrasts)
-  } else {
-    # no selection (summarize_manual_compare on the difference columns):
-    # contrast-major, the whole main-effects matrix once per contrast
-    rep(by_row, times = num_contrasts)
-  }
+  # Difference rows are contrast-major: the whole main-effects matrix once per
+  # contrast.
+  flags = rep(by_row, times = num_contrasts)
 
   if(length(flags) != num_rows) {
     return(NULL)
@@ -308,7 +302,9 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
     if(ncol(df2) > 1) {
       df2[, -1] = lapply(df2[, -1, drop = FALSE], round, digits = digits)
     }
-    print(head(df2, 6))
+    # The labels live in the `parameter` column and in the row names; suppress
+    # the row names so the label prints once, as the blocks below do.
+    print(head(df2, 6), row.names = FALSE)
   }
 
   if(!is.null(x$main)) {

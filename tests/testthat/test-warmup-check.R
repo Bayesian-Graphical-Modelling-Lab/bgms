@@ -95,3 +95,35 @@ test_that("integrated_act recovers a known autocorrelation time", {
   # Too short to estimate: documented to return 1.
   expect_equal(integrated_act(rnorm(5)), 1)
 })
+
+
+test_that("a constant half leaves the flag logical rather than NA", {
+  # A half with zero variance makes ebfmi_first_half and var_ratio NaN and the
+  # OLS standard error zero, so every criterion comparison returns NA. The flag
+  # must stay logical: which() and any() skip an NA silently.
+  set.seed(21)
+  tail_half = as.numeric(arima.sim(list(ar = 0.5), n = 100))
+  energy = rbind(
+    c(rep(3.5, 100), tail_half), # constant first half
+    c(tail_half, rep(3.5, 100)) # constant second half
+  )
+  out = check_warmup_complete(energy)
+
+  expect_type(out$warmup_incomplete, "logical")
+  expect_false(anyNA(out$warmup_incomplete))
+  expect_type(out$slope_significant, "logical")
+  expect_false(anyNA(out$slope_significant))
+
+  # The undefined criteria are still reported as the NaN they are; only the
+  # flag derived from them is forced to TRUE/FALSE.
+  expect_true(is.nan(out$ebfmi_first_half[1]))
+
+  # And a fully constant trace, where all three criteria are undefined: the
+  # trace passes quietly and the slope reads as zero.
+  flat = expect_no_warning(
+    check_warmup_complete(matrix(rep(2, 2 * 200), nrow = 2))
+  )
+  expect_equal(flat$warmup_incomplete, c(FALSE, FALSE))
+  expect_equal(unname(flat$energy_slope), c(0, 0))
+  expect_equal(flat$slope_significant, c(FALSE, FALSE))
+})
