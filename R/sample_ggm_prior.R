@@ -381,14 +381,8 @@ sample_ggm_prior = function(
     no_chains = 1L,
     edge_selection = TRUE,
     sampler_type = update_method,
-    # The target bgm() resolves for this update method (validate_sampler()):
-    # 0.44, the componentwise random-walk MH optimum, for the proposal-SD
-    # tuning of adaptive-metropolis; NA for gibbs, which tunes nothing. The
-    # C++ default of 0.80 is the NUTS target.
-    target_acceptance = switch(update_method,
-      "adaptive-metropolis" = 0.44,
-      "gibbs"               = NA_real_
-    ),
+    # The target bgm() resolves for this update method (validate_sampler()).
+    target_acceptance = resolve_target_acceptance(update_method),
     seed = as.integer(seed),
     no_threads = 1L,
     progress_type = if(verbose) 2L else 0L,

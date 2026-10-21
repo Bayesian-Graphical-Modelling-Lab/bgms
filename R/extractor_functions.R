@@ -1707,6 +1707,9 @@ extract_ess.bgmCompare = function(bgms_object, estimator = c("rb", "mixt")) {
 #' For mixed MRF models the precision matrix is reconstructed from the
 #' internal association-scale parameterization.
 #'
+#' Each entry, diagonal included, is the posterior mean of the corresponding
+#' precision draw. This is the matrix `predict()` and `simulate()` use.
+#'
 #' @param bgms_object A fitted model object of class `bgms` (from [bgm()]).
 #'
 #' @return A named numeric matrix containing the posterior mean precision
@@ -1745,23 +1748,33 @@ extract_precision.bgms = function(bgms_object) {
     return(invisible(NULL))
   }
 
-  rv = get_posterior_mean(bgms_object, "residual_variance")
   associations = get_posterior_mean(bgms_object, "pairwise")
 
+  # Diagonal: E[K_jj], the mean of the raw diagonal draws, as in predict() and
+  # simulate().
+
   if(isTRUE(arguments$is_mixed)) {
-    # Mixed MRF: extract the q x q continuous block, convert to precision
+    # Mixed MRF: the q x q continuous block, converted to precision. The sampler
+    # stores this block, diagonal included, as -K / 2.
     cont_idx = arguments$continuous_indices
     cont_names = arguments$data_columnnames_continuous
     cont_block = associations[cont_idx, cont_idx]
-    precision = -2 * cont_block
-    diag(precision) = 1 / rv
+    # Column means one at a time, as in build_mixed_params_mean(), for a
+    # bit-identical match with predict().
+    diag_draws = mixed_cont_diagonal_draws(bgms_object, arguments)
+    precision = reconstruct_precision(
+      cont_block,
+      -2 * apply(diag_draws, 2, mean)
+    )
     dimnames(precision) = list(cont_names, cont_names)
     return(precision)
   }
 
-  # GGM: associations are stored at half precision scale; convert to precision
-  precision = -2 * associations
-  diag(precision) = 1 / rv
+  # GGM: associations are stored as -K_ij / 2; the raw diagonal draws as K_jj.
+  precision = reconstruct_precision(
+    associations,
+    posterior_mean_precision_diagonal(bgms_object)
+  )
   return(precision)
 }
 
