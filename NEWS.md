@@ -65,13 +65,15 @@ released from this line yet.
 
 * `prior_sensitivity_check()` drops the `vary` argument. For GGM and mixed
   fits the sweep holds the standardized diagonal rate `eta` fixed and moves the
-  raw rate with the slab scale. Under that sweep the per-graph normalizers of
-  the hierarchical precision-graph prior are the same at every scale and the
-  importance weights are complete; a GGM and a mixed fit reweighted to a
-  doubled scale reproduce direct refits to within 0.01 in inclusion
-  probability. The removed `vary = "slab"` sweep held the raw rate fixed; its
-  weights missed the change in those normalizers and its refits ran with
-  Z-ratio constants for the original rate. A fit whose diagonal prior was given
+  raw rate with the slab scale. Under that sweep the standardization separates
+  the effect of the scale from the normalizing constant of the GGM prior: the
+  scale enters as a factor that is the same for every graph, and the
+  graph-dependent constant cancels in the importance ratios. A GGM and a mixed
+  fit reweighted to a doubled scale reproduce direct refits to within 0.01 in
+  inclusion probability. The removed `vary = "slab"` sweep held the raw rate
+  fixed; there the graph-dependent constant changes with the scale and the
+  weights did not carry it, and its refits ran with Z-ratio constants for the
+  original rate. A fit whose diagonal prior was given
   as a raw `rate` now stops with an error; the man page shows how to compare
   refits at a few slab scales directly for such a fit.
 
