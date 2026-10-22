@@ -137,8 +137,8 @@ test_that("precision-weighted pooling blends anchors by inverse variance", {
 
 
 test_that("the diagonal prior ratio enters the weights when the sweep moves it", {
-  # Under vary = "slab-and-diagonal" the refits rewrite the raw diagonal rate
-  # as eta / s, so the anchor and the target differ in the Gamma prior on the
+  # The refits rewrite the raw diagonal rate as eta / s; the anchor and the
+  # target differ in the Gamma prior on the
   # precision diagonal as well as in the slab. The weight must carry both
   # ratios; the diagonal one is the direct Gamma log-density ratio, summed over
   # the p diagonal values the sampler evaluates the prior at (K_jj / 2).

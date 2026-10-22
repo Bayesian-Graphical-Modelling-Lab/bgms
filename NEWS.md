@@ -49,10 +49,10 @@ released from this line yet.
 
 * `prior_sensitivity_check()`'s importance weights carried only part of the
   prior ratio, biasing the reweighted points between anchors (anchor points
-  are direct refits and were exact throughout). Two corrections: when the vary
-  mode also moves the precision-diagonal rate — the default
-  "slab-and-diagonal" resolution for GGM and mixed fits — the weights now
-  include the diagonal-prior ratio; and for mixed fits the diagonal statistic
+  are direct refits and were exact throughout). Two corrections: for GGM and
+  mixed fits, whose refits move the precision-diagonal rate with the slab
+  scale, the weights now include the diagonal-prior ratio; and for mixed fits
+  the diagonal statistic
   in that ratio is read on the scale the sampler stores it (it entered with
   the wrong sign and half the magnitude). Both affect curves that 0.2.0.0
   computed for GGM fits and for mixed fits with continuous variables;
@@ -62,6 +62,18 @@ released from this line yet.
   edges inside twice the refit's own Monte Carlo error. The importance ESS is
   computed from the corrected weights, so between-anchor points can report a
   smaller ESS than before and be masked by `ess_floor`.
+
+* `prior_sensitivity_check()` drops the `vary` argument. For GGM and mixed
+  fits the sweep holds the standardized diagonal rate `eta` fixed and moves the
+  raw rate with the slab scale. Under that sweep the per-graph normalizers of
+  the hierarchical precision-graph prior are the same at every scale and the
+  importance weights are complete; a GGM and a mixed fit reweighted to a
+  doubled scale reproduce direct refits to within 0.01 in inclusion
+  probability. The removed `vary = "slab"` sweep held the raw rate fixed; its
+  weights missed the change in those normalizers and its refits ran with
+  Z-ratio constants for the original rate. A fit whose diagonal prior was given
+  as a raw `rate` now stops with an error; the man page shows how to compare
+  refits at a few slab scales directly for such a fit.
 
 * A saturated anchor — a reweighted inclusion probability at exactly 0 or 1 —
   no longer takes over the pooled sensitivity curve: the inverse-variance
