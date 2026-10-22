@@ -124,7 +124,7 @@ between reruns of the *same* prior, with no real sensitivity present. To
 calibrate that, the check repeats one anchor refit and takes the spread of
 $|\Delta \log \mathrm{BF}|$ between the two as the empirical noise band (its
 95th percentile is the figure the report's `Noise:` line quotes, computed over
-edges whose evidence is near the decision thresholds).
+edges whose evidence is near the decision thresholds in both refits).
 
 An edge is reported as "changed, beyond run-to-run noise" only if its verdict
 changes along the curve *and* its natural log Bayes-factor swing exceeds that
