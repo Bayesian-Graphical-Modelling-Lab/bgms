@@ -174,14 +174,12 @@ Bayes-factor change across scales exceeds
 chain-level spread of the reweighted estimate (so it carries both the
 between-chain and the importance-sampling uncertainty) and the noise band
 the 95th percentile of the spread between one anchor refit and its
-repeat, over the edges that are threshold-relevant in both refits
-(\eqn{|\log \mathrm{BF}| \le 3 \log 10 \approx 6.91} in each; near-saturated
-edges would inflate it). The rule is symmetric in the two refits. An edge
-inside that window in one refit but not the other, whether saturated or
-finite beyond the window there, has a censored spread and is left out of
-the percentile; the printed report counts them. When no edge is
-threshold-relevant in both refits the noise band is \code{NA} and the mover
-rule falls back to \code{max(tolerance, 2 * MCSE)}.
+repeat, over the edges with \eqn{|\log \mathrm{BF}| \le 3 \log 10 \approx 6.91}
+in both refits (near-saturated edges are excluded because their log Bayes
+factor jumps between identical runs). An edge inside that window in one
+refit only is left out of the percentile and counted; the printed report
+gives the count. When no edge qualifies the noise band is \code{NA} and the
+mover rule falls back to \code{max(tolerance, 2 * MCSE)}.
 The \code{$edges$mover} column stores \code{stable},
 \code{indistinguishable-from-wobble}, or \code{moved-beyond-wobble}; the
 printed report shows the same categories in plain language ("robust",

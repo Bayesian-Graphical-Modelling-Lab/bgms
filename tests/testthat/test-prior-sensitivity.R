@@ -60,8 +60,8 @@ test_that("an edge saturating in one refit does not carry the yardstick to Inf",
 
 
 test_that("the wobble window is symmetric in the two refits", {
-  # An edge inside the window in one refit and finite beyond it in the other
-  # is censored, not pooled, whichever refit it saturates in.
+  # An edge inside the window in one refit only is counted and left out, in
+  # either order.
   a = log(c(2, 2))
   b = log(c(2000, 3))
   w_ab = wobble_yardstick(a, b)
@@ -71,7 +71,7 @@ test_that("the wobble window is symmetric in the two refits", {
   expect_equal(w_ab$censored, 1L)
   expect_equal(w_ba$censored, 1L)
 
-  # Swapping the inputs never changes the yardstick or the censored count.
+  # Swapping the inputs changes neither the yardstick nor the count.
   lbf_s0 = log(10) * c(0.2, -1.5, 2.9, 1.0, -12.0, 2.5)
   lbf_rep = log(10) * c(0.3, -1.3, 2.7, 4.0, -10.7, Inf)
   w = wobble_yardstick(lbf_s0, lbf_rep)

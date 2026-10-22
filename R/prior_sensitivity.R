@@ -101,14 +101,12 @@ verdict_from_bf = function(bf, threshold) {
 #' chain-level spread of the reweighted estimate (so it carries both the
 #' between-chain and the importance-sampling uncertainty) and the noise band
 #' the 95th percentile of the spread between one anchor refit and its
-#' repeat, over the edges that are threshold-relevant in both refits
-#' (\eqn{|\log \mathrm{BF}| \le 3 \log 10 \approx 6.91} in each; near-saturated
-#' edges would inflate it). The rule is symmetric in the two refits. An edge
-#' inside that window in one refit but not the other, whether saturated or
-#' finite beyond the window there, has a censored spread and is left out of
-#' the percentile; the printed report counts them. When no edge is
-#' threshold-relevant in both refits the noise band is \code{NA} and the mover
-#' rule falls back to \code{max(tolerance, 2 * MCSE)}.
+#' repeat, over the edges with \eqn{|\log \mathrm{BF}| \le 3 \log 10 \approx 6.91}
+#' in both refits (near-saturated edges are excluded because their log Bayes
+#' factor jumps between identical runs). An edge inside that window in one
+#' refit only is left out of the percentile and counted; the printed report
+#' gives the count. When no edge qualifies the noise band is \code{NA} and the
+#' mover rule falls back to \code{max(tolerance, 2 * MCSE)}.
 #' The \code{$edges$mover} column stores \code{stable},
 #' \code{indistinguishable-from-wobble}, or \code{moved-beyond-wobble}; the
 #' printed report shows the same categories in plain language ("robust",
@@ -873,20 +871,20 @@ order_upper_tri_rowmajor = function(p) {
 # ------------------------------------------------------------------
 # wobble_yardstick
 # ------------------------------------------------------------------
-# Monte Carlo wobble from the chosen-scale refit and its replicate. The
-# q95 pools the edges that are threshold-relevant in both refits,
-# |log BF| <= 3 log(10) in each (near-saturated edges have an exploding
-# log-odds derivative and would inflate the yardstick). The rule is
-# symmetric in the two refits. An edge inside the window in one refit
-# only, whether saturated or finite outside the window in the other, has
-# a censored spread and is counted, not pooled. The per-edge spread and
-# its median cover all edges.
+# Monte Carlo wobble from the chosen-scale refit and its replicate.
+#
+# per_edge  |log BF_1 - log BF_2| for every edge.
+# q95       95th percentile of per_edge over the edges with
+#           |log BF| <= 3 log(10) in both refits. Near-saturated edges
+#           are excluded: their log BF jumps between identical runs.
+# censored  number of edges with |log BF| <= 3 log(10) in one refit only.
+# median    median of per_edge over all edges with a finite spread.
 #
 # @param lbf_s0   Per-edge natural log BF from the chosen-scale refit.
 # @param lbf_rep  Per-edge natural log BF from the s0 replicate.
 #
 # Returns: list(q95, median, per_edge, censored); q95 is NA when no edge
-# is threshold-relevant in both refits.
+# qualifies.
 # ------------------------------------------------------------------
 wobble_yardstick = function(lbf_s0, lbf_rep) {
   per_edge = abs(lbf_s0 - lbf_rep)
