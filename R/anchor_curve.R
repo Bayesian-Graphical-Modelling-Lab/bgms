@@ -56,9 +56,9 @@ anchor_draws = function(fit) {
 # The Gamma prior on the precision diagonal, in the frame the weight ratio
 # needs it, or NULL for a model that has no such diagonal.
 #
-# Under vary = "slab-and-diagonal" the refits set the diagonal rate to eta / s
-# (vary_diagonal_rate()), so the weight ratio carries the diagonal prior as
-# well as the slab. The sampler evaluates that prior at K_jj / 2
+# The refits set the diagonal rate to eta / s, and the weight ratio carries
+# the diagonal prior as well as the slab. The sampler evaluates that prior at
+# K_jj / 2
 # (ggm_model.cpp:320, mixed_mrf_gradient.cpp:559). The two model types store
 # the diagonal on different scales:
 #
@@ -173,9 +173,9 @@ compare_anchor_draws = function(fit, spec, raw) {
 # scale, for one chain. Only included edges contribute; the weight is
 # the slab-density ratio summed over them.
 #
-# Under vary = "slab-and-diagonal" the refits also move the Gamma prior on the
-# precision diagonal, rate = eta / s, so the target differs from the anchor
-# there too and the weight carries that ratio as well. For Gamma(alpha,
+# The refits also move the Gamma prior on the precision diagonal, rate =
+# eta / s; the target differs from the anchor there too and the weight carries
+# that ratio as well. For Gamma(alpha,
 # eta / s) on each of the n diagonal values x_j = K_jj / 2, the per-draw term is
 #
 #   n * alpha * log((eta / s) / (eta / s_a)) - (eta / s - eta / s_a) * S_t

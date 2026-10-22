@@ -126,6 +126,36 @@ verdict_from_bf = function(bf, threshold) {
 #' 1.01, E-BFMI and energy variance-ratio for NUTS) before its verdicts are
 #' used; a refit that fails is reported as unusable rather than silently pooled.
 #'
+#' \strong{Models with a precision diagonal.} A continuous or mixed fit has a
+#' Gamma or exponential prior on the precision diagonal with a standardized
+#' rate \eqn{\eta}; at slab scale \eqn{s} the sampler runs that prior with raw
+#' rate \eqn{\eta / s}. The sweep holds \eqn{\eta} fixed: the refits and the
+#' importance weights move the raw rate with the slab scale, and the printed
+#' report gives the \eqn{\eta} held fixed. A fit whose diagonal prior was given
+#' as a raw \code{rate} stops with an error; see the section below.
+#'
+#' @section Fits with a raw-rate diagonal prior:
+#' A diagonal prior given as \code{exponential_prior(rate = )} or
+#' \code{gamma_prior(rate = )} fixes the raw rate independently of the slab
+#' scale. The check has no sweep that holds a raw rate fixed. The table of
+#' inclusion probabilities at a few slab scales with the raw rate held at the
+#' fitted value is a loop over \code{\link{bgm}()}:
+#' \preformatted{
+#' scales = c(0.4, 0.63, 1, 1.6, 2.5)
+#' fits = lapply(scales, function(s) {
+#'   bgm(x,
+#'       interaction_prior = normal_prior(scale = s),
+#'       precision_scale_prior = exponential_prior(rate = 2),
+#'       seed = 1)
+#' })
+#' pip = sapply(fits, function(f) {
+#'   m = extract_posterior_inclusion_probabilities(f)
+#'   m[lower.tri(m)]
+#' })
+#' colnames(pip) = paste0(scales, "x")
+#' }
+#' \code{\link{verdicts}()} on each fit gives the verdicts at every scale.
+#'
 #' @param bgms_object A fitted \code{bgms} object from \code{\link{bgm}()} run
 #'   with \code{edge_selection = TRUE}, or a \code{bgmCompare} object from
 #'   \code{\link{bgmCompare}()} run with \code{difference_selection = TRUE}.
@@ -137,20 +167,6 @@ verdict_from_bf = function(bf, threshold) {
 #' @param evidence_threshold Positive numeric. Inclusion Bayes factor threshold
 #'   for a presence verdict; \code{1 / evidence_threshold} is the absence
 #'   threshold. Default: \code{10}.
-#' @param vary One of \code{"auto"} (default), \code{"slab"}, or
-#'   \code{"slab-and-diagonal"}. Only relevant for models with a prior on the
-#'   precision diagonal (continuous and mixed); ignored for discrete ones, which
-#'   have none. The slab scale \eqn{s} and the diagonal rate are tied through
-#'   the standardized frame (raw rate \eqn{= \eta / s}), so a sweep of \eqn{s}
-#'   has to hold one of the two fixed. \code{"slab"} holds the raw diagonal rate
-#'   at the fitted value and moves the interaction prior alone, answering how
-#'   much the verdicts depend on how wide an edge is allowed to be.
-#'   \code{"slab-and-diagonal"} holds \eqn{\eta} fixed and lets the raw rate
-#'   follow, answering how much they depend on the overall prior scale with its
-#'   shape held fixed. \code{"auto"} follows the frame the fit itself used:
-#'   \code{"slab-and-diagonal"} when the diagonal prior was given as \code{eta},
-#'   \code{"slab"} when it was given as a raw \code{rate}. The resolved mode is
-#'   named in the printed report.
 #' @param refit_sampler One of \code{"same-as-fit"} (default; inherit the
 #'   original fit's update method) or an explicit \code{"nuts"},
 #'   \code{"adaptive-metropolis"}, or \code{"gibbs"}. NUTS refits of an ordinal
@@ -198,7 +214,9 @@ verdict_from_bf = function(bf, threshold) {
 #'   \code{refit_diagnostics} (the captured raw sampler notes per anchor and
 #'   the replicate), the data-\code{preferred_scale} (\code{NA} where the swept
 #'   prior is not the one on the pairwise interactions), the \code{unit} the
-#'   check reported on, the resolved \code{vary} mode, and the settings used.
+#'   check reported on, the standardized diagonal rate \code{diagonal_eta} held
+#'   fixed (\code{NA} for a model without a precision diagonal), and the
+#'   settings used.
 #'
 #' @seealso \code{\link{bgm}()}, \code{\link{extract_posterior_inclusion_probabilities}()}
 #' @family diagnostics
@@ -214,7 +232,6 @@ verdict_from_bf = function(bf, threshold) {
 prior_sensitivity_check = function(bgms_object,
                                    anchors = c(0.4, 0.63, 1, 1.6, 2.5),
                                    evidence_threshold = 10,
-                                   vary = c("auto", "slab", "slab-and-diagonal"),
                                    refit_sampler = "same-as-fit",
                                    iter = NULL,
                                    warmup = NULL,
@@ -234,7 +251,6 @@ prior_sensitivity_check = function(bgms_object,
 prior_sensitivity_check.bgms = function(bgms_object,
                                         anchors = c(0.4, 0.63, 1, 1.6, 2.5),
                                         evidence_threshold = 10,
-                                        vary = c("auto", "slab", "slab-and-diagonal"),
                                         refit_sampler = "same-as-fit",
                                         iter = NULL,
                                         warmup = NULL,
@@ -254,7 +270,7 @@ prior_sensitivity_check.bgms = function(bgms_object,
   }
   prior_sensitivity_engine(bgms_object,
     unit = single_network_unit(spec),
-    anchors = anchors, evidence_threshold = evidence_threshold, vary = vary,
+    anchors = anchors, evidence_threshold = evidence_threshold,
     refit_sampler = refit_sampler, iter = iter, warmup = warmup,
     tolerance = tolerance, ess_floor = ess_floor,
     include_preferred_scale = include_preferred_scale, cores = cores,
@@ -268,7 +284,6 @@ prior_sensitivity_check.bgms = function(bgms_object,
 prior_sensitivity_check.bgmCompare = function(bgms_object,
                                               anchors = c(0.4, 0.63, 1, 1.6, 2.5),
                                               evidence_threshold = 10,
-                                              vary = c("auto", "slab", "slab-and-diagonal"),
                                               refit_sampler = "same-as-fit",
                                               iter = NULL,
                                               warmup = NULL,
@@ -297,7 +312,7 @@ prior_sensitivity_check.bgmCompare = function(bgms_object,
   }
   prior_sensitivity_engine(bgms_object,
     unit = difference_unit(spec),
-    anchors = anchors, evidence_threshold = evidence_threshold, vary = vary,
+    anchors = anchors, evidence_threshold = evidence_threshold,
     refit_sampler = refit_sampler, iter = iter, warmup = warmup,
     tolerance = tolerance, ess_floor = ess_floor,
     include_preferred_scale = include_preferred_scale, cores = cores,
@@ -355,7 +370,6 @@ prior_sensitivity_engine = function(bgms_object,
                                     unit,
                                     anchors,
                                     evidence_threshold,
-                                    vary,
                                     refit_sampler,
                                     iter,
                                     warmup,
@@ -393,8 +407,9 @@ prior_sensitivity_engine = function(bgms_object,
   lthr = log(evidence_threshold)
   if(is.null(cores)) cores = spec$sampler$chains
 
-  # Which prior the sweep moves; named in the printed report.
-  vary = resolve_vary(spec, vary)
+  # Standardized rate of the precision-diagonal prior, held fixed across the
+  # sweep; NA for a model without a precision diagonal.
+  eta = diagonal_eta(spec)
 
   # --- Sampler resolution -----------------------------------------------------
   rs = resolve_refit_sampler(bgms_object, refit_sampler)
@@ -454,7 +469,7 @@ prior_sensitivity_engine = function(bgms_object,
       seed = seed + i, cores = refit_cores, sampler = rs$method,
       show_progress = show_progress,
       scale_field = unit$scale_field,
-      diagonal_rate = vary_diagonal_rate(vary, s)
+      diagonal_rate = if(is.na(eta)) NULL else eta / s
     )
   }
   # Each anchor refit (the check's only real cost) renders the sampler's own
@@ -606,11 +621,9 @@ prior_sensitivity_engine = function(bgms_object,
   s_grid = grid_mult * chosen_scale
 
   draws = lapply(anchor_fits, anchor_draws)
-  # The refits move the precision-diagonal rate with the slab under
-  # "slab-and-diagonal" (vary_diagonal_rate()), so the weights must carry that
-  # prior ratio too; under any other mode the diagonal prior is the same at
-  # every scale and the term is absent.
-  weight_eta = if(identical(vary$mode, "slab-and-diagonal")) vary$eta else NULL
+  # The refits run the precision-diagonal prior at raw rate eta / s; the
+  # weights carry that prior ratio.
+  weight_eta = if(is.na(eta)) NULL else eta
   reweights = lapply(seq_len(n_anchor), function(a) {
     anchor_reweight(draws[[a]], anchors[a] * chosen_scale, s_grid, eta = weight_eta)
   })
@@ -833,7 +846,7 @@ prior_sensitivity_engine = function(bgms_object,
       ),
       preferred_scale = preferred,
       unit = unit,
-      vary = vary,
+      diagonal_eta = eta,
       evidence_threshold = evidence_threshold,
       tolerance = tolerance,
       refit_sampler = rs$method,
@@ -992,24 +1005,16 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
     "Bayes-factor curve from %.2gx to %.2gx the chosen scale (anchors at %s; the 1x anchor is the original fit); %d %s.",
     gr[1], gr[2], paste(mlab, collapse = ", "), n_edges, unit$nouns
   ))
-  # What moved along the curve. On a model with a prior on the precision
-  # diagonal the slab scale and that diagonal are tied through the standardized
-  # frame, so the sweep holds one of the two fixed and the curve means
-  # different things depending on which.
-  vary_mode = if(is.null(x$vary)) "none" else x$vary$mode
-  if(identical(vary_mode, "slab")) {
-    wrap(
-      "Varied: the interaction slab scale alone; the prior on the precision ",
-      "diagonal is the fitted one at every scale (vary = \"slab\")."
-    )
-  } else if(identical(vary_mode, "slab-and-diagonal")) {
+  # On a model with a prior on the precision diagonal the refits run that
+  # prior at raw rate eta / s, with the standardized rate eta held fixed.
+  eta = x$diagonal_eta %||% NA_real_
+  if(is.finite(eta)) {
     wrap(sprintf(
       paste(
         "Varied: the interaction slab scale together with the precision diagonal,",
-        "holding the standardized rate eta at %.3g so the prior's shape is fixed",
-        "and its overall scale moves (vary = \"slab-and-diagonal\")."
+        "holding the standardized rate eta at %.3g."
       ),
-      x$vary$eta
+      eta
     ))
   }
   cat("\n")
