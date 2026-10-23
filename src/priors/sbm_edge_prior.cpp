@@ -328,12 +328,29 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
       cluster_assign(node) = cluster;
 
       if (cluster == no_clusters) {
-        block_probs = add_row_col_block_prob_matrix(block_probs,
-                                                    beta_bernoulli_alpha,
-                                                    beta_bernoulli_beta,
-                                                    rng,
-                                                    beta_bernoulli_alpha_between,
-                                                    beta_bernoulli_beta_between);
+        // Draw the new cluster's between-cluster probabilities from their
+        // conditional posterior given this node's edges (Neal 2000, Alg. 2);
+        // the within-cluster entry has no dyads yet and keeps its prior.
+        arma::mat Y(no_clusters + 1, no_clusters + 1, arma::fill::zeros);
+        Y.submat(0, 0, no_clusters - 1, no_clusters - 1) = block_probs;
+        for (arma::uword b = 0; b < no_clusters; b++) {
+          double s_ib = 0.0;
+          double n_b = 0.0;
+          for (arma::uword j = 0; j < no_variables; j++) {
+            if (j != node && cluster_assign(j) == b) {
+              n_b += 1.0;
+              s_ib += static_cast<double>(
+                j < node ? indicator(j, node) : indicator(node, j));
+            }
+          }
+          Y(no_clusters, b) = rbeta(rng,
+                                    beta_bernoulli_alpha_between + s_ib,
+                                    beta_bernoulli_beta_between + n_b - s_ib);
+          Y(b, no_clusters) = Y(no_clusters, b);
+        }
+        Y(no_clusters, no_clusters) =
+          rbeta(rng, beta_bernoulli_alpha, beta_bernoulli_beta);
+        block_probs = Y;
       }
     }
   }
