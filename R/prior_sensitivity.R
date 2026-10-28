@@ -58,27 +58,33 @@ verdict_from_bf = function(bf, threshold) {
 #' anchor is the original fit and is never refit). A fit at fixed anchor
 #' scale \eqn{s_a} is reweighted to a nearby scale \eqn{s} with per-draw
 #' slab-density ratios over the currently included edges; the likelihood
-#' cancels, so no refit is needed between anchors. The posterior-density-ratio
-#' reweighting identity of Bartos et al. (2026) is used locally around each
-#' refit anchor; the anchored construction itself is specific to \pkg{bgms}.
-#' Each point of a dense
-#' log-spaced display grid pools every anchor that clears \code{ess_floor}
-#' there, weighting each anchor's inclusion-probability estimate by its
-#' inverse variance (\eqn{\mathrm{ESS} / (p(1-p))}); the pooling is on the
-#' inclusion-probability scale and is then transformed to the natural log
-#' Bayes factor, which keeps the curve continuous across
-#' anchor hand-offs and finite at capped edges. Points where no anchor
-#' clears the floor are \code{NA} rather than extrapolated, and
-#' non-overlapping anchor radii trigger a warning to add anchors; log-spaced
-#' default anchors make the radii overlap. Exactness is kept off the pooled
-#' curve and on the anchor fits themselves: the per-anchor verdict columns
-#' and every chosen-scale quantity are read straight from each fit's own
-#' Rao-Blackwellized statistics, so the \code{1x} column is exactly the
-#' original fit's reported analysis. Between the anchors the curve is therefore
-#' importance-reweighted rather than refit, and can deviate from a refit at that
-#' scale by up to roughly \code{0.01} in inclusion probability at the
-#' extrapolation ends; the anchors themselves -- including the \code{1x} anchor,
-#' which is the user's own fit -- are exact.
+#' cancels in the ratio and the posterior normalizing constants cancel through
+#' self-normalization. The posterior-density-ratio reweighting identity of
+#' Bartos et al. (2026) is used locally around each refit anchor; the anchored
+#' construction itself is specific to \pkg{bgms}. The Monte Carlo error of a
+#' reweighted point is estimated by batch means within chains. At each point
+#' of a dense log-spaced display grid, every anchor whose importance effective
+#' sample size there is at least \code{ess_floor} draws and at least
+#' \code{ess_fraction} of its draws contributes, and the contributions are
+#' pooled by inverse Monte Carlo variance on the inclusion-probability scale,
+#' then transformed to the natural log Bayes factor. The importance effective
+#' sample size screens weight concentration: a point where few draws carry the
+#' weight rests on an anchor sample that does not cover the target. It cannot
+#' detect a region the anchor never visited. Points where no anchor passes are
+#' \code{NA} rather than extrapolated, and two adjacent anchors that both fail
+#' to reach the points between them trigger a warning to add an anchor. Where
+#' two anchors reach the same point and disagree, by Cochran's Q at the 0.99
+#' level and by more than \code{tolerance} in log Bayes factor, the point takes
+#' the nearest anchor's value and is recorded as disputed in
+#' \code{$curve$disagree}. At an anchor's own grid position the curve takes
+#' that fit's Rao-Blackwellized inclusion probability, so the curve and the
+#' per-anchor verdict columns agree at every anchor and the \code{1x} column
+#' is exactly the original fit's reported analysis; the curve may step there
+#' by the Monte Carlo difference between the raw and the Rao-Blackwellized
+#' estimate. In a study over five model types (ordinal, GGM, mixed, bgmCompare;
+#' 6 and 15 variables) the reweighted probability lay within a few thousandths
+#' of a direct refit wherever the effective sample size fraction stayed above
+#' 0.2, out to a factor 2.5 from the anchor.
 #'
 #' \strong{Warm starts.} For ordinal (omrf) fits each refit starts from the
 #' original fit's per-chain final state, and a NUTS refit additionally carries
@@ -93,38 +99,61 @@ verdict_from_bf = function(bf, threshold) {
 #' the per-chain agreement that guards an individual verdict is the edge-level
 #' sufficiency check below. Continuous (GGM) and
 #' mixed-MRF fits refit cold (full warmup), costing about one fit per scale.
+#' A fit of the length \code{bgm()} uses by default can carry an offset of
+#' one to two hundredths in inclusion probability on a slow-mixing edge that
+#' differs between scales and is shared by every run of the same length; the
+#' repeat refit that calibrates the noise band does not see it, and it is below
+#' what the mover rule counts as a move.
 #'
-#' \strong{The mover rule.} An edge is flagged scale-sensitive only if its
-#' verdict differs somewhere along the curve \emph{and} its natural log
-#' Bayes-factor change across scales exceeds
+#' \strong{The mover rule.} A grid point is assessed for an edge when it has
+#' a verdict, no anchor dispute, and its nearest anchor passed the convergence
+#' gate. An edge is flagged scale-sensitive only if an assessed curve verdict,
+#' or the own verdict of a usable anchor, differs from the reported chosen-scale
+#' verdict \emph{and} its natural log Bayes-factor change across the assessed
+#' points exceeds
 #' \code{max(tolerance, 2 * MCSE, noise)}, with the per-point MCSE from the
-#' chain-level spread of the reweighted estimate (so it carries both the
-#' between-chain and the importance-sampling uncertainty) and the noise band
+#' batch-means variance of the pooled estimate and the noise band
 #' the 95th percentile of the spread between one anchor refit and its
 #' repeat, over the edges with \eqn{|\log \mathrm{BF}| \le 3 \log 10 \approx 6.91}
 #' in both refits (near-saturated edges are excluded because their log Bayes
 #' factor jumps between identical runs). An edge inside that window in one
 #' refit only is left out of the percentile and counted; the printed report
 #' gives the count. When no edge qualifies the noise band is \code{NA} and the
-#' mover rule falls back to \code{max(tolerance, 2 * MCSE)}.
+#' mover rule falls back to \code{max(tolerance, 2 * MCSE)}. An edge whose
+#' verdict never differs but whose curve is not assessed at every grid point is
+#' \code{not-fully-assessed}; \code{$edges$coverage} is the assessed share,
+#' \code{assessed_from} and \code{assessed_to} the contiguous assessed range
+#' around the chosen scale, and \code{gap_cause} names what is missing (low
+#' ESS, disagreeing anchors, a flagged refit).
 #' The \code{$edges$mover} column stores \code{stable},
-#' \code{indistinguishable-from-wobble}, or \code{moved-beyond-wobble}; the
+#' \code{indistinguishable-from-wobble}, \code{moved-beyond-wobble}, or
+#' \code{not-fully-assessed}; the
 #' printed report shows the same categories in plain language ("robust",
 #' "changed, within run-to-run noise", "changed, beyond run-to-run noise",
+#' "not fully assessed (gaps in the curve)",
 #' with edges failing the sufficiency check below printed as "not
 #' certifiable"). A bare verdict flip inside the replicate noise is never
-#' reported as a move.
+#' reported as a move, and a verdict change confined to a disputed point is
+#' not a move.
 #'
-#' \strong{Edge-level sufficiency.} An edge whose per-chain verdicts disagree, or
-#' whose between-chain-inflated log-BF band straddles a verdict
-#' threshold, is marked \code{insufficient} at that scale: the refit cannot
-#' certify its verdict. This errs toward caution --- disagreement widens the
-#' band rather than vanishing into a pooled estimate.
+#' \strong{Edge-level sufficiency.} At every usable anchor, an edge whose
+#' per-chain verdicts disagree, or whose between-chain-inflated log-BF band
+#' straddles a verdict threshold, is marked insufficient there: that fit
+#' cannot certify its verdict. \code{$edges$insufficient} is the flag at the
+#' chosen scale, \code{insufficient_any} the flag over all usable anchors and
+#' \code{insufficient_scales} the anchors where it holds; "robust" requires
+#' that no anchor is insufficient. This errs toward caution --- disagreement
+#' widens the band rather than vanishing into a pooled estimate.
 #'
-#' \strong{Two-level gate.} Each refit passes a refit-level gate (continuous
+#' \strong{Convergence gate.} Each refit is checked on continuous
 #' split-\eqn{\hat R} below 1.01, bulk RB-inclusion median \eqn{\hat R} below
-#' 1.01, E-BFMI and energy variance-ratio for NUTS) before its verdicts are
-#' used; a refit that fails is reported as unusable rather than silently pooled.
+#' 1.01, and E-BFMI and energy variance-ratio for NUTS. The 1.01 cutoff is a
+#' threshold, not a convergence proof. A refit that fails keeps its verdict
+#' column, flagged in \code{$grid$gate_flag} with the diagnostic that failed;
+#' it contributes to neither the curve nor the noise band, and the grid points
+#' nearest to it are not assessed. The original fit is treated the same way:
+#' its verdicts stay the reference, and when it fails the check says it cannot
+#' certify robustness on that fit.
 #'
 #' \strong{Models with a precision diagonal.} A continuous or mixed fit has a
 #' Gamma or exponential prior on the precision diagonal with a standardized
@@ -182,9 +211,14 @@ verdict_from_bf = function(bf, threshold) {
 #'   a verdict flip to count as a move, before the MCSE and noise floors.
 #'   Default: \code{0.5 * log(10)} (about 1.15, the same decision boundary the
 #'   former 0.5 carried in \eqn{\log_{10}} units).
-#' @param ess_floor Positive numeric. Minimum pooled importance effective
-#'   sample size for a curve point to be reported; points below it are
-#'   \code{NA}. Default: \code{400}.
+#' @param ess_floor Positive numeric. Minimum importance effective sample size,
+#'   in draws, for an anchor to contribute to a curve point. Default:
+#'   \code{400}.
+#' @param ess_fraction Numeric in \eqn{[0, 1)}. Minimum importance effective
+#'   sample size as a fraction of the anchor's draws for it to contribute to a
+#'   curve point; the floor applied is the larger of this and
+#'   \code{ess_floor}. Points no anchor reaches are \code{NA}. Default:
+#'   \code{0.1}.
 #' @param include_preferred_scale Logical. Add an extra anchor at the
 #'   data-preferred scale \eqn{\hat s}. Default: \code{FALSE}.
 #' @param cores Integer thread count for each refit's chains. Default: the
@@ -202,15 +236,22 @@ verdict_from_bf = function(bf, threshold) {
 #' @return An object of class \code{"bgms_prior_sensitivity"}: a list with the
 #'   per-edge \code{edges} table (chosen-scale verdict from the original fit,
 #'   per-anchor verdict columns, dense-grid stability range, mover category,
-#'   an \code{insufficient} flag with its two subcauses
+#'   assessed \code{coverage} with \code{assessed_from}, \code{assessed_to}
+#'   and \code{gap_cause}, an \code{insufficient} flag at the chosen scale
+#'   with its two subcauses
 #'   \code{insufficient_noisy} (Bayes factor within Monte Carlo error of a
 #'   threshold) and \code{insufficient_disagree} (chains disagree on the
-#'   verdict)), a \code{grid} data frame (one row per anchor fit and
-#'   the replicate, with convergence gates), the \code{multipliers} display
+#'   verdict), and \code{insufficient_any} with \code{insufficient_scales}
+#'   over all usable anchors), a \code{grid} data frame (one row per anchor
+#'   fit and the replicate, with convergence gates and \code{gate_flag}), the
+#'   \code{multipliers} display
 #'   grid with the \code{log_bf}, \code{log_bf_mcse}, and \code{verdict}
 #'   curve matrices (grid-by-edge, \code{NA} where masked), the \code{curve}
-#'   bookkeeping (per-point importance ESS, anchor used, \code{ess_floor},
-#'   per-point chain unanimity), the \code{wobble} noise yardstick,
+#'   bookkeeping (per-point importance ESS, anchor used, \code{ess_floor} and
+#'   \code{ess_fraction}, the per-anchor floor applied, contributors per
+#'   point, the \code{disagree} and \code{assessed} matrices, the largest
+#'   normalized weight per anchor and point, per-point chain unanimity), the
+#'   \code{wobble} noise yardstick,
 #'   \code{refit_diagnostics} (the captured raw sampler notes per anchor and
 #'   the replicate), the data-\code{preferred_scale} (\code{NA} where the swept
 #'   prior is not the one on the pairwise interactions), the \code{unit} the
@@ -1117,20 +1158,44 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
   cat("\n")
 
   # One category per edge: not-certifiable wins, then the mover category.
-  uncert = edges$insufficient %in% TRUE
-  robust = !uncert & edges$mover == "stable"
-  within = !uncert & edges$mover == "indistinguishable-from-wobble"
-  beyond = !uncert & edges$mover == "moved-beyond-wobble"
-  counts = c(sum(robust), sum(within), sum(beyond), sum(uncert))
+  uncert = (edges$insufficient_any %||% edges$insufficient) %in% TRUE
+  robust = !uncert & edges$mover %in% "stable"
+  within = !uncert & edges$mover %in% "indistinguishable-from-wobble"
+  beyond = !uncert & edges$mover %in% "moved-beyond-wobble"
+  partial = !uncert & edges$mover %in% "not-fully-assessed"
+  counts = c(sum(robust), sum(within), sum(beyond), sum(partial), sum(uncert))
   labels = c(
     "robust (same verdict at every scale)",
     "changed, within run-to-run noise",
     "changed, beyond run-to-run noise",
+    "not fully assessed (gaps in the curve)",
     "not certifiable (too noisy to assess)"
   )
   keep = counts > 0 | seq_along(counts) <= 3L
   cat(sprintf("  %-38s %4d\n", labels[keep], counts[keep]), sep = "")
   cat("\n")
+
+  # Name the edges whose curve has gaps, with the assessed range and the cause.
+  if(sum(partial) > 0) {
+    idx = which(partial)
+    show = utils::head(idx, max_rows)
+    rng = ifelse(
+      is.na(edges$assessed_from[show]), "chosen scale not assessed",
+      sprintf("assessed %.2gx-%.2gx", edges$assessed_from[show], edges$assessed_to[show])
+    )
+    cause = edges$gap_cause[show]
+    cause[is.na(cause)] = "gaps"
+    wrap(sprintf(
+      "%d %s %s not fully assessed: the curve has gaps where no anchor reaches or the anchors disagree, so the verdict is unconfirmed there.",
+      length(idx), if(length(idx) == 1L) unit$noun else unit$nouns,
+      if(length(idx) == 1L) "is" else "are"
+    ))
+    cat(sprintf("  %s: %s; %s\n", edges$edge[show], rng, cause), sep = "")
+    if(length(idx) > length(show)) {
+      cat(sprintf("  ...and %d more; see $edges.\n", length(idx) - length(show)))
+    }
+    cat("\n")
+  }
 
   # Name the units whose verdict genuinely depends on the scale.
   if(sum(beyond) > 0) {
@@ -1187,13 +1252,22 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
     } else {
       sprintf("%s Bayes factor sits within Monte Carlo error of an evidence threshold", subj)
     }
+    scales = edges$insufficient_scales[uncert]
+    where = if(all(is.na(scales)) || all(scales %in% "1x")) {
+      "at the chosen scale itself"
+    } else {
+      sprintf(
+        "at the %s anchor%s", paste(unique(stats::na.omit(scales)), collapse = " / "),
+        if(length(unique(stats::na.omit(scales))) == 1L) "" else "s"
+      )
+    }
     wrap(sprintf(
       paste(
-        "%s at the chosen scale itself; a rerun with a fresh seed could flip",
+        "%s %s; a rerun with a fresh seed could flip",
         "%s without any prior change. Run more iterations to settle %s before",
         "reading %s sensitivity."
       ),
-      cause, obj, these, tolower(subj)
+      cause, where, obj, these, tolower(subj)
     ))
     cat("\n")
   }
@@ -1222,32 +1296,32 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
   }
   cat("\n")
 
-  # Refits that failed their convergence check. A gate-failed anchor the curve
-  # kept anyway (only ever the original fit) is named separately from the
-  # excluded ones.
-  gr_forced = x$grid$forced %||% rep(FALSE, nrow(x$grid))
-  bad = x$grid[!x$grid$usable & !x$grid$replicate & !gr_forced, ]
-  kept = x$grid[!x$grid$usable & !x$grid$replicate & gr_forced, ]
-  if(nrow(kept) > 0) {
-    rmax = suppressWarnings(max(kept$rhat_continuous_max %||% NA_real_, na.rm = TRUE))
-    detail = if(is.finite(rmax)) sprintf(" (largest split R-hat %s)", format(round(rmax, 2))) else ""
+  # Fits that failed the convergence check: the original fit, and refits.
+  flags = x$grid$gate_flag %||% rep(NA_character_, nrow(x$grid))
+  own = x$grid[!x$grid$usable & !x$grid$replicate & x$grid$original_fit, ]
+  bad = x$grid[!x$grid$usable & !x$grid$replicate & !x$grid$original_fit, ]
+  if(nrow(own) > 0) {
+    fl = flags[!x$grid$usable & !x$grid$replicate & x$grid$original_fit][1]
+    detail = if(is.na(fl)) "convergence diagnostics outside the check's limits" else sprintf("%s, outside the check's limit", fl)
     wrap(sprintf(
-      "The fit you supplied (%s) has convergence diagnostics outside the check's limits%s, which may mean its chains have not converged. The check ran on it anyway.",
-      paste(sprintf("%.2gx", kept$multiplier), collapse = ", "), detail
+      "The fit you supplied has %s (R-hat 1.01). Its verdicts are the reference the check compares against, but the curve near 1x is not assessed and the check cannot certify robustness on this fit. Refit it before relying on this check.",
+      detail
     ))
     cat("\n")
   }
   if(nrow(bad) > 0) {
-    bl = sprintf("%.2gx", bad$multiplier)
+    fl = flags[!x$grid$usable & !x$grid$replicate & !x$grid$original_fit]
+    bl = sprintf("%.2gx (%s)", bad$multiplier, ifelse(is.na(fl), "diagnostics outside limits", fl))
     bl = if(length(bl) > 1L) {
       paste0(paste(bl[-length(bl)], collapse = ", "), " and ", bl[length(bl)])
     } else {
       bl
     }
     wrap(sprintf(
-      "The %s refit%s %s convergence diagnostics outside the check's limits, which may mean %s chains have not converged, and %s left out of the curve.",
-      bl, if(nrow(bad) == 1L) "" else "s", if(nrow(bad) == 1L) "has" else "have",
-      if(nrow(bad) == 1L) "its" else "their", if(nrow(bad) == 1L) "is" else "are"
+      "The %s refit%s %s outside the check's limit (R-hat 1.01); %s verdict column%s shown with that flag, and %s left out of the curve, which is not assessed nearby.",
+      bl, if(nrow(bad) == 1L) "" else "s", if(nrow(bad) == 1L) "is" else "are",
+      if(nrow(bad) == 1L) "its" else "their", if(nrow(bad) == 1L) " is" else "s are",
+      if(nrow(bad) == 1L) "it is" else "they are"
     ))
     cat("\n")
   }
@@ -1283,9 +1357,10 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
   gr = range(x$anchors)
   n_refit = nrow(x$grid) - 1L
   start_txt = if(x$warm) "warm-started from the original fit" else "cold starts with full warmup"
+  frac = x$curve$ess_fraction %||% 0
   cat(sprintf(
-    "Method:  %d-point curve from %d anchor fits (%.2gx to %.2gx the chosen scale),\n         joined by importance reweighting; the 1x anchor is the original fit.\n         Points with reweighting effective sample size below %g are not shown.\n",
-    length(x$multipliers), length(x$anchors), gr[1], gr[2], x$curve$ess_floor
+    "Method:  %d-point curve from %d anchor fits (%.2gx to %.2gx the chosen scale),\n         joined by importance reweighting; the 1x anchor is the original fit.\n         Points with reweighting effective sample size below %g draws or %g%% of\n         the draws are not shown; that screens weight concentration only.\n",
+    length(x$multipliers), length(x$anchors), gr[1], gr[2], x$curve$ess_floor, 100 * frac
   ))
   cat(sprintf(
     "Refits:  %d %s refits, %s, %s total.\n",
@@ -1298,7 +1373,7 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
     ))
   } else {
     cat(sprintf(
-      "Noise:   two identical refits at %.2gx differed by up to %.2g log BF across\n         threshold-relevant %s; verdict moves smaller than that are reported\n         as run-to-run noise, not prior sensitivity.\n",
+      "Noise:   two identical refits at %.2gx differed by up to %.2g log BF across\n         threshold-relevant %s; verdict moves smaller than that are reported\n         as run-to-run noise, not prior sensitivity. This measures variation\n         between the runs performed, not an offset shared by all of them.\n",
       x$wobble$anchor, x$wobble$q95, unit$nouns
     ))
     if(isTRUE(x$wobble$censored > 0)) {
@@ -1309,6 +1384,7 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
       ))
     }
   }
+  cat("         Verdicts within Monte Carlo error of a threshold at any anchor are\n         listed as not certifiable.\n")
   cat("See ?prior_sensitivity_check for the full construction.\n")
   invisible(x)
 }
