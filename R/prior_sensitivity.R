@@ -237,6 +237,7 @@ prior_sensitivity_check = function(bgms_object,
                                    warmup = NULL,
                                    tolerance = 0.5 * log(10),
                                    ess_floor = 400,
+                                   ess_fraction = 0.1,
                                    include_preferred_scale = FALSE,
                                    cores = NULL,
                                    seed = 1L,
@@ -256,6 +257,7 @@ prior_sensitivity_check.bgms = function(bgms_object,
                                         warmup = NULL,
                                         tolerance = 0.5 * log(10),
                                         ess_floor = 400,
+                                        ess_fraction = 0.1,
                                         include_preferred_scale = FALSE,
                                         cores = NULL,
                                         seed = 1L,
@@ -272,7 +274,7 @@ prior_sensitivity_check.bgms = function(bgms_object,
     unit = single_network_unit(spec),
     anchors = anchors, evidence_threshold = evidence_threshold,
     refit_sampler = refit_sampler, iter = iter, warmup = warmup,
-    tolerance = tolerance, ess_floor = ess_floor,
+    tolerance = tolerance, ess_floor = ess_floor, ess_fraction = ess_fraction,
     include_preferred_scale = include_preferred_scale, cores = cores,
     seed = seed, keep_fits = keep_fits, verbose = verbose
   )
@@ -289,6 +291,7 @@ prior_sensitivity_check.bgmCompare = function(bgms_object,
                                               warmup = NULL,
                                               tolerance = 0.5 * log(10),
                                               ess_floor = 400,
+                                              ess_fraction = 0.1,
                                               include_preferred_scale = FALSE,
                                               cores = NULL,
                                               seed = 1L,
@@ -314,7 +317,7 @@ prior_sensitivity_check.bgmCompare = function(bgms_object,
     unit = difference_unit(spec),
     anchors = anchors, evidence_threshold = evidence_threshold,
     refit_sampler = refit_sampler, iter = iter, warmup = warmup,
-    tolerance = tolerance, ess_floor = ess_floor,
+    tolerance = tolerance, ess_floor = ess_floor, ess_fraction = ess_fraction,
     include_preferred_scale = include_preferred_scale, cores = cores,
     seed = seed, keep_fits = keep_fits, verbose = verbose
   )
@@ -375,6 +378,7 @@ prior_sensitivity_engine = function(bgms_object,
                                     warmup,
                                     tolerance,
                                     ess_floor,
+                                    ess_fraction,
                                     include_preferred_scale,
                                     cores,
                                     seed,
@@ -389,6 +393,10 @@ prior_sensitivity_engine = function(bgms_object,
   }
   if(!is.numeric(ess_floor) || length(ess_floor) != 1L || ess_floor <= 0) {
     stop("'ess_floor' must be a single positive number.")
+  }
+  if(!is.numeric(ess_fraction) || length(ess_fraction) != 1L ||
+    ess_fraction < 0 || ess_fraction >= 1) {
+    stop("'ess_fraction' must be a single number in [0, 1).")
   }
 
   spec = get_fit_spec(bgms_object)
@@ -557,22 +565,19 @@ prior_sensitivity_engine = function(bgms_object,
 
   gates = lapply(anchor_fits, refit_convergence_gate)
   rep_gate = refit_convergence_gate(rep_fit)
-  # `gate_usable` is the gate's own verdict and is what $grid reports; `usable`
-  # is the effective flag the curve runs on, which the 1x anchor is forced into
-  # below.
-  gate_usable = vapply(gates, `[[`, logical(1), "usable")
-  usable = gate_usable
-  forced = rep(FALSE, n_anchor)
+  # A gate-failing anchor keeps its own verdict column, flagged with the
+  # diagnostic that failed; it contributes to neither the curve nor the noise
+  # band, and the grid points nearest to it are not assessed.
+  usable = vapply(gates, `[[`, logical(1), "usable")
+  gate_flag = vapply(gates, gate_short_flag, character(1))
 
-  # Adjudicate the captured refit chatter: the gate is the arbiter. A failed
-  # anchor is reported once, in plain voice (which anchor, which criterion,
-  # what the curve loses); a passed anchor's notes are absorbed (settle-in
-  # transients the gate already cleared), inspectable in $refit_diagnostics.
+  # A failed anchor is reported once, in plain voice; a passed anchor's
+  # captured sampler notes stay in $refit_diagnostics.
   for(k in seq_along(non_unit)) {
     a = non_unit[k]
     if(!usable[a]) {
       message(sprintf(
-        "The %.2gx-scale refit has %s. It is left out, so the curve does not cover the scales nearest %.2gx. A longer warmup or more iterations in prior_sensitivity_check() (arguments warmup and iter) may resolve this.",
+        "The %.2gx-scale refit has %s. Its verdicts are shown with that flag; it contributes nothing to the curve, so the curve is not assessed near %.2gx. A longer warmup or more iterations in prior_sensitivity_check() (arguments warmup and iter) may resolve this.",
         anchors[a], gate_failure_reason(gates[[a]]), anchors[a]
       ))
     }
@@ -585,11 +590,9 @@ prior_sensitivity_engine = function(bgms_object,
   }
   if(!usable[s0_idx]) {
     message(sprintf(
-      "The fit you supplied has %s. The check runs on it anyway. If the fit is in doubt, refit it with a longer warmup or more iterations before relying on this check.",
+      "The fit you supplied has %s. Its verdicts remain the reference the check compares against, but the curve near 1x is not assessed and the check cannot certify robustness on this fit. Refit it with a longer warmup or more iterations before relying on this check.",
       gate_failure_reason(gates[[s0_idx]])
     ))
-    usable[s0_idx] = TRUE
-    forced[s0_idx] = TRUE
   }
 
   # Each anchor fit's own RB statistics carry the exact per-anchor verdicts.
@@ -602,9 +605,10 @@ prior_sensitivity_engine = function(bgms_object,
   edge_names = s0$edge
   n_edges = length(edge_names)
   prior_odds = s0$prior_odds
-  # Exact per-anchor verdicts (n_anchor x n_edge); a gate-failed anchor is NA.
+  # Exact per-anchor verdicts (n_anchor x n_edge), gate-failed anchors
+  # included; the grid table carries their flag.
   anchor_verdict = vapply(seq_len(n_anchor), function(a) {
-    if(usable[a]) anchor_stats[[a]]$verdict else rep(NA_character_, n_edges)
+    anchor_stats[[a]]$verdict
   }, character(n_edges))
   # vapply drops to a vector when there is one edge; restore the matrix before
   # the transpose (as in lbf_of()).
@@ -627,10 +631,19 @@ prior_sensitivity_engine = function(bgms_object,
   reweights = lapply(seq_len(n_anchor), function(a) {
     anchor_reweight(draws[[a]], anchors[a] * chosen_scale, s_grid, eta = weight_eta)
   })
-  curve = assemble_curve(reweights, usable, ess_floor, anchor_index)
+  curve = assemble_curve(
+    reweights, usable, ess_floor, anchor_index,
+    ess_fraction = ess_fraction,
+    anchor_exact = lapply(anchor_stats, function(st) list(pip = st$pip, mcse_pip = st$mcse_pip)),
+    prior_odds = prior_odds, tolerance = tolerance,
+    anchor_mult = anchors, grid_mult = grid_mult
+  )
+  # Grid points whose nearest anchor failed the gate are not assessed.
+  nearest_anchor = apply(abs(outer(log(grid_mult), log(anchors), "-")), 1, which.min)
+  near_failed = !usable[nearest_anchor]
 
-  # A masked point between two usable anchors means their usable radii do not
-  # overlap; the curve has a gap there.
+  # A masked point between two usable anchors means neither reaches it; the
+  # curve has a gap there.
   for(k in seq_len(n_anchor - 1L)) {
     if(!usable[k] || !usable[k + 1L]) next
     between = grid_mult > anchors[k] & grid_mult < anchors[k + 1L]
@@ -662,10 +675,12 @@ prior_sensitivity_engine = function(bgms_object,
   }
   lbf_mat = lbf_of(curve$pip)
   chain_lbf = simplify2array(lapply(curve$chain_pip, lbf_of)) # P x E x C
-  mcse_mat = apply(chain_lbf, c(1, 2), function(v) {
-    v = v[is.finite(v)]
-    if(length(v) >= 2L) stats::sd(v) / sqrt(length(v)) else NA_real_
-  })
+  if(length(dim(chain_lbf)) == 2L) chain_lbf = array(chain_lbf, c(dim(chain_lbf), 1L))
+  # Monte Carlo error on the log BF scale from the batch-means variance of
+  # the pooled probability: d log BF / d p = 1 / (p (1 - p)).
+  pc_mat = pmin(pmax(curve$pip, 1e-6), 1 - 1e-6)
+  mcse_mat = sqrt(curve$var) / (pc_mat * (1 - pc_mat))
+  mcse_mat[!is.finite(mcse_mat)] = NA_real_
   unanimous_mat = apply(chain_lbf, c(1, 2), function(v) {
     vv = verdict_from_lbf(v[is.finite(v)], lthr)
     length(unique(vv)) <= 1L
@@ -703,55 +718,95 @@ prior_sensitivity_engine = function(bgms_object,
     wobble_censored = 0L
   }
 
-  # --- Per-edge chosen-scale sufficiency (from the original fit) --------------
+  # --- Per-edge sufficiency at each usable anchor, from that fit's own stats --
   # A near-constant edge has NA MCSE; treat missing uncertainty as zero (it is
-  # a saturated/zero-flip edge, masked below anyway).
-  band = s0$band_half
-  band[is.na(band)] = 0
-  mcse0 = s0$mcse_lbf
-  mcse0[is.na(mcse0)] = 0
-  hw = pmax(band, 2 * mcse0)
-  straddle = (!s0$zeroflip) &
-    (((s0$lbf - hw < lthr) & (s0$lbf + hw > lthr)) |
-      ((s0$lbf - hw < -lthr) & (s0$lbf + hw > -lthr)))
-  disagree = (!s0$zeroflip) & !s0$unanimous
-  insufficient = (!s0$zeroflip) & (disagree | straddle)
-  insufficient[is.na(insufficient)] = FALSE
-  # Record why each insufficient edge was flagged, for the report.
-  insufficient_noisy = straddle & insufficient
-  insufficient_noisy[is.na(insufficient_noisy)] = FALSE
-  insufficient_disagree = disagree & insufficient
-  insufficient_disagree[is.na(insufficient_disagree)] = FALSE
+  # a saturated/zero-flip edge).
+  sufficiency = function(st) {
+    band = st$band_half
+    band[is.na(band)] = 0
+    mcse = st$mcse_lbf
+    mcse[is.na(mcse)] = 0
+    hw = pmax(band, 2 * mcse)
+    straddle = (!st$zeroflip) &
+      (((st$lbf - hw < lthr) & (st$lbf + hw > lthr)) |
+        ((st$lbf - hw < -lthr) & (st$lbf + hw > -lthr)))
+    disagree = (!st$zeroflip) & !st$unanimous
+    insufficient = (!st$zeroflip) & (disagree | straddle)
+    insufficient[is.na(insufficient)] = FALSE
+    straddle[is.na(straddle)] = FALSE
+    disagree[is.na(disagree)] = FALSE
+    list(
+      insufficient = insufficient, noisy = straddle & insufficient,
+      disagree = disagree & insufficient
+    )
+  }
+  suff0 = sufficiency(s0)
+  insufficient = suff0$insufficient
+  insufficient_noisy = suff0$noisy
+  insufficient_disagree = suff0$disagree
+  suff_any = matrix(FALSE, n_anchor, n_edges)
+  for(a in seq_len(n_anchor)) {
+    if(usable[a]) suff_any[a, ] = sufficiency(anchor_stats[[a]])$insufficient
+  }
+  insufficient_any = apply(suff_any, 2, any)
+  insufficient_scales = apply(suff_any, 2, function(v) {
+    if(any(v)) paste(sprintf("%.2gx", anchors[v]), collapse = ", ") else NA_character_
+  })
 
-  # --- Mover category + stability interval on the dense curve -----------------
-  mover = character(n_edges)
+  # --- Coverage, mover category, stability interval ---------------------------
+  # A grid point is assessed for an edge when it has a verdict, no anchor
+  # dispute, and its nearest anchor passed the gate. The classification is
+  # relative to the reported chosen-scale verdict, the original fit's own.
+  assessed = !is.na(verdict_mat) & !curve$disagree & !near_failed
+  mover = rep(NA_character_, n_edges)
+  coverage = numeric(n_edges)
+  gap_cause = rep(NA_character_, n_edges)
+  assessed_from = rep(NA_real_, n_edges)
+  assessed_to = rep(NA_real_, n_edges)
   stability_lower = rep(NA_real_, n_edges)
   stability_upper = rep(NA_real_, n_edges)
   for(e in seq_len(n_edges)) {
+    ref = s0$verdict[e]
     v = verdict_mat[, e]
-    moved = length(unique(v[!is.na(v)])) > 1L
-    lbf_e = lbf_mat[, e]
+    v[!assessed[, e]] = NA_character_
+    coverage[e] = mean(assessed[, e])
+    if(coverage[e] < 1) {
+      causes = c(
+        if(any(is.na(verdict_mat[, e]) & !near_failed)) "low ESS",
+        if(any(curve$disagree[, e])) "anchors disagree",
+        if(any(near_failed)) "flagged refit"
+      )
+      gap_cause[e] = paste(causes, collapse = "; ")
+    }
+    # The contiguous assessed range around the chosen scale.
+    if(assessed[chosen_idx, e]) {
+      lo = chosen_idx
+      while(lo > 1L && assessed[lo - 1L, e]) lo = lo - 1L
+      hi = chosen_idx
+      while(hi < length(grid_mult) && assessed[hi + 1L, e]) hi = hi + 1L
+      assessed_from[e] = grid_mult[lo]
+      assessed_to[e] = grid_mult[hi]
+    }
+    if(is.na(ref)) next
+    moved_curve = any(v[!is.na(v)] != ref)
+    moved_anchor = any(anchor_verdict[usable, e] != ref, na.rm = TRUE)
+    lbf_e = lbf_mat[assessed[, e], e]
     lbf_e = lbf_e[is.finite(lbf_e)]
     dlbf = if(length(lbf_e)) diff(range(lbf_e)) else 0
-    mcse_e = mcse_mat[, e]
+    mcse_e = mcse_mat[assessed[, e], e]
     mcse_e = mcse_e[is.finite(mcse_e)]
     move_thr = max(c(
       tolerance, if(length(mcse_e)) 2 * max(mcse_e) else 0,
       wobble_q95
     ), na.rm = TRUE)
-    mover[e] = if(!moved) {
-      "stable"
-    } else if(dlbf > move_thr) {
-      "moved-beyond-wobble"
+    mover[e] = if(moved_curve || moved_anchor) {
+      if(dlbf > move_thr) "moved-beyond-wobble" else "indistinguishable-from-wobble"
+    } else if(coverage[e] < 1) {
+      "not-fully-assessed"
     } else {
-      "indistinguishable-from-wobble"
+      "stable"
     }
-    # Anchored on the verdict the edges table reports (the original fit's own
-    # RB verdict), not on the pooled curve's value at the chosen scale.
-    si = stability_interval(
-      verdict_mat[, e], grid_mult, chosen_idx,
-      target = s0$verdict[e]
-    )
+    si = stability_interval(v, grid_mult, chosen_idx, target = ref)
     stability_lower[e] = si[1]
     stability_upper[e] = si[2]
   }
@@ -769,9 +824,15 @@ prior_sensitivity_engine = function(bgms_object,
     stability_lower = stability_lower,
     stability_upper = stability_upper,
     mover = mover,
+    coverage = coverage,
+    assessed_from = assessed_from,
+    assessed_to = assessed_to,
+    gap_cause = gap_cause,
     insufficient = insufficient,
     insufficient_noisy = insufficient_noisy,
     insufficient_disagree = insufficient_disagree,
+    insufficient_any = insufficient_any,
+    insufficient_scales = insufficient_scales,
     saturated = s0$zeroflip,
     stringsAsFactors = FALSE, row.names = NULL
   )
@@ -803,10 +864,8 @@ prior_sensitivity_engine = function(bgms_object,
     scale = c(anchors, anchors[rep_anchor]) * chosen_scale,
     replicate = c(rep(FALSE, n_anchor), TRUE),
     original_fit = c(seq_len(n_anchor) == s0_idx, FALSE),
-    # The gate's own result; `forced` records where the curve used an anchor
-    # the gate rejected (only ever the 1x original fit).
-    usable = c(gate_usable, rep_gate$usable),
-    forced = c(forced, FALSE),
+    usable = c(usable, rep_gate$usable),
+    gate_flag = c(gate_flag, gate_short_flag(rep_gate)),
     rhat_continuous = vapply(all_gates, `[[`, numeric(1), "rhat_cont"),
     rhat_continuous_max = vapply(all_gates, `[[`, numeric(1), "rhat_cont_max"),
     ess_continuous = vapply(all_gates, `[[`, numeric(1), "ess_cont"),
@@ -838,7 +897,11 @@ prior_sensitivity_engine = function(bgms_object,
       anchor_verdict = anchor_verdict,
       curve = list(
         ess = curve$ess, anchor_used = curve$anchor_used,
-        ess_floor = ess_floor, unanimous = unanimous_mat
+        ess_floor = ess_floor, ess_fraction = ess_fraction,
+        floor = curve$floor, n_contrib = curve$n_contrib,
+        disagree = curve$disagree, assessed = assessed,
+        max_weight = t(vapply(reweights, `[[`, numeric(length(grid_mult)), "max_weight")),
+        unanimous = unanimous_mat
       ),
       wobble = list(
         q95 = wobble_q95, median = wobble_med, per_edge = d_wobble,

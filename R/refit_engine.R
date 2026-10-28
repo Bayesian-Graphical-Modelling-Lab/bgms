@@ -324,8 +324,8 @@ refit_edge_stats = function(fit, evidence_threshold) {
 
   list(
     edge = enm, pip = pbar, prior_odds = prior_odds, lbf = lbf_bar,
-    verdict = verdict, mcse_lbf = mcse_lbf, band_half = band_half,
-    unanimous = unanimous, zeroflip = zeroflip
+    verdict = verdict, mcse_lbf = mcse_lbf, mcse_pip = mcse_pip,
+    band_half = band_half, unanimous = unanimous, zeroflip = zeroflip
   )
 }
 
@@ -424,6 +424,32 @@ refit_convergence_gate = function(fit) {
     ess_cont = ess_cont, ess_incl = ess_incl, rb_med_rhat = rb_med_rhat,
     min_ebfmi = ebfmi, max_var_ratio = var_ratio
   )
+}
+
+
+# ------------------------------------------------------------------
+# gate_short_flag
+# ------------------------------------------------------------------
+# The failing criterion and its value in a few characters, for the grid table
+# and the verdict columns ("split R-hat 1.03"); NA when the gate passed.
+# ------------------------------------------------------------------
+gate_short_flag = function(g) {
+  if(isTRUE(g$usable)) {
+    return(NA_character_)
+  }
+  if(!is.finite(g$rhat_cont) || g$rhat_cont >= 1.01) {
+    return(sprintf("split R-hat %s", format(round(g$rhat_cont_max, 3))))
+  }
+  if(is.finite(g$rb_med_rhat) && g$rb_med_rhat >= 1.01) {
+    return(sprintf("indicator R-hat %s", format(round(g$rb_med_rhat, 3))))
+  }
+  if(g$min_ebfmi <= 0.3) {
+    return(sprintf("E-BFMI %s", format(round(g$min_ebfmi, 2))))
+  }
+  if(g$max_var_ratio >= 2) {
+    return(sprintf("energy variance ratio %s", format(round(g$max_var_ratio, 1))))
+  }
+  "diagnostics outside limits"
 }
 
 

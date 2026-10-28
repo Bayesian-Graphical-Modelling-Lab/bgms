@@ -172,7 +172,7 @@ test_that("prior_sensitivity_check builds the anchored curve object", {
   expect_true(all(unlist(ps$verdict) %in%
     c("presence", "undecided", "absence", NA)))
   expect_true(all(ps$edges$mover %in%
-    c("stable", "indistinguishable-from-wobble", "moved-beyond-wobble")))
+    c("stable", "indistinguishable-from-wobble", "moved-beyond-wobble", "not-fully-assessed")))
   # pooling keeps the curve finite even where an edge saturates at some scale
   expect_false(any(is.infinite(ps$log_bf)))
   # the data-preferred scale is reported without a refit
@@ -579,9 +579,14 @@ fake_sensitivity = function(chosen_verdict, curve_verdict, multipliers,
     stability_lower = stab[1],
     stability_upper = stab[2],
     mover = "stable",
+    coverage = 1,
+    assessed_from = multipliers[1], assessed_to = multipliers[length(multipliers)],
+    gap_cause = NA_character_,
     insufficient = FALSE,
     insufficient_noisy = FALSE,
     insufficient_disagree = FALSE,
+    insufficient_any = FALSE,
+    insufficient_scales = NA_character_,
     saturated = FALSE,
     stringsAsFactors = FALSE
   )
@@ -591,14 +596,14 @@ fake_sensitivity = function(chosen_verdict, curve_verdict, multipliers,
       grid = data.frame(
         multiplier = anchors, replicate = rep(FALSE, n_anchor),
         original_fit = multipliers[chosen_idx] == anchors,
-        usable = rep(TRUE, n_anchor), forced = rep(FALSE, n_anchor)
+        usable = rep(TRUE, n_anchor), gate_flag = rep(NA_character_, n_anchor)
       ),
       anchors = anchors,
       multipliers = multipliers,
       chosen_scale = 1,
       chosen_index = chosen_idx,
       anchor_verdict = matrix(chosen_verdict, n_anchor, 1L),
-      curve = list(ess_floor = 400),
+      curve = list(ess_floor = 400, ess_fraction = 0.1),
       wobble = list(q95 = 0.3, anchor = anchors[n_anchor], censored = 0L),
       preferred_scale = list(s_hat = NA_real_),
       unit = list(
@@ -679,28 +684,30 @@ test_that("the stability interval is anchored on the verdict the table reports",
 })
 
 
-test_that("a forced 1x anchor keeps the gate's own record in the grid", {
-  # The curve still uses the original fit when it fails its gate (it is the
-  # analysis under check), but $grid$usable must stay the gate's verdict and
-  # $grid$forced must say the curve overrode it. print() then names it as kept,
-  # not as excluded.
+test_that("a gate-failing fit is flagged in print(), never dropped", {
+  # The original fit failing its gate: the check says it cannot certify
+  # robustness on it. A refit failing: its verdicts are shown flagged and it is
+  # left out of the curve.
   ps = fake_sensitivity("presence", rep("presence", 5L), c(0.5, 0.7, 1, 1.4, 2),
     3L,
     anchors = c(0.5, 1, 2)
   )
   ps$grid$usable[2] = FALSE
-  ps$grid$forced[2] = TRUE
-  # Collapse the wrapped print to one line before matching phrases.
+  ps$grid$gate_flag[2] = "split R-hat 1.03"
   out = gsub("\\s+", " ", paste(utils::capture.output(print(ps)), collapse = " "))
-  expect_match(out, "outside the check's limits")
-  expect_match(out, "ran on it anyway")
+  expect_match(out, "cannot certify robustness on this fit")
+  expect_match(out, "split R-hat 1.03", fixed = TRUE)
   expect_false(grepl("left out of the curve", out, fixed = TRUE))
 
-  # A genuinely excluded refit still reads as excluded.
-  ps2 = ps
-  ps2$grid$forced[2] = FALSE
+  ps2 = fake_sensitivity("presence", rep("presence", 5L), c(0.5, 0.7, 1, 1.4, 2),
+    3L,
+    anchors = c(0.5, 1, 2)
+  )
+  ps2$grid$usable[3] = FALSE
+  ps2$grid$gate_flag[3] = "split R-hat 1.03"
   out2 = gsub("\\s+", " ", paste(utils::capture.output(print(ps2)), collapse = " "))
-  expect_match(out2, "is left out of the curve")
+  expect_match(out2, "left out of the curve")
+  expect_match(out2, "shown with that flag")
 })
 
 
@@ -745,11 +752,8 @@ test_that("prior_sensitivity_check runs end to end on a single-indicator fit", {
   expect_equal(dim(ps$anchor_verdict), c(length(ps$anchors), 1L))
   expect_true(all(paste0("verdict_x", ps$anchors) %in% names(ps$edges)))
   # Structure of the gate record, not its verdict (which depends on the
-  # sampler run): only the original fit can be forced, and a forced row keeps
-  # the gate's own rejection. The override itself is tested on a synthetic grid
-  # above.
-  expect_true("forced" %in% names(ps$grid))
-  expect_false(any(ps$grid$forced & !ps$grid$original_fit))
-  expect_true(all(!ps$grid$usable[ps$grid$forced]))
+  # sampler run): a flag is present exactly where the gate failed.
+  expect_true("gate_flag" %in% names(ps$grid))
+  expect_equal(is.na(ps$grid$gate_flag), ps$grid$usable)
   expect_output(print(ps), "are the edge verdicts robust")
 })
