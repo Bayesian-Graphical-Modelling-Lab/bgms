@@ -100,8 +100,8 @@ is fit at a handful of fixed scales (the log-spaced `anchors`, default
 `c(0.4, 0.63, 1, 1.6, 2.5)` times the chosen scale) and the values between
 anchors are filled in by importance reweighting. Reweighting a fixed-scale fit
 to a nearby scale needs only the per-draw slab-density ratios over the
-included edges; the likelihood cancels, so no extra fit is needed between
-anchors, and there is no normalizing constant to integrate.
+included edges; the likelihood cancels in the ratio, and the posterior
+normalizing constants cancel when the weights are normalized to sum to one.
 
 The chosen-scale (`1x`) anchor is the original fit itself --- it is never
 refit --- so the chosen-scale verdicts the check reports are *exactly* the
@@ -110,11 +110,23 @@ analysis you already ran. Each other anchor is one short warm-started refit.
 Reweighting is only trustworthy near an anchor; far from every anchor the
 importance weights concentrate on a few draws and the estimate is unreliable.
 The check measures this with the importance effective sample size at each
-display point and **masks any point below `ess_floor` (default 400) to `NA`
-rather than reporting a number**. Log-spaced anchors make neighbouring usable
+display point and **masks a point for an anchor whose effective sample size
+there is below `ess_floor` (default 400 draws) or below `ess_fraction`
+(default 0.1) of its draws; a point no anchor reaches is `NA`** rather than a
+number. The fraction matters: a fit with 48000 draws can keep 1400 effective
+draws at a far scale and still be wrong there, because 97 percent of its draws
+were discarded. The effective sample size screens weight concentration; it
+cannot detect a region the anchor never visited. Where several anchors reach
+a point, their estimates are pooled by the inverse of their Monte Carlo
+variance, estimated by batch means within chains; where two anchors disagree
+by more than the tolerance, the point takes the nearest anchor's value and is
+recorded as disputed. At an anchor's own scale the curve shows that fit's
+reported inclusion probability. Log-spaced anchors make neighbouring usable
 ranges overlap, so the masked-out regions close up into a continuous curve; if
 two anchors are too far apart to overlap, the check warns and suggests adding
-an anchor.
+an anchor. In a study over five model types the reweighted probability lay
+within a few thousandths of a direct refit wherever the effective sample size
+fraction stayed above 0.2, out to a factor 2.5 from the anchor.
 
 ## Run-to-run noise
 
@@ -126,14 +138,23 @@ $|\Delta \log \mathrm{BF}|$ between the two as the empirical noise band (its
 95th percentile is the figure the report's `Noise:` line quotes, computed over
 edges whose evidence is near the decision thresholds in both refits).
 
-An edge is reported as "changed, beyond run-to-run noise" only if its verdict
-changes along the curve *and* its natural log Bayes-factor swing exceeds that
+An edge is reported as "changed, beyond run-to-run noise" only if a verdict on
+the assessed part of its curve, or at an anchor, differs from the reported
+chosen-scale verdict *and* its natural log Bayes-factor swing exceeds that
 band (and its own Monte Carlo error, and a small tolerance). An edge that
 flips inside the band is "changed, within run-to-run noise": the check
 refuses to call it a move. This is what keeps a robustness tool from crying
-wolf on boundary edges. In the `$edges$mover` column these categories are
-stored as `stable`, `indistinguishable-from-wobble`, and
-`moved-beyond-wobble`.
+wolf on boundary edges. An edge whose verdict never differs but whose curve
+has points no anchor reaches, or points where the anchors disagree, is "not
+fully assessed (gaps in the curve)" rather than robust. In the `$edges$mover`
+column these categories are stored as `stable`,
+`indistinguishable-from-wobble`, `moved-beyond-wobble`, and
+`not-fully-assessed`; `coverage`, `assessed_from` and `assessed_to` give the
+assessed share and range. The noise band measures variation between the runs
+performed; it cannot see an offset shared by every run of the same length,
+and fits of the default length can carry such an offset of one to two
+hundredths in inclusion probability on a slow-mixing edge, below what the
+mover rule counts as a move.
 
 ```{r, eval = FALSE}
 plot(ps)
@@ -148,9 +169,12 @@ low-ESS curve points leave visible gaps.
 The per-edge table carries the chosen-scale verdict and natural log Bayes
 factor with its Monte Carlo standard error, the per-anchor verdict columns, the
 stability range, the mover category, and an `insufficient` flag for edges the
-fit cannot certify (its chains disagree, or the Bayes-factor band straddles a
-threshold); the report counts these as "not certifiable (too noisy to assess)"
-and names them, when there are any. The full display
+fit cannot certify at the chosen scale (its chains disagree, or the
+Bayes-factor band straddles a threshold), with `insufficient_any` and
+`insufficient_scales` for the same check at every anchor; the report counts
+these as "not certifiable (too noisy to assess)" and names them, when there
+are any. A refit that fails the convergence check keeps its verdict column,
+flagged in `ps$grid$gate_flag`, and is left out of the curve. The full display
 grid, the per-point importance ESS, and which anchor each point was read from
 are in `ps$multipliers`, `ps$curve$ess`, and `ps$curve$anchor_used`.
 
