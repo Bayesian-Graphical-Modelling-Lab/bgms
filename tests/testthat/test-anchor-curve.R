@@ -103,10 +103,9 @@ test_that("assembly picks the highest-ESS usable anchor per point", {
 
 test_that("precision-weighted pooling blends anchors by inverse variance", {
   # Two anchors reach a common target scale. The pooled PIP is the
-  # inverse-variance weighted mean, not either anchor alone; the dominant
-  # (highest-ESS) anchor is tagged in anchor_used. The variance plug-in is the
-  # smoothed proportion (ESS * p + 0.5) / (ESS + 1), so a saturated anchor
-  # cannot claim near-zero variance; the pooled estimate itself is unsmoothed.
+  # inverse-variance weighted mean with the batch-means variance of each
+  # anchor's estimate, not either anchor alone; the highest-ESS anchor is
+  # tagged in anchor_used.
   mk = function(p_true, n) {
     list(
       theta = list(matrix(0, n, 1L)), # slab value irrelevant at s = s_a
@@ -122,11 +121,13 @@ test_that("precision-weighted pooling blends anchors by inverse variance", {
   rw2 = anchor_reweight(a2, s_a = 1.0, s_grid = s_grid)
   p1 = rw1$pip[1, 1]
   p2 = rw2$pip[1, 1]
-  smoothed = function(p, ess) (ess * p + 0.5) / (ess + 1)
-  w1 = rw1$ess[1] / (smoothed(p1, rw1$ess[1]) * (1 - smoothed(p1, rw1$ess[1])))
-  w2 = rw2$ess[1] / (smoothed(p2, rw2$ess[1]) * (1 - smoothed(p2, rw2$ess[1])))
+  w1 = 1 / rw1$var[1, 1]
+  w2 = 1 / rw2$var[1, 1]
   expected = (w1 * p1 + w2 * p2) / (w1 + w2)
-  curve = assemble_curve(list(rw1, rw2), usable = c(TRUE, TRUE), ess_floor = 10)
+  # 0.4 against 0.6 at even prior odds is 0.8 in log BF, under the tolerance,
+  # so the two anchors are not in dispute and the point is pooled.
+  curve = assemble_curve(list(rw1, rw2), usable = c(TRUE, TRUE), ess_floor = 10, prior_odds = 1)
+  expect_false(curve$disagree[1, 1])
   expect_equal(curve$pip[1, 1], expected, tolerance = 1e-12)
   # pooled estimate lies strictly between the two anchor estimates
   expect_gt(curve$pip[1, 1], min(p1, p2))
@@ -287,11 +288,15 @@ test_that("a slab family the reweighting identity is not written for stops", {
 
 
 test_that("a saturated low-ESS anchor no longer overrides a high-ESS one", {
-  # Smoothed variance plug-in. The raw plug-in p(1-p) hits the 1e-6 floor when
-  # an anchor's PIP saturates, giving that anchor a weight of ESS / 1e-6.
+  # The raw plug-in p(1-p) hits the 1e-6 floor when an anchor's PIP saturates,
+  # giving that anchor a weight of ESS / 1e-6. The variance an anchor carries
+  # is bounded below by the smoothed-count variance p~(1-p~)/ESS, which is
+  # what a never-flipping anchor's batch means reduce to.
   mk = function(pip, ess) {
+    p_s = (ess * pip + 0.5) / (ess + 1)
     list(
-      pip = matrix(pip, 1L, 1L), ess = ess,
+      pip = matrix(pip, 1L, 1L), ess = ess, n = ess,
+      var = matrix(p_s * (1 - p_s) / ess, 1L, 1L),
       chain_pip = list(matrix(pip, 1L, 1L))
     )
   }
@@ -304,33 +309,32 @@ test_that("a saturated low-ESS anchor no longer overrides a high-ESS one", {
   pips = c(0.60, 1.00)
   esss = c(2000, 25)
   before = old_pool(pips, esss)
-  after = assemble_curve(
+  curve = assemble_curve(
     list(mk(pips[1], esss[1]), mk(pips[2], esss[2])),
-    usable = c(TRUE, TRUE), ess_floor = 10
-  )$pip[1, 1]
+    usable = c(TRUE, TRUE), ess_floor = 10, prior_odds = 1
+  )
+  after = curve$pip[1, 1]
   # With the raw plug-in the saturated anchor sets the pooled value outright.
   expect_gt(before, 0.99)
   expect_lt(abs(before - pips[2]), 0.01)
-  # With the smoothed plug-in the pooled value sits nearer the well-measured
-  # anchor.
-  expect_lt(after, before)
-  expect_lt(abs(after - pips[1]), abs(after - pips[2]))
-  # It is still a genuine pooled value, not a switch to winner-take-all.
-  expect_gt(after, pips[1])
-  expect_lt(after, pips[2])
+  # 0.6 against 1.0 is a dispute (Cochran's Q and more than the tolerance in
+  # log BF): the point takes the nearest anchor, here the well-measured one,
+  # and is recorded as disputed.
+  expect_true(curve$disagree[1, 1])
+  expect_equal(after, pips[1])
 
   # (ii) away from saturation the smoothing is a formality: < 1% relative move
   configs = list(
     list(pips = c(0.30, 0.50), esss = c(2000, 1500)),
     list(pips = c(0.12, 0.22), esss = c(900, 400)),
-    list(pips = c(0.55, 0.80), esss = c(1200, 600)),
+    list(pips = c(0.55, 0.75), esss = c(1200, 600)),
     list(pips = c(0.05, 0.10), esss = c(800, 800))
   )
   rel = vapply(configs, function(cf) {
     b = old_pool(cf$pips, cf$esss)
     a = assemble_curve(
       list(mk(cf$pips[1], cf$esss[1]), mk(cf$pips[2], cf$esss[2])),
-      usable = c(TRUE, TRUE), ess_floor = 10
+      usable = c(TRUE, TRUE), ess_floor = 10, prior_odds = 1
     )$pip[1, 1]
     abs(a - b) / b
   }, numeric(1))

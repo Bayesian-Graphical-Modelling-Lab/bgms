@@ -3,13 +3,16 @@
 # ==============================================================================
 #
 # A fit at fixed slab scale s_a is reweighted to a nearby scale s with per-draw
-# slab ratios over the currently included edges; the likelihood cancels and no
-# normalizer is involved (spike terms cancel, and a fixed-scale anchor has no
-# scale posterior to integrate). Self-normalized importance sampling then gives
-# the inclusion probability, Bayes factor, and importance ESS at any target
-# scale within the anchor's usable radius; log-spaced anchors make the radii
-# overlap and the stitched curve continuous. Design and validation gates:
-# dev/audit/2026-07-28-anchored-curve-spec.md.
+# slab-density ratios over the included edges (and the precision-diagonal prior
+# ratio for GGM and mixed fits). The likelihood cancels in the ratio; the
+# posterior normalizing constants cancel through self-normalization. The
+# self-normalized average of the indicator draws is the inclusion probability
+# at s; its Monte Carlo error comes from batch means within chains; the
+# importance ESS and the maximum normalized weight describe the weight
+# concentration. The curve pools the anchors that reach a grid point by inverse
+# variance and takes each anchor fit's own Rao-Blackwellized value at the
+# anchor's grid position. Design and validation: dev/plans/active/
+# 2026-10-22_sensitivity-engine_DESIGN.md; dev/audit/checks/2026-10-reweighting-reach/.
 # ==============================================================================
 
 
@@ -240,20 +243,37 @@ anchor_log_weights = function(theta, gamma, family, s_a, s_grid,
 # ------------------------------------------------------------------
 # anchor_reweight
 # ------------------------------------------------------------------
-# Reweighted inclusion probabilities and importance ESS at each target
-# scale, from one anchor fit's draws: pooled over chains and per chain.
+# Reweighted inclusion probabilities at each target scale from one anchor
+# fit's draws, with their Monte Carlo error and weight diagnostics; pooled
+# over chains, and per chain for the unanimity check.
+#
+# The Monte Carlo error is estimated by batch means on the estimator's
+# influence process. With p_hat the self-normalized estimate and w_bar the mean
+# weight, each block j of b consecutive draws within a chain gives
+#
+#   H_j = (1 / b) * sum_{i in j} w_i (g_i - p_hat) / w_bar,
+#
+# and var(p_hat) = var(H_j) / n_blocks over the blocks of all chains. The
+# blocks use the global p_hat and w_bar, since a block with a larger total
+# weight contributes more to the full estimate. The variance is bounded below
+# by the smoothed-count variance p~ (1 - p~) / ESS with
+# p~ = (ESS p_hat + 1/2) / (ESS + 1), which is a regularization for edges whose
+# indicator never flips (every H_j is zero there), not an estimate.
 #
 # @param draws    Output of anchor_draws() for the anchor fit.
 # @param s_a      Anchor slab scale.
 # @param s_grid   Target slab scales (length P).
 # @param eta      Standardized diagonal rate the sweep holds fixed, or NULL
-#                 when the sweep leaves the precision diagonal alone. The
-#                 reported importance ESS follows from the same weights.
+#                 for a model without a precision diagonal.
+# @param block    Block length in draws for the batch means; shortened so
+#                 that every chain has at least two blocks.
 #
-# Returns: list(pip = P x E pooled, ess = length-P pooled importance ESS,
+# Returns: list(pip = P x E pooled estimate, var = P x E Monte Carlo
+#   variance, ess = length-P importance ESS, max_weight = length-P largest
+#   normalized weight, n = number of draws over all chains,
 #   chain_pip = list of P x E per chain, chain_ess = C x P).
 # ------------------------------------------------------------------
-anchor_reweight = function(draws, s_a, s_grid, eta = NULL) {
+anchor_reweight = function(draws, s_a, s_grid, eta = NULL, block = 300L) {
   n_chain = length(draws$theta)
   diag = draws$diagonal
   lw = lapply(seq_len(n_chain), function(c) {
@@ -269,16 +289,41 @@ anchor_reweight = function(draws, s_a, s_grid, eta = NULL) {
   indicator = draws$indicator %||% draws$gamma
   n_grid = length(s_grid)
   n_edge = ncol(indicator[[1]])
+  n_draw = nrow(indicator[[1]])
+  n_total = n_draw * n_chain
+  b = max(1L, min(as.integer(block), n_draw %/% 2L))
+  n_block = n_draw %/% b
+  rows = seq_len(n_block * b)
+  blk = rep(seq_len(n_block), each = b)
+
   chain_pip = vector("list", n_chain)
   chain_ess = matrix(NA_real_, n_chain, n_grid)
   pip = matrix(NA_real_, n_grid, n_edge)
+  var = matrix(NA_real_, n_grid, n_edge)
   ess = numeric(n_grid)
+  max_weight = numeric(n_grid)
   gamma_all = do.call(rbind, indicator)
   for(p in seq_len(n_grid)) {
     lw_all = unlist(lapply(lw, function(m) m[, p]))
-    w_all = exp(lw_all - max(lw_all))
-    ess[p] = sum(w_all)^2 / sum(w_all^2)
-    pip[p, ] = colSums(w_all * gamma_all) / sum(w_all)
+    lmax = max(lw_all)
+    w_all = exp(lw_all - lmax)
+    w_sum = sum(w_all)
+    ess[p] = w_sum^2 / sum(w_all^2)
+    max_weight[p] = max(w_all) / w_sum
+    p_hat = colSums(w_all * gamma_all) / w_sum
+    pip[p, ] = p_hat
+    w_bar = w_sum / n_total
+    H = NULL
+    for(c in seq_len(n_chain)) {
+      w_c = exp(lw[[c]][rows, p] - lmax)
+      g_c = indicator[[c]][rows, , drop = FALSE]
+      infl = w_c * (g_c - rep(p_hat, each = length(rows))) / w_bar
+      H = rbind(H, rowsum(infl, blk, reorder = FALSE) / b)
+    }
+    v_bm = if(nrow(H) >= 2L) apply(H, 2, stats::var) / nrow(H) else rep(NA_real_, n_edge)
+    p_s = (ess[p] * p_hat + 0.5) / (ess[p] + 1)
+    v_floor = p_s * (1 - p_s) / ess[p]
+    var[p, ] = pmax(v_bm, v_floor, na.rm = TRUE)
   }
   for(c in seq_len(n_chain)) {
     cp = matrix(NA_real_, n_grid, n_edge)
@@ -289,82 +334,139 @@ anchor_reweight = function(draws, s_a, s_grid, eta = NULL) {
     }
     chain_pip[[c]] = cp
   }
-  list(pip = pip, ess = ess, chain_pip = chain_pip, chain_ess = chain_ess)
+  list(
+    pip = pip, var = var, ess = ess, max_weight = max_weight, n = n_total,
+    chain_pip = chain_pip, chain_ess = chain_ess
+  )
 }
 
 
 # ------------------------------------------------------------------
 # assemble_curve
 # ------------------------------------------------------------------
-# Stitch the display curve by precision-weighted pooling of the anchors.
-# At each display point every anchor whose importance ESS clears the floor
-# contributes its reweighted PIP, weighted by inverse variance on the PIP
-# scale (w = ESS / (p(1-p)), the reciprocal of p(1-p)/ESS). Pooling on the
-# PIP scale, then transforming to the log BF, removes the staircase seams
-# and the infinities that winner-take-all selection produced at anchor
-# switch points (a capped-edge anchor no longer hands off discontinuously to
-# a finite one). Points where no anchor clears the floor are masked. The
-# per-chain curves pool with the same weights, so the downstream per-point
-# MCSE and unanimity checks carry over unchanged. This is the MBAR-lite /
-# multistate-bridge direction; full self-consistent MBAR weights are future
-# work. Exactness at anchors lives on the anchor fits' own RB statistics
-# (verdict columns, chosen-scale quantities), not on these pooled rows.
+# The display curve from the anchors' reweighted estimates.
+#
+# An anchor contributes to a grid point when it passed the convergence gate
+# and its importance ESS there is at least max(ess_floor, ess_fraction * n),
+# n its number of draws. Contributing anchors are pooled by inverse Monte
+# Carlo variance (anchor_reweight()$var), per edge; the pooled variance is the
+# reciprocal of the summed weights. A point no anchor reaches is NA.
+#
+# A point is disputed for an edge when the contributing anchors differ both
+# by Cochran's Q above the q_level quantile of chi-squared on k - 1 degrees of
+# freedom and by more than `tolerance` in log Bayes factor between the two
+# most different anchors. A disputed point takes the nearest contributing
+# anchor's estimate (nearest in log scale) and is recorded in `disagree`.
+#
+# At an anchor's own grid position the curve takes that fit's
+# Rao-Blackwellized estimate and its reported Monte Carlo error
+# (`anchor_exact`), nothing pooled.
 #
 # @param reweights     List over anchors of anchor_reweight() output.
-# @param usable        Logical per anchor (convergence-gated).
-# @param ess_floor     Minimum importance ESS for an anchor to contribute.
-# @param anchor_index  Grid position of each anchor (for anchor_used tagging).
+# @param usable        Logical per anchor (convergence gate).
+# @param ess_floor     Minimum importance ESS in draws.
+# @param anchor_index  Grid position of each anchor.
+# @param ess_fraction  Minimum importance ESS as a fraction of the draws.
+# @param anchor_exact  List over anchors of list(pip, mcse_pip), each length
+#                      E, or NULL to leave anchor positions pooled.
+# @param prior_odds    Per-edge prior inclusion odds, for the log Bayes factor
+#                      in the dispute check; NULL skips that condition.
+# @param tolerance     Log Bayes factor difference for a dispute.
+# @param q_level       Cochran's Q quantile for a dispute.
+# @param anchor_mult   Anchor scale multipliers (for the nearest anchor).
+# @param grid_mult     Grid scale multipliers (for the nearest anchor).
 #
-# Returns: list(pip = P x E, chain_pip = list C of P x E, anchor_used =
-#   dominant anchor per point (NA if masked), ess = length-P best ESS).
+# Returns: list(pip = P x E, var = P x E, chain_pip = list C of P x E,
+#   anchor_used = highest-ESS contributing anchor per point (NA if masked),
+#   ess = length-P best ESS, disagree = P x E logical, n_contrib = length-P,
+#   floor = per-anchor ESS floor applied).
 # ------------------------------------------------------------------
-assemble_curve = function(reweights, usable, ess_floor, anchor_index = NULL) {
+assemble_curve = function(reweights, usable, ess_floor, anchor_index = NULL,
+                          ess_fraction = 0, anchor_exact = NULL,
+                          prior_odds = NULL, tolerance = 0.5 * log(10),
+                          q_level = 0.99, anchor_mult = NULL, grid_mult = NULL) {
   n_grid = length(reweights[[1]]$ess)
   n_edge = ncol(reweights[[1]]$pip)
   n_chain = length(reweights[[1]]$chain_pip)
+  n_anchor = length(reweights)
   ess_mat = vapply(reweights, `[[`, numeric(n_grid), "ess")
   if(is.null(dim(ess_mat))) ess_mat = matrix(ess_mat, nrow = 1L)
-  ess_mat[, !usable] = 0 # an unusable anchor never contributes
+  n_draws = vapply(reweights, function(r) as.numeric(r$n %||% NA_real_), numeric(1))
+  n_draws[is.na(n_draws)] = 0
+  floor_a = pmax(ess_floor, ess_fraction * n_draws)
+  pass = ess_mat >= matrix(floor_a, n_grid, n_anchor, byrow = TRUE)
+  pass[, !usable] = FALSE
+
+  # Distance between grid points and anchors, for the nearest anchor.
+  dist = if(!is.null(anchor_mult) && !is.null(grid_mult)) {
+    abs(outer(log(grid_mult), log(anchor_mult), "-"))
+  } else {
+    abs(outer(seq_len(n_grid), anchor_index %||% seq_len(n_anchor), "-"))
+  }
+  clamp = function(p) pmin(pmax(p, 1e-6), 1 - 1e-6)
 
   pip = matrix(NA_real_, n_grid, n_edge)
+  var = matrix(NA_real_, n_grid, n_edge)
+  disagree = matrix(FALSE, n_grid, n_edge)
   chain_pip = replicate(n_chain, matrix(NA_real_, n_grid, n_edge), simplify = FALSE)
   anchor_used = rep(NA_integer_, n_grid)
   best_ess = rep(NA_real_, n_grid)
+  n_contrib = integer(n_grid)
 
   for(p in seq_len(n_grid)) {
-    contrib = which(ess_mat[p, ] >= ess_floor)
-    if(length(contrib) == 0L) next # masked: no anchor reaches this scale
+    contrib = which(pass[p, ])
+    if(length(contrib) == 0L) next
+    n_contrib[p] = length(contrib)
     best_ess[p] = max(ess_mat[p, contrib])
     anchor_used[p] = contrib[which.max(ess_mat[p, contrib])]
-    wsum = numeric(n_edge)
-    pnum = numeric(n_edge)
-    cnum = replicate(n_chain, numeric(n_edge), simplify = FALSE)
-    for(a in contrib) {
-      pa = reweights[[a]]$pip[p, ]
-      ea = ess_mat[p, a]
-      # Inverse-variance weight on the PIP scale (var ~ p(1-p)/ESS), with the
-      # variance computed on the add-half smoothed proportion
-      # (ess * pa + 0.5) / (ess + 1), so a saturated anchor (PIP 0 or 1) gets
-      # the variance its ESS supports. The pooled estimate uses the unsmoothed
-      # pa; the 1e-6 floor stays as a backstop.
-      pa_s = (ea * pa + 0.5) / (ea + 1)
-      wa = ea / pmax(pa_s * (1 - pa_s), 1e-6)
-      wsum = wsum + wa
-      pnum = pnum + wa * pa
-      for(cc in seq_len(n_chain)) {
-        cnum[[cc]] = cnum[[cc]] + wa * reweights[[a]]$chain_pip[[cc]][p, ]
+    P_a = matrix(vapply(contrib, function(a) reweights[[a]]$pip[p, ], numeric(n_edge)), nrow = n_edge)
+    V_a = matrix(vapply(contrib, function(a) reweights[[a]]$var[p, ], numeric(n_edge)), nrow = n_edge)
+    W = 1 / V_a
+    wsum = rowSums(W)
+    pooled = rowSums(W * P_a) / wsum
+    pooled_var = 1 / wsum
+    disp = rep(FALSE, n_edge)
+    if(length(contrib) > 1L) {
+      Q = rowSums(W * (P_a - pooled)^2)
+      stat = Q > stats::qchisq(q_level, df = length(contrib) - 1L)
+      practical = if(is.null(prior_odds)) {
+        TRUE
+      } else {
+        lbf = log((clamp(P_a) / (1 - clamp(P_a))) / prior_odds)
+        apply(lbf, 1, function(v) diff(range(v))) > tolerance
       }
+      disp = stat & practical
     }
-    pip[p, ] = pnum / wsum
-    for(cc in seq_len(n_chain)) chain_pip[[cc]][p, ] = cnum[[cc]] / wsum
+    nearest = contrib[which.min(dist[p, contrib])]
+    pip[p, ] = ifelse(disp, reweights[[nearest]]$pip[p, ], pooled)
+    var[p, ] = ifelse(disp, reweights[[nearest]]$var[p, ], pooled_var)
+    disagree[p, ] = disp
+    for(cc in seq_len(n_chain)) {
+      cnum = numeric(n_edge)
+      for(k in seq_along(contrib)) {
+        cnum = cnum + W[, k] * reweights[[contrib[k]]]$chain_pip[[cc]][p, ]
+      }
+      chain_pip[[cc]][p, ] = ifelse(disp, reweights[[nearest]]$chain_pip[[cc]][p, ], cnum / wsum)
+    }
   }
 
-  # Tag each pooled point with its dominant (highest-ESS) anchor for
-  # reporting; at an anchor's own grid point that is the anchor itself.
+  # An anchor's own grid position carries that fit's own estimate.
   for(a in seq_along(anchor_index)) {
-    if(usable[a] && !is.na(anchor_used[anchor_index[a]])) {
-      anchor_used[anchor_index[a]] = a
+    idx = anchor_index[a]
+    if(!usable[a] || !pass[idx, a]) next
+    anchor_used[idx] = a
+    if(!is.null(anchor_exact) && !is.null(anchor_exact[[a]])) {
+      ex = anchor_exact[[a]]
+      pip[idx, ] = ex$pip
+      v = ex$mcse_pip^2
+      v[!is.finite(v)] = reweights[[a]]$var[idx, !is.finite(v)]
+      var[idx, ] = v
+      disagree[idx, ] = FALSE
+      for(cc in seq_len(n_chain)) chain_pip[[cc]][idx, ] = reweights[[a]]$chain_pip[[cc]][idx, ]
     }
   }
-  list(pip = pip, chain_pip = chain_pip, anchor_used = anchor_used, ess = best_ess)
+  list(
+    pip = pip, var = var, chain_pip = chain_pip, anchor_used = anchor_used,
+    ess = best_ess, disagree = disagree, n_contrib = n_contrib, floor = floor_a
+  )
 }
