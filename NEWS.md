@@ -63,6 +63,31 @@ released from this line yet.
   computed from the corrected weights, so between-anchor points can report a
   smaller ESS than before and be masked by `ess_floor`.
 
+* `prior_sensitivity_check()` assembles and classifies its curve differently
+  (dev/plans/active/2026-10-22_sensitivity-engine_DESIGN.md). The Monte Carlo
+  error of a reweighted point comes from batch means within chains, and
+  anchors are pooled by the inverse of that variance; the former weight
+  ESS / (p(1-p)) treated an anchor that never saw an edge as nearly certain.
+  Two anchors that disagree at a point, by Cochran's Q at 0.99 and by more
+  than the tolerance in log Bayes factor, mark it disputed. At an anchor's
+  own scale the curve takes that fit's Rao-Blackwellized probability. A new
+  argument `ess_fraction` (default 0.1) masks a point when an anchor's
+  importance ESS is below that fraction of its draws as well as below
+  `ess_floor`; a study over five model types found the absolute floor
+  passing points whose ESS was 1 to 6 percent of the draws, where reweighted
+  verdicts differed from direct refits on up to a quarter of the edges, and
+  the fraction separating those from the rest. Edges whose curve has masked
+  or disputed points are classified `not-fully-assessed` instead of
+  `stable`, with `coverage`, `assessed_from`, `assessed_to` and `gap_cause`
+  columns; the sufficiency check runs at every usable anchor
+  (`insufficient_any`, `insufficient_scales`), and the classification is
+  relative to the reported chosen-scale verdict. A refit that fails the
+  convergence gate keeps its verdict column, flagged in `$grid$gate_flag`,
+  and is left out of the curve and the noise band; the original fit is
+  treated the same way, and the `forced` column is gone. The printed report
+  states what the ESS screen and the noise band can and cannot see. The weekly
+  certification block tests the reach rule at 1.6x instead of a doubling.
+
 * `prior_sensitivity_check()` drops the `vary` argument. For GGM and mixed
   fits the sweep holds the standardized diagonal rate `eta` fixed and moves the
   raw rate with the slab scale. Under that sweep the standardization separates
