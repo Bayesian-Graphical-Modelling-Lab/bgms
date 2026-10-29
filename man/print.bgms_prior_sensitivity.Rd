@@ -9,8 +9,9 @@
 \arguments{
 \item{x}{A \code{bgms_prior_sensitivity} object.}
 
-\item{max_rows}{Integer. Maximum edges to name in the scale-dependent
-table; the rest are counted and left to \code{$edges}. Default: \code{10}.}
+\item{max_rows}{Integer. Maximum edges to name in the table of edges that
+changed beyond Monte Carlo error; the rest are counted and left to
+\code{$edges}. Default: \code{10}.}
 
 \item{...}{Ignored.}
 }
@@ -18,11 +19,12 @@ table; the rest are counted and left to \code{$edges}. Default: \code{10}.}
 \code{x}, invisibly.
 }
 \description{
-Prints the answer first: how many edge verdicts are robust to the slab
-scale, which edges genuinely depend on it (by name), which cannot be
-certified, the verdict counts per scale, and how the chosen scale compares
-with the size of the estimated interactions. Machinery (sampler, refit
-cost, the run-to-run noise band) is confined to a closing Details line.
+Prints the verdict counts at each scale, the number of edges whose verdict
+held at every scale, changed within Monte Carlo error, changed beyond it,
+or could not be certified at the chosen scale, the edges that changed
+beyond Monte Carlo error by name, the fits whose largest split R-hat
+exceeds 1.01, and how the chosen scale compares with the scale the
+estimated interactions imply.
 }
 \seealso{
 \code{\link{prior_sensitivity_check}()}
@@ -30,7 +32,6 @@ cost, the run-to-run noise band) is confined to a closing Details line.
 Other diagnostics:
 \code{\link[=calibration_check]{calibration_check()}},
 \code{\link[=plot.bgms_calibration]{plot.bgms_calibration()}},
-\code{\link[=plot.bgms_prior_sensitivity]{plot.bgms_prior_sensitivity()}},
 \code{\link[=print.bgms_calibration]{print.bgms_calibration()}},
 \code{\link[=prior_sensitivity_check]{prior_sensitivity_check()}},
 \code{\link[=summarize_zratio_gauge]{summarize_zratio_gauge()}}

@@ -48,6 +48,20 @@
 
 
 # ------------------------------------------------------------------
+# mover_palette
+# ------------------------------------------------------------------
+# Fixed-order categorical colours for named lines and the panel accent
+# (Okabe-Ito, colourblind-safe; warm/cool alternating for adjacent separation).
+# ------------------------------------------------------------------
+mover_palette = function() {
+  c(
+    "#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00",
+    "#56B4E9", "#882255", "#44AA99", "#661100", "#999933"
+  )
+}
+
+
+# ------------------------------------------------------------------
 # bgms_style
 # ------------------------------------------------------------------
 # The style constants, in one place, so that a panel never hardcodes them.

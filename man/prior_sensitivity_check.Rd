@@ -6,13 +6,11 @@
 \usage{
 prior_sensitivity_check(
   bgms_object,
-  anchors = c(0.4, 0.63, 1, 1.6, 2.5),
+  scale_multipliers = c(0.5, 2),
   evidence_threshold = 10,
   refit_sampler = "same-as-fit",
   iter = NULL,
   warmup = NULL,
-  tolerance = 0.5 * log(10),
-  ess_floor = 400,
   include_preferred_scale = FALSE,
   cores = NULL,
   seed = 1L,
@@ -25,11 +23,10 @@ prior_sensitivity_check(
 with \code{edge_selection = TRUE}, or a \code{bgmCompare} object from
 \code{\link{bgmCompare}()} run with \code{difference_selection = TRUE}.}
 
-\item{anchors}{Numeric vector of positive anchor multipliers of the chosen
-scale. Default \code{c(0.4, 0.63, 1, 1.6, 2.5)} (log-spaced, so adjacent
-anchors' usable reweighting radii overlap). The multiplier \code{1} is
-always included and is the original fit; each other anchor is one warm
-refit.}
+\item{scale_multipliers}{Numeric vector of positive multipliers of the
+chosen scale at which the model is refit. Default \code{c(0.5, 2)}. The
+multiplier \code{1} is the original fit, always included and never refit;
+each other multiplier is one refit.}
 
 \item{evidence_threshold}{Positive numeric. Inclusion Bayes factor threshold
 for a presence verdict; \code{1 / evidence_threshold} is the absence
@@ -37,28 +34,16 @@ threshold. Default: \code{10}.}
 
 \item{refit_sampler}{One of \code{"same-as-fit"} (default; inherit the
 original fit's update method) or an explicit \code{"nuts"},
-\code{"adaptive-metropolis"}, or \code{"gibbs"}. NUTS refits of an ordinal
-fit carry the adapted metric and run fastest; when an inherited slower
-sampler makes the check cost more than about a minute, a message suggests
-the switch. Refitting with a different sampler than the original fit is
-sound because every comparison the check makes runs refit-against-refit
-under one identical pipeline; the original fit never enters a comparison.}
+\code{"adaptive-metropolis"}, or \code{"gibbs"}. Every comparison the
+check makes is between a refit and the original fit, so the refit sampler
+should be the original fit's unless the original fit is to be rerun with
+the other sampler too.}
 
 \item{iter, warmup}{Integer sampling and warmup iterations per refit, or
-\code{NULL} (default) to use the validated short schedule for warm NUTS
-refits and inherit the original fit's schedule otherwise.}
+\code{NULL} (default) to use the original fit's.}
 
-\item{tolerance}{Numeric. Minimum natural log BF change across scales for
-a verdict flip to count as a move, before the MCSE and noise floors.
-Default: \code{0.5 * log(10)} (about 1.15, the same decision boundary the
-former 0.5 carried in \eqn{\log_{10}} units).}
-
-\item{ess_floor}{Positive numeric. Minimum pooled importance effective
-sample size for a curve point to be reported; points below it are
-\code{NA}. Default: \code{400}.}
-
-\item{include_preferred_scale}{Logical. Add an extra anchor at the
-data-preferred scale \eqn{\hat s}. Default: \code{FALSE}.}
+\item{include_preferred_scale}{Logical. Add a refit at the data-preferred
+scale \eqn{\hat s}. Default: \code{FALSE}.}
 
 \item{cores}{Integer thread count for each refit's chains. Default: the
 original fit's core count.}
@@ -66,43 +51,56 @@ original fit's core count.}
 \item{seed}{Integer base seed for the refits. Default: \code{1}.}
 
 \item{keep_fits}{Logical. Retain the full refit objects in the result (for
-power users); the default keeps only per-scale summaries. Default:
+power users); the default keeps only per-fit summaries. Default:
 \code{FALSE}.}
 
-\item{verbose}{Logical. If \code{TRUE}, print each internal refit's raw
-sampler notes (energy, tree-depth, dropped chains) live as it runs. By
-default these are captured, not printed: the convergence gate adjudicates
-them, a failed anchor is reported once in plain language, and the raw
-text stays available in \code{$refit_diagnostics}. Default: \code{FALSE}.}
+\item{verbose}{Logical. If \code{TRUE}, print each refit's raw sampler
+notes (energy, tree-depth, dropped chains) live as it runs. By default
+these are captured, not printed, and the text stays available in
+\code{$refit_diagnostics}. Default: \code{FALSE}.}
 }
 \value{
-An object of class \code{"bgms_prior_sensitivity"}: a list with the
-per-edge \code{edges} table (chosen-scale verdict from the original fit,
-per-anchor verdict columns, dense-grid stability range, mover category,
-an \code{insufficient} flag with its two subcauses
-\code{insufficient_noisy} (Bayes factor within Monte Carlo error of a
-threshold) and \code{insufficient_disagree} (chains disagree on the
-verdict)), a \code{grid} data frame (one row per anchor fit and
-the replicate, with convergence gates), the \code{multipliers} display
-grid with the \code{log_bf}, \code{log_bf_mcse}, and \code{verdict}
-curve matrices (grid-by-edge, \code{NA} where masked), the \code{curve}
-bookkeeping (per-point importance ESS, anchor used, \code{ess_floor},
-per-point chain unanimity), the \code{wobble} noise yardstick,
-\code{refit_diagnostics} (the captured raw sampler notes per anchor and
-the replicate), the data-\code{preferred_scale} (\code{NA} where the swept
-prior is not the one on the pairwise interactions), the \code{unit} the
-check reported on, the standardized diagonal rate \code{diagonal_eta} held
-fixed (\code{NA} for a model without a precision diagonal), and the
-settings used.
+An object of class \code{"bgms_prior_sensitivity"}: a list with
+\describe{
+\item{\code{edges}}{One row per indicator: \code{edge}, the prior
+inclusion probability, the original fit's \code{chosen_scale_pip},
+\code{chosen_scale_log_bf}, \code{chosen_scale_mcse} (of the log Bayes
+factor) and \code{chosen_scale_verdict}; \code{stability_lower} and
+\code{stability_upper}; \code{mover} (\code{stable},
+\code{within-monte-carlo-error}, \code{beyond-monte-carlo-error}, or
+\code{NA} for an indicator without a verdict) and \code{moved_at};
+\code{insufficient} with its two subcauses \code{insufficient_noisy}
+(log Bayes factor within Monte Carlo error of a threshold) and
+\code{insufficient_disagree} (chains disagree on the verdict);
+\code{saturated} (the indicator never flipped in the original fit);
+then one \code{verdict_x<m>}, \code{log_bf_x<m>} and \code{mcse_x<m>}
+column per multiplier \code{m}, from that fit's own statistics.}
+\item{\code{grid}}{One row per fit: \code{multiplier}, \code{scale},
+\code{original_fit}, \code{iter}, \code{warmup}, \code{seed}, the
+diagnostics \code{rhat_max}, \code{ess_min}, \code{inclusion_ess_min},
+\code{ebfmi_min}, \code{energy_variance_ratio_max} and
+\code{warmup_incomplete}, \code{sampler_notes}, and \code{seconds}.}
+\item{\code{verdict_by_scale}}{Fit-by-indicator matrix of verdicts.}
+\item{\code{preferred_scale}}{The scale the estimated interactions imply:
+\code{s_hat} is the root-mean-square of the included interactions over
+the original fit's draws, with \code{lo} and \code{hi} an approximate
+95\\% interval from a \eqn{1/\sqrt{2m}} log-scale standard error, \eqn{m}
+the mean number of included edges. \code{NA} where the swept prior is
+not the one on the pairwise interactions.}
+\item{\code{refit_diagnostics}}{The captured raw sampler notes per fit.}
+\item{\code{scale_multipliers}, \code{chosen_scale}, \code{unit},
+\code{diagonal_eta}, \code{evidence_threshold}, \code{refit_sampler},
+\code{warm}, \code{model_type}, \code{runtime_seconds},
+\code{fits}}{The multipliers (1 included) and the chosen scale, the
+unit the check reported on, the standardized diagonal rate held fixed
+(\code{NA} for a model without a precision diagonal), the settings, and
+the refit objects when \code{keep_fits = TRUE}.}
+}
 }
 \description{
-Recovers each indicator's continuous inclusion-Bayes-factor curve
-\eqn{\mathrm{BF}_e(s)} across the scale \eqn{s} of the slab that gates it,
-and classifies every verdict trajectory along it. The curve is anchored at a
-handful of fixed-scale fits --- the chosen-scale anchor is the original fit
-itself --- and filled in between anchors by importance reweighting. A
-built-in Monte Carlo noise guard, calibrated from a repeated refit at one
-anchor, keeps the check from crying wolf on boundary cases.
+Refits the model at a few multipliers of the slab scale that gates the
+indicators, each refit at the original fit's run length, and compares every
+indicator's inclusion verdict across the fits.
 
 On a \code{\link{bgm}()} fit with edge selection the unit is the edge
 indicator and the swept prior is the interaction slab. On a
@@ -112,86 +110,51 @@ difference indicator and the swept prior is the difference slab
 difference families alike, since \code{bgmCompare()} gives them one scale.
 }
 \details{
-\strong{The anchored curve.} The model is refit at the non-unit
-\code{anchors} (multipliers of the chosen scale \eqn{s_0}; the \code{1x}
-anchor is the original fit and is never refit). A fit at fixed anchor
-scale \eqn{s_a} is reweighted to a nearby scale \eqn{s} with per-draw
-slab-density ratios over the currently included edges; the likelihood
-cancels, so no refit is needed between anchors. The posterior-density-ratio
-reweighting identity of Bartos et al. (2026) is used locally around each
-refit anchor; the anchored construction itself is specific to \pkg{bgms}.
-Each point of a dense
-log-spaced display grid pools every anchor that clears \code{ess_floor}
-there, weighting each anchor's inclusion-probability estimate by its
-inverse variance (\eqn{\mathrm{ESS} / (p(1-p))}); the pooling is on the
-inclusion-probability scale and is then transformed to the natural log
-Bayes factor, which keeps the curve continuous across
-anchor hand-offs and finite at capped edges. Points where no anchor
-clears the floor are \code{NA} rather than extrapolated, and
-non-overlapping anchor radii trigger a warning to add anchors; log-spaced
-default anchors make the radii overlap. Exactness is kept off the pooled
-curve and on the anchor fits themselves: the per-anchor verdict columns
-and every chosen-scale quantity are read straight from each fit's own
-Rao-Blackwellized statistics, so the \code{1x} column is exactly the
-original fit's reported analysis. Between the anchors the curve is therefore
-importance-reweighted rather than refit, and can deviate from a refit at that
-scale by up to roughly \code{0.01} in inclusion probability at the
-extrapolation ends; the anchors themselves -- including the \code{1x} anchor,
-which is the user's own fit -- are exact.
+\strong{The fits.} The model is refit at every multiplier in
+\code{scale_multipliers} of the chosen scale \eqn{s_0}, with the original
+fit's \code{iter} and \code{warmup} unless \code{iter} and \code{warmup}
+are given. The original fit is the \code{1x} fit and is not refit. An
+ordinal (omrf) refit starts each chain from the original fit's final
+per-chain state, and a NUTS refit also from its adapted step size and mass
+matrix; continuous (GGM) and mixed-MRF refits start cold. Every quantity
+the check reports for a fit is that fit's own Rao-Blackwellized inclusion
+probability, its natural log inclusion Bayes factor and verdict, and the
+Monte Carlo standard error of the log Bayes factor from the fit's own
+summary; the \code{1x} column is the original fit's reported analysis.
 
-\strong{Warm starts.} For ordinal (omrf) fits each refit starts from the
-original fit's per-chain final state, and a NUTS refit additionally carries
-the adapted step size and diagonal mass matrix, so a short warmup suffices
-and the whole check costs about one original fit. Because the warm starts sit
-near the chosen-scale posterior, cross-chain dispersion is reduced by
-construction, which weakens split-\eqn{\hat R} as a between-chain diagnostic;
-the refit gate therefore reads the \emph{median} split-\eqn{\hat R} over the
-continuous parameters and over the Rao-Blackwellized inclusion probabilities
-together with the NUTS energy diagnostics, and reports the smallest
-Rao-Blackwellized inclusion \code{n_eff} as \code{$grid$inclusion_ess_min};
-the per-chain agreement that guards an individual verdict is the edge-level
-sufficiency check below. Continuous (GGM) and
-mixed-MRF fits refit cold (full warmup), costing about one fit per scale.
+\strong{Classification.} An edge's reference verdict is the original fit's.
+An edge is \code{stable} when every refit's verdict equals it. Otherwise
+the change in log Bayes factor from the original fit to each refit whose
+verdict differs is compared with twice the combined Monte Carlo standard
+error of the two fits, \eqn{2\sqrt{\mathrm{MCSE}_s^2 + \mathrm{MCSE}_1^2}}:
+the edge is \code{beyond-monte-carlo-error} when the change exceeds it at
+some such refit and \code{within-monte-carlo-error} when it does not at
+any. \code{$edges$moved_at} is the multiplier nearest 1 at which the
+verdict differs. \code{stability_lower} and \code{stability_upper} are the
+smallest and largest multiplier in the contiguous run of fits around
+\code{1x} that hold the reference verdict.
 
-\strong{The mover rule.} An edge is flagged scale-sensitive only if its
-verdict differs somewhere along the curve \emph{and} its natural log
-Bayes-factor change across scales exceeds
-\code{max(tolerance, 2 * MCSE, noise)}, with the per-point MCSE from the
-chain-level spread of the reweighted estimate (so it carries both the
-between-chain and the importance-sampling uncertainty) and the noise band
-the 95th percentile of the spread between one anchor refit and its
-repeat, over the edges with \eqn{|\log \mathrm{BF}| \le 3 \log 10 \approx 6.91}
-in both refits (near-saturated edges are excluded because their log Bayes
-factor jumps between identical runs). An edge inside that window in one
-refit only is left out of the percentile and counted; the printed report
-gives the count. When no edge qualifies the noise band is \code{NA} and the
-mover rule falls back to \code{max(tolerance, 2 * MCSE)}.
-The \code{$edges$mover} column stores \code{stable},
-\code{indistinguishable-from-wobble}, or \code{moved-beyond-wobble}; the
-printed report shows the same categories in plain language ("robust",
-"changed, within run-to-run noise", "changed, beyond run-to-run noise",
-with edges failing the sufficiency check below printed as "not
-certifiable"). A bare verdict flip inside the replicate noise is never
-reported as a move.
+\strong{Sufficiency at the chosen scale.} An edge whose per-chain verdicts
+disagree in the original fit, or whose log Bayes factor lies within
+\code{max(between-chain band, 2 * MCSE)} of a verdict threshold there, is
+marked \code{insufficient}: the fit cannot certify the verdict the check
+starts from, and the printed report lists the edge as not certifiable
+rather than in a mover category.
 
-\strong{Edge-level sufficiency.} An edge whose per-chain verdicts disagree, or
-whose between-chain-inflated log-BF band straddles a verdict
-threshold, is marked \code{insufficient} at that scale: the refit cannot
-certify its verdict. This errs toward caution --- disagreement widens the
-band rather than vanishing into a pooled estimate.
-
-\strong{Two-level gate.} Each refit passes a refit-level gate (continuous
-split-\eqn{\hat R} below 1.01, bulk RB-inclusion median \eqn{\hat R} below
-1.01, E-BFMI and energy variance-ratio for NUTS) before its verdicts are
-used; a refit that fails is reported as unusable rather than silently pooled.
+\strong{Convergence.} Each fit's largest split-\eqn{\hat R} over the
+continuous parameters, smallest effective sample size over the continuous
+parameters and over the indicators, and for NUTS the smallest E-BFMI and
+the largest energy variance ratio, are in \code{$grid}. The classification
+uses every fit; the printed report names a fit whose largest
+split-\eqn{\hat R} exceeds 1.01.
 
 \strong{Models with a precision diagonal.} A continuous or mixed fit has a
 Gamma or exponential prior on the precision diagonal with a standardized
 rate \eqn{\eta}; at slab scale \eqn{s} the sampler runs that prior with raw
-rate \eqn{\eta / s}. The sweep holds \eqn{\eta} fixed: the refits and the
-importance weights move the raw rate with the slab scale, and the printed
-report gives the \eqn{\eta} held fixed. A fit whose diagonal prior was given
-as a raw \code{rate} stops with an error; see the section below.
+rate \eqn{\eta / s}. The refits hold \eqn{\eta} fixed and move the raw rate
+with the slab scale, and the printed report gives the \eqn{\eta} held
+fixed. A fit whose diagonal prior was given as a raw \code{rate} stops with
+an error; see the section below.
 }
 \section{Fits with a raw-rate diagonal prior}{
 
@@ -201,7 +164,7 @@ scale. The check has no sweep that holds a raw rate fixed. The table of
 inclusion probabilities at a few slab scales with the raw rate held at the
 fitted value is a loop over \code{\link{bgm}()}:
 \preformatted{
-scales = c(0.4, 0.63, 1, 1.6, 2.5)
+scales = c(0.5, 1, 2)
 fits = lapply(scales, function(s) {
   bgm(x,
       interaction_prior = normal_prior(scale = s),
@@ -222,19 +185,15 @@ colnames(pip) = paste0(scales, "x")
 fit = bgm(Wenchuan[, 1:6], chains = 2)
 ps = prior_sensitivity_check(fit)
 ps
-plot(ps)
 }
-}
-\references{
-\insertRef{bartos2026}{bgms}
 }
 \seealso{
-\code{\link{bgm}()}, \code{\link{extract_posterior_inclusion_probabilities}()}
+\code{\link{bgm}()}, \code{\link{verdicts}()},
+\code{\link{extract_posterior_inclusion_probabilities}()}
 
 Other diagnostics:
 \code{\link[=calibration_check]{calibration_check()}},
 \code{\link[=plot.bgms_calibration]{plot.bgms_calibration()}},
-\code{\link[=plot.bgms_prior_sensitivity]{plot.bgms_prior_sensitivity()}},
 \code{\link[=print.bgms_calibration]{print.bgms_calibration()}},
 \code{\link[=print.bgms_prior_sensitivity]{print.bgms_prior_sensitivity()}},
 \code{\link[=summarize_zratio_gauge]{summarize_zratio_gauge()}}
