@@ -129,7 +129,6 @@ plot(check)
 
 Other diagnostics:
 \code{\link[=plot.bgms_calibration]{plot.bgms_calibration()}},
-\code{\link[=plot.bgms_prior_sensitivity]{plot.bgms_prior_sensitivity()}},
 \code{\link[=print.bgms_calibration]{print.bgms_calibration()}},
 \code{\link[=print.bgms_prior_sensitivity]{print.bgms_prior_sensitivity()}},
 \code{\link[=prior_sensitivity_check]{prior_sensitivity_check()}},
