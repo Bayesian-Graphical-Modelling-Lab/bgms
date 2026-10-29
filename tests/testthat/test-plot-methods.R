@@ -528,11 +528,11 @@ test_that("the slab prior is the fit's own, not the package default", {
   expect_equal(prior$density(0.4), stats::dcauchy(0.4, 0, 2.5))
 
   # extract_pairwise_interactions() reports every model type in the frame the
-  # slab applies to, which is what makes one closed form serve them all: it is
-  # the same theta the anchored sensitivity curve reweights on.
+  # slab applies to, which is what makes one closed form serve them all. On an
+  # ordinal fit that frame is the raw pairwise draw.
   expect_equal(
     unname(extract_pairwise_interactions(cauchy)[, 1]),
-    unname(do.call(rbind, anchor_draws(cauchy)$theta)[, 1])
+    unname(do.call(rbind, get_raw_samples(cauchy)$pairwise)[, 1])
   )
 })
 
@@ -547,22 +547,19 @@ test_that("the extractor frame is the slab frame on a GGM and a mixed fit", {
   # these two can.
   ggm = get_bgms_fit_ggm()
   extracted = unname(extract_pairwise_interactions(ggm))
-  slab = unname(do.call(rbind, anchor_draws(ggm)$theta))
-  expect_equal(extracted, slab)
-
-  # ... and the frame is not the raw one, which is what makes the equality
-  # above an assertion rather than a tautology: a doubled -0.5 would show up
-  # here as a factor of -0.5 between the two, not as agreement.
+  # The GGM slab is evaluated at -K_ij / 2 (ggm_model.cpp); the raw draws are
+  # K_ij, so the extractor's frame is -0.5 times the raw one, not the raw one.
   raw = unname(do.call(rbind, get_raw_samples(ggm)$pairwise))
   expect_equal(extracted, -0.5 * raw)
   expect_false(isTRUE(all.equal(extracted, raw)))
 
-  # A mixed fit lays its pairwise draws out by block, so the two frames have
-  # to agree column for column in that layout too, not merely in aggregate.
+  # The mixed sampler stores every pairwise block on the slab's own scale
+  # (mixed_mrf_model.cpp, mixed_mrf_gradient.cpp), laid out by block, so the
+  # extractor agrees with the raw draws column for column in that layout.
   mixed = get_bgms_fit_mixed_mrf()
   expect_equal(
     unname(extract_pairwise_interactions(mixed)),
-    unname(do.call(rbind, anchor_draws(mixed)$theta))
+    unname(do.call(rbind, get_raw_samples(mixed)$pairwise))
   )
 })
 

@@ -1,12 +1,12 @@
-# Tests for the refit-based prior_sensitivity_check().
+# Tests for prior_sensitivity_check().
 #
-# prior_sensitivity_check() refits the model at a grid of fixed scales and
-# classifies every edge; it works on any bgm() fit with edge selection.
-# Structural tests use small fits and reduced anchor grids: every refit is a
-# full MCMC run, so the anchor set is the dominant cost. The warm-vs-cold
-# agreement certification and the other refit cross-validations run in the
-# weekly certification tier (T2, BGMS_RUN_CERTIFICATION); the verdict and
-# compare-trace checks run nightly (T1, BGMS_RUN_SLOW_TESTS).
+# The check refits the model at a few multipliers of the chosen slab scale, at
+# the original fit's run length, and classifies every edge from the fits' own
+# statistics. Structural tests use small fits with short explicit run lengths:
+# every refit is a full MCMC run, so the run length is the dominant cost. The
+# classification itself is tested on synthetic per-fit statistics. The
+# bgmCompare checks run nightly (T1, BGMS_RUN_SLOW_TESTS); the GGM, mixed and
+# warm-start certifications run weekly (T2, BGMS_RUN_CERTIFICATION).
 
 skip_unless_slow = function() {
   skip_if_not(
@@ -15,74 +15,162 @@ skip_unless_slow = function() {
   )
 }
 
-# ---- refit-based prior_sensitivity_check() ----------------------------------
 
-test_that("the wobble q95 pools threshold-relevant edges only", {
-  # Two near-saturated edges (|log BF| > 3 log(10) at s0) with huge replicate
-  # spread must not inflate the yardstick; the median and per-edge spread
-  # keep covering every edge.
-  lbf_s0 = log(10) * c(0.2, -1.5, 2.9, 8.0, -12.0)
-  lbf_rep = log(10) * c(0.3, -1.3, 2.7, 9.3, -10.7)
-  d = abs(lbf_s0 - lbf_rep)
-  w = wobble_yardstick(lbf_s0, lbf_rep)
-  expect_equal(w$per_edge, d)
-  expect_equal(w$median, stats::median(d))
-  expect_equal(w$q95, stats::quantile(d[1:3], 0.95, names = FALSE))
-  expect_lt(w$q95, min(d[4:5]))
-  # with every edge saturated the yardstick is undefined
-  expect_true(is.na(wobble_yardstick(log(10) * c(5, -7), log(10) * c(6, -8))$q95))
-  expect_equal(w$censored, 0L)
+# ------------------------------------------------------------------------------
+# The classification, on synthetic per-fit statistics
+# ------------------------------------------------------------------------------
+
+# Per-fit statistics in the shape refit_edge_stats() returns, for n edges.
+fake_stats = function(lbf, mcse, prior_q = 0.5, lthr = log(10),
+                      unanimous = TRUE, zeroflip = FALSE) {
+  n = length(lbf)
+  prior_odds = rep(prior_q / (1 - prior_q), n)
+  pip = plogis(lbf + log(prior_odds))
+  list(
+    edge = paste0("e", seq_len(n)), pip = pip, prior_odds = prior_odds,
+    lbf = lbf, verdict = verdict_from_lbf(lbf, lthr), mcse_lbf = mcse,
+    band_half = rep(0, n), unanimous = rep_len(unanimous, n),
+    zeroflip = rep_len(zeroflip, n)
+  )
+}
+
+# A bgms_prior_sensitivity object around a classification, enough for print().
+fake_sensitivity = function(cls, multipliers, rhat_max = rep(1, length(multipliers)),
+                            s_hat = NA_real_) {
+  structure(
+    list(
+      edges = cls$edges,
+      grid = data.frame(
+        multiplier = multipliers, original_fit = multipliers == 1,
+        iter = 1000L, warmup = 1000L, rhat_max = rhat_max
+      ),
+      scale_multipliers = multipliers, chosen_scale = 1,
+      verdict_by_scale = cls$verdict_by_scale,
+      preferred_scale = list(s_hat = s_hat, lo = s_hat / 1.3, hi = s_hat * 1.3),
+      unit = list(
+        noun = "edge", nouns = "edges",
+        headline = "are the edge verdicts robust to the slab scale?"
+      ),
+      diagonal_eta = NA_real_, evidence_threshold = 10,
+      refit_sampler = "nuts", warm = TRUE, runtime_seconds = 3
+    ),
+    class = "bgms_prior_sensitivity"
+  )
+}
+
+
+test_that("the classification compares each verdict change with the two fits' Monte Carlo error", {
+  lthr = log(10)
+  multipliers = c(0.5, 1, 2)
+  # Five edges at the chosen scale: presence, undecided, undecided, absence,
+  # presence.
+  s0 = fake_stats(c(3.0, 1.0, 2.0, -3.0, 2.6), mcse = c(0.2, 0.1, 0.2, 0.2, 0.3))
+  # 0.5x: edge 2 becomes presence with a change of 1.5 against an error of
+  # 2 * sqrt(0.1^2 + 0.1^2) = 0.28 (beyond); edge 5 stays presence.
+  s_lo = fake_stats(c(3.2, 2.5, 2.1, -2.9, 2.8), mcse = c(0.2, 0.1, 0.2, 0.2, 0.3))
+  # 2x: edge 3 becomes presence by a change of 0.35 against an error of
+  # 2 * sqrt(0.2^2 + 0.2^2) = 0.57 (within); edge 5 becomes undecided by a
+  # change of 0.4 against 2 * sqrt(0.3^2 + 0.3^2) = 0.85 (within).
+  s_hi = fake_stats(c(2.9, 1.1, 2.35, -3.1, 2.2), mcse = c(0.2, 0.1, 0.2, 0.2, 0.3))
+
+  cls = sensitivity_classification(list(s_lo, s0, s_hi), multipliers, 2L, lthr)
+  e = cls$edges
+  expect_equal(e$mover, c(
+    "stable", "beyond-monte-carlo-error", "within-monte-carlo-error",
+    "stable", "within-monte-carlo-error"
+  ))
+  expect_equal(e$moved_at, c(NA, 0.5, 2, NA, 2))
+  # The bracket is the contiguous run of multipliers around 1x with the chosen
+  # verdict.
+  expect_equal(e$stability_lower, c(0.5, 1, 0.5, 0.5, 0.5))
+  expect_equal(e$stability_upper, c(2, 2, 1, 2, 1))
+  expect_equal(e$chosen_scale_verdict, s0$verdict)
+  expect_equal(e$verdict_x0.5, s_lo$verdict)
+  expect_equal(e$log_bf_x2, s_hi$lbf)
+  expect_equal(e$mcse_x1, s0$mcse_lbf)
+  expect_equal(dim(cls$verdict_by_scale), c(3L, 5L))
 })
 
 
-test_that("an edge saturating in one refit does not carry the yardstick to Inf", {
-  # A threshold-relevant edge whose replicate saturates has a censored spread.
-  # Pooling the Inf would make the yardstick infinite, and every verdict move
-  # would then read as run-to-run noise.
-  lbf_s0 = log(10) * c(0.2, -1.5, 2.9, -1.0)
-  lbf_rep = log(10) * c(0.3, -1.3, 2.7, -Inf)
-  w = wobble_yardstick(lbf_s0, lbf_rep)
-
-  expect_true(is.finite(w$q95))
-  expect_equal(w$q95, stats::quantile(abs(lbf_s0 - lbf_rep)[1:3], 0.95, names = FALSE))
-  expect_equal(w$censored, 1L)
-  # The per-edge column still reports the censored edge as such.
-  expect_true(is.infinite(w$per_edge[4]))
-  # The median covers every edge with a measurable spread.
-  expect_equal(w$median, stats::median(abs(lbf_s0 - lbf_rep)[1:3]))
-
-  # Both refits saturating leaves nothing measurable, and the yardstick drops
-  # out rather than becoming Inf.
-  none = wobble_yardstick(log(10) * c(-1.0, 0.5), c(-Inf, Inf))
-  expect_true(is.na(none$q95))
-  expect_equal(none$censored, 2L)
+test_that("sufficiency at the chosen scale is the only not-certifiable criterion", {
+  lthr = log(10)
+  multipliers = c(0.5, 1, 2)
+  # Edge 1 sits within 2 * MCSE of the presence threshold at 1x; edge 2 is
+  # within error at 2x only; edge 3 has disagreeing chains at 1x.
+  s0 = fake_stats(c(2.2, 1.0, 1.5), mcse = c(0.1, 0.1, 0.1), unanimous = c(TRUE, TRUE, FALSE))
+  s_lo = fake_stats(c(2.2, 1.0, 1.5), mcse = c(0.1, 0.1, 0.1))
+  s_hi = fake_stats(c(2.2, 2.5, 1.5), mcse = c(0.1, 0.1, 0.1))
+  cls = sensitivity_classification(list(s_lo, s0, s_hi), multipliers, 2L, lthr)
+  expect_equal(cls$edges$insufficient, c(TRUE, FALSE, TRUE))
+  expect_equal(cls$edges$insufficient_noisy, c(TRUE, FALSE, FALSE))
+  expect_equal(cls$edges$insufficient_disagree, c(FALSE, FALSE, TRUE))
+  # Edge 2 is classified on its own change, not on its nearness to a threshold
+  # at the other scale.
+  expect_equal(cls$edges$mover[2], "beyond-monte-carlo-error")
 })
 
 
-test_that("the wobble window is symmetric in the two refits", {
-  # An edge inside the window in one refit only is counted and left out, in
-  # either order.
-  a = log(c(2, 2))
-  b = log(c(2000, 3))
-  w_ab = wobble_yardstick(a, b)
-  w_ba = wobble_yardstick(b, a)
-  expect_equal(w_ab$q95, abs(log(2) - log(3)))
-  expect_equal(w_ab$q95, w_ba$q95)
-  expect_equal(w_ab$censored, 1L)
-  expect_equal(w_ba$censored, 1L)
-
-  # Swapping the inputs changes neither the yardstick nor the count.
-  lbf_s0 = log(10) * c(0.2, -1.5, 2.9, 1.0, -12.0, 2.5)
-  lbf_rep = log(10) * c(0.3, -1.3, 2.7, 4.0, -10.7, Inf)
-  w = wobble_yardstick(lbf_s0, lbf_rep)
-  s = wobble_yardstick(lbf_rep, lbf_s0)
-  expect_equal(w$q95, stats::quantile(abs(lbf_s0 - lbf_rep)[1:3], 0.95, names = FALSE))
-  expect_equal(w$censored, 2L)
-  expect_equal(s$q95, w$q95)
-  expect_equal(s$censored, w$censored)
-  expect_equal(s$median, w$median)
+test_that("saturated and verdict-less indicators are handled", {
+  lthr = log(10)
+  multipliers = c(0.5, 1, 2)
+  # Edge 1 never flips in the original fit (infinite log BF, no MCSE) and
+  # becomes finite presence at 2x; edge 2 has no verdict.
+  s0 = fake_stats(c(Inf, NA), mcse = c(NA, NA), zeroflip = c(TRUE, FALSE))
+  s0$verdict[2] = NA_character_
+  s_lo = fake_stats(c(Inf, NA), mcse = c(NA, NA), zeroflip = c(TRUE, FALSE))
+  s_hi = fake_stats(c(4, NA), mcse = c(0.2, NA))
+  cls = sensitivity_classification(list(s_lo, s0, s_hi), multipliers, 2L, lthr)
+  expect_equal(cls$edges$mover, c("stable", NA))
+  expect_true(cls$edges$saturated[1])
+  expect_false(cls$edges$insufficient[1])
+  expect_true(is.na(cls$edges$stability_lower[2]))
+  # A verdict change away from a saturated indicator is beyond error.
+  s_hi2 = fake_stats(c(1, NA), mcse = c(0.2, NA))
+  cls2 = sensitivity_classification(list(s_lo, s0, s_hi2), multipliers, 2L, lthr)
+  expect_equal(cls2$edges$mover[1], "beyond-monte-carlo-error")
 })
 
+
+test_that("print() reports the counts, the movers and high R-hat fits", {
+  lthr = log(10)
+  multipliers = c(0.5, 1, 2)
+  s0 = fake_stats(c(3.0, 1.0, 2.0, -3.0, 2.6), mcse = c(0.2, 0.1, 0.2, 0.2, 0.3))
+  s_lo = fake_stats(c(3.2, 2.5, 2.1, -2.9, 2.8), mcse = c(0.2, 0.1, 0.2, 0.2, 0.3))
+  s_hi = fake_stats(c(2.9, 1.1, 2.35, -3.1, 2.2), mcse = c(0.2, 0.1, 0.2, 0.2, 0.3))
+  cls = sensitivity_classification(list(s_lo, s0, s_hi), multipliers, 2L, lthr)
+
+  ps = fake_sensitivity(cls, multipliers, rhat_max = c(1.03, 1.005, 1.02), s_hat = 0.2)
+  out = gsub("\\s+", " ", paste(utils::capture.output(print(ps)), collapse = " "))
+  expect_match(out, "fits at 0.5x, 1x and 2x the chosen scale")
+  # Edges 3 and 5 lie within 2 * MCSE of the presence threshold in the
+  # original fit, so they are not certifiable rather than movers.
+  expect_match(out, "verdict held at every scale 2")
+  expect_match(out, "changed, within Monte Carlo error 0")
+  expect_match(out, "changed, beyond Monte Carlo error 1")
+  expect_match(out, "not certifiable at the chosen scale 2")
+  expect_match(out, "2 edges are not certifiable at the chosen scale: e3, e5")
+  expect_match(out, "within Monte Carlo error of a threshold, so a rerun")
+  expect_match(out, "1 edge changed verdict beyond Monte Carlo error")
+  expect_match(out, "e2 presence undecided undecided 0.5x")
+  expect_match(out, "Largest split R-hat above 1.01: 0.5x fit 1.03 and 2x fit 1.02")
+  expect_match(out, "the slab is 5 times that")
+  expect_match(out, "toward absence")
+  expect_match(out, "2 nuts refits")
+
+  # Every fit at or below 1.01, and a scale within a factor two: neither
+  # sentence appears, and the verdict table has every scale.
+  ps2 = fake_sensitivity(cls, multipliers, s_hat = 0.8)
+  out2 = gsub("\\s+", " ", paste(utils::capture.output(print(ps2)), collapse = " "))
+  expect_false(grepl("Largest split R-hat", out2, fixed = TRUE))
+  expect_match(out2, "the slab is 1.2 times that\\.")
+  expect_false(grepl("toward", out2, fixed = TRUE))
+  expect_match(out2, "0.5x 1x 2x")
+})
+
+
+# ------------------------------------------------------------------------------
+# Engine pieces
+# ------------------------------------------------------------------------------
 
 test_that("diagonal_eta reads the standardized rate and refuses a raw one", {
   standardized = list(prior = list(
@@ -99,428 +187,16 @@ test_that("diagonal_eta reads the standardized rate and refuses a raw one", {
 })
 
 
-test_that("prior_sensitivity_check needs edge selection", {
-  data("Wenchuan", package = "bgms")
-  fit = bgm(Wenchuan[, 1:5],
-    edge_selection = FALSE,
-    iter = 300, warmup = 300, chains = 1, seed = 7,
-    update_method = "adaptive-metropolis", display_progress = "none"
-  )
-  expect_error(prior_sensitivity_check(fit), "edge selection")
-})
-
-
-test_that("prior_sensitivity_check builds the anchored curve object", {
-  skip_on_cran()
-  data("Wenchuan", package = "bgms")
-  fit = bgm(Wenchuan[, 1:6],
-    chains = 2, iter = 400, warmup = 300, seed = 21,
-    display_progress = "none"
-  )
-  ps = suppressWarnings(suppressMessages(prior_sensitivity_check(fit,
-    anchors = c(0.5, 1, 2), iter = 400, warmup = 300, ess_floor = 100,
-    seed = 21
-  )))
-
-  expect_s3_class(ps, "bgms_prior_sensitivity")
-  # one grid row per anchor (the 1x row is the original fit) plus the replicate
-  expect_equal(sum(!ps$grid$replicate), 3L)
-  expect_equal(sum(ps$grid$replicate), 1L)
-  expect_equal(sum(ps$grid$original_fit), 1L)
-  expect_equal(ps$grid$seconds[ps$grid$original_fit], 0)
-  expect_equal(nrow(ps$edges), 15L) # choose(6, 2)
-  # the curve is dense and the anchors lie exactly on it
-  expect_gte(length(ps$multipliers), 41L)
-  expect_equal(ps$multipliers[ps$anchor_index], ps$anchors)
-  expect_equal(ps$multipliers[ps$chosen_index], 1)
-  expect_equal(dim(ps$log_bf), c(length(ps$multipliers), 15L))
-  # Exactness lives on the anchor fits, not the pooled curve: the 1x verdict
-  # column and every chosen-scale quantity are the original fit's own RB
-  # analysis. The reported PIP is the fit's RB inclusion, and the log BF is
-  # its exact prior-odds transform (checked on the pip scale, since the log
-  # BF derivative amplifies a 1e-10 pip agreement near saturation).
-  rb = extract_posterior_inclusion_probabilities(fit)
-  rbv = unname(rb[upper.tri(rb)][order_upper_tri_rowmajor(6)])
-  po = ps$edges$prior_inclusion_probability /
-    (1 - ps$edges$prior_inclusion_probability)
-  expect_equal(ps$edges$chosen_scale_pip, rbv, tolerance = 1e-10)
-  pc = ps$edges$chosen_scale_pip
-  expect_equal(
-    ps$edges$chosen_scale_log_bf,
-    log((pc / (1 - pc)) / po),
-    tolerance = 1e-12
-  )
-  expect_equal(
-    ps$edges$verdict_x1,
-    verdict_from_lbf(ps$edges$chosen_scale_log_bf, log(ps$evidence_threshold)),
-    tolerance = 1e-10
-  )
-  # the pooled curve at 1x tracks the fit's own raw 1x inclusion proportions:
-  # dominated by the 1x anchor (an identity reweight) but pooled with the
-  # neighbours, so on the log BF scale it agrees on median within a modest
-  # margin. The exact 1x analysis lives in the chosen-scale columns above; this
-  # is a tracking check on absolute log BF, robust to the tiny per-point MCSE
-  # of near-saturated edges that makes a normalised ratio platform-unstable.
-  g = do.call(rbind, fit$raw_samples$indicator)
-  raw_lbf = unname(log((colMeans(g) / (1 - colMeans(g))) / po))
-  fin = is.finite(ps$log_bf[ps$chosen_index, ]) & is.finite(raw_lbf)
-  expect_lt(
-    stats::median(abs(ps$log_bf[ps$chosen_index, ] - raw_lbf)[fin]),
-    0.5 * log(10)
-  )
-  # verdicts and movers take only the documented levels
-  expect_true(all(unlist(ps$verdict) %in%
-    c("presence", "undecided", "absence", NA)))
-  expect_true(all(ps$edges$mover %in%
-    c("stable", "indistinguishable-from-wobble", "moved-beyond-wobble")))
-  # pooling keeps the curve finite even where an edge saturates at some scale
-  expect_false(any(is.infinite(ps$log_bf)))
-  # the data-preferred scale is reported without a refit
-  expect_true(is.finite(ps$preferred_scale$s_hat))
-  # print and plot run
-  expect_output(print(ps), "are the edge verdicts robust")
-  expect_silent({
-    pdf(tempfile())
-    plot(ps)
-    dev.off()
-  })
-})
-
-
-test_that("the chosen-scale verdict uses the per-edge prior odds, not 1/2", {
-  skip_on_cran()
-  skip_unless_slow()
-  data("Wenchuan", package = "bgms")
-  fit = bgm(Wenchuan[, 1:5],
-    edge_prior = bernoulli_prior(0.2),
-    chains = 2, iter = 500, warmup = 400, seed = 5, display_progress = "none"
-  )
-  # every asserted quantity is the original fit's own RB analysis, so the
-  # anchor grid is minimal
-  ps = suppressWarnings(suppressMessages(prior_sensitivity_check(fit,
-    anchors = c(1, 2), iter = 300, warmup = 300, seed = 5
-  )))
-  expect_true(all(abs(ps$edges$prior_inclusion_probability - 0.2) < 1e-8))
-  # the log BF divides posterior odds by the 0.2/0.8 prior odds
-  p = ps$edges$chosen_scale_pip
-  expected = log((p / (1 - p)) / (0.2 / 0.8))
-  expect_equal(ps$edges$chosen_scale_log_bf, expected, tolerance = 1e-8)
-})
-
-
-test_that("warm-started short refits agree with cold full refits within wobble", {
-  skip_on_cran()
-  skip_unless_certification()
-  data("Wenchuan", package = "bgms")
-  fit = bgm(Wenchuan[, 1:8],
-    chains = 4, iter = 2000, warmup = 1000, seed = 11,
-    display_progress = "none"
-  )
-  ws = extract_warm_state(fit)
-  s0 = get_fit_spec(fit)$prior$pairwise_scale
-  pipv = function(f) {
-    m = extract_posterior_inclusion_probabilities(f)
-    m[upper.tri(m)]
-  }
-  warm = suppressMessages(refit_at_scale(fit, s0, ws,
-    warmup = 500, iter = 1000,
-    seed = 101, cores = 4L, sampler = "nuts"
-  ))
-  cold = suppressMessages(refit_at_scale(fit, s0,
-    warm_state = NULL,
-    warmup = 1000, iter = 2000, seed = 202, cores = 4L, sampler = "nuts"
-  ))
-  # agreement well within the s0-replicate wobble yardstick (~0.05 PIP q95)
-  expect_lt(stats::median(abs(pipv(warm) - pipv(cold))), 0.03)
-})
-
-
-test_that("anchors must include a multiplier other than 1", {
-  data("Wenchuan", package = "bgms")
-  fit = bgm(Wenchuan[, 1:4],
-    chains = 1, iter = 200, warmup = 200, seed = 3,
-    update_method = "adaptive-metropolis", display_progress = "none"
-  )
-  expect_error(prior_sensitivity_check(fit, anchors = 1), "other than 1")
-  expect_error(prior_sensitivity_check(fit, anchors = c(-1, 2)), "positive")
-  expect_error(prior_sensitivity_check(fit, ess_floor = 0), "positive")
-})
-
-
-test_that("prior_sensitivity_check runs for GGM and mixed fits (cold refits)", {
-  skip_on_cran()
-  skip_unless_certification()
-  set.seed(32)
-  xg = matrix(rnorm(180 * 5), 180, 5)
-  fg = bgm(xg,
-    variable_type = "continuous",
-    iter = 300, warmup = 250, chains = 2, seed = 8,
-    # joint pinned: this smoke's anchors were recorded under the joint spec,
-    # before the hierarchical default (F-010)
-    precision_graph_prior = "joint",
-    update_method = "adaptive-metropolis", display_progress = "none"
-  )
-  psg = suppressWarnings(suppressMessages(prior_sensitivity_check(fg,
-    anchors = c(1, 2), iter = 250, warmup = 200, ess_floor = 100,
-    seed = 8
-  )))
-  expect_s3_class(psg, "bgms_prior_sensitivity")
-  expect_equal(psg$model_type, "ggm")
-  expect_false(psg$warm) # continuous fits refit cold
-  # A default GGM gives its diagonal prior as eta = 1; the sweep holds it fixed
-  # and the report says so.
-  expect_equal(psg$diagonal_eta, 1)
-  expect_match(
-    paste(utils::capture.output(print(psg)), collapse = "\n"),
-    "holding the standardized rate eta"
-  )
-  # curve points that clear the ESS floor carry a finite BF; masked ones are NA
-  finite_pts = !is.na(psg$curve$anchor_used)
-  expect_true(any(finite_pts))
-  expect_true(all(is.finite(psg$log_bf[finite_pts, 1])))
-  expect_true(all(is.na(psg$log_bf[!finite_pts, ])))
-
-  n = 180
-  xm = data.frame(
-    a = sample(0:2, n, TRUE), b = sample(0:2, n, TRUE),
-    c = sample(0:1, n, TRUE), y1 = rnorm(n), y2 = rnorm(n)
-  )
-  vt = c("ordinal", "ordinal", "ordinal", "continuous", "continuous")
-  fm = bgm(xm,
-    variable_type = vt, iter = 300, warmup = 250, chains = 2, seed = 9,
-    update_method = "adaptive-metropolis", display_progress = "none"
-  )
-  psm = suppressWarnings(suppressMessages(prior_sensitivity_check(fm,
-    anchors = c(1, 2), iter = 250, warmup = 200, ess_floor = 100,
-    seed = 9
-  )))
-  expect_equal(psm$model_type, "mixed_mrf")
-  expect_equal(psm$diagonal_eta, 1)
-})
-
-
-test_that("compare_anchor_draws aligns every gated difference with its indicator", {
-  skip_on_cran()
-  data("Wenchuan", package = "bgms")
-  fit = bgmCompare(
-    x = Wenchuan[1:100, 1:4], group_indicator = rep(1:2, each = 50),
-    iter = 200, warmup = 200, chains = 2, seed = 13,
-    difference_selection = TRUE, display_progress = "none"
-  )
-  d = anchor_draws(fit)
-  names_all = get_raw_samples(fit)$parameter_names
-
-  # 6 pairwise differences + 4 variables x 4 thresholds of main difference,
-  # against 4 + 6 = 10 indicators.
-  expect_equal(ncol(d$theta[[1]]), 6L + 16L)
-  expect_equal(ncol(d$indicator[[1]]), 10L)
-  expect_equal(dim(d$gamma[[1]]), dim(d$theta[[1]]))
-  # anchor_draws() reports tolower(spec$prior$difference_prior_type), which is
-  # tolower(difference_family). The fit is at defaults, and that default is
-  # "Normal" as of F-119, so the family is "normal". Exact, not a tolerance.
-  expect_equal(d$family, "normal")
-
-  # Each parameter carries its own indicator's draws, not a neighbour's. The
-  # pairwise differences come first, in the order the indicators name them.
-  pair_indicator = which(!grepl("(main)", names_all$indicator, fixed = TRUE))
-  expect_equal(
-    d$gamma[[1]][, seq_along(pair_indicator)],
-    d$indicator[[1]][, pair_indicator],
-    ignore_attr = TRUE
-  )
-  # A main-effect difference block repeats its variable's indicator, one column
-  # per threshold.
-  main_indicator = which(grepl("(main)", names_all$indicator, fixed = TRUE))
-  expect_equal(
-    d$gamma[[1]][, 6L + seq_len(4L)],
-    d$indicator[[1]][, rep(main_indicator[1], 4L)],
-    ignore_attr = TRUE
-  )
-
-  # The theta columns are the difference draws themselves, not the baselines.
-  raw = get_raw_samples(fit)
-  expect_equal(
-    d$theta[[1]][, seq_len(6L)], raw$pairwise[[1]][, 7:12],
-    ignore_attr = TRUE
-  )
-})
-
-
-test_that("the compare noise yardstick runs per indicator, not per gated parameter", {
-  skip_unless_slow()
-  skip_on_cran()
-  data("Wenchuan", package = "bgms")
-  fit = bgmCompare(
-    x = Wenchuan[1:100, 1:4], group_indicator = rep(1:2, each = 50),
-    iter = 200, warmup = 200, chains = 2, seed = 13,
-    difference_selection = TRUE, display_progress = "none"
-  )
-  # 22 gated difference parameters against 10 indicators: averaging the gamma
-  # draws instead of the indicator draws recycles the per-indicator prior odds
-  # across the parameter columns (with a length warning) and hands the wobble
-  # rule a 22-long yardstick for a 10-row edge table.
-  warns = character(0)
-  ps = withCallingHandlers(
-    suppressMessages(prior_sensitivity_check(
-      fit,
-      anchors = c(0.5, 1, 2), iter = 200, warmup = 200,
-      ess_floor = 50, seed = 13
-    )),
-    warning = function(w) {
-      warns <<- c(warns, conditionMessage(w))
-      invokeRestart("muffleWarning")
-    }
-  )
-  expect_false(any(grepl("longer object length", warns)))
-  expect_equal(length(ps$wobble$per_edge), nrow(ps$edges))
-})
-
-
-test_that("prior_sensitivity_check traces bgmCompare difference verdicts", {
-  skip_on_cran()
-  skip_unless_slow()
-  data("Wenchuan", package = "bgms")
-  fit = bgmCompare(
-    x = Wenchuan[, 1:5], group_indicator = rep(1:2, length.out = nrow(Wenchuan)),
-    iter = 800, warmup = 800, chains = 2, seed = 21,
-    difference_selection = TRUE, display_progress = "none"
-  )
-  ps = suppressWarnings(suppressMessages(prior_sensitivity_check(fit,
-    anchors = c(0.5, 1, 2), iter = 500, warmup = 500, ess_floor = 100, seed = 3
-  )))
-
-  expect_s3_class(ps, "bgms_prior_sensitivity")
-  expect_equal(ps$edges$edge, get_raw_samples(fit)$parameter_names$indicator)
-  # It sweeps the difference scale, not the interaction one.
-  expect_equal(ps$unit$scale_field, "difference_scale")
-  expect_equal(ps$chosen_scale, get_fit_spec(fit)$prior$difference_scale)
-  # There is no data-preferred difference scale to compare against.
-  expect_true(is.na(ps$preferred_scale$s_hat))
-
-  out = paste(utils::capture.output(print(ps)), collapse = "\n")
-  expect_match(out, "are the difference verdicts robust to the difference scale")
-  # main_difference_selection is FALSE by default, so those indicators were
-  # never updated; the report says so instead of counting them as undecided.
-  expect_match(out, "never updated by the sampler and carry no verdict")
-
-  path = withr::local_tempfile(fileext = ".pdf")
-  grDevices::pdf(path)
-  on.exit(grDevices::dev.off(), add = TRUE)
-  expect_invisible(plot(ps))
-})
-
-
-test_that("prior_sensitivity_check needs difference selection", {
-  skip_on_cran()
-  data("Wenchuan", package = "bgms")
-  fit = bgmCompare(
-    x = Wenchuan[1:80, 1:4], group_indicator = rep(1:2, each = 40),
-    iter = 150, warmup = 150, chains = 2, seed = 4,
-    difference_selection = FALSE, display_progress = "none"
-  )
-  expect_error(prior_sensitivity_check(fit), "difference selection")
-})
-
-
-# Weekly certification (T2): eleven independent 4-chain fits.
-#
-# The gate asks whether the reweighted curve at a doubled difference scale
-# reproduces a refit at that scale, in units of refit-to-refit spread. Every
-# term in that ratio used to rest on a SINGLE fit, so the test flipped between
-# seeds and went red on the 2026-08-01 nightly. Report 06's 20-seed study
-# separated the two effects: a real systematic reweighting bias of about 0.01
-# in inclusion probability at the extrapolation end, under a pass/fail decided
-# by seed luck (4/20 tripped the x4 gate).
-#
-# All three terms are now pooled:
-#
-#   prediction   the mean over THREE anchor fits at the chosen scale. This is
-#                the term that mattered: the reweighting prediction inherits
-#                its anchor's Monte Carlo error whole, and pooling the other
-#                two sides without this one leaves the gate seed-fragile.
-#   reference    the mean of EIGHT refits at the target scale, so the
-#                numerator is the reweighting bias rather than the bias plus
-#                one refit's noise.
-#   yardstick    four independent refit pairs, each contributing its
-#                max-over-edges deviation, averaged.
-#
-# The gate itself is the maintainer's, unchanged: gap < 4 x pooled_noise.
-#
-# Measured over 8 seed bases (s0 in 11, 31, 51, 71, 91, 111, 131, 151), ratio
-# = gap / pooled_noise:
-#
-#   1 anchor,  1 refit   (the original)   0.61 1.45 1.48 2.70 3.31 3.33 4.58 4.94
-#                                         median 3.00, 2/8 over the gate
-#   1 anchor,  8 refits                   0.78 1.00 1.53 2.01 2.89 3.52 3.87 5.44
-#                                         median 2.45, 1/8 over the gate
-#   3 anchors, 8 refits  (this block)     0.41 0.47 0.92 1.41 1.69 1.81 2.12 2.83
-#                                         median 1.55, 0/8 over the gate
-#
-# The pooled gap over those bases is 0.0018-0.0088 in inclusion probability,
-# inside the ~0.01 bound ?prior_sensitivity_check documents. Report 12 carries
-# the table.
-test_that("the difference-scale reweighting reproduces a refit at that scale", {
-  skip_on_cran()
-  skip_unless_certification()
-  data("Wenchuan", package = "bgms")
-  x = Wenchuan[, 1:6]
-  g = rep(1:2, length.out = nrow(x))
-  compare_at = function(scale, seed) {
-    bgmCompare(
-      x = x, group_indicator = g, difference_scale = scale,
-      iter = 3000, warmup = 2000, chains = 4, seed = seed,
-      difference_selection = TRUE, display_progress = "none"
-    )
-  }
-  pip_of = function(f) rowMeans(sapply(get_raw_samples(f)$rb_inclusion, colMeans))
-
-  # Three anchor fits at the chosen scale and four independent refit pairs at
-  # the doubled scale, all on deterministic seeds.
-  anchors = lapply(c(11, 1011, 2011), function(s) compare_at(1, s))
-  pair_seeds = list(c(12, 13), c(14, 15), c(16, 17), c(18, 19))
-  pips = lapply(pair_seeds, function(s) {
-    list(
-      pip_of(compare_at(2, s[1])),
-      pip_of(compare_at(2, s[2]))
-    )
-  })
-
-  nm = get_raw_samples(anchors[[1]])$parameter_names$indicator
-  pairwise = !grepl("(main)", nm, fixed = TRUE)
-  npw = sum(pairwise)
-  rws = lapply(anchors, function(f) {
-    anchor_reweight(anchor_draws(f), s_a = 1, s_grid = c(1, 2))
-  })
-
-  # Reweighting to an anchor's own scale is the identity up to Monte Carlo, and
-  # that has to hold for every anchor the prediction pools.
-  for(i in seq_along(anchors)) {
-    expect_lt(
-      max(abs(rws[[i]]$pip[1, pairwise] - pip_of(anchors[[i]])[pairwise])), 0.02
-    )
-    expect_gt(rws[[i]]$ess[2], 400)
-  }
-
-  # Yardstick: four independent two-refit deviations, pooled.
-  pooled_noise = mean(vapply(
-    pips, function(p) max(abs(p[[1]][pairwise] - p[[2]][pairwise])), numeric(1)
-  ))
-  # Prediction and reference, each pooled over its own fits.
-  prediction = rowMeans(vapply(rws, function(r) r$pip[2, pairwise], numeric(npw)))
-  reference = rowMeans(vapply(
-    unlist(pips, recursive = FALSE), function(p) p[pairwise], numeric(npw)
-  ))
-
-  # A doubling is a real extrapolation; it stays usable and lands on the refit
-  # to within a small multiple of the refit's own run-to-run spread. Without
-  # this the whole curve would be reweighting an untested density.
-  gap = max(abs(prediction - reference))
-  expect_lt(gap, 4 * pooled_noise)
+test_that("finite_reduce abstains on an all-NA diagnostic without warning", {
+  expect_equal(finite_reduce(c(NA_real_, NA_real_), min, NA_real_), NA_real_)
+  expect_equal(finite_reduce(numeric(0), max, 0), 0)
+  expect_equal(finite_reduce(c(NA_real_, 2, 5), max, 0), 5)
+  expect_silent(finite_reduce(rep(NA_real_, 3L), min, Inf))
+  expect_equal(finite_reduce(c(-Inf, Inf), min, Inf), Inf)
 })
 
 
 test_that("a warm-start list with the wrong length errors", {
-  # The guard reads the list's length, not the states it carries.
   data("Wenchuan", package = "bgms")
   fit = bgm(Wenchuan[, 1:5],
     chains = 2, iter = 40, warmup = 40, seed = 3,
@@ -539,174 +215,37 @@ test_that("a warm-start list with the wrong length errors", {
   expect_error(run_sampler(spec), "one entry per chain")
 })
 
-test_that("the refit gate abstains on an all-NA warmup check without warning", {
-  # A degenerate source fit leaves every energy diagnostic NA. min()/max() over
-  # nothing warns and returns an infinity, which reads as a criterion rather
-  # than as an absent one.
-  expect_equal(finite_reduce(c(NA_real_, NA_real_), min, Inf), Inf)
-  expect_equal(finite_reduce(numeric(0), max, 0), 0)
-  expect_equal(finite_reduce(c(NA_real_, 2, 5), max, 0), 5)
-  expect_identical(finite_reduce(c(NA_real_, NaN), stats::median, NA_real_), NA_real_)
-  expect_silent(finite_reduce(rep(NA_real_, 3L), min, Inf))
-  expect_silent(finite_reduce(rep(NA_real_, 3L), max, 0))
 
-  # Infinities are not finite values to reduce either: an unusable diagnostic
-  # abstains whichever way it is unusable.
-  expect_equal(finite_reduce(c(-Inf, Inf), min, Inf), Inf)
+# ------------------------------------------------------------------------------
+# The check on fits
+# ------------------------------------------------------------------------------
+
+test_that("prior_sensitivity_check needs edge selection", {
+  data("Wenchuan", package = "bgms")
+  fit = bgm(Wenchuan[, 1:5],
+    edge_selection = FALSE,
+    iter = 300, warmup = 300, chains = 1, seed = 7,
+    update_method = "adaptive-metropolis", display_progress = "none"
+  )
+  expect_error(prior_sensitivity_check(fit), "edge selection")
 })
 
 
-# ------------------------------------------------------------------------------
-# Coherence between the reported verdict and the stability interval
-# ------------------------------------------------------------------------------
-
-# A minimal bgms_prior_sensitivity object, enough for print(). Only the fields
-# print() reads are filled; the curve machinery is not re-run.
-fake_sensitivity = function(chosen_verdict, curve_verdict, multipliers,
-                            chosen_idx, anchors) {
-  n_anchor = length(anchors)
-  stab = stability_interval(
-    curve_verdict, multipliers, chosen_idx,
-    target = chosen_verdict
+test_that("scale multipliers must be positive and include one other than 1", {
+  data("Wenchuan", package = "bgms")
+  fit = bgm(Wenchuan[, 1:4],
+    chains = 1, iter = 200, warmup = 200, seed = 3,
+    update_method = "adaptive-metropolis", display_progress = "none"
   )
-  edges = data.frame(
-    edge = "A-B",
-    prior_inclusion_probability = 0.5,
-    chosen_scale_pip = 0.6,
-    chosen_scale_log_bf = 0.4,
-    chosen_scale_mcse = 0.01,
-    chosen_scale_verdict = chosen_verdict,
-    stability_lower = stab[1],
-    stability_upper = stab[2],
-    mover = "stable",
-    insufficient = FALSE,
-    insufficient_noisy = FALSE,
-    insufficient_disagree = FALSE,
-    saturated = FALSE,
-    stringsAsFactors = FALSE
-  )
-  structure(
-    list(
-      edges = edges,
-      grid = data.frame(
-        multiplier = anchors, replicate = rep(FALSE, n_anchor),
-        original_fit = multipliers[chosen_idx] == anchors,
-        usable = rep(TRUE, n_anchor), forced = rep(FALSE, n_anchor)
-      ),
-      anchors = anchors,
-      multipliers = multipliers,
-      chosen_scale = 1,
-      chosen_index = chosen_idx,
-      anchor_verdict = matrix(chosen_verdict, n_anchor, 1L),
-      curve = list(ess_floor = 400),
-      wobble = list(q95 = 0.3, anchor = anchors[n_anchor], censored = 0L),
-      preferred_scale = list(s_hat = NA_real_),
-      unit = list(
-        noun = "edge", nouns = "edges",
-        headline = "are the edge verdicts robust to the slab scale?"
-      ),
-      diagonal_eta = NA_real_,
-      evidence_threshold = 10,
-      tolerance = 0.5 * log(10),
-      refit_sampler = "nuts",
-      warm = TRUE,
-      runtime_seconds = 3
-    ),
-    class = "bgms_prior_sensitivity"
-  )
-}
-
-
-test_that("the stability interval is anchored on the verdict the table reports", {
-  # The table's chosen_scale_verdict is the original fit's Rao-Blackwellized
-  # verdict; the pooled curve is a different estimator and can disagree at 1x
-  # on a borderline edge. The interval is anchored on the table's verdict.
-  multipliers = c(0.5, 0.7, 1, 1.4, 2)
-  chosen_idx = 3L
-
-  # Agreement: unchanged behavior, the whole grid.
-  agree = rep("presence", 5L)
-  expect_equal(
-    stability_interval(agree, multipliers, chosen_idx, target = "presence"),
-    c(0.5, 2)
-  )
-  expect_equal(
-    stability_interval(agree, multipliers, chosen_idx),
-    stability_interval(agree, multipliers, chosen_idx, target = "presence")
-  )
-
-  # Disagreement at 1x: the reported verdict holds nowhere around the chosen
-  # scale, so the bounds are NA.
-  disagree = rep("undecided", 5L)
-  expect_equal(
-    stability_interval(disagree, multipliers, chosen_idx, target = "presence"),
-    c(NA_real_, NA_real_)
-  )
-  # Without a target the interval follows the curve's own verdict.
-  expect_equal(
-    stability_interval(disagree, multipliers, chosen_idx),
-    c(0.5, 2)
-  )
-
-  # Partial agreement still walks out from the chosen scale only.
-  mixed = c("undecided", "presence", "presence", "presence", "absence")
-  expect_equal(
-    stability_interval(mixed, multipliers, chosen_idx, target = "presence"),
-    c(0.7, 1.4)
-  )
-
-  # print() describes the same verdict the table does: with the two estimators
-  # disagreeing, the edge is an exception, not a verdict that "holds".
-  ps = fake_sensitivity("presence", disagree, multipliers, chosen_idx,
-    anchors = c(0.5, 1, 2)
-  )
-  expect_true(is.na(ps$edges$stability_lower))
-  expect_true(is.na(ps$edges$stability_upper))
-  expect_equal(ps$edges$chosen_scale_verdict, "presence")
-  out = paste(utils::capture.output(print(ps)), collapse = "\n")
-  expect_match(out, "0 of 1 verdicts hold across the whole")
-  expect_false(grepl("All 1 verdicts hold", out, fixed = TRUE))
-
-  # And with the two agreeing it is still reported as holding throughout.
-  ok = fake_sensitivity("presence", agree, multipliers, chosen_idx,
-    anchors = c(0.5, 1, 2)
-  )
-  expect_equal(unname(unlist(ok$edges[c("stability_lower", "stability_upper")])), c(0.5, 2))
-  expect_match(
-    paste(utils::capture.output(print(ok)), collapse = "\n"),
-    "All 1 verdicts hold"
-  )
-})
-
-
-test_that("a forced 1x anchor keeps the gate's own record in the grid", {
-  # The curve still uses the original fit when it fails its gate (it is the
-  # analysis under check), but $grid$usable must stay the gate's verdict and
-  # $grid$forced must say the curve overrode it. print() then names it as kept,
-  # not as excluded.
-  ps = fake_sensitivity("presence", rep("presence", 5L), c(0.5, 0.7, 1, 1.4, 2),
-    3L,
-    anchors = c(0.5, 1, 2)
-  )
-  ps$grid$usable[2] = FALSE
-  ps$grid$forced[2] = TRUE
-  # Collapse the wrapped print to one line before matching phrases.
-  out = gsub("\\s+", " ", paste(utils::capture.output(print(ps)), collapse = " "))
-  expect_match(out, "outside the check's limits")
-  expect_match(out, "ran on it anyway")
-  expect_false(grepl("left out of the curve", out, fixed = TRUE))
-
-  # A genuinely excluded refit still reads as excluded.
-  ps2 = ps
-  ps2$grid$forced[2] = FALSE
-  out2 = gsub("\\s+", " ", paste(utils::capture.output(print(ps2)), collapse = " "))
-  expect_match(out2, "is left out of the curve")
+  expect_error(prior_sensitivity_check(fit, scale_multipliers = 1), "other than 1")
+  expect_error(prior_sensitivity_check(fit, scale_multipliers = c(-1, 2)), "positive")
+  expect_error(prior_sensitivity_check(fit, evidence_threshold = 1), "greater than 1")
 })
 
 
 test_that("a fit whose swept prior carries no scale errors before any refit", {
   # A beta-prime slab is scale-free, so bgm() records pairwise_scale = NA and
-  # the whole multiplier grid is NA.
+  # there is no scale to multiply.
   data("Wenchuan", package = "bgms")
   fit = suppressWarnings(bgm(Wenchuan[, 1:4],
     interaction_prior = beta_prime_prior(),
@@ -719,8 +258,181 @@ test_that("a fit whose swept prior carries no scale errors before any refit", {
     prior_sensitivity_check(fit),
     "no usable pairwise_scale"
   )
-  # No refit had time to run.
   expect_lt(as.numeric(Sys.time() - t0, units = "secs"), 5)
+})
+
+
+test_that("prior_sensitivity_check builds the object from the fits' own statistics", {
+  skip_on_cran()
+  data("Wenchuan", package = "bgms")
+  fit = bgm(Wenchuan[, 1:6],
+    chains = 2, iter = 400, warmup = 300, seed = 21,
+    display_progress = "none"
+  )
+  ps = suppressMessages(prior_sensitivity_check(fit, seed = 21))
+
+  expect_s3_class(ps, "bgms_prior_sensitivity")
+  expect_equal(ps$scale_multipliers, c(0.5, 1, 2))
+  # One grid row per fit (the 1x row is the original fit), every refit at the
+  # original fit's run length.
+  expect_equal(nrow(ps$grid), 3L)
+  expect_equal(sum(ps$grid$original_fit), 1L)
+  expect_equal(ps$grid$seconds[ps$grid$original_fit], 0)
+  expect_true(all(ps$grid$iter == 400L))
+  expect_true(all(ps$grid$warmup == 300L))
+  expect_true(all(c("rhat_max", "ess_min", "inclusion_ess_min") %in% names(ps$grid)))
+  expect_equal(nrow(ps$edges), 15L) # choose(6, 2)
+
+  # The chosen-scale columns are the original fit's own Rao-Blackwellized
+  # analysis: the reported PIP and its exact prior-odds transform.
+  rb = extract_posterior_inclusion_probabilities(fit)
+  rbv = unname(rb[upper.tri(rb)][order_upper_tri_rowmajor(6)])
+  po = ps$edges$prior_inclusion_probability /
+    (1 - ps$edges$prior_inclusion_probability)
+  expect_equal(ps$edges$chosen_scale_pip, rbv, tolerance = 1e-10)
+  pc = ps$edges$chosen_scale_pip
+  expect_equal(
+    ps$edges$chosen_scale_log_bf,
+    log((pc / (1 - pc)) / po),
+    tolerance = 1e-12
+  )
+  expect_equal(ps$edges$verdict_x1, ps$edges$chosen_scale_verdict)
+  expect_equal(ps$edges$log_bf_x1, ps$edges$chosen_scale_log_bf)
+  expect_true(all(ps$edges$mover %in%
+    c("stable", "within-monte-carlo-error", "beyond-monte-carlo-error")))
+  expect_true(all(is.na(ps$edges$moved_at[ps$edges$mover == "stable"])))
+  expect_true(all(ps$edges$stability_lower %in% ps$scale_multipliers))
+  expect_true(all(ps$edges$stability_upper %in% ps$scale_multipliers))
+  expect_true(all(paste0(c("verdict_x", "log_bf_x", "mcse_x"), rep(ps$scale_multipliers, each = 3)) %in%
+    names(ps$edges)))
+  expect_equal(dim(ps$verdict_by_scale), c(3L, 15L))
+  expect_true(is.finite(ps$preferred_scale$s_hat))
+  expect_true(ps$warm)
+  expect_output(print(ps), "are the edge verdicts robust")
+})
+
+
+test_that("the chosen-scale verdict uses the per-edge prior odds, not 1/2", {
+  skip_on_cran()
+  skip_unless_slow()
+  data("Wenchuan", package = "bgms")
+  fit = bgm(Wenchuan[, 1:5],
+    edge_prior = bernoulli_prior(0.2),
+    chains = 2, iter = 500, warmup = 400, seed = 5, display_progress = "none"
+  )
+  ps = suppressMessages(prior_sensitivity_check(fit, scale_multipliers = 2, seed = 5))
+  expect_true(all(abs(ps$edges$prior_inclusion_probability - 0.2) < 1e-8))
+  p = ps$edges$chosen_scale_pip
+  expected = log((p / (1 - p)) / (0.2 / 0.8))
+  expect_equal(ps$edges$chosen_scale_log_bf, expected, tolerance = 1e-8)
+})
+
+
+test_that("a warm-started refit at the chosen scale agrees with a cold one", {
+  skip_on_cran()
+  skip_unless_certification()
+  data("Wenchuan", package = "bgms")
+  fit = bgm(Wenchuan[, 1:8],
+    chains = 4, iter = 2000, warmup = 1000, seed = 11,
+    display_progress = "none"
+  )
+  ws = extract_warm_state(fit)
+  s0 = get_fit_spec(fit)$prior$pairwise_scale
+  pipv = function(f) {
+    m = extract_posterior_inclusion_probabilities(f)
+    m[upper.tri(m)]
+  }
+  warm = suppressMessages(refit_at_scale(fit, s0, ws,
+    warmup = 1000, iter = 2000,
+    seed = 101, cores = 4L, sampler = "nuts"
+  ))
+  cold = suppressMessages(refit_at_scale(fit, s0,
+    warm_state = NULL,
+    warmup = 1000, iter = 2000, seed = 202, cores = 4L, sampler = "nuts"
+  ))
+  expect_lt(stats::median(abs(pipv(warm) - pipv(cold))), 0.03)
+})
+
+
+test_that("prior_sensitivity_check runs for GGM and mixed fits (cold refits)", {
+  skip_on_cran()
+  skip_unless_certification()
+  set.seed(32)
+  xg = matrix(rnorm(180 * 5), 180, 5)
+  fg = bgm(xg,
+    variable_type = "continuous",
+    iter = 300, warmup = 250, chains = 2, seed = 8,
+    precision_graph_prior = "joint",
+    update_method = "adaptive-metropolis", display_progress = "none"
+  )
+  psg = suppressMessages(prior_sensitivity_check(fg, scale_multipliers = 2, seed = 8))
+  expect_s3_class(psg, "bgms_prior_sensitivity")
+  expect_equal(psg$model_type, "ggm")
+  expect_false(psg$warm)
+  # A default GGM gives its diagonal prior as eta = 1; the refits hold it fixed
+  # and the report says so.
+  expect_equal(psg$diagonal_eta, 1)
+  expect_match(
+    paste(utils::capture.output(print(psg)), collapse = "\n"),
+    "standardized rate eta"
+  )
+  expect_true(all(is.finite(psg$edges$log_bf_x2) | psg$edges$verdict_x2 %in% c("presence", "absence")))
+
+  n = 180
+  xm = data.frame(
+    a = sample(0:2, n, TRUE), b = sample(0:2, n, TRUE),
+    c = sample(0:1, n, TRUE), y1 = rnorm(n), y2 = rnorm(n)
+  )
+  vt = c("ordinal", "ordinal", "ordinal", "continuous", "continuous")
+  fm = bgm(xm,
+    variable_type = vt, iter = 300, warmup = 250, chains = 2, seed = 9,
+    update_method = "adaptive-metropolis", display_progress = "none"
+  )
+  psm = suppressMessages(prior_sensitivity_check(fm, scale_multipliers = 2, seed = 9))
+  expect_equal(psm$model_type, "mixed_mrf")
+  expect_equal(psm$diagonal_eta, 1)
+})
+
+
+test_that("prior_sensitivity_check compares bgmCompare difference verdicts", {
+  skip_on_cran()
+  skip_unless_slow()
+  data("Wenchuan", package = "bgms")
+  fit = bgmCompare(
+    x = Wenchuan[, 1:5], group_indicator = rep(1:2, length.out = nrow(Wenchuan)),
+    iter = 800, warmup = 800, chains = 2, seed = 21,
+    difference_selection = TRUE, display_progress = "none"
+  )
+  ps = suppressMessages(prior_sensitivity_check(fit, seed = 3))
+
+  expect_s3_class(ps, "bgms_prior_sensitivity")
+  nm = get_raw_samples(fit)$parameter_names$indicator
+  # One row per difference indicator, main-effect differences included.
+  expect_equal(ps$edges$edge, nm)
+  # It sweeps the difference scale, not the interaction one.
+  expect_equal(ps$unit$scale_field, "difference_scale")
+  expect_equal(ps$chosen_scale, get_fit_spec(fit)$prior$difference_scale)
+  # There is no data-preferred difference scale to compare against.
+  expect_true(is.na(ps$preferred_scale$s_hat))
+
+  out = paste(utils::capture.output(print(ps)), collapse = "\n")
+  expect_match(out, "are the difference verdicts robust to the difference scale")
+  # main_difference_selection is FALSE by default, so those indicators were
+  # never updated; the report says so instead of counting them as undecided.
+  expect_match(out, "never updated by the sampler and carry no verdict")
+  expect_false(grepl("Note: the slab scale", out, fixed = TRUE))
+})
+
+
+test_that("prior_sensitivity_check needs difference selection", {
+  skip_on_cran()
+  data("Wenchuan", package = "bgms")
+  fit = bgmCompare(
+    x = Wenchuan[1:80, 1:4], group_indicator = rep(1:2, each = 40),
+    iter = 150, warmup = 150, chains = 2, seed = 4,
+    difference_selection = FALSE, display_progress = "none"
+  )
+  expect_error(prior_sensitivity_check(fit), "difference selection")
 })
 
 
@@ -733,23 +445,10 @@ test_that("prior_sensitivity_check runs end to end on a single-indicator fit", {
     chains = 2, iter = 300, warmup = 300, seed = 31,
     display_progress = "none"
   )
-  ps = suppressWarnings(suppressMessages(prior_sensitivity_check(fit,
-    anchors = c(0.5, 1, 2), iter = 300, warmup = 300, ess_floor = 50,
-    seed = 31
-  )))
+  ps = suppressMessages(prior_sensitivity_check(fit, seed = 31))
   expect_s3_class(ps, "bgms_prior_sensitivity")
   expect_equal(nrow(ps$edges), 1L)
-  expect_equal(dim(ps$log_bf), c(length(ps$multipliers), 1L))
-  expect_equal(dim(ps$log_bf_mcse), c(length(ps$multipliers), 1L))
-  expect_equal(dim(ps$verdict), c(length(ps$multipliers), 1L))
-  expect_equal(dim(ps$anchor_verdict), c(length(ps$anchors), 1L))
-  expect_true(all(paste0("verdict_x", ps$anchors) %in% names(ps$edges)))
-  # Structure of the gate record, not its verdict (which depends on the
-  # sampler run): only the original fit can be forced, and a forced row keeps
-  # the gate's own rejection. The override itself is tested on a synthetic grid
-  # above.
-  expect_true("forced" %in% names(ps$grid))
-  expect_false(any(ps$grid$forced & !ps$grid$original_fit))
-  expect_true(all(!ps$grid$usable[ps$grid$forced]))
+  expect_equal(dim(ps$verdict_by_scale), c(3L, 1L))
+  expect_true(all(paste0("verdict_x", ps$scale_multipliers) %in% names(ps$edges)))
   expect_output(print(ps), "are the edge verdicts robust")
 })
