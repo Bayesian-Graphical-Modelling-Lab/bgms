@@ -309,21 +309,22 @@ refit_edge_stats = function(fit, evidence_threshold) {
 
 
 # ------------------------------------------------------------------
-# finite_reduce
+# known_reduce
 # ------------------------------------------------------------------
-# Reduce the finite entries of a diagnostic vector, with a stated value for
+# Reduce the non-NA entries of a diagnostic vector, with a stated value for
 # the case where there are none. min() and max() answer that case with a
 # warning and an infinity, which reads as a value rather than as an absent
-# one.
+# one. Infinite entries are kept: an infinite split R-hat is the kernel's
+# report of chains constant at different values.
 #
 # @param values  Numeric vector, possibly empty or all NA.
 # @param fn      The reduction.
-# @param empty   Value to return when nothing is finite.
+# @param empty   Value to return when every entry is NA.
 #
 # Returns: the reduction, or `empty`.
 # ------------------------------------------------------------------
-finite_reduce = function(values, fn, empty) {
-  values = values[is.finite(values)]
+known_reduce = function(values, fn, empty) {
+  values = values[!is.na(values)]
   if(length(values) == 0L) empty else fn(values)
 }
 
@@ -361,18 +362,18 @@ refit_diagnostics_row = function(fit) {
   wc = tryCatch(fit@nuts_diag$warmup_check, error = function(e) NULL)
   wi = tryCatch(fit@nuts_diag$summary$warmup_incomplete, error = function(e) NULL)
   list(
-    rhat_max = finite_reduce(rhats, max, NA_real_),
-    ess_min = finite_reduce(esss, min, NA_real_),
-    inclusion_ess_min = finite_reduce(ind[, "n_eff"], min, NA_real_),
+    rhat_max = known_reduce(rhats, max, NA_real_),
+    ess_min = known_reduce(esss, min, NA_real_),
+    inclusion_ess_min = known_reduce(ind[, "n_eff"], min, NA_real_),
     ebfmi_min = if(is.null(wc)) {
       NA_real_
     } else {
-      finite_reduce(c(wc$ebfmi_first_half, wc$ebfmi_second_half), min, NA_real_)
+      known_reduce(c(wc$ebfmi_first_half, wc$ebfmi_second_half), min, NA_real_)
     },
     energy_variance_ratio_max = if(is.null(wc)) {
       NA_real_
     } else {
-      finite_reduce(wc$var_ratio, max, NA_real_)
+      known_reduce(wc$var_ratio, max, NA_real_)
     },
     warmup_incomplete = if(is.null(wi)) NA else isTRUE(wi)
   )

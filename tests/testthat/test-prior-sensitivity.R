@@ -113,8 +113,9 @@ test_that("sufficiency at the chosen scale is the only not-certifiable criterion
 test_that("saturated and verdict-less indicators are handled", {
   lthr = log(10)
   multipliers = c(0.5, 1, 2)
-  # Edge 1 never flips in the original fit (infinite log BF, no MCSE) and
-  # becomes finite presence at 2x; edge 2 has no verdict.
+  # Edge 1 is at inclusion probability 1 in every draw of the original fit
+  # (infinite log BF, no MCSE) and becomes finite presence at 2x; edge 2 has
+  # no verdict.
   s0 = fake_stats(c(Inf, NA), mcse = c(NA, NA), zeroflip = c(TRUE, FALSE))
   s0$verdict[2] = NA_character_
   s_lo = fake_stats(c(Inf, NA), mcse = c(NA, NA), zeroflip = c(TRUE, FALSE))
@@ -124,10 +125,36 @@ test_that("saturated and verdict-less indicators are handled", {
   expect_true(cls$edges$saturated[1])
   expect_false(cls$edges$insufficient[1])
   expect_true(is.na(cls$edges$stability_lower[2]))
-  # A verdict change away from a saturated indicator is beyond error.
+  # A verdict change away from a saturated indicator cannot be compared with
+  # an error, since the saturated fit has none.
   s_hi2 = fake_stats(c(1, NA), mcse = c(0.2, NA))
   cls2 = sensitivity_classification(list(s_lo, s0, s_hi2), multipliers, 2L, lthr)
-  expect_equal(cls2$edges$mover[1], "beyond-monte-carlo-error")
+  expect_true(is.na(cls2$edges$mover[1]))
+})
+
+
+test_that("an unknown Monte Carlo error is not assessed", {
+  lthr = log(10)
+  multipliers = c(0.5, 1, 2)
+  # Edge 1: the refit whose verdict differs has no MCSE, so the change cannot
+  # be compared with an error and the mover category is NA. Edge 2: the
+  # original fit has no MCSE and no band, so its sufficiency is NA.
+  s0 = fake_stats(c(1.0, 1.0), mcse = c(0.1, NA))
+  s0$band_half[2] = NA_real_
+  s_lo = fake_stats(c(1.0, 1.0), mcse = c(0.1, 0.1))
+  s_hi = fake_stats(c(2.5, 1.0), mcse = c(NA, 0.1))
+  cls = sensitivity_classification(list(s_lo, s0, s_hi), multipliers, 2L, lthr)
+  expect_true(is.na(cls$edges$mover[1]))
+  expect_equal(cls$edges$moved_at[1], 2)
+  expect_false(cls$edges$insufficient[1])
+  expect_true(is.na(cls$edges$insufficient[2]))
+  expect_equal(cls$edges$mover[2], "stable")
+  # A single-chain fit has no between-chain band; the MCSE alone sets the
+  # half-width.
+  s1 = fake_stats(c(2.2, 1.0), mcse = c(0.1, 0.1))
+  s1$band_half[] = NA_real_
+  cls1 = sensitivity_classification(list(s1, s1, s1), multipliers, 2L, lthr)
+  expect_equal(cls1$edges$insufficient, c(TRUE, FALSE))
 })
 
 
@@ -157,6 +184,34 @@ test_that("print() reports the counts, the movers and high R-hat fits", {
   expect_match(out, "toward absence")
   expect_match(out, "2 nuts refits")
 
+  # A changed verdict with an unavailable MCSE belongs in the fourth count.
+  unknown = fake_stats(2.5, mcse = NA_real_)
+  reference = fake_stats(1, mcse = 0.1)
+  cls_unknown = sensitivity_classification(
+    list(reference, reference, unknown), multipliers, 2L, lthr
+  )
+  out_unknown = utils::capture.output(print(fake_sensitivity(cls_unknown, multipliers)))
+  count_lines = grep(
+    "^  (verdict held|changed,|not certifiable)", out_unknown,
+    value = TRUE
+  )
+  counts = as.integer(sub(".* +([0-9]+)$", "\\1", count_lines))
+  expect_equal(c(fourth = counts[4], total = sum(counts)), c(fourth = 1L, total = 1L))
+
+  # Missing uncertainty must not hide the explanation for ordinary noisy edges.
+  s_lo_mixed = s_lo
+  s_lo_mixed$mcse_lbf[2] = NA_real_
+  cls_mixed = sensitivity_classification(list(s_lo_mixed, s0, s_hi), multipliers, 2L, lthr)
+  out_mixed = gsub("\\s+", " ", paste(
+    utils::capture.output(print(fake_sensitivity(cls_mixed, multipliers))),
+    collapse = " "
+  ))
+  expect_match(out_mixed, "not certifiable at the chosen scale 3")
+  expect_match(out_mixed, "within Monte Carlo error of a threshold, so a rerun")
+  expect_match(out_mixed, "Monte Carlo uncertainty could not be assessed for every verdict or verdict change")
+  # An NA-only group has no known threshold or chain-disagreement cause.
+  expect_false(any(grepl("rerun with another seed", out_unknown, fixed = TRUE)))
+
   # Every fit at or below 1.01, and a scale within a factor two: neither
   # sentence appears, and the verdict table has every scale.
   ps2 = fake_sensitivity(cls, multipliers, s_hat = 0.8)
@@ -165,6 +220,26 @@ test_that("print() reports the counts, the movers and high R-hat fits", {
   expect_match(out2, "the slab is 1.2 times that\\.")
   expect_false(grepl("toward", out2, fixed = TRUE))
   expect_match(out2, "0.5x 1x 2x")
+
+  # Infinite split R-hat is reported for the parameter, and the fit is left
+  # out of the numeric R-hat line.
+  ps3 = fake_sensitivity(cls, multipliers, rhat_max = c(1.03, 1.005, Inf), s_hat = 0.8)
+  out3 = gsub("\\s+", " ", paste(utils::capture.output(print(ps3)), collapse = " "))
+  expect_match(out3, "The 2x fit includes at least one parameter with infinite split R-hat")
+  expect_match(out3, "Its verdicts should be interpreted only after checking convergence")
+  expect_match(out3, "Largest split R-hat above 1.01: 0.5x fit 1.03\\.")
+  expect_false(grepl("Monte Carlo standard errors in $edges", out3, fixed = TRUE))
+  # An NA Monte Carlo error in some fit is explained in one sentence.
+  cls_na = cls
+  cls_na$edges$mcse_x2[1] = NA_real_
+  ps5 = fake_sensitivity(cls_na, multipliers, s_hat = 0.8)
+  out5 = gsub("\\s+", " ", paste(utils::capture.output(print(ps5)), collapse = " "))
+  expect_match(out5, "Monte Carlo standard errors in \\$edges are NA where a fit's inclusion probability was 0 or 1 in every draw")
+  ps4 = fake_sensitivity(cls, multipliers, rhat_max = c(Inf, 1.005, Inf), s_hat = 0.8)
+  out4 = gsub("\\s+", " ", paste(utils::capture.output(print(ps4)), collapse = " "))
+  expect_match(out4, "The 0.5x and 2x fits include at least one parameter with infinite split R-hat")
+  expect_match(out4, "Their verdicts should be interpreted only after checking convergence")
+  expect_false(grepl("Largest split R-hat", out4, fixed = TRUE))
 })
 
 
@@ -187,12 +262,12 @@ test_that("diagonal_eta reads the standardized rate and refuses a raw one", {
 })
 
 
-test_that("finite_reduce abstains on an all-NA diagnostic without warning", {
-  expect_equal(finite_reduce(c(NA_real_, NA_real_), min, NA_real_), NA_real_)
-  expect_equal(finite_reduce(numeric(0), max, 0), 0)
-  expect_equal(finite_reduce(c(NA_real_, 2, 5), max, 0), 5)
-  expect_silent(finite_reduce(rep(NA_real_, 3L), min, Inf))
-  expect_equal(finite_reduce(c(-Inf, Inf), min, Inf), Inf)
+test_that("known_reduce abstains on an all-NA diagnostic and keeps infinities", {
+  expect_equal(known_reduce(c(NA_real_, NA_real_), min, NA_real_), NA_real_)
+  expect_equal(known_reduce(numeric(0), max, 0), 0)
+  expect_equal(known_reduce(c(NA_real_, 2, 5), max, 0), 5)
+  expect_silent(known_reduce(rep(NA_real_, 3L), min, Inf))
+  expect_identical(known_reduce(c(1.002, Inf, NA_real_), max, NA_real_), Inf)
 })
 
 

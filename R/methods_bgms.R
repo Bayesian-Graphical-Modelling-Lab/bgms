@@ -188,11 +188,8 @@ print.summary.bgms = function(x, digits = 3, ...) {
     print(ind)
     if(nrow(x$indicator) > .summary_preview_rows) cat("... (use `summary(fit)$indicator` to see full output)\n")
     if(ind_has_na) {
-      cat("Note: blank mcse/n_eff/Rhat cells mark indicators whose inclusion draws never\n")
-      cat("varied: the per-iteration evidence is so one-sided that the draws round to\n")
-      cat("exactly 0 or 1, and no variation is left to estimate precision from. An edge\n")
-      cat("that is almost as certain still shows numbers; the difference is rounding, not\n")
-      cat("evidence. All computed values remain in `summary(fit)$indicator`.\n")
+      cat("Note: blank mcse, n_eff and Rhat cells mark edges whose inclusion probability\n")
+      cat("was 0 or 1 in every draw; there is no variation to estimate them from.\n")
     }
     cat("\n")
   }

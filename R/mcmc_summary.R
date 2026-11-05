@@ -240,9 +240,6 @@ summarize_indicator = function(fit, component = c("indicator_samples"), param_na
   result = cbind(ind_stats[, c("mean", "mcse", "sd", "n00", "n01", "n10", "n11", "n_eff_mixt"), drop = FALSE], Rhat = batch_rhat)
   colnames(result)[4:7] = c("n0->0", "n0->1", "n1->0", "n1->1")
 
-  # Where n_eff_mixt is NA (constant chain), Rhat should also be NA
-  result[is.na(result[, "n_eff_mixt"]), "Rhat"] = NA_real_
-
   if(is.null(param_names)) {
     data.frame(parameter = paste0("indicator [", seq_len(nparam), "]"), result, check.names = FALSE)
   } else {
@@ -259,8 +256,8 @@ summarize_indicator = function(fit, component = c("indicator_samples"), param_na
 # cannot give. Columns that were never updated (unselected indicators, e.g. main
 # differences when main_difference_selection = FALSE) are all NA and get an NA
 # row rather than being fed to the ESS/Rhat kernels. Columns whose RB draws are
-# constant to double precision keep their mean but report NA for the RB
-# mcse/n_eff/Rhat (see the masking block below).
+# constant in every chain have NA mcse/n_eff/Rhat from the kernels: there is
+# no variation to estimate them from.
 summarize_rb_inclusion = function(raw, param_names, keep_parameter_col = FALSE) {
   array3d = combine_chains(raw, "rb_inclusion_samples")
   nparam = dim(array3d)[3]
@@ -281,20 +278,6 @@ summarize_rb_inclusion = function(raw, param_names, keep_parameter_col = FALSE) 
   }
 
   ind_stats = .compute_indicator_ess_cpp(combine_chains(raw, "indicator_samples"))
-
-  # Mask the RB precision/convergence columns only where the RB draws are
-  # constant to double precision: there is no variability from which an MCSE, an
-  # ESS, or a split-R-hat could be formed, and the mean is at its numerical
-  # bound. Everywhere else the RB draws vary and the continuous machinery
-  # applies as it does to any smooth quantity -- including on edges whose
-  # indicator never flipped, where the RB chain is still informative and the
-  # MCSE is what a boundary-stable fragility check needs. Draws whose variance
-  # falls below the autocovariance kernel's numerical floor pick up an NA ESS
-  # there rather than here, with the same meaning. Chains stuck constant at
-  # different values are not masked: their ESS is NA and their split-R-hat is
-  # +Inf, which is the alarm. The directional flip counts stay in the table.
-  constant = is.finite(mat[, "sd"]) & mat[, "sd"] == 0
-  mat[constant, c("mcse", "n_eff", "Rhat")] = NA_real_
 
   full = cbind(
     mat[, c("mean", "mcse", "sd", "n_eff", "Rhat"), drop = FALSE],
@@ -340,7 +323,7 @@ summarize_slab = function(fit, component = c("pairwise_samples"), param_names = 
     }
     if(n_total > 10) {
       sdev = sd(vec)
-      ess = compute_slab_ess(vec) ## draws
+      ess = compute_slab_ess(vec)
       mcse = sdev / sqrt(ess)
       result[j, c("sd", "mcse", "n_eff")] = c(sdev, mcse, ess)
     }
@@ -519,8 +502,6 @@ summarize_indicator_compare = function(fit, component = "indicator_samples", par
   result = cbind(ind_stats[, c("mean", "mcse", "sd", "n00", "n01", "n10", "n11", "n_eff_mixt"), drop = FALSE], Rhat = batch_rhat)
   colnames(result)[4:7] = c("n0->0", "n0->1", "n1->0", "n1->1")
 
-  result[is.na(result[, "n_eff_mixt"]), "Rhat"] = NA_real_
-
   if(is.null(param_names)) {
     data.frame(parameter = paste0("indicator [", seq_len(nparam), "]"), result, check.names = FALSE)
   } else {
@@ -553,7 +534,7 @@ summarize_mixture_effect = function(draws_pw, draws_id, name, draws_rb = NULL) {
   if(length(vec) > 10) {
     eap_slab = mean(vec)
     ess_slab = compute_slab_ess(vec) # treat as single chain
-    mcse_slab = sqrt(var(vec)) / sqrt(ess_slab)
+    mcse_slab = sd(vec) / sqrt(ess_slab)
   } else {
     eap_slab = NA_real_
     mcse_slab = NA_real_
@@ -565,8 +546,7 @@ summarize_mixture_effect = function(draws_pw, draws_id, name, draws_rb = NULL) {
     pooled_rb = as.vector(rb_array)
     p_hat = mean(pooled_rb, na.rm = TRUE)
     ess_rb = .compute_ess_cpp(rb_array)[1]
-    sd_rb = stats::sd(pooled_rb)
-    p_mcse = if(is.finite(ess_rb) && ess_rb > 0 && is.finite(sd_rb)) sd_rb / sqrt(ess_rb) else 0
+    p_mcse = sd(pooled_rb) / sqrt(ess_rb)
   } else {
     id_stats = .compute_indicator_ess_cpp(array(draws_id, dim = c(niter, nchains, 1L)))
     p_hat = id_stats[1, "mean"]

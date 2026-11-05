@@ -72,7 +72,8 @@ factor) and \code{chosen_scale_verdict}; \code{stability_lower} and
 \code{insufficient} with its two subcauses \code{insufficient_noisy}
 (log Bayes factor within Monte Carlo error of a threshold) and
 \code{insufficient_disagree} (chains disagree on the verdict);
-\code{saturated} (the indicator never flipped in the original fit);
+\code{saturated} (the original fit's inclusion probability is 0 or 1 in
+every draw of every chain);
 then one \code{verdict_x<m>}, \code{log_bf_x<m>} and \code{mcse_x<m>}
 column per multiplier \code{m}, from that fit's own statistics.}
 \item{\code{grid}}{One row per fit: \code{multiplier}, \code{scale},
@@ -146,7 +147,10 @@ continuous parameters, smallest effective sample size over the continuous
 parameters and over the indicators, and for NUTS the smallest E-BFMI and
 the largest energy variance ratio, are in \code{$grid}. The classification
 uses every fit; the printed report names a fit whose largest
-split-\eqn{\hat R} exceeds 1.01.
+split-\eqn{\hat R} exceeds 1.01, and states when a fit did not sample: a
+parameter constant in every chain at values that differ across chains has
+an infinite split-\eqn{\hat R}, and that fit's verdicts say nothing about
+the prior.
 
 \strong{Models with a precision diagonal.} A continuous or mixed fit has a
 Gamma or exponential prior on the precision diagonal with a standardized

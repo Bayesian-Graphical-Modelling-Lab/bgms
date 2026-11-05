@@ -22,9 +22,10 @@ changed beyond Monte Carlo error; the rest are counted and left to
 Prints the verdict counts at each scale, the number of edges whose verdict
 held at every scale, changed within Monte Carlo error, changed beyond it,
 or could not be certified at the chosen scale, the edges that changed
-beyond Monte Carlo error by name, the fits whose largest split R-hat
-exceeds 1.01, and how the chosen scale compares with the scale the
-estimated interactions imply.
+beyond Monte Carlo error by name, the fits that did not sample (a
+parameter constant in every chain at different values, infinite split
+R-hat), the fits whose largest split R-hat exceeds 1.01, and how the chosen
+scale compares with the scale the estimated interactions imply.
 }
 \seealso{
 \code{\link{prior_sensitivity_check}()}
