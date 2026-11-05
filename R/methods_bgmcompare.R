@@ -405,9 +405,10 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
     }
 
     if(!is.null(x$indicator) && maind_has_na) {
-      cat("Note: NA values are suppressed in the print table. They occur for differences\n")
-      cat("that were never selected, so the composite ESS and share are undefined;\n")
-      cat("`summary(fit)$main_diff` still contains the NA values.\n")
+      cat("Note: blank cells mark differences whose composite Monte Carlo error could\n")
+      cat("not be formed because the difference was never selected or its inclusion\n")
+      cat("probability was 0 or 1 in every draw.\n")
+      cat("`summary(fit)$main_diff` retains the NA values.\n")
     }
     cat("\n")
   }
@@ -432,9 +433,10 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
     }
 
     if(!is.null(x$indicator) && pairwised_has_na) {
-      cat("Note: NA values are suppressed in the print table. They occur for differences\n")
-      cat("that were never selected, so the composite ESS and share are undefined;\n")
-      cat("`summary(fit)$pairwise_diff` still contains the NA values.\n")
+      cat("Note: blank cells mark differences whose composite Monte Carlo error could\n")
+      cat("not be formed because the difference was never selected or its inclusion\n")
+      cat("probability was 0 or 1 in every draw.\n")
+      cat("`summary(fit)$pairwise_diff` retains the NA values.\n")
     }
     cat("\n")
   }

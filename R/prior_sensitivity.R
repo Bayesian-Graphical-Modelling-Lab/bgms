@@ -755,7 +755,8 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
 
   # One category per edge: not certifiable at the chosen scale first, then the
   # mover category.
-  uncert = edges$insufficient %in% TRUE
+  uncert = edges$insufficient %in% TRUE | is.na(edges$insufficient) |
+    is.na(edges$mover)
   held = !uncert & edges$mover %in% "stable"
   within = !uncert & edges$mover %in% "within-monte-carlo-error"
   beyond = !uncert & edges$mover %in% "beyond-monte-carlo-error"
@@ -799,8 +800,8 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
       ""
     }
     one = length(nm) == 1L
-    noisy = any(edges$insufficient_noisy[uncert])
-    disagree = any(edges$insufficient_disagree[uncert])
+    noisy = any(edges$insufficient_noisy[uncert], na.rm = TRUE)
+    disagree = any(edges$insufficient_disagree[uncert], na.rm = TRUE)
     cause = if(noisy && disagree) {
       "the Bayes factor lies within Monte Carlo error of a threshold or the chains disagree on the verdict"
     } else if(disagree) {
@@ -808,11 +809,18 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
     } else {
       "the Bayes factor lies within Monte Carlo error of a threshold"
     }
+    explanation = if(anyNA(edges$insufficient[uncert]) || anyNA(edges$mover[uncert])) {
+      "Monte Carlo uncertainty could not be assessed for every verdict or verdict change; see $edges."
+    } else {
+      sprintf(
+        "In the original fit %s, so a rerun with another seed could change %s verdict without any change of prior.",
+        cause, if(one) "its" else "the"
+      )
+    }
     wrap(sprintf(
-      "%d %s %s not certifiable at the chosen scale: %s%s. In the original fit %s, so a rerun with another seed could change %s verdict without any change of prior.",
+      "%d %s %s not certifiable at the chosen scale: %s%s. %s",
       length(nm), if(one) unit$noun else unit$nouns, if(one) "is" else "are",
-      paste(shown, collapse = ", "), tail_txt, cause,
-      if(one) "its" else "the"
+      paste(shown, collapse = ", "), tail_txt, explanation
     ))
     cat("\n")
   }
@@ -840,11 +848,11 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
       one = length(stuck) == 1L
       wrap(sprintf(
         paste0(
-          "The %s %s did not sample: at least one parameter stayed at a fixed ",
-          "value in every chain, with the chains at different values (split ",
-          "R-hat infinite). %s verdicts carry no information about the prior."
+          "The %s %s at least one parameter with infinite split R-hat: ",
+          "its sub-chains are constant but differ in value. %s verdicts should ",
+          "be interpreted only after checking convergence."
         ),
-        list_of(fit_label(stuck)), if(one) "fit" else "fits", if(one) "Its" else "Their"
+        list_of(fit_label(stuck)), if(one) "fit includes" else "fits include", if(one) "Its" else "Their"
       ))
       cat("\n")
     }

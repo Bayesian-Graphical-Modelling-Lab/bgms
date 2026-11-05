@@ -184,6 +184,20 @@ test_that("print() reports the counts, the movers and high R-hat fits", {
   expect_match(out, "toward absence")
   expect_match(out, "2 nuts refits")
 
+  # A changed verdict with an unavailable MCSE belongs in the fourth count.
+  unknown = fake_stats(2.5, mcse = NA_real_)
+  reference = fake_stats(1, mcse = 0.1)
+  cls_unknown = sensitivity_classification(
+    list(reference, reference, unknown), multipliers, 2L, lthr
+  )
+  out_unknown = utils::capture.output(print(fake_sensitivity(cls_unknown, multipliers)))
+  count_lines = grep(
+    "^  (verdict held|changed,|not certifiable)", out_unknown,
+    value = TRUE
+  )
+  counts = as.integer(sub(".* +([0-9]+)$", "\\1", count_lines))
+  expect_equal(c(fourth = counts[4], total = sum(counts)), c(fourth = 1L, total = 1L))
+
   # Every fit at or below 1.01, and a scale within a factor two: neither
   # sentence appears, and the verdict table has every scale.
   ps2 = fake_sensitivity(cls, multipliers, s_hat = 0.8)
@@ -193,12 +207,12 @@ test_that("print() reports the counts, the movers and high R-hat fits", {
   expect_false(grepl("toward", out2, fixed = TRUE))
   expect_match(out2, "0.5x 1x 2x")
 
-  # A fit with an infinite split R-hat is stated as not having sampled and is
-  # left out of the numeric R-hat line.
+  # Infinite split R-hat is reported for the parameter, and the fit is left
+  # out of the numeric R-hat line.
   ps3 = fake_sensitivity(cls, multipliers, rhat_max = c(1.03, 1.005, Inf), s_hat = 0.8)
   out3 = gsub("\\s+", " ", paste(utils::capture.output(print(ps3)), collapse = " "))
-  expect_match(out3, "The 2x fit did not sample: at least one parameter stayed at a fixed value")
-  expect_match(out3, "Its verdicts carry no information about the prior")
+  expect_match(out3, "The 2x fit includes at least one parameter with infinite split R-hat")
+  expect_match(out3, "Its verdicts should be interpreted only after checking convergence")
   expect_match(out3, "Largest split R-hat above 1.01: 0.5x fit 1.03\\.")
   expect_false(grepl("Monte Carlo standard errors in $edges", out3, fixed = TRUE))
   # An NA Monte Carlo error in some fit is explained in one sentence.
@@ -209,8 +223,8 @@ test_that("print() reports the counts, the movers and high R-hat fits", {
   expect_match(out5, "Monte Carlo standard errors in \\$edges are NA where a fit's inclusion probability was 0 or 1 in every draw")
   ps4 = fake_sensitivity(cls, multipliers, rhat_max = c(Inf, 1.005, Inf), s_hat = 0.8)
   out4 = gsub("\\s+", " ", paste(utils::capture.output(print(ps4)), collapse = " "))
-  expect_match(out4, "The 0.5x and 2x fits did not sample")
-  expect_match(out4, "Their verdicts carry")
+  expect_match(out4, "The 0.5x and 2x fits include at least one parameter with infinite split R-hat")
+  expect_match(out4, "Their verdicts should be interpreted only after checking convergence")
   expect_false(grepl("Largest split R-hat", out4, fixed = TRUE))
 })
 

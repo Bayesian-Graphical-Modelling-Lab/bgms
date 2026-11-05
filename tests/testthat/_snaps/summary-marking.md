@@ -47,18 +47,20 @@
       C (diff1; 1)
       ... (use `summary(fit)$main_diff` to see full output)
       * a group lacks observations in this category or in the reference category; the estimate reflects the prior, not the data
-      Note: NA values are suppressed in the print table. They occur for differences
-      that were never selected, so the composite ESS and share are undefined;
-      `summary(fit)$main_diff` still contains the NA values.
+      Note: blank cells mark differences whose composite Monte Carlo error could
+      not be formed because the difference was never selected or its inclusion
+      probability was 0 or 1 in every draw.
+      `summary(fit)$main_diff` retains the NA values.
       
       Group differences (pairwise effects):
       parameter mean mcse sd n_eff share_incl Rhat
       A-B (diff1)
       A-C (diff1)
       B-C (diff1)
-      Note: NA values are suppressed in the print table. They occur for differences
-      that were never selected, so the composite ESS and share are undefined;
-      `summary(fit)$pairwise_diff` still contains the NA values.
+      Note: blank cells mark differences whose composite Monte Carlo error could
+      not be formed because the difference was never selected or its inclusion
+      probability was 0 or 1 in every draw.
+      `summary(fit)$pairwise_diff` retains the NA values.
       
       Use `summary(fit)$<component>` to access full results.
       See the `easybgm` package for other summary and plotting tools.
