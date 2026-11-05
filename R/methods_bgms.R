@@ -170,9 +170,9 @@ print.summary.bgms = function(x, digits = 3, ...) {
     print(pair)
     if(nrow(x$pairwise) > .summary_preview_rows) cat("... (use `summary(fit)$pairwise` to see full output)\n")
     if(!is.null(x$indicator) && pair_has_na) {
-      cat("Note: blank cells mark edges whose composite Monte Carlo error could not be\n")
-      cat("formed because the edge was never selected or its inclusion probability was\n")
-      cat("0 or 1 in every draw. `summary(fit)$pairwise` retains the NA values.\n")
+      cat("Note: NA values are suppressed in the print table. They occur for edges that\n")
+      cat("were never selected, so the composite ESS and share are undefined;\n")
+      cat("`summary(fit)$pairwise` still contains the NA values.\n")
     }
     cat("\n")
   }

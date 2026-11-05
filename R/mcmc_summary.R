@@ -349,6 +349,8 @@ summarize_slab = function(fit, component = c("pairwise_samples"), param_names = 
 # bottleneck: whether the Monte Carlo error is dominated by inclusion or slab
 # uncertainty. Inputs may be vectors (one entry per edge).
 derived_weight_ess = function(post_var, p_hat, var_p, mu_cond, var_mu) {
+  # A constant / never-updated inclusion chain contributes no inclusion error.
+  var_p[!is.finite(var_p)] = 0
   part_incl = mu_cond^2 * var_p
   part_slab = p_hat^2 * var_mu
   mcse2 = part_incl + part_slab

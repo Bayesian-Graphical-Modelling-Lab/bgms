@@ -171,8 +171,6 @@ released from this line yet.
   has `NA` for `mcse`, `n_eff` and `Rhat`, and the printed summary says so in
   one sentence. Indicators constant at different values across chains keep the
   kernel's split-R-hat of `Inf`; before, the indicator tables set it to `NA`.
-  The composite Monte Carlo error of a pairwise effect is `NA` when its
-  inclusion error is `NA`; before, that error entered as zero.
 
   In `prior_sensitivity_check()`, where a fit's Monte Carlo error is `NA`, the
   mover category of an edge whose verdict differs at that fit, and the
