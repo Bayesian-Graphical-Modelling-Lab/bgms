@@ -443,7 +443,7 @@ check_evidence_threshold = function(evidence_threshold) {
 #'
 #' @description
 #' Prints the verdict tally, the leading rows of the verdict table, and a
-#' line giving the number of verdicts not flagged as sensitive to Monte Carlo
+#' line giving the number of verdicts that appear robust to Monte Carlo
 #' error, followed by the number flagged because their estimated log Bayes
 #' factors lie within two standard errors of an evidence threshold (the
 #' `fragile` column).
@@ -530,8 +530,8 @@ print.bgms_verdicts = function(x, digits = 3, max_rows = 10L, ...) {
   n_fragile = sum(fragile)
   if(n_robust + n_fragile > 0) {
     first = sprintf(
-      "%d %s not flagged as sensitive to Monte Carlo error.",
-      n_robust, if(n_robust == 1L) "verdict is" else "verdicts are"
+      "%d %s robust to Monte Carlo error.",
+      n_robust, if(n_robust == 1L) "verdict appears" else "verdicts appear"
     )
     second = if(n_fragile == 0L) {
       "None of the estimated log Bayes factors is flagged as being within two standard errors of an evidence threshold."

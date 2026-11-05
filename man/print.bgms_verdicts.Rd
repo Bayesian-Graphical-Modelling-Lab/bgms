@@ -20,7 +20,7 @@
 }
 \description{
 Prints the verdict tally, the leading rows of the verdict table, and a
-line giving the number of verdicts not flagged as sensitive to Monte Carlo
+line giving the number of verdicts that appear robust to Monte Carlo
 error, followed by the number flagged because their estimated log Bayes
 factors lie within two standard errors of an evidence threshold (the
 \code{fragile} column).

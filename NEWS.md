@@ -169,8 +169,8 @@ released from this line yet.
   the directional flip counts `n0->1` and `n1->0` in its inclusion table. The
   columns stay in `summary(fit)$indicator`.
 
-* The printed `verdicts()` table closes with the number of verdicts not flagged
-  as sensitive to Monte Carlo error, followed by the number flagged because
+* The printed `verdicts()` table closes with the number of verdicts that appear
+  robust to Monte Carlo error, followed by the number flagged because
   their estimated log Bayes factors lie within two standard errors of an
   evidence threshold. The text replaces the "Monte-Carlo fragile" warning,
   which appeared only when some verdict was flagged, and suggests that a longer

@@ -239,7 +239,7 @@ test_that("print.bgms_verdicts tallies verdicts and warns once when fragile", {
   # Edge indicators are what the flag was calibrated on, so no caveat here.
   expect_false(grepl("not validated", out))
   # The unflagged count comes first; the near-threshold count follows it.
-  expect_match(out, "not flagged as sensitive to Monte Carlo error")
+  expect_match(out, "appear robust to Monte Carlo error")
   if(any(v$fragile)) {
     expect_match(out, sprintf("%d verdicts? could change on a rerun", sum(v$fragile)))
     expect_match(out, "A longer run may help resolve this uncertainty")
@@ -249,7 +249,7 @@ test_that("print.bgms_verdicts tallies verdicts and warns once when fragile", {
   v_none = v
   v_none$fragile = rep(FALSE, nrow(v))
   quiet = gsub("\\s+", " ", paste(utils::capture.output(print(v_none)), collapse = " "))
-  expect_match(quiet, sprintf("%d verdicts are not flagged", sum(!is.na(v$verdict))))
+  expect_match(quiet, sprintf("%d verdicts appear robust", sum(!is.na(v$verdict))))
   expect_match(quiet, "None of the estimated log Bayes factors is flagged as being within two standard errors of an evidence threshold")
   expect_false(grepl("longer run", quiet))
 
