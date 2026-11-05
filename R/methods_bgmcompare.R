@@ -327,10 +327,11 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
 
   if(!is.null(x$indicator)) {
     cat("Inclusion probabilities:\n")
-    # mean/mcse/sd/n_eff/Rhat are the Rao-Blackwellized inclusion estimate;
-    # n0->1 / n1->0 are the raw directional flip counts, which record the
-    # indicator's exploration beside them.
+    # mean/mcse/sd/n_eff/Rhat are the Rao-Blackwellized inclusion estimate. The
+    # directional flip counts n0->1 / n1->0 stay in summary(fit)$indicator and
+    # are not printed.
     ind = head(x$indicator, 6)
+    ind = ind[, setdiff(names(ind), c("n0->1", "n1->0")), drop = FALSE]
 
     ind_has_na = anyNA(ind)
 

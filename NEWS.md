@@ -165,6 +165,17 @@ released from this line yet.
 
 ## Diagnostics
 
+* The printed `summary()` of a `bgm()` or `bgmCompare()` fit no longer shows
+  the directional flip counts `n0->1` and `n1->0` in its inclusion table. The
+  columns stay in `summary(fit)$indicator`.
+
+* The printed `verdicts()` table closes with the number of verdicts that appear
+  robust to Monte Carlo error, followed by the number flagged because
+  their estimated log Bayes factors lie within two standard errors of an
+  evidence threshold. The text replaces the "Monte-Carlo fragile" warning,
+  which appeared only when some verdict was flagged, and suggests that a longer
+  run may help resolve the uncertainty. The `fragile` column is unchanged.
+
 * The `summary()` tables and `prior_sensitivity_check()` no longer substitute
   values for a Monte Carlo error or a convergence diagnostic that was not
   computed. An indicator whose inclusion probability was 0 or 1 in every draw

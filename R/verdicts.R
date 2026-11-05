@@ -275,7 +275,8 @@ build_verdicts = function(parameter, log_bf, pip, mcse, draws, evidence_threshol
 #'       where the Rao-Blackwellized draws are constant to double precision.}
 #'     \item{distance_two_state, distance_rb}{Distance from `log_bf` to the
 #'       nearer verdict boundary, in units of each standard error.}
-#'     \item{fragile}{`TRUE` when either distance is below 2.}
+#'     \item{fragile}{`TRUE` when either distance is below 2: the
+#'       near-threshold flag.}
 #'   }
 #'   The evidence threshold is attached as the `evidence_threshold` attribute,
 #'   and whether the fragility flag's operating point covers this kind of
@@ -442,7 +443,10 @@ check_evidence_threshold = function(evidence_threshold) {
 #'
 #' @description
 #' Prints the verdict tally, the leading rows of the verdict table, and a
-#' warning line when any verdict is Monte-Carlo fragile.
+#' line giving the number of verdicts that appear robust to Monte Carlo
+#' error, followed by the number flagged because their estimated log Bayes
+#' factors lie within two standard errors of an evidence threshold (the
+#' `fragile` column).
 #'
 #' @param x An object of class `bgms_verdicts`, from [verdicts()].
 #' @param digits Number of digits for the printed numeric columns. Default `3`.
@@ -519,12 +523,26 @@ print.bgms_verdicts = function(x, digits = 3, max_rows = 10L, ...) {
     cat(sprintf("... (%d more rows)\n", nrow(rows) - max_rows))
   }
 
-  n_fragile = sum(rows$fragile)
-  if(n_fragile > 0) {
-    cat(sprintf(
-      "\n%d %s Monte-Carlo fragile: a verdict boundary lies within two standard\nerrors of the evidence, so the verdict could change on a rerun. Consider a\nlonger run.\n",
-      n_fragile, if(n_fragile == 1L) "verdict is" else "verdicts are"
-    ))
+  # The unflagged count first, then the near-threshold count, over the
+  # indicators that carry a verdict.
+  fragile = rows$fragile %in% TRUE
+  n_robust = sum(!fragile & !is.na(rows$verdict))
+  n_fragile = sum(fragile)
+  if(n_robust + n_fragile > 0) {
+    first = sprintf(
+      "%d %s robust to Monte Carlo error.",
+      n_robust, if(n_robust == 1L) "verdict appears" else "verdicts appear"
+    )
+    second = if(n_fragile == 0L) {
+      "None of the estimated log Bayes factors is flagged as being within two standard errors of an evidence threshold."
+    } else {
+      sprintf(
+        "%d %s could change on a rerun: %s within two standard errors of an evidence threshold. A longer run may help resolve this uncertainty.",
+        n_fragile, if(n_fragile == 1L) "verdict" else "verdicts",
+        if(n_fragile == 1L) "its estimated log Bayes factor lies" else "their estimated log Bayes factors lie"
+      )
+    }
+    cat("\n", paste(strwrap(paste(first, second), width = 80), collapse = "\n"), "\n", sep = "")
   }
   # The flag's operating point was established on single-network edge
   # indicators. Borrowing those numbers for difference indicators would report a
