@@ -169,6 +169,12 @@ released from this line yet.
   the directional flip counts `n0->1` and `n1->0` in its inclusion table. The
   columns stay in `summary(fit)$indicator`.
 
+* The printed `verdicts()` table closes with the robust count first: how many
+  verdicts lie far enough from an evidence threshold that Monte Carlo error
+  does not move them, then how many lie within two standard errors of one. The
+  line replaces the "Monte-Carlo fragile" warning, which appeared only when some
+  verdict was flagged. The `fragile` column is unchanged.
+
 * The `summary()` tables and `prior_sensitivity_check()` no longer substitute
   values for a Monte Carlo error or a convergence diagnostic that was not
   computed. An indicator whose inclusion probability was 0 or 1 in every draw

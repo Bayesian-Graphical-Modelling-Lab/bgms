@@ -20,7 +20,9 @@
 }
 \description{
 Prints the verdict tally, the leading rows of the verdict table, and a
-warning line when any verdict is Monte-Carlo fragile.
+line giving how many verdicts lie far enough from an evidence threshold that
+Monte Carlo error does not move them and how many lie within two standard
+errors of one (the \code{fragile} column, the near-threshold flag).
 }
 \seealso{
 \code{\link[=verdicts]{verdicts()}}

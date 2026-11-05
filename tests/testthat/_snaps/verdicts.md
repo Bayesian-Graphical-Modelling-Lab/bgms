@@ -14,9 +14,9 @@
        A-C (pairwise) 0.10  -2.20 undecided    TRUE
        B-C (pairwise) 0.52   0.08 undecided   FALSE
       
-      1 verdict is Monte-Carlo fragile: a verdict boundary lies within two standard
-      errors of the evidence, so the verdict could change on a rerun. Consider a
-      longer run.
+      2 verdicts lie far enough from an evidence threshold that Monte Carlo error
+      does not move them. 1 lies within two standard errors of one, so a rerun could
+      change it; a longer run settles it.
       
       The fragility flag is not validated for difference indicators: its
       operating point was established on single-network edge indicators only.
@@ -46,9 +46,9 @@
        B-C (pairwise) 0.52   0.08 undecided   FALSE
              C (main) 0.50   0.00 undecided   FALSE
       
-      1 verdict is Monte-Carlo fragile: a verdict boundary lies within two standard
-      errors of the evidence, so the verdict could change on a rerun. Consider a
-      longer run.
+      5 verdicts lie far enough from an evidence threshold that Monte Carlo error
+      does not move them. 1 lies within two standard errors of one, so a rerun could
+      change it; a longer run settles it.
       
       The fragility flag is not validated for difference indicators: its
       operating point was established on single-network edge indicators only.
