@@ -80,7 +80,10 @@ verdict_from_bf = function(bf, threshold) {
 #' parameters and over the indicators, and for NUTS the smallest E-BFMI and
 #' the largest energy variance ratio, are in \code{$grid}. The classification
 #' uses every fit; the printed report names a fit whose largest
-#' split-\eqn{\hat R} exceeds 1.01.
+#' split-\eqn{\hat R} exceeds 1.01, and states when a fit did not sample: a
+#' parameter constant in every chain at values that differ across chains has
+#' an infinite split-\eqn{\hat R}, and that fit's verdicts say nothing about
+#' the prior.
 #'
 #' \strong{Models with a precision diagonal.} A continuous or mixed fit has a
 #' Gamma or exponential prior on the precision diagonal with a standardized
@@ -155,7 +158,8 @@ verdict_from_bf = function(bf, threshold) {
 #'     \code{insufficient} with its two subcauses \code{insufficient_noisy}
 #'     (log Bayes factor within Monte Carlo error of a threshold) and
 #'     \code{insufficient_disagree} (chains disagree on the verdict);
-#'     \code{saturated} (the indicator never flipped in the original fit);
+#'     \code{saturated} (the original fit's inclusion probability is 0 or 1 in
+#'     every draw of every chain);
 #'     then one \code{verdict_x<m>}, \code{log_bf_x<m>} and \code{mcse_x<m>}
 #'     column per multiplier \code{m}, from that fit's own statistics.}
 #'   \item{\code{grid}}{One row per fit: \code{multiplier}, \code{scale},
@@ -565,27 +569,17 @@ sensitivity_classification = function(fit_stats, multipliers, s0_idx, lthr) {
   lbf_mat = t(stat_mat("lbf", "numeric")) # n_fit x n_edges
   mcse_mat = t(stat_mat("mcse_lbf", "numeric"))
   verdict_mat = t(stat_mat("verdict", "character"))
-  # A saturated indicator has no finite MCSE; its error enters as zero, and
-  # its log BF is infinite, so any change from it reads as beyond error.
-  mcse0 = mcse_mat
-  mcse0[!is.finite(mcse0)] = 0
 
   # --- Sufficiency at the chosen scale, from the original fit -----------------
-  band = s0$band_half
-  band[is.na(band)] = 0
-  m0 = s0$mcse_lbf
-  m0[is.na(m0)] = 0
-  hw = pmax(band, 2 * m0)
-  straddle = (!s0$zeroflip) &
-    (((s0$lbf - hw < lthr) & (s0$lbf + hw > lthr)) |
-      ((s0$lbf - hw < -lthr) & (s0$lbf + hw > -lthr)))
-  disagree = (!s0$zeroflip) & !s0$unanimous
-  insufficient = (!s0$zeroflip) & (disagree | straddle)
-  insufficient[is.na(insufficient)] = FALSE
+  # The half-width is the larger of the between-chain band and twice the MCSE;
+  # a single-chain fit has no band.
+  hw = pmax(s0$band_half, 2 * s0$mcse_lbf, na.rm = TRUE)
+  straddle = ((s0$lbf - hw < lthr) & (s0$lbf + hw > lthr)) |
+    ((s0$lbf - hw < -lthr) & (s0$lbf + hw > -lthr))
+  disagree = !s0$unanimous
+  insufficient = disagree | straddle
   insufficient_noisy = straddle & insufficient
-  insufficient_noisy[is.na(insufficient_noisy)] = FALSE
   insufficient_disagree = disagree & insufficient
-  insufficient_disagree[is.na(insufficient_disagree)] = FALSE
 
   # --- Mover category, where the verdict first differs, stability bracket -----
   ref_v = s0$verdict
@@ -603,9 +597,15 @@ sensitivity_classification = function(fit_stats, multipliers, s0_idx, lthr) {
       mover[e] = "stable"
     } else {
       change = abs(lbf_mat[, e] - lbf_mat[s0_idx, e])
-      error = 2 * sqrt(mcse0[, e]^2 + mcse0[s0_idx, e]^2)
-      beyond = differs & (is.na(change) | change > error)
-      mover[e] = if(any(beyond)) "beyond-monte-carlo-error" else "within-monte-carlo-error"
+      error = 2 * sqrt(mcse_mat[, e]^2 + mcse_mat[s0_idx, e]^2)
+      beyond = any(differs & change > error)
+      mover[e] = if(is.na(beyond)) {
+        NA_character_
+      } else if(beyond) {
+        "beyond-monte-carlo-error"
+      } else {
+        "within-monte-carlo-error"
+      }
       moved_at[e] = multipliers[by_distance[which(differs[by_distance])[1]]]
     }
     lo = s0_idx
@@ -674,9 +674,10 @@ order_upper_tri_rowmajor = function(p) {
 #' Prints the verdict counts at each scale, the number of edges whose verdict
 #' held at every scale, changed within Monte Carlo error, changed beyond it,
 #' or could not be certified at the chosen scale, the edges that changed
-#' beyond Monte Carlo error by name, the fits whose largest split R-hat
-#' exceeds 1.01, and how the chosen scale compares with the scale the
-#' estimated interactions imply.
+#' beyond Monte Carlo error by name, the fits that did not sample (a
+#' parameter constant in every chain at different values, infinite split
+#' R-hat), the fits whose largest split R-hat exceeds 1.01, and how the chosen
+#' scale compares with the scale the estimated interactions imply.
 #'
 #' @param x A \code{bgms_prior_sensitivity} object.
 #' @param max_rows Integer. Maximum edges to name in the table of edges that
@@ -816,15 +817,42 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
     cat("\n")
   }
 
-  # Fits whose largest split R-hat exceeds 1.01.
+  # Edges whose Monte Carlo error is NA in some fit.
+  mcse_cols = grep("^mcse_x", names(edges), value = TRUE)
+  if(length(mcse_cols) > 0 && anyNA(edges[, mcse_cols])) {
+    wrap(paste0(
+      "Monte Carlo standard errors in $edges are NA where a fit's inclusion ",
+      "probability was 0 or 1 in every draw; there is no variation to estimate ",
+      "them from."
+    ))
+    cat("\n")
+  }
+
+  # Fits with a parameter constant at different values across chains, and
+  # fits whose largest split R-hat exceeds 1.01.
   g = x$grid
   if(!is.null(g$rhat_max)) {
+    fit_label = function(i) {
+      ifelse(g$original_fit[i], "1x original", sprintf("%.2gx", g$multiplier[i]))
+    }
+    stuck = which(is.infinite(g$rhat_max))
+    if(length(stuck) > 0) {
+      one = length(stuck) == 1L
+      wrap(sprintf(
+        paste0(
+          "The %s %s did not sample: at least one parameter stayed at a fixed ",
+          "value in every chain, with the chains at different values (split ",
+          "R-hat infinite). %s verdicts carry no information about the prior."
+        ),
+        list_of(fit_label(stuck)), if(one) "fit" else "fits", if(one) "Its" else "Their"
+      ))
+      cat("\n")
+    }
     high = which(is.finite(g$rhat_max) & g$rhat_max > 1.01)
     if(length(high) > 0) {
-      lab = ifelse(g$original_fit[high], "1x original", sprintf("%.2gx", g$multiplier[high]))
       wrap(sprintf(
         "Largest split R-hat above 1.01: %s.",
-        list_of(sprintf("%s fit %s", lab, format(round(g$rhat_max[high], 3))))
+        list_of(sprintf("%s fit %s", fit_label(high), format(round(g$rhat_max[high], 3))))
       ))
       cat("\n")
     }

@@ -165,6 +165,24 @@ released from this line yet.
 
 ## Diagnostics
 
+* The `summary()` tables and `prior_sensitivity_check()` no longer substitute
+  values for a Monte Carlo error or a convergence diagnostic that was not
+  computed. An indicator whose inclusion probability was 0 or 1 in every draw
+  has `NA` for `mcse`, `n_eff` and `Rhat`, and the printed summary says so in
+  one sentence. Indicators constant at different values across chains keep the
+  kernel's split-R-hat of `Inf`; before, the indicator tables set it to `NA`.
+  The composite Monte Carlo error of a pairwise effect is `NA` when its
+  inclusion error is `NA`; before, that error entered as zero.
+
+  In `prior_sensitivity_check()`, where a fit's Monte Carlo error is `NA`, the
+  mover category of an edge whose verdict differs at that fit, and the
+  sufficiency flag at the chosen scale, are `NA`; before, the unknown error
+  entered as zero and the change read as beyond Monte Carlo error. The
+  `rhat_max` column of `$grid` keeps an infinite split-R-hat, and the printed
+  report states that such a fit did not sample and that its verdicts carry no
+  information about the prior; before, the infinite value was dropped from the
+  maximum and the fit went unmentioned.
+
 * `fit$nuts_diag$warmup_check` reports two new per-chain fields. `energy_tau` is
   the integrated autocorrelation time of the energy trend residuals, estimated on
   the second half of the run; `slope_t_corrected` is the trend t-statistic with

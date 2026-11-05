@@ -46,7 +46,6 @@ summarize_alloc_pairs = function(allocations, node_names = NULL) {
     Rhat = batch_rhat
   )
   colnames(result)[4:7] = c("n0->0", "n0->1", "n1->0", "n1->1")
-  result[is.na(result[, "n_eff_mixt"]), "Rhat"] = NA_real_
   if(is.null(node_names)) {
     rn = paste0(Pairs[, 1], "-", Pairs[, 2])
     dimn = as.character(seq_len(no_variables))

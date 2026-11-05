@@ -519,6 +519,16 @@ test_that("indicator ESS handles all-one draws (constant 1)", {
   expect_equal(result[1, "n10"], 0, ignore_attr = TRUE)
 })
 
+test_that("the indicator summary keeps Rhat Inf for indicators constant at different values across chains", {
+  draws = array(0, dim = c(100, 2, 1))
+  draws[, 2, 1] = 1
+  summ = bgms:::summarize_indicator(NULL, array3d = draws)
+  expect_true(is.na(summ$n_eff_mixt))
+  expect_identical(summ$Rhat, Inf)
+  same = array(1, dim = c(100, 2, 1))
+  expect_true(is.na(bgms:::summarize_indicator(NULL, array3d = same)$Rhat))
+})
+
 test_that("indicator ESS handles niter=1", {
   draws = array(c(1, 0), dim = c(1, 2, 1))
   result = bgms:::.compute_indicator_ess_cpp(draws)
