@@ -571,8 +571,15 @@ sensitivity_classification = function(fit_stats, multipliers, s0_idx, lthr) {
   verdict_mat = t(stat_mat("verdict", "character"))
 
   # --- Sufficiency at the chosen scale, from the original fit -----------------
-  # The half-width is the larger of the between-chain band and twice the MCSE;
-  # a single-chain fit has no band.
+  # Could a rerun of the original fit with another seed have given this edge a
+  # different verdict, with no change of prior? Two Monte Carlo error measures
+  # of the log Bayes factor are available: twice its within-chain standard
+  # error (mcse_lbf) and its between-chain spread (band_half). The larger of
+  # the two is the half-width of an error band around the log Bayes factor. If
+  # one measure is NA (a single-chain fit has no between-chain spread), the
+  # other sets the half-width; if both are NA, the half-width is NA. The verdict
+  # is insufficient when that band contains a verdict threshold, +/- log of the
+  # evidence threshold, or when the chains' individual verdicts disagree.
   hw = pmax(s0$band_half, 2 * s0$mcse_lbf, na.rm = TRUE)
   straddle = ((s0$lbf - hw < lthr) & (s0$lbf + hw > lthr)) |
     ((s0$lbf - hw < -lthr) & (s0$lbf + hw > -lthr))
