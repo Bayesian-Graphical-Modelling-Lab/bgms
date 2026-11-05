@@ -198,6 +198,20 @@ test_that("print() reports the counts, the movers and high R-hat fits", {
   counts = as.integer(sub(".* +([0-9]+)$", "\\1", count_lines))
   expect_equal(c(fourth = counts[4], total = sum(counts)), c(fourth = 1L, total = 1L))
 
+  # Missing uncertainty must not hide the explanation for ordinary noisy edges.
+  s_lo_mixed = s_lo
+  s_lo_mixed$mcse_lbf[2] = NA_real_
+  cls_mixed = sensitivity_classification(list(s_lo_mixed, s0, s_hi), multipliers, 2L, lthr)
+  out_mixed = gsub("\\s+", " ", paste(
+    utils::capture.output(print(fake_sensitivity(cls_mixed, multipliers))),
+    collapse = " "
+  ))
+  expect_match(out_mixed, "not certifiable at the chosen scale 3")
+  expect_match(out_mixed, "within Monte Carlo error of a threshold, so a rerun")
+  expect_match(out_mixed, "Monte Carlo uncertainty could not be assessed for every verdict or verdict change")
+  # An NA-only group has no known threshold or chain-disagreement cause.
+  expect_false(any(grepl("rerun with another seed", out_unknown, fixed = TRUE)))
+
   # Every fit at or below 1.01, and a scale within a factor two: neither
   # sentence appears, and the verdict table has every scale.
   ps2 = fake_sensitivity(cls, multipliers, s_hat = 0.8)

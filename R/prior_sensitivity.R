@@ -809,14 +809,21 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
     } else {
       "the Bayes factor lies within Monte Carlo error of a threshold"
     }
-    explanation = if(anyNA(edges$insufficient[uncert]) || anyNA(edges$mover[uncert])) {
-      "Monte Carlo uncertainty could not be assessed for every verdict or verdict change; see $edges."
-    } else {
+    explanation = if(noisy || disagree) {
       sprintf(
         "In the original fit %s, so a rerun with another seed could change %s verdict without any change of prior.",
         cause, if(one) "its" else "the"
       )
+    } else {
+      character(0)
     }
+    if(anyNA(edges$insufficient[uncert]) || anyNA(edges$mover[uncert])) {
+      explanation = c(
+        explanation,
+        "Monte Carlo uncertainty could not be assessed for every verdict or verdict change; see $edges."
+      )
+    }
+    explanation = paste(explanation, collapse = " ")
     wrap(sprintf(
       "%d %s %s not certifiable at the chosen scale: %s%s. %s",
       length(nm), if(one) unit$noun else unit$nouns, if(one) "is" else "are",
