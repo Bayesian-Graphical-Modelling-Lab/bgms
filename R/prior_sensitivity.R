@@ -2,16 +2,11 @@
 # prior_sensitivity_check: scale-robustness of edge inclusion verdicts
 # ==============================================================================
 #
-# Refit the model at a small grid of interaction slab scales (multipliers of the
-# fit's chosen scale) and classify every edge at every scale, with a Monte Carlo
-# wobble guard calibrated from a replicate refit at the chosen scale. Warm starts
-# and the refit engine live in refit_engine.R. See the package vignette
-# "Checking prior sensitivity" and Bartos et al. (arXiv 2604.21596).
-#
-# The previous single-fit conditional-density reweighting curve was removed here:
-# on real network data the scale posterior collapses and its importance ESS is ~1
-# across the advertised band (phase-B review, 2026-07-28). Git history and
-# dev/audit/2026-07-28-phase-b-review.md are the archive if it is ever revived.
+# Refit the model at a few multipliers of the fit's chosen slab scale, each
+# refit at the original fit's run length, and compare every edge's verdict
+# across the fits. The refits and the per-fit statistics live in
+# refit_engine.R; the classification is a function of those statistics alone
+# (sensitivity_classification).
 # ==============================================================================
 
 
@@ -37,13 +32,9 @@ verdict_from_bf = function(bf, threshold) {
 #' @title Prior Sensitivity of Inclusion Verdicts
 #'
 #' @description
-#' Recovers each indicator's continuous inclusion-Bayes-factor curve
-#' \eqn{\mathrm{BF}_e(s)} across the scale \eqn{s} of the slab that gates it,
-#' and classifies every verdict trajectory along it. The curve is anchored at a
-#' handful of fixed-scale fits --- the chosen-scale anchor is the original fit
-#' itself --- and filled in between anchors by importance reweighting. A
-#' built-in Monte Carlo noise guard, calibrated from a repeated refit at one
-#' anchor, keeps the check from crying wolf on boundary cases.
+#' Refits the model at a few multipliers of the slab scale that gates the
+#' indicators, each refit at the original fit's run length, and compares every
+#' indicator's inclusion verdict across the fits.
 #'
 #' On a \code{\link{bgm}()} fit with edge selection the unit is the edge
 #' indicator and the swept prior is the interaction slab. On a
@@ -53,86 +44,51 @@ verdict_from_bf = function(bf, threshold) {
 #' difference families alike, since \code{bgmCompare()} gives them one scale.
 #'
 #' @details
-#' \strong{The anchored curve.} The model is refit at the non-unit
-#' \code{anchors} (multipliers of the chosen scale \eqn{s_0}; the \code{1x}
-#' anchor is the original fit and is never refit). A fit at fixed anchor
-#' scale \eqn{s_a} is reweighted to a nearby scale \eqn{s} with per-draw
-#' slab-density ratios over the currently included edges; the likelihood
-#' cancels, so no refit is needed between anchors. The posterior-density-ratio
-#' reweighting identity of Bartos et al. (2026) is used locally around each
-#' refit anchor; the anchored construction itself is specific to \pkg{bgms}.
-#' Each point of a dense
-#' log-spaced display grid pools every anchor that clears \code{ess_floor}
-#' there, weighting each anchor's inclusion-probability estimate by its
-#' inverse variance (\eqn{\mathrm{ESS} / (p(1-p))}); the pooling is on the
-#' inclusion-probability scale and is then transformed to the natural log
-#' Bayes factor, which keeps the curve continuous across
-#' anchor hand-offs and finite at capped edges. Points where no anchor
-#' clears the floor are \code{NA} rather than extrapolated, and
-#' non-overlapping anchor radii trigger a warning to add anchors; log-spaced
-#' default anchors make the radii overlap. Exactness is kept off the pooled
-#' curve and on the anchor fits themselves: the per-anchor verdict columns
-#' and every chosen-scale quantity are read straight from each fit's own
-#' Rao-Blackwellized statistics, so the \code{1x} column is exactly the
-#' original fit's reported analysis. Between the anchors the curve is therefore
-#' importance-reweighted rather than refit, and can deviate from a refit at that
-#' scale by up to roughly \code{0.01} in inclusion probability at the
-#' extrapolation ends; the anchors themselves -- including the \code{1x} anchor,
-#' which is the user's own fit -- are exact.
+#' \strong{The fits.} The model is refit at every multiplier in
+#' \code{scale_multipliers} of the chosen scale \eqn{s_0}, with the original
+#' fit's \code{iter} and \code{warmup} unless \code{iter} and \code{warmup}
+#' are given. The original fit is the \code{1x} fit and is not refit. An
+#' ordinal (omrf) refit starts each chain from the original fit's final
+#' per-chain state, and a NUTS refit also from its adapted step size and mass
+#' matrix; continuous (GGM) and mixed-MRF refits start cold. Every quantity
+#' the check reports for a fit is that fit's own Rao-Blackwellized inclusion
+#' probability, its natural log inclusion Bayes factor and verdict, and the
+#' Monte Carlo standard error of the log Bayes factor from the fit's own
+#' summary; the \code{1x} column is the original fit's reported analysis.
 #'
-#' \strong{Warm starts.} For ordinal (omrf) fits each refit starts from the
-#' original fit's per-chain final state, and a NUTS refit additionally carries
-#' the adapted step size and diagonal mass matrix, so a short warmup suffices
-#' and the whole check costs about one original fit. Because the warm starts sit
-#' near the chosen-scale posterior, cross-chain dispersion is reduced by
-#' construction, which weakens split-\eqn{\hat R} as a between-chain diagnostic;
-#' the refit gate therefore reads the \emph{median} split-\eqn{\hat R} over the
-#' continuous parameters and over the Rao-Blackwellized inclusion probabilities
-#' together with the NUTS energy diagnostics, and reports the smallest
-#' Rao-Blackwellized inclusion \code{n_eff} as \code{$grid$inclusion_ess_min};
-#' the per-chain agreement that guards an individual verdict is the edge-level
-#' sufficiency check below. Continuous (GGM) and
-#' mixed-MRF fits refit cold (full warmup), costing about one fit per scale.
+#' \strong{Classification.} An edge's reference verdict is the original fit's.
+#' An edge is \code{stable} when every refit's verdict equals it. Otherwise
+#' the change in log Bayes factor from the original fit to each refit whose
+#' verdict differs is compared with twice the combined Monte Carlo standard
+#' error of the two fits, \eqn{2\sqrt{\mathrm{MCSE}_s^2 + \mathrm{MCSE}_1^2}}:
+#' the edge is \code{beyond-monte-carlo-error} when the change exceeds it at
+#' some such refit and \code{within-monte-carlo-error} when it does not at
+#' any. \code{$edges$moved_at} is the multiplier nearest 1 at which the
+#' verdict differs. \code{stability_lower} and \code{stability_upper} are the
+#' smallest and largest multiplier in the contiguous run of fits around
+#' \code{1x} that hold the reference verdict.
 #'
-#' \strong{The mover rule.} An edge is flagged scale-sensitive only if its
-#' verdict differs somewhere along the curve \emph{and} its natural log
-#' Bayes-factor change across scales exceeds
-#' \code{max(tolerance, 2 * MCSE, noise)}, with the per-point MCSE from the
-#' chain-level spread of the reweighted estimate (so it carries both the
-#' between-chain and the importance-sampling uncertainty) and the noise band
-#' the 95th percentile of the spread between one anchor refit and its
-#' repeat, over the edges with \eqn{|\log \mathrm{BF}| \le 3 \log 10 \approx 6.91}
-#' in both refits (near-saturated edges are excluded because their log Bayes
-#' factor jumps between identical runs). An edge inside that window in one
-#' refit only is left out of the percentile and counted; the printed report
-#' gives the count. When no edge qualifies the noise band is \code{NA} and the
-#' mover rule falls back to \code{max(tolerance, 2 * MCSE)}.
-#' The \code{$edges$mover} column stores \code{stable},
-#' \code{indistinguishable-from-wobble}, or \code{moved-beyond-wobble}; the
-#' printed report shows the same categories in plain language ("robust",
-#' "changed, within run-to-run noise", "changed, beyond run-to-run noise",
-#' with edges failing the sufficiency check below printed as "not
-#' certifiable"). A bare verdict flip inside the replicate noise is never
-#' reported as a move.
+#' \strong{Sufficiency at the chosen scale.} An edge whose per-chain verdicts
+#' disagree in the original fit, or whose log Bayes factor lies within
+#' \code{max(between-chain band, 2 * MCSE)} of a verdict threshold there, is
+#' marked \code{insufficient}: the fit cannot certify the verdict the check
+#' starts from, and the printed report lists the edge as not certifiable
+#' rather than in a mover category.
 #'
-#' \strong{Edge-level sufficiency.} An edge whose per-chain verdicts disagree, or
-#' whose between-chain-inflated log-BF band straddles a verdict
-#' threshold, is marked \code{insufficient} at that scale: the refit cannot
-#' certify its verdict. This errs toward caution --- disagreement widens the
-#' band rather than vanishing into a pooled estimate.
-#'
-#' \strong{Two-level gate.} Each refit passes a refit-level gate (continuous
-#' split-\eqn{\hat R} below 1.01, bulk RB-inclusion median \eqn{\hat R} below
-#' 1.01, E-BFMI and energy variance-ratio for NUTS) before its verdicts are
-#' used; a refit that fails is reported as unusable rather than silently pooled.
+#' \strong{Convergence.} Each fit's largest split-\eqn{\hat R} over the
+#' continuous parameters, smallest effective sample size over the continuous
+#' parameters and over the indicators, and for NUTS the smallest E-BFMI and
+#' the largest energy variance ratio, are in \code{$grid}. The classification
+#' uses every fit; the printed report names a fit whose largest
+#' split-\eqn{\hat R} exceeds 1.01.
 #'
 #' \strong{Models with a precision diagonal.} A continuous or mixed fit has a
 #' Gamma or exponential prior on the precision diagonal with a standardized
 #' rate \eqn{\eta}; at slab scale \eqn{s} the sampler runs that prior with raw
-#' rate \eqn{\eta / s}. The sweep holds \eqn{\eta} fixed: the refits and the
-#' importance weights move the raw rate with the slab scale, and the printed
-#' report gives the \eqn{\eta} held fixed. A fit whose diagonal prior was given
-#' as a raw \code{rate} stops with an error; see the section below.
+#' rate \eqn{\eta / s}. The refits hold \eqn{\eta} fixed and move the raw rate
+#' with the slab scale, and the printed report gives the \eqn{\eta} held
+#' fixed. A fit whose diagonal prior was given as a raw \code{rate} stops with
+#' an error; see the section below.
 #'
 #' @section Fits with a raw-rate diagonal prior:
 #' A diagonal prior given as \code{exponential_prior(rate = )} or
@@ -141,7 +97,7 @@ verdict_from_bf = function(bf, threshold) {
 #' inclusion probabilities at a few slab scales with the raw rate held at the
 #' fitted value is a loop over \code{\link{bgm}()}:
 #' \preformatted{
-#' scales = c(0.4, 0.63, 1, 1.6, 2.5)
+#' scales = c(0.5, 1, 2)
 #' fits = lapply(scales, function(s) {
 #'   bgm(x,
 #'       interaction_prior = normal_prior(scale = s),
@@ -159,84 +115,87 @@ verdict_from_bf = function(bf, threshold) {
 #' @param bgms_object A fitted \code{bgms} object from \code{\link{bgm}()} run
 #'   with \code{edge_selection = TRUE}, or a \code{bgmCompare} object from
 #'   \code{\link{bgmCompare}()} run with \code{difference_selection = TRUE}.
-#' @param anchors Numeric vector of positive anchor multipliers of the chosen
-#'   scale. Default \code{c(0.4, 0.63, 1, 1.6, 2.5)} (log-spaced, so adjacent
-#'   anchors' usable reweighting radii overlap). The multiplier \code{1} is
-#'   always included and is the original fit; each other anchor is one warm
-#'   refit.
+#' @param scale_multipliers Numeric vector of positive multipliers of the
+#'   chosen scale at which the model is refit. Default \code{c(0.5, 2)}. The
+#'   multiplier \code{1} is the original fit, always included and never refit;
+#'   each other multiplier is one refit.
 #' @param evidence_threshold Positive numeric. Inclusion Bayes factor threshold
 #'   for a presence verdict; \code{1 / evidence_threshold} is the absence
 #'   threshold. Default: \code{10}.
 #' @param refit_sampler One of \code{"same-as-fit"} (default; inherit the
 #'   original fit's update method) or an explicit \code{"nuts"},
-#'   \code{"adaptive-metropolis"}, or \code{"gibbs"}. NUTS refits of an ordinal
-#'   fit carry the adapted metric and run fastest; when an inherited slower
-#'   sampler makes the check cost more than about a minute, a message suggests
-#'   the switch. Refitting with a different sampler than the original fit is
-#'   sound because every comparison the check makes runs refit-against-refit
-#'   under one identical pipeline; the original fit never enters a comparison.
+#'   \code{"adaptive-metropolis"}, or \code{"gibbs"}. Every comparison the
+#'   check makes is between a refit and the original fit, so the refit sampler
+#'   should be the original fit's unless the original fit is to be rerun with
+#'   the other sampler too.
 #' @param iter,warmup Integer sampling and warmup iterations per refit, or
-#'   \code{NULL} (default) to use the validated short schedule for warm NUTS
-#'   refits and inherit the original fit's schedule otherwise.
-#' @param tolerance Numeric. Minimum natural log BF change across scales for
-#'   a verdict flip to count as a move, before the MCSE and noise floors.
-#'   Default: \code{0.5 * log(10)} (about 1.15, the same decision boundary the
-#'   former 0.5 carried in \eqn{\log_{10}} units).
-#' @param ess_floor Positive numeric. Minimum pooled importance effective
-#'   sample size for a curve point to be reported; points below it are
-#'   \code{NA}. Default: \code{400}.
-#' @param include_preferred_scale Logical. Add an extra anchor at the
-#'   data-preferred scale \eqn{\hat s}. Default: \code{FALSE}.
+#'   \code{NULL} (default) to use the original fit's.
+#' @param include_preferred_scale Logical. Add a refit at the data-preferred
+#'   scale \eqn{\hat s}. Default: \code{FALSE}.
 #' @param cores Integer thread count for each refit's chains. Default: the
 #'   original fit's core count.
 #' @param seed Integer base seed for the refits. Default: \code{1}.
 #' @param keep_fits Logical. Retain the full refit objects in the result (for
-#'   power users); the default keeps only per-scale summaries. Default:
+#'   power users); the default keeps only per-fit summaries. Default:
 #'   \code{FALSE}.
-#' @param verbose Logical. If \code{TRUE}, print each internal refit's raw
-#'   sampler notes (energy, tree-depth, dropped chains) live as it runs. By
-#'   default these are captured, not printed: the convergence gate adjudicates
-#'   them, a failed anchor is reported once in plain language, and the raw
-#'   text stays available in \code{$refit_diagnostics}. Default: \code{FALSE}.
+#' @param verbose Logical. If \code{TRUE}, print each refit's raw sampler
+#'   notes (energy, tree-depth, dropped chains) live as it runs. By default
+#'   these are captured, not printed, and the text stays available in
+#'   \code{$refit_diagnostics}. Default: \code{FALSE}.
 #'
-#' @return An object of class \code{"bgms_prior_sensitivity"}: a list with the
-#'   per-edge \code{edges} table (chosen-scale verdict from the original fit,
-#'   per-anchor verdict columns, dense-grid stability range, mover category,
-#'   an \code{insufficient} flag with its two subcauses
-#'   \code{insufficient_noisy} (Bayes factor within Monte Carlo error of a
-#'   threshold) and \code{insufficient_disagree} (chains disagree on the
-#'   verdict)), a \code{grid} data frame (one row per anchor fit and
-#'   the replicate, with convergence gates), the \code{multipliers} display
-#'   grid with the \code{log_bf}, \code{log_bf_mcse}, and \code{verdict}
-#'   curve matrices (grid-by-edge, \code{NA} where masked), the \code{curve}
-#'   bookkeeping (per-point importance ESS, anchor used, \code{ess_floor},
-#'   per-point chain unanimity), the \code{wobble} noise yardstick,
-#'   \code{refit_diagnostics} (the captured raw sampler notes per anchor and
-#'   the replicate), the data-\code{preferred_scale} (\code{NA} where the swept
-#'   prior is not the one on the pairwise interactions), the \code{unit} the
-#'   check reported on, the standardized diagonal rate \code{diagonal_eta} held
-#'   fixed (\code{NA} for a model without a precision diagonal), and the
-#'   settings used.
+#' @return An object of class \code{"bgms_prior_sensitivity"}: a list with
+#'   \describe{
+#'   \item{\code{edges}}{One row per indicator: \code{edge}, the prior
+#'     inclusion probability, the original fit's \code{chosen_scale_pip},
+#'     \code{chosen_scale_log_bf}, \code{chosen_scale_mcse} (of the log Bayes
+#'     factor) and \code{chosen_scale_verdict}; \code{stability_lower} and
+#'     \code{stability_upper}; \code{mover} (\code{stable},
+#'     \code{within-monte-carlo-error}, \code{beyond-monte-carlo-error}, or
+#'     \code{NA} for an indicator without a verdict) and \code{moved_at};
+#'     \code{insufficient} with its two subcauses \code{insufficient_noisy}
+#'     (log Bayes factor within Monte Carlo error of a threshold) and
+#'     \code{insufficient_disagree} (chains disagree on the verdict);
+#'     \code{saturated} (the indicator never flipped in the original fit);
+#'     then one \code{verdict_x<m>}, \code{log_bf_x<m>} and \code{mcse_x<m>}
+#'     column per multiplier \code{m}, from that fit's own statistics.}
+#'   \item{\code{grid}}{One row per fit: \code{multiplier}, \code{scale},
+#'     \code{original_fit}, \code{iter}, \code{warmup}, \code{seed}, the
+#'     diagnostics \code{rhat_max}, \code{ess_min}, \code{inclusion_ess_min},
+#'     \code{ebfmi_min}, \code{energy_variance_ratio_max} and
+#'     \code{warmup_incomplete}, \code{sampler_notes}, and \code{seconds}.}
+#'   \item{\code{verdict_by_scale}}{Fit-by-indicator matrix of verdicts.}
+#'   \item{\code{preferred_scale}}{The scale the estimated interactions imply:
+#'     \code{s_hat} is the root-mean-square of the included interactions over
+#'     the original fit's draws, with \code{lo} and \code{hi} an approximate
+#'     95\% interval from a \eqn{1/\sqrt{2m}} log-scale standard error, \eqn{m}
+#'     the mean number of included edges. \code{NA} where the swept prior is
+#'     not the one on the pairwise interactions.}
+#'   \item{\code{refit_diagnostics}}{The captured raw sampler notes per fit.}
+#'   \item{\code{scale_multipliers}, \code{chosen_scale}, \code{unit},
+#'     \code{diagonal_eta}, \code{evidence_threshold}, \code{refit_sampler},
+#'     \code{warm}, \code{model_type}, \code{runtime_seconds},
+#'     \code{fits}}{The multipliers (1 included) and the chosen scale, the
+#'     unit the check reported on, the standardized diagonal rate held fixed
+#'     (\code{NA} for a model without a precision diagonal), the settings, and
+#'     the refit objects when \code{keep_fits = TRUE}.}
+#'   }
 #'
-#' @seealso \code{\link{bgm}()}, \code{\link{extract_posterior_inclusion_probabilities}()}
+#' @seealso \code{\link{bgm}()}, \code{\link{verdicts}()},
+#'   \code{\link{extract_posterior_inclusion_probabilities}()}
 #' @family diagnostics
-#' @references \insertRef{bartos2026}{bgms}
 #' @export
 #' @examples
 #' \donttest{
 #' fit = bgm(Wenchuan[, 1:6], chains = 2)
 #' ps = prior_sensitivity_check(fit)
 #' ps
-#' plot(ps)
 #' }
 prior_sensitivity_check = function(bgms_object,
-                                   anchors = c(0.4, 0.63, 1, 1.6, 2.5),
+                                   scale_multipliers = c(0.5, 2),
                                    evidence_threshold = 10,
                                    refit_sampler = "same-as-fit",
                                    iter = NULL,
                                    warmup = NULL,
-                                   tolerance = 0.5 * log(10),
-                                   ess_floor = 400,
                                    include_preferred_scale = FALSE,
                                    cores = NULL,
                                    seed = 1L,
@@ -249,13 +208,11 @@ prior_sensitivity_check = function(bgms_object,
 #' @exportS3Method
 #' @noRd
 prior_sensitivity_check.bgms = function(bgms_object,
-                                        anchors = c(0.4, 0.63, 1, 1.6, 2.5),
+                                        scale_multipliers = c(0.5, 2),
                                         evidence_threshold = 10,
                                         refit_sampler = "same-as-fit",
                                         iter = NULL,
                                         warmup = NULL,
-                                        tolerance = 0.5 * log(10),
-                                        ess_floor = 400,
                                         include_preferred_scale = FALSE,
                                         cores = NULL,
                                         seed = 1L,
@@ -270,9 +227,9 @@ prior_sensitivity_check.bgms = function(bgms_object,
   }
   prior_sensitivity_engine(bgms_object,
     unit = single_network_unit(spec),
-    anchors = anchors, evidence_threshold = evidence_threshold,
+    scale_multipliers = scale_multipliers,
+    evidence_threshold = evidence_threshold,
     refit_sampler = refit_sampler, iter = iter, warmup = warmup,
-    tolerance = tolerance, ess_floor = ess_floor,
     include_preferred_scale = include_preferred_scale, cores = cores,
     seed = seed, keep_fits = keep_fits, verbose = verbose
   )
@@ -282,13 +239,11 @@ prior_sensitivity_check.bgms = function(bgms_object,
 #' @exportS3Method
 #' @noRd
 prior_sensitivity_check.bgmCompare = function(bgms_object,
-                                              anchors = c(0.4, 0.63, 1, 1.6, 2.5),
+                                              scale_multipliers = c(0.5, 2),
                                               evidence_threshold = 10,
                                               refit_sampler = "same-as-fit",
                                               iter = NULL,
                                               warmup = NULL,
-                                              tolerance = 0.5 * log(10),
-                                              ess_floor = 400,
                                               include_preferred_scale = FALSE,
                                               cores = NULL,
                                               seed = 1L,
@@ -299,22 +254,22 @@ prior_sensitivity_check.bgmCompare = function(bgms_object,
     stop(
       "prior_sensitivity_check() needs difference selection. Refit with ",
       "bgmCompare(difference_selection = TRUE); without it every difference ",
-      "is in the model and there is no inclusion Bayes factor to trace."
+      "is in the model and there is no inclusion Bayes factor to compare."
     )
   }
   if(is.na(difference_prior_inclusion(bgms_object))) {
     stop(
       "A stochastic-block difference prior has no single marginal inclusion ",
-      "probability, so the curve would report posterior odds rather than ",
+      "probability, so the check would report posterior odds rather than ",
       "Bayes factors. Refit with bernoulli_prior() or beta_bernoulli_prior() ",
-      "to trace the difference scale."
+      "to compare the difference verdicts across scales."
     )
   }
   prior_sensitivity_engine(bgms_object,
     unit = difference_unit(spec),
-    anchors = anchors, evidence_threshold = evidence_threshold,
+    scale_multipliers = scale_multipliers,
+    evidence_threshold = evidence_threshold,
     refit_sampler = refit_sampler, iter = iter, warmup = warmup,
-    tolerance = tolerance, ess_floor = ess_floor,
     include_preferred_scale = include_preferred_scale, cores = cores,
     seed = seed, keep_fits = keep_fits, verbose = verbose
   )
@@ -324,10 +279,10 @@ prior_sensitivity_check.bgmCompare = function(bgms_object,
 # ------------------------------------------------------------------
 # single_network_unit / difference_unit
 # ------------------------------------------------------------------
-# What the check sweeps and what it reports on. bgm() traces edge indicators
-# across the interaction slab scale; bgmCompare() traces difference indicators
-# across the difference slab scale. Everything between -- the anchored curve,
-# the convergence gate, the wobble yardstick, the reporting -- is shared.
+# What the check sweeps and what it reports on. bgm() compares edge indicators
+# across the interaction slab scale; bgmCompare() compares difference
+# indicators across the difference slab scale. Everything else -- the refits,
+# the classification, the reporting -- is shared.
 #
 # Returns: list(
 #   scale_field  Prior field the refits rescale.
@@ -362,19 +317,18 @@ difference_unit = function(spec) {
 # ------------------------------------------------------------------
 # prior_sensitivity_engine
 # ------------------------------------------------------------------
-# The shared anchored-curve machinery behind both methods. `unit` names the
-# prior field to sweep and the vocabulary of the report; see single_network_unit
-# and difference_unit. Every other argument is the method's, unchanged.
+# The shared machinery behind both methods: runs the refits, takes each fit's
+# statistics and diagnostics, and hands the statistics to
+# sensitivity_classification(). `unit` names the prior field to sweep and the
+# vocabulary of the report; see single_network_unit and difference_unit.
 # ------------------------------------------------------------------
 prior_sensitivity_engine = function(bgms_object,
                                     unit,
-                                    anchors,
+                                    scale_multipliers,
                                     evidence_threshold,
                                     refit_sampler,
                                     iter,
                                     warmup,
-                                    tolerance,
-                                    ess_floor,
                                     include_preferred_scale,
                                     cores,
                                     seed,
@@ -384,24 +338,22 @@ prior_sensitivity_engine = function(bgms_object,
     evidence_threshold <= 1) {
     stop("'evidence_threshold' must be a single number greater than 1.")
   }
-  if(!is.numeric(anchors) || any(anchors <= 0)) {
-    stop("'anchors' must be positive multipliers of the chosen scale.")
-  }
-  if(!is.numeric(ess_floor) || length(ess_floor) != 1L || ess_floor <= 0) {
-    stop("'ess_floor' must be a single positive number.")
+  if(!is.numeric(scale_multipliers) || any(!is.finite(scale_multipliers)) ||
+    any(scale_multipliers <= 0)) {
+    stop("'scale_multipliers' must be positive multipliers of the chosen scale.")
   }
 
   spec = get_fit_spec(bgms_object)
   chosen_scale = unit$chosen_scale
-  # The whole grid is multipliers of this scale, so a fit whose swept prior has
-  # no scale (a beta-prime slab carries none) has nothing to sweep.
+  # The multipliers apply to this scale, so a fit whose swept prior has no
+  # scale (a beta-prime slab carries none) has nothing to sweep.
   if(!is.numeric(chosen_scale) || length(chosen_scale) != 1L ||
     !is.finite(chosen_scale) || chosen_scale <= 0) {
     stop(
       "The fit carries no usable ", unit$scale_field, " (got ",
       format(chosen_scale), "), so there is no scale for the check to sweep. ",
       "This is what a scale-free slab such as beta_prime_prior() leaves ",
-      "behind; refit with cauchy_prior() or normal_prior() to trace the scale."
+      "behind; refit with cauchy_prior() or normal_prior() to compare scales."
     )
   }
   lthr = log(evidence_threshold)
@@ -411,16 +363,14 @@ prior_sensitivity_engine = function(bgms_object,
   # sweep; NA for a model without a precision diagonal.
   eta = diagonal_eta(spec)
 
-  # --- Sampler resolution -----------------------------------------------------
   rs = resolve_refit_sampler(bgms_object, refit_sampler)
 
-  # --- Warm state (omrf) or cold refits (other models) ------------------------
+  # An ordinal refit starts from the original fit's final state; the GGM and
+  # mixed samplers take no initial state.
   is_omrf = identical(spec$model_type, "omrf")
   warm_state = if(is_omrf) extract_warm_state(bgms_object) else NULL
-  warm_metric = is_omrf && identical(rs$method, "nuts") &&
-    !is.null(warm_state$inv_mass)
 
-  # --- Data-preferred scale (no refit) ----------------------------------------
+  # The scale the estimated interactions imply, read off the original fit.
   # Only defined where the swept prior is the one on the pairwise interactions;
   # the difference slab has no comparable plug-in estimate.
   preferred = if(isTRUE(unit$preferred)) {
@@ -429,436 +379,269 @@ prior_sensitivity_engine = function(bgms_object,
     list(s_hat = NA_real_, lo = NA_real_, hi = NA_real_)
   }
 
-  # --- Anchor set: 1x is the original fit, never refit ------------------------
-  anchors = sort(unique(c(anchors, 1)))
+  # --- The fits: 1x is the original fit, every other multiplier a refit -------
+  multipliers = sort(unique(c(scale_multipliers, 1)))
   if(include_preferred_scale && is.finite(preferred$s_hat)) {
-    anchors = sort(unique(c(anchors, preferred$s_hat / chosen_scale)))
+    multipliers = sort(unique(c(multipliers, preferred$s_hat / chosen_scale)))
   }
-  n_anchor = length(anchors)
-  s0_idx = which(anchors == 1)
-  non_unit = setdiff(seq_len(n_anchor), s0_idx)
-  if(length(non_unit) == 0L) {
-    stop("'anchors' must include at least one multiplier other than 1.")
+  n_fit = length(multipliers)
+  s0_idx = which(multipliers == 1)
+  refit_idx = setdiff(seq_len(n_fit), s0_idx)
+  if(length(refit_idx) == 0L) {
+    stop("'scale_multipliers' must include at least one multiplier other than 1.")
   }
-  # The replicate refit that calibrates run-to-run noise sits at the non-unit
-  # anchor nearest 1.6x, so its noise is measured at the refit settings.
-  rep_anchor = non_unit[which.min(abs(log(anchors[non_unit] / 1.6)))]
-  rl = refit_run_length(bgms_object, rs$method, warm_metric, warmup, iter)
-
-  # One refit per non-unit anchor, plus the replicate.
-  jobs = data.frame(
-    multiplier = c(anchors[non_unit], anchors[rep_anchor]),
-    replicate = c(rep(FALSE, length(non_unit)), TRUE)
-  )
+  # Every refit has the original fit's run length unless the caller sets one.
+  run_iter = as.integer(if(is.null(iter)) spec$sampler$iter else iter)
+  run_warmup = as.integer(if(is.null(warmup)) spec$sampler$warmup else warmup)
   refit_cores = min(as.integer(cores), spec$sampler$chains)
 
-  refits = vector("list", nrow(jobs))
-  walls = numeric(nrow(jobs))
+  refits = vector("list", length(refit_idx))
+  walls = numeric(length(refit_idx))
   # Per-refit sampler chatter (energy/tree-depth notes, dropped-chain warnings)
   # is captured, not printed: a user watching the check cannot act on per-refit
-  # alarms mid-run, and the convergence gate below re-tests everything they
-  # gesture at. The captured text stays inspectable in $refit_diagnostics, and
-  # verbose = TRUE re-enables live printing.
-  refit_notes = vector("list", nrow(jobs))
-  run_one_refit = function(i, show_progress = FALSE) {
-    s = jobs$multiplier[i] * chosen_scale
+  # alarms mid-run, and $grid carries the diagnostics. The captured text stays
+  # inspectable in $refit_diagnostics, and verbose = TRUE prints it live.
+  refit_notes = vector("list", length(refit_idx))
+  run_one_refit = function(k, show_progress = FALSE) {
+    s = multipliers[refit_idx[k]] * chosen_scale
     refit_at_scale(
       bgms_object,
       scale = s,
-      warm_state = warm_state, warmup = rl$warmup, iter = rl$iter,
-      seed = seed + i, cores = refit_cores, sampler = rs$method,
+      warm_state = warm_state, warmup = run_warmup, iter = run_iter,
+      seed = seed + k, cores = refit_cores, sampler = rs$method,
       show_progress = show_progress,
       scale_field = unit$scale_field,
       diagonal_rate = if(is.na(eta)) NULL else eta / s
     )
   }
-  # Each anchor refit (the check's only real cost) renders the sampler's own
-  # native per-chain display, with the whole refit grid announced up front so
-  # the user knows what is coming. A refit's own cat() diagnostics (NUTS
-  # settle-in notes and the like) are the check's to adjudicate, not the
-  # sampler's to print: suppress them through bgms.verbose unless the user asked
-  # to see them, which leaves only the progress bar (the option does not gate
-  # it). Under verbose = TRUE the bar yields and the captured notes are reported.
+  # Each refit renders the sampler's own per-chain display, with the whole
+  # refit set announced up front. A refit's own cat() diagnostics (NUTS
+  # settle-in notes and the like) are captured, not printed, unless the user
+  # asked to see them; the progress bar is not gated by that option.
   if(!verbose) {
     old_bgms_verbose = options(bgms.verbose = FALSE)
     on.exit(options(old_bgms_verbose), add = TRUE)
   }
   show_bar = interactive() && !verbose
   if(show_bar) {
-    refit_scales = sprintf("%.2gx", jobs$multiplier[!jobs$replicate])
-    rep_scale = sprintf("%.2gx", jobs$multiplier[jobs$replicate][1])
+    refit_scales = sprintf("%.2gx", multipliers[refit_idx])
     n_chains = length(get_raw_samples(bgms_object)$pairwise)
     message(sprintf(
       paste0(
-        "Refitting at %d scale%s (%s), plus a %s repeat for the noise band.\n",
-        "Each refit runs %d chain%s; warmup and sampling are shown per chain."
+        "Refitting at %d scale%s (%s the chosen scale).\n",
+        "Each refit runs %d chain%s for %d warmup and %d sampling iterations."
       ),
       length(refit_scales), if(length(refit_scales) == 1L) "" else "s",
-      paste(refit_scales, collapse = ", "), rep_scale,
-      n_chains, if(n_chains == 1L) "" else "s"
+      paste(refit_scales, collapse = ", "),
+      n_chains, if(n_chains == 1L) "" else "s", run_warmup, run_iter
     ))
   }
-  for(i in seq_len(nrow(jobs))) {
+  for(k in seq_along(refit_idx)) {
     t0 = Sys.time()
-    warns_i = character(0)
-    fit_i = NULL
+    warns_k = character(0)
+    fit_k = NULL
     absorb_warning = function(w) {
-      warns_i <<- c(warns_i, conditionMessage(w))
+      warns_k <<- c(warns_k, conditionMessage(w))
       invokeRestart("muffleWarning")
     }
     if(show_bar) {
       # The native display writes to the console, so it must not be captured;
       # announce which refit is starting, then let its per-chain bars animate.
-      lbl = if(jobs$replicate[i]) {
-        sprintf("%.2gx scale (noise repeat)", jobs$multiplier[i])
-      } else {
-        sprintf("%.2gx scale", jobs$multiplier[i])
-      }
-      message(sprintf("\n[%d/%d] %s", i, nrow(jobs), lbl))
-      fit_i = withCallingHandlers(
-        run_one_refit(i, show_progress = TRUE),
+      message(sprintf("\n[%d/%d] %.2gx scale", k, length(refit_idx), multipliers[refit_idx[k]]))
+      fit_k = withCallingHandlers(
+        run_one_refit(k, show_progress = TRUE),
         warning = absorb_warning
       )
-      notes = warns_i
+      notes = warns_k
     } else if(verbose) {
-      # The check reports these notes itself, so capture them rather than let
-      # the refit print them mid-run.
-      cat_i = utils::capture.output({
-        fit_i = withCallingHandlers(run_one_refit(i), warning = absorb_warning)
+      cat_k = utils::capture.output({
+        fit_k = withCallingHandlers(run_one_refit(k), warning = absorb_warning)
       })
-      notes = c(cat_i[nzchar(cat_i)], warns_i)
+      notes = c(cat_k[nzchar(cat_k)], warns_k)
     } else {
-      # Diagnostics are suppressed via bgms.verbose above; nothing to capture.
-      fit_i = withCallingHandlers(run_one_refit(i), warning = absorb_warning)
-      notes = warns_i
+      fit_k = withCallingHandlers(run_one_refit(k), warning = absorb_warning)
+      notes = warns_k
     }
-    refits[[i]] = fit_i
-    refit_notes[[i]] = notes
-    walls[i] = as.numeric(Sys.time() - t0, units = "secs")
+    refits[[k]] = fit_k
+    refit_notes[[k]] = notes
+    walls[k] = as.numeric(Sys.time() - t0, units = "secs")
     if(verbose && length(notes) > 0) {
-      cat(sprintf("[%.2gx refit] sampler notes:\n", jobs$multiplier[i]))
+      cat(sprintf("[%.2gx refit] sampler notes:\n", multipliers[refit_idx[k]]))
       cat(paste0("  ", notes), sep = "\n")
     }
-    # Suggest the faster sampler only when the cost is material (projected
-    # total above ~60 s); see the man page for why the switch is sound.
-    if(i == 1L && rs$recommend_nuts && walls[1] * nrow(jobs) > 60) {
-      message(
-        "Refits use the fit's ", rs$method, " sampler (~",
-        round(walls[1]), " s each); refit_sampler = \"nuts\" is usually faster."
-      )
-    }
   }
 
-  # --- Anchor fits: the 1x anchor is the original fit -------------------------
-  anchor_fits = vector("list", n_anchor)
-  anchor_fits[[s0_idx]] = bgms_object
-  for(k in seq_along(non_unit)) anchor_fits[[non_unit[k]]] = refits[[k]]
-  rep_fit = refits[[length(refits)]]
+  # --- Per-fit statistics and diagnostics -------------------------------------
+  fits = vector("list", n_fit)
+  fits[[s0_idx]] = bgms_object
+  for(k in seq_along(refit_idx)) fits[[refit_idx[k]]] = refits[[k]]
 
-  gates = lapply(anchor_fits, refit_convergence_gate)
-  rep_gate = refit_convergence_gate(rep_fit)
-  # `gate_usable` is the gate's own verdict and is what $grid reports; `usable`
-  # is the effective flag the curve runs on, which the 1x anchor is forced into
-  # below.
-  gate_usable = vapply(gates, `[[`, logical(1), "usable")
-  usable = gate_usable
-  forced = rep(FALSE, n_anchor)
+  fit_stats = lapply(fits, refit_edge_stats, evidence_threshold = evidence_threshold)
+  diag_rows = lapply(fits, refit_diagnostics_row)
 
-  # Adjudicate the captured refit chatter: the gate is the arbiter. A failed
-  # anchor is reported once, in plain voice (which anchor, which criterion,
-  # what the curve loses); a passed anchor's notes are absorbed (settle-in
-  # transients the gate already cleared), inspectable in $refit_diagnostics.
-  for(k in seq_along(non_unit)) {
-    a = non_unit[k]
-    if(!usable[a]) {
-      message(sprintf(
-        "The %.2gx-scale refit has %s. It is left out, so the curve does not cover the scales nearest %.2gx. A longer warmup or more iterations in prior_sensitivity_check() (arguments warmup and iter) may resolve this.",
-        anchors[a], gate_failure_reason(gates[[a]]), anchors[a]
-      ))
-    }
-  }
-  if(!rep_gate$usable) {
-    message(sprintf(
-      "The repeated %.2gx-scale refit has %s. The run-to-run noise band could not be measured, so the mover rule falls back to the tolerance and Monte Carlo error floors. A longer warmup or more iterations in prior_sensitivity_check() (arguments warmup and iter) may resolve this.",
-      anchors[rep_anchor], gate_failure_reason(rep_gate)
-    ))
-  }
-  if(!usable[s0_idx]) {
-    message(sprintf(
-      "The fit you supplied has %s. The check runs on it anyway. If the fit is in doubt, refit it with a longer warmup or more iterations before relying on this check.",
-      gate_failure_reason(gates[[s0_idx]])
-    ))
-    usable[s0_idx] = TRUE
-    forced[s0_idx] = TRUE
-  }
+  cls = sensitivity_classification(fit_stats, multipliers, s0_idx, lthr)
 
-  # Each anchor fit's own RB statistics carry the exact per-anchor verdicts.
-  # Exactness lives here, not on the pooled curve: verdict columns and every
-  # chosen-scale quantity are read straight from the fit that produced them.
-  anchor_stats = lapply(anchor_fits, refit_edge_stats,
-    evidence_threshold = evidence_threshold
+  # --- Fit table: one row per fit ---------------------------------------------
+  secs = numeric(n_fit)
+  secs[refit_idx] = walls
+  seeds = rep(NA_integer_, n_fit)
+  seeds[refit_idx] = seed + seq_along(refit_idx)
+  seeds[s0_idx] = spec$sampler$seed
+  grid_notes = vector("list", n_fit)
+  grid_notes[[s0_idx]] = character(0)
+  for(k in seq_along(refit_idx)) grid_notes[[refit_idx[k]]] = refit_notes[[k]]
+  names(grid_notes) = sprintf("%gx", multipliers)
+  diag_col = function(name, type) vapply(diag_rows, `[[`, type, name)
+  original = seq_len(n_fit) == s0_idx
+  grid = data.frame(
+    multiplier = multipliers,
+    scale = multipliers * chosen_scale,
+    original_fit = original,
+    iter = ifelse(original, spec$sampler$iter, run_iter),
+    warmup = ifelse(original, spec$sampler$warmup, run_warmup),
+    seed = seeds,
+    rhat_max = diag_col("rhat_max", numeric(1)),
+    ess_min = diag_col("ess_min", numeric(1)),
+    inclusion_ess_min = diag_col("inclusion_ess_min", numeric(1)),
+    ebfmi_min = diag_col("ebfmi_min", numeric(1)),
+    energy_variance_ratio_max = diag_col("energy_variance_ratio_max", numeric(1)),
+    warmup_incomplete = diag_col("warmup_incomplete", logical(1)),
+    sampler_notes = lengths(grid_notes) > 0,
+    seconds = secs,
+    row.names = NULL
   )
-  s0 = anchor_stats[[s0_idx]]
+
+  structure(
+    list(
+      edges = cls$edges,
+      grid = grid,
+      scale_multipliers = multipliers,
+      chosen_scale = chosen_scale,
+      verdict_by_scale = cls$verdict_by_scale,
+      preferred_scale = preferred,
+      unit = unit,
+      diagonal_eta = eta,
+      evidence_threshold = evidence_threshold,
+      refit_sampler = rs$method,
+      warm = !is.null(warm_state),
+      model_type = spec$model_type,
+      runtime_seconds = sum(walls),
+      refit_diagnostics = grid_notes,
+      fits = if(keep_fits) refits else NULL
+    ),
+    class = "bgms_prior_sensitivity"
+  )
+}
+
+
+# ------------------------------------------------------------------
+# sensitivity_classification
+# ------------------------------------------------------------------
+# The classification, from the per-fit statistics alone.
+#
+# @param fit_stats    List over fits of refit_edge_stats() output; the element
+#                     at s0_idx is the original fit's.
+# @param multipliers  The fits' multipliers of the chosen scale, sorted, 1
+#                     included.
+# @param s0_idx       Position of 1 in `multipliers`.
+# @param lthr         log(evidence_threshold).
+#
+# Returns: list(edges = the per-indicator table, verdict_by_scale = fit x
+#   indicator verdict matrix).
+# ------------------------------------------------------------------
+sensitivity_classification = function(fit_stats, multipliers, s0_idx, lthr) {
+  s0 = fit_stats[[s0_idx]]
   edge_names = s0$edge
   n_edges = length(edge_names)
+  n_fit = length(multipliers)
   prior_odds = s0$prior_odds
-  # Exact per-anchor verdicts (n_anchor x n_edge); a gate-failed anchor is NA.
-  anchor_verdict = vapply(seq_len(n_anchor), function(a) {
-    if(usable[a]) anchor_stats[[a]]$verdict else rep(NA_character_, n_edges)
-  }, character(n_edges))
-  # vapply drops to a vector when there is one edge; restore the matrix before
-  # the transpose (as in lbf_of()).
-  if(is.null(dim(anchor_verdict))) {
-    anchor_verdict = matrix(anchor_verdict, nrow = 1L)
+
+  stat_mat = function(field, type) {
+    m = vapply(fit_stats, function(st) as.vector(st[[field]]), vector(type, n_edges))
+    # vapply drops to a vector when there is one indicator; keep the
+    # fit-by-indicator shape.
+    matrix(m, nrow = n_edges, ncol = n_fit)
   }
-  anchor_verdict = t(anchor_verdict)
+  lbf_mat = t(stat_mat("lbf", "numeric")) # n_fit x n_edges
+  mcse_mat = t(stat_mat("mcse_lbf", "numeric"))
+  verdict_mat = t(stat_mat("verdict", "character"))
+  # A saturated indicator has no finite MCSE; its error enters as zero, and
+  # its log BF is infinite, so any change from it reads as beyond error.
+  mcse0 = mcse_mat
+  mcse0[!is.finite(mcse0)] = 0
 
-  # --- Display grid and the stitched curve ------------------------------------
-  grid_mult = exp(seq(log(min(anchors)), log(max(anchors)), length.out = 41L))
-  grid_mult = sort(unique(c(grid_mult, anchors, 1)))
-  chosen_idx = which(grid_mult == 1)
-  anchor_index = match(anchors, grid_mult)
-  s_grid = grid_mult * chosen_scale
-
-  draws = lapply(anchor_fits, anchor_draws)
-  # The refits run the precision-diagonal prior at raw rate eta / s; the
-  # weights carry that prior ratio.
-  weight_eta = if(is.na(eta)) NULL else eta
-  reweights = lapply(seq_len(n_anchor), function(a) {
-    anchor_reweight(draws[[a]], anchors[a] * chosen_scale, s_grid, eta = weight_eta)
-  })
-  curve = assemble_curve(reweights, usable, ess_floor, anchor_index)
-
-  # A masked point between two usable anchors means their usable radii do not
-  # overlap; the curve has a gap there.
-  for(k in seq_len(n_anchor - 1L)) {
-    if(!usable[k] || !usable[k + 1L]) next
-    between = grid_mult > anchors[k] & grid_mult < anchors[k + 1L]
-    if(any(between & is.na(curve$anchor_used))) {
-      warning(sprintf(
-        paste0(
-          "The usable radii of the %.2gx and %.2gx anchors do not overlap; ",
-          "the curve has a gap between them. Add an anchor in that range."
-        ),
-        anchors[k], anchors[k + 1L]
-      ), call. = FALSE)
-    }
-  }
-
-  # --- Curve quantities: log BF, per-point MCSE, verdicts ---------------------
-  # Cap the pooled PIP away from 0 and 1 (the same 1e-6 floor the RB machinery
-  # uses) so an edge that saturates at some scale stays a large finite BF
-  # rather than an infinity: the verdict is unchanged (still decisive), and the
-  # curve, its range, and the plot stay finite.
-  lbf_of = function(pip_mat) {
-    out = apply(pip_mat, 1, function(p) {
-      pc = pmin(pmax(p, 1e-6), 1 - 1e-6)
-      log((pc / (1 - pc)) / prior_odds)
-    })
-    # With one indicator apply() returns a vector; restore the grid-by-indicator
-    # matrix before the transpose.
-    if(is.null(dim(out))) out = matrix(out, nrow = 1L)
-    t(out)
-  }
-  lbf_mat = lbf_of(curve$pip)
-  chain_lbf = simplify2array(lapply(curve$chain_pip, lbf_of)) # P x E x C
-  mcse_mat = apply(chain_lbf, c(1, 2), function(v) {
-    v = v[is.finite(v)]
-    if(length(v) >= 2L) stats::sd(v) / sqrt(length(v)) else NA_real_
-  })
-  unanimous_mat = apply(chain_lbf, c(1, 2), function(v) {
-    vv = verdict_from_lbf(v[is.finite(v)], lthr)
-    length(unique(vv)) <= 1L
-  })
-  verdict_mat = matrix(
-    verdict_from_lbf(as.vector(lbf_mat), lthr),
-    nrow = nrow(lbf_mat), ncol = n_edges
-  )
-  rownames(lbf_mat) = rownames(verdict_mat) = sprintf("m%.3g", grid_mult)
-
-  # --- Run-to-run noise from the replicate anchor pair ------------------------
-  # Same estimator as the curve (reweighting at the anchor's own scale is the
-  # identity, so this is the plain indicator average through the prior odds).
-  # The average runs over the INDICATOR draws, the unit the whole check reports
-  # on: a bgmCompare fit's gamma draws are per gated parameter (one indicator
-  # column repeated for every threshold difference it gates), which would both
-  # misalign with prior_odds and overweight the main-effect differences in the
-  # noise quantile.
-  own_lbf = function(fit) {
-    d = anchor_draws(fit)
-    p = colMeans(do.call(rbind, d$indicator))
-    log((p / (1 - p)) / prior_odds)
-  }
-  if(usable[rep_anchor] && rep_gate$usable) {
-    wob = wobble_yardstick(own_lbf(anchor_fits[[rep_anchor]]), own_lbf(rep_fit))
-    d_wobble = wob$per_edge
-    wobble_q95 = wob$q95
-    wobble_med = wob$median
-    wobble_censored = wob$censored
-  } else {
-    # The failure was already reported once above, in plain voice.
-    d_wobble = rep(NA_real_, n_edges)
-    wobble_q95 = NA_real_
-    wobble_med = NA_real_
-    wobble_censored = 0L
-  }
-
-  # --- Per-edge chosen-scale sufficiency (from the original fit) --------------
-  # A near-constant edge has NA MCSE; treat missing uncertainty as zero (it is
-  # a saturated/zero-flip edge, masked below anyway).
+  # --- Sufficiency at the chosen scale, from the original fit -----------------
   band = s0$band_half
   band[is.na(band)] = 0
-  mcse0 = s0$mcse_lbf
-  mcse0[is.na(mcse0)] = 0
-  hw = pmax(band, 2 * mcse0)
+  m0 = s0$mcse_lbf
+  m0[is.na(m0)] = 0
+  hw = pmax(band, 2 * m0)
   straddle = (!s0$zeroflip) &
     (((s0$lbf - hw < lthr) & (s0$lbf + hw > lthr)) |
       ((s0$lbf - hw < -lthr) & (s0$lbf + hw > -lthr)))
   disagree = (!s0$zeroflip) & !s0$unanimous
   insufficient = (!s0$zeroflip) & (disagree | straddle)
   insufficient[is.na(insufficient)] = FALSE
-  # Record why each insufficient edge was flagged, for the report.
   insufficient_noisy = straddle & insufficient
   insufficient_noisy[is.na(insufficient_noisy)] = FALSE
   insufficient_disagree = disagree & insufficient
   insufficient_disagree[is.na(insufficient_disagree)] = FALSE
 
-  # --- Mover category + stability interval on the dense curve -----------------
-  mover = character(n_edges)
+  # --- Mover category, where the verdict first differs, stability bracket -----
+  ref_v = s0$verdict
+  mover = rep(NA_character_, n_edges)
+  moved_at = rep(NA_real_, n_edges)
   stability_lower = rep(NA_real_, n_edges)
   stability_upper = rep(NA_real_, n_edges)
+  # Fits in order of distance from the chosen scale, for moved_at.
+  by_distance = order(abs(log(multipliers)))
   for(e in seq_len(n_edges)) {
+    if(is.na(ref_v[e])) next
     v = verdict_mat[, e]
-    moved = length(unique(v[!is.na(v)])) > 1L
-    lbf_e = lbf_mat[, e]
-    lbf_e = lbf_e[is.finite(lbf_e)]
-    dlbf = if(length(lbf_e)) diff(range(lbf_e)) else 0
-    mcse_e = mcse_mat[, e]
-    mcse_e = mcse_e[is.finite(mcse_e)]
-    move_thr = max(c(
-      tolerance, if(length(mcse_e)) 2 * max(mcse_e) else 0,
-      wobble_q95
-    ), na.rm = TRUE)
-    mover[e] = if(!moved) {
-      "stable"
-    } else if(dlbf > move_thr) {
-      "moved-beyond-wobble"
+    differs = !is.na(v) & v != ref_v[e]
+    if(!any(differs)) {
+      mover[e] = "stable"
     } else {
-      "indistinguishable-from-wobble"
+      change = abs(lbf_mat[, e] - lbf_mat[s0_idx, e])
+      error = 2 * sqrt(mcse0[, e]^2 + mcse0[s0_idx, e]^2)
+      beyond = differs & (is.na(change) | change > error)
+      mover[e] = if(any(beyond)) "beyond-monte-carlo-error" else "within-monte-carlo-error"
+      moved_at[e] = multipliers[by_distance[which(differs[by_distance])[1]]]
     }
-    # Anchored on the verdict the edges table reports (the original fit's own
-    # RB verdict), not on the pooled curve's value at the chosen scale.
-    si = stability_interval(
-      verdict_mat[, e], grid_mult, chosen_idx,
-      target = s0$verdict[e]
-    )
-    stability_lower[e] = si[1]
-    stability_upper[e] = si[2]
+    lo = s0_idx
+    while(lo > 1L && !is.na(v[lo - 1L]) && v[lo - 1L] == ref_v[e]) lo = lo - 1L
+    hi = s0_idx
+    while(hi < n_fit && !is.na(v[hi + 1L]) && v[hi + 1L] == ref_v[e]) hi = hi + 1L
+    stability_lower[e] = multipliers[lo]
+    stability_upper[e] = multipliers[hi]
   }
 
-  # --- Edges table ------------------------------------------------------------
-  # Chosen-scale columns are the original fit's own reported analysis (RB
-  # machinery), not a reweighted estimate: the 1x anchor is that fit.
   edges = data.frame(
     edge = edge_names,
     prior_inclusion_probability = prior_odds / (1 + prior_odds),
     chosen_scale_pip = s0$pip,
     chosen_scale_log_bf = s0$lbf,
     chosen_scale_mcse = s0$mcse_lbf,
-    chosen_scale_verdict = s0$verdict,
+    chosen_scale_verdict = ref_v,
     stability_lower = stability_lower,
     stability_upper = stability_upper,
     mover = mover,
+    moved_at = moved_at,
     insufficient = insufficient,
     insufficient_noisy = insufficient_noisy,
     insufficient_disagree = insufficient_disagree,
     saturated = s0$zeroflip,
     stringsAsFactors = FALSE, row.names = NULL
   )
-  # Per-anchor verdict columns are each fit's own exact RB verdict, not a
-  # pooled-curve row.
-  vcols = as.data.frame(t(anchor_verdict), stringsAsFactors = FALSE)
-  names(vcols) = paste0("verdict_x", anchors)
-  edges = cbind(edges, vcols)
+  vcols = as.data.frame(t(verdict_mat), stringsAsFactors = FALSE)
+  names(vcols) = paste0("verdict_x", multipliers)
+  lcols = as.data.frame(t(lbf_mat))
+  names(lcols) = paste0("log_bf_x", multipliers)
+  mcols = as.data.frame(t(mcse_mat))
+  names(mcols) = paste0("mcse_x", multipliers)
+  edges = cbind(edges, vcols, lcols, mcols)
 
-  # --- Anchor table (per anchor fit + replicate, with convergence gates) ------
-  all_gates = c(gates, list(rep_gate))
-  secs = numeric(n_anchor)
-  secs[non_unit] = walls[seq_along(non_unit)]
-
-  # Captured sampler notes per grid row (original fit carries none of its own
-  # here; its warnings surfaced when the user fit it).
-  grid_notes = vector("list", n_anchor + 1L)
-  grid_notes[[s0_idx]] = character(0)
-  for(k in seq_along(non_unit)) grid_notes[[non_unit[k]]] = refit_notes[[k]]
-  grid_notes[[n_anchor + 1L]] = refit_notes[[length(refit_notes)]]
-  names(grid_notes) = c(sprintf("%gx", anchors), sprintf("%gx (replicate)", anchors[rep_anchor]))
-  warmup_incomplete_of = function(f) {
-    wi = tryCatch(f@nuts_diag$summary$warmup_incomplete, error = function(e) NA)
-    if(is.null(wi)) NA else isTRUE(wi)
-  }
-
-  grid = data.frame(
-    multiplier = c(anchors, anchors[rep_anchor]),
-    scale = c(anchors, anchors[rep_anchor]) * chosen_scale,
-    replicate = c(rep(FALSE, n_anchor), TRUE),
-    original_fit = c(seq_len(n_anchor) == s0_idx, FALSE),
-    # The gate's own result; `forced` records where the curve used an anchor
-    # the gate rejected (only ever the 1x original fit).
-    usable = c(gate_usable, rep_gate$usable),
-    forced = c(forced, FALSE),
-    rhat_continuous = vapply(all_gates, `[[`, numeric(1), "rhat_cont"),
-    rhat_continuous_max = vapply(all_gates, `[[`, numeric(1), "rhat_cont_max"),
-    ess_continuous = vapply(all_gates, `[[`, numeric(1), "ess_cont"),
-    inclusion_ess_min = vapply(all_gates, `[[`, numeric(1), "ess_incl"),
-    rb_median_rhat = vapply(all_gates, `[[`, numeric(1), "rb_med_rhat"),
-    warmup_incomplete = c(
-      vapply(anchor_fits, warmup_incomplete_of, logical(1)),
-      warmup_incomplete_of(rep_fit)
-    ),
-    sampler_notes = lengths(grid_notes) > 0,
-    seconds = c(secs, walls[length(walls)]),
-    row.names = NULL
-  )
-
-  structure(
-    list(
-      edges = edges,
-      grid = grid,
-      anchors = anchors,
-      replicate_anchor = anchors[rep_anchor],
-      multipliers = grid_mult,
-      scales = s_grid,
-      chosen_scale = chosen_scale,
-      chosen_index = chosen_idx,
-      anchor_index = anchor_index,
-      log_bf = lbf_mat,
-      log_bf_mcse = mcse_mat,
-      verdict = verdict_mat,
-      anchor_verdict = anchor_verdict,
-      curve = list(
-        ess = curve$ess, anchor_used = curve$anchor_used,
-        ess_floor = ess_floor, unanimous = unanimous_mat
-      ),
-      wobble = list(
-        q95 = wobble_q95, median = wobble_med, per_edge = d_wobble,
-        censored = wobble_censored, anchor = anchors[rep_anchor]
-      ),
-      preferred_scale = preferred,
-      unit = unit,
-      diagonal_eta = eta,
-      evidence_threshold = evidence_threshold,
-      tolerance = tolerance,
-      refit_sampler = rs$method,
-      warm = warm_metric,
-      model_type = spec$model_type,
-      runtime_seconds = sum(walls),
-      edge_names = edge_names,
-      refit_diagnostics = grid_notes,
-      fits = if(keep_fits) refits else NULL
-    ),
-    class = "bgms_prior_sensitivity"
-  )
+  list(edges = edges, verdict_by_scale = verdict_mat)
 }
 
 
@@ -881,84 +664,6 @@ order_upper_tri_rowmajor = function(p) {
 }
 
 
-# ------------------------------------------------------------------
-# wobble_yardstick
-# ------------------------------------------------------------------
-# Monte Carlo wobble from the chosen-scale refit and its replicate.
-#
-# per_edge  |log BF_1 - log BF_2| for every edge.
-# q95       95th percentile of per_edge over the edges with
-#           |log BF| <= 3 log(10) in both refits. Near-saturated edges
-#           are excluded: their log BF jumps between identical runs.
-# censored  number of edges with |log BF| <= 3 log(10) in one refit only.
-# median    median of per_edge over all edges with a finite spread.
-#
-# @param lbf_s0   Per-edge natural log BF from the chosen-scale refit.
-# @param lbf_rep  Per-edge natural log BF from the s0 replicate.
-#
-# Returns: list(q95, median, per_edge, censored); q95 is NA when no edge
-# qualifies.
-# ------------------------------------------------------------------
-wobble_yardstick = function(lbf_s0, lbf_rep) {
-  per_edge = abs(lbf_s0 - lbf_rep)
-  window = 3 * log(10)
-  in_window_1 = is.finite(lbf_s0) & abs(lbf_s0) <= window
-  in_window_2 = is.finite(lbf_rep) & abs(lbf_rep) <= window
-  eligible = in_window_1 & in_window_2
-  list(
-    q95 = if(any(eligible)) {
-      stats::quantile(per_edge[eligible], 0.95, names = FALSE)
-    } else {
-      NA_real_
-    },
-    median = stats::median(per_edge[is.finite(per_edge)]),
-    per_edge = per_edge,
-    censored = sum((in_window_1 | in_window_2) & !eligible)
-  )
-}
-
-
-# ------------------------------------------------------------------
-# stability_interval
-# ------------------------------------------------------------------
-# Maximal contiguous relative-scale range around the chosen scale over
-# which the verdict is unchanged, using only reliable (non-NA) grid
-# points. NA verdicts break the run.
-#
-# `target` is the verdict held on to; the caller passes the chosen-scale
-# verdict the edges table reports (the original fit's Rao-Blackwellized
-# verdict). If the curve's verdict at the chosen scale differs from it, the
-# bounds are NA: the reported verdict holds nowhere around the chosen scale.
-#
-# @param verdict     Per-grid-point verdict (may contain NA).
-# @param relative    Relative scale at each grid point.
-# @param chosen_idx  Grid index of the chosen scale.
-# @param target      The verdict to hold on to; defaults to the curve's own
-#                    value at the chosen scale.
-#
-# Returns: c(lower, upper) relative scale, or c(NA, NA).
-# ------------------------------------------------------------------
-stability_interval = function(verdict, relative, chosen_idx, target = NULL) {
-  if(is.null(target)) target = verdict[chosen_idx]
-  if(is.na(target)) {
-    return(c(NA_real_, NA_real_))
-  }
-  if(is.na(verdict[chosen_idx]) || verdict[chosen_idx] != target) {
-    return(c(NA_real_, NA_real_))
-  }
-  n = length(verdict)
-  lo = chosen_idx
-  while(lo - 1L >= 1L && !is.na(verdict[lo - 1L]) && verdict[lo - 1L] == target) {
-    lo = lo - 1L
-  }
-  hi = chosen_idx
-  while(hi + 1L <= n && !is.na(verdict[hi + 1L]) && verdict[hi + 1L] == target) {
-    hi = hi + 1L
-  }
-  c(relative[lo], relative[hi])
-}
-
-
 # ==============================================================================
 # Methods for bgms_prior_sensitivity
 # ==============================================================================
@@ -966,15 +671,17 @@ stability_interval = function(verdict, relative, chosen_idx, target = NULL) {
 #' @title Print a Prior Sensitivity Check
 #'
 #' @description
-#' Prints the answer first: how many edge verdicts are robust to the slab
-#' scale, which edges genuinely depend on it (by name), which cannot be
-#' certified, the verdict counts per scale, and how the chosen scale compares
-#' with the size of the estimated interactions. Machinery (sampler, refit
-#' cost, the run-to-run noise band) is confined to a closing Details line.
+#' Prints the verdict counts at each scale, the number of edges whose verdict
+#' held at every scale, changed within Monte Carlo error, changed beyond it,
+#' or could not be certified at the chosen scale, the edges that changed
+#' beyond Monte Carlo error by name, the fits whose largest split R-hat
+#' exceeds 1.01, and how the chosen scale compares with the scale the
+#' estimated interactions imply.
 #'
 #' @param x A \code{bgms_prior_sensitivity} object.
-#' @param max_rows Integer. Maximum edges to name in the scale-dependent
-#'   table; the rest are counted and left to \code{$edges}. Default: \code{10}.
+#' @param max_rows Integer. Maximum edges to name in the table of edges that
+#'   changed beyond Monte Carlo error; the rest are counted and left to
+#'   \code{$edges}. Default: \code{10}.
 #' @param ... Ignored.
 #'
 #' @return \code{x}, invisibly.
@@ -985,16 +692,18 @@ stability_interval = function(verdict, relative, chosen_idx, target = NULL) {
 print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
   edges = x$edges
   n_edges = nrow(edges)
-  mlab = sprintf("%.2gx", x$anchors)
-  gr = range(x$multipliers)
+  multipliers = x$scale_multipliers
+  mlab = sprintf("%.2gx", multipliers)
 
-  # Wrap prose to the console width (capped) so long interpolated content does
-  # not overflow; tables and the labeled footer keep their own layout.
   w = min(getOption("width", 80L), 80L)
   wrap = function(...) writeLines(strwrap(paste0(...), width = w))
+  list_of = function(v) {
+    if(length(v) <= 1L) {
+      return(paste(v))
+    }
+    paste0(paste(v[-length(v)], collapse = ", "), " and ", v[length(v)])
+  }
 
-  # bgm() traces edge indicators across the interaction slab; bgmCompare()
-  # traces difference indicators across the difference slab.
   unit = x$unit %||% list(
     noun = "edge", nouns = "edges",
     headline = "are the edge verdicts robust to the slab scale?"
@@ -1002,18 +711,13 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
 
   cat(sprintf("Prior sensitivity check: %s\n", unit$headline))
   wrap(sprintf(
-    "Bayes-factor curve from %.2gx to %.2gx the chosen scale (anchors at %s; the 1x anchor is the original fit); %d %s.",
-    gr[1], gr[2], paste(mlab, collapse = ", "), n_edges, unit$nouns
+    "Verdicts at an inclusion Bayes factor of %g from fits at %s the chosen scale; the 1x fit is the original fit. %d %s.",
+    x$evidence_threshold, list_of(mlab), n_edges, unit$nouns
   ))
-  # On a model with a prior on the precision diagonal the refits run that
-  # prior at raw rate eta / s, with the standardized rate eta held fixed.
   eta = x$diagonal_eta %||% NA_real_
   if(is.finite(eta)) {
     wrap(sprintf(
-      paste(
-        "Varied: the interaction slab scale together with the precision diagonal,",
-        "holding the standardized rate eta at %.3g."
-      ),
+      "The refits move the precision diagonal's prior with the slab scale, holding its standardized rate eta at %.3g.",
       eta
     ))
   }
@@ -1025,74 +729,66 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
   no_verdict = is.na(edges$chosen_scale_verdict)
   if(any(no_verdict)) {
     wrap(sprintf(
-      paste(
-        "%d of the %d %s were never updated by the sampler and carry no verdict",
-        "at any scale; they are excluded from the counts below."
-      ),
+      "%d of the %d %s were never updated by the sampler and carry no verdict at any scale; they are excluded from the counts below.",
       sum(no_verdict), n_edges, unit$nouns
     ))
     cat("\n")
     edges = edges[!no_verdict, , drop = FALSE]
-    x$anchor_verdict = x$anchor_verdict[, !no_verdict, drop = FALSE]
+    x$verdict_by_scale = x$verdict_by_scale[, !no_verdict, drop = FALSE]
     n_edges = nrow(edges)
   }
 
-  # Stability headline: the scale range over which the verdicts hold.
-  full_span = !is.na(edges$stability_lower) & !is.na(edges$stability_upper) &
-    edges$stability_lower <= gr[1] * 1.001 & edges$stability_upper >= gr[2] * 0.999
-  if(all(full_span)) {
-    wrap(sprintf(
-      "All %d verdicts hold from %.2gx to %.2gx the chosen scale.",
-      n_edges, gr[1], gr[2]
-    ))
-  } else {
-    wrap(sprintf(
-      "%d of %d verdicts hold across the whole %.2gx-%.2gx range; the exceptions are named below.",
-      sum(full_span), n_edges, gr[1], gr[2]
-    ))
-  }
+  # Verdict counts at each scale.
+  cat("Verdict counts by scale:\n")
+  vt = apply(x$verdict_by_scale, 1, function(v) {
+    c(
+      presence = sum(v == "presence", na.rm = TRUE),
+      undecided = sum(v == "undecided", na.rm = TRUE),
+      absence = sum(v == "absence", na.rm = TRUE)
+    )
+  })
+  vt = matrix(vt, nrow = 3L, dimnames = list(c("presence", "undecided", "absence"), mlab))
+  out = utils::capture.output(print(vt))
+  cat(paste0("  ", out, collapse = "\n"), "\n", sep = "")
   cat("\n")
 
-  # One category per edge: not-certifiable wins, then the mover category.
+  # One category per edge: not certifiable at the chosen scale first, then the
+  # mover category.
   uncert = edges$insufficient %in% TRUE
-  robust = !uncert & edges$mover == "stable"
-  within = !uncert & edges$mover == "indistinguishable-from-wobble"
-  beyond = !uncert & edges$mover == "moved-beyond-wobble"
-  counts = c(sum(robust), sum(within), sum(beyond), sum(uncert))
+  held = !uncert & edges$mover %in% "stable"
+  within = !uncert & edges$mover %in% "within-monte-carlo-error"
+  beyond = !uncert & edges$mover %in% "beyond-monte-carlo-error"
+  counts = c(sum(held), sum(within), sum(beyond), sum(uncert))
   labels = c(
-    "robust (same verdict at every scale)",
-    "changed, within run-to-run noise",
-    "changed, beyond run-to-run noise",
-    "not certifiable (too noisy to assess)"
+    "verdict held at every scale",
+    "changed, within Monte Carlo error",
+    "changed, beyond Monte Carlo error",
+    "not certifiable at the chosen scale"
   )
-  keep = counts > 0 | seq_along(counts) <= 3L
-  cat(sprintf("  %-38s %4d\n", labels[keep], counts[keep]), sep = "")
+  cat(sprintf("  %-38s %4d\n", labels, counts), sep = "")
   cat("\n")
 
-  # Name the units whose verdict genuinely depends on the scale.
+  # The edges whose verdict changed beyond Monte Carlo error, with their
+  # verdict at each scale and the scale nearest 1x at which it differs.
   if(sum(beyond) > 0) {
-    cat(if(sum(beyond) == 1L) {
-      sprintf("1 %s's verdict genuinely depends on the scale:\n", unit$noun)
-    } else {
-      sprintf(
-        "%d %s' verdicts genuinely depend on the scale:\n",
-        sum(beyond), unit$nouns
-      )
-    })
+    cat(sprintf(
+      "%d %s changed verdict beyond Monte Carlo error:\n",
+      sum(beyond), if(sum(beyond) == 1L) unit$noun else unit$nouns
+    ))
     idx = which(beyond)
     show = utils::head(idx, max_rows)
-    vmat = t(x$anchor_verdict[, show, drop = FALSE])
-    tab = cbind(edge = edges$edge[show], vmat)
-    colnames(tab) = c(unit$noun, mlab)
+    vmat = t(x$verdict_by_scale[, show, drop = FALSE])
+    tab = cbind(edges$edge[show], vmat, sprintf("%.2gx", edges$moved_at[show]))
+    colnames(tab) = c(unit$noun, mlab, "differs from")
     rownames(tab) = rep("", nrow(tab))
     print(tab, quote = FALSE, print.gap = 2)
     if(length(idx) > length(show)) {
-      cat(sprintf("  ...and %d more; see $edges.\n", length(idx) - length(show)))
+      cat(sprintf("  and %d more; see $edges.\n", length(idx) - length(show)))
     }
     cat("\n")
   }
 
-  # Name the edges too noisy to assess, say why, and say what to do.
+  # The edges the original fit cannot certify, and why.
   if(sum(uncert) > 0) {
     nm = edges$edge[uncert]
     shown = utils::head(nm, max_rows)
@@ -1102,113 +798,54 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
       ""
     }
     one = length(nm) == 1L
-    wrap(sprintf(
-      "%d %s %s too noisy to assess: %s%s.",
-      length(nm), if(one) unit$noun else unit$nouns,
-      if(one) "is" else "are",
-      paste(shown, collapse = ", "), tail_txt
-    ))
-    # Name only the subcause(s) that actually occur among these edges.
     noisy = any(edges$insufficient_noisy[uncert])
     disagree = any(edges$insufficient_disagree[uncert])
-    subj = if(one) "Its" else "Their"
-    obj = if(one) "it" else "them"
-    these = if(one) "this verdict" else "these verdicts"
     cause = if(noisy && disagree) {
-      sprintf(
-        "%s Bayes factor sits within Monte Carlo error of an evidence threshold, or %s chains disagree on the verdict,",
-        subj, tolower(subj)
-      )
+      "the Bayes factor lies within Monte Carlo error of a threshold or the chains disagree on the verdict"
     } else if(disagree) {
-      sprintf("%s chains disagree on the verdict", subj)
+      "the chains disagree on the verdict"
     } else {
-      sprintf("%s Bayes factor sits within Monte Carlo error of an evidence threshold", subj)
+      "the Bayes factor lies within Monte Carlo error of a threshold"
     }
     wrap(sprintf(
-      paste(
-        "%s at the chosen scale itself; a rerun with a fresh seed could flip",
-        "%s without any prior change. Run more iterations to settle %s before",
-        "reading %s sensitivity."
-      ),
-      cause, obj, these, tolower(subj)
+      "%d %s %s not certifiable at the chosen scale: %s%s. In the original fit %s, so a rerun with another seed could change %s verdict without any change of prior.",
+      length(nm), if(one) unit$noun else unit$nouns, if(one) "is" else "are",
+      paste(shown, collapse = ", "), tail_txt, cause,
+      if(one) "its" else "the"
     ))
     cat("\n")
   }
 
-  # Verdict counts at the anchor scales.
-  cat("Verdict counts by scale (at the anchors):\n")
-  vt = apply(x$anchor_verdict, 1, function(v) {
-    c(
-      presence = sum(v == "presence", na.rm = TRUE),
-      undecided = sum(v == "undecided", na.rm = TRUE),
-      absence = sum(v == "absence", na.rm = TRUE)
-    )
-  })
-  colnames(vt) = mlab
-  out = utils::capture.output(print(vt))
-  cat(paste0("  ", out, collapse = "\n"), "\n", sep = "")
-  ab = vt["absence", ]
-  if(ab[length(ab)] > ab[1]) {
-    wrap(sprintf(
-      paste(
-        "More absence at wider scales is expected: a wider slab strengthens",
-        "evidence against borderline %s."
-      ),
-      unit$nouns
-    ))
-  }
-  cat("\n")
-
-  # Refits that failed their convergence check. A gate-failed anchor the curve
-  # kept anyway (only ever the original fit) is named separately from the
-  # excluded ones.
-  gr_forced = x$grid$forced %||% rep(FALSE, nrow(x$grid))
-  bad = x$grid[!x$grid$usable & !x$grid$replicate & !gr_forced, ]
-  kept = x$grid[!x$grid$usable & !x$grid$replicate & gr_forced, ]
-  if(nrow(kept) > 0) {
-    rmax = suppressWarnings(max(kept$rhat_continuous_max %||% NA_real_, na.rm = TRUE))
-    detail = if(is.finite(rmax)) sprintf(" (largest split R-hat %s)", format(round(rmax, 2))) else ""
-    wrap(sprintf(
-      "The fit you supplied (%s) has convergence diagnostics outside the check's limits%s, which may mean its chains have not converged. The check ran on it anyway.",
-      paste(sprintf("%.2gx", kept$multiplier), collapse = ", "), detail
-    ))
-    cat("\n")
-  }
-  if(nrow(bad) > 0) {
-    bl = sprintf("%.2gx", bad$multiplier)
-    bl = if(length(bl) > 1L) {
-      paste0(paste(bl[-length(bl)], collapse = ", "), " and ", bl[length(bl)])
-    } else {
-      bl
+  # Fits whose largest split R-hat exceeds 1.01.
+  g = x$grid
+  if(!is.null(g$rhat_max)) {
+    high = which(is.finite(g$rhat_max) & g$rhat_max > 1.01)
+    if(length(high) > 0) {
+      lab = ifelse(g$original_fit[high], "1x original", sprintf("%.2gx", g$multiplier[high]))
+      wrap(sprintf(
+        "Largest split R-hat above 1.01: %s.",
+        list_of(sprintf("%s fit %s", lab, format(round(g$rhat_max[high], 3))))
+      ))
+      cat("\n")
     }
-    wrap(sprintf(
-      "The %s refit%s %s convergence diagnostics outside the check's limits, which may mean %s chains have not converged, and %s left out of the curve.",
-      bl, if(nrow(bad) == 1L) "" else "s", if(nrow(bad) == 1L) "has" else "have",
-      if(nrow(bad) == 1L) "its" else "their", if(nrow(bad) == 1L) "is" else "are"
-    ))
-    cat("\n")
   }
 
-  # How the chosen scale compares with the estimated interactions.
+  # How the chosen scale compares with the scale the estimated interactions
+  # imply.
   ps = x$preferred_scale
-  if(is.finite(ps$s_hat)) {
+  if(!is.null(ps) && is.finite(ps$s_hat)) {
     ratio = x$chosen_scale / ps$s_hat
-    if(ratio > 2) {
-      wrap(sprintf(
-        "Note: the chosen scale (%.3g) is much wider than the estimated interactions (about %.3g [%.3g, %.3g]); absence verdicts in particular depend on this choice.",
-        x$chosen_scale, ps$s_hat, ps$lo, ps$hi
-      ))
+    direction = if(ratio > 2) {
+      " A slab wider than the weights it describes moves near-threshold verdicts toward absence."
     } else if(ratio < 0.5) {
-      wrap(sprintf(
-        "Note: the chosen scale (%.3g) is much narrower than the estimated interactions (about %.3g [%.3g, %.3g]); presence verdicts in particular depend on this choice.",
-        x$chosen_scale, ps$s_hat, ps$lo, ps$hi
-      ))
+      " A slab narrower than the weights it describes moves near-threshold verdicts toward presence."
     } else {
-      wrap(sprintf(
-        "The chosen scale (%.3g) matches the size of the estimated interactions (about %.3g).",
-        x$chosen_scale, ps$s_hat
-      ))
+      ""
     }
+    wrap(sprintf(
+      "Note: the slab scale is %.3g, and the estimated edge weights imply a scale of %.3g (approximate 95%% interval %.3g to %.3g); the slab is %.2g times that.%s",
+      x$chosen_scale, ps$s_hat, ps$lo, ps$hi, ratio, direction
+    ))
     cat("\n")
   }
 
@@ -1217,271 +854,14 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
   } else {
     sprintf("%.0f s", x$runtime_seconds)
   }
-  gr = range(x$anchors)
-  n_refit = nrow(x$grid) - 1L
-  start_txt = if(x$warm) "warm-started from the original fit" else "cold starts with full warmup"
+  n_refit = sum(!g$original_fit)
+  start_txt = if(isTRUE(x$warm)) "started from the original fit's final state" else "cold starts"
+  it = g$iter[!g$original_fit][1]
+  wu = g$warmup[!g$original_fit][1]
   cat(sprintf(
-    "Method:  %d-point curve from %d anchor fits (%.2gx to %.2gx the chosen scale),\n         joined by importance reweighting; the 1x anchor is the original fit.\n         Points with reweighting effective sample size below %g are not shown.\n",
-    length(x$multipliers), length(x$anchors), gr[1], gr[2], x$curve$ess_floor
+    "Refits:  %d %s refit%s (%d warmup, %d sampling iterations each), %s, %s total.\n",
+    n_refit, x$refit_sampler, if(n_refit == 1L) "" else "s", wu, it, start_txt, secs
   ))
-  cat(sprintf(
-    "Refits:  %d %s refits, %s, %s total.\n",
-    n_refit, x$refit_sampler, start_txt, secs
-  ))
-  if(is.na(x$wobble$q95)) {
-    cat(sprintf(
-      "Noise:   no threshold-relevant %s had a measurable spread between two identical\n         refits at %.2gx, so there is no run-to-run yardstick; verdict moves are\n         judged against the tolerance and Monte Carlo error alone.\n",
-      unit$noun, x$wobble$anchor
-    ))
-  } else {
-    cat(sprintf(
-      "Noise:   two identical refits at %.2gx differed by up to %.2g log BF across\n         threshold-relevant %s; verdict moves smaller than that are reported\n         as run-to-run noise, not prior sensitivity.\n",
-      x$wobble$anchor, x$wobble$q95, unit$nouns
-    ))
-    if(isTRUE(x$wobble$censored > 0)) {
-      cat(sprintf(
-        "         %d edge%s near the thresholds in only one of the two and %s left out of that spread.\n",
-        x$wobble$censored, if(x$wobble$censored == 1L) "" else "s",
-        if(x$wobble$censored == 1L) "was" else "were"
-      ))
-    }
-  }
-  cat("See ?prior_sensitivity_check for the full construction.\n")
+  cat("See ?prior_sensitivity_check for the construction.\n")
   invisible(x)
-}
-
-
-# ------------------------------------------------------------------
-# mover_palette
-# ------------------------------------------------------------------
-# Fixed-order categorical colors for the named mover lines (Okabe-Ito,
-# colorblind-safe; warm/cool alternating for adjacent separation). Every
-# mover line is also name-labeled, so identity never rides on color alone.
-# ------------------------------------------------------------------
-mover_palette = function() {
-  c(
-    "#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00",
-    "#56B4E9", "#882255", "#44AA99", "#661100", "#999933"
-  )
-}
-
-
-# ------------------------------------------------------------------
-# spread_labels
-# ------------------------------------------------------------------
-# Nudge label y-positions apart until adjacent labels are at least `gap`
-# apart, preserving order. Returns the adjusted positions.
-# ------------------------------------------------------------------
-spread_labels = function(y, gap) {
-  ord = order(y)
-  ys = y[ord]
-  for(k in seq_along(ys)[-1]) {
-    if(ys[k] - ys[k - 1] < gap) ys[k] = ys[k - 1] + gap
-  }
-  out = y
-  out[ord] = ys
-  out
-}
-
-
-#' @title Plot a Prior Sensitivity Check
-#'
-#' @description
-#' One panel. Each edge's natural log inclusion-Bayes-factor curve
-#' (the evidence for the edge) is drawn across the anchored scale range, with
-#' dots at the anchor scales; curve points masked for low importance ESS
-#' leave visible gaps, and an edge that saturates at some scale is capped at a
-#' large finite Bayes factor rather than running off to infinity. The
-#' \code{max_labels} widest-swinging edges whose verdict genuinely depends on
-#' the scale are colored and labeled by name; every other edge is the muted
-#' background. The figure carries no counts of its own: the muted background
-#' holds the robust edges and any scale-dependent edge past \code{max_labels}
-#' alike, and \code{print()} is where the counts are and where the
-#' scale-dependent edges are named. The shaded band is the undecided zone
-#' between the evidence thresholds; the zones are labeled at the left edge.
-#'
-#' @details
-#' The drawn curves clamp the pooled inclusion probability at
-#' \eqn{1 - 10^{-6}}, which caps a plotted log Bayes factor at
-#' \eqn{\ln(10^6) \approx 13.8}. A curve running flat along 13.8 has reached
-#' that display cap; it is not evidence levelling off. The uncapped value at
-#' the chosen scale is \code{x$edges$chosen_scale_log_bf}, which
-#' \code{print()} reports and which can be far larger. \code{x$edges$saturated} does not mark capped curves: it
-#' records that the edge's inclusion indicator never flipped in the chain,
-#' which is a different condition.
-#'
-#' @param x A \code{bgms_prior_sensitivity} object.
-#' @param max_labels Integer. Maximum scale-dependent edges to color and
-#'   label by name, taken in order of evidence swing; the rest stay in the
-#'   muted background and are named by \code{print()}. Default: \code{10}.
-#' @param ... Ignored.
-#'
-#' @return \code{x}, invisibly. Called for the side effect of drawing.
-#'
-#' @seealso \code{\link{prior_sensitivity_check}()}
-#' @family diagnostics
-#' @export
-plot.bgms_prior_sensitivity = function(x, max_labels = 10L, ...) {
-  rel = x$multipliers
-  thr = log(x$evidence_threshold)
-  edges = x$edges
-  n_edges = nrow(edges)
-
-  # Same partition as print(): an edge the refits cannot certify is not
-  # reported as scale-dependent.
-  movers = which(
-    edges$mover == "moved-beyond-wobble" &
-      !(edges$saturated %in% TRUE) & !(edges$insufficient %in% TRUE)
-  )
-  # Label the largest evidence swings first.
-  swing = apply(x$log_bf, 2, function(v) {
-    v = v[is.finite(v)]
-    if(length(v)) diff(range(v)) else 0
-  })
-  movers = movers[order(swing[movers], decreasing = TRUE)]
-  named = utils::head(movers, max_labels)
-
-  style = bgms_style()
-  faint = grDevices::adjustcolor(style$muted, 0.35)
-  name_cex = style$cex_caption
-  # The leader from the end of a curve to its name, in inches, so the same gap
-  # opens on any device.
-  leader = 0.16
-
-  # The right margin holds the edge names, so it is measured for the names
-  # this check produced rather than set to a width that happened to fit an
-  # earlier example. Anything shorter clipped them at the device edge.
-  right = leader / graphics::par("csi") +
-    margin_lines_for(edges$edge[named], cex = name_cex, pad = 0.8)
-  style = bgms_panel_par(mar = c(5.6, 5.0, 3.4, right), scale = 1)
-  on.exit(graphics::par(style$old_par), add = TRUE)
-
-  # The y-range covers the decision band and every named line; edges that
-  # live entirely outside it never change verdict and clip silently.
-  named_bf = x$log_bf[, named, drop = FALSE]
-  named_bf = named_bf[is.finite(named_bf)]
-  ylim = range(c(-1.5 * thr, 1.5 * thr, named_bf))
-  ylim = ylim + c(-0.4, 0.4)
-  y_axis = bgms_axis_range(ylim)
-  # The scale axis is logarithmic and its ticks are the anchors, so the data
-  # range is opened on the log scale to hold the axis off the corner.
-  log_rel = log10(range(rel))
-  xlim = 10^(log_rel + c(-1, 1) * style$eps * diff(log_rel))
-
-  unit = x$unit %||% list(noun = "edge", nouns = "edges")
-  scale_label = if(identical(unit$noun, "difference")) {
-    "Difference scale, relative to your fit"
-  } else {
-    "Slab scale, relative to your fit"
-  }
-
-  graphics::plot(NA, NA,
-    xlim = xlim, ylim = y_axis$lim, log = "x", axes = FALSE,
-    xlab = "", ylab = "", main = ""
-  )
-  bgms_axis(1, x$anchors, labels = sprintf("%.2gx", x$anchors), style = style)
-  bgms_axis(2, y_axis$at,
-    labels = formatC(y_axis$at, format = "g"), style = style
-  )
-  graphics::mtext(scale_label,
-    side = 1, line = 2.9, cex = style$cex_lab, col = style$ink
-  )
-  graphics::mtext(
-    sprintf("Evidence for the %s (log BF)", unit$noun),
-    side = 2, line = 3.3, las = 0, cex = style$cex_lab, col = style$ink
-  )
-  # Verdict zones: shaded undecided band, dashed thresholds, margin labels.
-  usr = graphics::par("usr")
-  pin = graphics::par("pin")
-  # Inches per unit on each axis, so every offset below is a device length
-  # rather than a fraction of a range that changes with the data.
-  per_log_unit = pin[1] / diff(usr[1:2])
-  per_y_unit = pin[2] / diff(usr[3:4])
-
-  graphics::rect(10^usr[1], -thr, 10^usr[2], thr,
-    col = grDevices::adjustcolor("grey60", 0.12), border = NA
-  )
-  graphics::abline(
-    h = c(-thr, thr), col = style$muted, lty = 2,
-    lwd = style$lwd_axis
-  )
-  graphics::abline(v = 1, col = style$muted, lty = 3, lwd = style$lwd_axis)
-  # "chosen" named a decision the reader had to reconstruct; the line is the
-  # scale their own fit was run at, and that is what it now says.
-  graphics::mtext("your fit",
-    side = 3, at = 1, line = 0.3, cex = style$cex_annotation, col = style$muted
-  )
-  zone_x = 10^(usr[1] + 0.06 / per_log_unit)
-  pad = 0.05 / per_y_unit
-  graphics::text(zone_x, thr + pad, "presence",
-    adj = c(0, 0), cex = style$cex_caption, col = style$muted
-  )
-  graphics::text(zone_x, thr - pad, "undecided",
-    adj = c(0, 1), cex = style$cex_caption, col = style$muted
-  )
-  graphics::text(zone_x, -thr - pad, "absence",
-    adj = c(0, 1), cex = style$cex_caption, col = style$muted
-  )
-
-  # Background: every other edge in one muted color.
-  for(e in setdiff(seq_len(n_edges), named)) {
-    if(isTRUE(edges$saturated[e])) next
-    trajectory(rel, x$log_bf[, e], col = faint, lwd = 1)
-  }
-
-  # Foreground: the named movers, colored in fixed order and name-labeled.
-  if(length(named)) {
-    pal = mover_palette()
-    # Anchor each name at the line's last finite point (0 if none is finite).
-    anchor = vapply(named, function(e) {
-      v = x$log_bf[, e]
-      v = v[is.finite(v)]
-      if(length(v)) v[length(v)] else 0
-    }, numeric(1))
-    end_y = spread_labels(anchor, gap = 0.05 * diff(y_axis$lim))
-    stub_x = 10^(usr[2] + 0.35 * leader / per_log_unit)
-    text_x = 10^(usr[2] + leader / per_log_unit)
-    for(k in seq_along(named)) {
-      e = named[k]
-      trajectory(rel, x$log_bf[, e], col = pal[k], lwd = style$lwd_curve)
-      graphics::points(rel[x$anchor_index], x$log_bf[x$anchor_index, e],
-        col = pal[k], pch = 16, cex = 0.9
-      )
-      graphics::segments(
-        max(rel), anchor[k], stub_x, end_y[k],
-        col = grDevices::adjustcolor(pal[k], 0.5), lwd = 0.8, xpd = NA
-      )
-      graphics::text(text_x, end_y[k], edges$edge[e],
-        xpd = NA, adj = 0, cex = name_cex, col = style$ink
-      )
-    }
-  }
-
-  invisible(x)
-}
-
-
-# ------------------------------------------------------------------
-# trajectory
-# ------------------------------------------------------------------
-# One edge's evidence, as one line.
-#
-# The reweighted curve is masked wherever the importance ESS falls under the
-# floor, so the raw series has holes in it, and drawing it directly leaves
-# stubs of curve with the anchor estimates floating unattached between them --
-# which reads as a broken plot rather than as a masked one. The finite points,
-# anchors included, are joined in order instead: one continuous trajectory per
-# edge, straight between the certified stretches it passes through.
-#
-# @param at      The scale grid.
-# @param values  The log Bayes factor on that grid, with holes.
-# @param ...     Passed to graphics::lines().
-# ------------------------------------------------------------------
-trajectory = function(at, values, ...) {
-  keep = is.finite(values)
-  if(sum(keep) < 2L) {
-    return(invisible(NULL))
-  }
-  graphics::lines(at[keep], values[keep], ...)
-  invisible(NULL)
 }

@@ -15,6 +15,22 @@ released from this line yet.
   an `Rhat` column, which was structurally `NA` there. Code that indexed these
   tables by position may need adjusting.
 
+* `prior_sensitivity_check()` refits the model at `scale_multipliers = c(0.5, 2)`
+  times the chosen slab scale, each refit at the original fit's `iter` and
+  `warmup`, and classifies every edge from the fits' own Rao-Blackwellized
+  statistics: `stable` when every refit's verdict equals the original fit's,
+  `within-monte-carlo-error` or `beyond-monte-carlo-error` by whether the log
+  Bayes factor change to a refit with a different verdict exceeds twice the
+  two fits' combined Monte Carlo standard error. `$edges` gains `moved_at` and
+  per-scale `log_bf_x<m>` and `mcse_x<m>` columns; `stability_lower` and
+  `stability_upper` are multipliers of the chosen scale; the verdict matrix
+  is `$verdict_by_scale`. Each fit's convergence diagnostics are in `$grid`;
+  no fit is excluded. Removed: the `anchors` argument (now
+  `scale_multipliers`), the importance-reweighted curve between fits and its
+  `plot()` method, the `ess_floor` and `tolerance` arguments, the short refit
+  schedule, the replicate refit and the noise band, the convergence gate, and
+  the mover levels `indistinguishable-from-wobble` and `moved-beyond-wobble`.
+
 ## Bug fixes
 
 * `predict()` returned ordinal responses as the internal 0-based codes rather

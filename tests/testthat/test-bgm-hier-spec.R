@@ -167,7 +167,7 @@ test_that("a vacuous hierarchical fit round-trips through a refit", {
   expect_no_error(
     suppressMessages(prior_sensitivity_check(
       fit,
-      anchors = c(0.63, 1.6), iter = 100, warmup = 100,
+      scale_multipliers = c(0.63, 1.6), iter = 100, warmup = 100,
       cores = 1, seed = 2
     ))
   )

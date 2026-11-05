@@ -233,9 +233,9 @@ translated into the corresponding object. Note that `pairwise_scale = s` means
 deprecated call is not the same model as a call at the new default.
 
 The scale of the interaction prior is the assumption a reader is most likely to
-disagree with. `prior_sensitivity_check()` traces every edge's inclusion Bayes
-factor across a range of slab scales and reports which verdicts depend on the
-choice; the *Checking Prior Sensitivity* vignette walks through its report.
+disagree with. `prior_sensitivity_check()` refits the model at half and at
+twice the slab scale and reports which verdicts depend on the choice; the
+*Checking Prior Sensitivity* vignette walks through its report.
 
 # The Gaussian and mixed members
 

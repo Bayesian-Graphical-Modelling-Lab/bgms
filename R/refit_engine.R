@@ -1,13 +1,14 @@
 # ==============================================================================
-# Refit engine for prior_sensitivity_check(): warm-started refits at a grid of
-# interaction slab scales.
+# Refit engine for prior_sensitivity_check(): refits of a fit at other slab
+# scales, the per-fit statistics the check classifies on, and the per-fit
+# convergence diagnostics it reports.
 # ==============================================================================
 #
-# A refit reuses the original fit's spec, changes the slab scale, shortens the
-# warmup, and warm-starts each chain from the original fit's final per-chain
-# state (parameters + edge indicators). Adaptation stays live during the short
-# warmup so proposals re-tune to the new scale. See
-# dev/audit/2026-07-28-refit-sensitivity-brief.md.
+# A refit reuses the original fit's spec with the slab scale changed and a fresh
+# seed. An ordinal (omrf) refit starts each chain from the original fit's final
+# per-chain state, and a NUTS refit also from its adapted step size and
+# diagonal metric; the GGM and mixed samplers take no initial state and start
+# cold.
 # ==============================================================================
 
 
@@ -67,9 +68,9 @@ extract_warm_state = function(fit) {
 # ------------------------------------------------------------------
 # refit_at_scale
 # ------------------------------------------------------------------
-# One warm-started refit of `fit` at absolute slab scale `scale`, reusing the
-# original spec with a fixed scale, a (short) warmup, a warm start, and a fresh
-# seed. Returns a fitted bgms object.
+# One refit of `fit` at absolute slab scale `scale`, reusing the original spec
+# with that scale, the given run length, a warm start where one is supplied,
+# and a fresh seed. Returns a fitted bgms object.
 #
 # @param fit          Original fitted bgms object.
 # @param scale        Absolute interaction slab scale for this refit.
@@ -120,14 +121,11 @@ refit_at_scale = function(fit, scale, warm_state, warmup, iter, seed,
   # Warm-start the continuous parameters only, on the default dense
   # (all-edges-active) start. Warm-starting a sparse indicator configuration
   # would desynchronize the sampler's active-parameter dimension from the full
-  # storage dimension before stage-3c; a dense start matches the cold-start
-  # dimension exactly, and the short warmup re-settles the graph (which shifts
-  # with the scale anyway).
+  # storage dimension; a dense start matches the cold-start dimension exactly,
+  # and the warmup re-settles the graph (which shifts with the scale anyway).
   #
-  # A NUTS refit additionally carries the origin fit's per-chain tuning state
-  # (step size + diagonal metric): dual averaging stays live for the step size
-  # while the metric is held fixed, so the short warmup does not pay to
-  # re-estimate the mass matrix. Non-NUTS refits ignore these fields.
+  # A NUTS refit additionally starts from the origin fit's per-chain tuning
+  # state (step size + diagonal metric). Non-NUTS refits ignore these fields.
   spec$initial_state = if(is.null(warm_state)) {
     NULL
   } else {
@@ -201,26 +199,6 @@ resolve_refit_sampler = function(fit, refit_sampler) {
   # Recommend NUTS only when the user inherited a slower same-as-fit method.
   recommend_nuts = identical(refit_sampler, "same-as-fit") && method != "nuts"
   list(method = method, recommend_nuts = recommend_nuts, fit_method = fit_method)
-}
-
-
-# ------------------------------------------------------------------
-# refit_run_length
-# ------------------------------------------------------------------
-# Warmup/iter for a refit. A NUTS refit that carries the origin's metric needs
-# only a short warmup (the validated w500/i1000 default); every other path
-# inherits the original fit's run length (no warm-start speed-up, cost ~1x).
-# Explicit `warmup`/`iter` always win.
-# ------------------------------------------------------------------
-refit_run_length = function(fit, method, warm_metric, warmup, iter) {
-  s = get_fit_spec(fit)$sampler
-  if(is.null(warmup)) {
-    warmup = if(identical(method, "nuts") && warm_metric) 500L else s$warmup
-  }
-  if(is.null(iter)) {
-    iter = if(identical(method, "nuts") && warm_metric) 1000L else s$iter
-  }
-  list(warmup = as.integer(warmup), iter = as.integer(iter))
 }
 
 
@@ -331,34 +309,12 @@ refit_edge_stats = function(fit, evidence_threshold) {
 
 
 # ------------------------------------------------------------------
-# refit_convergence_gate
-# ------------------------------------------------------------------
-# The refit-level gate: a global-failure detector on BULK quantities. It gates
-# on the MEDIAN continuous split-Rhat, not the max: the max is routinely
-# inflated by a few flat-likelihood directions (near-unidentified extreme-
-# category thresholds, and interactions of near-saturated edges) whose Rhat is
-# an identification artifact, not a verdict-corrupting failure. Global slow
-# mixing (e.g. an undermixed adaptive-Metropolis original) lifts the median and
-# the RB-inclusion median together and is caught; a couple of flat directions
-# are not. The RB-inclusion tail lives at the edge level (per-chain verdict
-# unanimity), because warm starts weaken split-Rhat's between-chain signal. A
-# refit failing this gate is reported as unusable, never silently pooled.
-#
-#   median continuous split-Rhat < 1.01 (main effects + pairwise),
-#   bulk RB-inclusion median Rhat < 1.01,
-#   E-BFMI > 0.3 and first/second-half energy variance ratio < 2 (NUTS).
-# The energy-slope warmup heuristic is deliberately NOT gated (it flags healthy
-# cold fits; see the diagnostics doctrine). The max continuous Rhat and the
-# smallest Rao-Blackwellized inclusion ESS are reported for transparency.
-# ------------------------------------------------------------------
-
-# ------------------------------------------------------------------
 # finite_reduce
 # ------------------------------------------------------------------
 # Reduce the finite entries of a diagnostic vector, with a stated value for
 # the case where there are none. min() and max() answer that case with a
-# warning and an infinity, which reads as a passing or failing criterion
-# rather than as an absent one.
+# warning and an infinity, which reads as a value rather than as an absent
+# one.
 #
 # @param values  Numeric vector, possibly empty or all NA.
 # @param fn      The reduction.
@@ -372,12 +328,20 @@ finite_reduce = function(values, fn, empty) {
 }
 
 
-refit_convergence_gate = function(fit) {
+# ------------------------------------------------------------------
+# refit_diagnostics_row
+# ------------------------------------------------------------------
+# The convergence diagnostics of one fit, as the check reports them in $grid:
+# the largest split R-hat and the smallest effective sample size over the
+# continuous parameters (main effects and pairwise interactions; for a
+# bgmCompare fit the baseline and difference blocks of both), the smallest
+# effective sample size over the inclusion indicators, and for NUTS the
+# smallest E-BFMI and the largest first/second-half energy variance ratio over
+# the chains. NA where a quantity is not computed for the fit.
+# ------------------------------------------------------------------
+refit_diagnostics_row = function(fit) {
   rhats = numeric(0)
   esss = numeric(0)
-  # bgm() reports one main and one pairwise summary; bgmCompare() reports a
-  # baseline and a difference summary of each, and every one of them is a
-  # continuous parameter block the gate should see.
   blocks = if(inherits(fit, "bgmCompare")) {
     c(
       "posterior_summary_main_baseline", "posterior_summary_main_differences",
@@ -394,70 +358,22 @@ refit_convergence_gate = function(fit) {
     esss = c(esss, block[, "n_eff"])
   }
   ind = fit@posterior_summary_indicator
-
-  rhat_cont = finite_reduce(rhats, stats::median, NA_real_)
-  rhat_cont_max = finite_reduce(rhats, max, NA_real_)
-  ess_cont = finite_reduce(esss, min, NA_real_)
-  ess_incl = finite_reduce(ind[, "n_eff"], min, NA_real_)
-  rb_med_rhat = finite_reduce(ind[, "Rhat"], stats::median, NA_real_)
-
   wc = tryCatch(fit@nuts_diag$warmup_check, error = function(e) NULL)
-  # A degenerate source fit can leave every energy diagnostic NA. An
-  # unassessable criterion abstains, exactly as an absent warmup check does;
-  # the R-hat criteria still decide the gate.
-  ebfmi = if(is.null(wc)) {
-    Inf
-  } else {
-    finite_reduce(c(wc$ebfmi_first_half, wc$ebfmi_second_half), min, Inf)
-  }
-  var_ratio = if(is.null(wc)) 0 else finite_reduce(wc$var_ratio, max, 0)
-
-  # An RB-inclusion R-hat that cannot be computed abstains, as an absent energy
-  # diagnostic does: a fit whose every indicator is saturated (one edge, never
-  # flipped) has no between-chain variance and so no R-hat, which is not a
-  # convergence failure.
-  rb_ok = !is.finite(rb_med_rhat) || rb_med_rhat < 1.01
-  usable = is.finite(rhat_cont) && rhat_cont < 1.01 &&
-    rb_ok && ebfmi > 0.3 && var_ratio < 2
+  wi = tryCatch(fit@nuts_diag$summary$warmup_incomplete, error = function(e) NULL)
   list(
-    usable = usable, rhat_cont = rhat_cont, rhat_cont_max = rhat_cont_max,
-    ess_cont = ess_cont, ess_incl = ess_incl, rb_med_rhat = rb_med_rhat,
-    min_ebfmi = ebfmi, max_var_ratio = var_ratio
+    rhat_max = finite_reduce(rhats, max, NA_real_),
+    ess_min = finite_reduce(esss, min, NA_real_),
+    inclusion_ess_min = finite_reduce(ind[, "n_eff"], min, NA_real_),
+    ebfmi_min = if(is.null(wc)) {
+      NA_real_
+    } else {
+      finite_reduce(c(wc$ebfmi_first_half, wc$ebfmi_second_half), min, NA_real_)
+    },
+    energy_variance_ratio_max = if(is.null(wc)) {
+      NA_real_
+    } else {
+      finite_reduce(wc$var_ratio, max, NA_real_)
+    },
+    warmup_incomplete = if(is.null(wi)) NA else isTRUE(wi)
   )
-}
-
-
-# ------------------------------------------------------------------
-# gate_failure_reason
-# ------------------------------------------------------------------
-# Plain-language reason a convergence gate failed, from a gate result. The
-# criteria are checked in the gate's own order; the first failing one is
-# reported. Returns NA when the gate passed.
-# ------------------------------------------------------------------
-gate_failure_reason = function(g) {
-  if(!is.finite(g$rhat_cont) || g$rhat_cont >= 1.01) {
-    return(sprintf(
-      "split R-hat values above 1.01 on the parameters (largest %s), which may mean its chains have not converged",
-      format(round(g$rhat_cont_max, 2))
-    ))
-  }
-  if(is.finite(g$rb_med_rhat) && g$rb_med_rhat >= 1.01) {
-    return(sprintf(
-      "R-hat values above 1.01 on the edge indicators (median %s), which may mean its inclusion chains have not converged",
-      format(round(g$rb_med_rhat, 2))
-    ))
-  }
-  if(g$min_ebfmi <= 0.3) {
-    return(sprintf(
-      "low energy efficiency (E-BFMI %s), which may mean the sampler explored the posterior poorly",
-      format(round(g$min_ebfmi, 2))
-    ))
-  }
-  if(g$max_var_ratio >= 2) {
-    return(sprintf(
-      "sampling energy still drifting during warmup (variance ratio %s), which may mean the warmup was too short",
-      format(round(g$max_var_ratio, 1))
-    ))
-  }
-  NA_character_
 }

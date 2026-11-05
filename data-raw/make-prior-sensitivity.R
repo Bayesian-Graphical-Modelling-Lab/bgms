@@ -27,16 +27,11 @@ fit = bgm(data[, 1:6],
   seed = 1234, chains = 2, cores = 2,
   display_progress = "none", verbose = FALSE
 )
-ps = prior_sensitivity_check(fit,
-  seed = 1234, iter = 3000, warmup = 1000,
-  cores = 2
-)
+ps = prior_sensitivity_check(fit, seed = 1234, cores = 2)
 
-# prior_sensitivity_check() keeps the anchor refits only when asked to
-# (keep_fits), so at the vignette's call there are no chains attached; the
-# assignment below is a belt-and-braces drop, and the size check after the write
-# is the rail this actually has to meet.
-ps$fits = NULL
+# prior_sensitivity_check() keeps the refits only when asked to (keep_fits), so
+# at the vignette's call there are no chains attached; the size check after the
+# write is the rail this has to meet.
 
 out = file.path("vignettes", "prior-sensitivity-ps.rds")
 saveRDS(ps, out, version = 2)

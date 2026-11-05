@@ -5,17 +5,12 @@ vignette: >
   %\VignetteIndexEntry{Checking Prior Sensitivity}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
-bibliography: refs.bib
-csl: apa.csl
-link-citations: TRUE
 ---
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>",
-  fig.width = 7,
-  fig.height = 6
+  comment = "#>"
 )
 ```
 
@@ -48,142 +43,87 @@ data = Wenchuan
 
 # The check
 
-`prior_sensitivity_check()` is that comparison, automated. It recovers each
-edge's continuous inclusion-Bayes-factor curve across a range of slab scales
-and classifies how each verdict behaves along it. No special fit is required:
-it works on any `bgm()` fit made with edge selection --- in the simplest case
+`prior_sensitivity_check()` is that comparison, automated. It refits the
+model at half and at twice the chosen slab scale, each refit with the
+original fit's `iter` and `warmup`, and compares every edge's inclusion
+verdict across the three fits. No special fit is required: it works on any
+`bgm()` fit made with edge selection, in the simplest case
 `prior_sensitivity_check(bgm(data))`.
 
-The run below is deliberately small: the first six Wenchuan variables, two
-chains, and refits long enough for the per-anchor convergence gate to clear on
-so short a fit. Everything about how to read the report carries over to a full
-analysis. It was run once when this vignette was written rather than on every
-build --- the answer does not change, and an installing user should not pay for
-it --- so the call is shown as you would type it and the report beneath it is
-the object that call returned.
+The run below is small: the first six Wenchuan variables and two chains. It
+was run once when this vignette was written rather than on every build, so
+the call is shown as you would type it and the report beneath it is the
+object that call returned.
 
 ```{r, eval = FALSE}
 fit = bgm(data[, 1:6],
   seed = 1234, chains = 2, cores = 2,
   display_progress = "none", verbose = FALSE
 )
-ps = prior_sensitivity_check(fit,
-  seed = 1234, iter = 3000, warmup = 1000,
-  cores = 2
-)
+ps = prior_sensitivity_check(fit, seed = 1234, cores = 2)
 ps
 ```
 
 ```{r, echo = FALSE}
-# The report below is the real object that call produced, run once with those
-# exact arguments by data-raw/make-prior-sensitivity.R and stored
-# beside this file. Nothing here is transcribed: the check is not re-run on
-# every build, but what is printed is still `print()` on a genuine
-# prior_sensitivity_check() result.
+# The report below is the object that call produced, run once with those exact
+# arguments by data-raw/make-prior-sensitivity.R and stored beside this file.
 ps = readRDS("prior-sensitivity-ps.rds")
 ps
 ```
 
-The headline is the stability statement and the category counts: most
-verdicts are robust across the whole range, and the edges whose verdict
-genuinely depends on the scale are named, with their verdict at each anchor.
-The per-scale verdict table below them shows the expected drift: as the slab
-widens, evidence for inclusion weakens and edges move from undecided toward
-absence, since a wider slab penalizes the extra parameter an edge costs.
+## Reading the report
 
-## The anchored curve
+The verdict counts by scale show how the verdicts shift as the slab widens. A
+wider slab penalizes the extra parameter an edge costs, so evidence for
+inclusion weakens and edges move from undecided toward absence; a narrower
+slab moves them the other way.
 
-The continuous curve is what Bartos et al. present, and it is the deliverable
-here. A single fit cannot produce it for a global scale --- reweighting one
-fit across the whole range collapses --- so the curve is *anchored*: the model
-is fit at a handful of fixed scales (the log-spaced `anchors`, default
-`c(0.4, 0.63, 1, 1.6, 2.5)` times the chosen scale) and the values between
-anchors are filled in by importance reweighting. Reweighting a fixed-scale fit
-to a nearby scale needs only the per-draw slab-density ratios over the
-included edges; the likelihood cancels, so no extra fit is needed between
-anchors, and there is no normalizing constant to integrate.
+The four counts below that table classify every edge against the verdict of
+the original fit, the `1x` column:
 
-The chosen-scale (`1x`) anchor is the original fit itself --- it is never
-refit --- so the chosen-scale verdicts the check reports are *exactly* the
-analysis you already ran. Each other anchor is one short warm-started refit.
+- *verdict held at every scale*: the edge has the same verdict in every fit.
+- *changed, within Monte Carlo error*: the verdict differs at some scale, but
+  the change in the log Bayes factor from the original fit to that fit is
+  smaller than twice the combined Monte Carlo standard error of the two fits.
+  Two runs of the same analysis could have produced this difference.
+- *changed, beyond Monte Carlo error*: the change is larger than that. The
+  verdict depends on the scale. These edges are named, with their verdict at
+  each scale and the scale nearest the chosen one at which it differs.
+- *not certifiable at the chosen scale*: in the original fit the log Bayes
+  factor lies within Monte Carlo error of a verdict threshold, or the chains
+  disagree on the verdict. The verdict the check starts from is not settled,
+  so the edge is not classified; running the original fit longer settles it.
 
-Reweighting is only trustworthy near an anchor; far from every anchor the
-importance weights concentrate on a few draws and the estimate is unreliable.
-The check measures this with the importance effective sample size at each
-display point and **masks any point below `ess_floor` (default 400) to `NA`
-rather than reporting a number**. Log-spaced anchors make neighbouring usable
-ranges overlap, so the masked-out regions close up into a continuous curve; if
-two anchors are too far apart to overlap, the check warns and suggests adding
-an anchor.
+A line naming fits whose largest split R-hat exceeds 1.01 appears when there
+is one. The check uses every fit; that line, and the per-fit diagnostics in
+`ps$grid`, tell you which fit to run longer.
 
-## Run-to-run noise
+The closing note compares the chosen scale with the scale the estimated edge
+weights imply (the root-mean-square of the included interactions in the
+original fit), and states which way a slab wider or narrower than the weights
+moves near-threshold verdicts.
 
-Verdict-identity comparisons are flaky by construction: an inclusion Bayes
-factor that sits within Monte Carlo error of a threshold can change category
-between reruns of the *same* prior, with no real sensitivity present. To
-calibrate that, the check repeats one anchor refit and takes the spread of
-$|\Delta \log \mathrm{BF}|$ between the two as the empirical noise band (its
-95th percentile is the figure the report's `Noise:` line quotes, computed over
-edges whose evidence is near the decision thresholds in both refits).
+## The per-edge table
 
-An edge is reported as "changed, beyond run-to-run noise" only if its verdict
-changes along the curve *and* its natural log Bayes-factor swing exceeds that
-band (and its own Monte Carlo error, and a small tolerance). An edge that
-flips inside the band is "changed, within run-to-run noise": the check
-refuses to call it a move. This is what keeps a robustness tool from crying
-wolf on boundary edges. In the `$edges$mover` column these categories are
-stored as `stable`, `indistinguishable-from-wobble`, and
-`moved-beyond-wobble`.
-
-```{r, eval = FALSE}
-plot(ps)
-```
-
-The plot's title states the answer. Each edge's evidence curve runs across the
-anchored range with dots at the anchor scales, the undecided band shaded and
-the verdict zones labeled; edges whose verdict depends on the scale are
-colored and labeled by name, everything else is muted background, and any
-low-ESS curve points leave visible gaps.
-
-The per-edge table carries the chosen-scale verdict and natural log Bayes
-factor with its Monte Carlo standard error, the per-anchor verdict columns, the
-stability range, the mover category, and an `insufficient` flag for edges the
-fit cannot certify (its chains disagree, or the Bayes-factor band straddles a
-threshold); the report counts these as "not certifiable (too noisy to assess)"
-and names them, when there are any. The full display
-grid, the per-point importance ESS, and which anchor each point was read from
-are in `ps$multipliers`, `ps$curve$ess`, and `ps$curve$anchor_used`.
+`ps$edges` carries, per edge, the original fit's inclusion probability, log
+Bayes factor, Monte Carlo standard error and verdict; the `mover` category
+and `moved_at`; `stability_lower` and `stability_upper`, the smallest and
+largest multiplier in the contiguous run of fits around `1x` that hold the
+original verdict; the `insufficient` flag with its two subcauses; and one
+verdict, log Bayes factor and Monte Carlo standard error column per scale,
+each from that fit's own statistics.
 
 ```{r, eval = FALSE}
 head(ps$edges)
 ```
 
-## The chosen scale versus the data
-
-One line of the report costs no refit: how the chosen scale compares with the
-size of the estimated interactions (the root-mean-square of the included
-interactions in the original fit, with an approximate standard error). When
-the chosen scale is far wider or narrower than that --- more than about a
-factor of two --- the report says so, because inclusion verdicts near the
-boundary then depend on the choice, and the curve shows by how much.
-
 ## Cost and samplers
 
-The chosen-scale anchor is the original fit, so it costs nothing to reuse; only
-the other anchors are refit. With warm starts each refit begins from the
-original fit's per-chain end state, and an ordinal fit sampled with NUTS also
-carries the adapted step size and mass matrix, so a short warmup suffices. The
-anchors are refit one after another, each running its chains in parallel across
-`cores`, and on Wenchuan the whole check costs about one original fit of
-wall-clock. A fit sampled with adaptive Metropolis or Gibbs refits with the
-same sampler; when that makes the check cost more than about a minute, it
-suggests `refit_sampler = "nuts"`, which is sound because every comparison runs
-refit-against-refit --- the original fit's own draws are only ever reweighted,
-never compared against a differently-sampled refit. Continuous (GGM) and
-mixed-MRF fits refit cold.
-
-Because warm starts place every chain near the chosen-scale posterior,
-between-chain dispersion is reduced by construction, so split-$\hat R$ is a
-weakened diagnostic at the refits; the per-anchor convergence gate therefore
-also leans on the effective sample size and on per-chain verdict agreement. An
-anchor that fails its gate is dropped from the curve rather than folded in.
+Each refit is a full fit at the original run length, so the check costs about
+two original fits. Ordinal fits start each refit from the original fit's
+final state, and a NUTS refit also from its adapted step size and mass
+matrix, which shortens the time the warmup spends finding the posterior.
+Continuous (GGM) and mixed-MRF fits start cold. The refits use the original
+fit's sampler unless `refit_sampler` says otherwise; since every comparison
+is between fits of the same sampler and length, the original fit included,
+changing the sampler changes what the original fit is compared with.
