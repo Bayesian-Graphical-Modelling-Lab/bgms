@@ -24,7 +24,7 @@
       B-C
       
       Inclusion probabilities:
-      parameter mean mcse sd n_eff Rhat n0->1 n1->0
+      parameter mean mcse sd n_eff Rhat
       A (main)
       A-B (pairwise)
       A-C (pairwise)

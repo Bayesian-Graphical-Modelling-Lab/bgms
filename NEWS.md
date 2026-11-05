@@ -165,6 +165,10 @@ released from this line yet.
 
 ## Diagnostics
 
+* The printed `summary()` of a `bgm()` or `bgmCompare()` fit no longer shows
+  the directional flip counts `n0->1` and `n1->0` in its inclusion table. The
+  columns stay in `summary(fit)$indicator`.
+
 * The `summary()` tables and `prior_sensitivity_check()` no longer substitute
   values for a Monte Carlo error or a convergence diagnostic that was not
   computed. An indicator whose inclusion probability was 0 or 1 in every draw
