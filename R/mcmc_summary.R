@@ -532,7 +532,7 @@ summarize_mixture_effect = function(draws_pw, draws_id, name, draws_rb = NULL) {
   if(length(vec) > 10) {
     eap_slab = mean(vec)
     ess_slab = compute_slab_ess(vec) # treat as single chain
-    mcse_slab = stats::sd(vec) / sqrt(ess_slab)
+    mcse_slab = sd(vec) / sqrt(ess_slab)
   } else {
     eap_slab = NA_real_
     mcse_slab = NA_real_
@@ -544,7 +544,7 @@ summarize_mixture_effect = function(draws_pw, draws_id, name, draws_rb = NULL) {
     pooled_rb = as.vector(rb_array)
     p_hat = mean(pooled_rb, na.rm = TRUE)
     ess_rb = .compute_ess_cpp(rb_array)[1]
-    p_mcse = stats::sd(pooled_rb) / sqrt(ess_rb)
+    p_mcse = sd(pooled_rb) / sqrt(ess_rb)
   } else {
     id_stats = .compute_indicator_ess_cpp(array(draws_id, dim = c(niter, nchains, 1L)))
     p_hat = id_stats[1, "mean"]
