@@ -14,9 +14,10 @@
        A-C (pairwise) 0.10  -2.20 undecided    TRUE
        B-C (pairwise) 0.52   0.08 undecided   FALSE
       
-      2 verdicts lie far enough from an evidence threshold that Monte Carlo error
-      does not move them. 1 lies within two standard errors of one, so a rerun could
-      change it; a longer run settles it.
+      2 verdicts are not flagged as sensitive to Monte Carlo error. 1 verdict could
+      change on a rerun: its estimated log Bayes factor lies within two standard
+      errors of an evidence threshold. A longer run may help resolve this
+      uncertainty.
       
       The fragility flag is not validated for difference indicators: its
       operating point was established on single-network edge indicators only.
@@ -46,9 +47,10 @@
        B-C (pairwise) 0.52   0.08 undecided   FALSE
              C (main) 0.50   0.00 undecided   FALSE
       
-      5 verdicts lie far enough from an evidence threshold that Monte Carlo error
-      does not move them. 1 lies within two standard errors of one, so a rerun could
-      change it; a longer run settles it.
+      5 verdicts are not flagged as sensitive to Monte Carlo error. 1 verdict could
+      change on a rerun: its estimated log Bayes factor lies within two standard
+      errors of an evidence threshold. A longer run may help resolve this
+      uncertainty.
       
       The fragility flag is not validated for difference indicators: its
       operating point was established on single-network edge indicators only.

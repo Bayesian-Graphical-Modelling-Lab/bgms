@@ -20,9 +20,10 @@
 }
 \description{
 Prints the verdict tally, the leading rows of the verdict table, and a
-line giving how many verdicts lie far enough from an evidence threshold that
-Monte Carlo error does not move them and how many lie within two standard
-errors of one (the \code{fragile} column, the near-threshold flag).
+line giving the number of verdicts not flagged as sensitive to Monte Carlo
+error, followed by the number flagged because their estimated log Bayes
+factors lie within two standard errors of an evidence threshold (the
+\code{fragile} column).
 }
 \seealso{
 \code{\link[=verdicts]{verdicts()}}

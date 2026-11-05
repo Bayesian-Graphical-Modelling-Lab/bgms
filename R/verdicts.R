@@ -443,9 +443,10 @@ check_evidence_threshold = function(evidence_threshold) {
 #'
 #' @description
 #' Prints the verdict tally, the leading rows of the verdict table, and a
-#' line giving how many verdicts lie far enough from an evidence threshold that
-#' Monte Carlo error does not move them and how many lie within two standard
-#' errors of one (the `fragile` column, the near-threshold flag).
+#' line giving the number of verdicts not flagged as sensitive to Monte Carlo
+#' error, followed by the number flagged because their estimated log Bayes
+#' factors lie within two standard errors of an evidence threshold (the
+#' `fragile` column).
 #'
 #' @param x An object of class `bgms_verdicts`, from [verdicts()].
 #' @param digits Number of digits for the printed numeric columns. Default `3`.
@@ -522,24 +523,23 @@ print.bgms_verdicts = function(x, digits = 3, max_rows = 10L, ...) {
     cat(sprintf("... (%d more rows)\n", nrow(rows) - max_rows))
   }
 
-  # The robust count first, then the near-threshold exception, over the
+  # The unflagged count first, then the near-threshold count, over the
   # indicators that carry a verdict.
   fragile = rows$fragile %in% TRUE
   n_robust = sum(!fragile & !is.na(rows$verdict))
   n_fragile = sum(fragile)
   if(n_robust + n_fragile > 0) {
     first = sprintf(
-      "%d %s far enough from an evidence threshold that Monte Carlo error does not move %s.",
-      n_robust, if(n_robust == 1L) "verdict lies" else "verdicts lie",
-      if(n_robust == 1L) "it" else "them"
+      "%d %s not flagged as sensitive to Monte Carlo error.",
+      n_robust, if(n_robust == 1L) "verdict is" else "verdicts are"
     )
     second = if(n_fragile == 0L) {
-      "None lies within two standard errors of one."
+      "None of the estimated log Bayes factors is flagged as being within two standard errors of an evidence threshold."
     } else {
       sprintf(
-        "%d %s within two standard errors of one, so a rerun could change %s; a longer run settles %s.",
-        n_fragile, if(n_fragile == 1L) "lies" else "lie",
-        if(n_fragile == 1L) "it" else "those", if(n_fragile == 1L) "it" else "them"
+        "%d %s could change on a rerun: %s within two standard errors of an evidence threshold. A longer run may help resolve this uncertainty.",
+        n_fragile, if(n_fragile == 1L) "verdict" else "verdicts",
+        if(n_fragile == 1L) "its estimated log Bayes factor lies" else "their estimated log Bayes factors lie"
       )
     }
     cat("\n", paste(strwrap(paste(first, second), width = 80), collapse = "\n"), "\n", sep = "")

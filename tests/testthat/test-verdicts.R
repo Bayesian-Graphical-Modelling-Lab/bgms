@@ -233,25 +233,24 @@ test_that("print.bgms_verdicts tallies verdicts and warns once when fragile", {
   fit = get_bgms_fit_wenchuan6()
   v = verdicts(fit)
 
-  out = paste(utils::capture.output(print(v)), collapse = "\n")
+  out = gsub("\\s+", " ", paste(utils::capture.output(print(v)), collapse = " "))
   expect_match(out, "presence \\d+ \\| undecided \\d+ \\| absence \\d+")
   expect_match(out, "15 indicators")
   # Edge indicators are what the flag was calibrated on, so no caveat here.
   expect_false(grepl("not validated", out))
-  # The robust count comes first; the near-threshold count follows it.
-  expect_match(out, "far enough from an evidence threshold that Monte Carlo")
+  # The unflagged count comes first; the near-threshold count follows it.
+  expect_match(out, "not flagged as sensitive to Monte Carlo error")
   if(any(v$fragile)) {
-    expect_match(out, sprintf("%d (lies|lie) within two standard errors of one", sum(v$fragile)))
-    expect_match(out, "a longer run settles")
+    expect_match(out, sprintf("%d verdicts? could change on a rerun", sum(v$fragile)))
+    expect_match(out, "A longer run may help resolve this uncertainty")
   }
 
-  # No fragile edges: the robust count covers every verdict, and the line says
-  # that none lies near a threshold.
+  # No fragile edges: every verdict is counted as unflagged.
   v_none = v
   v_none$fragile = rep(FALSE, nrow(v))
-  quiet = paste(utils::capture.output(print(v_none)), collapse = "\n")
-  expect_match(quiet, sprintf("%d verdicts lie far enough", sum(!is.na(v$verdict))))
-  expect_match(quiet, "None lies within two standard errors of one")
+  quiet = gsub("\\s+", " ", paste(utils::capture.output(print(v_none)), collapse = " "))
+  expect_match(quiet, sprintf("%d verdicts are not flagged", sum(!is.na(v$verdict))))
+  expect_match(quiet, "None of the estimated log Bayes factors is flagged as being within two standard errors of an evidence threshold")
   expect_false(grepl("longer run", quiet))
 
   # Selecting columns keeps the class but not the table; printing what is left
@@ -403,8 +402,8 @@ test_that("the compare print tabulates selected main differences as rows", {
   expect_snapshot(print(make_compare_verdicts(main_selected = TRUE)))
 })
 
-test_that("the fragility footer states the remedy without commanding one", {
-  out = capture.output(print(make_compare_verdicts(main_selected = FALSE)))
-  expect_true(any(grepl("a longer run settles", out)))
+test_that("the fragility footer suggests a longer run without promising resolution", {
+  out = gsub("\\s+", " ", paste(capture.output(print(make_compare_verdicts(main_selected = FALSE))), collapse = " "))
+  expect_true(any(grepl("A longer run may help resolve this uncertainty", out)))
   expect_false(any(grepl("Run longer", out)))
 })
