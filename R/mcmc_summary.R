@@ -331,8 +331,9 @@ summarize_slab = function(fit, component = c("pairwise_samples"), param_names = 
 # n_eff = Var(weight) / composite_MCSE^2, the only calibrated ESS for the
 # mixture-output row (a raw-chain ESS on the effect inflates in
 # inclusion-dominated cells). The composite MCSE^2 splits into an inclusion part
-# (mu_cond^2 * var_p, with var_p the RB J-chain MCSE^2 of the inclusion
-# probability) and a slab part (p_hat^2 * var_mu, from the included-only draws).
+# (mu_cond^2 * var_p, with var_p the squared MCSE of the inclusion probability
+# estimated from the Rao-Blackwellized inclusion draws) and a slab part
+# (p_hat^2 * var_mu, from the included-only draws).
 # Inputs may be vectors (one entry per edge).
 derived_weight_ess = function(post_var, p_hat, var_p, mu_cond, var_mu) {
   # A constant / never-updated inclusion chain contributes no inclusion error.
@@ -370,9 +371,9 @@ summarize_pair = function(fit,
   eap = colMeans(pooled_pw)
   post_var = apply(pooled_pw, 2, stats::var)
 
-  # Inclusion probability and its Monte Carlo error from the RB J-chain; fall
-  # back to the binary indicator's transition-based MCSE when RB draws are
-  # unavailable (pre-0.2.0.0 fits).
+  # Inclusion probability and its Monte Carlo error from the Rao-Blackwellized
+  # inclusion draws; fall back to the binary indicator's transition-based MCSE
+  # when these draws are unavailable (pre-0.2.0.0 fits).
   if(!is.null(fit[[1]][["rb_inclusion_samples"]])) {
     rb = summarize_manual(fit, array3d = combine_chains(fit, "rb_inclusion_samples"))
     p_hat = rb$mean
@@ -496,8 +497,8 @@ summarize_indicator_compare = function(fit, component = "indicator_samples", par
 
 # Summarize one effect with spike-and-slab draws. n_eff is the derived composite
 # ESS for the model-averaged weight (see derived_weight_ess). The inclusion
-# Monte Carlo error comes from the RB J-chain (draws_rb) when available, else
-# from the binary indicator's transition-based MCSE.
+# Monte Carlo error comes from the Rao-Blackwellized inclusion draws (draws_rb)
+# when available, otherwise from the binary indicator's transition-based MCSE.
 summarize_mixture_effect = function(draws_pw, draws_id, name, draws_rb = NULL) {
   # Handle case where single-chain extraction returns a vector
   # (dimension gets dropped when extracting [, , idx] from array with nchains=1)
@@ -523,7 +524,8 @@ summarize_mixture_effect = function(draws_pw, draws_id, name, draws_rb = NULL) {
     mcse_slab = NA_real_
   }
 
-  ## --- inclusion part: RB J-chain when available, else the binary indicator ---
+  # Inclusion part: use Rao-Blackwellized inclusion draws when available,
+  # otherwise use the binary indicator draws.
   if(!is.null(draws_rb) && any(is.finite(draws_rb))) {
     rb_array = array(draws_rb, dim = c(niter, nchains, 1L))
     pooled_rb = as.vector(rb_array)
