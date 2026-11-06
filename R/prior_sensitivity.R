@@ -863,7 +863,7 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
       wrap(sprintf(
         paste0(
           "The %s %s at least one parameter with infinite split R-hat: ",
-          "its sub-chains are constant but differ in value. %s verdicts should ",
+          "its split chains are constant but differ in value. %s verdicts should ",
           "be interpreted only after checking convergence."
         ),
         list_of(fit_label(stuck)), if(one) "fit includes" else "fits include", if(one) "Its" else "Their"
