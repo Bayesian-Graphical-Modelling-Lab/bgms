@@ -34,8 +34,8 @@ Rao-Blackwellized by default). It is \code{NA} for indicators whose
 Rao-Blackwellized draws are constant to double precision, where the
 inclusion probability is at its numerical bound.
 
-Fits made with bgms < 0.2.0.0 carry no Rao-Blackwellized draws, and the
-\code{indicator} element errors for them.
+For older fits without Rao-Blackwellized inclusion draws, \code{extract_ess()}
+stops when extracting indicator ESS. Refit with bgms 0.2.0.0 or later.
 }
 \seealso{
 \code{\link[=bgm]{bgm()}}, \code{\link[=bgmCompare]{bgmCompare()}}, \code{\link[=extract_rhat]{extract_rhat()}} for the

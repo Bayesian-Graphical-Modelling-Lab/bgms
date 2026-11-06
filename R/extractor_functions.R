@@ -1516,8 +1516,8 @@ indicator_ess_column = function(summary_indicator) {
 #' Rao-Blackwellized draws are constant to double precision, where the
 #' inclusion probability is at its numerical bound.
 #'
-#' Fits made with bgms < 0.2.0.0 carry no Rao-Blackwellized draws, and the
-#' `indicator` element errors for them.
+#' For older fits without Rao-Blackwellized inclusion draws, `extract_ess()`
+#' stops when extracting indicator ESS. Refit with bgms 0.2.0.0 or later.
 #'
 #' @seealso [bgm()], [bgmCompare()], [extract_rhat()] for the
 #'   Rao-Blackwellized indicator R-hat,
@@ -1530,10 +1530,9 @@ extract_ess = function(bgms_object, estimator = "rb") {
     lifecycle::deprecate_stop(
       "0.2.0.0", "extract_ess(estimator = 'no longer supports \"mixt\"')",
       details = paste(
-        "The transition-based effective sample size is no longer computed.",
-        "The precision of the inclusion probability and its Bayes factor is",
-        "carried by the Rao-Blackwellized effective sample size and Monte Carlo",
-        "standard error, which estimator = \"rb\" returns."
+        "The transition-based effective sample size is no longer available.",
+        "Use extract_ess(fit) to obtain the effective sample size of the",
+        "Rao-Blackwellized inclusion draws."
       )
     )
   }

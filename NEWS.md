@@ -165,21 +165,17 @@ released from this line yet.
 
 ## Diagnostics
 
-* The printed `summary()` of a `bgm()` or `bgmCompare()` fit no longer shows
-  the directional flip counts `n0->1` and `n1->0` in its inclusion table. The
-  columns stay in `summary(fit)$indicator`.
+* The pairwise summary table for a `bgm()` fit and the difference summary
+  tables for a `bgmCompare()` fit no longer include `share_incl`, the proportion
+  of Monte Carlo variance attributed to uncertainty in inclusion. The reported
+  effective sample sizes (`n_eff`) are unchanged.
 
-* The pairwise table of `summary()` for a `bgm()` fit and the difference tables
-  for a `bgmCompare()` fit no longer carry the `share_incl` column, the
-  inclusion part's fraction of the composite Monte Carlo variance of a weight.
-  Nothing in the package read it. `n_eff`, the composite effective sample size
-  it was derived beside, is unchanged.
-
-* The inclusion table of `summary()` for a `bgm()` or `bgmCompare()` fit and
-  the co-clustering table under the stochastic block prior no longer carry the
-  directional transition counts `n0->1` and `n1->0` (the co-clustering table
-  also loses `n0->0`, `n1->1` and the transition-based `n_eff_mixt`). The
-  tables hold `mean`, `mcse`, `sd`, `n_eff` and `Rhat`.
+* The inclusion tables of `summary()` for `bgm()` and `bgmCompare()` fits no
+  longer include the directional transition counts `n0->1` and `n1->0`, either
+  in the returned object or in the printed output. Their diagnostic columns
+  are `mean`, `mcse`, `sd`, `n_eff`, and `Rhat`. The co-clustering table under
+  the stochastic block prior also drops all four transition counts and
+  `n_eff_mixt`; its diagnostic columns are `mean`, `mcse`, `sd`, and `Rhat`.
 
 * The printed `verdicts()` table closes with the number of verdicts that appear
   robust to Monte Carlo error, followed by the number flagged because
