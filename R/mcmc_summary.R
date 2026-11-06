@@ -233,12 +233,11 @@ summarize_indicator = function(fit, component = c("indicator_samples"), param_na
   if(is.null(array3d)) array3d = combine_chains(fit, component)
   nparam = dim(array3d)[3]
 
-  # Batch indicator ESS + transition counts via C++
+  # Batch indicator mean and MCSE via C++
   ind_stats = .compute_indicator_ess_cpp(array3d)
   batch_rhat = .compute_rhat_cpp(split_chains(array3d))
 
-  result = cbind(ind_stats[, c("mean", "mcse", "sd", "n00", "n01", "n10", "n11", "n_eff_mixt"), drop = FALSE], Rhat = batch_rhat)
-  colnames(result)[4:7] = c("n0->0", "n0->1", "n1->0", "n1->1")
+  result = cbind(ind_stats[, c("mean", "mcse", "sd"), drop = FALSE], Rhat = batch_rhat)
 
   if(is.null(param_names)) {
     data.frame(parameter = paste0("indicator [", seq_len(nparam), "]"), result, check.names = FALSE)
@@ -277,21 +276,10 @@ summarize_rb_inclusion = function(raw, param_names, keep_parameter_col = FALSE) 
     mat[keep, ] = as.matrix(sub[, cols, drop = FALSE])
   }
 
-  ind_stats = .compute_indicator_ess_cpp(combine_chains(raw, "indicator_samples"))
-
-  full = cbind(
-    mat[, c("mean", "mcse", "sd", "n_eff", "Rhat"), drop = FALSE],
-    ind_stats[, c("n01", "n10"), drop = FALSE]
-  )
-  # Keep the directional transition counts whole; their asymmetry is
-  # decision-relevant and no symmetric summary recovers it.
-  colnames(full)[colnames(full) == "n01"] = "n0->1"
-  colnames(full)[colnames(full) == "n10"] = "n1->0"
-
   if(keep_parameter_col) {
-    data.frame(parameter = param_names, full, check.names = FALSE, row.names = NULL)
+    data.frame(parameter = param_names, mat, check.names = FALSE, row.names = NULL)
   } else {
-    out = as.data.frame(full, check.names = FALSE)
+    out = as.data.frame(mat, check.names = FALSE)
     rownames(out) = param_names
     out
   }
@@ -345,9 +333,7 @@ summarize_slab = function(fit, component = c("pairwise_samples"), param_names = 
 # inclusion-dominated cells). The composite MCSE^2 splits into an inclusion part
 # (mu_cond^2 * var_p, with var_p the RB J-chain MCSE^2 of the inclusion
 # probability) and a slab part (p_hat^2 * var_mu, from the included-only draws).
-# share_incl is the inclusion part's share of the composite MCSE^2 -- the
-# bottleneck: whether the Monte Carlo error is dominated by inclusion or slab
-# uncertainty. Inputs may be vectors (one entry per edge).
+# Inputs may be vectors (one entry per edge).
 derived_weight_ess = function(post_var, p_hat, var_p, mu_cond, var_mu) {
   # A constant / never-updated inclusion chain contributes no inclusion error.
   var_p[!is.finite(var_p)] = 0
@@ -357,8 +343,7 @@ derived_weight_ess = function(post_var, p_hat, var_p, mu_cond, var_mu) {
   ok = is.finite(mcse2) & mcse2 > 0
   list(
     mcse = ifelse(ok, sqrt(mcse2), NA_real_),
-    n_eff = ifelse(ok & is.finite(post_var), post_var / mcse2, NA_real_),
-    share_incl = ifelse(ok, part_incl / mcse2, NA_real_)
+    n_eff = ifelse(ok & is.finite(post_var), post_var / mcse2, NA_real_)
   )
 }
 
@@ -413,7 +398,7 @@ summarize_pair = function(fit,
   data.frame(
     parameter = names_out,
     mean = eap, mcse = comp$mcse, sd = sqrt(post_var),
-    n_eff = comp$n_eff, share_incl = comp$share_incl, Rhat = rhat,
+    n_eff = comp$n_eff, Rhat = rhat,
     check.names = FALSE
   )
 }
@@ -495,12 +480,11 @@ summarize_indicator_compare = function(fit, component = "indicator_samples", par
   array3d = combine_chains(fit, component)
   nparam = dim(array3d)[3]
 
-  # Batch indicator ESS + transition counts via C++
+  # Batch indicator mean and MCSE via C++
   ind_stats = .compute_indicator_ess_cpp(array3d)
   batch_rhat = .compute_rhat_cpp(split_chains(array3d))
 
-  result = cbind(ind_stats[, c("mean", "mcse", "sd", "n00", "n01", "n10", "n11", "n_eff_mixt"), drop = FALSE], Rhat = batch_rhat)
-  colnames(result)[4:7] = c("n0->0", "n0->1", "n1->0", "n1->1")
+  result = cbind(ind_stats[, c("mean", "mcse", "sd"), drop = FALSE], Rhat = batch_rhat)
 
   if(is.null(param_names)) {
     data.frame(parameter = paste0("indicator [", seq_len(nparam), "]"), result, check.names = FALSE)
@@ -511,10 +495,9 @@ summarize_indicator_compare = function(fit, component = "indicator_samples", par
 
 
 # Summarize one effect with spike-and-slab draws. n_eff is the derived composite
-# ESS for the model-averaged weight (see derived_weight_ess); share_incl is the
-# inclusion part's share of the composite MCSE^2. The inclusion Monte Carlo error
-# comes from the RB J-chain (draws_rb) when available, else from the binary
-# indicator's transition-based MCSE.
+# ESS for the model-averaged weight (see derived_weight_ess). The inclusion
+# Monte Carlo error comes from the RB J-chain (draws_rb) when available, else
+# from the binary indicator's transition-based MCSE.
 summarize_mixture_effect = function(draws_pw, draws_id, name, draws_rb = NULL) {
   # Handle case where single-chain extraction returns a vector
   # (dimension gets dropped when extracting [, , idx] from array with nchains=1)
@@ -573,7 +556,6 @@ summarize_mixture_effect = function(draws_pw, draws_id, name, draws_rb = NULL) {
     mcse = comp$mcse,
     sd = sqrt(post_var),
     n_eff = comp$n_eff,
-    share_incl = comp$share_incl,
     Rhat = rhat,
     check.names = FALSE
   )

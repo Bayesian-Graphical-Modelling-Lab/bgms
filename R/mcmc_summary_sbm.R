@@ -42,10 +42,9 @@ summarize_alloc_pairs = function(allocations, node_names = NULL) {
   batch_rhat = .compute_rhat_cpp(split_chains(array3d))
 
   result = cbind(
-    ind_stats[, c("mean", "mcse", "sd", "n00", "n01", "n10", "n11", "n_eff_mixt"), drop = FALSE],
+    ind_stats[, c("mean", "mcse", "sd"), drop = FALSE],
     Rhat = batch_rhat
   )
-  colnames(result)[4:7] = c("n0->0", "n0->1", "n1->0", "n1->1")
   if(is.null(node_names)) {
     rn = paste0(Pairs[, 1], "-", Pairs[, 2])
     dimn = as.character(seq_len(no_variables))

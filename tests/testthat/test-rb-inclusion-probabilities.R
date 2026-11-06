@@ -400,16 +400,12 @@ test_that("the printed bgm summary reports the RB inclusion estimate", {
   fit = rb_omrf_fit()
   ind = summary(fit)$indicator
 
-  # The RB precision columns sit beside the raw directional flip counts, which
-  # stay retrievable so their asymmetry survives. The transition ESS is gone.
-  expect_true(all(c("mean", "mcse", "sd", "n_eff", "Rhat", "n0->1", "n1->0") %in%
-    colnames(ind)))
-  expect_false("n_eff_mixt" %in% colnames(ind))
+  # The table holds the RB precision columns only: no transition ESS and no
+  # directional flip counts.
+  expect_identical(colnames(ind), c("mean", "mcse", "sd", "n_eff", "Rhat"))
   # ESS/Rhat are finite or NA (constant columns), never NaN.
   expect_false(any(is.nan(ind$n_eff)))
   expect_false(any(is.nan(ind$Rhat)))
-  # Directional flip counts are non-negative integers, retrievable per edge.
-  expect_true(all(ind[["n0->1"]] >= 0 & ind[["n1->0"]] >= 0))
 
   # The summary mean equals the RB inclusion probability, edge for edge.
   rb = extract_posterior_inclusion_probabilities(fit, estimator = "rb")
@@ -429,9 +425,8 @@ test_that("the bgmCompare summary RB inclusion has NA rows for unselected mains"
   )
   ind = summary(fit)$indicator
 
-  expect_true(all(c("mean", "mcse", "sd", "n_eff", "Rhat", "n0->1", "n1->0") %in%
-    colnames(ind)))
-  expect_false("n_eff_mixt" %in% colnames(ind))
+  expect_true(all(c("mean", "mcse", "sd", "n_eff", "Rhat") %in% colnames(ind)))
+  expect_false(any(c("n0->1", "n1->0", "n_eff_mixt") %in% colnames(ind)))
   expect_false(any(is.nan(ind$n_eff)))
   # Unselected main-effect differences were never updated, so some rows are NA;
   # the selected pairwise differences are finite.

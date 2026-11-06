@@ -165,9 +165,17 @@ released from this line yet.
 
 ## Diagnostics
 
-* The printed `summary()` of a `bgm()` or `bgmCompare()` fit no longer shows
-  the directional flip counts `n0->1` and `n1->0` in its inclusion table. The
-  columns stay in `summary(fit)$indicator`.
+* The pairwise summary table for a `bgm()` fit and the difference summary
+  tables for a `bgmCompare()` fit no longer include `share_incl`, the proportion
+  of Monte Carlo variance attributed to uncertainty in inclusion. The reported
+  effective sample sizes (`n_eff`) are unchanged.
+
+* The inclusion tables of `summary()` for `bgm()` and `bgmCompare()` fits no
+  longer include the directional transition counts `n0->1` and `n1->0`, either
+  in the returned object or in the printed output. Their diagnostic columns
+  are `mean`, `mcse`, `sd`, `n_eff`, and `Rhat`. The co-clustering table under
+  the stochastic block prior also drops all four transition counts and
+  `n_eff_mixt`; its diagnostic columns are `mean`, `mcse`, `sd`, and `Rhat`.
 
 * The printed `verdicts()` table closes with the number of verdicts that appear
   robust to Monte Carlo error, followed by the number flagged because
@@ -229,6 +237,11 @@ released from this line yet.
   as the first thing to try. `vignette("diagnostics")` gives the same order.
 
 ## Deprecations
+
+* `extract_ess(estimator = "mixt")`, the transition-based effective sample size
+  deprecated in 0.2.0.0, is defunct: the call errors. The transition-based
+  estimate is no longer computed; `estimator = "rb"`, the default, returns the
+  effective sample size of the Rao-Blackwellized inclusion draws.
 
 * The `step_size` argument of `sample_ggm_prior()` is deprecated and ignored:
   the NUTS warmup sets its own initial step size. The returned `step_size`

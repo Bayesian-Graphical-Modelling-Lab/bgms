@@ -4,17 +4,17 @@
 \alias{extract_ess}
 \title{Extract Effective Sample Size}
 \usage{
-extract_ess(bgms_object, estimator = c("rb", "mixt"))
+extract_ess(bgms_object, estimator = "rb")
 }
 \arguments{
 \item{bgms_object}{A fitted model object of class \code{bgms} (from \code{\link[=bgm]{bgm()}})
 or \code{bgmCompare} (from \code{\link[=bgmCompare]{bgmCompare()}}).}
 
-\item{estimator}{Character; which effective sample size to return for the
-edge (or difference) indicators. \code{"rb"} (default) returns the ESS of the
-Rao-Blackwellized inclusion draws. \code{"mixt"}
-\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} returns the indicator chain's
-transition-based ESS. Ignored for all other parameter types.}
+\item{estimator}{Character; \code{"rb"}, the only accepted value, returns the ESS
+of the Rao-Blackwellized inclusion draws for the edge (or difference)
+indicators. \code{"mixt"} \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}}, the indicator
+chain's transition-based ESS, was deprecated in bgms 0.2.0.0 and now
+errors. Ignored for all other parameter types.}
 }
 \value{
 A named list with ESS values for each parameter type present in
@@ -34,18 +34,8 @@ Rao-Blackwellized by default). It is \code{NA} for indicators whose
 Rao-Blackwellized draws are constant to double precision, where the
 inclusion probability is at its numerical bound.
 
-\code{estimator = "mixt"}, the transition-based ESS of the binary indicator chain,
-is deprecated and no longer a summary column; a call recomputes it from the
-raw indicator draws and warns. It converts flip counts to an effective sample
-size through a two-state first-order Markov model that a substantial share of
-edge chains violate, and the precision of the inclusion probability and its
-Bayes factor is carried by the Rao-Blackwellized ESS and Monte Carlo standard
-error. The directional flip counts themselves (\code{n0->1}, \code{n1->0}) remain in
-the inclusion table.
-
-Fits made with bgms < 0.2.0.0 carry no Rao-Blackwellized draws; a default
-call falls back to the transition ESS without warning, while an explicit
-\code{estimator = "rb"} errors.
+For older fits without Rao-Blackwellized inclusion draws, \code{extract_ess()}
+stops when extracting indicator ESS. Refit with bgms 0.2.0.0 or later.
 }
 \seealso{
 \code{\link[=bgm]{bgm()}}, \code{\link[=bgmCompare]{bgmCompare()}}, \code{\link[=extract_rhat]{extract_rhat()}} for the

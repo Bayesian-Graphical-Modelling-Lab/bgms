@@ -421,7 +421,11 @@ test_that("bgm RB inclusion Rhat is the classic split-Rhat on J draws, masked on
 
   # Edges whose indicator never flipped keep their numbers as long as J varies:
   # those are the near-boundary short-run edges where the MCSE is needed.
-  zero_flip = summ[["n0->1"]] + summ[["n1->0"]] == 0
+  ind_chains = fit$raw_samples$indicator
+  ind_arr = array(NA_real_, dim = c(niter, nchains, nparam))
+  for(c in seq_len(nchains)) ind_arr[, c, ] = ind_chains[[c]]
+  counts = bgms:::.compute_indicator_ess_cpp(ind_arr)
+  zero_flip = counts[, "n01"] + counts[, "n10"] == 0
   varying = zero_flip & sds > 1e-6
   expect_true(any(varying))
   expect_true(all(is.finite(reported[varying])))
@@ -523,7 +527,6 @@ test_that("the indicator summary keeps Rhat Inf for indicators constant at diffe
   draws = array(0, dim = c(100, 2, 1))
   draws[, 2, 1] = 1
   summ = bgms:::summarize_indicator(NULL, array3d = draws)
-  expect_true(is.na(summ$n_eff_mixt))
   expect_identical(summ$Rhat, Inf)
   same = array(1, dim = c(100, 2, 1))
   expect_true(is.na(bgms:::summarize_indicator(NULL, array3d = same)$Rhat))

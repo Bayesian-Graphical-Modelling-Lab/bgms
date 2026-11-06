@@ -327,11 +327,8 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
 
   if(!is.null(x$indicator)) {
     cat("Inclusion probabilities:\n")
-    # mean/mcse/sd/n_eff/Rhat are the Rao-Blackwellized inclusion estimate. The
-    # directional flip counts n0->1 / n1->0 stay in summary(fit)$indicator and
-    # are not printed.
+    # mean/mcse/sd/n_eff/Rhat are the Rao-Blackwellized inclusion estimate.
     ind = head(x$indicator, 6)
-    ind = ind[, setdiff(names(ind), c("n0->1", "n1->0")), drop = FALSE]
 
     ind_has_na = anyNA(ind)
 
@@ -407,7 +404,7 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
 
     if(!is.null(x$indicator) && maind_has_na) {
       cat("Note: NA values are suppressed in the print table. They occur for differences\n")
-      cat("that were never selected, so the composite ESS and share are undefined;\n")
+      cat("that were never selected, so the composite ESS is undefined;\n")
       cat("`summary(fit)$main_diff` still contains the NA values.\n")
     }
     cat("\n")
@@ -434,7 +431,7 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
 
     if(!is.null(x$indicator) && pairwised_has_na) {
       cat("Note: NA values are suppressed in the print table. They occur for differences\n")
-      cat("that were never selected, so the composite ESS and share are undefined;\n")
+      cat("that were never selected, so the composite ESS is undefined;\n")
       cat("`summary(fit)$pairwise_diff` still contains the NA values.\n")
     }
     cat("\n")

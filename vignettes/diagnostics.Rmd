@@ -55,7 +55,11 @@ summary(fit)$pairwise
 - The effective sample size (ESS) reflects the number of independent samples that would provide equivalent precision. Larger ESS values indicate more reliable estimates.
 - The Monte Carlo standard error (MCSE) measures the additional variability introduced by using a finite number of MCMC draws. A small MCSE relative to the posterior standard deviation indicates stable estimates, whereas a large MCSE suggests that more samples are needed.
 
-The 1.01 rule is a guideline for continuous parameters. It should **not** be applied directly to the binary edge (or difference) **indicators**. A decisive edge produces a nearly saturated indicator chain — the inclusion probability sits close to 0 or 1 and the indicator only rarely flips — so R-hat carries little information and can be `NA` (all chains identical) or large (chains stuck in different structures). Read the indicator R-hat together with the directional transition counts (`n0->1` and `n1->0`, reported in the indicator summary) and the posterior inclusion probability: for a saturated or barely-flipping indicator the statistic is uninformative rather than a sign of trouble. The indicator R-hat is most useful when it is large while the inclusion probability is near 0.5 and the transition counts show the chains disagreeing on inclusion.
+The inclusion table reports R-hat for the Rao-Blackwellized inclusion draws,
+rather than the binary inclusion indicators. An indicator that rarely changes
+can still have varying Rao-Blackwellized draws and informative diagnostics.
+Interpret these diagnostics alongside the posterior inclusion probabilities
+and the parameter diagnostics.
 
 ## Diagnostics for edge-selected parameters
 
@@ -73,9 +77,6 @@ errors that actually limit the model-averaged weight.
 - **n_eff** in the pairwise table is the composite ESS of the model-averaged
   weight: it combines the Monte Carlo error of the conditional (included-only)
   weight with the Monte Carlo error of the inclusion probability.
-- **share_incl** is the share of that composite Monte Carlo variance
-  contributed by the inclusion part, so it says which of the two limits the
-  precision of the weight.
 
 The inclusion table carries its own diagnostics:
 
@@ -97,12 +98,6 @@ summary(fit)$indicator
   second route — an `sd` of about `2e-11` with `NA` `mcse` and `n_eff` and a
   finite `Rhat`. Either way the reading is the same: the inclusion probability
   is pinned, not poorly estimated.
-- **n0->1** and **n1->0** are the directional flip counts of the binary
-  indicator chain. They record how much the chain explored the two states, which
-  the Rao-Blackwellized columns cannot see: those measure precision conditional
-  on exploration, so a chain stuck in one structure can show a large `n_eff`.
-  Few flips are expected on an edge whose inclusion probability sits near 0 or
-  1, and the asymmetry between the two counts is itself informative.
 
 ## Traceplots
 
