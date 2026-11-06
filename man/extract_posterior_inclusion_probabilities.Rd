@@ -58,7 +58,8 @@ space, and requires a fit from bgms >= 0.2.0.0. Because the RB draw is
 continuous, the standard MCSE/ESS/split-R-hat machinery applies to it, and
 the fit summary's inclusion table reports \code{mcse}, \code{n_eff}, and \code{Rhat} on the
 RB draws. They quantify precision \emph{conditional on exploration}: a stuck chain
-can show a converged \code{J} chain with a high \code{n_eff}. The RB draws vary on
+can produce apparently converged Rao-Blackwellized inclusion draws with a
+high \code{n_eff}. The RB draws vary on
 almost every edge, including edges whose indicator never flipped; the three
 columns are \code{NA} only where the RB draws are constant to double precision,
 which places the inclusion probability at its numerical bound and the

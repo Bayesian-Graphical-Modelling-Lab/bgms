@@ -225,7 +225,8 @@ extract_indicators.bgmCompare = function(bgms_object) {
 #' continuous, the standard MCSE/ESS/split-R-hat machinery applies to it, and
 #' the fit summary's inclusion table reports `mcse`, `n_eff`, and `Rhat` on the
 #' RB draws. They quantify precision *conditional on exploration*: a stuck chain
-#' can show a converged `J` chain with a high `n_eff`. The RB draws vary on
+#' can produce apparently converged Rao-Blackwellized inclusion draws with a
+#' high `n_eff`. The RB draws vary on
 #' almost every edge, including edges whose indicator never flipped; the three
 #' columns are `NA` only where the RB draws are constant to double precision,
 #' which places the inclusion probability at its numerical bound and the
