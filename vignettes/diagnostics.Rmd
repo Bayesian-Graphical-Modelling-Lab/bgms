@@ -85,19 +85,24 @@ summary(fit)$indicator
 ```
 
 - **mean**, **mcse**, **sd**, **n_eff**, and **Rhat** describe the
-  Rao-Blackwellized inclusion probability. The sampler records a one-step
-  inclusion draw at every indicator update, and that draw is continuous, so the
-  standard Monte Carlo machinery applies to it. They are `NA` when that draw
-  carries too little variability for the machinery to work on, which happens by
-  two routes. The first is an indicator whose Rao-Blackwellized draws are
-  constant to double precision, where the inclusion probability sits at its
-  numerical bound; `sd` is then exactly `0`. The second is a draw whose
-  variance is non-zero but falls below the numerical floor of the
-  autocovariance kernel: `mcse` and `n_eff` come back `NA` while `sd` and
-  `Rhat` are still reported. In the table above, `intrusion-flash` takes the
-  second route — an `sd` of about `2e-11` with `NA` `mcse` and `n_eff` and a
-  finite `Rhat`. Either way the reading is the same: the inclusion probability
-  is pinned, not poorly estimated.
+  Rao-Blackwellized inclusion probability. At every update of an edge
+  indicator the sampler proposes to flip it and records the probability that
+  the edge is in the model after the move: the acceptance probability of
+  adding it when it is out, one minus the acceptance probability of removing
+  it when it is in. That recorded value is continuous, so the standard Monte
+  Carlo machinery applies to its series. All three of `mcse`, `n_eff` and
+  `Rhat` are `NA` when the series has no variation the machinery can work on.
+  For an edge the data support overwhelmingly, the probability of accepting
+  its removal is below about 1e-16 at every update, so one minus it rounds to
+  exactly 1 and the series is constant at 1 in every draw of every chain; an
+  edge the data rule out as strongly is constant at 0. An edge whose removal
+  probability is around 1e-12 gives a series that varies by that much, below
+  the variance floor of 1e-15 at which the ESS and R-hat kernels stop
+  estimating, so `sd` prints as a number like `2e-11` while the three cells
+  are blank. In both cases there is nothing to estimate: the inclusion
+  probability is at 1 or 0 to numerical precision and the verdict lies beyond
+  any evidence threshold. An edge only slightly less certain, with a removal
+  probability of 1e-8 say, has a varying series and shows numbers.
 
 ## Traceplots
 

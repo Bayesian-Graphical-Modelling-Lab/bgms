@@ -223,20 +223,32 @@ struct RhatWorker : public RcppParallel::Worker {
       }
       B *= n / (m - 1.0);
 
+      // A sub-chain counts as constant when its variance is below the same
+      // floor the ESS kernel applies to a chain's lag-0 autocovariance
+      // (biased variance below 1e-15), so a series the ESS kernel finds
+      // constant to numerical precision has no R-hat either.
+      bool all_constant = true;
+      for(int c = 0; c < m; c++) {
+        if(chain_var[c] * (n - 1.0) / n >= 1e-15) {
+          all_constant = false;
+          break;
+        }
+      }
+
       // --- Classic split-Rhat (Gelman et al. 2013 / Stan) ---
       // var_plus = (n-1)/n * W + B/n;  Rhat = sqrt(var_plus / W).
-      if(W > 0.0) {
+      if(!all_constant) {
         double var_plus = (n - 1.0) / n * W + B / n;
         rhat[j] = std::sqrt(var_plus / W);
       } else {
-        // W == 0: every sub-chain is individually constant.
-        //   B == 0 -> all sub-chains hold the SAME constant; Rhat is undefined
-        //            (0/0), report NA.
-        //   B  > 0 -> sub-chains are constant at DIFFERENT values (chains stuck
-        //            in different states); the between/within ratio diverges, so
-        //            report +Inf as a loud non-convergence alarm rather than the
-        //            silent NA that would hide genuinely stuck chains.
-        rhat[j] = (B > 0.0) ? R_PosInf : NA_REAL;
+        // Every sub-chain is individually constant.
+        //   The chain means agree to the same floor -> all sub-chains hold the
+        //            SAME constant; Rhat is undefined (0/0), report NA.
+        //   They differ -> sub-chains are constant at DIFFERENT values (chains
+        //            stuck in different states); the between/within ratio
+        //            diverges, so report +Inf as a loud non-convergence alarm
+        //            rather than the silent NA that would hide stuck chains.
+        rhat[j] = (B / n >= 1e-15) ? R_PosInf : NA_REAL;
       }
     }
   }

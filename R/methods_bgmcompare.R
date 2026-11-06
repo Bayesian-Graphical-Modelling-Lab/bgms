@@ -239,6 +239,31 @@ print.bgmCompare = function(x, ...) {
 #'   are exempt from the union recode and are never marked). Fits made before
 #'   that field existed print unmarked.
 #'
+#' The inclusion table (`$indicator`) reports, per difference indicator, the Rao-Blackwellized
+#' inclusion probability with its Monte Carlo standard error, effective sample
+#' size and split-R-hat. At every update of a difference indicator the sampler
+#' proposes to flip it and records the probability that the difference is in the
+#' model after the move: the acceptance probability \eqn{\alpha} of adding it
+#' when it is out, \eqn{1 - \alpha} of removing it when it is in. The
+#' inclusion probability is the average of those recorded values, and `mcse`,
+#' `n_eff` and `Rhat` are computed from their series.
+#'
+#' Those three cells are `NA`, and print blank, when the series has no
+#' variation the Monte Carlo machinery can work on. For a difference the data
+#' support overwhelmingly, the probability of accepting its removal is below
+#' about `1e-16` at every update, so \eqn{1 - \alpha} rounds to exactly 1 in
+#' double precision and the series is constant at 1 in every draw of every
+#' chain; a difference the data rule out as strongly gives a series constant at 0.
+#' A difference whose removal probability is around `1e-12` gives a series that
+#' varies by that much, below the variance floor of `1e-15` at which the
+#' autocorrelation kernels stop estimating. In both cases there is nothing to
+#' estimate: the inclusion probability is at 1 or 0 to numerical precision,
+#' its Monte Carlo error is smaller than any printed digit, and the verdict
+#' lies beyond any evidence threshold. A difference only slightly less certain, with
+#' a removal probability of `1e-8` say, has a varying series and shows numbers.
+#' Main-effect difference rows are `NA` throughout when
+#' `main_difference_selection = FALSE`: their indicators were never sampled.
+#'
 #' @param object An object of class `bgmCompare`.
 #' @param ... Currently ignored.
 #'
@@ -352,8 +377,8 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
     }
     if(ind_has_na) {
       cat("Note: blank mcse, n_eff and Rhat cells mark indicators whose inclusion\n")
-      cat("probability was 0 or 1 in every draw; there is no variation to estimate them\n")
-      cat("from.\n")
+      cat("probability was 0 or 1 in every draw of every chain, or constant to numerical\n")
+      cat("precision; there is no variation to estimate them from.\n")
       if(isFALSE(x$arguments$main_difference_selection)) {
         cat("Main-effect difference rows are blank when main_difference_selection = FALSE\n")
         cat("left their indicators unsampled.\n")

@@ -81,6 +81,30 @@ print.bgms = function(x, ...) {
 #'
 #' @description Returns posterior summaries and diagnostics for a fitted `bgms` model.
 #'
+#' @details
+#' The inclusion table (`$indicator`) reports, per edge, the Rao-Blackwellized
+#' inclusion probability with its Monte Carlo standard error, effective sample
+#' size and split-R-hat. At every update of an edge indicator the sampler
+#' proposes to flip it and records the probability that the edge is in the
+#' model after the move: the acceptance probability \eqn{\alpha} of adding it
+#' when it is out, \eqn{1 - \alpha} of removing it when it is in. The
+#' inclusion probability is the average of those recorded values, and `mcse`,
+#' `n_eff` and `Rhat` are computed from their series.
+#'
+#' Those three cells are `NA`, and print blank, when the series has no
+#' variation the Monte Carlo machinery can work on. For an edge the data
+#' support overwhelmingly, the probability of accepting its removal is below
+#' about `1e-16` at every update, so \eqn{1 - \alpha} rounds to exactly 1 in
+#' double precision and the series is constant at 1 in every draw of every
+#' chain; an edge the data rule out as strongly gives a series constant at 0.
+#' An edge whose removal probability is around `1e-12` gives a series that
+#' varies by that much, below the variance floor of `1e-15` at which the
+#' autocorrelation kernels stop estimating. In both cases there is nothing to
+#' estimate: the inclusion probability is at 1 or 0 to numerical precision,
+#' its Monte Carlo error is smaller than any printed digit, and the verdict
+#' lies beyond any evidence threshold. An edge only slightly less certain, with
+#' a removal probability of `1e-8` say, has a varying series and shows numbers.
+#'
 #' @param object An object of class `bgms`.
 #' @param ... Currently ignored.
 #'
@@ -187,7 +211,8 @@ print.summary.bgms = function(x, digits = 3, ...) {
     if(nrow(x$indicator) > .summary_preview_rows) cat("... (use `summary(fit)$indicator` to see full output)\n")
     if(ind_has_na) {
       cat("Note: blank mcse, n_eff and Rhat cells mark edges whose inclusion probability\n")
-      cat("was 0 or 1 in every draw; there is no variation to estimate them from.\n")
+      cat("was 0 or 1 in every draw of every chain, or constant to numerical precision;\n")
+      cat("there is no variation to estimate them from.\n")
     }
     cat("\n")
   }

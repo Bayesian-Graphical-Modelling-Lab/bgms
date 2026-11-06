@@ -17,6 +17,30 @@ An object of class \code{summary.bgms} with posterior summaries.
 \description{
 Returns posterior summaries and diagnostics for a fitted \code{bgms} model.
 }
+\details{
+The inclusion table (\verb{$indicator}) reports, per edge, the Rao-Blackwellized
+inclusion probability with its Monte Carlo standard error, effective sample
+size and split-R-hat. At every update of an edge indicator the sampler
+proposes to flip it and records the probability that the edge is in the
+model after the move: the acceptance probability \eqn{\alpha} of adding it
+when it is out, \eqn{1 - \alpha} of removing it when it is in. The
+inclusion probability is the average of those recorded values, and \code{mcse},
+\code{n_eff} and \code{Rhat} are computed from their series.
+
+Those three cells are \code{NA}, and print blank, when the series has no
+variation the Monte Carlo machinery can work on. For an edge the data
+support overwhelmingly, the probability of accepting its removal is below
+about \code{1e-16} at every update, so \eqn{1 - \alpha} rounds to exactly 1 in
+double precision and the series is constant at 1 in every draw of every
+chain; an edge the data rule out as strongly gives a series constant at 0.
+An edge whose removal probability is around \code{1e-12} gives a series that
+varies by that much, below the variance floor of \code{1e-15} at which the
+autocorrelation kernels stop estimating. In both cases there is nothing to
+estimate: the inclusion probability is at 1 or 0 to numerical precision,
+its Monte Carlo error is smaller than any printed digit, and the verdict
+lies beyond any evidence threshold. An edge only slightly less certain, with
+a removal probability of \code{1e-8} say, has a varying series and shows numbers.
+}
 \examples{
 \donttest{
 fit = bgm(x = Wenchuan[, 1:3])

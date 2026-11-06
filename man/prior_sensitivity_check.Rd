@@ -69,16 +69,21 @@ factor) and \code{chosen_scale_verdict}; \code{stability_lower} and
 \code{stability_upper}; \code{mover} (\code{stable},
 \code{within-monte-carlo-error}, \code{beyond-monte-carlo-error}, or
 \code{NA} for an indicator without a verdict) and \code{moved_at};
-\code{insufficient} with its two subcauses \code{insufficient_noisy}
-(log Bayes factor within Monte Carlo error of a threshold) and
-\code{insufficient_disagree} (chains disagree on the verdict);
-\code{saturated} (the original fit's inclusion probability is 0 or 1 in
-every draw of every chain);
+\code{fragile} (\code{\link{verdicts}()}' near-threshold flag on the
+original fit); \code{saturated} (the original fit's Rao-Blackwellized
+inclusion draws have no variation the ESS kernel can use, because the
+acceptance probability of flipping the indicator was below double
+precision at every update: the inclusion probability is 0 or 1 in every
+draw of every chain, or constant to numerical precision;
+\code{chosen_scale_mcse} is \code{NA} there; see the Details of
+\code{\link{summary.bgms}});
 then one \code{verdict_x<m>}, \code{log_bf_x<m>} and \code{mcse_x<m>}
 column per multiplier \code{m}, from that fit's own statistics.}
 \item{\code{grid}}{One row per fit: \code{multiplier}, \code{scale},
 \code{original_fit}, \code{iter}, \code{warmup}, \code{seed}, the
-diagnostics \code{rhat_max}, \code{ess_min}, \code{inclusion_ess_min},
+diagnostics \code{rhat_max} (largest split-\eqn{\hat R} over the
+continuous parameters only), \code{ess_min} (over the continuous
+parameters), \code{inclusion_ess_min} (over the indicators),
 \code{ebfmi_min}, \code{energy_variance_ratio_max} and
 \code{warmup_incomplete}, \code{sampler_notes}, and \code{seconds}.}
 \item{\code{verdict_by_scale}}{Fit-by-indicator matrix of verdicts.}
@@ -135,22 +140,27 @@ verdict differs. \code{stability_lower} and \code{stability_upper} are the
 smallest and largest multiplier in the contiguous run of fits around
 \code{1x} that hold the reference verdict.
 
-\strong{Sufficiency at the chosen scale.} An edge whose per-chain verdicts
-disagree in the original fit, or whose log Bayes factor lies within
-\code{max(between-chain band, 2 * MCSE)} of a verdict threshold there, is
-marked \code{insufficient}: the fit cannot certify the verdict the check
-starts from, and the printed report lists the edge as not certifiable
-rather than in a mover category.
+\strong{The chosen-scale flag.} An edge is \code{fragile} when
+\code{\link{verdicts}()} flags it in the original fit: its log Bayes factor
+lies within two standard errors of a verdict threshold, by either of the two
+standard errors \code{verdicts()} computes. The verdict the check starts
+from could then change on a rerun with another seed, so the printed report
+counts the edge among the verdicts that could change on a rerun rather than
+in a mover category. An edge whose standard errors are undefined is not
+flagged, as in \code{verdicts()}.
 
 \strong{Convergence.} Each fit's largest split-\eqn{\hat R} over the
-continuous parameters, smallest effective sample size over the continuous
-parameters and over the indicators, and for NUTS the smallest E-BFMI and
-the largest energy variance ratio, are in \code{$grid}. The classification
-uses every fit; the printed report names a fit whose largest
-split-\eqn{\hat R} exceeds 1.01, and states when a fit did not sample: a
-parameter constant in every chain at values that differ across chains has
-an infinite split-\eqn{\hat R}, and that fit's verdicts say nothing about
-the prior.
+continuous parameters (the main-effect and pairwise blocks of the fit
+summary, not the indicators), smallest effective sample size over the
+continuous parameters and over the indicators, and for NUTS the smallest
+E-BFMI and the largest energy variance ratio, are in \code{$grid}. The
+classification uses every fit; the printed report names a fit whose largest
+split-\eqn{\hat R} exceeds 1.01, and states when a fit's sampler did not
+move: a parameter that kept a single value throughout every chain, at values
+that differ between chains, has an infinite split-\eqn{\hat R}, and the
+verdicts of that fit do not describe the posterior distribution at that
+scale. Such a refit needs a longer warmup or a cold start; an ordinal refit
+starts from the original fit's final state, so \code{warmup} is the lever.
 
 \strong{Models with a precision diagonal.} A continuous or mixed fit has a
 Gamma or exponential prior on the precision diagonal with a standardized

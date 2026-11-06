@@ -165,6 +165,38 @@ released from this line yet.
 
 ## Diagnostics
 
+* The fourth count of the printed `prior_sensitivity_check()` report, "could
+  change on a rerun", is `verdicts()`' near-threshold flag on the original fit,
+  computed by the same function, so the two reports count the same edges. The
+  between-chain band and the per-chain verdict test that the check applied on
+  top of it are gone, as are the `$edges` columns `insufficient`,
+  `insufficient_noisy` and `insufficient_disagree`; the flag is the `fragile`
+  column. The other three count labels lose their commas. The sentence under
+  the counts names the flagged edges and states that their log Bayes factors
+  lie within two standard errors of an evidence threshold.
+
+* The split-R-hat kernel applies the ESS kernel's variance floor: a sub-chain
+  whose variance is below 1e-15 counts as constant, so a Rao-Blackwellized
+  inclusion series that is constant to numerical precision has `NA` for
+  `mcse`, `n_eff` and `Rhat` together, where before `Rhat` was computed from
+  the residual variation. The `saturated` column of `prior_sensitivity_check()`
+  follows the same criterion, so it marks exactly the edges whose chosen-scale
+  Monte Carlo standard error is `NA`. The one-sentence note under the summary
+  tables and in the check now says "0 or 1 in every draw of every chain, or
+  constant to numerical precision", and the Details of `?summary.bgms`,
+  `?summary.bgmCompare` and `vignette("diagnostics")` explain why: the
+  recorded inclusion probability is one minus the acceptance probability of
+  removing the edge, which rounds to 1 once that probability is below about
+  `1e-16`, or varies below the kernels' floor when it is around `1e-12`.
+
+* The sentence `prior_sensitivity_check()` prints for a fit with an infinite
+  split-R-hat says that the sampler did not move, in which fit, and that the
+  fit's verdicts do not describe the posterior distribution at that scale. The
+  `$grid` documentation states that `rhat_max` covers the continuous
+  parameters only, and the Details say what such a refit needs. The `Refits:`
+  line prints NUTS in capitals. `?verdicts` states that an indicator whose
+  standard errors are undefined is not flagged.
+
 * The pairwise summary table for a `bgm()` fit and the difference summary
   tables for a `bgmCompare()` fit no longer include `share_incl`, the proportion
   of Monte Carlo variance attributed to uncertainty in inclusion. The reported

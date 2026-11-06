@@ -68,22 +68,27 @@ verdict_from_bf = function(bf, threshold) {
 #' smallest and largest multiplier in the contiguous run of fits around
 #' \code{1x} that hold the reference verdict.
 #'
-#' \strong{Sufficiency at the chosen scale.} An edge whose per-chain verdicts
-#' disagree in the original fit, or whose log Bayes factor lies within
-#' \code{max(between-chain band, 2 * MCSE)} of a verdict threshold there, is
-#' marked \code{insufficient}: the fit cannot certify the verdict the check
-#' starts from, and the printed report lists the edge as not certifiable
-#' rather than in a mover category.
+#' \strong{The chosen-scale flag.} An edge is \code{fragile} when
+#' \code{\link{verdicts}()} flags it in the original fit: its log Bayes factor
+#' lies within two standard errors of a verdict threshold, by either of the two
+#' standard errors \code{verdicts()} computes. The verdict the check starts
+#' from could then change on a rerun with another seed, so the printed report
+#' counts the edge among the verdicts that could change on a rerun rather than
+#' in a mover category. An edge whose standard errors are undefined is not
+#' flagged, as in \code{verdicts()}.
 #'
 #' \strong{Convergence.} Each fit's largest split-\eqn{\hat R} over the
-#' continuous parameters, smallest effective sample size over the continuous
-#' parameters and over the indicators, and for NUTS the smallest E-BFMI and
-#' the largest energy variance ratio, are in \code{$grid}. The classification
-#' uses every fit; the printed report names a fit whose largest
-#' split-\eqn{\hat R} exceeds 1.01, and states when a fit did not sample: a
-#' parameter constant in every chain at values that differ across chains has
-#' an infinite split-\eqn{\hat R}, and that fit's verdicts say nothing about
-#' the prior.
+#' continuous parameters (the main-effect and pairwise blocks of the fit
+#' summary, not the indicators), smallest effective sample size over the
+#' continuous parameters and over the indicators, and for NUTS the smallest
+#' E-BFMI and the largest energy variance ratio, are in \code{$grid}. The
+#' classification uses every fit; the printed report names a fit whose largest
+#' split-\eqn{\hat R} exceeds 1.01, and states when a fit's sampler did not
+#' move: a parameter that kept a single value throughout every chain, at values
+#' that differ between chains, has an infinite split-\eqn{\hat R}, and the
+#' verdicts of that fit do not describe the posterior distribution at that
+#' scale. Such a refit needs a longer warmup or a cold start; an ordinal refit
+#' starts from the original fit's final state, so \code{warmup} is the lever.
 #'
 #' \strong{Models with a precision diagonal.} A continuous or mixed fit has a
 #' Gamma or exponential prior on the precision diagonal with a standardized
@@ -155,16 +160,21 @@ verdict_from_bf = function(bf, threshold) {
 #'     \code{stability_upper}; \code{mover} (\code{stable},
 #'     \code{within-monte-carlo-error}, \code{beyond-monte-carlo-error}, or
 #'     \code{NA} for an indicator without a verdict) and \code{moved_at};
-#'     \code{insufficient} with its two subcauses \code{insufficient_noisy}
-#'     (log Bayes factor within Monte Carlo error of a threshold) and
-#'     \code{insufficient_disagree} (chains disagree on the verdict);
-#'     \code{saturated} (the original fit's inclusion probability is 0 or 1 in
-#'     every draw of every chain);
+#'     \code{fragile} (\code{\link{verdicts}()}' near-threshold flag on the
+#'     original fit); \code{saturated} (the original fit's Rao-Blackwellized
+#'     inclusion draws have no variation the ESS kernel can use, because the
+#'     acceptance probability of flipping the indicator was below double
+#'     precision at every update: the inclusion probability is 0 or 1 in every
+#'     draw of every chain, or constant to numerical precision;
+#'     \code{chosen_scale_mcse} is \code{NA} there; see the Details of
+#'     \code{\link{summary.bgms}});
 #'     then one \code{verdict_x<m>}, \code{log_bf_x<m>} and \code{mcse_x<m>}
 #'     column per multiplier \code{m}, from that fit's own statistics.}
 #'   \item{\code{grid}}{One row per fit: \code{multiplier}, \code{scale},
 #'     \code{original_fit}, \code{iter}, \code{warmup}, \code{seed}, the
-#'     diagnostics \code{rhat_max}, \code{ess_min}, \code{inclusion_ess_min},
+#'     diagnostics \code{rhat_max} (largest split-\eqn{\hat R} over the
+#'     continuous parameters only), \code{ess_min} (over the continuous
+#'     parameters), \code{inclusion_ess_min} (over the indicators),
 #'     \code{ebfmi_min}, \code{energy_variance_ratio_max} and
 #'     \code{warmup_incomplete}, \code{sampler_notes}, and \code{seconds}.}
 #'   \item{\code{verdict_by_scale}}{Fit-by-indicator matrix of verdicts.}
@@ -481,6 +491,10 @@ prior_sensitivity_engine = function(bgms_object,
   for(k in seq_along(refit_idx)) fits[[refit_idx[k]]] = refits[[k]]
 
   fit_stats = lapply(fits, refit_edge_stats, evidence_threshold = evidence_threshold)
+  # The chosen-scale flag is verdicts()' near-threshold flag on the original
+  # fit, so the two reports count the same edges.
+  v0 = verdicts(bgms_object, evidence_threshold = evidence_threshold)
+  fit_stats[[s0_idx]]$fragile = v0$fragile[match(fit_stats[[s0_idx]]$edge, v0$parameter)]
   diag_rows = lapply(fits, refit_diagnostics_row)
 
   cls = sensitivity_classification(fit_stats, multipliers, s0_idx, lthr)
@@ -570,23 +584,11 @@ sensitivity_classification = function(fit_stats, multipliers, s0_idx, lthr) {
   mcse_mat = t(stat_mat("mcse_lbf", "numeric"))
   verdict_mat = t(stat_mat("verdict", "character"))
 
-  # --- Sufficiency at the chosen scale, from the original fit -----------------
-  # Could a rerun of the original fit with another seed have given this edge a
-  # different verdict, with no change of prior? Two Monte Carlo error measures
-  # of the log Bayes factor are available: twice its within-chain standard
-  # error (mcse_lbf) and its between-chain spread (band_half). The larger of
-  # the two is the half-width of an error band around the log Bayes factor. If
-  # one measure is NA (a single-chain fit has no between-chain spread), the
-  # other sets the half-width; if both are NA, the half-width is NA. The verdict
-  # is insufficient when that band contains a verdict threshold, +/- log of the
-  # evidence threshold, or when the chains' individual verdicts disagree.
-  hw = pmax(s0$band_half, 2 * s0$mcse_lbf, na.rm = TRUE)
-  straddle = ((s0$lbf - hw < lthr) & (s0$lbf + hw > lthr)) |
-    ((s0$lbf - hw < -lthr) & (s0$lbf + hw > -lthr))
-  disagree = !s0$unanimous
-  insufficient = disagree | straddle
-  insufficient_noisy = straddle & insufficient
-  insufficient_disagree = disagree & insufficient
+  # --- The chosen-scale flag -------------------------------------------------
+  # verdicts()' near-threshold flag on the original fit: could a rerun with
+  # another seed have given this edge a different verdict, with no change of
+  # prior? An edge whose standard errors are undefined is not flagged.
+  fragile = s0$fragile %in% TRUE
 
   # --- Mover category, where the verdict first differs, stability bracket -----
   ref_v = s0$verdict
@@ -634,10 +636,8 @@ sensitivity_classification = function(fit_stats, multipliers, s0_idx, lthr) {
     stability_upper = stability_upper,
     mover = mover,
     moved_at = moved_at,
-    insufficient = insufficient,
-    insufficient_noisy = insufficient_noisy,
-    insufficient_disagree = insufficient_disagree,
-    saturated = s0$zeroflip,
+    fragile = fragile,
+    saturated = s0$saturated,
     stringsAsFactors = FALSE, row.names = NULL
   )
   vcols = as.data.frame(t(verdict_mat), stringsAsFactors = FALSE)
@@ -680,11 +680,12 @@ order_upper_tri_rowmajor = function(p) {
 #' @description
 #' Prints the verdict counts at each scale, the number of edges whose verdict
 #' held at every scale, changed within Monte Carlo error, changed beyond it,
-#' or could not be certified at the chosen scale, the edges that changed
-#' beyond Monte Carlo error by name, the fits that did not sample (a
-#' parameter constant in every chain at different values, infinite split
-#' R-hat), the fits whose largest split R-hat exceeds 1.01, and how the chosen
-#' scale compares with the scale the estimated interactions imply.
+#' or could change on a rerun of the original fit, the edges that changed
+#' beyond Monte Carlo error by name, the fits whose sampler did not move (a
+#' parameter constant throughout every chain at values that differ between
+#' chains, infinite split R-hat), the fits whose largest split R-hat exceeds
+#' 1.01, and how the chosen scale compares with the scale the estimated
+#' interactions imply.
 #'
 #' @param x A \code{bgms_prior_sensitivity} object.
 #' @param max_rows Integer. Maximum edges to name in the table of edges that
@@ -760,19 +761,20 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
   cat(paste0("  ", out, collapse = "\n"), "\n", sep = "")
   cat("\n")
 
-  # One category per edge: not certifiable at the chosen scale first, then the
-  # mover category.
-  uncert = edges$insufficient %in% TRUE | is.na(edges$insufficient) |
-    is.na(edges$mover)
+  # One category per edge: the verdicts that could change on a rerun first
+  # (verdicts()' flag on the original fit, and edges whose verdict change could
+  # not be compared with an error), then the mover category.
+  flagged = edges$fragile %in% TRUE
+  uncert = flagged | is.na(edges$mover)
   held = !uncert & edges$mover %in% "stable"
   within = !uncert & edges$mover %in% "within-monte-carlo-error"
   beyond = !uncert & edges$mover %in% "beyond-monte-carlo-error"
   counts = c(sum(held), sum(within), sum(beyond), sum(uncert))
   labels = c(
     "verdict held at every scale",
-    "changed, within Monte Carlo error",
-    "changed, beyond Monte Carlo error",
-    "not certifiable at the chosen scale"
+    "changed within Monte Carlo error",
+    "changed beyond Monte Carlo error",
+    "could change on a rerun"
   )
   cat(sprintf("  %-38s %4d\n", labels, counts), sep = "")
   cat("\n")
@@ -797,45 +799,28 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
     cat("\n")
   }
 
-  # The edges the original fit cannot certify, and why.
+  # The verdicts that could change on a rerun, by name; then the edges whose
+  # verdict change could not be compared with an error.
   if(sum(uncert) > 0) {
-    nm = edges$edge[uncert]
-    shown = utils::head(nm, max_rows)
-    tail_txt = if(length(nm) > length(shown)) {
-      sprintf(", and %d more (see $edges)", length(nm) - length(shown))
-    } else {
-      ""
+    if(any(flagged)) {
+      nm = edges$edge[flagged]
+      shown = utils::head(nm, max_rows)
+      tail_txt = if(length(nm) > length(shown)) {
+        sprintf(", and %d more (see $edges)", length(nm) - length(shown))
+      } else {
+        ""
+      }
+      one = length(nm) == 1L
+      wrap(sprintf(
+        "%d %s could change on a rerun without any change to the prior distribution: %s%s. %s within two standard errors of an evidence threshold.",
+        length(nm), if(one) "verdict" else "verdicts",
+        paste(shown, collapse = ", "), tail_txt,
+        if(one) "Its log Bayes factor lies" else "Their log Bayes factors lie"
+      ))
     }
-    one = length(nm) == 1L
-    noisy = any(edges$insufficient_noisy[uncert], na.rm = TRUE)
-    disagree = any(edges$insufficient_disagree[uncert], na.rm = TRUE)
-    cause = if(noisy && disagree) {
-      "the Bayes factor lies within Monte Carlo error of a threshold or the chains disagree on the verdict"
-    } else if(disagree) {
-      "the chains disagree on the verdict"
-    } else {
-      "the Bayes factor lies within Monte Carlo error of a threshold"
+    if(any(uncert & !flagged)) {
+      wrap("Monte Carlo uncertainty could not be assessed for every verdict or verdict change; see $edges.")
     }
-    explanation = if(noisy || disagree) {
-      sprintf(
-        "In the original fit %s, so a rerun with another seed could change %s verdict without any change of prior.",
-        cause, if(one) "its" else "the"
-      )
-    } else {
-      character(0)
-    }
-    if(anyNA(edges$insufficient[uncert]) || anyNA(edges$mover[uncert])) {
-      explanation = c(
-        explanation,
-        "Monte Carlo uncertainty could not be assessed for every verdict or verdict change; see $edges."
-      )
-    }
-    explanation = paste(explanation, collapse = " ")
-    wrap(sprintf(
-      "%d %s %s not certifiable at the chosen scale: %s%s. %s",
-      length(nm), if(one) unit$noun else unit$nouns, if(one) "is" else "are",
-      paste(shown, collapse = ", "), tail_txt, explanation
-    ))
     cat("\n")
   }
 
@@ -844,14 +829,15 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
   if(length(mcse_cols) > 0 && anyNA(edges[, mcse_cols])) {
     wrap(paste0(
       "Monte Carlo standard errors in $edges are NA where a fit's inclusion ",
-      "probability was 0 or 1 in every draw; there is no variation to estimate ",
-      "them from."
+      "probability was 0 or 1 in every draw of every chain, or constant to ",
+      "numerical precision; there is no variation to estimate them from."
     ))
     cat("\n")
   }
 
-  # Fits with a parameter constant at different values across chains, and
-  # fits whose largest split R-hat exceeds 1.01.
+  # Fits whose sampler did not move (a parameter constant throughout every
+  # chain at values that differ between chains), and fits whose largest split
+  # R-hat exceeds 1.01.
   g = x$grid
   if(!is.null(g$rhat_max)) {
     fit_label = function(i) {
@@ -862,11 +848,13 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
       one = length(stuck) == 1L
       wrap(sprintf(
         paste0(
-          "The %s %s at least one parameter with infinite split R-hat: ",
-          "its sub-chains are constant but differ in value. %s verdicts should ",
-          "be interpreted only after checking convergence."
+          "In the %s %s the sampler did not move: at least one parameter kept ",
+          "a single value throughout every chain, and those values differ ",
+          "between chains (split R-hat infinite). The verdicts of %s do not ",
+          "describe the posterior distribution at %s."
         ),
-        list_of(fit_label(stuck)), if(one) "fit includes" else "fits include", if(one) "Its" else "Their"
+        list_of(fit_label(stuck)), if(one) "fit" else "fits",
+        if(one) "that fit" else "those fits", if(one) "that scale" else "those scales"
       ))
       cat("\n")
     }
@@ -908,9 +896,10 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
   start_txt = if(isTRUE(x$warm)) "started from the original fit's final state" else "cold starts"
   it = g$iter[!g$original_fit][1]
   wu = g$warmup[!g$original_fit][1]
+  sampler_label = if(identical(x$refit_sampler, "nuts")) "NUTS" else x$refit_sampler
   cat(sprintf(
-    "Refits:  %d %s refit%s (%d warmup, %d sampling iterations each), %s, %s total.\n",
-    n_refit, x$refit_sampler, if(n_refit == 1L) "" else "s", wu, it, start_txt, secs
+    "Refits: %d %s refit%s (%d warmup, %d sampling iterations each), %s, %s total.\n",
+    n_refit, sampler_label, if(n_refit == 1L) "" else "s", wu, it, start_txt, secs
   ))
   cat("See ?prior_sensitivity_check for the construction.\n")
   invisible(x)
