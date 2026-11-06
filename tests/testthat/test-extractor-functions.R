@@ -348,58 +348,33 @@ test_that("extract_ess indicators default to the RB n_eff and honour estimator",
     # The default is the RB n_eff column, matching summary() and the R-hat that
     # extract_rhat() reports.
     expect_equal(unname(rb), ind$n_eff, info = paste(ctx, "default is RB n_eff"))
-    expect_equal(unname(extract_ess(fit, estimator = "rb")$indicator), ind$n_eff,
-      info = paste(ctx, "explicit rb is RB n_eff")
-    )
 
     # NA masking is inherited from the summary table.
     expect_identical(is.na(unname(rb)), is.na(ind$n_eff),
       info = paste(ctx, "RB NA positions")
     )
 
-    # The transition ESS is deprecated and no longer a summary column; the
-    # estimator still resolves, warns, and recomputes it from the raw draws.
-    expect_false("n_eff_mixt" %in% names(ind), info = paste(ctx, "no transition column"))
-    expect_warning(
-      mixt <- extract_ess(fit, estimator = "mixt")$indicator,
-      class = "lifecycle_warning_deprecated"
+    expect_equal(unname(extract_ess(fit, estimator = "rb")$indicator), ind$n_eff,
+      info = paste(ctx, "explicit rb is RB n_eff")
     )
-    raw = bgms:::get_fit_cache(fit)$raw
-    ref = bgms:::.compute_indicator_ess_cpp(
-      bgms:::combine_chains(raw, "indicator_samples")
-    )[, "n_eff_mixt"]
-    expect_equal(unname(mixt), unname(ref), info = paste(ctx, "mixt is the transition ESS"))
 
+    # The transition ESS is not a summary column; its estimator is defunct.
+    expect_false("n_eff_mixt" %in% names(ind), info = paste(ctx, "no transition column"))
+    expect_error(extract_ess(fit, estimator = "mixt"), class = "lifecycle_error_deprecated")
     expect_error(extract_ess(fit, estimator = "nonsense"))
   }
 
   expect_gt(checked, 0L)
 })
 
-test_that("extract_ess indicators fall back to the transition ESS without RB draws", {
+test_that("extract_ess indicators error on summary tables without RB draws", {
   # Summary tables from fits predating the RB regime (bgms < 0.2.0.0) carry no
-  # n_eff column: a default call falls back, an explicit "rb" errors, and an
-  # explicit "mixt" reads the legacy column.
+  # n_eff column.
   rb_table = data.frame(n_eff = c(100, NA))
   legacy_table = data.frame(n_eff_mixt = c(80, NA))
-  default_arg = c("rb", "mixt")
 
-  expect_equal(indicator_ess_column(NULL, rb_table, default_arg, TRUE), c(100, NA))
-  expect_equal(indicator_ess_column(NULL, legacy_table, default_arg, TRUE), c(80, NA))
-  expect_equal(indicator_ess_column(NULL, legacy_table, "mixt", FALSE), c(80, NA))
-  expect_error(indicator_ess_column(NULL, legacy_table, "rb", FALSE), "Rao-Blackwellized")
-})
-
-test_that("extract_ess indicator names and other elements ignore estimator", {
-  fit = get_bgms_fit()
-  rb = extract_ess(fit)
-  expect_warning(mixt <- extract_ess(fit, estimator = "mixt"),
-    class = "lifecycle_warning_deprecated"
-  )
-
-  expect_identical(names(rb), names(mixt))
-  expect_identical(names(rb$indicator), names(mixt$indicator))
-  expect_equal(rb$pairwise, mixt$pairwise)
+  expect_equal(indicator_ess_column(rb_table), c(100, NA))
+  expect_error(indicator_ess_column(legacy_table), "Rao-Blackwellized")
 })
 
 test_that("extract_rhat and extract_ess error on non-bgms objects", {

@@ -20,9 +20,7 @@ model fitted with \code{\link[=bgm]{bgm()}} or \code{\link[=bgmCompare]{bgmCompa
 }
 \details{
 The \code{indicator} element is the split-R-hat of the Rao-Blackwellized
-inclusion draws, matching the default of \code{\link[=extract_ess]{extract_ess()}}; the indicator
-chain's transition-based effective sample size remains available as
-\code{extract_ess(fit, estimator = "mixt")} (deprecated).
+inclusion draws, matching \code{\link[=extract_ess]{extract_ess()}}.
 
 One failure mode these diagnostics may miss: chains can agree that an edge
 is included while disagreeing about the magnitude of its weight, for

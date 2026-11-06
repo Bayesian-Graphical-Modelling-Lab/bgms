@@ -274,9 +274,9 @@ test_that("GGM selection summary is a mixture summary on the association scale",
   )
 
   pw = fit$posterior_summary_pairwise
-  # Same summarizer as the discrete models: the derived composite ESS and its
-  # inclusion-share (bottleneck) columns are present for the weight row.
-  expect_true(all(c("n_eff", "share_incl") %in% colnames(pw)))
+  # Same summarizer as the discrete models: the derived composite ESS column is
+  # present for the weight row.
+  expect_true("n_eff" %in% colnames(pw))
   # And the mean is on the association scale coef() reports.
   cf = coef(fit)$pairwise
   expect_equal(sort(pw$mean), sort(cf[upper.tri(cf)]), tolerance = 1e-8)
