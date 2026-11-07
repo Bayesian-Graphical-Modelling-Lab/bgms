@@ -215,21 +215,12 @@ released from this line yet.
   information about the prior; before, the infinite value was dropped from the
   maximum and the fit went unmentioned.
 
-* The warmup advisory ("Warmup may be incomplete: energy not stationary") reads
-  the trend criterion with a standard error corrected for the autocorrelation of
-  the energy trace. `fit$nuts_diag$warmup_check` reports `energy_tau`, the
-  integrated autocorrelation time of the energy trend residuals estimated on the
-  second half of the run, `slope_t_corrected`, the trend t-statistic with its
-  standard error widened by `sqrt(energy_tau)`, and
-  `slope_significant_corrected`, which is `|slope_t_corrected| > 2.58` and is
-  the criterion `warmup_incomplete` uses (falling back to the uncorrected rule
-  where `energy_tau` cannot be estimated). The uncorrected `slope_significant`
-  stays in the output for comparison. Before, the flag used the ordinary
-  least-squares standard error, which assumes independent draws and is too
-  small on an autocorrelated trace, so the advisory fired on fits whose R-hat
-  and effective sample sizes were in order, among them the worked example of
-  the companion tutorial (corrected `|t|` 1.99, uncorrected 4.48). The E-BFMI
-  and variance-ratio criteria are unchanged.
+* The warmup advisory now uses an energy trend statistic adjusted for
+  autocorrelation, reducing warnings caused by ordinary sampling variation.
+  `fit$nuts_diag$warmup_check$slope_significant_corrected` records this
+  criterion. The uncorrected `slope_significant` remains available for comparison
+  and is used if the corrected statistic is unavailable. The E-BFMI and
+  variance-ratio criteria are unchanged.
 
 * The NUTS issues message now names the criterion that fired. It previously
   reported "energy not stationary" even when a low first-half E-BFMI was the

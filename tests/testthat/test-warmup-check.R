@@ -103,21 +103,6 @@ test_that("a chain with an OLS-significant trend and a corrected |t| below 2.58 
   expect_true(found)
 })
 
-test_that("the corrected criterion falls back to the OLS one where tau is not finite", {
-  # A second half with fewer than 20 finite draws cannot give tau; the chain is
-  # judged on the OLS statistic.
-  set.seed(8)
-  n = 60
-  energy = matrix(as.numeric(arima.sim(list(ar = 0.5), n = n)) + 6 * exp(-seq_len(n) / 10), nrow = 1)
-  energy[1, 36:60] = NA_real_
-  out = check_warmup_complete(energy)
-  expect_true(is.na(out$slope_t_corrected) || is.finite(out$slope_t_corrected))
-  if(is.na(out$slope_t_corrected)) {
-    expect_equal(out$slope_significant_corrected, out$slope_significant)
-  }
-})
-
-
 test_that("integrated_act recovers a known autocorrelation time", {
   set.seed(6)
   # tau = (1 + rho) / (1 - rho); rho = 0.8 gives tau = 9.

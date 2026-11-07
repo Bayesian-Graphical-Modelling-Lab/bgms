@@ -55,23 +55,23 @@ integrated_act = function(x) {
 #   - warmup_incomplete:  Logical, TRUE if any criterion triggered.
 #   - energy_slope:       Numeric, OLS slope of energy on iteration.
 #   - slope_significant:  Logical, |t| > 2.58 for the slope with the OLS
-#       standard error, which assumes independent draws. Reported only.
+#       standard error, which assumes independent draws. Used as a fallback
+#       when the corrected statistic is unavailable.
 #   - slope_significant_corrected: Logical, |slope_t_corrected| > 2.58; this is
-#       the trend criterion of the flag. Where energy_tau is not finite it is
-#       slope_significant.
+#       the advisory's trend criterion. If the corrected statistic is not
+#       finite, it equals slope_significant.
 #   - ebfmi_first_half:   Numeric, E-BFMI for the first half.
 #   - ebfmi_second_half:  Numeric, E-BFMI for the second half.
 #   - var_ratio:          Numeric, var(first_half) / var(second_half).
 #   - energy_tau:         Numeric, integrated autocorrelation time of the trend
-#       residuals, estimated on the SECOND half. A residual transient lives in
-#       the first half and would inflate tau there, so the second half gives the
-#       stationary value.
+#       residuals, estimated on the second half. This assumes that the second
+#       half is sufficiently stable to estimate autocorrelation.
 #   - slope_t_corrected:  Numeric, the slope t-statistic with its standard error
 #       widened by sqrt(energy_tau).
 #
 # The OLS t-statistic is inflated by about sqrt(tau) on an autocorrelated
-# trace, so the flag reads the corrected statistic; the OLS one stays in the
-# output for comparison.
+# trace, so the advisory uses the corrected statistic. The OLS statistic is
+# retained for comparison and as a fallback.
 # ------------------------------------------------------------------------------
 check_warmup_complete = function(energy_mat) {
   nchains = nrow(energy_mat)
@@ -140,9 +140,8 @@ check_warmup_complete = function(energy_mat) {
     }
 
     # The same statistic with its standard error corrected for autocorrelation.
-    # tau comes from the second half of the residuals, which is stationary even
-    # when the first half is not. The flag reads this one; where tau cannot be
-    # estimated it falls back to the OLS statistic.
+    # Estimate tau from the second half, assuming it is sufficiently stable.
+    # Use the OLS statistic if the corrected statistic is unavailable.
     trend_resid = stats::residuals(trend_lm)
     energy_tau = integrated_act(trend_resid[(mid + 1):n_chain])
     slope_t_corrected = if(is.finite(energy_tau)) {

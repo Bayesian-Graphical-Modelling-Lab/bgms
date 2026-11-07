@@ -215,30 +215,21 @@ The returned list contains the following fields (one value per chain):
 
 - **warmup_incomplete**: A logical flag that is `TRUE` when any of the indicators below suggest the chain may not have reached stationarity.
 - **energy_slope**: The slope of a linear regression of energy against iteration number. A slope near zero indicates stable energy; a significant negative slope suggests the chain is still drifting toward higher-probability regions.
-- **slope_significant**: `TRUE` when the slope's t-statistic exceeds 2.58 in absolute value with the ordinary least-squares standard error, which assumes independent draws. Reported for comparison; the flag does not read it. See "How sensitive is this flag?" below.
+- **slope_significant**: `TRUE` when the slope's t-statistic exceeds 2.58 in absolute value with the ordinary least-squares standard error, which assumes independent draws. Reported for comparison and used by the advisory only if the corrected statistic is unavailable.
 - **ebfmi_first_half** and **ebfmi_second_half**: E-BFMI computed separately for the first and second halves of the post-warmup samples. If the first-half value is much lower (for example, below 0.3) while the second-half value is healthy, the early samples were likely still settling.
 - **var_ratio**: The ratio of energy variance in the first half to that in the second half. A ratio much greater than 1 (for example, above 2) indicates higher variability early on, consistent with transient behavior.
-- **energy_tau**: The integrated autocorrelation time of the trend residuals, estimated on the second half of the run. Typical values for a healthy chain are around 3. A much larger value usually means a transient is still present, since a settling chain leaves strongly autocorrelated residuals behind.
+- **energy_tau**: The integrated autocorrelation time of the trend residuals, estimated on the second half of the run. A large value indicates strong autocorrelation; it does not by itself show that warmup was incomplete.
 - **slope_t_corrected**: The same t-statistic as `slope_significant` uses, but with its standard error widened by `sqrt(energy_tau)` to account for autocorrelation.
-- **slope_significant_corrected**: `TRUE` when `slope_t_corrected` exceeds 2.58 in absolute value. This is the trend criterion the flag reads; where `energy_tau` cannot be estimated it equals `slope_significant`.
+- **slope_significant_corrected**: `TRUE` when `slope_t_corrected` exceeds 2.58 in absolute value. The advisory uses this criterion. If the corrected statistic is unavailable, it uses `slope_significant` instead.
 
 ## How sensitive is this flag?
 
-The trend criterion compares energy against iteration. An ordinary
-least-squares standard error assumes independent draws; energy traces are
-autocorrelated, so that standard error is too small and the t-statistic too
-large. Across `bgm()` and `bgmCompare()` fits to this package's three example
-datasets, the integrated autocorrelation time of the energy trace is around 3,
-which understates the standard error by a factor of roughly 1.8, and the
-uncorrected `|t| > 2.58` rule behaves like a 15% per-chain screening rule
-rather than a 1% test. The flag therefore reads the corrected statistic,
-`slope_t_corrected`, whose standard error is widened by `sqrt(energy_tau)`;
-the uncorrected `slope_significant` stays in the output so the two can be
-compared. A large corrected `|t|`, or an `energy_tau` far above 3, points to a
-real transient.
+Successive energy draws are correlated. The trend check adjusts its standard
+error for this dependence, reducing warnings caused by ordinary sampling
+variation. If the correction is unavailable, it uses the uncorrected statistic.
+The E-BFMI and variance-ratio checks are unchanged.
 
-The flag's purpose is to send you to R-hat and ESS, which are the diagnostics
-that decide whether a fit is usable.
+Check R-hat and ESS alongside the other sampling diagnostics.
 
 ## What to do about it
 
