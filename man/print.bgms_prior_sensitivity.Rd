@@ -19,14 +19,10 @@ changed beyond Monte Carlo error; the rest are counted and left to
 \code{x}, invisibly.
 }
 \description{
-Prints the verdict counts at each scale, the number of edges whose verdict
-held at every scale, changed within Monte Carlo error, changed beyond it,
-or could change on a rerun of the original fit, the edges that changed
-beyond Monte Carlo error by name, the fits with a parameter the sampler did
-not explore (constant within every split chain at values that differ
-between split chains, infinite split R-hat), the fits whose largest split R-hat exceeds
-1.01, and how the chosen scale compares with the scale the estimated
-interactions imply.
+Prints verdict counts by scale, the four sensitivity counts, and the edges
+whose verdicts changed beyond Monte Carlo error or could change on a rerun.
+Also reports fits with high or infinite split-R-hat and compares the chosen
+slab scale with the estimated interaction sizes.
 }
 \seealso{
 \code{\link{prior_sensitivity_check}()}

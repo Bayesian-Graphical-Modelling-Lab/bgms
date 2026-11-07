@@ -84,26 +84,16 @@ The inclusion table carries its own diagnostics:
 summary(fit)$indicator
 ```
 
-- **mean**, **mcse**, **sd**, **n_eff**, and **Rhat** describe the
-  Rao-Blackwellized inclusion probability. At every update of an edge
-  indicator the sampler proposes to flip it and records the probability that
-  the edge is in the model after the move: the acceptance probability of
-  adding it when it is out, the probability of retaining it (one minus the
-  acceptance probability of removing it) when it is in. That recorded value
-  is continuous, so the standard Monte Carlo machinery applies to its series.
-  `mcse` and `n_eff` are `NA` when the series has no variation the machinery
-  can work on; `Rhat` is `NA` when every chain is exactly constant, and
-  otherwise computed. For an edge the data support overwhelmingly, the
-  probability of accepting its removal is below about 1e-16 at every update,
-  so one minus it rounds to exactly 1 and the series is constant at 1 in
-  every draw of every chain; an edge the data rule out as strongly is
-  constant at 0. A series that varies by less than about 3e-8 (a variance
-  below 1e-15) is below the floor at which the ESS kernel stops estimating
-  and is treated the same way; `sd` then prints as a number like `2e-11`
-  while `mcse` and `n_eff` are blank. In both cases the inclusion probability
-  stayed within 3e-8 of 1 or 0 throughout the run, so there is no Monte Carlo
-  error at any printed digit and the verdict lies far beyond any evidence
-  threshold; an edge whose series varies by more than that shows numbers.
+The inclusion table summarizes the Rao-Blackwellized inclusion probabilities
+recorded at each update: the probability of adding an absent edge or retaining
+a present one. It reports their mean, Monte Carlo standard error (`mcse`),
+standard deviation (`sd`), effective sample size (`n_eff`), and split-R-hat.
+
+Blank diagnostic cells contain `NA`. The recorded probabilities may vary too
+little to estimate `mcse` and `n_eff`, often when they are close to 0 or 1.
+This does not establish that Monte Carlo error is zero. Split-R-hat is computed
+separately and can remain finite. Identical constant split chains give `NA`;
+split chains constant at different values give `Inf`.
 
 ## Traceplots
 

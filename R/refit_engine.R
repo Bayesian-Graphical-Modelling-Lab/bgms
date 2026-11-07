@@ -257,9 +257,8 @@ verdict_from_lbf = function(lbf, lthr) {
 # Per-edge quantities from one refit: the Rao-Blackwellized inclusion
 # probability (canonical), its natural log inclusion Bayes factor and verdict,
 # the MCSE of the log BF from the summary table's inclusion MCSE by the delta
-# method, and whether the RB draws had no variation the ESS kernel could use
-# (saturated: the summary MCSE is NA). Edge order is the native row-major
-# upper triangle.
+# method, and whether the inclusion MCSE is unavailable (the saturated column).
+# Edge order is the native row-major upper triangle.
 # ------------------------------------------------------------------
 refit_edge_stats = function(fit, evidence_threshold) {
   raw = get_raw_samples(fit)

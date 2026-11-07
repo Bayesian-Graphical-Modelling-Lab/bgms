@@ -40,33 +40,20 @@ observation counts per variable (\code{NULL} for Blume-Capel variables, which
 are exempt from the union recode and are never marked). Fits made before
 that field existed print unmarked.
 
-The inclusion table (\verb{$indicator}) reports, per difference indicator, the Rao-Blackwellized
-inclusion probability with its Monte Carlo standard error, effective sample
-size and split-R-hat. At every update of a difference indicator the sampler
-proposes to flip it and records the probability that the difference is in the
-model after the move: the acceptance probability \eqn{\alpha} of adding it
-when it is out, \eqn{1 - \alpha}, the probability of retaining it, when it
-is in. The
-inclusion probability is the average of those recorded values, and \code{mcse},
-\code{n_eff} and \code{Rhat} are computed from their series.
+The inclusion table (\verb{$indicator}) reports the Rao-Blackwellized inclusion
+probability and its diagnostics for each difference. At each update the sampler
+records the probability of adding the difference if absent, or retaining it if
+present. The table summarizes these recorded probabilities.
 
-\code{mcse} and \code{n_eff} are \code{NA}, and print blank, when the series has no
-variation the Monte Carlo machinery can work on; \code{Rhat} is \code{NA} when every
-chain is exactly constant, and otherwise computed. For a difference the data
-support overwhelmingly, the probability of accepting its removal is below
-about \code{1e-16} at every update, so \eqn{1 - \alpha} rounds to exactly 1 in
-double precision and the series is constant at 1 in every draw of every
-chain; a difference the data rule out as strongly gives a series constant at 0. A
-series that varies by less than about \code{3e-8} (a variance below \code{1e-15}) is
-below the floor at which the ESS kernel stops estimating and is treated the
-same way. In both cases the inclusion probability stayed within \code{3e-8} of 1 or 0
-throughout the run, so there is no Monte Carlo error at any printed digit
-and the verdict lies far beyond any evidence threshold; a difference whose series
-varies by more than that shows numbers. A series constant at a value away
-from 0 and 1 would give the same blanks, but only a sampler that never moved
-the indicator in any chain produces it.
-Main-effect difference rows are \code{NA} throughout when
-\code{main_difference_selection = FALSE}: their indicators were never sampled.
+Blank diagnostic cells contain \code{NA}: the diagnostic could not be estimated.
+\code{mcse} and \code{n_eff} can be unavailable when the recorded probabilities vary
+too little, often near 0 or 1. This does not establish that Monte Carlo
+error is zero. Split-R-hat uses a different calculation: identical constant
+split chains give \code{NA}, while split chains constant at different values give
+\code{Inf}. It can remain finite when \code{mcse} and \code{n_eff} are unavailable.
+
+Main-effect difference rows are blank when \code{main_difference_selection = FALSE}
+because those indicators were not sampled.
 }
 \examples{
 \donttest{

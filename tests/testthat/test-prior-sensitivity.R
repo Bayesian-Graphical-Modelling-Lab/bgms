@@ -206,6 +206,11 @@ test_that("print() reports the counts, the movers and high R-hat fits", {
   )
   counts = as.integer(sub(".* +([0-9]+)$", "\\1", count_lines))
   expect_equal(c(fourth = counts[4], total = sum(counts)), c(fourth = 1L, total = 1L))
+  expect_false(any(cls_unknown$edges$fragile))
+  expect_match(
+    paste(out_unknown, collapse = " "),
+    "The fourth count also includes 1 edge whose verdict changed"
+  )
 
   # Missing uncertainty must not hide the explanation for ordinary noisy edges.
   s_lo_mixed = s_lo
@@ -217,7 +222,7 @@ test_that("print() reports the counts, the movers and high R-hat fits", {
   ))
   expect_match(out_mixed, "could change on a rerun 3")
   expect_match(out_mixed, "2 verdicts could change on a rerun without any change to the prior distribution: e3, e5")
-  expect_match(out_mixed, "Monte Carlo uncertainty could not be assessed for every verdict or verdict change")
+  expect_match(out_mixed, "The fourth count also includes 1 edge whose verdict changed but whose Monte Carlo error was unavailable")
   # An NA-only group names no flagged verdict.
   expect_false(any(grepl("without any change to the prior distribution", out_unknown, fixed = TRUE)))
 
@@ -234,20 +239,20 @@ test_that("print() reports the counts, the movers and high R-hat fits", {
   # out of the numeric R-hat line.
   ps3 = fake_sensitivity(cls, multipliers, rhat_max = c(1.03, 1.005, Inf), s_hat = 0.8)
   out3 = gsub("\\s+", " ", paste(utils::capture.output(print(ps3)), collapse = " "))
-  expect_match(out3, "In the 2x fit at least one parameter was constant within every split chain, at values that differ between split chains \\(split R-hat infinite\\): the sampler did not explore it")
-  expect_match(out3, "The verdicts of that fit do not describe the posterior distribution at that scale")
+  expect_match(out3, "The 2x fit has at least one parameter with infinite split R-hat")
+  expect_match(out3, "Check convergence before interpreting its verdicts")
   expect_match(out3, "Largest split R-hat above 1.01: 0.5x fit 1.03\\.")
-  expect_false(grepl("Monte Carlo standard errors in $edges", out3, fixed = TRUE))
+  expect_false(grepl("NA Monte Carlo standard errors in $edges", out3, fixed = TRUE))
   # An NA Monte Carlo error in some fit is explained in one sentence.
   cls_na = cls
   cls_na$edges$mcse_x2[1] = NA_real_
   ps5 = fake_sensitivity(cls_na, multipliers, s_hat = 0.8)
   out5 = gsub("\\s+", " ", paste(utils::capture.output(print(ps5)), collapse = " "))
-  expect_match(out5, "Monte Carlo standard errors in \\$edges are NA where a fit's inclusion probability was 0 or 1 in every draw of every chain, or constant to numerical precision")
+  expect_match(out5, "NA Monte Carlo standard errors in \\$edges could not be estimated from the draws")
   ps4 = fake_sensitivity(cls, multipliers, rhat_max = c(Inf, 1.005, Inf), s_hat = 0.8)
   out4 = gsub("\\s+", " ", paste(utils::capture.output(print(ps4)), collapse = " "))
-  expect_match(out4, "In the 0.5x and 2x fits at least one parameter was constant within every split chain")
-  expect_match(out4, "The verdicts of those fits do not describe the posterior distribution at those scales")
+  expect_match(out4, "The 0.5x and 2x fits have at least one parameter with infinite split R-hat")
+  expect_match(out4, "Check convergence before interpreting their verdicts")
   expect_false(grepl("Largest split R-hat", out4, fixed = TRUE))
 })
 

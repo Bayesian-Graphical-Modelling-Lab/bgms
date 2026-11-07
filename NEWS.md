@@ -165,37 +165,20 @@ released from this line yet.
 
 ## Diagnostics
 
-* The fourth count of the printed `prior_sensitivity_check()` report, "could
-  change on a rerun", is `verdicts()`' near-threshold flag on the original fit,
-  computed by the same function, plus the edges whose verdict change could not
-  be compared with a Monte Carlo error (a refit with an `NA` error); each part
-  has its own sentence, and the counts agree whenever no such edge exists. The
-  between-chain band and the per-chain verdict test that the check applied on
-  top of it are gone, as are the `$edges` columns `insufficient`,
-  `insufficient_noisy` and `insufficient_disagree`; the flag is the `fragile`
-  column. The other three count labels lose their commas. The sentence under
-  the counts names the flagged edges and states that their log Bayes factors
-  lie within two standard errors of an evidence threshold.
+* `prior_sensitivity_check()` now uses the original fit's `verdicts()` flag
+  in its `fragile` column, replacing `insufficient` and its two subcause
+  columns. The fourth printed count, "could change on a rerun", includes
+  flagged edges and changes that could not be assessed because a Monte Carlo
+  error was unavailable. The report gives the number of these additional edges.
 
-* The `saturated` column of `prior_sensitivity_check()` marks the edges whose
-  chosen-scale Monte Carlo standard error is `NA`: the original fit's
-  Rao-Blackwellized inclusion series had no variation the ESS kernel could use,
-  whether exactly constant or constant to numerical precision. Before, it
-  marked only the edges at exactly 0 or 1 in every chain. The one-sentence note
-  under the summary tables and in the check now says "0 or 1 in every draw of
-  every chain, or constant to numerical precision", and the Details of `?summary.bgms`,
-  `?summary.bgmCompare` and `vignette("diagnostics")` explain why: the
-  recorded inclusion probability is one minus the acceptance probability of
-  removing the edge, which rounds to 1 once that probability is below about
-  `1e-16`, or varies below the kernels' floor when it is around `1e-12`.
+* The sensitivity check's `saturated` column now indicates an unavailable
+  chosen-scale Monte Carlo standard error. It no longer requires inclusion
+  probabilities of exactly 0 or 1. The summary notes explain that blank
+  diagnostics could not be estimated; they do not imply zero Monte Carlo error.
 
-* The sentence `prior_sensitivity_check()` prints for a fit with an infinite
-  split-R-hat says that the sampler did not move, in which fit, and that the
-  fit's verdicts do not describe the posterior distribution at that scale. The
-  `$grid` documentation states that `rhat_max` covers the continuous
-  parameters only, and the Details say what such a refit needs. The `Refits:`
-  line prints NUTS in capitals. `?verdicts` states that an indicator whose
-  standard errors are undefined is not flagged.
+* Sensitivity reports identify fits with infinite split-R-hat and advise
+  checking convergence before interpreting their verdicts. The R-hat
+  calculation is unchanged. The `Refits:` line now capitalizes NUTS.
 
 * The pairwise summary table for a `bgm()` fit and the difference summary
   tables for a `bgmCompare()` fit no longer include `share_incl`, the proportion

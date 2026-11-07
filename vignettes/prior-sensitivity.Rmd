@@ -95,6 +95,8 @@ the original fit, the `1x` column:
   another seed and no change to the prior distribution, so the edge is not
   classified by scale. The same edges carry `fragile = TRUE` in
   `verdicts(fit)`.
+  This count also includes edges whose verdict changed but whose Monte Carlo
+  error was unavailable. The report states how many such edges it includes.
 
 A line naming fits whose largest split R-hat exceeds 1.01 appears when there
 is one. The check uses every fit; that line, and the per-fit diagnostics in

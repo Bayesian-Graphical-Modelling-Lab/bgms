@@ -68,15 +68,12 @@ inclusion probability, the original fit's \code{chosen_scale_pip},
 factor) and \code{chosen_scale_verdict}; \code{stability_lower} and
 \code{stability_upper}; \code{mover} (\code{stable},
 \code{within-monte-carlo-error}, \code{beyond-monte-carlo-error}, or
-\code{NA} for an indicator without a verdict) and \code{moved_at};
+\code{NA} when a verdict or the error needed to assess its change is
+unavailable) and \code{moved_at};
 \code{fragile} (\code{\link{verdicts}()}' near-threshold flag on the
-original fit); \code{saturated} (the original fit's Rao-Blackwellized
-inclusion draws have no variation the ESS kernel can use, because the
-acceptance probability of flipping the indicator was below double
-precision at every update: the inclusion probability is 0 or 1 in every
-draw of every chain, or constant to numerical precision;
-\code{chosen_scale_mcse} is \code{NA} there; see the Details of
-\code{\link{summary.bgms}});
+original fit); \code{saturated} (\code{chosen_scale_mcse} is
+\code{NA}; this indicates an unavailable error estimate, not necessarily
+an inclusion probability of exactly 0 or 1);
 then one \code{verdict_x<m>}, \code{log_bf_x<m>} and \code{mcse_x<m>}
 column per multiplier \code{m}, from that fit's own statistics.}
 \item{\code{grid}}{One row per fit: \code{multiplier}, \code{scale},
@@ -122,7 +119,8 @@ fit's \code{iter} and \code{warmup} unless \code{iter} and \code{warmup}
 are given. The original fit is the \code{1x} fit and is not refit. An
 ordinal (omrf) refit starts each chain from the original fit's final
 per-chain state, and a NUTS refit also from its adapted step size and mass
-matrix; continuous (GGM) and mixed-MRF refits start cold. Every quantity
+matrix; continuous (GGM) and mixed-MRF refits use default initial values.
+Every quantity
 the check reports for a fit is that fit's own Rao-Blackwellized inclusion
 probability, its natural log inclusion Bayes factor and verdict, and the
 Monte Carlo standard error of the log Bayes factor from the fit's own
@@ -140,28 +138,22 @@ verdict differs. \code{stability_lower} and \code{stability_upper} are the
 smallest and largest multiplier in the contiguous run of fits around
 \code{1x} that hold the reference verdict.
 
-\strong{The chosen-scale flag.} An edge is \code{fragile} when
-\code{\link{verdicts}()} flags it in the original fit: its log Bayes factor
-lies within two standard errors of a verdict threshold, by either of the two
-standard errors \code{verdicts()} computes. The verdict the check starts
-from could then change on a rerun with another seed, so the printed report
-counts the edge among the verdicts that could change on a rerun rather than
-in a mover category. An edge whose standard errors are undefined is not
-flagged, as in \code{verdicts()}.
+\strong{The chosen-scale flag.} The \code{fragile} column is the original
+fit's flag from \code{\link{verdicts}()}: a log Bayes factor lies within
+two standard errors of an evidence threshold. The fourth printed count,
+"could change on a rerun", includes these edges and any other edge whose
+verdict changed but whose Monte Carlo error was unavailable. The report
+states how many of those additional edges there are. An edge whose standard
+errors are both undefined is not flagged by \code{verdicts()}.
 
-\strong{Convergence.} Each fit's largest split-\eqn{\hat R} over the
-continuous parameters (the main-effect and pairwise blocks of the fit
-summary, not the indicators), smallest effective sample size over the
-continuous parameters and over the indicators, and for NUTS the smallest
-E-BFMI and the largest energy variance ratio, are in \code{$grid}. The
-classification uses every fit; the printed report names a fit whose largest
-split-\eqn{\hat R} exceeds 1.01, and states when a fit has a parameter
-with an infinite split-\eqn{\hat R}: constant within every split chain, at
-values that differ between split chains, so the sampler did not explore it,
-and the verdicts of that fit do not describe the posterior distribution at
-that scale. Such a refit may need a longer warmup or a cold start; an
-ordinal refit starts from the original fit's final state, so \code{warmup}
-is the lever to try first.
+\strong{Convergence.} The \code{grid} table contains each fit's diagnostics.
+Its \code{rhat_max} covers the main-effect and pairwise parameter blocks,
+excluding indicators. All fits enter the classification, including those
+with convergence problems. The printed report identifies fits with
+split-\eqn{\hat R} above 1.01 or infinite. Check convergence before
+interpreting their verdicts. For a refit, you can try increasing
+\code{warmup} in \code{prior_sensitivity_check()}; for the original fit,
+rerun \code{bgm()} or \code{bgmCompare()} with more warmup iterations.
 
 \strong{Models with a precision diagonal.} A continuous or mixed fit has a
 Gamma or exponential prior on the precision diagonal with a standardized
