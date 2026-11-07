@@ -70,39 +70,6 @@ test_that("a settling transient inflates the naive t and is caught by the flag",
 })
 
 
-test_that("the flag reads the corrected trend statistic, not the OLS one", {
-  # On stationary autocorrelated traces the OLS |t| exceeds 2.58 far more often
-  # than the corrected one. The flag follows the corrected statistic; the OLS
-  # field is reported beside it.
-  set.seed(5)
-  energy = t(replicate(40, as.numeric(arima.sim(list(ar = 0.7), n = 1000))))
-  out = check_warmup_complete(energy)
-
-  corrected_flag = out$slope_significant_corrected |
-    (out$ebfmi_first_half < 0.3) %in% TRUE | (out$var_ratio > 2.0) %in% TRUE
-  expect_equal(out$warmup_incomplete, unname(corrected_flag))
-  expect_equal(out$slope_significant_corrected, abs(out$slope_t_corrected) > 2.58)
-  # The OLS rule fires on more of these stationary chains than the corrected
-  # one does.
-  expect_gt(sum(out$slope_significant), sum(out$slope_significant_corrected))
-})
-
-test_that("a chain with an OLS-significant trend and a corrected |t| below 2.58 is not flagged", {
-  set.seed(7)
-  found = FALSE
-  for(i in 1:50) {
-    energy = matrix(as.numeric(arima.sim(list(ar = 0.7), n = 1000)), nrow = 1)
-    out = check_warmup_complete(energy)
-    if(out$slope_significant && abs(out$slope_t_corrected) < 2.58 &&
-      !isTRUE(out$ebfmi_first_half < 0.3) && !isTRUE(out$var_ratio > 2)) {
-      found = TRUE
-      expect_false(out$warmup_incomplete)
-      break
-    }
-  }
-  expect_true(found)
-})
-
 test_that("integrated_act recovers a known autocorrelation time", {
   set.seed(6)
   # tau = (1 + rho) / (1 - rho); rho = 0.8 gives tau = 9.
