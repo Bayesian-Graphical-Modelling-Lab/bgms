@@ -11,14 +11,15 @@ test_that("check_warmup_complete returns one value per chain for every field", {
 
   expected = c(
     "warmup_incomplete", "energy_slope", "slope_significant",
-    "ebfmi_first_half", "ebfmi_second_half", "var_ratio",
-    "energy_tau", "slope_t_corrected"
+    "slope_significant_corrected", "ebfmi_first_half", "ebfmi_second_half",
+    "var_ratio", "energy_tau", "slope_t_corrected"
   )
   expect_true(all(expected %in% names(out)))
   for(nm in expected) expect_length(out[[nm]], 3)
 
   expect_type(out$warmup_incomplete, "logical")
   expect_type(out$slope_significant, "logical")
+  expect_type(out$slope_significant_corrected, "logical")
   expect_type(out$energy_tau, "double")
   expect_type(out$slope_t_corrected, "double")
 })
@@ -69,19 +70,6 @@ test_that("a settling transient inflates the naive t and is caught by the flag",
 })
 
 
-test_that("the reported fields do not change when the flag fires", {
-  # energy_tau and slope_t_corrected are reported only. Removing the trend must
-  # not alter warmup_incomplete, which is driven by the naive statistic.
-  set.seed(5)
-  energy = t(replicate(4, as.numeric(arima.sim(list(ar = 0.5), n = 1000))))
-  out = check_warmup_complete(energy)
-
-  naive_flag = abs(out$energy_slope) > 0 &
-    out$slope_significant | out$ebfmi_first_half < 0.3 | out$var_ratio > 2.0
-  expect_equal(out$warmup_incomplete, unname(naive_flag))
-})
-
-
 test_that("integrated_act recovers a known autocorrelation time", {
   set.seed(6)
   # tau = (1 + rho) / (1 - rho); rho = 0.8 gives tau = 9.
@@ -113,6 +101,7 @@ test_that("a constant half leaves the flag logical rather than NA", {
   expect_false(anyNA(out$warmup_incomplete))
   expect_type(out$slope_significant, "logical")
   expect_false(anyNA(out$slope_significant))
+  expect_false(anyNA(out$slope_significant_corrected))
 
   # The undefined criteria are still reported as the NaN they are; only the
   # flag derived from them is forced to TRUE/FALSE.
@@ -126,4 +115,5 @@ test_that("a constant half leaves the flag logical rather than NA", {
   expect_equal(flat$warmup_incomplete, c(FALSE, FALSE))
   expect_equal(unname(flat$energy_slope), c(0, 0))
   expect_equal(flat$slope_significant, c(FALSE, FALSE))
+  expect_equal(flat$slope_significant_corrected, c(FALSE, FALSE))
 })

@@ -42,9 +42,10 @@ integrated_act = function(x) {
 # Assess whether warmup is complete using energy stationarity.
 #
 # Splits each chain's energy trace at the midpoint and checks three
-# criteria: (1) significant linear trend in energy, (2) first-half
-# E-BFMI below 0.3, and (3) first-half / second-half variance ratio
-# above 2.0. Any triggered criterion flags the chain.
+# criteria: (1) a linear trend in energy whose t-statistic, with the standard
+# error adjusted for autocorrelation, exceeds 2.58 in absolute
+# value, (2) first-half E-BFMI below 0.3, and (3) first-half / second-half
+# variance ratio above 2.0. Any triggered criterion flags the chain.
 #
 # @param energy_mat  Numeric matrix (chains x iterations) of energy
 #   values from the NUTS sampler.
@@ -53,23 +54,23 @@ integrated_act = function(x) {
 #   vector of length nchains:
 #   - warmup_incomplete:  Logical, TRUE if any criterion triggered.
 #   - energy_slope:       Numeric, OLS slope of energy on iteration.
-#   - slope_significant:  Logical, |t| > 2.58 for the slope.
+#   - slope_significant:  Logical, |t| > 2.58 for the slope with the OLS
+#       standard error, which assumes independent draws. Used as a fallback
+#       when the corrected statistic is unavailable.
+#   - slope_significant_corrected: Logical, |slope_t_corrected| > 2.58; this is
+#       the advisory's trend criterion. If the corrected statistic is not
+#       finite, it equals slope_significant.
 #   - ebfmi_first_half:   Numeric, E-BFMI for the first half.
 #   - ebfmi_second_half:  Numeric, E-BFMI for the second half.
 #   - var_ratio:          Numeric, var(first_half) / var(second_half).
 #   - energy_tau:         Numeric, integrated autocorrelation time of the trend
-#       residuals, estimated on the SECOND half. A residual transient lives in
-#       the first half and would inflate tau there, so the second half gives the
-#       stationary value.
-#   - slope_t_corrected:  Numeric, the slope t-statistic with its standard error
-#       widened by sqrt(energy_tau).
+#       residuals, estimated on the second half. This assumes that the second
+#       half is sufficiently stable to estimate autocorrelation.
+#   - slope_t_corrected:  Numeric, slope / (OLS standard error * sqrt(energy_tau)).
 #
-# energy_tau and slope_t_corrected are reported only; they do not enter
-# warmup_incomplete. The flag stays deliberately sensitive because it exists to
-# send the user to R-hat and ESS, and nothing else in the package does. They let
-# a user who investigates separate a real drift from an autocorrelation artifact:
-# a corrected |t| well under 2.58 alongside tau around 3 means the trend is an
-# artifact of autocorrelation, not residual warmup.
+# The OLS t-statistic is inflated by about sqrt(tau) on an autocorrelated
+# trace, so the advisory uses the corrected statistic. The OLS statistic is
+# retained for comparison and as a fallback.
 # ------------------------------------------------------------------------------
 check_warmup_complete = function(energy_mat) {
   nchains = nrow(energy_mat)
@@ -80,6 +81,7 @@ check_warmup_complete = function(energy_mat) {
       warmup_incomplete = rep(FALSE, nchains),
       energy_slope = rep(NA_real_, nchains),
       slope_significant = rep(FALSE, nchains),
+      slope_significant_corrected = rep(FALSE, nchains),
       ebfmi_first_half = rep(NA_real_, nchains),
       ebfmi_second_half = rep(NA_real_, nchains),
       var_ratio = rep(NA_real_, nchains),
@@ -93,6 +95,7 @@ check_warmup_complete = function(energy_mat) {
     warmup_incomplete = FALSE,
     energy_slope = NA_real_,
     slope_significant = FALSE,
+    slope_significant_corrected = FALSE,
     ebfmi_first_half = NA_real_,
     ebfmi_second_half = NA_real_,
     var_ratio = NA_real_,
@@ -135,15 +138,20 @@ check_warmup_complete = function(energy_mat) {
       slope_significant = isTRUE(abs(slope / slope_se) > 2.58)
     }
 
-    # Reported alongside the flag, not part of it: the same statistic with its
-    # standard error corrected for autocorrelation. tau comes from the second
-    # half of the residuals, which is stationary even when the first half is not.
+    # The same statistic with its standard error corrected for autocorrelation.
+    # Estimate tau from the second half, assuming it is sufficiently stable.
+    # Use the OLS statistic if the corrected statistic is unavailable.
     trend_resid = stats::residuals(trend_lm)
     energy_tau = integrated_act(trend_resid[(mid + 1):n_chain])
     slope_t_corrected = if(is.finite(energy_tau)) {
       unname(slope / (slope_se * sqrt(energy_tau)))
     } else {
       NA_real_
+    }
+    slope_significant_corrected = if(is.finite(slope_t_corrected)) {
+      abs(slope_t_corrected) > 2.58
+    } else {
+      slope_significant
     }
 
     # E-BFMI per half
@@ -155,7 +163,7 @@ check_warmup_complete = function(energy_mat) {
 
     # Flag if any criterion triggered. A constant half makes ebfmi_first and
     # var_ratio NaN; isTRUE() keeps the flag logical instead of NA.
-    warmup_incomplete = slope_significant ||
+    warmup_incomplete = slope_significant_corrected ||
       isTRUE(ebfmi_first < 0.3) ||
       isTRUE(var_ratio > 2.0)
 
@@ -163,6 +171,7 @@ check_warmup_complete = function(energy_mat) {
       warmup_incomplete = warmup_incomplete,
       energy_slope = slope,
       slope_significant = slope_significant,
+      slope_significant_corrected = slope_significant_corrected,
       ebfmi_first_half = ebfmi_first,
       ebfmi_second_half = ebfmi_second,
       var_ratio = var_ratio,
@@ -175,6 +184,7 @@ check_warmup_complete = function(energy_mat) {
     warmup_incomplete = sapply(results, `[[`, "warmup_incomplete"),
     energy_slope = sapply(results, `[[`, "energy_slope"),
     slope_significant = sapply(results, `[[`, "slope_significant"),
+    slope_significant_corrected = sapply(results, `[[`, "slope_significant_corrected"),
     ebfmi_first_half = sapply(results, `[[`, "ebfmi_first_half"),
     ebfmi_second_half = sapply(results, `[[`, "ebfmi_second_half"),
     var_ratio = sapply(results, `[[`, "var_ratio"),
