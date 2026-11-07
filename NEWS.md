@@ -215,17 +215,21 @@ released from this line yet.
   information about the prior; before, the infinite value was dropped from the
   maximum and the fit went unmentioned.
 
-* `fit$nuts_diag$warmup_check` reports two new per-chain fields. `energy_tau` is
-  the integrated autocorrelation time of the energy trend residuals, estimated on
-  the second half of the run; `slope_t_corrected` is the trend t-statistic with
-  its standard error widened by `sqrt(energy_tau)`. Both are reported only and do
-  not change when the warmup flag is raised.
-
-  The flag's trend criterion uses an ordinary least-squares standard error, which
-  assumes independent draws. Energy traces are autocorrelated, so that standard
-  error is too small. These fields let you tell a real transient from an
-  autocorrelation artifact: a corrected `|t|` well below 2.58 alongside an
-  `energy_tau` near 3 means the apparent trend is an artifact.
+* The warmup advisory ("Warmup may be incomplete: energy not stationary") reads
+  the trend criterion with a standard error corrected for the autocorrelation of
+  the energy trace. `fit$nuts_diag$warmup_check` reports `energy_tau`, the
+  integrated autocorrelation time of the energy trend residuals estimated on the
+  second half of the run, `slope_t_corrected`, the trend t-statistic with its
+  standard error widened by `sqrt(energy_tau)`, and
+  `slope_significant_corrected`, which is `|slope_t_corrected| > 2.58` and is
+  the criterion `warmup_incomplete` uses (falling back to the uncorrected rule
+  where `energy_tau` cannot be estimated). The uncorrected `slope_significant`
+  stays in the output for comparison. Before, the flag used the ordinary
+  least-squares standard error, which assumes independent draws and is too
+  small on an autocorrelated trace, so the advisory fired on fits whose R-hat
+  and effective sample sizes were in order, among them the worked example of
+  the companion tutorial (corrected `|t|` 1.99, uncorrected 4.48). The E-BFMI
+  and variance-ratio criteria are unchanged.
 
 * The NUTS issues message now names the criterion that fired. It previously
   reported "energy not stationary" even when a low first-half E-BFMI was the

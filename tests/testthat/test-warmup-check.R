@@ -11,14 +11,15 @@ test_that("check_warmup_complete returns one value per chain for every field", {
 
   expected = c(
     "warmup_incomplete", "energy_slope", "slope_significant",
-    "ebfmi_first_half", "ebfmi_second_half", "var_ratio",
-    "energy_tau", "slope_t_corrected"
+    "slope_significant_corrected", "ebfmi_first_half", "ebfmi_second_half",
+    "var_ratio", "energy_tau", "slope_t_corrected"
   )
   expect_true(all(expected %in% names(out)))
   for(nm in expected) expect_length(out[[nm]], 3)
 
   expect_type(out$warmup_incomplete, "logical")
   expect_type(out$slope_significant, "logical")
+  expect_type(out$slope_significant_corrected, "logical")
   expect_type(out$energy_tau, "double")
   expect_type(out$slope_t_corrected, "double")
 })
@@ -69,16 +70,51 @@ test_that("a settling transient inflates the naive t and is caught by the flag",
 })
 
 
-test_that("the reported fields do not change when the flag fires", {
-  # energy_tau and slope_t_corrected are reported only. Removing the trend must
-  # not alter warmup_incomplete, which is driven by the naive statistic.
+test_that("the flag reads the corrected trend statistic, not the OLS one", {
+  # On stationary autocorrelated traces the OLS |t| exceeds 2.58 far more often
+  # than the corrected one. The flag follows the corrected statistic; the OLS
+  # field is reported beside it.
   set.seed(5)
-  energy = t(replicate(4, as.numeric(arima.sim(list(ar = 0.5), n = 1000))))
+  energy = t(replicate(40, as.numeric(arima.sim(list(ar = 0.7), n = 1000))))
   out = check_warmup_complete(energy)
 
-  naive_flag = abs(out$energy_slope) > 0 &
-    out$slope_significant | out$ebfmi_first_half < 0.3 | out$var_ratio > 2.0
-  expect_equal(out$warmup_incomplete, unname(naive_flag))
+  corrected_flag = out$slope_significant_corrected |
+    (out$ebfmi_first_half < 0.3) %in% TRUE | (out$var_ratio > 2.0) %in% TRUE
+  expect_equal(out$warmup_incomplete, unname(corrected_flag))
+  expect_equal(out$slope_significant_corrected, abs(out$slope_t_corrected) > 2.58)
+  # The OLS rule fires on more of these stationary chains than the corrected
+  # one does.
+  expect_gt(sum(out$slope_significant), sum(out$slope_significant_corrected))
+})
+
+test_that("a chain with an OLS-significant trend and a corrected |t| below 2.58 is not flagged", {
+  set.seed(7)
+  found = FALSE
+  for(i in 1:50) {
+    energy = matrix(as.numeric(arima.sim(list(ar = 0.7), n = 1000)), nrow = 1)
+    out = check_warmup_complete(energy)
+    if(out$slope_significant && abs(out$slope_t_corrected) < 2.58 &&
+      !isTRUE(out$ebfmi_first_half < 0.3) && !isTRUE(out$var_ratio > 2)) {
+      found = TRUE
+      expect_false(out$warmup_incomplete)
+      break
+    }
+  }
+  expect_true(found)
+})
+
+test_that("the corrected criterion falls back to the OLS one where tau is not finite", {
+  # A second half with fewer than 20 finite draws cannot give tau; the chain is
+  # judged on the OLS statistic.
+  set.seed(8)
+  n = 60
+  energy = matrix(as.numeric(arima.sim(list(ar = 0.5), n = n)) + 6 * exp(-seq_len(n) / 10), nrow = 1)
+  energy[1, 36:60] = NA_real_
+  out = check_warmup_complete(energy)
+  expect_true(is.na(out$slope_t_corrected) || is.finite(out$slope_t_corrected))
+  if(is.na(out$slope_t_corrected)) {
+    expect_equal(out$slope_significant_corrected, out$slope_significant)
+  }
 })
 
 
@@ -113,6 +149,7 @@ test_that("a constant half leaves the flag logical rather than NA", {
   expect_false(anyNA(out$warmup_incomplete))
   expect_type(out$slope_significant, "logical")
   expect_false(anyNA(out$slope_significant))
+  expect_false(anyNA(out$slope_significant_corrected))
 
   # The undefined criteria are still reported as the NaN they are; only the
   # flag derived from them is forced to TRUE/FALSE.
@@ -126,4 +163,5 @@ test_that("a constant half leaves the flag logical rather than NA", {
   expect_equal(flat$warmup_incomplete, c(FALSE, FALSE))
   expect_equal(unname(flat$energy_slope), c(0, 0))
   expect_equal(flat$slope_significant, c(FALSE, FALSE))
+  expect_equal(flat$slope_significant_corrected, c(FALSE, FALSE))
 })
