@@ -22,15 +22,14 @@ skip_unless_slow = function() {
 
 # Per-fit statistics in the shape refit_edge_stats() returns, for n edges.
 fake_stats = function(lbf, mcse, prior_q = 0.5, lthr = log(10),
-                      unanimous = TRUE, zeroflip = FALSE) {
+                      fragile = FALSE, saturated = FALSE) {
   n = length(lbf)
   prior_odds = rep(prior_q / (1 - prior_q), n)
   pip = plogis(lbf + log(prior_odds))
   list(
     edge = paste0("e", seq_len(n)), pip = pip, prior_odds = prior_odds,
     lbf = lbf, verdict = verdict_from_lbf(lbf, lthr), mcse_lbf = mcse,
-    band_half = rep(0, n), unanimous = rep_len(unanimous, n),
-    zeroflip = rep_len(zeroflip, n)
+    fragile = rep_len(fragile, n), saturated = rep_len(saturated, n)
   )
 }
 
@@ -92,21 +91,33 @@ test_that("the classification compares each verdict change with the two fits' Mo
 })
 
 
-test_that("sufficiency at the chosen scale is the only not-certifiable criterion", {
+test_that("the chosen-scale flag is the original fit's verdicts() flag", {
   lthr = log(10)
   multipliers = c(0.5, 1, 2)
-  # Edge 1 sits within 2 * MCSE of the presence threshold at 1x; edge 2 is
-  # within error at 2x only; edge 3 has disagreeing chains at 1x.
-  s0 = fake_stats(c(2.2, 1.0, 1.5), mcse = c(0.1, 0.1, 0.1), unanimous = c(TRUE, TRUE, FALSE))
+  # Edge 1 is flagged by verdicts() in the original fit; edge 2 is near a
+  # threshold at 2x only, which is not a flag.
+  s0 = fake_stats(c(2.2, 1.0, 1.5), mcse = c(0.1, 0.1, 0.1), fragile = c(TRUE, FALSE, FALSE))
   s_lo = fake_stats(c(2.2, 1.0, 1.5), mcse = c(0.1, 0.1, 0.1))
   s_hi = fake_stats(c(2.2, 2.5, 1.5), mcse = c(0.1, 0.1, 0.1))
   cls = sensitivity_classification(list(s_lo, s0, s_hi), multipliers, 2L, lthr)
-  expect_equal(cls$edges$insufficient, c(TRUE, FALSE, TRUE))
-  expect_equal(cls$edges$insufficient_noisy, c(TRUE, FALSE, FALSE))
-  expect_equal(cls$edges$insufficient_disagree, c(FALSE, FALSE, TRUE))
+  expect_equal(cls$edges$fragile, c(TRUE, FALSE, FALSE))
+  expect_false(any(c("insufficient", "insufficient_noisy", "insufficient_disagree") %in% names(cls$edges)))
   # Edge 2 is classified on its own change, not on its nearness to a threshold
   # at the other scale.
   expect_equal(cls$edges$mover[2], "beyond-monte-carlo-error")
+})
+
+test_that("the check's flag on a fit is verdicts()' flag on that fit", {
+  skip_on_cran()
+  fit = bgm(Wenchuan[1:150, 1:5],
+    iter = 300, warmup = 300, chains = 2, seed = 3,
+    display_progress = "none"
+  )
+  ps = prior_sensitivity_check(fit, scale_multipliers = 2, seed = 3)
+  v = verdicts(fit)
+  expect_identical(ps$edges$fragile, v$fragile[match(ps$edges$edge, v$parameter)])
+  # saturated is the edges whose chosen-scale MCSE is NA.
+  expect_identical(ps$edges$saturated, is.na(ps$edges$chosen_scale_mcse))
 })
 
 
@@ -116,14 +127,14 @@ test_that("saturated and verdict-less indicators are handled", {
   # Edge 1 is at inclusion probability 1 in every draw of the original fit
   # (infinite log BF, no MCSE) and becomes finite presence at 2x; edge 2 has
   # no verdict.
-  s0 = fake_stats(c(Inf, NA), mcse = c(NA, NA), zeroflip = c(TRUE, FALSE))
+  s0 = fake_stats(c(Inf, NA), mcse = c(NA, NA), saturated = c(TRUE, FALSE))
   s0$verdict[2] = NA_character_
-  s_lo = fake_stats(c(Inf, NA), mcse = c(NA, NA), zeroflip = c(TRUE, FALSE))
+  s_lo = fake_stats(c(Inf, NA), mcse = c(NA, NA), saturated = c(TRUE, FALSE))
   s_hi = fake_stats(c(4, NA), mcse = c(0.2, NA))
   cls = sensitivity_classification(list(s_lo, s0, s_hi), multipliers, 2L, lthr)
   expect_equal(cls$edges$mover, c("stable", NA))
   expect_true(cls$edges$saturated[1])
-  expect_false(cls$edges$insufficient[1])
+  expect_false(cls$edges$fragile[1])
   expect_true(is.na(cls$edges$stability_lower[2]))
   # A verdict change away from a saturated indicator cannot be compared with
   # an error, since the saturated fit has none.
@@ -138,30 +149,29 @@ test_that("an unknown Monte Carlo error is not assessed", {
   multipliers = c(0.5, 1, 2)
   # Edge 1: the refit whose verdict differs has no MCSE, so the change cannot
   # be compared with an error and the mover category is NA. Edge 2: the
-  # original fit has no MCSE and no band, so its sufficiency is NA.
+  # original fit has no MCSE; verdicts() does not flag an undefined standard
+  # error, so the edge is not flagged.
   s0 = fake_stats(c(1.0, 1.0), mcse = c(0.1, NA))
-  s0$band_half[2] = NA_real_
   s_lo = fake_stats(c(1.0, 1.0), mcse = c(0.1, 0.1))
   s_hi = fake_stats(c(2.5, 1.0), mcse = c(NA, 0.1))
   cls = sensitivity_classification(list(s_lo, s0, s_hi), multipliers, 2L, lthr)
   expect_true(is.na(cls$edges$mover[1]))
   expect_equal(cls$edges$moved_at[1], 2)
-  expect_false(cls$edges$insufficient[1])
-  expect_true(is.na(cls$edges$insufficient[2]))
+  expect_false(cls$edges$fragile[1])
+  expect_false(cls$edges$fragile[2])
   expect_equal(cls$edges$mover[2], "stable")
-  # A single-chain fit has no between-chain band; the MCSE alone sets the
-  # half-width.
-  s1 = fake_stats(c(2.2, 1.0), mcse = c(0.1, 0.1))
-  s1$band_half[] = NA_real_
-  cls1 = sensitivity_classification(list(s1, s1, s1), multipliers, 2L, lthr)
-  expect_equal(cls1$edges$insufficient, c(TRUE, FALSE))
 })
 
 
 test_that("print() reports the counts, the movers and high R-hat fits", {
   lthr = log(10)
   multipliers = c(0.5, 1, 2)
-  s0 = fake_stats(c(3.0, 1.0, 2.0, -3.0, 2.6), mcse = c(0.2, 0.1, 0.2, 0.2, 0.3))
+  # Edges 3 and 5 are flagged by verdicts() in the original fit, so they count
+  # as verdicts that could change on a rerun rather than as movers.
+  s0 = fake_stats(c(3.0, 1.0, 2.0, -3.0, 2.6),
+    mcse = c(0.2, 0.1, 0.2, 0.2, 0.3),
+    fragile = c(FALSE, FALSE, TRUE, FALSE, TRUE)
+  )
   s_lo = fake_stats(c(3.2, 2.5, 2.1, -2.9, 2.8), mcse = c(0.2, 0.1, 0.2, 0.2, 0.3))
   s_hi = fake_stats(c(2.9, 1.1, 2.35, -3.1, 2.2), mcse = c(0.2, 0.1, 0.2, 0.2, 0.3))
   cls = sensitivity_classification(list(s_lo, s0, s_hi), multipliers, 2L, lthr)
@@ -169,20 +179,19 @@ test_that("print() reports the counts, the movers and high R-hat fits", {
   ps = fake_sensitivity(cls, multipliers, rhat_max = c(1.03, 1.005, 1.02), s_hat = 0.2)
   out = gsub("\\s+", " ", paste(utils::capture.output(print(ps)), collapse = " "))
   expect_match(out, "fits at 0.5x, 1x and 2x the chosen scale")
-  # Edges 3 and 5 lie within 2 * MCSE of the presence threshold in the
-  # original fit, so they are not certifiable rather than movers.
   expect_match(out, "verdict held at every scale 2")
-  expect_match(out, "changed, within Monte Carlo error 0")
-  expect_match(out, "changed, beyond Monte Carlo error 1")
-  expect_match(out, "not certifiable at the chosen scale 2")
-  expect_match(out, "2 edges are not certifiable at the chosen scale: e3, e5")
-  expect_match(out, "within Monte Carlo error of a threshold, so a rerun")
+  expect_match(out, "changed within Monte Carlo error 0")
+  expect_match(out, "changed beyond Monte Carlo error 1")
+  expect_match(out, "could change on a rerun 2")
+  expect_match(out, "2 verdicts could change on a rerun without any change to the prior distribution: e3, e5")
+  expect_match(out, "Their log Bayes factors lie within two standard errors of an evidence threshold")
+  expect_false(grepl("not certifiable", out, fixed = TRUE))
   expect_match(out, "1 edge changed verdict beyond Monte Carlo error")
   expect_match(out, "e2 presence undecided undecided 0.5x")
   expect_match(out, "Largest split R-hat above 1.01: 0.5x fit 1.03 and 2x fit 1.02")
   expect_match(out, "the slab is 5 times that")
   expect_match(out, "toward absence")
-  expect_match(out, "2 nuts refits")
+  expect_match(out, "Refits: 2 NUTS refits")
 
   # A changed verdict with an unavailable MCSE belongs in the fourth count.
   unknown = fake_stats(2.5, mcse = NA_real_)
@@ -192,11 +201,16 @@ test_that("print() reports the counts, the movers and high R-hat fits", {
   )
   out_unknown = utils::capture.output(print(fake_sensitivity(cls_unknown, multipliers)))
   count_lines = grep(
-    "^  (verdict held|changed,|not certifiable)", out_unknown,
+    "^  (verdict held|changed |could change)", out_unknown,
     value = TRUE
   )
   counts = as.integer(sub(".* +([0-9]+)$", "\\1", count_lines))
   expect_equal(c(fourth = counts[4], total = sum(counts)), c(fourth = 1L, total = 1L))
+  expect_false(any(cls_unknown$edges$fragile))
+  expect_match(
+    paste(out_unknown, collapse = " "),
+    "The fourth count also includes 1 edge whose verdict changed"
+  )
 
   # Missing uncertainty must not hide the explanation for ordinary noisy edges.
   s_lo_mixed = s_lo
@@ -206,11 +220,11 @@ test_that("print() reports the counts, the movers and high R-hat fits", {
     utils::capture.output(print(fake_sensitivity(cls_mixed, multipliers))),
     collapse = " "
   ))
-  expect_match(out_mixed, "not certifiable at the chosen scale 3")
-  expect_match(out_mixed, "within Monte Carlo error of a threshold, so a rerun")
-  expect_match(out_mixed, "Monte Carlo uncertainty could not be assessed for every verdict or verdict change")
-  # An NA-only group has no known threshold or chain-disagreement cause.
-  expect_false(any(grepl("rerun with another seed", out_unknown, fixed = TRUE)))
+  expect_match(out_mixed, "could change on a rerun 3")
+  expect_match(out_mixed, "2 verdicts could change on a rerun without any change to the prior distribution: e3, e5")
+  expect_match(out_mixed, "The fourth count also includes 1 edge whose verdict changed but whose Monte Carlo error was unavailable")
+  # An NA-only group names no flagged verdict.
+  expect_false(any(grepl("without any change to the prior distribution", out_unknown, fixed = TRUE)))
 
   # Every fit at or below 1.01, and a scale within a factor two: neither
   # sentence appears, and the verdict table has every scale.
@@ -225,20 +239,20 @@ test_that("print() reports the counts, the movers and high R-hat fits", {
   # out of the numeric R-hat line.
   ps3 = fake_sensitivity(cls, multipliers, rhat_max = c(1.03, 1.005, Inf), s_hat = 0.8)
   out3 = gsub("\\s+", " ", paste(utils::capture.output(print(ps3)), collapse = " "))
-  expect_match(out3, "The 2x fit includes at least one parameter with infinite split R-hat")
-  expect_match(out3, "Its verdicts should be interpreted only after checking convergence")
+  expect_match(out3, "The 2x fit has at least one parameter with infinite split R-hat")
+  expect_match(out3, "Check convergence before interpreting its verdicts")
   expect_match(out3, "Largest split R-hat above 1.01: 0.5x fit 1.03\\.")
-  expect_false(grepl("Monte Carlo standard errors in $edges", out3, fixed = TRUE))
+  expect_false(grepl("NA Monte Carlo standard errors in $edges", out3, fixed = TRUE))
   # An NA Monte Carlo error in some fit is explained in one sentence.
   cls_na = cls
   cls_na$edges$mcse_x2[1] = NA_real_
   ps5 = fake_sensitivity(cls_na, multipliers, s_hat = 0.8)
   out5 = gsub("\\s+", " ", paste(utils::capture.output(print(ps5)), collapse = " "))
-  expect_match(out5, "Monte Carlo standard errors in \\$edges are NA where a fit's inclusion probability was 0 or 1 in every draw")
+  expect_match(out5, "NA Monte Carlo standard errors in \\$edges could not be estimated from the draws")
   ps4 = fake_sensitivity(cls, multipliers, rhat_max = c(Inf, 1.005, Inf), s_hat = 0.8)
   out4 = gsub("\\s+", " ", paste(utils::capture.output(print(ps4)), collapse = " "))
-  expect_match(out4, "The 0.5x and 2x fits include at least one parameter with infinite split R-hat")
-  expect_match(out4, "Their verdicts should be interpreted only after checking convergence")
+  expect_match(out4, "The 0.5x and 2x fits have at least one parameter with infinite split R-hat")
+  expect_match(out4, "Check convergence before interpreting their verdicts")
   expect_false(grepl("Largest split R-hat", out4, fixed = TRUE))
 })
 

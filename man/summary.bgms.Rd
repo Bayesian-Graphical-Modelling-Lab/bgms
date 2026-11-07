@@ -17,6 +17,19 @@ An object of class \code{summary.bgms} with posterior summaries.
 \description{
 Returns posterior summaries and diagnostics for a fitted \code{bgms} model.
 }
+\details{
+The inclusion table (\verb{$indicator}) reports the Rao-Blackwellized inclusion
+probability and its diagnostics for each edge. At each update the sampler
+records the probability of adding the edge if absent, or retaining it if
+present. The table summarizes these recorded probabilities.
+
+Blank diagnostic cells contain \code{NA}: the diagnostic could not be estimated.
+\code{mcse} and \code{n_eff} can be unavailable when the recorded probabilities vary
+too little, often near 0 or 1. This does not establish that Monte Carlo
+error is zero. Split-R-hat uses a different calculation: identical constant
+split chains give \code{NA}, while split chains constant at different values give
+\code{Inf}. It can remain finite when \code{mcse} and \code{n_eff} are unavailable.
+}
 \examples{
 \donttest{
 fit = bgm(x = Wenchuan[, 1:3])

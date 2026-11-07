@@ -39,6 +39,21 @@ The per-group counts behind the mark are in
 observation counts per variable (\code{NULL} for Blume-Capel variables, which
 are exempt from the union recode and are never marked). Fits made before
 that field existed print unmarked.
+
+The inclusion table (\verb{$indicator}) reports the Rao-Blackwellized inclusion
+probability and its diagnostics for each difference. At each update the sampler
+records the probability of adding the difference if absent, or retaining it if
+present. The table summarizes these recorded probabilities.
+
+Blank diagnostic cells contain \code{NA}: the diagnostic could not be estimated.
+\code{mcse} and \code{n_eff} can be unavailable when the recorded probabilities vary
+too little, often near 0 or 1. This does not establish that Monte Carlo
+error is zero. Split-R-hat uses a different calculation: identical constant
+split chains give \code{NA}, while split chains constant at different values give
+\code{Inf}. It can remain finite when \code{mcse} and \code{n_eff} are unavailable.
+
+Main-effect difference rows are blank when \code{main_difference_selection = FALSE}
+because those indicators were not sampled.
 }
 \examples{
 \donttest{

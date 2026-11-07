@@ -81,6 +81,19 @@ print.bgms = function(x, ...) {
 #'
 #' @description Returns posterior summaries and diagnostics for a fitted `bgms` model.
 #'
+#' @details
+#' The inclusion table (`$indicator`) reports the Rao-Blackwellized inclusion
+#' probability and its diagnostics for each edge. At each update the sampler
+#' records the probability of adding the edge if absent, or retaining it if
+#' present. The table summarizes these recorded probabilities.
+#'
+#' Blank diagnostic cells contain `NA`: the diagnostic could not be estimated.
+#' `mcse` and `n_eff` can be unavailable when the recorded probabilities vary
+#' too little, often near 0 or 1. This does not establish that Monte Carlo
+#' error is zero. Split-R-hat uses a different calculation: identical constant
+#' split chains give `NA`, while split chains constant at different values give
+#' `Inf`. It can remain finite when `mcse` and `n_eff` are unavailable.
+#'
 #' @param object An object of class `bgms`.
 #' @param ... Currently ignored.
 #'
@@ -186,8 +199,8 @@ print.summary.bgms = function(x, digits = 3, ...) {
     print(ind)
     if(nrow(x$indicator) > .summary_preview_rows) cat("... (use `summary(fit)$indicator` to see full output)\n")
     if(ind_has_na) {
-      cat("Note: blank mcse, n_eff and Rhat cells mark edges whose inclusion probability\n")
-      cat("was 0 or 1 in every draw; there is no variation to estimate them from.\n")
+      cat("Note: blank diagnostic cells mean these values could not be estimated\n")
+      cat("from the draws.\n")
     }
     cat("\n")
   }

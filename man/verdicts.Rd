@@ -37,7 +37,8 @@ where the Rao-Blackwellized draws are constant to double precision.}
 \item{distance_two_state, distance_rb}{Distance from \code{log_bf} to the
 nearer verdict boundary, in units of each standard error.}
 \item{fragile}{\code{TRUE} when either distance is below 2: the
-near-threshold flag.}
+near-threshold flag. An indicator whose standard errors are both
+undefined is not flagged.}
 }
 The evidence threshold is attached as the \code{evidence_threshold} attribute,
 and whether the fragility flag's operating point covers this kind of

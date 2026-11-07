@@ -68,17 +68,19 @@ inclusion probability, the original fit's \code{chosen_scale_pip},
 factor) and \code{chosen_scale_verdict}; \code{stability_lower} and
 \code{stability_upper}; \code{mover} (\code{stable},
 \code{within-monte-carlo-error}, \code{beyond-monte-carlo-error}, or
-\code{NA} for an indicator without a verdict) and \code{moved_at};
-\code{insufficient} with its two subcauses \code{insufficient_noisy}
-(log Bayes factor within Monte Carlo error of a threshold) and
-\code{insufficient_disagree} (chains disagree on the verdict);
-\code{saturated} (the original fit's inclusion probability is 0 or 1 in
-every draw of every chain);
+\code{NA} when a verdict or the error needed to assess its change is
+unavailable) and \code{moved_at};
+\code{fragile} (\code{\link{verdicts}()}' near-threshold flag on the
+original fit); \code{saturated} (\code{chosen_scale_mcse} is
+\code{NA}; this indicates an unavailable error estimate, not necessarily
+an inclusion probability of exactly 0 or 1);
 then one \code{verdict_x<m>}, \code{log_bf_x<m>} and \code{mcse_x<m>}
 column per multiplier \code{m}, from that fit's own statistics.}
 \item{\code{grid}}{One row per fit: \code{multiplier}, \code{scale},
 \code{original_fit}, \code{iter}, \code{warmup}, \code{seed}, the
-diagnostics \code{rhat_max}, \code{ess_min}, \code{inclusion_ess_min},
+diagnostics \code{rhat_max} (largest split-\eqn{\hat R} over the
+continuous parameters only), \code{ess_min} (over the continuous
+parameters), \code{inclusion_ess_min} (over the indicators),
 \code{ebfmi_min}, \code{energy_variance_ratio_max} and
 \code{warmup_incomplete}, \code{sampler_notes}, and \code{seconds}.}
 \item{\code{verdict_by_scale}}{Fit-by-indicator matrix of verdicts.}
@@ -117,7 +119,8 @@ fit's \code{iter} and \code{warmup} unless \code{iter} and \code{warmup}
 are given. The original fit is the \code{1x} fit and is not refit. An
 ordinal (omrf) refit starts each chain from the original fit's final
 per-chain state, and a NUTS refit also from its adapted step size and mass
-matrix; continuous (GGM) and mixed-MRF refits start cold. Every quantity
+matrix; continuous (GGM) and mixed-MRF refits use default initial values.
+Every quantity
 the check reports for a fit is that fit's own Rao-Blackwellized inclusion
 probability, its natural log inclusion Bayes factor and verdict, and the
 Monte Carlo standard error of the log Bayes factor from the fit's own
@@ -135,22 +138,22 @@ verdict differs. \code{stability_lower} and \code{stability_upper} are the
 smallest and largest multiplier in the contiguous run of fits around
 \code{1x} that hold the reference verdict.
 
-\strong{Sufficiency at the chosen scale.} An edge whose per-chain verdicts
-disagree in the original fit, or whose log Bayes factor lies within
-\code{max(between-chain band, 2 * MCSE)} of a verdict threshold there, is
-marked \code{insufficient}: the fit cannot certify the verdict the check
-starts from, and the printed report lists the edge as not certifiable
-rather than in a mover category.
+\strong{The chosen-scale flag.} The \code{fragile} column is the original
+fit's flag from \code{\link{verdicts}()}: a log Bayes factor lies within
+two standard errors of an evidence threshold. The fourth printed count,
+"could change on a rerun", includes these edges and any other edge whose
+verdict changed but whose Monte Carlo error was unavailable. The report
+states how many of those additional edges there are. An edge whose standard
+errors are both undefined is not flagged by \code{verdicts()}.
 
-\strong{Convergence.} Each fit's largest split-\eqn{\hat R} over the
-continuous parameters, smallest effective sample size over the continuous
-parameters and over the indicators, and for NUTS the smallest E-BFMI and
-the largest energy variance ratio, are in \code{$grid}. The classification
-uses every fit; the printed report names a fit whose largest
-split-\eqn{\hat R} exceeds 1.01, and states when a fit did not sample: a
-parameter constant in every chain at values that differ across chains has
-an infinite split-\eqn{\hat R}, and that fit's verdicts say nothing about
-the prior.
+\strong{Convergence.} The \code{grid} table contains each fit's diagnostics.
+Its \code{rhat_max} covers the main-effect and pairwise parameter blocks,
+excluding indicators. All fits enter the classification, including those
+with convergence problems. The printed report identifies fits with
+split-\eqn{\hat R} above 1.01 or infinite. Check convergence before
+interpreting their verdicts. For a refit, you can try increasing
+\code{warmup} in \code{prior_sensitivity_check()}; for the original fit,
+rerun \code{bgm()} or \code{bgmCompare()} with more warmup iterations.
 
 \strong{Models with a precision diagonal.} A continuous or mixed fit has a
 Gamma or exponential prior on the precision diagonal with a standardized

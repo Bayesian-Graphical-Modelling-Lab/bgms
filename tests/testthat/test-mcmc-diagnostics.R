@@ -369,6 +369,24 @@ test_that("a single brief excursion does not inflate Rhat", {
   expect_lt(rhat, 1.01)
 })
 
+test_that("split Rhat preserves disagreement when parameter units change", {
+  set.seed(227)
+  x = array(rnorm(800), c(200, 4, 1))
+  x[, 3:4, 1] = x[, 3:4, 1] + 4
+  rhat = function(draws) bgms:::.compute_rhat_cpp(bgms:::split_chains(draws))
+  expect_gt(rhat(x), 2)
+  expect_equal(rhat(x * 1e-9), rhat(x), tolerance = 1e-12)
+
+  # Distinct, exactly representable constants must retain the Inf alarm.
+  stuck = array(0, c(100, 2, 1))
+  stuck[, 2, 1] = 2^-30
+  expect_identical(rhat(stuck), Inf)
+
+  # Infinite split Rhat does not imply that a whole chain never moved.
+  moved = array(c(rep(0, 50), rep(1, 50)), c(100, 1, 1))
+  expect_identical(rhat(moved), Inf)
+})
+
 test_that("all-constant-and-equal sub-chains give NA", {
   x = array(1, dim = c(1000, 4, 1))
   rhat = bgms:::.compute_rhat_cpp(bgms:::split_chains(x))

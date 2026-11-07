@@ -256,10 +256,9 @@ verdict_from_lbf = function(lbf, lthr) {
 # ------------------------------------------------------------------
 # Per-edge quantities from one refit: the Rao-Blackwellized inclusion
 # probability (canonical), its natural log inclusion Bayes factor and verdict,
-# the within-chain MCSE of the log BF (RB machinery, PR #182), the between-chain
-# half-band (2 * SEM of the grand mean from chain spread, propagated to the log
-# BF), per-chain verdict unanimity, and the zero-flip mask. Edge order is the
-# native row-major upper triangle.
+# the MCSE of the log BF from the summary table's inclusion MCSE by the delta
+# method, and whether the inclusion MCSE is unavailable (the saturated column).
+# Edge order is the native row-major upper triangle.
 # ------------------------------------------------------------------
 refit_edge_stats = function(fit, evidence_threshold) {
   raw = get_raw_samples(fit)
@@ -267,9 +266,8 @@ refit_edge_stats = function(fit, evidence_threshold) {
   # exactly.
   pnm = raw$parameter_names
   enm = pnm[["indicator"]] %||% pnm[["indicators"]] %||% pnm[["pairwise"]]
-  M = length(raw$rb_inclusion)
-  pc = sapply(raw$rb_inclusion, colMeans) # n_edges x M
-  if(is.null(dim(pc))) pc = matrix(pc, ncol = M)
+  pc = sapply(raw$rb_inclusion, colMeans) # n_edges x chains
+  if(is.null(dim(pc))) pc = matrix(pc, ncol = length(raw$rb_inclusion))
   pbar = rowMeans(pc)
 
   prior_q = if(inherits(fit, "bgmCompare")) {
@@ -287,23 +285,14 @@ refit_edge_stats = function(fit, evidence_threshold) {
   mcse_pip = ind[, "mcse"]
   lthr = log(evidence_threshold)
 
-  lbf = function(p) log((p / (1 - p)) / prior_odds)
+  lbf_bar = log((pbar / (1 - pbar)) / prior_odds)
   dfac = 1 / pmax(pbar * (1 - pbar), 1e-6) # d log BF / d p
-  lbf_bar = lbf(pbar)
   mcse_lbf = mcse_pip * dfac
-  se_between = apply(pc, 1, stats::sd) / sqrt(M)
-  band_half = 2 * se_between * dfac
-
-  verdict = verdict_from_lbf(lbf_bar, lthr)
-  vc = apply(pc, 2, function(p) verdict_from_lbf(lbf(p), lthr)) # n_edges x M
-  if(is.null(dim(vc))) vc = matrix(vc, ncol = M)
-  unanimous = apply(vc, 1, function(v) length(unique(v[!is.na(v)])) <= 1L)
-  zeroflip = apply(pc, 1, function(p) all(p <= 0) || all(p >= 1))
 
   list(
     edge = enm, pip = pbar, prior_odds = prior_odds, lbf = lbf_bar,
-    verdict = verdict, mcse_lbf = mcse_lbf, band_half = band_half,
-    unanimous = unanimous, zeroflip = zeroflip
+    verdict = verdict_from_lbf(lbf_bar, lthr), mcse_lbf = mcse_lbf,
+    saturated = is.na(mcse_pip)
   )
 }
 

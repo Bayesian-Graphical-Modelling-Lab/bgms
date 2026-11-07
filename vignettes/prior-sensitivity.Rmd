@@ -82,17 +82,21 @@ The four counts below that table classify every edge against the verdict of
 the original fit, the `1x` column:
 
 - *verdict held at every scale*: the edge has the same verdict in every fit.
-- *changed, within Monte Carlo error*: the verdict differs at some scale, but
+- *changed within Monte Carlo error*: the verdict differs at some scale, but
   the change in the log Bayes factor from the original fit to that fit is
   smaller than twice the combined Monte Carlo standard error of the two fits.
   Two runs of the same analysis could have produced this difference.
-- *changed, beyond Monte Carlo error*: the change is larger than that. The
+- *changed beyond Monte Carlo error*: the change is larger than that. The
   verdict depends on the scale. These edges are named, with their verdict at
   each scale and the scale nearest the chosen one at which it differs.
-- *not certifiable at the chosen scale*: in the original fit the log Bayes
-  factor lies within Monte Carlo error of a verdict threshold, or the chains
-  disagree on the verdict. The verdict the check starts from is not settled,
-  so the edge is not classified; running the original fit longer settles it.
+- *could change on a rerun*: `verdicts()` flags the edge in the original fit,
+  because its log Bayes factor lies within two standard errors of an evidence
+  threshold. The verdict the check starts from could change on a rerun with
+  another seed and no change to the prior distribution, so the edge is not
+  classified by scale. The same edges carry `fragile = TRUE` in
+  `verdicts(fit)`.
+  This count also includes edges whose verdict changed but whose Monte Carlo
+  error was unavailable. The report states how many such edges it includes.
 
 A line naming fits whose largest split R-hat exceeds 1.01 appears when there
 is one. The check uses every fit; that line, and the per-fit diagnostics in
@@ -109,9 +113,9 @@ moves near-threshold verdicts.
 Bayes factor, Monte Carlo standard error and verdict; the `mover` category
 and `moved_at`; `stability_lower` and `stability_upper`, the smallest and
 largest multiplier in the contiguous run of fits around `1x` that hold the
-original verdict; the `insufficient` flag with its two subcauses; and one
-verdict, log Bayes factor and Monte Carlo standard error column per scale,
-each from that fit's own statistics.
+original verdict; the `fragile` flag of `verdicts()` on the original fit and
+the `saturated` flag; and one verdict, log Bayes factor and Monte Carlo
+standard error column per scale, each from that fit's own statistics.
 
 ```{r, eval = FALSE}
 head(ps$edges)

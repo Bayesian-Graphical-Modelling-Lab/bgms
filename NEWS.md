@@ -165,6 +165,21 @@ released from this line yet.
 
 ## Diagnostics
 
+* `prior_sensitivity_check()` now uses the original fit's `verdicts()` flag
+  in its `fragile` column, replacing `insufficient` and its two subcause
+  columns. The fourth printed count, "could change on a rerun", includes
+  flagged edges and changes that could not be assessed because a Monte Carlo
+  error was unavailable. The report gives the number of these additional edges.
+
+* The sensitivity check's `saturated` column now indicates an unavailable
+  chosen-scale Monte Carlo standard error. It no longer requires inclusion
+  probabilities of exactly 0 or 1. The summary notes explain that blank
+  diagnostics could not be estimated; they do not imply zero Monte Carlo error.
+
+* Sensitivity reports identify fits with infinite split-R-hat and advise
+  checking convergence before interpreting their verdicts. The R-hat
+  calculation is unchanged. The `Refits:` line now capitalizes NUTS.
+
 * The pairwise summary table for a `bgm()` fit and the difference summary
   tables for a `bgmCompare()` fit no longer include `share_incl`, the proportion
   of Monte Carlo variance attributed to uncertainty in inclusion. The reported

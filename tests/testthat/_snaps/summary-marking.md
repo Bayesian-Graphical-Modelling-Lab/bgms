@@ -31,9 +31,8 @@
       B (main)
       B-C (pairwise)
       C (main)
-      Note: blank mcse, n_eff and Rhat cells mark indicators whose inclusion
-      probability was 0 or 1 in every draw; there is no variation to estimate them
-      from.
+      Note: blank diagnostic cells mean these values could not be estimated
+      from the draws.
       Main-effect difference rows are blank when main_difference_selection = FALSE
       left their indicators unsampled.
       

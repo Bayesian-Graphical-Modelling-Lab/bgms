@@ -84,20 +84,16 @@ The inclusion table carries its own diagnostics:
 summary(fit)$indicator
 ```
 
-- **mean**, **mcse**, **sd**, **n_eff**, and **Rhat** describe the
-  Rao-Blackwellized inclusion probability. The sampler records a one-step
-  inclusion draw at every indicator update, and that draw is continuous, so the
-  standard Monte Carlo machinery applies to it. They are `NA` when that draw
-  carries too little variability for the machinery to work on, which happens by
-  two routes. The first is an indicator whose Rao-Blackwellized draws are
-  constant to double precision, where the inclusion probability sits at its
-  numerical bound; `sd` is then exactly `0`. The second is a draw whose
-  variance is non-zero but falls below the numerical floor of the
-  autocovariance kernel: `mcse` and `n_eff` come back `NA` while `sd` and
-  `Rhat` are still reported. In the table above, `intrusion-flash` takes the
-  second route — an `sd` of about `2e-11` with `NA` `mcse` and `n_eff` and a
-  finite `Rhat`. Either way the reading is the same: the inclusion probability
-  is pinned, not poorly estimated.
+The inclusion table summarizes the Rao-Blackwellized inclusion probabilities
+recorded at each update: the probability of adding an absent edge or retaining
+a present one. It reports their mean, Monte Carlo standard error (`mcse`),
+standard deviation (`sd`), effective sample size (`n_eff`), and split-R-hat.
+
+Blank diagnostic cells contain `NA`. The recorded probabilities may vary too
+little to estimate `mcse` and `n_eff`, often when they are close to 0 or 1.
+This does not establish that Monte Carlo error is zero. Split-R-hat is computed
+separately and can remain finite. Identical constant split chains give `NA`;
+split chains constant at different values give `Inf`.
 
 ## Traceplots
 
