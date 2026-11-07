@@ -219,7 +219,7 @@ The returned list contains the following fields (one value per chain):
 - **ebfmi_first_half** and **ebfmi_second_half**: E-BFMI computed separately for the first and second halves of the post-warmup samples. If the first-half value is much lower (for example, below 0.3) while the second-half value is healthy, the early samples were likely still settling.
 - **var_ratio**: The ratio of energy variance in the first half to that in the second half. A ratio much greater than 1 (for example, above 2) indicates higher variability early on, consistent with transient behavior.
 - **energy_tau**: The integrated autocorrelation time of the trend residuals, estimated on the second half of the run. A large value indicates strong autocorrelation; it does not by itself show that warmup was incomplete.
-- **slope_t_corrected**: The same t-statistic as `slope_significant` uses, but with its standard error widened by `sqrt(energy_tau)` to account for autocorrelation.
+- **slope_t_corrected**: The energy trend t-statistic with a standard error adjusted for autocorrelation.
 - **slope_significant_corrected**: `TRUE` when `slope_t_corrected` exceeds 2.58 in absolute value. The advisory uses this criterion. If the corrected statistic is unavailable, it uses `slope_significant` instead.
 
 ## How sensitive is this flag?

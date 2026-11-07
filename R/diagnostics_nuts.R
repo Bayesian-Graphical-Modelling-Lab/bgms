@@ -43,7 +43,7 @@ integrated_act = function(x) {
 #
 # Splits each chain's energy trace at the midpoint and checks three
 # criteria: (1) a linear trend in energy whose t-statistic, with the standard
-# error widened for the trace's autocorrelation, exceeds 2.58 in absolute
+# error adjusted for autocorrelation, exceeds 2.58 in absolute
 # value, (2) first-half E-BFMI below 0.3, and (3) first-half / second-half
 # variance ratio above 2.0. Any triggered criterion flags the chain.
 #
@@ -66,8 +66,7 @@ integrated_act = function(x) {
 #   - energy_tau:         Numeric, integrated autocorrelation time of the trend
 #       residuals, estimated on the second half. This assumes that the second
 #       half is sufficiently stable to estimate autocorrelation.
-#   - slope_t_corrected:  Numeric, the slope t-statistic with its standard error
-#       widened by sqrt(energy_tau).
+#   - slope_t_corrected:  Numeric, slope / (OLS standard error * sqrt(energy_tau)).
 #
 # The OLS t-statistic is inflated by about sqrt(tau) on an autocorrelated
 # trace, so the advisory uses the corrected statistic. The OLS statistic is
