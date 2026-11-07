@@ -155,12 +155,13 @@ summary, not the indicators), smallest effective sample size over the
 continuous parameters and over the indicators, and for NUTS the smallest
 E-BFMI and the largest energy variance ratio, are in \code{$grid}. The
 classification uses every fit; the printed report names a fit whose largest
-split-\eqn{\hat R} exceeds 1.01, and states when a fit's sampler did not
-move: a parameter that kept a single value throughout every chain, at values
-that differ between chains, has an infinite split-\eqn{\hat R}, and the
-verdicts of that fit do not describe the posterior distribution at that
-scale. Such a refit needs a longer warmup or a cold start; an ordinal refit
-starts from the original fit's final state, so \code{warmup} is the lever.
+split-\eqn{\hat R} exceeds 1.01, and states when a fit has a parameter
+with an infinite split-\eqn{\hat R}: constant within every split chain, at
+values that differ between split chains, so the sampler did not explore it,
+and the verdicts of that fit do not describe the posterior distribution at
+that scale. Such a refit may need a longer warmup or a cold start; an
+ordinal refit starts from the original fit's final state, so \code{warmup}
+is the lever to try first.
 
 \strong{Models with a precision diagonal.} A continuous or mixed fit has a
 Gamma or exponential prior on the precision diagonal with a standardized

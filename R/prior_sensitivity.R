@@ -83,12 +83,13 @@ verdict_from_bf = function(bf, threshold) {
 #' continuous parameters and over the indicators, and for NUTS the smallest
 #' E-BFMI and the largest energy variance ratio, are in \code{$grid}. The
 #' classification uses every fit; the printed report names a fit whose largest
-#' split-\eqn{\hat R} exceeds 1.01, and states when a fit's sampler did not
-#' move: a parameter that kept a single value throughout every chain, at values
-#' that differ between chains, has an infinite split-\eqn{\hat R}, and the
-#' verdicts of that fit do not describe the posterior distribution at that
-#' scale. Such a refit needs a longer warmup or a cold start; an ordinal refit
-#' starts from the original fit's final state, so \code{warmup} is the lever.
+#' split-\eqn{\hat R} exceeds 1.01, and states when a fit has a parameter
+#' with an infinite split-\eqn{\hat R}: constant within every split chain, at
+#' values that differ between split chains, so the sampler did not explore it,
+#' and the verdicts of that fit do not describe the posterior distribution at
+#' that scale. Such a refit may need a longer warmup or a cold start; an
+#' ordinal refit starts from the original fit's final state, so \code{warmup}
+#' is the lever to try first.
 #'
 #' \strong{Models with a precision diagonal.} A continuous or mixed fit has a
 #' Gamma or exponential prior on the precision diagonal with a standardized
@@ -681,9 +682,9 @@ order_upper_tri_rowmajor = function(p) {
 #' Prints the verdict counts at each scale, the number of edges whose verdict
 #' held at every scale, changed within Monte Carlo error, changed beyond it,
 #' or could change on a rerun of the original fit, the edges that changed
-#' beyond Monte Carlo error by name, the fits whose sampler did not move (a
-#' parameter constant throughout every chain at values that differ between
-#' chains, infinite split R-hat), the fits whose largest split R-hat exceeds
+#' beyond Monte Carlo error by name, the fits with a parameter the sampler did
+#' not explore (constant within every split chain at values that differ
+#' between split chains, infinite split R-hat), the fits whose largest split R-hat exceeds
 #' 1.01, and how the chosen scale compares with the scale the estimated
 #' interactions imply.
 #'
@@ -848,9 +849,9 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
       one = length(stuck) == 1L
       wrap(sprintf(
         paste0(
-          "In the %s %s the sampler did not move: at least one parameter kept ",
-          "a single value throughout every chain, and those values differ ",
-          "between chains (split R-hat infinite). The verdicts of %s do not ",
+          "In the %s %s at least one parameter was constant within every split ",
+          "chain, at values that differ between split chains (split R-hat ",
+          "infinite): the sampler did not explore it. The verdicts of %s do not ",
           "describe the posterior distribution at %s."
         ),
         list_of(fit_label(stuck)), if(one) "fit" else "fits",

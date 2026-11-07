@@ -88,21 +88,22 @@ summary(fit)$indicator
   Rao-Blackwellized inclusion probability. At every update of an edge
   indicator the sampler proposes to flip it and records the probability that
   the edge is in the model after the move: the acceptance probability of
-  adding it when it is out, one minus the acceptance probability of removing
-  it when it is in. That recorded value is continuous, so the standard Monte
-  Carlo machinery applies to its series. All three of `mcse`, `n_eff` and
-  `Rhat` are `NA` when the series has no variation the machinery can work on.
-  For an edge the data support overwhelmingly, the probability of accepting
-  its removal is below about 1e-16 at every update, so one minus it rounds to
-  exactly 1 and the series is constant at 1 in every draw of every chain; an
-  edge the data rule out as strongly is constant at 0. An edge whose removal
-  probability is around 1e-12 gives a series that varies by that much, below
-  the variance floor of 1e-15 at which the ESS and R-hat kernels stop
-  estimating, so `sd` prints as a number like `2e-11` while the three cells
-  are blank. In both cases there is nothing to estimate: the inclusion
-  probability is at 1 or 0 to numerical precision and the verdict lies beyond
-  any evidence threshold. An edge only slightly less certain, with a removal
-  probability of 1e-8 say, has a varying series and shows numbers.
+  adding it when it is out, the probability of retaining it (one minus the
+  acceptance probability of removing it) when it is in. That recorded value
+  is continuous, so the standard Monte Carlo machinery applies to its series.
+  `mcse` and `n_eff` are `NA` when the series has no variation the machinery
+  can work on; `Rhat` is `NA` when every chain is exactly constant, and
+  otherwise computed. For an edge the data support overwhelmingly, the
+  probability of accepting its removal is below about 1e-16 at every update,
+  so one minus it rounds to exactly 1 and the series is constant at 1 in
+  every draw of every chain; an edge the data rule out as strongly is
+  constant at 0. A series that varies by less than about 3e-8 (a variance
+  below 1e-15) is below the floor at which the ESS kernel stops estimating
+  and is treated the same way; `sd` then prints as a number like `2e-11`
+  while `mcse` and `n_eff` are blank. In both cases the inclusion probability
+  stayed within 3e-8 of 1 or 0 throughout the run, so there is no Monte Carlo
+  error at any printed digit and the verdict lies far beyond any evidence
+  threshold; an edge whose series varies by more than that shows numbers.
 
 ## Traceplots
 

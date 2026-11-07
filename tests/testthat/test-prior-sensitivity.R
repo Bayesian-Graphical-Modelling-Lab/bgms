@@ -116,10 +116,8 @@ test_that("the check's flag on a fit is verdicts()' flag on that fit", {
   ps = prior_sensitivity_check(fit, scale_multipliers = 2, seed = 3)
   v = verdicts(fit)
   expect_identical(ps$edges$fragile, v$fragile[match(ps$edges$edge, v$parameter)])
-  # saturated follows the kernel: exactly the edges whose chosen-scale MCSE is NA.
+  # saturated is the edges whose chosen-scale MCSE is NA.
   expect_identical(ps$edges$saturated, is.na(ps$edges$chosen_scale_mcse))
-  ind = summary(fit)$indicator
-  expect_identical(unname(is.na(ind$mcse)), unname(is.na(ind$Rhat)))
 })
 
 
@@ -236,7 +234,7 @@ test_that("print() reports the counts, the movers and high R-hat fits", {
   # out of the numeric R-hat line.
   ps3 = fake_sensitivity(cls, multipliers, rhat_max = c(1.03, 1.005, Inf), s_hat = 0.8)
   out3 = gsub("\\s+", " ", paste(utils::capture.output(print(ps3)), collapse = " "))
-  expect_match(out3, "In the 2x fit the sampler did not move: at least one parameter kept a single value throughout every chain, and those values differ between chains \\(split R-hat infinite\\)")
+  expect_match(out3, "In the 2x fit at least one parameter was constant within every split chain, at values that differ between split chains \\(split R-hat infinite\\): the sampler did not explore it")
   expect_match(out3, "The verdicts of that fit do not describe the posterior distribution at that scale")
   expect_match(out3, "Largest split R-hat above 1.01: 0.5x fit 1.03\\.")
   expect_false(grepl("Monte Carlo standard errors in $edges", out3, fixed = TRUE))
@@ -248,7 +246,7 @@ test_that("print() reports the counts, the movers and high R-hat fits", {
   expect_match(out5, "Monte Carlo standard errors in \\$edges are NA where a fit's inclusion probability was 0 or 1 in every draw of every chain, or constant to numerical precision")
   ps4 = fake_sensitivity(cls, multipliers, rhat_max = c(Inf, 1.005, Inf), s_hat = 0.8)
   out4 = gsub("\\s+", " ", paste(utils::capture.output(print(ps4)), collapse = " "))
-  expect_match(out4, "In the 0.5x and 2x fits the sampler did not move")
+  expect_match(out4, "In the 0.5x and 2x fits at least one parameter was constant within every split chain")
   expect_match(out4, "The verdicts of those fits do not describe the posterior distribution at those scales")
   expect_false(grepl("Largest split R-hat", out4, fixed = TRUE))
 })

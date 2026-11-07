@@ -375,22 +375,6 @@ test_that("all-constant-and-equal sub-chains give NA", {
   expect_true(is.na(rhat))
 })
 
-test_that("sub-chains constant to numerical precision at one value give NA, at different values Inf", {
-  # The R-hat kernel applies the ESS kernel's variance floor (1e-15), so a
-  # series the ESS kernel finds constant has no R-hat either, and a Rao-
-  # Blackwellized inclusion series at 1 - 1e-12 gets NA in all three cells.
-  set.seed(11)
-  near_one = array(1 - abs(rnorm(400, sd = 1e-12)), dim = c(100, 4, 1))
-  expect_true(is.na(bgms:::.compute_ess_cpp(near_one)))
-  expect_true(is.na(bgms:::.compute_rhat_cpp(bgms:::split_chains(near_one))))
-  apart = near_one
-  apart[, 3:4, 1] = abs(rnorm(200, sd = 1e-12))
-  expect_identical(bgms:::.compute_rhat_cpp(bgms:::split_chains(apart)), Inf)
-  # A variance at the floor is not constant: the classic formula applies.
-  varying = array(1 + rnorm(400, sd = 1e-6), dim = c(100, 4, 1))
-  expect_true(is.finite(bgms:::.compute_rhat_cpp(bgms:::split_chains(varying))))
-})
-
 test_that("constant-but-unequal sub-chains give +Inf, not NA", {
   # Two chains stuck at 0, two stuck at 1: W == 0 but B > 0. Silence (NA) here
   # is the worst failure mode, so the estimator must raise a loud +Inf alarm.
