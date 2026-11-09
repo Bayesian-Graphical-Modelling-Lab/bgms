@@ -49,11 +49,9 @@ its logarithm. The classification is the one \code{\link[=verdicts]{verdicts()}}
 Only the first panel is weighted. There, line width is the posterior mean
 pairwise association and colour carries its sign -- blue for a positive
 association, vermillion for a negative one, the Okabe-Ito pair, so the sign
-survives common forms of colour-vision deficiency -- because that is where
-the effect sizes are. The other two panels are drawn at uniform width, dashed
-for evidence of absence and dotted for inconclusive: for those pairs the
-classification is the result, and a width would suggest an effect size that
-the data have either ruled out or not established.
+survives common forms of colour-vision deficiency. The other two panels use
+uniform line widths: dashed for evidence of absence and dotted for
+inconclusive evidence.
 
 The figure carries no key. Each panel is titled with the evidence class it
 holds and the rule that defines it, which is what a key would otherwise

@@ -66,9 +66,8 @@ and colour carries its sign -- blue for a positive difference, vermillion
 for a negative one, the Okabe-Ito pair, so the sign survives common forms of
 colour-vision deficiency. Which group a positive difference favours follows
 the contrast coding, which \code{\link[=extract_group_params]{extract_group_params()}} reports per group. The
-other two are drawn at uniform width, dashed for a difference the data rule
-out and dotted for inconclusive, because for those pairs the classification is
-the result.
+other two panels use uniform line widths: dashed for evidence of no difference
+and dotted for inconclusive evidence.
 
 The figure carries no key: the panel titles name the evidence class and the
 rule that defines it, and the sign convention is documented here.

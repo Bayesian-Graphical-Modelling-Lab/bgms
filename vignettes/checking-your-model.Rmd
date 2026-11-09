@@ -87,7 +87,7 @@ data rule out, and the pairs the data cannot decide -- drawn on one shared
 layout, so a variable sits in the same place in all three. Only the first panel
 is weighted, with line width the posterior mean association and colour its
 sign; the other two are drawn at uniform width, dashed for a ruled-out pair and
-dotted for an inconclusive one, because there the classification is the result. A
+dotted for an inconclusive one. A
 single drawing would have to leave the last two classes as the same blank,
 which is exactly what a reader cannot interpret. For one edge in detail, the
 spike-and-slab posterior shows how the mass is actually divided:

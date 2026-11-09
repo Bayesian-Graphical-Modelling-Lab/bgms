@@ -302,10 +302,9 @@ draw_network_panel = function(m, variables, shared, title, rule = NULL,
 # to say. Because there is an inclusion Bayes factor for every pair, the choice
 # does not have to be made: the two kinds of blank get a panel each.
 #
-# Only the supported panel is weighted. There, line width is the posterior mean
-# association and colour its sign, because that is where the effect sizes live.
-# The other two are drawn at uniform width, dashed and dotted, because for those
-# pairs the classification is the result and a weight would suggest otherwise.
+# In the supported panel, line width represents the posterior mean association
+# and colour indicates its sign. The absence and inconclusive panels use uniform
+# line widths, with dashed and dotted lines respectively.
 #
 # The supported panel goes unweighted too when a pair has no single magnitude to
 # draw -- a bgmCompare fit on more than two groups, where one indicator per pair
@@ -488,11 +487,9 @@ draw_weight_network = function(weight, pairs, variables, unit,
 #' Only the first panel is weighted. There, line width is the posterior mean
 #' pairwise association and colour carries its sign -- blue for a positive
 #' association, vermillion for a negative one, the Okabe-Ito pair, so the sign
-#' survives common forms of colour-vision deficiency -- because that is where
-#' the effect sizes are. The other two panels are drawn at uniform width, dashed
-#' for evidence of absence and dotted for inconclusive: for those pairs the
-#' classification is the result, and a width would suggest an effect size that
-#' the data have either ruled out or not established.
+#' survives common forms of colour-vision deficiency. The other two panels use
+#' uniform line widths: dashed for evidence of absence and dotted for
+#' inconclusive evidence.
 #'
 #' The figure carries no key. Each panel is titled with the evidence class it
 #' holds and the rule that defines it, which is what a key would otherwise
@@ -719,9 +716,8 @@ main_difference_nodes = function(verdict, pip, main_selected) {
 #' for a negative one, the Okabe-Ito pair, so the sign survives common forms of
 #' colour-vision deficiency. Which group a positive difference favours follows
 #' the contrast coding, which [extract_group_params()] reports per group. The
-#' other two are drawn at uniform width, dashed for a difference the data rule
-#' out and dotted for inconclusive, because for those pairs the classification is
-#' the result.
+#' other two panels use uniform line widths: dashed for evidence of no difference
+#' and dotted for inconclusive evidence.
 #'
 #' The figure carries no key: the panel titles name the evidence class and the
 #' rule that defines it, and the sign convention is documented here.
