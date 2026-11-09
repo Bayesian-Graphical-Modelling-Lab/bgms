@@ -409,16 +409,15 @@ test_that("the panel of a decisive edge carries the wheel, not a stem", {
   expect_snapshot(describe_panel(panel))
 })
 
-test_that("the panel of an inconclusive edge splits its wheel", {
+test_that("the edge panel shows the inclusion probability without a verdict label", {
   set.seed(102)
   draws = c(rnorm(1200, 0.09, 0.03), rep(0, 800))
   panel = edge_panel_selection(
     "intrusion-upset", draws, test_slab_prior(),
     pip = 0.6, log_bf = 0.41
   )
-  # No verdict word is printed, here least of all: the split wheel and the log
-  # Bayes factor near zero are the statement, and "inconclusive" would have added
-  # a threshold the reader did not choose.
+  # Show the inclusion probability and log Bayes factor without applying an
+  # evidence threshold.
   expect_null(panel$subtitle)
   expect_snapshot(describe_panel(panel))
 })
