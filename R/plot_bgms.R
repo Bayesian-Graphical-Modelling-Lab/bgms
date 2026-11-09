@@ -33,7 +33,7 @@ network_unit = function(kind = c("edge", "difference")) {
       panels = c(
         presence = "evidence of presence",
         absence = "evidence of absence",
-        undecided = "undecided"
+        inconclusive = "inconclusive"
       )
     ))
   }
@@ -43,7 +43,7 @@ network_unit = function(kind = c("edge", "difference")) {
     panels = c(
       presence = "difference supported",
       absence = "difference ruled out",
-      undecided = "undecided"
+      inconclusive = "inconclusive"
     )
   )
 }
@@ -69,7 +69,7 @@ threshold_rules = function(evidence_threshold) {
   c(
     presence = sprintf("BF > %s", high),
     absence = sprintf("BF < %s", low),
-    undecided = sprintf("%s < BF < %s", low, high)
+    inconclusive = sprintf("%s < BF < %s", low, high)
   )
 }
 
@@ -84,7 +84,7 @@ threshold_rules = function(evidence_threshold) {
 # reliably override that, so a network that leaves a node out fails rather than
 # drawing the node alone. A square matrix states the node set in its dimensions,
 # and an empty panel is a matrix of zeros, which draws the nodes on their own --
-# which is what an all-decided fit's undecided panel should look like.
+# which is what an all-decided fit's inconclusive panel should look like.
 #
 # @param value          Value per selected pair (a weight, or 1 for a panel
 #                       drawn at uniform width).
@@ -348,7 +348,7 @@ draw_evidence_panels = function(weight, verdict, pairs, variables,
   on.exit(graphics::par(old_par), add = TRUE)
   graphics::par(mfrow = c(1L, 3L))
 
-  classes = c("presence", "absence", "undecided")
+  classes = c("presence", "absence", "inconclusive")
   for(class in classes) {
     keep = !is.na(verdict) & verdict == class
     carries_weight = weighted && class == "presence"
@@ -365,15 +365,15 @@ draw_evidence_panels = function(weight, verdict, pairs, variables,
         # Unweighted, the supported panel has no sign to colour by and takes
         # the plain ink; the classification is the whole of what it says.
         presence = if(carries_weight) matrix_edge_colors(m) else style$ink,
-        # A ruled-out pair is a finding and takes the darker ink; an undecided
+        # A ruled-out pair is a finding and takes the darker ink; an inconclusive
         # one is not, and recedes.
         absence = grDevices::adjustcolor(style$ink, 0.8),
-        undecided = style$muted
+        inconclusive = style$muted
       ),
       lty = switch(class,
         presence = 1L,
         absence = 2L,
-        undecided = 3L
+        inconclusive = 3L
       ),
       edge.width = if(carries_weight) NULL else 1.6,
       ...
@@ -469,7 +469,7 @@ draw_weight_network = function(weight, pairs, variables, unit,
 #'   edge evidence plot; `"centrality"` is the posterior strength centrality of
 #'   [extract_centrality()].
 #' @param evidence_threshold Numeric > 1; the inclusion Bayes factor separating
-#'   evidence of presence from undecided, as in [verdicts()]. Default `10`.
+#'   evidence of presence from inconclusive, as in [verdicts()]. Default `10`.
 #' @param layout Layout passed to [qgraph::qgraph()]. Default `"spring"`.
 #' @param ... Passed to [qgraph::qgraph()] for `type = "network"`, and to
 #'   [plot.bgms_centrality()] otherwise.
@@ -493,7 +493,7 @@ draw_weight_network = function(weight, pairs, variables, unit,
 #' association, vermillion for a negative one, the Okabe-Ito pair, so the sign
 #' survives common forms of colour-vision deficiency -- because that is where
 #' the effect sizes are. The other two panels are drawn at uniform width, dashed
-#' for evidence of absence and dotted for undecided: for those pairs the
+#' for evidence of absence and dotted for inconclusive: for those pairs the
 #' classification is the result, and a width would suggest an effect size that
 #' the data have either ruled out or not established.
 #'
@@ -690,7 +690,7 @@ main_difference_nodes = function(verdict, pip, main_selected) {
 #'   one shared layout; `"centrality"` is the posterior strength centrality of
 #'   [extract_centrality()].
 #' @param evidence_threshold Numeric > 1; the inclusion Bayes factor separating
-#'   evidence of a difference from undecided, as in [verdicts()]. Default `10`.
+#'   evidence of a difference from inconclusive, as in [verdicts()]. Default `10`.
 #' @param group For `type = "centrality"`: a single group index, passed to
 #'   [extract_centrality()] for that group's centrality. A difference in
 #'   centrality (two indices) can be extracted and summarized but has no plot;
@@ -723,7 +723,7 @@ main_difference_nodes = function(verdict, pip, main_selected) {
 #' colour-vision deficiency. Which group a positive difference favours follows
 #' the contrast coding, which [extract_group_params()] reports per group. The
 #' other two are drawn at uniform width, dashed for a difference the data rule
-#' out and dotted for undecided, because for those pairs the classification is
+#' out and dotted for inconclusive, because for those pairs the classification is
 #' the result.
 #'
 #' The figure carries no key: the panel titles name the evidence class and the
@@ -769,7 +769,7 @@ main_difference_nodes = function(verdict, pip, main_selected) {
 #' evidence is carried on the nodes: each node wears a ring filled to its
 #' difference indicator's posterior inclusion probability -- a full ring is
 #' probability 1, half a ring 0.5 -- coloured by the verdict (accented for
-#' presence, grey for undecided, faint for absence). The fill fraction carries
+#' presence, grey for inconclusive, faint for absence). The fill fraction carries
 #' the number, so the encoding does not rest on colour alone. Under the default
 #' `main_difference_selection = FALSE` those indicators do not exist and no ring
 #' is drawn. `verdicts()` remains the place to read main-effect differences

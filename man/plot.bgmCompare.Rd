@@ -24,7 +24,7 @@ one shared layout; \code{"centrality"} is the posterior strength centrality of
 \code{\link[=extract_centrality]{extract_centrality()}}.}
 
 \item{evidence_threshold}{Numeric > 1; the inclusion Bayes factor separating
-evidence of a difference from undecided, as in \code{\link[=verdicts]{verdicts()}}. Default \code{10}.}
+evidence of a difference from inconclusive, as in \code{\link[=verdicts]{verdicts()}}. Default \code{10}.}
 
 \item{group}{For \code{type = "centrality"}: a single group index, passed to
 \code{\link[=extract_centrality]{extract_centrality()}} for that group's centrality. A difference in
@@ -67,7 +67,7 @@ for a negative one, the Okabe-Ito pair, so the sign survives common forms of
 colour-vision deficiency. Which group a positive difference favours follows
 the contrast coding, which \code{\link[=extract_group_params]{extract_group_params()}} reports per group. The
 other two are drawn at uniform width, dashed for a difference the data rule
-out and dotted for undecided, because for those pairs the classification is
+out and dotted for inconclusive, because for those pairs the classification is
 the result.
 
 The figure carries no key: the panel titles name the evidence class and the
@@ -113,7 +113,7 @@ the \code{type = "groups"} panels in that case, with the same layout, the same
 evidence is carried on the nodes: each node wears a ring filled to its
 difference indicator's posterior inclusion probability -- a full ring is
 probability 1, half a ring 0.5 -- coloured by the verdict (accented for
-presence, grey for undecided, faint for absence). The fill fraction carries
+presence, grey for inconclusive, faint for absence). The fill fraction carries
 the number, so the encoding does not rest on colour alone. Under the default
 \code{main_difference_selection = FALSE} those indicators do not exist and no ring
 is drawn. \code{verdicts()} remains the place to read main-effect differences

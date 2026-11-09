@@ -243,7 +243,7 @@ data_preferred_scale = function(fit) {
 # lthr = log(t).
 # ------------------------------------------------------------------
 verdict_from_lbf = function(lbf, lthr) {
-  out = rep("undecided", length(lbf))
+  out = rep("inconclusive", length(lbf))
   out[lbf >= lthr] = "presence"
   out[lbf <= -lthr] = "absence"
   out[is.na(lbf)] = NA_character_

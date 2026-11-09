@@ -31,7 +31,7 @@ probability and an inclusion Bayes factor of its own -- the factor by which the
 data shift the odds that the groups differ on that parameter
 [@HuthEtAl_2023; @SekulovskiEtAl_2023]. `verdicts()` reads those Bayes factors
 against a threshold and returns evidence of a difference, evidence of no
-difference, or undecided.
+difference, or inconclusive.
 
 # ADHD dataset
 

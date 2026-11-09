@@ -32,7 +32,7 @@ The graph is treated as unknown rather than fixed. The analysis returns a
 posterior distribution over graphs and, for every pair of variables, an
 inclusion Bayes factor: the factor by which the data update the odds that the
 edge is present. The reporting convention assigns each pair one of three
-verdicts: evidence of presence, evidence of absence, or undecided. The
+verdicts: evidence of presence, evidence of absence, or inconclusive. The
 `verdicts()` function reports these classifications.
 
 This vignette is the front door: enough to run an analysis and read what comes
@@ -135,7 +135,7 @@ verdicts(fit)
 
 The default threshold is 10, so an edge is called **presence** when the data
 multiply its inclusion odds by more than 10, **absence** when they divide them
-by more than 10, and **undecided** in between. That third category is not a
+by more than 10, and **inconclusive** in between. That third category is not a
 failure of the analysis. It is the honest answer when the data separate neither
 hypothesis from the other, and being able to report it is the point of treating
 the graph as unknown.

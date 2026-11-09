@@ -92,7 +92,7 @@ The default returns the stated half. The joint specification returns
 `r round(B$prior$joint, 3)`, and the gap widens as the model grows. Nothing here
 is broken: the joint specification is a coherent model, and the sampler targets
 its posterior correctly. But it is a *different* model, so its inclusion Bayes
-factors are not interchangeable with the default's. An edge that is undecided
+factors are not interchangeable with the default's. An edge that is inconclusive
 under one specification can show evidence of absence under the other, without
 either fit being wrong.
 

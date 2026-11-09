@@ -14,7 +14,7 @@
       dots      : none
       window    : 0.00 to 0.48
 
-# the panel of an undecided edge splits its wheel
+# the panel of an inconclusive edge splits its wheel
 
     Code
       describe_panel(panel)

@@ -20,7 +20,7 @@ edge evidence plot; \code{"centrality"} is the posterior strength centrality of
 \code{\link[=extract_centrality]{extract_centrality()}}.}
 
 \item{evidence_threshold}{Numeric > 1; the inclusion Bayes factor separating
-evidence of presence from undecided, as in \code{\link[=verdicts]{verdicts()}}. Default \code{10}.}
+evidence of presence from inconclusive, as in \code{\link[=verdicts]{verdicts()}}. Default \code{10}.}
 
 \item{layout}{Layout passed to \code{\link[qgraph:qgraph]{qgraph::qgraph()}}. Default \code{"spring"}.}
 
@@ -51,7 +51,7 @@ pairwise association and colour carries its sign -- blue for a positive
 association, vermillion for a negative one, the Okabe-Ito pair, so the sign
 survives common forms of colour-vision deficiency -- because that is where
 the effect sizes are. The other two panels are drawn at uniform width, dashed
-for evidence of absence and dotted for undecided: for those pairs the
+for evidence of absence and dotted for inconclusive: for those pairs the
 classification is the result, and a width would suggest an effect size that
 the data have either ruled out or not established.
 
