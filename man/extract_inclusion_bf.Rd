@@ -29,8 +29,7 @@ proposed at every iteration, so the accumulators see its conditional
 inclusion odds and it gets a finite (possibly very large) Bayes factor. An
 unselected main-effect difference in \code{\link[=bgmCompare]{bgmCompare()}}
 (\code{main_difference_selection = FALSE}) is never proposed at all, so no
-Rao-Blackwellized quantity exists for it and \code{NA} is the honest entry
-rather than a lost number.
+Rao-Blackwellized quantity exists for it, so the returned value is \code{NA}.
 }
 \description{
 Computes inclusion Bayes factors from a model fitted with \code{\link[=bgm]{bgm()}} (edge

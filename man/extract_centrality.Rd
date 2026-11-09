@@ -36,7 +36,7 @@ The centrality is evaluated on the model-averaged pairwise draws, in which an
 edge excluded at a given iteration contributes exactly zero. Structural
 uncertainty therefore propagates into the centrality without any extra step:
 a node whose edges are themselves uncertain gets a wide centrality
-posterior, which is the honest summary. Conditioning on the included-only
+posterior. Conditioning on the included-only
 draws instead would report each node's centrality in the models where its
 edges happen to be present, which is a different and generally larger
 quantity.

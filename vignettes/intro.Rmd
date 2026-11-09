@@ -135,10 +135,8 @@ verdicts(fit)
 
 The default threshold is 10, so an edge is called **presence** when the data
 multiply its inclusion odds by more than 10, **absence** when they divide them
-by more than 10, and **inconclusive** in between. That third category is not a
-failure of the analysis. It is the honest answer when the data separate neither
-hypothesis from the other, and being able to report it is the point of treating
-the graph as unknown.
+by more than 10, and **inconclusive** in between. Inconclusive means the evidence
+does not reach the threshold for either presence or absence.
 
 The evidence is displayed as `log_bf`, the **natural** logarithm of the Bayes
 factor: zero is even odds, positive favours presence, negative favours absence,

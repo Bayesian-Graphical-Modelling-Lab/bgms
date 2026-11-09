@@ -52,8 +52,8 @@ fit = bgm(data,
 
 Each edge carries an inclusion Bayes factor, and reading it at a threshold
 gives one of three verdicts: evidence of presence, evidence of absence, or
-inconclusive. The third is not a failure of the analysis; it is the honest answer
-when the data do not separate the two hypotheses.
+inconclusive. Inconclusive means the Bayes factor does not reach the evidence
+threshold for either presence or absence.
 
 ```{r}
 edges = verdicts(fit)

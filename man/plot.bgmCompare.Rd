@@ -98,11 +98,8 @@ classification is the whole of what the panel reports. Read the magnitudes
 where they are per group: \code{plot(fit, type = "groups")} for the picture,
 \code{\link[=extract_group_params]{extract_group_params()}} for the numbers.
 
-The panels need the split to exist, and more than two groups \emph{without}
-\code{difference_selection} is the one case where it does not. Selection off
-means weights are the display -- as it does for a \code{\link[=bgm]{bgm()}} fit -- and beyond
-two groups the weights of a pair are \code{K - 1} numbers rather than one, whose
-honest weighted picture is the groups themselves. \code{plot()} therefore draws
+With more than two groups and \code{difference_selection = FALSE}, each pair has
+\code{K - 1} differences and no selection indicator. \code{plot()} therefore draws
 the \code{type = "groups"} panels in that case, with the same layout, the same
 \code{max_panels} paging and the same passthrough to \code{\link[qgraph:qgraph]{qgraph::qgraph()}}.
 \code{\link[=extract_group_params]{extract_group_params()}} remains the way to read the differences as numbers.

@@ -511,9 +511,8 @@ draw_weight_network = function(weight, pairs, variables, unit,
 #' The single-panel display (no edge selection) is content with the default
 #' device.
 #'
-#' A fit with no edge left in a panel is a result, not a failure. An all-absence
-#' fit fills the second panel and leaves the first empty, which is the honest
-#' picture of it.
+#' A panel with no edges still displays all nodes. If every edge has evidence
+#' of absence, all edges appear in the second panel.
 #'
 #' \strong{Without edge selection} there is no indicator and so no inclusion
 #' Bayes factor, and nothing to split the pairs by: the analysis is an
@@ -748,11 +747,8 @@ main_difference_nodes = function(verdict, pip, main_selected) {
 #' where they are per group: `plot(fit, type = "groups")` for the picture,
 #' [extract_group_params()] for the numbers.
 #'
-#' The panels need the split to exist, and more than two groups \emph{without}
-#' `difference_selection` is the one case where it does not. Selection off
-#' means weights are the display -- as it does for a [bgm()] fit -- and beyond
-#' two groups the weights of a pair are `K - 1` numbers rather than one, whose
-#' honest weighted picture is the groups themselves. `plot()` therefore draws
+#' With more than two groups and `difference_selection = FALSE`, each pair has
+#' `K - 1` differences and no selection indicator. `plot()` therefore draws
 #' the `type = "groups"` panels in that case, with the same layout, the same
 #' `max_panels` paging and the same passthrough to [qgraph::qgraph()].
 #' [extract_group_params()] remains the way to read the differences as numbers.

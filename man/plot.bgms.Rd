@@ -73,9 +73,8 @@ plot(fit)
 The single-panel display (no edge selection) is content with the default
 device.
 
-A fit with no edge left in a panel is a result, not a failure. An all-absence
-fit fills the second panel and leaves the first empty, which is the honest
-picture of it.
+A panel with no edges still displays all nodes. If every edge has evidence
+of absence, all edges appear in the second panel.
 
 \strong{Without edge selection} there is no indicator and so no inclusion
 Bayes factor, and nothing to split the pairs by: the analysis is an
