@@ -6,13 +6,13 @@
       Edge verdicts at an inclusion Bayes factor of 10 (and 0.1 for absence):
       presence: log BF > 2.30; absence: log BF < -2.30
       
-        presence 1 | undecided 2 | absence 0   (3 indicators)
+        presence 1 | inconclusive 2 | absence 0   (3 indicators)
         Main-effect differences are not under selection (main_difference_selection = FALSE).
       
-            parameter  pip log_bf   verdict fragile
-       A-B (pairwise) 0.95   2.94  presence   FALSE
-       A-C (pairwise) 0.10  -2.20 undecided    TRUE
-       B-C (pairwise) 0.52   0.08 undecided   FALSE
+            parameter  pip log_bf      verdict fragile
+       A-B (pairwise) 0.95   2.94     presence   FALSE
+       A-C (pairwise) 0.10  -2.20 inconclusive    TRUE
+       B-C (pairwise) 0.52   0.08 inconclusive   FALSE
       
       2 verdicts appear robust to Monte Carlo error. 1 verdict could change on a
       rerun: its estimated log Bayes factor lies within two standard errors of an
@@ -36,15 +36,15 @@
       Edge verdicts at an inclusion Bayes factor of 10 (and 0.1 for absence):
       presence: log BF > 2.30; absence: log BF < -2.30
       
-        presence 1 | undecided 4 | absence 1   (6 indicators)
+        presence 1 | inconclusive 4 | absence 1   (6 indicators)
       
-            parameter  pip log_bf   verdict fragile
-             A (main) 0.05  -2.94   absence   FALSE
-       A-B (pairwise) 0.95   2.94  presence   FALSE
-       A-C (pairwise) 0.10  -2.20 undecided    TRUE
-             B (main) 0.90   2.20 undecided   FALSE
-       B-C (pairwise) 0.52   0.08 undecided   FALSE
-             C (main) 0.50   0.00 undecided   FALSE
+            parameter  pip log_bf      verdict fragile
+             A (main) 0.05  -2.94      absence   FALSE
+       A-B (pairwise) 0.95   2.94     presence   FALSE
+       A-C (pairwise) 0.10  -2.20 inconclusive    TRUE
+             B (main) 0.90   2.20 inconclusive   FALSE
+       B-C (pairwise) 0.52   0.08 inconclusive   FALSE
+             C (main) 0.50   0.00 inconclusive   FALSE
       
       5 verdicts appear robust to Monte Carlo error. 1 verdict could change on a
       rerun: its estimated log Bayes factor lies within two standard errors of an

@@ -442,8 +442,7 @@ rb_bf_scale = function(log_bf, log) {
 #'   inclusion odds and it gets a finite (possibly very large) Bayes factor. An
 #'   unselected main-effect difference in [bgmCompare()]
 #'   (`main_difference_selection = FALSE`) is never proposed at all, so no
-#'   Rao-Blackwellized quantity exists for it and `NA` is the honest entry
-#'   rather than a lost number.
+#'   Rao-Blackwellized quantity exists for it, so the returned value is `NA`.
 #'
 #' @examples
 #' \donttest{

@@ -27,7 +27,7 @@ order of the fit's raw indicator draws, with columns:
 from \code{\link[=extract_inclusion_bf]{extract_inclusion_bf()}}, which returns the same natural-log
 scale under \code{log = TRUE}. \code{log_bf} stays finite where \code{bf} saturates
 at \code{0} or \code{Inf}.}
-\item{verdict}{Factor with levels \code{presence}, \code{undecided}, \code{absence},
+\item{verdict}{Factor with levels \code{presence}, \code{inconclusive}, \code{absence},
 and \code{NA} for indicators that were never updated (main-effect
 differences under \code{main_difference_selection = FALSE}).}
 \item{se_two_state, se_rb}{Standard errors of the logit inclusion
@@ -49,7 +49,7 @@ its counts because no indicator exists for them.
 }
 \description{
 Reads each edge (or difference) indicator's inclusion Bayes factor as a
-three-way verdict -- evidence of presence, undecided, evidence of absence --
+three-way verdict -- evidence of presence, inconclusive, evidence of absence --
 and flags the verdicts that a rerun of the sampler could change.
 }
 \details{

@@ -33,7 +33,7 @@ network_unit = function(kind = c("edge", "difference")) {
       panels = c(
         presence = "evidence of presence",
         absence = "evidence of absence",
-        undecided = "undecided"
+        inconclusive = "inconclusive"
       )
     ))
   }
@@ -43,7 +43,7 @@ network_unit = function(kind = c("edge", "difference")) {
     panels = c(
       presence = "difference supported",
       absence = "difference ruled out",
-      undecided = "undecided"
+      inconclusive = "inconclusive"
     )
   )
 }
@@ -69,7 +69,7 @@ threshold_rules = function(evidence_threshold) {
   c(
     presence = sprintf("BF > %s", high),
     absence = sprintf("BF < %s", low),
-    undecided = sprintf("%s < BF < %s", low, high)
+    inconclusive = sprintf("%s < BF < %s", low, high)
   )
 }
 
@@ -79,12 +79,9 @@ threshold_rules = function(evidence_threshold) {
 # ------------------------------------------------------------------
 # The square matrix qgraph is given for one evidence panel.
 #
-# A weighted edgelist would be the direct expression of "draw these edges", but
-# qgraph derives the node set from the edgelist and its nNodes argument does not
-# reliably override that, so a network that leaves a node out fails rather than
-# drawing the node alone. A square matrix states the node set in its dimensions,
-# and an empty panel is a matrix of zeros, which draws the nodes on their own --
-# which is what an all-decided fit's undecided panel should look like.
+# qgraph can omit isolated nodes when given an edgelist, even with nNodes set.
+# A square adjacency matrix preserves all nodes. If no edges belong to a panel,
+# the matrix contains only zeros and qgraph draws the nodes without edges.
 #
 # @param value          Value per selected pair (a weight, or 1 for a panel
 #                       drawn at uniform width).
@@ -305,10 +302,9 @@ draw_network_panel = function(m, variables, shared, title, rule = NULL,
 # to say. Because there is an inclusion Bayes factor for every pair, the choice
 # does not have to be made: the two kinds of blank get a panel each.
 #
-# Only the supported panel is weighted. There, line width is the posterior mean
-# association and colour its sign, because that is where the effect sizes live.
-# The other two are drawn at uniform width, dashed and dotted, because for those
-# pairs the classification is the result and a weight would suggest otherwise.
+# In the supported panel, line width represents the posterior mean association
+# and colour indicates its sign. The absence and inconclusive panels use uniform
+# line widths, with dashed and dotted lines respectively.
 #
 # The supported panel goes unweighted too when a pair has no single magnitude to
 # draw -- a bgmCompare fit on more than two groups, where one indicator per pair
@@ -348,7 +344,7 @@ draw_evidence_panels = function(weight, verdict, pairs, variables,
   on.exit(graphics::par(old_par), add = TRUE)
   graphics::par(mfrow = c(1L, 3L))
 
-  classes = c("presence", "absence", "undecided")
+  classes = c("presence", "absence", "inconclusive")
   for(class in classes) {
     keep = !is.na(verdict) & verdict == class
     carries_weight = weighted && class == "presence"
@@ -365,15 +361,15 @@ draw_evidence_panels = function(weight, verdict, pairs, variables,
         # Unweighted, the supported panel has no sign to colour by and takes
         # the plain ink; the classification is the whole of what it says.
         presence = if(carries_weight) matrix_edge_colors(m) else style$ink,
-        # A ruled-out pair is a finding and takes the darker ink; an undecided
+        # A ruled-out pair is a finding and takes the darker ink; an inconclusive
         # one is not, and recedes.
         absence = grDevices::adjustcolor(style$ink, 0.8),
-        undecided = style$muted
+        inconclusive = style$muted
       ),
       lty = switch(class,
         presence = 1L,
         absence = 2L,
-        undecided = 3L
+        inconclusive = 3L
       ),
       edge.width = if(carries_weight) NULL else 1.6,
       ...
@@ -469,7 +465,7 @@ draw_weight_network = function(weight, pairs, variables, unit,
 #'   edge evidence plot; `"centrality"` is the posterior strength centrality of
 #'   [extract_centrality()].
 #' @param evidence_threshold Numeric > 1; the inclusion Bayes factor separating
-#'   evidence of presence from undecided, as in [verdicts()]. Default `10`.
+#'   evidence of presence from inconclusive, as in [verdicts()]. Default `10`.
 #' @param layout Layout passed to [qgraph::qgraph()]. Default `"spring"`.
 #' @param ... Passed to [qgraph::qgraph()] for `type = "network"`, and to
 #'   [plot.bgms_centrality()] otherwise.
@@ -491,11 +487,9 @@ draw_weight_network = function(weight, pairs, variables, unit,
 #' Only the first panel is weighted. There, line width is the posterior mean
 #' pairwise association and colour carries its sign -- blue for a positive
 #' association, vermillion for a negative one, the Okabe-Ito pair, so the sign
-#' survives common forms of colour-vision deficiency -- because that is where
-#' the effect sizes are. The other two panels are drawn at uniform width, dashed
-#' for evidence of absence and dotted for undecided: for those pairs the
-#' classification is the result, and a width would suggest an effect size that
-#' the data have either ruled out or not established.
+#' survives common forms of colour-vision deficiency. The other two panels use
+#' uniform line widths: dashed for evidence of absence and dotted for
+#' inconclusive evidence.
 #'
 #' The figure carries no key. Each panel is titled with the evidence class it
 #' holds and the rule that defines it, which is what a key would otherwise
@@ -517,9 +511,8 @@ draw_weight_network = function(weight, pairs, variables, unit,
 #' The single-panel display (no edge selection) is content with the default
 #' device.
 #'
-#' A fit with no edge left in a panel is a result, not a failure. An all-absence
-#' fit fills the second panel and leaves the first empty, which is the honest
-#' picture of it.
+#' A panel with no edges still displays all nodes. If every edge has evidence
+#' of absence, all edges appear in the second panel.
 #'
 #' \strong{Without edge selection} there is no indicator and so no inclusion
 #' Bayes factor, and nothing to split the pairs by: the analysis is an
@@ -690,7 +683,7 @@ main_difference_nodes = function(verdict, pip, main_selected) {
 #'   one shared layout; `"centrality"` is the posterior strength centrality of
 #'   [extract_centrality()].
 #' @param evidence_threshold Numeric > 1; the inclusion Bayes factor separating
-#'   evidence of a difference from undecided, as in [verdicts()]. Default `10`.
+#'   evidence of a difference from inconclusive, as in [verdicts()]. Default `10`.
 #' @param group For `type = "centrality"`: a single group index, passed to
 #'   [extract_centrality()] for that group's centrality. A difference in
 #'   centrality (two indices) can be extracted and summarized but has no plot;
@@ -722,9 +715,8 @@ main_difference_nodes = function(verdict, pip, main_selected) {
 #' for a negative one, the Okabe-Ito pair, so the sign survives common forms of
 #' colour-vision deficiency. Which group a positive difference favours follows
 #' the contrast coding, which [extract_group_params()] reports per group. The
-#' other two are drawn at uniform width, dashed for a difference the data rule
-#' out and dotted for undecided, because for those pairs the classification is
-#' the result.
+#' other two panels use uniform line widths: dashed for evidence of no difference
+#' and dotted for inconclusive evidence.
 #'
 #' The figure carries no key: the panel titles name the evidence class and the
 #' rule that defines it, and the sign convention is documented here.
@@ -755,11 +747,8 @@ main_difference_nodes = function(verdict, pip, main_selected) {
 #' where they are per group: `plot(fit, type = "groups")` for the picture,
 #' [extract_group_params()] for the numbers.
 #'
-#' The panels need the split to exist, and more than two groups \emph{without}
-#' `difference_selection` is the one case where it does not. Selection off
-#' means weights are the display -- as it does for a [bgm()] fit -- and beyond
-#' two groups the weights of a pair are `K - 1` numbers rather than one, whose
-#' honest weighted picture is the groups themselves. `plot()` therefore draws
+#' With more than two groups and `difference_selection = FALSE`, each pair has
+#' `K - 1` differences and no selection indicator. `plot()` therefore draws
 #' the `type = "groups"` panels in that case, with the same layout, the same
 #' `max_panels` paging and the same passthrough to [qgraph::qgraph()].
 #' [extract_group_params()] remains the way to read the differences as numbers.
@@ -769,7 +758,7 @@ main_difference_nodes = function(verdict, pip, main_selected) {
 #' evidence is carried on the nodes: each node wears a ring filled to its
 #' difference indicator's posterior inclusion probability -- a full ring is
 #' probability 1, half a ring 0.5 -- coloured by the verdict (accented for
-#' presence, grey for undecided, faint for absence). The fill fraction carries
+#' presence, grey for inconclusive, faint for absence). The fill fraction carries
 #' the number, so the encoding does not rest on colour alone. Under the default
 #' `main_difference_selection = FALSE` those indicators do not exist and no ring
 #' is drawn. `verdicts()` remains the place to read main-effect differences

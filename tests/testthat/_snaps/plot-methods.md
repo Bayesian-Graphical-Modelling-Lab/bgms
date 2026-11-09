@@ -14,7 +14,7 @@
       dots      : none
       window    : 0.00 to 0.48
 
-# the panel of an undecided edge splits its wheel
+# the edge panel shows the inclusion probability without a verdict label
 
     Code
       describe_panel(panel)

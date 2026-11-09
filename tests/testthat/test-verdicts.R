@@ -80,7 +80,7 @@ test_that("the reported evidence is the natural log Bayes factor", {
   # -1.474 is below the log10 boundary but inside the natural-log one.
   expect_equal(
     as.character(v$verdict),
-    c("presence", "absence", "undecided", "undecided")
+    c("presence", "absence", "inconclusive", "inconclusive")
   )
 
   # The printed header names the boundaries in the unit the table reports.
@@ -122,7 +122,7 @@ test_that("verdicts() reports one row per edge with a three-way verdict", {
   expect_s3_class(v, "bgms_verdicts")
   expect_equal(nrow(v), 15L)
   expect_equal(v$parameter, rownames(fit$posterior_summary_indicator))
-  expect_equal(levels(v$verdict), c("presence", "undecided", "absence"))
+  expect_equal(levels(v$verdict), c("presence", "inconclusive", "absence"))
   expect_false(anyNA(v$verdict))
   expect_identical(attr(v, "evidence_threshold"), 10)
   expect_true(attr(v, "flag_validated"))
@@ -135,7 +135,7 @@ test_that("verdicts() reports one row per edge with a three-way verdict", {
   expect_equal(v$bf, reported, tolerance = 1e-8)
   expect_true(all(v$verdict[reported > 10] == "presence"))
   expect_true(all(v$verdict[reported < 0.1] == "absence"))
-  expect_true(all(v$verdict[reported >= 0.1 & reported <= 10] == "undecided"))
+  expect_true(all(v$verdict[reported >= 0.1 & reported <= 10] == "inconclusive"))
 
   # The inclusion probability is the Rao-Blackwellized one the fit reports.
   expect_equal(v$pip, fit$posterior_summary_indicator$mean, tolerance = 1e-10)
@@ -168,8 +168,8 @@ test_that("verdicts() moves the boundaries with evidence_threshold", {
   loose = verdicts(fit, evidence_threshold = 3)
   strict = verdicts(fit, evidence_threshold = 100)
 
-  # A stricter threshold can only move verdicts toward undecided.
-  expect_gte(sum(strict$verdict == "undecided"), sum(loose$verdict == "undecided"))
+  # A stricter threshold can only move verdicts toward inconclusive.
+  expect_gte(sum(strict$verdict == "inconclusive"), sum(loose$verdict == "inconclusive"))
   expect_identical(attr(strict, "evidence_threshold"), 100)
 
   # The standard errors are properties of the chain, not of the threshold.
@@ -234,7 +234,7 @@ test_that("print.bgms_verdicts tallies verdicts and warns once when fragile", {
   v = verdicts(fit)
 
   out = gsub("\\s+", " ", paste(utils::capture.output(print(v)), collapse = " "))
-  expect_match(out, "presence \\d+ \\| undecided \\d+ \\| absence \\d+")
+  expect_match(out, "presence \\d+ \\| inconclusive \\d+ \\| absence \\d+")
   expect_match(out, "15 indicators")
   # Edge indicators are what the flag was calibrated on, so no caveat here.
   expect_false(grepl("not validated", out))
@@ -282,7 +282,7 @@ test_that("the print's tally pluralizes and states the absence threshold cleanly
       parameter = "a-b",
       pip = 0.99,
       log_bf = 4.6,
-      verdict = factor("presence", levels = c("presence", "undecided", "absence")),
+      verdict = factor("presence", levels = c("presence", "inconclusive", "absence")),
       fragile = FALSE,
       stringsAsFactors = FALSE
     ),
@@ -377,7 +377,7 @@ make_compare_verdicts = function(main_selected) {
     log_bf = log_bf,
     verdict = factor(
       verdict_from_lbf(log_bf, log(10)),
-      levels = c("presence", "undecided", "absence")
+      levels = c("presence", "inconclusive", "absence")
     ),
     se_two_state = 0.1, se_rb = 0.1,
     distance_two_state = 5, distance_rb = 5,

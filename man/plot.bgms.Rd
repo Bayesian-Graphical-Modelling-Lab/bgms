@@ -20,7 +20,7 @@ edge evidence plot; \code{"centrality"} is the posterior strength centrality of
 \code{\link[=extract_centrality]{extract_centrality()}}.}
 
 \item{evidence_threshold}{Numeric > 1; the inclusion Bayes factor separating
-evidence of presence from undecided, as in \code{\link[=verdicts]{verdicts()}}. Default \code{10}.}
+evidence of presence from inconclusive, as in \code{\link[=verdicts]{verdicts()}}. Default \code{10}.}
 
 \item{layout}{Layout passed to \code{\link[qgraph:qgraph]{qgraph::qgraph()}}. Default \code{"spring"}.}
 
@@ -49,11 +49,9 @@ its logarithm. The classification is the one \code{\link[=verdicts]{verdicts()}}
 Only the first panel is weighted. There, line width is the posterior mean
 pairwise association and colour carries its sign -- blue for a positive
 association, vermillion for a negative one, the Okabe-Ito pair, so the sign
-survives common forms of colour-vision deficiency -- because that is where
-the effect sizes are. The other two panels are drawn at uniform width, dashed
-for evidence of absence and dotted for undecided: for those pairs the
-classification is the result, and a width would suggest an effect size that
-the data have either ruled out or not established.
+survives common forms of colour-vision deficiency. The other two panels use
+uniform line widths: dashed for evidence of absence and dotted for
+inconclusive evidence.
 
 The figure carries no key. Each panel is titled with the evidence class it
 holds and the rule that defines it, which is what a key would otherwise
@@ -75,9 +73,8 @@ plot(fit)
 The single-panel display (no edge selection) is content with the default
 device.
 
-A fit with no edge left in a panel is a result, not a failure. An all-absence
-fit fills the second panel and leaves the first empty, which is the honest
-picture of it.
+A panel with no edges still displays all nodes. If every edge has evidence
+of absence, all edges appear in the second panel.
 
 \strong{Without edge selection} there is no indicator and so no inclusion
 Bayes factor, and nothing to split the pairs by: the analysis is an

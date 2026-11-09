@@ -5,6 +5,11 @@ released from this line yet.
 
 ## Breaking changes
 
+* The middle evidence verdict is now `inconclusive` throughout plots, printed
+  summaries, and returned verdicts. Code comparing verdict values or factor
+  levels with `"undecided"` should use `"inconclusive"` instead. Evidence
+  thresholds and classifications are unchanged.
+
 * bgms requires R (>= 4.0). The package uses `tools::R_user_dir()` and builds
   with C++20, both of which arrived in R 4.0; the declared floor was 3.5.
 

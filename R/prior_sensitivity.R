@@ -18,10 +18,10 @@
 # @param bf         Numeric inclusion Bayes factor(s).
 # @param threshold  Upper evidence threshold; lower is 1 / threshold.
 #
-# Returns: character vector of "presence" / "absence" / "undecided".
+# Returns: character vector of "presence" / "absence" / "inconclusive".
 # ------------------------------------------------------------------
 verdict_from_bf = function(bf, threshold) {
-  out = rep("undecided", length(bf))
+  out = rep("inconclusive", length(bf))
   out[bf >= threshold] = "presence"
   out[bf <= 1 / threshold] = "absence"
   out[is.na(bf)] = NA_character_
@@ -741,11 +741,11 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
   vt = apply(x$verdict_by_scale, 1, function(v) {
     c(
       presence = sum(v == "presence", na.rm = TRUE),
-      undecided = sum(v == "undecided", na.rm = TRUE),
+      inconclusive = sum(v == "inconclusive", na.rm = TRUE),
       absence = sum(v == "absence", na.rm = TRUE)
     )
   })
-  vt = matrix(vt, nrow = 3L, dimnames = list(c("presence", "undecided", "absence"), mlab))
+  vt = matrix(vt, nrow = 3L, dimnames = list(c("presence", "inconclusive", "absence"), mlab))
   out = utils::capture.output(print(vt))
   cat(paste0("  ", out, collapse = "\n"), "\n", sep = "")
   cat("\n")

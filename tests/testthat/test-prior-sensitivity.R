@@ -61,14 +61,14 @@ fake_sensitivity = function(cls, multipliers, rhat_max = rep(1, length(multiplie
 test_that("the classification compares each verdict change with the two fits' Monte Carlo error", {
   lthr = log(10)
   multipliers = c(0.5, 1, 2)
-  # Five edges at the chosen scale: presence, undecided, undecided, absence,
+  # Five edges at the chosen scale: presence, inconclusive, inconclusive, absence,
   # presence.
   s0 = fake_stats(c(3.0, 1.0, 2.0, -3.0, 2.6), mcse = c(0.2, 0.1, 0.2, 0.2, 0.3))
   # 0.5x: edge 2 becomes presence with a change of 1.5 against an error of
   # 2 * sqrt(0.1^2 + 0.1^2) = 0.28 (beyond); edge 5 stays presence.
   s_lo = fake_stats(c(3.2, 2.5, 2.1, -2.9, 2.8), mcse = c(0.2, 0.1, 0.2, 0.2, 0.3))
   # 2x: edge 3 becomes presence by a change of 0.35 against an error of
-  # 2 * sqrt(0.2^2 + 0.2^2) = 0.57 (within); edge 5 becomes undecided by a
+  # 2 * sqrt(0.2^2 + 0.2^2) = 0.57 (within); edge 5 becomes inconclusive by a
   # change of 0.4 against 2 * sqrt(0.3^2 + 0.3^2) = 0.85 (within).
   s_hi = fake_stats(c(2.9, 1.1, 2.35, -3.1, 2.2), mcse = c(0.2, 0.1, 0.2, 0.2, 0.3))
 
@@ -187,7 +187,7 @@ test_that("print() reports the counts, the movers and high R-hat fits", {
   expect_match(out, "Their log Bayes factors lie within two standard errors of an evidence threshold")
   expect_false(grepl("not certifiable", out, fixed = TRUE))
   expect_match(out, "1 edge changed verdict beyond Monte Carlo error")
-  expect_match(out, "e2 presence undecided undecided 0.5x")
+  expect_match(out, "e2 presence inconclusive inconclusive 0.5x")
   expect_match(out, "Largest split R-hat above 1.01: 0.5x fit 1.03 and 2x fit 1.02")
   expect_match(out, "the slab is 5 times that")
   expect_match(out, "toward absence")
@@ -507,7 +507,7 @@ test_that("prior_sensitivity_check compares bgmCompare difference verdicts", {
   out = paste(utils::capture.output(print(ps)), collapse = "\n")
   expect_match(out, "are the difference verdicts robust to the difference scale")
   # main_difference_selection is FALSE by default, so those indicators were
-  # never updated; the report says so instead of counting them as undecided.
+  # never updated; the report says so instead of counting them as inconclusive.
   expect_match(out, "never updated by the sampler and carry no verdict")
   expect_false(grepl("Note: the slab scale", out, fixed = TRUE))
 })

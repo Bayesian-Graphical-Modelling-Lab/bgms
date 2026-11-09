@@ -75,7 +75,7 @@ ps
 
 The verdict counts by scale show how the verdicts shift as the slab widens. A
 wider slab penalizes the extra parameter an edge costs, so evidence for
-inclusion weakens and edges move from undecided toward absence; a narrower
+inclusion weakens and edges move from inconclusive toward absence; a narrower
 slab moves them the other way.
 
 The four counts below that table classify every edge against the verdict of

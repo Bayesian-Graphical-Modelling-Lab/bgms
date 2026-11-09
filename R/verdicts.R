@@ -2,7 +2,7 @@
 # Edge verdicts and the Monte Carlo fragility flag
 # ==============================================================================
 #
-# The three-way reading of an inclusion Bayes factor (presence / undecided /
+# The three-way reading of an inclusion Bayes factor (presence / inconclusive /
 # absence at a threshold t and its reciprocal) plus the flag that says whether
 # the reading would survive a rerun. Both standard errors behind the flag are
 # on the log inclusion Bayes factor scale, which equals the logit inclusion
@@ -223,7 +223,7 @@ build_verdicts = function(parameter, log_bf, pip, mcse, draws, evidence_threshol
     log_bf = log_bf,
     verdict = factor(
       verdict_from_lbf(log_bf, lthr),
-      levels = c("presence", "undecided", "absence")
+      levels = c("presence", "inconclusive", "absence")
     ),
     se_two_state = se_two_state,
     se_rb = se_rb,
@@ -246,7 +246,7 @@ build_verdicts = function(parameter, log_bf, pip, mcse, draws, evidence_threshol
 #'
 #' @description
 #' Reads each edge (or difference) indicator's inclusion Bayes factor as a
-#' three-way verdict -- evidence of presence, undecided, evidence of absence --
+#' three-way verdict -- evidence of presence, inconclusive, evidence of absence --
 #' and flags the verdicts that a rerun of the sampler could change.
 #'
 #' @param bgms_object A fitted model object of class `bgms` (from [bgm()] with
@@ -266,7 +266,7 @@ build_verdicts = function(parameter, log_bf, pip, mcse, draws, evidence_threshol
 #'       from [extract_inclusion_bf()], which returns the same natural-log
 #'       scale under `log = TRUE`. `log_bf` stays finite where `bf` saturates
 #'       at `0` or `Inf`.}
-#'     \item{verdict}{Factor with levels `presence`, `undecided`, `absence`,
+#'     \item{verdict}{Factor with levels `presence`, `inconclusive`, `absence`,
 #'       and `NA` for indicators that were never updated (main-effect
 #'       differences under `main_difference_selection = FALSE`).}
 #'     \item{se_two_state, se_rb}{Standard errors of the logit inclusion
@@ -492,8 +492,8 @@ print.bgms_verdicts = function(x, digits = 3, max_rows = 10L, ...) {
 
   tally = table(rows$verdict)
   cat(sprintf(
-    "  presence %d | undecided %d | absence %d   (%d %s)\n",
-    tally[["presence"]], tally[["undecided"]], tally[["absence"]], nrow(rows),
+    "  presence %d | inconclusive %d | absence %d   (%d %s)\n",
+    tally[["presence"]], tally[["inconclusive"]], tally[["absence"]], nrow(rows),
     if(nrow(rows) == 1L) "indicator" else "indicators"
   ))
   if(!is.null(hidden) && any(hidden)) {

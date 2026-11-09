@@ -64,7 +64,7 @@ test_that("a network with nothing left to support is still a figure", {
 
 test_that("main_difference_nodes fills each node's ring to its inclusion probability", {
   style = bgms_style()
-  verdict = c("presence", "undecided", "absence")
+  verdict = c("presence", "inconclusive", "absence")
   pip = c(0.97, 0.5, 0.02)
   nodes = main_difference_nodes(verdict, pip, main_selected = TRUE)
 
@@ -159,8 +159,7 @@ test_that("a panel matrix states its node set and reads its colours in order", {
   palette = mover_palette()
   expect_equal(matrix_edge_colors(m), c(palette[1], palette[2], palette[1]))
 
-  # An empty panel is a matrix of zeros, and qgraph draws the nodes alone --
-  # which is what an all-decided fit's undecided panel has to look like.
+  # With no selected edges, the matrix retains all nodes and contains only zeros.
   empty = panel_edge_matrix(weight, rep(FALSE, 10L), pairs, V)
   expect_true(all(empty == 0))
   expect_length(matrix_edge_colors(empty), 0L)
@@ -181,7 +180,7 @@ test_that("the threshold rules read in Bayes factors, not their logarithms", {
   rules = threshold_rules(10)
   expect_equal(unname(rules[["presence"]]), "BF > 10")
   expect_equal(unname(rules[["absence"]]), "BF < 0.1")
-  expect_equal(unname(rules[["undecided"]]), "0.1 < BF < 10")
+  expect_equal(unname(rules[["inconclusive"]]), "0.1 < BF < 10")
 
   # A threshold a user chose is printed as they chose it.
   expect_equal(unname(threshold_rules(100)[["presence"]]), "BF > 100")
@@ -195,7 +194,7 @@ test_that("both network methods split their pairs with the same wording rule", {
   # The two displays are one routine; only the nouns differ, and both name the
   # same three classes in the same order.
   expect_equal(names(edge$panels), names(difference$panels))
-  expect_equal(names(edge$panels), c("presence", "absence", "undecided"))
+  expect_equal(names(edge$panels), c("presence", "absence", "inconclusive"))
   expect_equal(unname(edge$panels[["presence"]]), "evidence of presence")
   expect_equal(unname(difference$panels[["presence"]]), "difference supported")
   expect_equal(edge$weights_label, "Edge weights")
@@ -410,16 +409,15 @@ test_that("the panel of a decisive edge carries the wheel, not a stem", {
   expect_snapshot(describe_panel(panel))
 })
 
-test_that("the panel of an undecided edge splits its wheel", {
+test_that("the edge panel shows the inclusion probability without a verdict label", {
   set.seed(102)
   draws = c(rnorm(1200, 0.09, 0.03), rep(0, 800))
   panel = edge_panel_selection(
     "intrusion-upset", draws, test_slab_prior(),
     pip = 0.6, log_bf = 0.41
   )
-  # No verdict word is printed, here least of all: the split wheel and the log
-  # Bayes factor near zero are the statement, and "undecided" would have added
-  # a threshold the reader did not choose.
+  # Show the inclusion probability and log Bayes factor without applying an
+  # evidence threshold.
   expect_null(panel$subtitle)
   expect_snapshot(describe_panel(panel))
 })
