@@ -159,8 +159,7 @@ test_that("a panel matrix states its node set and reads its colours in order", {
   palette = mover_palette()
   expect_equal(matrix_edge_colors(m), c(palette[1], palette[2], palette[1]))
 
-  # An empty panel is a matrix of zeros, and qgraph draws the nodes alone --
-  # which is what an all-decided fit's inconclusive panel has to look like.
+  # With no selected edges, the matrix retains all nodes and contains only zeros.
   empty = panel_edge_matrix(weight, rep(FALSE, 10L), pairs, V)
   expect_true(all(empty == 0))
   expect_length(matrix_edge_colors(empty), 0L)

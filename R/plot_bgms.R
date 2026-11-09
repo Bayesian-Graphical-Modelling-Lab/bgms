@@ -79,12 +79,9 @@ threshold_rules = function(evidence_threshold) {
 # ------------------------------------------------------------------
 # The square matrix qgraph is given for one evidence panel.
 #
-# A weighted edgelist would be the direct expression of "draw these edges", but
-# qgraph derives the node set from the edgelist and its nNodes argument does not
-# reliably override that, so a network that leaves a node out fails rather than
-# drawing the node alone. A square matrix states the node set in its dimensions,
-# and an empty panel is a matrix of zeros, which draws the nodes on their own --
-# which is what an all-decided fit's inconclusive panel should look like.
+# qgraph can omit isolated nodes when given an edgelist, even with nNodes set.
+# A square adjacency matrix preserves all nodes. If no edges belong to a panel,
+# the matrix contains only zeros and qgraph draws the nodes without edges.
 #
 # @param value          Value per selected pair (a weight, or 1 for a panel
 #                       drawn at uniform width).
