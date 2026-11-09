@@ -152,6 +152,10 @@ compare_prior_only_main_diff = function(arguments, num_rows) {
 #' @export
 print.bgmCompare = function(x, ...) {
   arguments = extract_arguments(x)
+  if(isTRUE(arguments$difference_selection) &&
+    identical(arguments$difference_prior, "Stochastic-Block")) {
+    sbm_provenance_message(arguments)
+  }
 
   # Model type
   if(isTRUE(arguments$difference_selection)) {
@@ -240,6 +244,10 @@ print.bgmCompare = function(x, ...) {
 summary.bgmCompare = function(object, ...) {
   ensure_summaries(object)
   arguments = extract_arguments(object)
+  if(isTRUE(arguments$difference_selection) &&
+    identical(arguments$difference_prior, "Stochastic-Block")) {
+    sbm_provenance_message(arguments)
+  }
 
   if(!is.null(object$posterior_summary_main_baseline) &&
     !is.null(object$posterior_summary_pairwise_baseline)) {

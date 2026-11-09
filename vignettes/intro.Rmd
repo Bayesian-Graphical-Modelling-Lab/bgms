@@ -201,7 +201,9 @@ The parameter priors are `normal_prior()`, `cauchy_prior()`, and
 and `gamma_prior()`; the edge priors are `bernoulli_prior()`,
 `beta_bernoulli_prior()`, and `sbm_prior()`. The last of these is a
 stochastic-block prior, under which the edges are free to cluster
-[@GengEtAl_2019].
+[@GengEtAl_2019]. `extract_sbm_counts()` summarizes its two cluster counts:
+the number of clusters the variables occupy, and the number of mixture
+components the prior makes available.
 
 The defaults `bgm()` runs at are:
 

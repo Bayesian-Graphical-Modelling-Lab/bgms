@@ -19,9 +19,18 @@ arma::vec compute_Vn_mfm_sbm(arma::uword num_variables,
   arma::vec log_Vn(t_max);
   double r;
 
+  // Sum over B = k + 1 components for T = t + 1 occupied clusters, so B >= T.
+  // Past B = T the terms decay at least as fast as a Poisson(lambda) in B - T,
+  // up to a polynomial factor, so twenty standard deviations past lambda the
+  // omitted mass is below double precision. The cut-off at k = 500 only moves
+  // when lambda or T is large enough to need it.
+  const arma::uword k_tail = static_cast<arma::uword>(
+    std::ceil(lambda + 20.0 * std::sqrt(lambda) + 20.0));
+
   for(arma::uword t = 0; t < t_max; t++) {
     r = -INFINITY; // initialize log-coefficient at -Inf
-    for(arma::uword k = t; k <= 500; k++){
+    const arma::uword k_max = std::max<arma::uword>(500, t + k_tail);
+    for(arma::uword k = t; k <= k_max; k++){
       arma::vec b_linspace_1 = arma::linspace(k-t+1,k+1,t+1); // numerator = b*(b-1)*...*(b-|C|+1)
       arma::vec b_linspace_2 = arma::linspace((k+1)*dirichlet_alpha,(k+1)*dirichlet_alpha+num_variables-1, num_variables); // denominator b*e*(b*e+1)*...*(b*e+p-1)
       double b = arma::accu(ARMA_MY_LOG(b_linspace_1))-arma::accu(ARMA_MY_LOG(b_linspace_2)) + R::dpois((k+1)-1, lambda, true); // sum(log(numerator)) - sum(log(denominator)) + log(P=(k+1|lambda))

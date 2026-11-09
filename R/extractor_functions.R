@@ -617,8 +617,14 @@ difference_prior_inclusion = function(bgms_object) {
 #'   `bgmCompare`, requires `difference_selection = TRUE` and
 #'   `difference_prior = sbm_prior(...)`.
 #'
-#' @seealso [bgm()], [bgmCompare()], [extract_indicators()],
-#'   [extract_posterior_inclusion_probabilities()]
+#'   `posterior_num_blocks` concerns the number of mixture components
+#'   \eqn{B}, restricted to \eqn{B \le p} and renormalized for each number of
+#'   occupied clusters; it is kept unchanged for compatibility. For the full
+#'   posterior of \eqn{B}, and for the number of clusters the variables
+#'   actually occupy, use [extract_sbm_counts()].
+#'
+#' @seealso [bgm()], [bgmCompare()], [extract_sbm_counts()],
+#'   [extract_indicators()], [extract_posterior_inclusion_probabilities()]
 #' @family extractors
 #' @export
 extract_sbm = function(bgms_object) {
@@ -640,6 +646,7 @@ extract_sbm.bgms = function(bgms_object) {
       as.character(arguments$edge_prior), "')."
     ))
   }
+  sbm_provenance_message(arguments, legacy_summary = TRUE)
 
   return(list(
     posterior_num_blocks               = bgms_object$posterior_num_blocks,
@@ -664,6 +671,7 @@ extract_sbm.bgmCompare = function(bgms_object) {
       as.character(arguments$difference_prior), "')."
     ))
   }
+  sbm_provenance_message(arguments, legacy_summary = TRUE)
 
   return(list(
     posterior_num_blocks               = bgms_object$posterior_num_blocks,

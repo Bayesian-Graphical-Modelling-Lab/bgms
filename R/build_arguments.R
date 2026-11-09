@@ -15,7 +15,7 @@ build_arguments = function(spec) {
   stopifnot(inherits(spec, "bgm_spec"))
   mt = spec$model_type
 
-  if(mt == "ggm") {
+  arguments = if(mt == "ggm") {
     build_arguments_ggm(spec)
   } else if(mt == "omrf") {
     build_arguments_omrf(spec)
@@ -24,6 +24,33 @@ build_arguments = function(spec) {
   } else {
     build_arguments_compare(spec)
   }
+  c(arguments, build_arguments_sbm_provenance(spec))
+}
+
+
+# ==============================================================================
+# build_arguments_sbm_provenance()  --- what a fit's SBM draws rest on
+# ==============================================================================
+#
+# Recorded in every fit, NA without a Stochastic-Block prior on the
+# indicators: the prior family on the number of components; whether the
+# plain SBM update draws a new cluster's block probabilities from their
+# conditional posterior (TRUE from bgms 0.2.1.0; NA under the joint
+# precision-graph prior, which uses a separate update); and the convention of
+# the stored posterior_num_blocks (shifted Poisson, B <= p, renormalized).
+# ==============================================================================
+build_arguments_sbm_provenance = function(spec) {
+  sbm = if(spec$model_type == "compare") {
+    identical(spec$prior$difference_prior, "Stochastic-Block")
+  } else {
+    identical(spec$prior$edge_prior, "Stochastic-Block")
+  }
+  joint = identical(spec$prior$precision_graph_prior, "joint")
+  list(
+    sbm_prior_family = if(sbm) "shifted Poisson" else NA_character_,
+    sbm_sampler_fix = if(sbm && !joint) TRUE else NA,
+    sbm_summary_convention = if(sbm) "shifted" else NA_character_
+  )
 }
 
 
@@ -47,6 +74,7 @@ build_arguments_ggm = function(spec) {
     lambda = spec$prior$lambda,
     na_action = spec$missing$na_action,
     version = packageVersion("bgms"),
+    build_commit = bgms_build_commit(),
     update_method = spec$sampler$update_method,
     target_accept = spec$sampler$target_accept,
     num_chains = spec$sampler$chains,
@@ -85,6 +113,7 @@ build_arguments_omrf = function(spec) {
     lambda                       = spec$prior$lambda,
     na_action                    = spec$missing$na_action,
     version                      = packageVersion("bgms"),
+    build_commit                 = bgms_build_commit(),
     update_method                = spec$sampler$update_method,
     target_accept                = spec$sampler$target_accept,
     nuts_max_depth               = spec$sampler$nuts_max_depth,
@@ -126,6 +155,7 @@ build_arguments_mixed_mrf = function(spec) {
     na_action = spec$missing$na_action,
     na_impute = spec$missing$na_impute,
     version = packageVersion("bgms"),
+    build_commit = bgms_build_commit(),
     update_method = spec$sampler$update_method,
     target_accept = spec$sampler$target_accept,
     nuts_max_depth = spec$sampler$nuts_max_depth,
@@ -166,6 +196,7 @@ build_arguments_compare = function(spec) {
     difference_lambda                  = spec$prior$lambda,
     inclusion_probability              = spec$prior$inclusion_probability_difference,
     version                            = packageVersion("bgms"),
+    build_commit                       = bgms_build_commit(),
     update_method                      = spec$sampler$update_method,
     target_accept                      = spec$sampler$target_accept,
     nuts_max_depth                     = spec$sampler$nuts_max_depth,
@@ -187,4 +218,33 @@ build_arguments_compare = function(spec) {
     group_labels                       = spec$data$group_labels,
     model_type                         = "compare"
   )
+}
+
+
+# ==============================================================================
+# bgms_build_commit()  --- git commit the installed bgms was built from
+# ==============================================================================
+#
+# inst/BUILD_COMMIT holds "$Format:%H$", which git archive (and GitHub
+# tarballs) replace with the commit hash through the export-subst attribute
+# in .gitattributes. Installs through remotes/pak record RemoteSha instead.
+# Returns NA when neither identifies the build (e.g. R CMD build run directly
+# on a working tree, or devtools::load_all()).
+# ==============================================================================
+bgms_build_commit = function() {
+  is_sha = function(x) {
+    is.character(x) && length(x) == 1L && grepl("^[0-9a-f]{40}$", x)
+  }
+  path = system.file("BUILD_COMMIT", package = "bgms")
+  if(nzchar(path)) {
+    sha = trimws(readLines(path, n = 1L, warn = FALSE))
+    if(is_sha(sha)) {
+      return(sha)
+    }
+  }
+  remote = utils::packageDescription("bgms")$RemoteSha
+  if(is_sha(remote)) {
+    return(remote)
+  }
+  NA_character_
 }

@@ -1,0 +1,3 @@
+# Stamp the commit hash into inst/BUILD_COMMIT on git archive (see
+# bgms_build_commit() in R/build_arguments.R).
+inst/BUILD_COMMIT export-subst

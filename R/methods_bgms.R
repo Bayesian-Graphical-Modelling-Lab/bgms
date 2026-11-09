@@ -24,6 +24,10 @@
 #' @export
 print.bgms = function(x, ...) {
   arguments = extract_arguments(x)
+  if(isTRUE(arguments$edge_selection) &&
+    identical(arguments$edge_prior, "Stochastic-Block")) {
+    sbm_provenance_message(arguments)
+  }
 
   # Estimation method
   if(isTRUE(arguments$edge_selection)) {
@@ -128,6 +132,10 @@ summary.bgms = function(object, ...) {
       out$mean_allocations = get_posterior_mean(object, "allocations")
       out$mode_allocations = object$posterior_mode_allocations
       out$num_blocks = object$posterior_num_blocks
+      out$sbm_counts = tryCatch(extract_sbm_counts(object),
+        error = function(e) conditionMessage(e)
+      )
+      attr(out, "variable_names") = arguments$data_columnnames
     }
 
     class(out) = "summary.bgms"
@@ -203,14 +211,21 @@ print.summary.bgms = function(x, digits = 3, ...) {
   }
 
   if(!is.null(x$mean_allocations)) {
-    cat("Mean posterior node allocation vector:\n")
-    print(round(head(x$mean_allocations, .summary_preview_rows), digits = digits))
-    cat("Mode posterior node allocation vector:\n")
-    print(round(head(x$mode_allocations, .summary_preview_rows), digits = digits))
+    cat("Estimated node allocations (posterior mean and mode partition):\n")
+    print(data.frame(
+      mean = x$mean_allocations, mode = x$mode_allocations,
+      row.names = attr(x, "variable_names")
+    ))
     cat("\n")
   }
 
-  if(!is.null(x$num_blocks)) {
+  if(inherits(x$sbm_counts, "bgms_sbm_counts")) {
+    print(x$sbm_counts, digits = digits)
+    cat("\n")
+  } else if(!is.null(x$num_blocks)) {
+    if(is.character(x$sbm_counts)) {
+      cat("Cluster counts unavailable:", x$sbm_counts, "\n")
+    }
     cat("Number of blocks and their posterior probability :\n")
     print(round(head(x$num_blocks, .summary_preview_rows), digits = digits))
     if(nrow(x$num_blocks) > .summary_preview_rows) cat("... (use `summary(fit)$num_blocks` to see full output)\n")

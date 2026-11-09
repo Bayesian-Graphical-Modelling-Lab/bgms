@@ -20,6 +20,7 @@
 # Hidden config files (development only)
 ^\.lintr$
 ^\.editorconfig$
+^\.gitattributes$
 ^\.claude$
 # A git worktree's .git is a file, not a directory, so R CMD build does not
 # drop it on its own.

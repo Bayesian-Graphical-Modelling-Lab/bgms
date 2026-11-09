@@ -442,8 +442,12 @@
 #'       proposed in \insertCite{Dahl2009;textual}{bgms}.
 #'       \item \code{posterior_mode_allocations}: A vector with the posterior
 #'        mode of the cluster allocations of the nodes.
-#'       \item \code{posterior_num_blocks}: A data frame with the estimated
-#'       posterior inclusion probabilities for all the possible number of clusters.
+#'       \item \code{posterior_num_blocks}: A data frame with the posterior
+#'       probabilities of the number of mixture components \eqn{B} for
+#'       \eqn{B \le p}, renormalized for each number of occupied clusters; kept
+#'       unchanged for compatibility. Use \code{\link{extract_sbm_counts}()}
+#'       for the full posterior of \eqn{B} and for the number of occupied
+#'       clusters \eqn{T}.
 #'       }
 #'   \item \code{raw_samples}: A list of raw MCMC draws per chain:
 #'     \describe{

@@ -1,3 +1,95 @@
+# bgms 0.2.1.0
+
+This release fixes the stochastic block model (SBM) sampler and adds
+inference for both cluster counts of `sbm_prior()`. **SBM analyses run with
+earlier versions should be refit.** Other models are unaffected.
+
+## Bug fixes
+
+* **SBM sampler.** When a variable that shared a cluster with other variables
+  opened a new cluster, the new cluster's between-cluster inclusion
+  probabilities were drawn from their Beta prior instead of from their
+  conditional posterior given that variable's edges. The variables visited
+  later in the same sweep then scored the new cluster with probabilities
+  unrelated to the data, so the sampler did not target the model's posterior
+  over partitions. The probabilities are now drawn from
+  Beta(`alpha_between` + edges, `beta_between` + non-edges) to each existing
+  cluster (Neal 2000, Algorithm 2).
+
+  The defect is present in every earlier release with `sbm_prior()` (checked
+  in 0.1.6.0, 0.1.6.3 and 0.2.0.0). It affects ordinal and binary `bgm()`
+  fits, continuous and mixed fits under the default hierarchical
+  precision-graph prior, and `bgmCompare()` fits with
+  `difference_prior = sbm_prior()`. Cluster allocations, co-clustering
+  proportions, number-of-cluster probabilities and clustering Bayes factors
+  can be biased, and edge inclusion results to a lesser degree. Against exact
+  enumeration over all partitions, the old update moved the probability of a
+  single cluster from 0.30 to 0.35 on two triangles joined by an edge under
+  the default prior, and was off by up to 0.08 in the probability of a given
+  number of clusters elsewhere. Strongly informative block priors such as
+  `sbm_prior(8, 1, 1, 8)` reduce the bias only when the network agrees with
+  them. Resummarizing an old fit cannot repair its draws. `summary()`,
+  `print()`, `extract_sbm()` and `extract_sbm_counts()` say so, once per
+  session, when given a fit from an affected version.
+
+* The partition coefficients of the SBM prior summed the shifted Poisson
+  prior on the number of components only up to 501 components. That cut it
+  short for `lambda` above about 200, and for partitions into hundreds of
+  clusters, where the coefficients were off or, past 501 clusters, zero. The
+  sum now extends with both `lambda` and the number of clusters; where the old
+  cut-off sufficed, results are unchanged.
+
+## New features
+
+* `extract_sbm_counts()` (and `sbm_counts()` for saved allocations or a stored
+  summary) returns the prior and posterior distributions of both cluster
+  counts of `sbm_prior()`: the number of occupied clusters T, the clusters the
+  variables actually fall into, and the number of mixture components B, the
+  components the prior makes available (T <= B). The data inform T directly
+  and B only through T. The posterior of T comes from the saved allocations,
+  with per-chain counts and Monte Carlo standard errors; the posterior of B is
+  computed over its full support and returns the mass beyond its last row.
+  `print()` shows the prior and posterior of both side by side, with the
+  Bayes factors for more than one cluster against one.
+
+* `sbm_count_bf()` gives point and complement Bayes factors for either count,
+  with prior odds that match the shifted Poisson prior the sampler uses
+  (`exp(lambda) - 1` for B > 1 against B = 1). The component Bayes factor for
+  B > 1 against B = 1 is bounded below by P(T = 1 | B > 1), so evidence for a
+  single component is capped; the occupied-cluster Bayes factor has no such
+  cap. When the chains never visit a hypothesis, the Bayes factor is returned
+  as `NA` with a bound and an explanation, not as infinite evidence; per-chain
+  Bayes factors show the Monte Carlo error.
+
+* Older fits can be resummarized. `extract_sbm_counts()` uses a fit's saved
+  allocations, or inverts its stored `posterior_num_blocks` under the summary
+  convention of its recorded version: bgms 0.1.6.x (zero-truncated Poisson in
+  the summary, shifted Poisson in the sampler) or 0.2.0.0. Fits from earlier
+  versions, which sampled under a different prior on the number of
+  components, are refused. Resummarizing repairs the summary, not the draws.
+
+* Every fit records the git commit it was built from
+  (`arguments$build_commit`, when the build identifies it) and its SBM
+  provenance: the prior family on the number of components, whether the
+  corrected update was used, and the convention of `posterior_num_blocks`.
+
+## Changes in output
+
+* `summary()` of a `bgm()` fit with `sbm_prior()` prints the table of both
+  cluster counts in place of "Number of blocks and their posterior
+  probability"; `summary(fit)$sbm_counts` holds it. The posterior mean and
+  mode node allocations are now printed in full, one row per variable.
+  `fit$posterior_num_blocks`, `extract_sbm()$posterior_num_blocks` and
+  `summary(fit)$num_blocks` are unchanged: they remain the posterior of B
+  restricted to B <= p and renormalized for each T, a summary that is not the
+  full posterior of B.
+
+* `sbm_prior()` documents both counts and that its prior on the number of
+  components is the shifted Poisson B - 1 ~ Poisson(`lambda`), so
+  E[B] = 1 + `lambda`, while the expected number of occupied clusters also
+  depends on the number of variables and `dirichlet_alpha`. The fitting prior
+  is unchanged.
+
 # bgms 0.2.0.0
 
 This release rebuilds most of the package on top of 0.1.6.3. `bgm()` now fits

@@ -105,7 +105,9 @@ Other extractors:
 \code{\link[=extract_precision]{extract_precision()}},
 \code{\link[=extract_rhat]{extract_rhat()}},
 \code{\link[=extract_sbm]{extract_sbm()}},
+\code{\link[=extract_sbm_counts]{extract_sbm_counts()}},
 \code{\link[=plot.bgms_centrality]{plot.bgms_centrality()}},
+\code{\link[=sbm_count_bf]{sbm_count_bf()}},
 \code{\link[=summary.bgms_centrality]{summary.bgms_centrality()}}
 }
 \concept{extractors}

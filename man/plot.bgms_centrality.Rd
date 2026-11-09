@@ -49,6 +49,8 @@ Other extractors:
 \code{\link[=extract_prior_inclusion_probabilities]{extract_prior_inclusion_probabilities()}},
 \code{\link[=extract_rhat]{extract_rhat()}},
 \code{\link[=extract_sbm]{extract_sbm()}},
+\code{\link[=extract_sbm_counts]{extract_sbm_counts()}},
+\code{\link[=sbm_count_bf]{sbm_count_bf()}},
 \code{\link[=summary.bgms_centrality]{summary.bgms_centrality()}}
 }
 \concept{extractors}

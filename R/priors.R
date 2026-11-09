@@ -403,6 +403,12 @@ beta_bernoulli_prior = function(alpha = 1, beta = 1) {
 #' Variables are assigned to latent clusters, with separate Beta priors
 #' on within-cluster and between-cluster inclusion probabilities.
 #'
+#' The prior has two cluster counts. \eqn{B} is the number of mixture
+#' components the prior makes available; \eqn{T} is the number of clusters
+#' the variables actually occupy, so \eqn{T \le B}. The data inform \eqn{T}
+#' directly and \eqn{B} only through \eqn{T}; [extract_sbm_counts()] reports
+#' both.
+#'
 #' @param alpha Positive numeric. First shape parameter of the Beta
 #'   distribution for within-cluster edges. Default: \code{1}.
 #' @param beta Positive numeric. Second shape parameter of the Beta
@@ -414,11 +420,13 @@ beta_bernoulli_prior = function(alpha = 1, beta = 1) {
 #' @param dirichlet_alpha Positive numeric. Concentration parameter of the
 #'   Dirichlet prior on cluster assignments. Default: \code{1}.
 #' @param lambda Positive numeric. Rate parameter of the shifted Poisson
-#'   prior on the number of clusters \eqn{B}:
+#'   prior on the number of components \eqn{B}:
 #'   \eqn{B - 1 \sim \textrm{Poisson}(\lambda)}{B - 1 ~ Poisson(lambda)},
 #'   so \eqn{P(B = b) = \lambda^{b-1} e^{-\lambda} / (b-1)!}{P(B = b) =
 #'   lambda^(b-1) exp(-lambda) / (b-1)!} for \eqn{b = 1, 2, \ldots}{b =
-#'   1, 2, ...} and \eqn{E[B] = 1 + \lambda}{E[B] = 1 + lambda}.
+#'   1, 2, ...} and \eqn{E[B] = 1 + \lambda}{E[B] = 1 + lambda}. The
+#'   expected number of occupied clusters \eqn{E[T]} also depends on the
+#'   number of variables and on \code{dirichlet_alpha}.
 #'   Default: \code{1}.
 #'
 #' @return An object of class \code{"bgms_indicator_prior"} with

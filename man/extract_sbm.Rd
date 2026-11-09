@@ -17,6 +17,12 @@ A list with elements \code{posterior_num_blocks},
 \code{edge_selection = TRUE} and \code{edge_prior = sbm_prior(...)}. For
 \code{bgmCompare}, requires \code{difference_selection = TRUE} and
 \code{difference_prior = sbm_prior(...)}.
+
+\code{posterior_num_blocks} concerns the number of mixture components
+\eqn{B}, restricted to \eqn{B \le p} and renormalized for each number of
+occupied clusters; it is kept unchanged for compatibility. For the full
+posterior of \eqn{B}, and for the number of clusters the variables
+actually occupy, use \code{\link[=extract_sbm_counts]{extract_sbm_counts()}}.
 }
 \description{
 Retrieves posterior summaries from a model fitted with the Stochastic
@@ -25,8 +31,8 @@ and \code{bgmCompare} fits (where SBM governs the off-diagonal pairwise
 difference inclusions).
 }
 \seealso{
-\code{\link[=bgm]{bgm()}}, \code{\link[=bgmCompare]{bgmCompare()}}, \code{\link[=extract_indicators]{extract_indicators()}},
-\code{\link[=extract_posterior_inclusion_probabilities]{extract_posterior_inclusion_probabilities()}}
+\code{\link[=bgm]{bgm()}}, \code{\link[=bgmCompare]{bgmCompare()}}, \code{\link[=extract_sbm_counts]{extract_sbm_counts()}},
+\code{\link[=extract_indicators]{extract_indicators()}}, \code{\link[=extract_posterior_inclusion_probabilities]{extract_posterior_inclusion_probabilities()}}
 
 Other extractors:
 \code{\link[=extract_arguments]{extract_arguments()}},
@@ -45,7 +51,9 @@ Other extractors:
 \code{\link[=extract_precision]{extract_precision()}},
 \code{\link[=extract_prior_inclusion_probabilities]{extract_prior_inclusion_probabilities()}},
 \code{\link[=extract_rhat]{extract_rhat()}},
+\code{\link[=extract_sbm_counts]{extract_sbm_counts()}},
 \code{\link[=plot.bgms_centrality]{plot.bgms_centrality()}},
+\code{\link[=sbm_count_bf]{sbm_count_bf()}},
 \code{\link[=summary.bgms_centrality]{summary.bgms_centrality()}}
 }
 \concept{extractors}
