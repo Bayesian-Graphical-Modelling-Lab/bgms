@@ -137,6 +137,10 @@ sample_omrf <- function(inputFromR, prior_inclusion_prob, initial_edge_indicator
     .Call(`_bgms_sample_omrf`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback, edge_prior, na_impute, missing_index_nullable, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, target_acceptance, max_tree_depth, learn_mass_matrix, initial_parameters, initial_step_sizes, initial_inv_mass)
 }
 
+test_sbm_allocation_chain <- function(edge_indicators, n_iter, alpha, beta, alpha_between, beta_between, dirichlet_alpha, lambda, seed, resample_graph = FALSE) {
+    .Call(`_bgms_test_sbm_allocation_chain`, edge_indicators, n_iter, alpha, beta, alpha_between, beta_between, dirichlet_alpha, lambda, seed, resample_graph)
+}
+
 test_sbm_compute_ce <- function(cluster_assign, block_probs, fprime_density, fprime, quad_theta, quad_f, is_continuous = NULL) {
     .Call(`_bgms_test_sbm_compute_ce`, cluster_assign, block_probs, fprime_density, fprime, quad_theta, quad_f, is_continuous)
 }

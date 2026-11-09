@@ -687,6 +687,26 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// test_sbm_allocation_chain
+Rcpp::List test_sbm_allocation_chain(const arma::imat& edge_indicators, int n_iter, double alpha, double beta, double alpha_between, double beta_between, double dirichlet_alpha, double lambda, int seed, bool resample_graph);
+RcppExport SEXP _bgms_test_sbm_allocation_chain(SEXP edge_indicatorsSEXP, SEXP n_iterSEXP, SEXP alphaSEXP, SEXP betaSEXP, SEXP alpha_betweenSEXP, SEXP beta_betweenSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP, SEXP seedSEXP, SEXP resample_graphSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
+    Rcpp::traits::input_parameter< int >::type n_iter(n_iterSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha_between(alpha_betweenSEXP);
+    Rcpp::traits::input_parameter< double >::type beta_between(beta_betweenSEXP);
+    Rcpp::traits::input_parameter< double >::type dirichlet_alpha(dirichlet_alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
+    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
+    Rcpp::traits::input_parameter< bool >::type resample_graph(resample_graphSEXP);
+    rcpp_result_gen = Rcpp::wrap(test_sbm_allocation_chain(edge_indicators, n_iter, alpha, beta, alpha_between, beta_between, dirichlet_alpha, lambda, seed, resample_graph));
+    return rcpp_result_gen;
+END_RCPP
+}
 // test_sbm_compute_ce
 arma::mat test_sbm_compute_ce(const arma::ivec& cluster_assign, const arma::mat& block_probs, const arma::vec& fprime_density, const arma::vec& fprime, const arma::vec& quad_theta, const arma::vec& quad_f, const Rcpp::Nullable<Rcpp::IntegerVector> is_continuous);
 RcppExport SEXP _bgms_test_sbm_compute_ce(SEXP cluster_assignSEXP, SEXP block_probsSEXP, SEXP fprime_densitySEXP, SEXP fprimeSEXP, SEXP quad_thetaSEXP, SEXP quad_fSEXP, SEXP is_continuousSEXP) {
@@ -1022,6 +1042,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sample_ggm", (DL_FUNC) &_bgms_sample_ggm, 27},
     {"_bgms_sample_mixed_mrf", (DL_FUNC) &_bgms_sample_mixed_mrf, 28},
     {"_bgms_sample_omrf", (DL_FUNC) &_bgms_sample_omrf, 27},
+    {"_bgms_test_sbm_allocation_chain", (DL_FUNC) &_bgms_test_sbm_allocation_chain, 10},
     {"_bgms_test_sbm_compute_ce", (DL_FUNC) &_bgms_test_sbm_compute_ce, 7},
     {"_bgms_test_sbm_miniti_node", (DL_FUNC) &_bgms_test_sbm_miniti_node, 10},
     {"_bgms_test_sbm_miniti_removal", (DL_FUNC) &_bgms_test_sbm_miniti_removal, 9},
